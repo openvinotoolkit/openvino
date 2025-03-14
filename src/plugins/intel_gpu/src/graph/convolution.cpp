@@ -135,7 +135,7 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
         op.set_dilations(dilation);
         op.set_strides(strides);
         op.set_auto_pad(desc->auto_pad);
-        output_shapes = ov::op::shape_infer(&op, input_shapes, pads_begin, pads_end);
+        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     }
 
     return {layout{output_shapes[0], output_type, output_format}};

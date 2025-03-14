@@ -8,17 +8,15 @@
 #include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
-using namespace std;
-
-namespace ov {
-op::internal::Convolution::Convolution(const Output<Node>& data_batch,
+namespace ov::op::internal {
+Convolution::Convolution(const Output<Node>& data_batch,
                                        const Output<Node>& filters,
                                        const Output<Node>& bias,
                                        const Strides& strides,
                                        const CoordinateDiff& pads_begin,
                                        const CoordinateDiff& pads_end,
                                        const Strides& dilations,
-                                       const int64_t& groups,
+                                       const int64_t groups,
                                        const PadType& auto_pad,
                                        const element::Type& output_type)
     : op::util::ConvolutionFwdPropBase(
@@ -34,7 +32,7 @@ op::internal::Convolution::Convolution(const Output<Node>& data_batch,
     constructor_validate_and_infer_types();
 }
 
-bool op::internal::Convolution::visit_attributes(AttributeVisitor& visitor) {
+bool Convolution::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -43,14 +41,13 @@ bool op::internal::Convolution::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::internal::Convolution::validate_and_infer_types() {
+void Convolution::validate_and_infer_types() {
     const auto& data_batch_et = get_input_element_type(0);
     const auto& filters_et = get_input_element_type(1);
 
     element::Type result_et;
     if (inputs().size() == 3) {
-        const auto& bias_et = get_input_element_type(2);
-        result_et = bias_et;
+        result_et = get_input_element_type(2);
     } else {
         element::Type::merge(result_et, data_batch_et, filters_et);
     }
@@ -67,34 +64,34 @@ void op::internal::Convolution::validate_and_infer_types() {
         resize_attributes(num_spatial);
     }
 
-    const auto output_shapes = op::shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
+    const auto output_shapes = op::internal::shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
     set_output_type(0, result_et, output_shapes[0]);
     set_num_spatial(num_spatial, input_shapes);
 }
 
-shared_ptr<Node> op::internal::Convolution::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> Convolution::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return make_shared<internal::Convolution>(new_args.at(0),
-                                              new_args.at(1),
-                                              new_args.at(2),
-                                              m_strides,
-                                              m_pads_begin,
-                                              m_pads_end,
-                                              m_dilations,
-                                              m_groups,
-                                              m_auto_pad,
-                                              m_output_type);
+    return std::make_shared<internal::Convolution>(new_args.at(0),
+                                                   new_args.at(1),
+                                                   new_args.at(2),
+                                                   m_strides,
+                                                   m_pads_begin,
+                                                   m_pads_end,
+                                                   m_dilations,
+                                                   m_groups,
+                                                   m_auto_pad,
+                                                   m_output_type);
 }
 
-bool op::internal::Convolution::has_groups() const {
+bool Convolution::has_groups() const {
     return m_groups > 0;
 }
 
-int64_t op::internal::Convolution::get_groups() const {
+int64_t Convolution::get_groups() const {
     return m_groups;
 }
 
-bool op::internal::Convolution::is_asymmetric() const {
+bool Convolution::is_asymmetric() const {
     return m_asymmetric;
 }
 

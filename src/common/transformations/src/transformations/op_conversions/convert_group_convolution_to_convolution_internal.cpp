@@ -10,8 +10,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/convolution.hpp"
 
-using namespace ov;
-
 ov::pass::ConvertGroupConvolutionToConvolutionInternal::ConvertGroupConvolutionToConvolutionInternal() {
     MATCHER_SCOPE(ConvertGroupConvolutionToConvolutionInternal);
 
