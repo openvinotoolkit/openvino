@@ -6,6 +6,9 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "utils/precision_support.h"
+#if defined(OPENVINO_ARCH_RISCV64)
+#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#endif
 
 #include <string>
 #include <vector>
@@ -274,53 +277,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/Input0_IS=\[1..10.1.1..10\]_.*_Input1_IS=\[1..8.1.1..8\]_.*_Input2_IS=\[1..10.\?.1..10\]_TS=.*_types=0_0_1_trip_count_type=.*_trip_count=(1|5)_exec_cond=1_netType=i8.*)",
         // Issue: 142997
         R"(.*smoke_TestsROIAlign.*)",
-        // Issue: 148527
-        R"(.*Snippets.*MatMulTransposeB.*i8.*i8.*)",
         // Issue: 136881
         R"(.*smoke_CompareWithRefs_4D_BitwiseShift_overflow_i32_cast.*_eltwise_op_type=BitwiseLeft.*_model_type=.*(i16|u16).*)",
-        // Issue: 163083
-        // Issue: 163116
-        R"(.*RandomUniformLayerTestCPU.*OutPrc=bf16.*)",
-        // Issue: 163117
-        R"(.*InterpolateCubic_Layout_Test.*)",
-        // Issue: 163171
-        R"(.*CPUDetectionOutputDynamic3InLargeTensor.*)",
-        // Issue: 163168
-        R"(.*UniqueLayerTestCPU.*)",
-        // Issue: 163175
-        R"(.*GridSampleLayerTestCPU.*dataPrc=i8.*)",
-        R"(.*GridSampleLayerTestCPU.*dataPrc=bf16.*)",
-        // Issue: 163177
-        R"(.*NmsRotatedOpTest.*ScoreThr=0\.4.*)",
-        // Issue: 163222
-        R"(.*bf16.*LSTMSequenceCPUTest.*)",
-        // Issue: 163223
-        R"(.*bf16.*AUGRUSequenceCPUTest.*)",
-        // Issue: 163224
-        R"(.*bf16.*GRUSequenceCPUTest.*)",
-        // Issue: 163227
-        R"(.*QuantizedModelsTests\.MaxPoolFQ.*)",
-        R"(.*QuantizedModelsTests\.MaxPoolQDQ.*)",
-        // Issue: 163268
-        R"(.*QuantizedModelsTests\.ConvolutionQDQ.*)",
-        R"(.*QuantizedModelsTests\.ConvolutionFQ.*)",
-        // Issue: 163230
-        R"(.*ProposalLayerTest.*)",
-        // Issue: 163232
-        R"(.*FC_3D_BF16.*MatMulLayerCPUTest.*)",
-        // Issue: 163242
-        R"(.*bf16.*RNNSequenceCPUTest.*)",
-        // Issue: 163250
-        R"(.*OnnxModelWithExtensionFromDSO.*)",
-        // Issue: 163273
-        // todo: define correct area
-        R"(.*Deconv_2D_Planar_FP16.*DeconvolutionLayerCPUTest.*)",
-        // Issue: 163275
-        R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
-        // Issue: 163348
-        R"(.*CpuReservationTest.*Mutiple_CompiledModel_Reservation.*)",
-        // Issue: 163351
-        R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
@@ -374,6 +332,7 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue: 141705
     retVector.emplace_back(R"(.*smoke_arm_Deconv_2D_Planar_FP16/DeconvolutionLayerCPUTest.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*u8.*)");
+    retVector.emplace_back(R"(.*smoke_ConcatSDPTransposeByChannelTest.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
@@ -451,9 +410,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(nightly_/NmsRotatedOpTest.CompareWithRefs/IS=\(\[\?.\?.5\]_\[\?.\?.\?\]\)_TS=\{\(7.35.5\)_\(7.30.35\)\}_\{\(7.35.5\)_\(7.100.35\)\}_\{\(7.35.5\)_\(7.133.35\)\}__BoxPrc=f16_MaxPrc=i64_ThrPrc=f16_OutPrc=i64_MaxBox=10_IouThr=0.5_ScoreThr=0.4_SortDesc=False_Clockwise=True_ConstIn=\{True,True,True,True,True\}_Device=CPU)");
     // Accuracy problem
     retVector.emplace_back(R"(.*InterpolateCubic_Layout_Test.*)");
-    retVector.emplace_back(R"(.*smoke_EltwiseChain/EltwiseChainTest.CompareWithRefs.*InPRC3=i32_Op0=Div_Op1.*)");
     retVector.emplace_back(R"(.*nightly_(static|dynamic)/UniqueLayerTestCPU.*dataPrc=i8.*)");
-    retVector.emplace_back(R"(.*smoke_CompareWithRefs_static.*eltwise_op_type=Div.*model_type=i32.*)");
     retVector.emplace_back(R"(.*smoke_Interpolate_Basic/InterpolateLayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.4.6.6\)\}_TS=\(1.4.8.8\)_InterpolateMode=cubic_ShapeCalcMode=sizes_CoordinateTransformMode=tf_half_pixel_for_nn_NearestMode=round_prefer_floor_cube_coef=-0.75_Antialias=0_PB=\(0.0.0.0\)_PE=\(0.0.1.1\)_Axes=\(0.1.2.3\)_Scales=\(1.1.1.33333.1.33333\)_netType=f32_trgDev=CPU.*)");
     retVector.emplace_back(R"(.*smoke_MaxPool_ExplicitPad_CeilRounding.*K\(3.3\)_S\(\d.2\).*PE\(0.2\).*)");
     // Incorrect number of input or output memory formats
@@ -482,6 +439,13 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*proposal_params/.*)");
     // Quantized models unsupported
     retVector.emplace_back(R"(.*Quantized.*)");
+
+    if (!ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+        // Integer division is supported only by JIT Executor which is available on platforms with GV instruction sets.
+        // In other cases there might be accuracy problems.
+        retVector.emplace_back(R"(.*smoke_EltwiseChain/EltwiseChainTest.CompareWithRefs.*InPRC3=i32_Op0=Div_Op1.*)");
+        retVector.emplace_back(R"(.*smoke_CompareWithRefs_static.*eltwise_op_type=Div.*model_type=i32.*)");
+    }
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64)

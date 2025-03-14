@@ -122,7 +122,6 @@ jobs:
       runner: 'aks-linux-16-cores-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_arm }}
       python-version: '3.7'
-      scope: ${{ github.event_name == 'workflow_dispatch' && 'nightly' || 'smoke' }}
 
   Overall_Status:
     name: ci/gha_overall_status_debian_10_arm
