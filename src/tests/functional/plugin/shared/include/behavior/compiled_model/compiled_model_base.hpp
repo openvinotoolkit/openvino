@@ -824,11 +824,15 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob) {
         ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "_weights.bin"});
 
     Tensor exported_model;
+    configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
     {
+        auto model = make_model_with_weights(weights);
         std::stringstream export_stream;
         auto export_cfg = configuration;
-        export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
-        auto model = make_model_with_weights(weights);
+        if (target_device == utils::DEVICE_GPU) {
+            export_cfg.emplace(ov::hint::model(model));
+            export_cfg.emplace(ov::weights_path(w_file_path.string()));
+        }
         auto compiled_model_ref = core->compile_model(model, target_device, export_cfg);
         ASSERT_TRUE(compiled_model_ref);
         compiled_model_ref.export_model(export_stream);
@@ -870,6 +874,10 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob_but_no_weights) {
     {
         auto export_cfg = configuration;
         export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        if (target_device == utils::DEVICE_GPU) {
+            export_cfg.emplace(ov::hint::model(model));
+            export_cfg.emplace(ov::weights_path(w_file_path.string()));
+        }
         auto compiled_model_ref = core->compile_model(model, target_device, export_cfg);
         std::stringstream export_stream;
         ASSERT_TRUE(compiled_model_ref);
@@ -885,6 +893,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob_but_no_weights) {
     auto input = utils::create_tensor(element::f32, Shape{1}, std::vector<float>{2.0f});
     // Infer compiled from weightless stream and no weights use original model
     {
+        configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
         configuration.emplace(ov::hint::compiled_blob(exported_model));
         configuration.emplace(ov::weights_path(w_file_path.string()));
         auto import_model = core->compile_model(model, target_device, configuration);
@@ -945,12 +954,20 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
     {
         auto export_cfg = configuration;
         export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        if (target_device == utils::DEVICE_GPU) {
+            export_cfg.emplace(ov::hint::model(model));
+            export_cfg.emplace(ov::weights_path(w_file_path.string()));
+        }
         auto compiled_model = core->compile_model(model, target_device, export_cfg);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
     {
         configuration.emplace(ov::weights_path(w_file_path.string()));
+        if (target_device == utils::DEVICE_GPU) {
+            configuration.emplace(ov::hint::model(model));
+            configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        }
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_TRUE(compiled_model);
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
@@ -979,6 +996,10 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache) {
         auto export_cfg = configuration;
         export_cfg.emplace(ov::weights_path(w_file_path.string()));
         export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        if (target_device == utils::DEVICE_GPU) {
+            export_cfg.emplace(ov::hint::model(model));
+            export_cfg.emplace(ov::weights_path(w_file_path.string()));
+        }
         auto compiled_model = core->compile_model(model, target_device, export_cfg);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
@@ -987,6 +1008,10 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache) {
     }
     {
         configuration.emplace(ov::hint::compiled_blob(ov::read_tensor_data(blob_file_path)));
+        if (target_device == utils::DEVICE_GPU) {
+            configuration.emplace(ov::hint::model(model));
+            configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        }
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
@@ -1013,6 +1038,10 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
     {
         auto export_cfg = configuration;
         export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        if (target_device == utils::DEVICE_GPU) {
+            export_cfg.emplace(ov::hint::model(model));
+            export_cfg.emplace(ov::weights_path(w_file_path.string()));
+        }
         auto compiled_model = core->compile_model(model, target_device, export_cfg);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
@@ -1022,6 +1051,11 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
     {
         model->get_rt_info()["__weights_path"] = w_file_path.string();
         configuration.emplace(ov::hint::compiled_blob(ov::read_tensor_data(blob_file_path)));
+        if (target_device == utils::DEVICE_GPU) {
+            configuration.emplace(ov::hint::model(model));
+            configuration.emplace(ov::weights_path(w_file_path.string()));
+            configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        }
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
@@ -1033,6 +1067,8 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weights_from_model_path) {
     auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
     auto model_file_path = cache_dir / ((utils::generateTestFilePrefix() + "_model.xml"));
+    auto w_file_path = model_file_path;
+    w_file_path.replace_extension(".bin");
     auto blob_file_path = cache_dir / (utils::generateTestFilePrefix() + "_export.blob");
     std::filesystem::create_directories(cache_dir);
 
@@ -1043,6 +1079,10 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
     {
         auto export_cfg = configuration;
         export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        if (target_device == utils::DEVICE_GPU) {
+            export_cfg.emplace(ov::hint::model(model));
+            export_cfg.emplace(ov::weights_path(w_file_path.string()));
+        }
         auto compiled_model = core->compile_model(model, target_device, export_cfg);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
@@ -1051,6 +1091,10 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
     }
     {
         configuration.emplace(ov::hint::compiled_blob(ov::read_tensor_data(blob_file_path)));
+        if (target_device == utils::DEVICE_GPU) {
+            configuration.emplace(ov::hint::model(model));
+            configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        }
         auto compiled_model = core->compile_model(model_file_path, target_device, configuration);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
@@ -1077,6 +1121,10 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_load_from_cache) {
     {
         auto export_cfg = configuration;
         export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        if (target_device == utils::DEVICE_GPU) {
+            export_cfg.emplace(ov::hint::model(model));
+            export_cfg.emplace(ov::weights_path(w_file_path.string()));
+        }
         auto compiled_model = core->compile_model(model, target_device, export_cfg);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
@@ -1084,6 +1132,10 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_load_from_cache) {
     {
         configuration.emplace(ov::weights_path(w_file_path.string()));
         configuration.emplace(ov::hint::compiled_blob(Tensor{}));
+        if (target_device == utils::DEVICE_GPU) {
+            configuration.emplace(ov::hint::model(model));
+            configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        }
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_TRUE(compiled_model);
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
@@ -1115,5 +1167,4 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weigh
 
     std::filesystem::remove_all(cache_dir);
 }
-
 }  // namespace ov::test::behavior
