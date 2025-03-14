@@ -63,11 +63,12 @@ protected:
     }
 };
 
-    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
+    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE, ModelDistributionPolicy };
 
     struct EmptyList {};
 
-    PY_TYPE check_list_element_type(const py::list& list);
+    template <typename T>
+    PY_TYPE check_list_element_type(const T& list);
 
     py::object from_ov_any_no_leaves(const ov::Any& any);
 

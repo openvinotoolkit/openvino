@@ -24,7 +24,8 @@ using Version = ov::pass::Serialize::Version;
 namespace Common {
 namespace utils {
 
-PY_TYPE check_list_element_type(const py::list& list) {
+template <typename T>
+PY_TYPE check_list_element_type(const T& list) {
     PY_TYPE detected_type = PY_TYPE::UNKNOWN;
 
     auto check_type = [&](PY_TYPE type) {
@@ -47,6 +48,8 @@ PY_TYPE check_list_element_type(const py::list& list) {
             check_type(PY_TYPE::BOOL);
         } else if (py::isinstance<ov::PartialShape>(it)) {
             check_type(PY_TYPE::PARTIAL_SHAPE);
+        } else if (py::isinstance<ov::hint::ModelDistributionPolicy>(it)) {
+            check_type(PY_TYPE::ModelDistributionPolicy);
         }
     }
 
@@ -413,7 +416,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     } else if (py::isinstance<py::list>(py_obj)) {
         auto _list = py_obj.cast<py::list>();
 
-        PY_TYPE detected_type = check_list_element_type(_list);
+        PY_TYPE detected_type = check_list_element_type<py::list>(_list);
 
         if (_list.empty())
             return ov::Any(EmptyList());
@@ -450,13 +453,19 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     } else if (py::isinstance<ov::hint::SchedulingCoreType>(py_obj)) {
         return py::cast<ov::hint::SchedulingCoreType>(py_obj);
     } else if (py::isinstance<py::set>(py_obj)) {
-        std::set<ov::hint::ModelDistributionPolicy> model_set;
-        for (auto item = py_obj.begin(); item != py_obj.end(); item++) {
-            if (py::isinstance<ov::hint::ModelDistributionPolicy>(*item)) {
-                model_set.insert(py::cast<ov::hint::ModelDistributionPolicy>(*item));
-            }
+        auto _set = py_obj.cast<py::set>();
+
+        PY_TYPE detected_type = check_list_element_type<py::set>(_set);
+
+        if (_set.empty())
+            return ov::Any(EmptyList());
+
+        switch (detected_type) {
+        case PY_TYPE::ModelDistributionPolicy:
+            return _set.cast<std::set<ov::hint::ModelDistributionPolicy>>();
+        default:
+            OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
-        return model_set;
     } else if (py::isinstance<ov::hint::ExecutionMode>(py_obj)) {
         return py::cast<ov::hint::ExecutionMode>(py_obj);
     } else if (py::isinstance<ov::log::Level>(py_obj)) {
