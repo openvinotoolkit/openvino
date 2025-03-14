@@ -96,7 +96,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                 }
             }
             size_t group_num = _head_size / _group_size;
-            m_update_shape_func(precision, bychannel, group_num, _head_size, _block_size);
+            m_update_shape_func(precision, bychannel, group_size ? group_num : group_size, _head_size, _block_size);
 
             auto block_shape = ov::PartialShape::dynamic(4);
             block_shape[orders[0]] = -1;
