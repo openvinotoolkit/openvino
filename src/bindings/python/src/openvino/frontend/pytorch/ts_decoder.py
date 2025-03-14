@@ -635,6 +635,11 @@ class TorchScriptPythonDecoder(Decoder):
         if op_extension := self.get_op_extension():
             trampoline, target_extension = op_extension
             assert isinstance(target_extension, InlineConversionExtension)
-            result = trampoline.convert(node_context)
-            return result
+            try:
+                return trampoline.convert(node_context)
+            except Exception as e:
+                print('[ ERROR ] Exception happened during calling of custom converter for PyTorch operation')
+                print('          PyTorch Script code:', self.graph_element)
+                print('          Exception:', e)
+                raise
         assert False, "PyTorch FrontEnd Internal Error: `converter` method of TorchScriptPythonDecoder is called for node that has no custom converter"
