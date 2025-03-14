@@ -28,9 +28,7 @@ void jit_snippets_call_args::init_external_ptrs(const size_t size) {
     }
     OPENVINO_ASSERT(size <= PTRDIFF_MAX, "Requested allocation size { ", size, " } exceeds PTRDIFF_MAX.");
     external_ptrs = new const void*[static_cast<ptrdiff_t>(size)];
-    if (std::getenv("DEBUG_PRINT")) {
-        std::cout << "\t Array pointer: " << external_ptrs << std::endl;
-    }
+    std::cout << "init_external_ptrs: " << external_ptrs << std::endl;
 }
 
 jit_snippets_call_args::loop_args_t::loop_args_t(int64_t work_amount,

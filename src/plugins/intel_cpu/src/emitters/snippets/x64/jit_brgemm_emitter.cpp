@@ -246,7 +246,8 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
     if (m_binary_postops_offset == -1) {
         h->mov(h->qword[h->rsp + GET_OFF_CALL_ARGS(post_ops_binary_arg_vec)], reinterpret_cast<uintptr_t>(nullptr));
     } else {
-        h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(external_ptrs) + static_cast<size_t>(m_binary_postops_offset)]);
+        h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(external_ptrs)]);
+        h->add(aux_reg, static_cast<size_t>(m_binary_postops_offset) * sizeof(void**));
         h->mov(h->qword[h->rsp + GET_OFF_CALL_ARGS(post_ops_binary_arg_vec)], aux_reg);
     }
     #undef GET_OFF_CALL_ARGS

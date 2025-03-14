@@ -102,7 +102,8 @@ protected:
 class SubgraphStaticBaseExecutor {
 public:
     SubgraphStaticBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config)
-        : m_external_ptrs_idces(snippet_config->external_ptrs_idces) {};
+        : m_external_ptrs_idces(snippet_config->brgemm_external_ptrs_idces) {
+    };
     virtual ~SubgraphStaticBaseExecutor() = default;
 
 protected:
@@ -122,8 +123,10 @@ protected:
             const auto ptr = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
             if (m_external_ptrs_idces.count(i)) {
                 call_args.external_ptrs[external_ptrs_idx++] = ptr;
+                //std::cout << "\t init_call_extra_args: " << (external_ptrs_idx - 1) << " " << (void*)(ptr) << std::endl;
             } else {
                 call_args.src_ptrs[src_ptrs_idx++] = ptr;
+                //std::cout << "\t init_call_src_args: " << (src_ptrs_idx - 1) << " " << (void*)(ptr) << std::endl;
             }
         }
         if (std::getenv("DEBUG_PRINT")) {
@@ -144,7 +147,7 @@ public:
         : m_buffer_offsets(snippet_config->buffer_cluster_offsets),
           m_data_offsets(snippet_config->io_data_offsets),
           m_loop_args(snippet_config->loop_args),
-          m_external_ptrs_idces(snippet_config->external_ptrs_idces) {
+          m_external_ptrs_idces(snippet_config->brgemm_external_ptrs_idces) {
         m_reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     }
     virtual ~SubgraphDynamicSpecializedBaseExecutor() = default;
