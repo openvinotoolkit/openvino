@@ -29,6 +29,7 @@ void intel_npu::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<WEIGHTS_PATH>();
     desc.add<BYPASS_UMD_CACHING>();
     desc.add<RUN_INFERENCES_SEQUENTIALLY>();
+    desc.add<DISABLE_VERSION_CHECK>();
 }
 
 // Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT

@@ -183,6 +183,7 @@
 #include "nodes/mha.h"
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
+#include "nodes/paged_attn.h"
 #include "nodes/qkv_proj.h"
 #include "nodes/rms_norm.h"
 #include "nodes/rnn.h"
@@ -342,7 +343,7 @@ void Transformations::UpToLpt() {
     }
 }
 
-void Transformations::CpuSpecificOpSet(void) {
+void Transformations::CpuSpecificOpSet() {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Specific);
 
     ConvertToCPUSpecificOpset(model, config);
@@ -358,12 +359,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
     const bool useLpt = !defaultPrecisions.empty();
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::CompressedGatherTransformation);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_ARM(decompression_handling_manager, ov::pass::TransposeMatMul);
-    const auto& decompression_precisions = ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes();
+    const auto& decompression_precisions =
+        ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(true);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
                              ov::pass::MarkDequantization,
                              decompression_precisions,
@@ -465,12 +467,28 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     cacheConfig.valueCacheGroupSize = config.valueCacheGroupSize;
     cacheConfig.keyCacheBlockSize = 32;
     cacheConfig.valueCacheBlockSize = 32;
-    // TODO enable quant_by_channel when available.
-    cacheConfig.keyCacheQuantBychannel = false;
+
+    bool byChannel = node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode);
+    cacheConfig.keyCacheQuantBychannel = byChannel;
     cacheConfig.valueCacheQuantBychannel = false;
     cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
     cacheConfig.valueCacheDimOrder = {0, 1, 2, 3};
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig);
+    auto update_paged_attention_shape_func = [](const ov::element::Type& precision,
+                                                const bool bychannel,
+                                                const size_t group_num,
+                                                int64_t& head_size,
+                                                int64_t& block_size) {
+        if (precision == ov::element::u8) {
+            if (bychannel) {
+                block_size += 2 * sizeof(float);
+            } else {
+                head_size += sizeof(float) * 2 * group_num;
+            }
+        } else if (precision == ov::element::u4) {
+            head_size += sizeof(float) * 2 * group_num * 2;
+        }
+    };
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
@@ -1044,7 +1062,7 @@ void Transformations::PostLpt() {
     postLPTPassManager.run_passes(model);
 }
 
-void Transformations::MainSnippets(void) {
+void Transformations::MainSnippets() {
 // Disable MainSnippets for int8 models on arm platforms due to performance issues
 // Ticket: 163408
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
@@ -1197,7 +1215,7 @@ void Transformations::MainSnippets(void) {
             return false;
         }
         const auto parallel_work_amount =
-            std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<ov::Dimension>());
+            std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<>());
         // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
@@ -1353,38 +1371,34 @@ void Transformations::MainSnippets(void) {
         },
         snippets::pass::TokenizeSnippets);
 
-    auto mm_supports_transpose_b = [this, ignoreCallback](const std::shared_ptr<const ov::Node>& n) {
+    auto mm_supports_transpose_b = [this](const std::shared_ptr<const ov::Node>& n) {
         MAYBE_UNUSED(config.inferencePrecision);
-        if (!ignoreCallback) {
-            return false;
-        }
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
         // TPP doesn't support dynamic shapes -> there will be BrgemmCPU node
-        if (n->is_dynamic())
-            return true;
-        std::vector<std::vector<size_t>> layouts(3);
-        const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
-        OPENVINO_ASSERT(matmul, "ExplicitTransposeMatMulInputs callback must be called for matmul node");
-        if (matmul->get_transpose_b()) {
-            std::vector<size_t> transposed_layout(n->get_input_partial_shape(1).size());
-            std::iota(transposed_layout.begin(), transposed_layout.end(), 0);
-            std::swap(*transposed_layout.rbegin(), *(transposed_layout.rbegin() + 1));
-            layouts[1] = std::move(transposed_layout);
+        if (!n->is_dynamic()) {
+            std::vector<std::vector<size_t>> layouts(3);
+            const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
+            OPENVINO_ASSERT(matmul, "ExplicitTransposeMatMulInputs callback must be called for matmul node");
+            if (matmul->get_transpose_b()) {
+                std::vector<size_t> transposed_layout(n->get_input_partial_shape(1).size());
+                std::iota(transposed_layout.begin(), transposed_layout.end(), 0);
+                std::swap(*transposed_layout.rbegin(), *(transposed_layout.rbegin() + 1));
+                layouts[1] = std::move(transposed_layout);
+            }
+            ov::element::TypeVector precisions;
+            auto push_precision = [&](const ov::element::Type& precision) {
+                if (config.inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
+                    precisions.push_back(ov::element::bf16);
+                else
+                    precisions.push_back(precision);
+            };
+            push_precision(n->get_input_element_type(0));
+            push_precision(n->get_input_element_type(1));
+            push_precision(n->get_output_element_type(0));
+            return !ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP::is_supported_brgemm_configuration(layouts, precisions);
         }
-        ov::element::TypeVector precisions;
-        auto push_precision = [&](const ov::element::Type& precision) {
-            if (config.inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
-                precisions.push_back(ov::element::bf16);
-            else
-                precisions.push_back(precision);
-        };
-        push_precision(n->get_input_element_type(0));
-        push_precision(n->get_input_element_type(1));
-        push_precision(n->get_output_element_type(0));
-        if (ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP::is_supported_brgemm_configuration(layouts, precisions))
-            return false;
 #endif
         return true;
     };
@@ -1399,7 +1413,7 @@ void Transformations::MainSnippets(void) {
     snippetsManager.run_passes(model);
 }
 
-void Transformations::PostSnippets(void) {
+void Transformations::PostSnippets() {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
@@ -1415,7 +1429,7 @@ void Transformations::PostSnippets(void) {
     postSnippetsManager.run_passes(model);
 }
 
-void Transformations::Snippets(void) {
+void Transformations::Snippets() {
     const bool useSnippets = config.snippetsMode != Config::SnippetsMode::Disable &&
                              CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
     if (!useSnippets) {

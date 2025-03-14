@@ -5,10 +5,9 @@
 #pragma once
 
 #include "node.h"
+#include "rdft.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class ISTFT : public Node {
 public:
@@ -19,6 +18,7 @@ public:
     bool created() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     bool needPrepareParams() const override;
+    void createPrimitive() override;
 
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
@@ -34,6 +34,9 @@ private:
     bool m_center = false;
     bool m_normalized = false;
 
+    // RDFT executor
+    std::shared_ptr<RDFTExecutor> rdft_executor = nullptr;
+
     bool m_is_frame_size_const = false;
     bool m_is_frame_step_const = false;
     bool m_is_signal_length_const = false;
@@ -47,6 +50,4 @@ private:
     static constexpr size_t SIGNAL_LENGTH_IDX = 4lu;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

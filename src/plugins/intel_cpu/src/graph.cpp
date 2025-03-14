@@ -664,7 +664,7 @@ void Graph::ResolveEdgeConflicts() {
 void Graph::ResolveComplexInplaceConflicts() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveComplexInplaceConflicts");
 
-    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
+    auto numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
     std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
@@ -960,7 +960,7 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
         // create an edge cluster when the base edge is visited for the first time
         // so the base edge is always the first edge in the cluster
         if (edge == nullptr) {
-            edgeClusters.emplace_back(EdgeCluster{});
+            edgeClusters.emplace_back();
             return edgeClusters.size() - 1;
         }
 
@@ -1242,10 +1242,9 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
         bool isScalarOutput = false;
         if (ext_blob->get_shape().empty() && ext_blob->get_size() == 1) {
             const auto& actualDims = expected_desc_ptr->getShape().getStaticDims();
-            isScalarOutput = !actualDims.empty() && std::accumulate(actualDims.begin(),
-                                                                    actualDims.end(),
-                                                                    static_cast<size_t>(1),
-                                                                    std::multiplies<size_t>()) == 1;
+            isScalarOutput =
+                !actualDims.empty() &&
+                std::accumulate(actualDims.begin(), actualDims.end(), static_cast<size_t>(1), std::multiplies<>()) == 1;
         }
 
         auto outDims = intr_blob.getStaticDims();
@@ -1589,11 +1588,11 @@ public:
 /* group all the profiling macros into a single one
  * to avoid cluttering a core logic */
 #define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
-    VERBOSE(node, config.debugCaps.verbose);                    \
-    PERF(node, config.collectPerfCounters);                     \
-    DUMP(node, config.debugCaps, infer_count);                  \
-    OV_ITT_SCOPED_TASK(ittScope, node->profiling.execute);      \
-    DEBUG_LOG(*node);
+    VERBOSE(node, (config).debugCaps.verbose);                  \
+    PERF(node, (config).collectPerfCounters);                   \
+    DUMP(node, (config).debugCaps, infer_count);                \
+    OV_ITT_SCOPED_TASK(ittScope, (node)->profiling.execute);    \
+    DEBUG_LOG(*(node));
 
 inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
     if (request) {
