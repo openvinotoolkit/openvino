@@ -38,6 +38,9 @@ public:
     static std::vector<layout> calc_output_layouts(ISTFT_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(ISTFT_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(ISTFT_node const& node);
+    bool need_reset_output_memory() const override {
+        return true;
+    }
 };
 
 using ISTFT_inst = typed_primitive_inst<ISTFT>;

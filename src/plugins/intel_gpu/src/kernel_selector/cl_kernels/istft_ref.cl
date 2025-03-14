@@ -64,11 +64,6 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     //        INPUT0_SIZE_Y,
     //        INPUT0_SIZE_X);
 
-    // TEMP: 'Memset' at the begining
-    const int frameOffset = frame_id * frame_step;
-    const int offset = OUTPUT_GET_INDEX(0, 0, batch, window_id + frameOffset);
-    output[offset]=0;
-
     const float windowVal = (float)window[window_id];
 
     // idft_power = 2*PI*(n/N) from idft def.
@@ -101,23 +96,23 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
 
     const float finalIRDFTVal = real(res) / frame_size;
 
+    const int frameIdxStart = frame_id * frame_step;
+    const int offset = OUTPUT_GET_INDEX(0, 0, batch, window_id + frameIdxStart);
+
     // printf("window_id=%i, real(res)=%f\n", window_id, real(res)/frame_size);
 
-    const int divisor = calcDivisor(window_id + frameOffset, frame_size, frame_step, OUTPUT_SIZE_X);
+    const float divisor = (float)calcDivisor(window_id + frameIdxStart, frame_size, frame_step, OUTPUT_SIZE_X);
     // TODO: handle case when windowVal == 0.0
-    const float finalVAl = (finalIRDFTVal / windowVal)/((float)divisor);
+    const float finalVAl = finalIRDFTVal / (windowVal*divisor);
 
     // TODO: Handle sumation from different frames...(atomics?)
     const OUTPUT_TYPE finalVal = (OUTPUT_TYPE)(finalVAl);
-
-    // if( offset == 2 )
-        // printf("idx: %i, finalVal: %f, divisior: %i\n", offset, finalVal, divisor);
 
     // *(output+offset)=finalVal;
 
     const float prev = atomicadd(output+offset, finalVal);
 
-    //printf("idx: %i, finalVal: %f, divisior: %i, prev: %f\n", offset, finalVal, divisor, prev);
+    // printf("offset: %i, finalIRDFTVal: %f, finalVal: %f, divisior: %f, prev: %f, windowVal: %f\n", offset, finalIRDFTVal, finalVal, divisor, prev, windowVal);
 
     //output[OUTPUT_GET_INDEX(0, 0, batch, window_id + frameOffset)] = finalVal;
 }
