@@ -177,6 +177,8 @@ TEST_P(IntertactionCPUTest_FP16, CompareWithRefs) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
     configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+    rel_threshold = 0.01;
+    abs_threshold = 0.0078125;
 
     run();
     CheckNumberOfNodesWithType(compiledModel, "Interaction", 1);

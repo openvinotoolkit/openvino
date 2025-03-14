@@ -656,9 +656,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(
             R"(smoke_GroupConv_.*D_Gemm_BF16/GroupConvolutionLayerCPUTest.CompareWithRefs.*primitive=jit_gemm.*)");
         retVector.emplace_back(R"(smoke_.*MatMulLayerCPUTest.*INFERENCE_PRECISION_HINT=bf16.*_primitive=jit_gemm.*)");
-        // Issue: 163147
-        retVector.emplace_back(
-            R"(smoke_CompareWithRefs_4D.*[Ff]using.*EltwiseLayerCPUTest\.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*enforceSnippets=1.*)");
     }
 
     return retVector;
