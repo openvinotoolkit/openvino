@@ -24,8 +24,8 @@
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
-#include "transformations/transformation_pipeline.h"
-#include "transformations/utils/utils.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/memory_stats_dump.hpp"
 #include "utils/serialize.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
@@ -43,6 +43,14 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
     }
     std::mutex _mutex;
 };
+
+CompiledModel::~CompiledModel() {
+    if (m_has_sub_compiled_models) {
+        m_sub_compiled_models.clear();
+        m_sub_memory_manager->_memorys_table.clear();
+    }
+    CPU_DEBUG_CAP_ENABLE(dumpMemoryStats(m_cfg.debugCaps, m_name, m_graphs, m_socketWeights));
+}
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,

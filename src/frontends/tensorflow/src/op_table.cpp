@@ -144,6 +144,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Cos", CreatorFunction(translate_unary_op<v0::Cos>)},
         {"Cosh", CreatorFunction(translate_unary_op<v0::Cosh>)},
         {"Erf", CreatorFunction(translate_unary_op<v0::Erf>)},
+        {"Erfc", CreatorFunction(translate_erfc_op)},
         {"Exp", CreatorFunction(translate_unary_op<v0::Exp>)},
         {"Floor", CreatorFunction(translate_unary_op<v0::Floor>)},
         {"Invert", CreatorFunction(translate_unary_op<v13::BitwiseNot>)},
