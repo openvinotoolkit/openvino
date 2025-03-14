@@ -67,7 +67,7 @@ public:
     virtual bool create_kernel() {
         generate();
         jit_ker_ = getCode();
-        return jit_ker_;
+        return jit_ker_ != nullptr;
     }
 
     void preamble();

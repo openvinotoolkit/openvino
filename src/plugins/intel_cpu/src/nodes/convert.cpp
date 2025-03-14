@@ -77,7 +77,7 @@ void Convert::getSupportedDescriptors() {
 }
 
 bool Convert::isSupportedDesc(const MemoryDesc& desc) {
-    bool isSupported = desc.getType() & MemoryDescType::Blocked;
+    bool isSupported = (desc.getType() & MemoryDescType::Blocked) != 0;
     if (desc.getType() == MemoryDescType::DnnlBlocked) {
         isSupported &= desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData();
     }

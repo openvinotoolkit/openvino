@@ -30,14 +30,14 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
         return false;
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_PORTS)) {  // filter by ports configured
+    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_PORTS) != 0u) {  // filter by ports configured
         if (dumpFilters.at(DebugCapsConfig::FILTER::BY_PORTS) != "ALL" &&
             portsKind != dumpFilters.at(DebugCapsConfig::FILTER::BY_PORTS)) {
             return false;
         }
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_EXEC_ID)) {  // filter by exec id configured
+    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_EXEC_ID) != 0u) {  // filter by exec id configured
         std::stringstream ss(dumpFilters.at(DebugCapsConfig::FILTER::BY_EXEC_ID));
         int id;
         bool matched = false;
@@ -54,7 +54,7 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
         }
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_TYPE)) {  // filter by type configured
+    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_TYPE) != 0u) {  // filter by type configured
         std::stringstream ss(dumpFilters.at(DebugCapsConfig::FILTER::BY_TYPE));
         std::string type;
         bool matched = false;
@@ -71,7 +71,7 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
         }
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_NAME)) {  // filter by name configured
+    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_NAME) != 0u) {  // filter by name configured
         if (dumpFilters.at(DebugCapsConfig::FILTER::BY_NAME) !=
                 "*" &&  // to have 'single char' option for matching all the names
             !std::regex_match(node->getName(),

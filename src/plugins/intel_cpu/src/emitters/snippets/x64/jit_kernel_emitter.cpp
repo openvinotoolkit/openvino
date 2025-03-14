@@ -202,7 +202,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
         h->mov(data_ptr_regs[num_params + i], h->ptr[reg_runtime_params + GET_OFF(buffer_scratchpad_ptr)]);
     }
     size_t i = 0;
-    for (; i < num_params - last_iter_explicitly; i++) {
+    for (; i < num_params - static_cast<size_t>(last_iter_explicitly); i++) {
         if (i < num_inputs) {
             h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
         } else {
