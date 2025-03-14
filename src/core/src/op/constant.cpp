@@ -659,7 +659,7 @@ bool Constant::has_evaluate() const {
 
 bool Constant::evaluate_lower(TensorVector& outputs) const {
     if (!outputs.empty() && outputs[0].get_element_type() != m_element_type)
-        return evaluate(outputs, {}); // for TypeRelaxed<Constant>
+        return evaluate(outputs, {});  // for TypeRelaxed<Constant>
     outputs.resize(1);
     outputs[0] = get_tensor_view();
     return get_data_ptr() != nullptr;
@@ -667,7 +667,7 @@ bool Constant::evaluate_lower(TensorVector& outputs) const {
 
 bool Constant::evaluate_upper(TensorVector& outputs) const {
     if (!outputs.empty() && outputs[0].get_element_type() != m_element_type)
-        return evaluate(outputs, {}); // for TypeRelaxed<Constant>
+        return evaluate(outputs, {});  // for TypeRelaxed<Constant>
     outputs.resize(1);
     outputs[0] = get_tensor_view();
     return get_data_ptr() != nullptr;
