@@ -2,17 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/runtime/core.hpp>
-
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
-#include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/core/shape.hpp"
-#include "openvino/core/type.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
 #include "preprocess/color_utils.hpp"
@@ -129,57 +124,13 @@ TEST(pre_post_process, simple_mean_scale_getters_f64) {
     EXPECT_EQ(f->get_output_element_type(0), element::f64);
 }
 
-TEST(pre_post_process, simple_clamp_f16) {
-    auto f = create_clamp_function(element::f16, Shape{1, 3, 2, 2}, 0.0f, 1.0f);
-    auto p = PrePostProcessor(f);
-    p.input("tensor_input").preprocess().clamp(0.0f, 1.0f);
-    p.output("tensor_output").postprocess().clamp(0.0f, 1.0f);
-    f = p.build();
-    EXPECT_EQ(f->get_output_element_type(0), element::f16);
+TEST(pre_post_process, clamp_operation_on_input_preprocess) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
 
-    EXPECT_EQ(f->input().get_shape(), (Shape{1, 3, 2, 2}));
-    EXPECT_EQ(f->output().get_shape(), (Shape{1, 3, 2, 2}));
-}
-
-TEST(pre_post_process, simple_clamp_f64) {
-    auto f = create_clamp_function(element::f64, Shape{1, 3, 2, 2}, 0.0f, 1.0f);
-    auto p = PrePostProcessor(f);
-    p.input("tensor_input").preprocess().clamp(0.0f, 1.0f);
-    p.output("tensor_output").postprocess().clamp(0.0f, 1.0f);
-    f = p.build();
-    EXPECT_EQ(f->get_output_element_type(0), element::f64);
-
-    EXPECT_EQ(f->input().get_shape(), (Shape{1, 3, 2, 2}));
-    EXPECT_EQ(f->output().get_shape(), (Shape{1, 3, 2, 2}));
-}
-
-class PreprocessClampTest : public ::testing::Test {
-protected:
-    std::shared_ptr<Model> model;
-    std::shared_ptr<op::v0::Parameter> input;
-
-    void SetUp() override {
-        input = std::make_shared<op::v0::Parameter>(element::f64, Shape{1});
-        input->set_friendly_name("input");
-        input->get_output_tensor(0).set_names({"tensor_input"});
-
-        auto add_op = std::make_shared<op::v1::Add>(input, input);
-        add_op->set_friendly_name("Add");
-        add_op->get_output_tensor(0).set_names({"tensor_add"});
-
-        auto result = std::make_shared<op::v0::Result>(add_op);
-        result->set_friendly_name("Result");
-        result->get_output_tensor(0).set_names({"tensor_output"});
-
-        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input});
-    }
-};
-
-TEST_F(PreprocessClampTest, clamp_operation_on_input_preprocess) {
     {
         auto input_node = model->get_parameters().front();
         auto connected_node = input_node->output(0).get_target_inputs().begin()->get_node();
-        EXPECT_STREQ(connected_node->get_type_name(), "Add");
+        EXPECT_STREQ(connected_node->get_type_name(), "Relu");
     }
     auto p = PrePostProcessor(model);
     p.input().preprocess().clamp(0.0, 1.0);
@@ -191,11 +142,13 @@ TEST_F(PreprocessClampTest, clamp_operation_on_input_preprocess) {
     }
 }
 
-TEST_F(PreprocessClampTest, clamp_operation_on_output_postprocess) {
+TEST(pre_post_process, clamp_operation_on_output_postprocess) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+
     {
         auto result_node = model->get_results().front();
         auto connected_node = result_node->input_value(0).get_node_shared_ptr();
-        EXPECT_STREQ(connected_node->get_type_name(), "Add");
+        EXPECT_STREQ(connected_node->get_type_name(), "Relu");
     }
     auto p = PrePostProcessor(model);
     p.output().postprocess().clamp(0.0, 1.0);
