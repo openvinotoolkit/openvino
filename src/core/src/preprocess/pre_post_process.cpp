@@ -9,7 +9,6 @@
 #include "itt.hpp"
 #include "layout_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/true.hpp"
