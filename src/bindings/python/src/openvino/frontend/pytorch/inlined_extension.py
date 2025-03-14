@@ -23,15 +23,22 @@ def make_custom_op_class(func, input_signature, output_signature):
             # TODO: What about attributes?
             super().__init__(self, args)
             self.attrs = {"id": global_counter_id}  # `id` attribute distinguishes different instances of the same class, we need it because different instances may have different behaviour
-            # print(f'Made custom op class with id = {self.attrs["id"]}')
-            # print(f"Input signature: {input_signature}")
-            # print(f"Output signature: {output_signature}")
+            #print('output_signature from ctro:', output_signature)
+            if output_signature == ():
+                # The operation doesn't have outputs, so we need to take extra care to avoid eliminating the op from the graph
+                #print('===================== MARKING AS SINK ========================')
+                self.get_rt_info()['__sink__'] = True
+            #print(f'Made custom op class with id = {self.attrs["id"]}')
+            #print(f"Input signature: {input_signature}")
+            #print(f"Output signature: {output_signature}")
             self.constructor_validate_and_infer_types()
 
         def evaluate(self, outputs, inputs):
             # print("called evaluate")
             inputs_torch = (torch.from_numpy(input.data) for input in inputs)   # TODO: Check memory sharing
             result = func(*inputs_torch)
+            if result is None:
+                result = ()
             if not isinstance(result, tuple):
                 result = (result,)
             for i, tensor in enumerate(result):
@@ -47,8 +54,13 @@ def make_custom_op_class(func, input_signature, output_signature):
 
         def validate_and_infer_types(self):
             #TODO: Validate input signature
-            for i, output in enumerate(output_signature):
-                self.set_output_type(i, output[0], output[1])
+            if output_signature == ():
+                # Even when the original wrapped function doesn't give any return value, we need to set some output type to avoid eliminating the op from the graph
+                # Data type and shape doesn't matter, so we set default empty tensor of type u8
+                self.set_output_type(0, ov.Type.u8, ov.PartialShape([0]))
+            else:
+                for i, output in enumerate(output_signature):
+                    self.set_output_type(i, output[0], output[1])
     global_counter_id += 1
     return InlinedCustomOp
 
@@ -71,6 +83,7 @@ def make_input_signature(args, kwargs):
 def make_output_signature(args):
     if args is None:
         # TODO: This case is not really supported by PT FE -- because we don't support ops that do not have outputs, they will be lost
+        #print('=================== None PROCESSING ======================')
         args = ()
     if not isinstance(args, tuple):
         args = (args,)
@@ -108,6 +121,7 @@ def make_trampoline_class(func, op, op_attrs):
             result = func_target(*call_args, **call_kwargs)
             if not op:
                 output_signature = make_output_signature(result)
+                #print('about to make custom op class with output signature', output_signature)
                 __class__.op = make_custom_op_class(func_target, input_signature, output_signature)
             else:
                 __class__.op = op
@@ -129,7 +143,9 @@ def inlined_extension(*args, **op_attrs):
             # It is required because `func` is fused inside Trampoline class and can have different behaviour from call to call in PyTorch world even if
             # the same op is specified to wrap multiple different functions.
             trampoline = make_trampoline_class(func, op, op_attrs)
-            return trampoline.apply(*args, **kwargs)
+            result = trampoline.apply(*args, **kwargs)
+            #print('just called trampoline with result:', result)
+            return result
         return trampoline
 
     if len(args) == 1 and callable(args[0]) and not (isinstance(args[0], type) and issubclass(args[0], ov.Op)):
