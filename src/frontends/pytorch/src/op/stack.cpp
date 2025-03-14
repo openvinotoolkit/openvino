@@ -5,12 +5,12 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/convert_promote_types.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
@@ -22,7 +22,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_stack_common(const NodeContext& context,
-                                    const std::deque<ov::Output<ov::Node>>& list_elems, 
+                                    const std::deque<ov::Output<ov::Node>>& list_elems,
                                     int64_t axis) {
     auto first_node = list_elems.front().get_node_shared_ptr();
     if (list_elems.size() == 1 &&
