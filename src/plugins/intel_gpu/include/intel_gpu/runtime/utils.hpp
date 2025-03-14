@@ -256,36 +256,24 @@ static size_t hash_range(size_t seed, It first, It last) {
 }  // namespace cldnn
 
 namespace ov::intel_gpu {
-
 namespace detail {
-template <typename T, typename U, size_t... I>
-[[nodiscard]] constexpr std::array<std::remove_cv_t<T>, sizeof...(I)> make_array_impl(const U (&values)[sizeof...(I)], std::index_sequence<I...>) noexcept {
-    return {{static_cast<T>(values[I])...}};
+template <bool do_move, typename T, typename U, std::size_t N, std::size_t... I>
+[[nodiscard]] constexpr std::array<std::remove_cv_t<T>, N> to_array_impl(U (&values)[N], std::index_sequence<I...> /*unused*/) noexcept {
+    if constexpr (do_move) {
+        return {{static_cast<T>(std::move(values[I]))...}};
+    }
+    return {{ static_cast<T>(values[I])...}};
 }
-}
+}  // namespace detail
 
-template <typename T, typename... Ts>
-[[nodiscard]] static constexpr bool same_types() noexcept {
-    return std::conjunction_v<std::is_same<T, Ts>...>;
-}
-
-template <typename... T, std::enable_if_t<same_types<T...>, bool> = true>
-[[nodiscard]] constexpr auto make_array(const T&&... values) noexcept {
-    using array_type = typename std::common_type_t<T...>;
-    static_assert(sizeof...(T) > 0, "[GPU] An array must not be empty");
-    return std::array<array_type, sizeof...(T)>{values...};
-}
-
-template <typename T, typename... Ts, std::enable_if_t<same_types<Ts...>, bool> = true>
-[[nodiscard]] constexpr auto make_array_t(const Ts&&... values) noexcept {
-    static_assert(sizeof...(Ts) > 0, "[GPU] An array must not be empty");
-    return std::array<T, sizeof...(Ts)>{static_cast<T>(values)...};
-}
-
-template <typename T, typename U, std::size_t N>
-[[nodiscard]] constexpr std::array<std::remove_cv_t<T>, N> make_array_t(const U (&values)[N]) noexcept {
+template <typename T, typename U, std::size_t N, std::enable_if_t<std::is_convertible_v<T, U>, bool> = true>
+[[nodiscard]] constexpr std::array<std::remove_cv_t<T>, N> to_array(U (&values)[N]) noexcept {
     static_assert(N > 0, "[GPU] An array must not be empty");
-    return detail::make_array_impl<T>(values, std::make_index_sequence<N>());
+    return detail::to_array_impl<false, T>(values, std::make_index_sequence<N>());
 }
-
+template <typename T, typename U, std::size_t N, std::enable_if_t<std::is_convertible_v<T, U>, bool> = true>
+[[nodiscard]] constexpr std::array<std::remove_cv_t<T>, N> to_array(U (&&values)[N]) noexcept {
+    static_assert(N > 0, "[GPU] An array must not be empty");
+    return detail::to_array_impl<true, T>(values, std::make_index_sequence<N>());
+}
 }  // namespace ov::intel_gpu
