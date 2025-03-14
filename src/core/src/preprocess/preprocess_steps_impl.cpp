@@ -111,7 +111,7 @@ void PreStepsList::add_clamp(double min_value, double max_value) {
                             "RGB/BGR color format using 'PreProcessSteps::convert_color'");
 
             const auto& node = nodes.front();
-            auto element_type = node.get_element_type();
+            const auto& element_type = node.get_element_type();
             OPENVINO_ASSERT(element_type.is_real(),
                             "Clamp preprocessing can be applied to 'double' inputs. Consider using "
                             "'convert_element_type' before clamping. Current type is: ",
