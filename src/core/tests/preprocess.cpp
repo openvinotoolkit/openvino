@@ -27,24 +27,6 @@ static std::shared_ptr<Model> create_simple_function(element::Type type, const P
     res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
-static std::shared_ptr<Model> create_clamp_function(element::Type type,
-                                                    const PartialShape& shape,
-                                                    float min_value,
-                                                    float max_value) {
-    auto data = std::make_shared<op::v0::Parameter>(type, shape);
-    data->set_friendly_name("input");
-    data->get_output_tensor(0).set_names({"tensor_input"});
-
-    auto clamp_op = std::make_shared<op::v0::Clamp>(data, min_value, max_value);
-    clamp_op->set_friendly_name("Clamp");
-    clamp_op->get_output_tensor(0).set_names({"tensor_clamp"});
-
-    auto result = std::make_shared<op::v0::Result>(clamp_op);
-    result->set_friendly_name("Result");
-    result->get_output_tensor(0).set_names({"tensor_output"});
-
-    return std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
-}
 
 static std::shared_ptr<Model> create_trivial(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
