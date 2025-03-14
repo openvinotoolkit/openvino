@@ -45,4 +45,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeights_basic,
                                             ::testing::ValuesIn(per_tensor_scale)),
                          GatherWeightsDecompression::get_test_case_name);
 
+// fp16/bf16 constant + convert(16bit to f32) + gather case
+TEST_P(GatherWeightsDecompressionWithoutScale, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    check_results();
+}
+const std::vector<ov::element::Type> weights_precisions_wo_scale = {ov::element::f16, ov::element::bf16};
+const std::vector<ov::element::Type> output_precisions_wo_scale = {ov::element::f32, ov::element::f16, ov::element::bf16};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeightsWithoutScale_basic,
+                         GatherWeightsDecompressionWithoutScale,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::ValuesIn(input_shapes_basic),
+                                            ::testing::ValuesIn(weights_precisions_wo_scale),
+                                            ::testing::ValuesIn(output_precisions_wo_scale)),
+                         GatherWeightsDecompressionWithoutScale::get_test_case_name);
+
 }  // namespace
