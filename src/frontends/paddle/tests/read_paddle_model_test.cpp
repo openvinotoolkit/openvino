@@ -12,12 +12,14 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "frontend/shared/include/utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/serialize.hpp"
 
 TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto model =
         FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu.pdmodel");
     auto param = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
@@ -112,6 +114,7 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(Paddle_Reader_Tests, ImportBasicModelToCoreWstring) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::string win_dir_path{TEST_PADDLE_MODELS_DIRNAME "relu/relu.pdmodel"};
     win_dir_path = FrontEndTestUtils::make_model_path(win_dir_path);
     std::wstring wmodel =

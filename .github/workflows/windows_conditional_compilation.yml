@@ -134,12 +134,11 @@ jobs:
           # For running TensorFlow Lite frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow_lite/tests/requirements.txt
 
+          # For running Paddle frontend unit tests
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+
           # For getting rid of SSL issues during model downloading for unit tests
           python3 -m pip install certifi
-
-          # Disabled because of CVS-95904
-          # For running Paddle frontend unit tests
-          # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
       #
       # Build
