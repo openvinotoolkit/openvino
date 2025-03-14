@@ -316,5 +316,63 @@ void GatherStringWithIndicesDataLayerTest::generate_inputs(const std::vector<ov:
     inputs.insert({data_input.get_node_shared_ptr(), ov::Tensor(element::string, data_input.get_shape(), string_data.data())});
 }
 
+std::string GatherMixedPrecLayerTest::getTestCaseName(const testing::TestParamInfo<gatherMixPrecParamsTuple>& obj) {
+    std::tuple<int, int> axis_batch_idx;
+    std::vector<int> indices;
+    ov::Shape indices_shape;
+    std::vector<InputShape> shapes;
+    ov::element::Type model_type;
+    ov::element::Type out_type;
+    std::string device_name;
+    std::tie(shapes, indices_shape, axis_batch_idx, model_type, out_type, device_name) = obj.param;
+    std::ostringstream result;
+    result << "IS=(";
+    for (size_t i = 0lu; i < shapes.size(); i++) {
+        result << ov::test::utils::partialShape2str({shapes[i].first}) << (i < shapes.size() - 1lu ? "_" : "");
+    }
+    result << ")_TS=";
+    for (size_t i = 0lu; i < shapes.front().second.size(); i++) {
+        result << "{";
+        for (size_t j = 0lu; j < shapes.size(); j++) {
+            result << ov::test::utils::vec2str(shapes[j].second[i]) << (j < shapes.size() - 1lu ? "_" : "");
+        }
+        result << "}_";
+    }
+    result << "axis=" << std::get<0>(axis_batch_idx) << "_";
+    result << "batch_idx=" << std::get<1>(axis_batch_idx) << "_";
+    result << "indices_shape=" << ov::test::utils::vec2str(indices_shape) << "_";
+    result << "netPRC=" << model_type.get_type_name() << "_";
+    result << "outPRC=" << out_type.get_type_name() << "_";
+    result << "trgDev=" << device_name << "_";
+    return result.str();
+}
+
+void GatherMixedPrecLayerTest::SetUp() {
+    std::tuple<int, int> axis_batch_idx;
+    ov::Shape indices_shape;
+    std::vector<InputShape> shapes;
+    ov::element::Type model_type;
+    std::tie(shapes, indices_shape, axis_batch_idx, model_type, outType, targetDevice) = GetParam();
+    init_input_shapes(shapes);
+
+    int axis = std::get<0>(axis_batch_idx);
+    int batch_idx = std::get<1>(axis_batch_idx);
+
+    auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
+
+    int axis_dim = targetStaticShapes[0][0][axis < 0 ? axis + targetStaticShapes[0][0].size() : axis];
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -axis_dim;
+    in_data.range = 2 * axis_dim;
+    auto indices_node_tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, indices_shape, in_data);
+    auto indices_node = std::make_shared<ov::op::v0::Constant>(indices_node_tensor);
+    auto axis_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape(), {axis});
+
+    auto gather = std::make_shared<ov::op::v8::Gather>(param, indices_node, axis_node, batch_idx);
+
+    auto result = std::make_shared<ov::op::v0::Result>(gather);
+    function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "gather");
+}
+
 }  // namespace test
 }  // namespace ov
