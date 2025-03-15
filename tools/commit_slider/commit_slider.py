@@ -5,8 +5,7 @@ import subprocess
 import os
 import shutil
 import sys
-from distutils.dir_util import copy_tree
-from distutils.errors import DistutilsFileError
+from shutil import copytree
 from utils.cfg_manager import CfgManager
 from utils.helpers import safeClearDir, getParams, getActualCfg
 
@@ -71,7 +70,7 @@ else:
     else:
         safeClearDir(workPath, curCfgData)
     curPath = os.getcwd()
-    copy_tree(curPath, workPath)
+    copytree(curPath, workPath, dirs_exist_ok=True)
     # handle user cache path
     tempCachePath = CfgManager.singlestepStrFormat(curCfgData["cachePath"], "workPath", workPath)
     permCachePath = CfgManager.singlestepStrFormat(curCfgData["cachePath"], "workPath", curPath)
@@ -100,12 +99,12 @@ else:
         safeClearDir(permLogPath, curCfgData)
     elif not tempLogPath == permLogPath:
         safeClearDir(permLogPath, curCfgData)
-        copy_tree(tempLogPath, permLogPath)
+        copytree(tempLogPath, permLogPath, dirs_exist_ok=True)
 
     safeClearDir(permCachePath, curCfgData)
     try:
-        copy_tree(tempCachePath, permCachePath)
-    except DistutilsFileError:
+        copytree(tempCachePath, permCachePath)
+    except Exception:
         # prevent exception raising while cache is empty
         pass
 
