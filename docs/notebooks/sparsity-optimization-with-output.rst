@@ -67,20 +67,20 @@ Imports
 
     import requests
     from pathlib import Path
-    
+
     from optimum.intel.openvino import OVModelForSequenceClassification
     from transformers import AutoTokenizer, pipeline
     from huggingface_hub import hf_hub_download
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
         open("notebook_utils.py", "w").write(r.text)
-    
+
     # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
     from notebook_utils import collect_telemetry
-    
+
     collect_telemetry("sparsity-optimization.ipynb")
 
 Download, quantize and sparsify the model, using Hugging Face Optimum API
@@ -98,21 +98,21 @@ model card on Hugging Face.
 .. code:: ipython3
 
     import torch
-    
+
     # The following model has been quantized, sparsified using Optimum-Intel 1.7 which is enabled by OpenVINO and NNCF
     # for reproducibility, refer https://huggingface.co/OpenVINO/bert-base-uncased-sst2-int8-unstructured80
     model_id = "OpenVINO/bert-base-uncased-sst2-int8-unstructured80"
-    
+
     # The following two steps will set up the model and download them to HF Cache folder
     ov_model = OVModelForSequenceClassification.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    
+
     # Let's take the model for a spin!
     sentiment_classifier = pipeline("text-classification", model=ov_model, tokenizer=tokenizer, device=torch.device("cpu"))
-    
+
     text = "He's a dreadful magician."
     outputs = sentiment_classifier(text)
-    
+
     print(outputs)
 
 For benchmarking, we will use OpenVINO’s benchmark application and put
@@ -123,7 +123,7 @@ the IRs into a single folder.
     # create a folder
     quantized_sparse_dir = Path("bert_80pc_sparse_quantized_ir")
     quantized_sparse_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # following return path to specified filename in cache folder (which we've with the
     ov_ir_xml_path = hf_hub_download(repo_id=model_id, filename="openvino_model.xml", local_dir=quantized_sparse_dir)
     ov_ir_bin_path = hf_hub_download(repo_id=model_id, filename="openvino_model.bin", local_dir=quantized_sparse_dir)
@@ -199,4 +199,4 @@ the following documentation:
 -  `Deployment Optimization
    Guide <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/general-optimizations.html>`__
 -  `Inference Request
-   API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/inference-request.html>`__
+   API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-request.html>`__
