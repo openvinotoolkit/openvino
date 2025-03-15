@@ -27,6 +27,15 @@ OutputVector translate_reverse_sequence_op(const NodeContext& node) {
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
         input = complex_type_mark->input_value(0);
+        
+        // Adjust dimensions if negative to account for auxiliary dimension in complex tensors
+        if (batch_dim < 0) {
+            batch_dim -= 1;
+        }
+        
+        if (seq_dim < 0) {
+            seq_dim -= 1;
+        }
 
         auto reverse_sequence = make_shared<v0::ReverseSequence>(input, seq_lengths, batch_dim, seq_dim);
         set_node_name(node.get_name(), reverse_sequence);
