@@ -394,6 +394,7 @@ protected:
                                                                         target_input_static_shapes[i],
                                                                         in_data);
             inputs.insert({model_input.get_node_shared_ptr(), tensor});
+            std::cerr << "[input #" << i << "]" << tensor.get_element_type() << " " << target_input_static_shapes[i] << std::endl;
         }
     }
 
