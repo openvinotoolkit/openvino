@@ -84,7 +84,7 @@ Use the following command:
 Step 4. Install the Package
 +++++++++++++++++++++++++++
 
-Use the following command to install OpenVINO Base or OpenVINO GenAI package:
+Use the following command to install either the base or GenAI OpenVINO package:
 
 .. code-block:: python
 
