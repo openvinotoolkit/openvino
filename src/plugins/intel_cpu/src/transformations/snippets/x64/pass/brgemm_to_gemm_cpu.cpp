@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "brgemm_to_brgemm_cpu.hpp"
+#include "brgemm_to_gemm_cpu.hpp"
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_shape.h"
@@ -14,8 +14,8 @@
 #include "snippets/op/buffer.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"
 #include "utils/general_utils.h"
 
@@ -33,8 +33,8 @@ void set_full_port_desc(const T& port) {
 }
 }  // namespace
 
-pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
-    MATCHER_SCOPE(BrgemmToBrgemmCPU);
+pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
+    MATCHER_SCOPE(BrgemmToGemmCPU);
     auto is_not_tpp = [](const Output<Node>& out) {
         return !std::dynamic_pointer_cast<const intel_cpu::tpp::modifier::TensorProcessingPrimitive>(
             out.get_node_shared_ptr());
@@ -42,12 +42,12 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
     auto m_brgemm = ov::pass::pattern::wrap_type<snippets::op::Brgemm>(is_not_tpp);
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
-        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmCPU")
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToGemmCPU")
         const auto node = m.get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
-        const auto brgemm_plugin = ov::as_type_ptr<BrgemmCPU>(node);
+        const auto brgemm_plugin = ov::as_type_ptr<GemmCPU>(node);
         if (!brgemm || brgemm_plugin) {
-            OPENVINO_THROW("BrgemmCPU cannot be in body before BrgemmToBrgemmCPU pass");
+            OPENVINO_THROW("GemmCPU cannot be in body before BrgemmToGemmCPU pass");
         }
 
         const auto& brgemm_in0_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0));
@@ -68,18 +68,18 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();
 
-        std::shared_ptr<BrgemmCPU> brgemm_cpu = nullptr;
+        std::shared_ptr<GemmCPU> brgemm_cpu = nullptr;
         std::shared_ptr<BrgemmCopyB> brgemm_repacking = nullptr;
         if (stand_alone(brgemm_type)) {
-            brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0),
-                                                     brgemm->input_value(1),
-                                                     brgemm_type,
-                                                     offset_a,
-                                                     offset_b,
-                                                     offset_c,
-                                                     layout_a,
-                                                     layout_b,
-                                                     layout_c);
+            brgemm_cpu = std::make_shared<GemmCPU>(brgemm->input_value(0),
+                                                   brgemm->input_value(1),
+                                                   brgemm_type,
+                                                   offset_a,
+                                                   offset_b,
+                                                   offset_c,
+                                                   layout_a,
+                                                   layout_b,
+                                                   layout_c);
         } else {
             const auto copy_b_type =
                 with_compensations(brgemm_type) ? brgemm_type : brgemm_utils::BRGEMM_TYPE::REPACKING_ONLY;
@@ -98,42 +98,42 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
             }
 
             if (with_amx(brgemm_type)) {
-                const auto scratch = std::make_shared<snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
-                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0),
-                                                         brgemm_repacking->output(0),
-                                                         scratch,
-                                                         brgemm_type,
-                                                         offset_a,
-                                                         offset_b,
-                                                         0,
-                                                         offset_c,
-                                                         layout_a,
-                                                         std::vector<size_t>{},
-                                                         layout_c);
+                const auto scratch = std::make_shared<snippets::op::Buffer>(ov::Shape{GemmCPU::SCRATCH_BYTE_SIZE});
+                brgemm_cpu = std::make_shared<GemmCPU>(brgemm->input_value(0),
+                                                       brgemm_repacking->output(0),
+                                                       scratch,
+                                                       brgemm_type,
+                                                       offset_a,
+                                                       offset_b,
+                                                       0,
+                                                       offset_c,
+                                                       layout_a,
+                                                       std::vector<size_t>{},
+                                                       layout_c);
                 set_full_port_desc(scratch->output(0));
                 set_full_port_desc(brgemm_cpu->input(2));
             } else if (with_compensations(brgemm_type)) {
-                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0),
-                                                         brgemm_repacking->output(0),
-                                                         brgemm_repacking->output(1),
-                                                         brgemm_type,
-                                                         offset_a,
-                                                         offset_b,
-                                                         0,
-                                                         offset_c,
-                                                         layout_a,
-                                                         std::vector<size_t>{},
-                                                         layout_c);
+                brgemm_cpu = std::make_shared<GemmCPU>(brgemm->input_value(0),
+                                                       brgemm_repacking->output(0),
+                                                       brgemm_repacking->output(1),
+                                                       brgemm_type,
+                                                       offset_a,
+                                                       offset_b,
+                                                       0,
+                                                       offset_c,
+                                                       layout_a,
+                                                       std::vector<size_t>{},
+                                                       layout_c);
             } else if (repacking_only(brgemm_type)) {
-                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0),
-                                                         brgemm_repacking->output(0),
-                                                         brgemm_type,
-                                                         offset_a,
-                                                         offset_b,
-                                                         offset_c,
-                                                         layout_a,
-                                                         std::vector<size_t>{},
-                                                         layout_c);
+                brgemm_cpu = std::make_shared<GemmCPU>(brgemm->input_value(0),
+                                                       brgemm_repacking->output(0),
+                                                       brgemm_type,
+                                                       offset_a,
+                                                       offset_b,
+                                                       offset_c,
+                                                       layout_a,
+                                                       std::vector<size_t>{},
+                                                       layout_c);
             } else {
                 OPENVINO_THROW("Invalid configuration for BRGEMM CPU");
             }
