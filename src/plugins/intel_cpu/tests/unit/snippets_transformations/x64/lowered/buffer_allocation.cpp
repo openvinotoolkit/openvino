@@ -113,13 +113,34 @@ protected:
 
     virtual std::shared_ptr<ov::Model> GetModel(const std::vector<ov::PartialShape>& shapes) const = 0;
 
-    void MarkOp(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& subtensor) const {
-        for (const auto& input : node->inputs())
-            ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
-                input, std::make_shared<ov::snippets::lowered::PortDescriptor>(input, subtensor));
-        for (const auto& output : node->outputs())
-            ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
-                output, std::make_shared<ov::snippets::lowered::PortDescriptor>(output, subtensor));
+    void MarkOp(const std::shared_ptr<ov::Node>& node, const std::vector<std::vector<size_t>>& subtensors) const {
+        // Mark input and output ports with the first supported subtensor
+        for (const auto& input : node->inputs()) {
+            bool is_input_marked = false;
+            for (const auto& subtensor : subtensors) {
+                if (input.get_partial_shape().size() < subtensor.size()) {
+                    continue;
+                }
+                ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
+                    input, std::make_shared<ov::snippets::lowered::PortDescriptor>(input, subtensor));
+                is_input_marked = true;
+                break;
+            }
+            OPENVINO_ASSERT(is_input_marked, "Input shape is not supported");
+        }
+        for (const auto& output : node->outputs()) {
+            bool is_output_marked = false;
+            for (const auto& subtensor : subtensors) {
+                if (output.get_partial_shape().size() < subtensor.size()) {
+                    continue;
+                }
+                ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
+                    output, std::make_shared<ov::snippets::lowered::PortDescriptor>(output, subtensor));
+                is_output_marked = true;
+                break;
+            }
+            OPENVINO_ASSERT(is_output_marked, "Input shape is not supported");
+        }
     }
 
     ov::snippets::lowered::LinearIR m_linear_ir;
@@ -173,12 +194,12 @@ protected:
 
         const auto body = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(relu2), ov::ParameterVector{parameter0, parameter1, parameter2});
 
-        MarkOp(load_reshape, subtensor_scalar);
-        MarkOp(store, subtensor_scalar);
-        MarkOp(power, subtensor_power);
+        MarkOp(load_reshape, {subtensor_scalar});
+        MarkOp(store, {subtensor_scalar});
+        MarkOp(power, {subtensor_power});
 
-        MarkOp(brgemm_cpu0, subtensor_full);
-        MarkOp(brgemm_cpu1, subtensor_full);
+        MarkOp(brgemm_cpu0, {subtensor_full});
+        MarkOp(brgemm_cpu1, {subtensor_full});
 
         ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(load_reshape->input(0))->set_layout(order);
 
@@ -192,6 +213,7 @@ protected:
         const auto subtensor_scalar = std::vector<size_t>{1};
         const auto subtensor_power = std::vector<size_t>{1, ov::snippets::utils::get_full_dim_value()};
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
+        const auto subtensor_flat = std::vector<size_t>(1, ov::snippets::utils::get_full_dim_value());
 
         OPENVINO_ASSERT(shapes.size() == 3, "Incorrect count of input shapes");
         const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, shapes[0]);
@@ -209,6 +231,7 @@ protected:
         const auto scratch0 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
         const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
             parameter0, brgemm_copyb0->output(0), scratch0, BRGEMM_TYPE::WITH_AMX);
+        std::cout << "brgemm_copyb0->output(0): " << brgemm_copyb0->output(0) << std::endl;
 
         const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
 
@@ -234,16 +257,16 @@ protected:
 
         const auto body = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(relu2), ov::ParameterVector{parameter0, parameter1, parameter2});
 
-        MarkOp(load_reshape, subtensor_scalar);
-        MarkOp(store, subtensor_scalar);
-        MarkOp(power, subtensor_power);
+        MarkOp(load_reshape, {subtensor_scalar});
+        MarkOp(store, {subtensor_scalar});
+        MarkOp(power, {subtensor_power});
 
-        MarkOp(brgemm_cpu0, subtensor_full);
-        MarkOp(brgemm_cpu1, subtensor_full);
-        MarkOp(brgemm_copyb0, subtensor_full);
-        MarkOp(brgemm_copyb1, subtensor_full);
-        MarkOp(scratch0, subtensor_full);
-        MarkOp(scratch1, subtensor_full);
+        MarkOp(brgemm_cpu0, {subtensor_full, subtensor_flat});
+        MarkOp(brgemm_cpu1, {subtensor_full, subtensor_flat});
+        MarkOp(brgemm_copyb0, {subtensor_full, subtensor_flat});
+        MarkOp(brgemm_copyb1, {subtensor_full, subtensor_flat});
+        MarkOp(scratch0, {subtensor_flat});
+        MarkOp(scratch1, {subtensor_flat});
 
         ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(load_reshape->input(0))->set_layout(order);
 

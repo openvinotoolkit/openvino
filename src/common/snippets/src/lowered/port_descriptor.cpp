@@ -38,6 +38,8 @@ void PortDescriptor::validate_arguments() {
         // NCHW layout by default
         std::iota(m_layout.begin(), m_layout.end(), 0);
     }
+    OPENVINO_ASSERT(m_subtensor_shape.size() <= m_tensor_shape->size(),
+                    "Snippets tensor descriptor: Subtensor shape must be less than or equal to tensor shape");
     OPENVINO_ASSERT(m_layout.size() == m_tensor_shape->size(), "Snippets tensor descriptor: Layout size must be equal to the shape size");
 }
 
