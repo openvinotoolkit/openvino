@@ -6,6 +6,7 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "cpu_map_scheduling.hpp"
+#include "remote_context.hpp"
 #include "cpu_streams_calculation.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
@@ -14,7 +15,7 @@
 using namespace testing;
 using namespace ov;
 
-namespace {
+namespace ov::intel_cpu {
 
 struct StreamGenerateionTestCase {
     int input_stream;
@@ -41,20 +42,30 @@ struct StreamGenerateionTestCase {
     std::vector<std::vector<int>> output_stream_info_table;
 };
 
-void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& config) {
-    config.schedulingCoreType = test_data.input_type;
-    config.enableCpuReservation = test_data.input_cpu_reservation;
-    config.enableCpuPinning = test_data.input_cpu_value;
-    config.changedCpuPinning = test_data.input_cpu_changed;
-    config.enableHyperThreading = test_data.input_ht_value;
-    config.changedHyperThreading = test_data.input_ht_changed;
-    config.hintPerfMode = test_data.input_pm_hint;
-    config.modelDistributionPolicy = test_data.hint_llm_distribution_policy;
-    config.hintNumRequests = test_data.input_request;
-    config.streams = test_data.input_stream_changed ? test_data.input_stream
-                                                    : (test_data.input_stream == 0 ? 1 : test_data.input_stream);
-    config.streamsChanged = test_data.input_stream_changed;
-    config.threads = test_data.input_thread;
+static void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& config) {
+    config.set_property(ov::hint::scheduling_core_type(test_data.input_type));
+    config.set_property(ov::hint::enable_cpu_reservation(test_data.input_cpu_reservation));
+    if (test_data.input_cpu_changed) {
+        config.set_user_property(ov::hint::enable_cpu_pinning(test_data.input_cpu_value));
+    } else {
+        config.set_property(ov::hint::enable_cpu_pinning(test_data.input_cpu_value));
+    }
+    if (test_data.input_ht_changed) {
+        config.set_user_property(ov::hint::enable_hyper_threading(test_data.input_ht_value));
+    } else {
+        config.set_property(ov::hint::enable_hyper_threading(test_data.input_ht_value));
+    }
+    config.set_property(ov::hint::model_distribution_policy(test_data.hint_llm_distribution_policy));
+    config.set_property(ov::hint::performance_mode(test_data.input_pm_hint));
+    config.set_property(ov::hint::num_requests(test_data.input_request));
+    config.set_property(ov::inference_num_threads(test_data.input_thread));
+    auto num_streams = test_data.input_stream_changed ? test_data.input_stream
+                                                : (test_data.input_stream == 0 ? 1 : test_data.input_stream);
+    if (test_data.input_stream_changed) {
+        config.set_user_property(ov::num_streams(num_streams));
+    } else {
+        config.set_property(ov::num_streams(num_streams));
+    }
 }
 
 class StreamGenerationTests : public ov::test::TestsCommon,
@@ -64,6 +75,7 @@ public:
         auto test_data = std::get<0>(GetParam());
         ov::intel_cpu::Config config;
         make_config(test_data, config);
+        auto remote_context = std::make_shared<ov::intel_cpu::RemoteContextImpl>("CPU");
 
         CPU& cpu = cpu_info();
         cpu._cpu_mapping_table = test_data.cpu_mapping_table;
@@ -74,27 +86,20 @@ public:
         std::vector<std::vector<int>> res_proc_type_table = test_data.input_proc_type_table;
 
         if (cpu._cpu_mapping_table.empty()) {
-            EXPECT_THROW(ov::intel_cpu::generate_stream_info(test_data.input_stream,
-                                                             test_data.input_numa_node_id,
-                                                             nullptr,
-                                                             config,
-                                                             test_data.input_proc_type_table,
-                                                             test_data.input_model_prefer),
-                         ov::Exception);
+            EXPECT_THROW(config.finalize(remote_context.get(), nullptr),  ov::Exception);
         } else {
-            auto proc_type_table = ov::intel_cpu::generate_stream_info(test_data.input_stream,
-                                                                       test_data.input_numa_node_id,
-                                                                       nullptr,
-                                                                       config,
-                                                                       test_data.input_proc_type_table,
-                                                                       test_data.input_model_prefer);
-            ASSERT_EQ(test_data.output_stream_info_table, config.streamExecutorConfig.get_streams_info_table());
-            ASSERT_EQ(test_data.output_proc_type_table, proc_type_table);
-            ASSERT_EQ(test_data.output_cpu_value, config.streamExecutorConfig.get_cpu_pinning());
-            ASSERT_EQ(test_data.output_ht_value, config.enableHyperThreading);
-            ASSERT_EQ(test_data.output_type, config.schedulingCoreType);
-            ASSERT_EQ(test_data.output_pm_hint, config.hintPerfMode);
-            if (config.enableCpuReservation) {
+            config.m_numa_node_id = test_data.input_numa_node_id;
+            config.m_proc_type_table = test_data.input_proc_type_table;
+            config.m_model_prefer_threads = test_data.input_model_prefer;
+
+            config.finalize(remote_context.get(), nullptr);
+            ASSERT_EQ(test_data.output_stream_info_table, config.m_stream_executor_config.get_streams_info_table());
+            ASSERT_EQ(test_data.output_proc_type_table, config.m_proc_type_table);
+            ASSERT_EQ(test_data.output_cpu_value, config.m_stream_executor_config.get_cpu_pinning());
+            ASSERT_EQ(test_data.output_ht_value, config.get_enable_hyper_threading());
+            ASSERT_EQ(test_data.output_type, config.get_scheduling_core_type());
+            ASSERT_EQ(test_data.output_pm_hint, config.get_performance_mode());
+            if (config.get_enable_cpu_reservation()) {
                 for (size_t i = 0; i < test_data.output_stream_info_table.size(); i++) {
                     if (test_data.output_stream_info_table[i][PROC_TYPE] >= MAIN_CORE_PROC &&
                         test_data.output_stream_info_table[i][PROC_TYPE] <= HYPER_THREADING_PROC) {
@@ -103,7 +108,7 @@ public:
                                            : 1;
                         int nthreads = nstreams * test_data.output_stream_info_table[i][THREADS_PER_STREAM];
                         if (res_proc_type_table.size() > 1) {
-                            for (size_t j = 0; j < proc_type_table.size(); j++) {
+                            for (size_t j = 0; j < config.m_proc_type_table.size(); j++) {
                                 if (res_proc_type_table[j][PROC_NUMA_NODE_ID] ==
                                         test_data.output_stream_info_table[i][STREAM_NUMA_NODE_ID] &&
                                     res_proc_type_table[j][PROC_SOCKET_ID] ==
@@ -2148,4 +2153,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_StreamsGeneration,
                                            generation_tput_1sockets_0cores_1_reservation));
 
 #endif
-}  // namespace
+}  // namespace ov::intel_cpu

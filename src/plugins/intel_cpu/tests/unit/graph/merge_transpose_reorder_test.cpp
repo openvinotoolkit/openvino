@@ -79,7 +79,7 @@ protected:
                         ". Only 4D and 3D shapes are supported");
         Config conf;
         m_context =
-            std::make_shared<GraphContext>(conf, nullptr, false);
+            std::make_shared<GraphContext>(conf, nullptr, false, false);
         const auto replication_result = CreateModelAndReplicate(shape,
                                                                 params.firstNodeLayout,
                                                                 params.firstNodeInplaceDirection,
@@ -351,8 +351,8 @@ TEST(MergeTransposeReorder, smoke_InplaceConflict) {
                 Result0   Result1
     */
     Config conf;
-    conf.rtCacheCapacity = 100;
-    auto context = std::make_shared<GraphContext>(conf, nullptr, false);
+    conf.set_property(ov::intel_cpu::cpu_runtime_cache_capacity(100));
+    auto context = std::make_shared<GraphContext>(conf, nullptr, false, false);
 
     std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());
 

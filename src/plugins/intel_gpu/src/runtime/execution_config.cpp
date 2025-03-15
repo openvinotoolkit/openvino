@@ -185,7 +185,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     m_optimize_data = true;
 }
 
-void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
+void ExecutionConfig::finalize_impl(const IRemoteContext* context, const ov::Model* model) {
     GPU_DEBUG_IF(get_help()) {
         print_help();
         exit(-1);

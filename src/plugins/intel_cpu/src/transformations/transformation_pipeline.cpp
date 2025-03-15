@@ -330,9 +330,9 @@ void Transformations::UpToLpt() {
                                                           levels::int8,
                                                           levels::int8_narrow_range};
 
-    const bool useLpt = config.lpTransformsMode == Config::LPTransformsMode::On &&
+    const bool useLpt = config.get_enable_lp_transformations() &&
                         LowPrecision::isFunctionQuantized(model, supported_fq_levels) &&
-                        CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Lpt);
+                        CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config, Lpt);
 
     const auto defaultPrecisions = useLpt ? precision_set::get_int8_support() : std::vector<ov::element::Type>{};
 
@@ -421,7 +421,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             map.insert({ov::element::bf16, ov::element::f32});
         }
         // TODO: Remove 'hasHardwareSupport' when all nodes are able to handle f16 properly.
-        if (!one_of(config.inferencePrecision, element::f16, element::dynamic) || !hasHardwareSupport(element::f16)) {
+        if (!one_of(config.get_inference_precision(), element::f16, element::dynamic) || !hasHardwareSupport(element::f16)) {
             map.insert({ov::element::f16, ov::element::f32});
         }
         return map;
@@ -431,7 +431,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
-    if (config.inferencePrecision == ov::element::f16) {
+    if (config.get_inference_precision() == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         type_to_fuse_map fuse_map = {};
@@ -460,15 +460,15 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
-    cacheConfig.keyCachePrecision = config.keyCachePrecision;
-    cacheConfig.valueCachePrecision = config.valueCachePrecision;
-    cacheConfig.inferencePrecision = config.inferencePrecision;
-    cacheConfig.keyCacheGroupSize = config.keyCacheGroupSize;
-    cacheConfig.valueCacheGroupSize = config.valueCacheGroupSize;
+    cacheConfig.keyCachePrecision = config.get_key_cache_precision();
+    cacheConfig.valueCachePrecision = config.get_value_cache_precision();
+    cacheConfig.inferencePrecision = config.get_inference_precision();
+    cacheConfig.keyCacheGroupSize = config.get_key_cache_group_size();
+    cacheConfig.valueCacheGroupSize = config.get_value_cache_group_size();
     cacheConfig.keyCacheBlockSize = 32;
     cacheConfig.valueCacheBlockSize = 32;
 
-    bool byChannel = node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode);
+    bool byChannel = node::PagedAttention::isQuantByChannel(config.get_key_cache_quant_mode());
     cacheConfig.keyCacheQuantBychannel = byChannel;
     cacheConfig.valueCacheQuantBychannel = false;
     cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
@@ -664,12 +664,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 //    snippets pipeline as well, where MVN is decomposed to simple ops, these simple ops will not
                 //    tokenized into subgraph again.
                 // CVS-134277 to fully enable GN as snippets to disable this GroupNormalizationDecomposition entirly.
-                if (node->is_dynamic() || !one_of(config.inferencePrecision, element::f32, element::dynamic) ||
-                    config.snippetsMode == Config::SnippetsMode::Disable)
+                if (node->is_dynamic() || !one_of(config.get_inference_precision(), element::f32, element::dynamic) ||
+                    config.get_snippets_mode() == SnippetsMode::DISABLE)
                     return false;
-                if (config.snippetsMode != Config::SnippetsMode::IgnoreCallback) {
+                if (config.get_snippets_mode() != SnippetsMode::IGNORE_CALLBACK) {
                     const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
-                    if (!group_norm || !implication((config.inferencePrecision == element::dynamic),
+                    if (!group_norm || !implication((config.get_inference_precision() == element::dynamic),
                                                     group_norm->get_element_type() == element::f32))
                         return false;
                     const auto num_groups = static_cast<size_t>(group_norm->get_num_groups());
@@ -992,12 +992,12 @@ void Transformations::PostLpt() {
 #if defined(OPENVINO_ARCH_X86_64)
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-                                 (config.inferencePrecision == element::bf16);
+                                 (config.get_inference_precision() == element::bf16);
     auto can_use_amx_fp16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
-                            (config.inferencePrecision == element::f16);
+                            (config.get_inference_precision() == element::f16);
 
     if (can_use_amx_bf16_int8 || can_use_amx_fp16) {
-        const auto fcDynamicQuantizationGroupSize = config.fcDynamicQuantizationGroupSize;
+        const auto fcDynamicQuantizationGroupSize = config.get_dynamic_quantization_group_size();
         CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
         CPU_SET_CALLBACK_X64(
             postLPTPassManager,
@@ -1007,7 +1007,7 @@ void Transformations::PostLpt() {
             },
             MLPFusion);
 
-        size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
+        size_t concurrency = config.get_stream_executor_config().get_threads_per_stream();
         if (concurrency == 0) {
             concurrency = parallel_get_max_threads();
         }
@@ -1049,7 +1049,7 @@ void Transformations::PostLpt() {
         ov::intel_cpu::DecomposeRMSNorm);
 
     // markup Rope Input when BF16/F16 inference.
-    if (one_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
+    if (one_of(config.get_inference_precision(), ov::element::bf16, ov::element::f16)) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkRopeInputsToKeepInMixedPrecision);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkFloatingPointRange);
     }
@@ -1085,12 +1085,12 @@ void Transformations::MainSnippets() {
         return false;
     };
 
-    if (config.snippetsMode == Config::SnippetsMode::Disable || !is_supported_isa()) {
+    if (config.get_snippets_mode() == SnippetsMode::DISABLE || !is_supported_isa()) {
         return;
     }
 
     // TODO [123659] Implement common logic to split optimization and limitation conditions
-    const auto ignoreCallback = config.snippetsMode == Config::SnippetsMode::IgnoreCallback;
+    const auto ignoreCallback = config.get_snippets_mode() == SnippetsMode::IGNORE_CALLBACK;
 
     // [111813]: At the moment Snippets supports Transpose on output of MHA pattern only if it is an one node between
     // MatMul and Result. However there may be Convert [f32->bf16] before Result since:
@@ -1098,8 +1098,8 @@ void Transformations::MainSnippets() {
     //  - CPU Node Subgraph requires bf16 on output when inference precision is bf16.
     // To avoid situations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
-    bool mha_token_enable_transpose_on_output = one_of(config.inferencePrecision, element::f32, element::dynamic);
-    size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
+    bool mha_token_enable_transpose_on_output = one_of(config.get_inference_precision(), element::f32, element::dynamic);
+    size_t concurrency = config.get_stream_executor_config().get_threads_per_stream();
     if (concurrency == 0) {
         concurrency = parallel_get_max_threads();
     }
@@ -1107,7 +1107,7 @@ void Transformations::MainSnippets() {
     // Runtime caching should be enabled in case of dynamic Subgraphs in CPU Plugin: to reduce overheads of
     // ShapeInference and CodeGeneration If runtime cache capacity is zero, it means that rtCache won't be used and we
     // shouldn't tokenize dynamic Subgraphs - it will lead to performance degradations
-    bool is_dynamic_mha_token_enabled = config.rtCacheCapacity != 0;
+    bool is_dynamic_mha_token_enabled = config.get_cpu_runtime_cache_capacity() != 0;
 #if defined(OPENVINO_ARCH_ARM64)
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform
     // register, 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
@@ -1139,7 +1139,7 @@ void Transformations::MainSnippets() {
 #if defined(OPENVINO_ARCH_ARM64)
         CPU_REGISTER_PASS_ARM(snippetsManager, SnippetsMarkSkipped);
 #else
-        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, config.inferencePrecision == ov::element::bf16);
+        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, config.get_inference_precision() == ov::element::bf16);
 #endif
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
     }
@@ -1156,11 +1156,11 @@ void Transformations::MainSnippets() {
     // CPU Plugin Subgraph supports f32, bf16, quantized and fp16(on avx_512_core_amx_fp16 target) BRGEMM
     const auto is_infer_prc_supported_by_MHA =
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-         one_of(config.inferencePrecision, ov::element::f32, element::dynamic)) ||
+         one_of(config.get_inference_precision(), ov::element::f32, element::dynamic)) ||
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-         one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, element::dynamic)) ||
+         one_of(config.get_inference_precision(), ov::element::bf16, ov::element::f32, element::dynamic)) ||
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
-         one_of(config.inferencePrecision, ov::element::f16));
+         one_of(config.get_inference_precision(), ov::element::f16));
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_MHA;
 #else
     const bool isMHASupported = false;
@@ -1180,13 +1180,13 @@ void Transformations::MainSnippets() {
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
         const auto is_fp32 = (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 &&
-                              one_of(config.inferencePrecision, element::f32, element::dynamic));
+                              one_of(config.get_inference_precision(), element::f32, element::dynamic));
         const auto is_fp16 =
             (in_type0 == ov::element::f16 || in_type1 == ov::element::f16) ||
-            (in_type0 == element::f32 && in_type1 == ov::element::f32 && config.inferencePrecision == ov::element::f16);
+            (in_type0 == element::f32 && in_type1 == ov::element::f32 && config.get_inference_precision() == ov::element::f16);
         const auto is_bf16 = (in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
                              ((in_type0 == element::f32 && in_type1 == ov::element::f32 &&
-                               config.inferencePrecision == ov::element::bf16));
+                               config.get_inference_precision() == ov::element::bf16));
         const auto is_int8 = (in_type0 == element::i8 || in_type0 == element::u8) && (in_type1 == element::i8);
         if (matmul->get_transpose_a()) {
             return false;
@@ -1372,7 +1372,7 @@ void Transformations::MainSnippets() {
         snippets::pass::TokenizeSnippets);
 
     auto mm_supports_transpose_b = [this](const std::shared_ptr<const ov::Node>& n) {
-        MAYBE_UNUSED(config.inferencePrecision);
+        MAYBE_UNUSED(config.get_inference_precision());
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -1430,7 +1430,7 @@ void Transformations::PostSnippets() {
 }
 
 void Transformations::Snippets() {
-    const bool useSnippets = config.snippetsMode != Config::SnippetsMode::Disable &&
+    const bool useSnippets = config.get_snippets_mode() != SnippetsMode::DISABLE &&
                              CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
     if (!useSnippets) {
         return;
