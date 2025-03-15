@@ -54,6 +54,6 @@ bool ov::pass::pattern::op::Label::match_value(ov::pass::pattern::Matcher* match
     return false;
 }
 
-std::shared_ptr<ov::Node> ov::pass::pattern::any_input() {
-    return std::make_shared<pattern::op::Label>();
+std::shared_ptr<ov::Node> ov::pass::pattern::any_input(const Attributes& attrs) {
+    return attrs.empty() ? std::make_shared<pattern::op::Label>() : any_input(attrs_match(attrs));
 }
