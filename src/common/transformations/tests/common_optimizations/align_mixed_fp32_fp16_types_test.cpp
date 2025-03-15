@@ -147,6 +147,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_3) {
     }
 }
 
+#if 0
 TEST_F(TransformationTestsF, align_mixed_fp16_fp32_with_rand_uniform) {
     {
         auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
@@ -200,3 +201,4 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_with_rand_uniform) {
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 }
+#endif

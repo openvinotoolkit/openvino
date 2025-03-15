@@ -64,6 +64,8 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                         continue;
                     if (!out_inputs.get_element_type().is_real())
                         continue;
+                    if (fp16_compression_is_disabled(node) && ov::is_type<ov::op::v0::Result>(out_node))
+                        continue;
 
                     // element_type of this convert will be changed automatically to f16 after
                     // ConvertPrecision(f32 -> f16). It's kept here f32 to keep ov::Model validatable
