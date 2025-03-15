@@ -145,6 +145,11 @@ void ConvertCPULayerTest::SetUp() {
     auto conversion = std::make_shared<ov::op::v0::Convert>(params.front(), outPrc);
 
     function = makeNgraphFunction(inPrc, params, conversion, "ConversionCPU");
+
+    if (special_value == ov::test::SpecialValue::none && outPrc == ov::element::f8e4m3) {
+        abs_threshold = 0.0078125f;
+        rel_threshold = 1e-2f;
+    }
 }
 
 void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
