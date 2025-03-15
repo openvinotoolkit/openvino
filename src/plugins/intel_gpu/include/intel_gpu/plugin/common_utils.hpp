@@ -107,7 +107,7 @@ inline std::vector<cldnn::optional_data_type> get_output_data_types(const std::s
 inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
     ov::Shape res(pshape.size());
     for (size_t i = 0; i < pshape.size(); i++) {
-        res[i] = pshape[i].is_dynamic() ? 0 : pshape[i].get_length();
+        res[i] = pshape[i].is_dynamic() ? pshape[i].get_min_length() : pshape[i].get_length();
     }
 
     return res;
