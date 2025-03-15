@@ -101,5 +101,23 @@ private:
     std::vector<std::string> string_data;
 };
 
+typedef std::tuple<std::vector<InputShape>,  // Input shapes
+                   ov::Shape,                // Indices shape
+                   std::tuple<int, int>,     // Gather axis and batch
+                   ov::element::Type,        // Model type
+                   ov::element::Type,        // Output type
+                   std::string               // Device name
+                   >
+    gatherMixPrecParamsTuple;
+
+class GatherMixedPrecLayerTest : public testing::WithParamInterface<gatherMixPrecParamsTuple>,
+                                 virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<gatherMixPrecParamsTuple>& obj);
+
+protected:
+    void SetUp() override;
+};
+
 }  // namespace test
 }  // namespace ov
