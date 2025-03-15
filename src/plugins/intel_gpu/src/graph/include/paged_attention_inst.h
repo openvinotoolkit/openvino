@@ -7,8 +7,6 @@
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "primitive_inst.h"
 
-#include "sdpa/pa_sdpa_kernel_opt.h"
-
 namespace cldnn {
 
 template <>
