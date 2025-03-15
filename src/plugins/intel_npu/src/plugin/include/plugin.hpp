@@ -8,7 +8,8 @@
 #include <memory>
 #include <string>
 
-#include "backends.hpp"
+#include "backends_registry.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metrics.hpp"
@@ -52,7 +53,8 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    std::shared_ptr<NPUBackends> _backends;
+    std::unique_ptr<BackendsRegistry> backendsRegistry;
+    ov::SoPtr<IEngineBackend> _backend;
 
     std::map<std::string, std::string> _config;
     std::shared_ptr<OptionsDesc> _options;
