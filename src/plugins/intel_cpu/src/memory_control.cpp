@@ -356,9 +356,9 @@ std::pair<int64_t, int64_t> calculateOptimalMemorySize(std::vector<MemorySolver:
     };
     std::priority_queue<MemorySolver::Box, std::vector<MemorySolver::Box>, decltype(boxCmp)> pq(boxCmp);
 
-    ptrdiff_t current_size = 0;
-    ptrdiff_t max_current_size = 0;
-    ptrdiff_t max_box_size = 0;
+    int64_t current_size = 0;
+    int64_t max_current_size = 0;
+    int64_t max_box_size = 0;
 
     for (const auto& box : boxes) {
         max_box_size = std::max(max_box_size, box.size);
