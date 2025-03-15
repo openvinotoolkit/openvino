@@ -55,7 +55,7 @@ public:
     static void load(BufferType& buffer, std::unordered_set<T>& set) {
         typename std::unordered_set<T>::size_type set_size = 0UL;
         buffer >> set_size;
-
+        if (set.empty()) set.reserve(set_size);
         for (long unsigned int i = 0; i < set_size; i++) {
             T el;
             buffer >> el;

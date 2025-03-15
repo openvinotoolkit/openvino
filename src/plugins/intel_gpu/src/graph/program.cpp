@@ -745,7 +745,8 @@ void program::prepare_memory_dependencies() {
     if (!_config.get_enable_memory_pool())
         return;
     for (auto& node : get_processing_order()) {
-        node->add_memory_dependency(node->get_unique_id());
+        if (node->likely_from_mempool())
+            node->add_memory_dependency(node->get_unique_id());
     }
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
@@ -763,7 +764,7 @@ std::string program::get_memory_dependencies_string() const {
                          .append("(unique_id:")
                          .append(std::to_string(node->get_unique_id()))
                          .append(") restricted list: ");
-        for (auto it : node->get_memory_dependencies())
+        for (const auto& it : node->get_memory_dependencies())
             mem_dep = mem_dep.append(std::to_string(it)).append(",");
         mem_dep = mem_dep.append("\n");
     }
@@ -1705,7 +1706,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
                                                                       pool,
                                                                       *node,
                                                                       *node->get_kernel_impl_params(),
-                                                                      node->get_memory_dependencies(),
+                                                                      memory_restricter<uint32_t>(node->get_memory_dependencies()),
                                                                       0,
                                                                       false,
                                                                       0,
