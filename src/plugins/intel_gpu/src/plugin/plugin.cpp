@@ -153,7 +153,14 @@ std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() con
     return m_default_contexts;
 }
 
+static std::mutex init_lock;
+static bool m_constructed = false;
+
 Plugin::Plugin() {
+    {
+        std::unique_lock<std::mutex> lock(init_lock);
+        m_constructed = true;
+    }
     set_device_name("GPU");
     register_primitives();
 
@@ -173,6 +180,21 @@ Plugin::Plugin() {
     // Set common info for compiled_model_runtime_properties
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
+}
+
+Plugin::~Plugin() {
+    // reset oneDNN cache to clean up cached primitives
+    std::unique_lock<std::mutex> lock(init_lock);
+    if (m_constructed) {
+        m_constructed = false;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // WA for oneDNN cache clean
+        auto capacity = dnnl::get_primitive_cache_capacity();
+        dnnl::set_primitive_cache_capacity(0);
+        dnnl::set_primitive_cache_capacity(capacity);
+#endif
+    }
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
