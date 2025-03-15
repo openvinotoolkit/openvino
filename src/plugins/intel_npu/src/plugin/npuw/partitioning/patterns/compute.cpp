@@ -163,7 +163,6 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
              ov::element::i8 == matched_qweight->get_element_type() ||
              ov::element::f8e4m3 == matched_qweight->get_element_type() ||
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
-             ov::element::f4e2m1 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type() ||
              ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::element::f16 == matched_qcoeff->get_element_type() ||
@@ -231,7 +230,6 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
              ov::element::i8 == matched_qweight->get_element_type() ||
              ov::element::f8e4m3 == matched_qweight->get_element_type() ||
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
-             ov::element::f4e2m1 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type() ||
              ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::element::f16 == matched_qcoeff->get_element_type() ||

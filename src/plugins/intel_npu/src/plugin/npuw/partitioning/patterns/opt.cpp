@@ -992,7 +992,7 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
-    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
 
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
@@ -1008,17 +1008,25 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
         const auto& matched_out_gather = node_to_output.at(gather);
 
         // Create new gathers on W and S, connect respectively
-        auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
+        auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, matched_out_s.get_element_type());
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
         auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
         auto new_g_s = std::make_shared<ov::op::v8::Gather>(matched_out_s, matched_out_ids, gather_c);
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_g_w, new_g_s);
-        auto new_out = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
 
         // Reconnect old gather readers to the new Multiply
-        for (auto&& r : matched_out_gather.get_target_inputs()) {
-            r.replace_source_output(new_out);
+        auto qcvtm_iter = node_to_output.find(qcvtm);
+        if (qcvtm_iter != node_to_output.end()) {
+            auto new_out = std::make_shared<ov::op::v0::Convert>(new_mul, qcvtm_iter->second.get_element_type());
+            for (auto&& r : matched_out_gather.get_target_inputs()) {
+                r.replace_source_output(new_out);
+            }
+        } else {
+            for (auto&& r : matched_out_gather.get_target_inputs()) {
+                r.replace_source_output(new_mul);
+            }
         }
+
         return true;  // root was changed
     };
     register_matcher(std::make_shared<opp::Matcher>(gather, "DQGatherSymCW"), std::move(callback));
@@ -1078,7 +1086,7 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
 
 // This is a companion to DQLiftGatherAsymCW step. This pass runs if
 // the respective block (mainly, a head) was turned a function
-// (e.g. with FUNCALL_FOR_ALL) As in this case the DQDictMatMulCWu
+// (e.g. with FUNCALL_FOR_ALL) As in this case the DQUnpackDictMatMulCWu
 // compile-time converts asymmetric MM to fp16, do the same thing here
 DQUnpackDictGatheru::DQUnpackDictGatheru(Context::Ref ctx) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
@@ -1339,7 +1347,7 @@ DQUnpackDictMatMulCWu::DQUnpackDictMatMulCWu(Context::Ref ctx) {
         }
         return false;  // root has changed (yet)
     };
-    register_matcher(std::make_shared<opp::Matcher>(qres, "OptDQDictMatMulCWu"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptDQUnpackDictMatMulCWu"), std::move(callback));
 }
 
 // FROM:
