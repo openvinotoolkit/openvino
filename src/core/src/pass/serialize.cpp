@@ -1310,78 +1310,11 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
     //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
     // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
-    for (auto& node : model->get_ops())
-        if (fp16_compression_is_disabled(node))
-            disable_fp16_compression(node);
-
-    if (m_xmlFile && m_binFile) {
-        serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
-    } else {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        const auto& xmlPath_ref = ov::util::string_to_wstring(m_xmlPath);
-        const auto& binPath_ref = ov::util::string_to_wstring(m_binPath);
-        std::string message_bin = "Can't open bin file.";
-        std::string message_xml = "Can't open xml file.";
 #else
-        const auto& xmlPath_ref = m_xmlPath;
-        const auto& binPath_ref = m_binPath;
-        std::string message_bin = "Can't open bin file: \"" + binPath_ref + "\"";
-        std::string message_xml = "Can't open xml file: \"" + xmlPath_ref + "\"";
 #endif
-        auto xmlDir = ov::util::get_directory(xmlPath_ref);
-        if (xmlDir != xmlPath_ref)
-            ov::util::create_directory_recursive(xmlDir);
 
-        std::ofstream bin_file(binPath_ref, std::ios::out | std::ios::binary);
-        OPENVINO_ASSERT(bin_file, message_bin);
-
-        // create xml file
-        std::ofstream xml_file(xmlPath_ref, std::ios::out);
-        OPENVINO_ASSERT(xml_file, message_xml);
-
-        try {
-            serializeFunc(xml_file, bin_file, model, m_version);
-        } catch (const ov::AssertFailure&) {
-            // optimization decision was made to create .bin file upfront and
-            // write to it directly instead of buffering its content in memory,
-            // hence we need to delete it here in case of failure
-            xml_file.close();
-            bin_file.close();
-            std::ignore = std::remove(m_xmlPath.c_str());
-            std::ignore = std::remove(m_binPath.c_str());
-            throw;
-        }
-    }
-
-    // Return false because we didn't change ov Model
-    return false;
 }
 
-pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::Serialize::Version version)
-    : m_xmlFile{&xmlFile},
-      m_binFile{&binFile},
-      m_xmlPath{},
-      m_binPath{},
-      m_version{version} {}
-
-pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
-    : m_xmlFile{nullptr},
-      m_binFile{nullptr},
-      m_xmlPath{valid_xml_path(xmlPath)},
-      m_binPath{provide_bin_path(xmlPath, binPath)},
-      m_version{version} {}
-
-pass::StreamSerialize::StreamSerialize(std::ostream& stream,
-                                       const std::function<void(std::ostream&)>& custom_data_serializer,
-                                       const std::function<std::string(const std::string&)>& cache_encrypt,
-                                       Serialize::Version version)
-    : m_stream(stream),
-      m_custom_data_serializer(custom_data_serializer),
-      m_cache_encrypt(cache_encrypt),
-      m_version(version) {
-    if (version != Serialize::Version::UNSPECIFIED && version != Serialize::Version::IR_V10 &&
-        version != Serialize::Version::IR_V11) {
-        OPENVINO_THROW("Unsupported version");
     }
 }
 
