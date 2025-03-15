@@ -189,7 +189,7 @@ PerfCountEnd::~PerfCountEnd() {
 }
 
 std::shared_ptr<Node> PerfCountEnd::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<PerfCountEnd>(inputs.at(0));
+    return std::make_shared<PerfCountEnd>(inputs.at(0), dumpers);
 }
 
 void PerfCountEnd::set_accumulated_time() {
