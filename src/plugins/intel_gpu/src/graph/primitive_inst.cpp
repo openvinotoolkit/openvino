@@ -61,6 +61,8 @@
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
+#include "impls/onednn/primitive_onednn_base.h"
+#include "impls/onednn/fully_connected_onednn.hpp"
 #endif
 
 namespace cldnn {
@@ -1351,6 +1353,36 @@ void primitive_inst::do_runtime_skip_reorder() {
     }
 }
 
+void primitive_inst::do_runtime_skip_dynamic_quantize() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_dynamic_quantize: " + id()));
+    if (!_node->is_type<dynamic_quantize>())
+        return;
+    char *ptr = getenv("DYN_QUAN_2ND");
+    if (ptr)
+        return;
+
+    set_can_be_optimized(false);
+
+    OPENVINO_ASSERT(_impl_params->fused_desc.size() == 0, "Dynamic quantization is not supposed to have fused ops: ", get_node().id());
+
+    // If batch size is small, dynamic_quantize is disabled for performance reason
+    size_t input_batch = _impl_params->output_layouts[0].batch();
+    // 3D input
+    if (_impl_params->output_layouts[0].format == format::bfyx) {
+        input_batch = _impl_params->output_layouts[0].batch() * _impl_params->output_layouts[0].feature();
+    }
+
+    if (input_batch <= 1) {
+        GPU_DEBUG_TRACE_DETAIL << "[" << __func__ << "]"
+                               << "  can_be_optimized - " << get_node().id() << " - " << _impl_params->output_layouts[0].get_shape() << std::endl;
+        set_can_be_optimized(true);
+
+        OPENVINO_ASSERT(get_user_insts().size() == _node->get_outputs_count(), "Dynamic quantization is supposed to have only one user-node with duplicated connection: ", get_node().id());
+        OPENVINO_ASSERT(get_user_insts()[0]->get_node().is_type<fully_connected>(), "Use of dynamic quantization should be fully_connected: ", get_node().id());
+    }
+}
+
+
 void primitive_inst::do_runtime_in_place_kv_cache() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_kv_cache: " + id()));
     if (!_node->is_type<kv_cache>())
@@ -1877,6 +1909,7 @@ void primitive_inst::prepare_primitive() {
         do_runtime_skip_broadcast();
         do_runtime_skip_scatter_update();
         do_runtime_in_place_crop();
+        do_runtime_skip_dynamic_quantize();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
