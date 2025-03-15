@@ -2837,11 +2837,24 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
         o.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
     }
 
+    auto need_use_gemv = [&inst, &updated_params](const std::shared_ptr<primitive_impl> impl) -> bool {
+        const auto& dev_info = inst.get_node().get_program().get_engine().get_device_info();
+        auto is_cldnn_fc_impl = !dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu;
+        auto kernel_name = impl->get_kernel_name();
+        auto is_ref_impl = kernel_name.find("fully_connected_gpu_bfyx_ref") != std::string::npos;
+        auto is_gemv_impl = kernel_name.find("gemv") != std::string::npos;
+        return is_cldnn_fc_impl && updated_params.is_single_batch() && !is_ref_impl && !is_gemv_impl;
+    };
+
     // 1. If we have static impl in the cache - use it
     if (use_async_compilation && ((inst.get_impl() && inst.get_impl()->is_dynamic()) || inst.get_flag(ExecutionFlags::SHAPE_CHANGED))) {
         auto cached_impl = m_static_impls_cache.get(updated_params);
         if (cached_impl) {
-            return cached_impl->clone();
+            if (inst.get_node().is_type<fully_connected>() && need_use_gemv(cached_impl)) {
+                cached_impl = nullptr;
+            } else {
+                return cached_impl->clone();
+            }
         }
 
         // 1.1. Static impl not found - run async compilation
@@ -2871,6 +2884,9 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     std::shared_ptr<primitive_impl> dynamic_impl = nullptr;
     // 2. Try to find existing dynamic impl which supports given shapes
     for (auto& impl : m_dynamic_impls_cache) {
+        if (inst.get_node().is_type<fully_connected>() && need_use_gemv(impl)) {
+            continue;
+        }
         if (impl->m_manager->support_shapes(params)) {
             dynamic_impl = impl;
             break;

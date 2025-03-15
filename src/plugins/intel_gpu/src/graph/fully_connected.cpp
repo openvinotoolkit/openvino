@@ -214,6 +214,10 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 }
 
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
+    if (orig_impl_param.is_single_batch()) {
+        return std::move(orig_impl_param);
+    }
+
     // fc_tiled_opt kernel is optimized for row shape aligned by 8.
     // Thus, use fake aligned shape at kernel execution for better performance.
     const auto& orig_input_layout = orig_impl_param.get_input_layout();
