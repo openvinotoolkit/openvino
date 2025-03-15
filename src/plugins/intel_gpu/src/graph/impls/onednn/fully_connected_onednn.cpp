@@ -295,11 +295,14 @@ public:
             is_four_bit_weight = weights_layout.data_type == data_types::u4 || weights_layout.data_type == data_types::i4;
             if (!prim->decompression_scale.empty()) {
                 auto decompression_scale_idx = ++idx;
+                auto ds_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(arg.get_dependency(decompression_scale_idx).get_output_layout().data_type);
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(1);
                 auto ngroups = arg.get_dependency(decompression_scale_idx).get_output_layout().get_dim(1);
                 group_size = ifm / ngroups;
-                if (!is_four_bit_weight) {
+                if (ds_layout.count() == 1) {
+                    attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
+                } else if (!is_four_bit_weight) {
                     // 8-bit quantized weight
                     attr->set_scales(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, ds_data_type);
                 } else {
