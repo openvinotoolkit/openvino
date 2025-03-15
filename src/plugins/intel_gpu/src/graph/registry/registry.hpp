@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,6 +135,7 @@ REGISTER_IMPLS(fully_connected);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gemm);
+REGISTER_IMPLS(lora);
 REGISTER_IMPLS(lstm_cell);
 REGISTER_IMPLS(lstm_seq);
 REGISTER_IMPLS(pooling);
