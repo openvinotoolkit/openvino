@@ -81,20 +81,28 @@ namespace frontend {
 class ConversionExtensionBase;
 }  // namespace frontend
 
+namespace compile {
 template <typename T>
 constexpr bool use_ov_dynamic_cast() {
     return std::is_base_of_v<ov::frontend::ConversionExtensionBase, T>;
 }
+}  // namespace compile
 
-/// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
-/// Type*/shared_ptr<Type>
-template <typename Type, typename Value>
-typename std::enable_if<
-    std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
-                        bool>::value,
-    bool>::type
-is_type(Value value) {
-    return value && value->get_type_info().is_castable(Type::get_type_info_static());
+/// \brief Tests whether pointer can be static casted to a To*/shared_ptr<To>
+template <typename To, typename From>
+bool is_type(From* ptr) {
+    if constexpr (compile::use_ov_dynamic_cast<From>()) {
+        return ptr && ptr->get_type_info().is_castable(To::get_type_info_static());
+    } else {
+        static_assert(!std::is_volatile_v<To> && !std::is_volatile_v<From>, "is_type does not support volatile types");
+        return dynamic_cast<std::add_const_t<To>*>(ptr) != nullptr;
+    }
+}
+
+/// \brief Tests whether pointer can be static casted to a To*/shared_ptr<To>
+template <typename To, typename From>
+bool is_type(const std::shared_ptr<From>& ptr) {
+    return is_type<To>(ptr.get());
 }
 
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to any of the specified types
@@ -108,7 +116,7 @@ template <typename Type, typename Value>
 typename std::enable_if<std::is_convertible<decltype(static_cast<Type*>(std::declval<Value>())), Type*>::value,
                         Type*>::type
 as_type(Value value) {
-    if constexpr (use_ov_dynamic_cast<Type>())
+    if constexpr (compile::use_ov_dynamic_cast<Type>())
         return is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
     else
         return dynamic_cast<Type*>(value);
@@ -117,8 +125,7 @@ as_type(Value value) {
 namespace util {
 template <typename T>
 struct AsTypePtr;
-/// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type
-/// Type, nullptr otherwise
+/// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type Type, nullptr otherwise
 template <typename In>
 struct AsTypePtr<std::shared_ptr<In>> {
     template <typename Type>
@@ -132,7 +139,7 @@ struct AsTypePtr<std::shared_ptr<In>> {
 /// Type, nullptr otherwise
 template <typename Type, typename Value>
 auto as_type_ptr(const Value& value) -> decltype(::ov::util::AsTypePtr<Value>::template call<Type>(value)) {
-    if constexpr (use_ov_dynamic_cast<Type>())
+    if constexpr (compile::use_ov_dynamic_cast<Type>())
         return ::ov::util::AsTypePtr<Value>::template call<Type>(value);
     else
         return std::dynamic_pointer_cast<Type>(value);
