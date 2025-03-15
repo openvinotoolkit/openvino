@@ -110,6 +110,42 @@ TEST(pre_post_process, simple_mean_scale_getters_f64) {
     EXPECT_EQ(f->get_output_element_type(0), element::f64);
 }
 
+TEST(pre_post_process, clamp_operation_on_input_preprocess) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+
+    {
+        auto input_node = model->get_parameters().front();
+        auto connected_node = input_node->output(0).get_target_inputs().begin()->get_node();
+        EXPECT_STREQ(connected_node->get_type_name(), "Relu");
+    }
+    auto p = PrePostProcessor(model);
+    p.input().preprocess().clamp(0.0, 1.0);
+    model = p.build();
+    {
+        auto input_node = model->get_parameters().front();
+        auto connected_node = input_node->output(0).get_target_inputs().begin()->get_node();
+        EXPECT_STREQ(connected_node->get_type_name(), "Clamp");
+    }
+}
+
+TEST(pre_post_process, clamp_operation_on_output_postprocess) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+
+    {
+        auto result_node = model->get_results().front();
+        auto connected_node = result_node->input_value(0).get_node_shared_ptr();
+        EXPECT_STREQ(connected_node->get_type_name(), "Relu");
+    }
+    auto p = PrePostProcessor(model);
+    p.output().postprocess().clamp(0.0, 1.0);
+    model = p.build();
+    {
+        auto result_node = model->get_results().front();
+        auto connected_node = result_node->input_value(0).get_node_shared_ptr();
+        EXPECT_STREQ(connected_node->get_type_name(), "Clamp");
+    }
+}
+
 TEST(pre_post_process, convert_element_type_and_scale) {
     auto f = create_simple_function(element::i8, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(f);
