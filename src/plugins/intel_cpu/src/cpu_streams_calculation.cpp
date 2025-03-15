@@ -500,6 +500,16 @@ std::vector<std::vector<int>> get_streams_info_table(
                     stream_table_size = streams_info_table.size();
                 }
             }
+
+            if ((total_streams == 1) && (proc_type_table.size() == 1) &&
+                (hint_model_distribution_policy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
+                 hint_model_distribution_policy.end())) {
+                streams_info_table.push_back(streams_info_table[0]);
+                streams_info_table.push_back(streams_info_table[0]);
+                streams_info_table[0][THREADS_PER_STREAM] = streams_info_table[0][THREADS_PER_STREAM] * 2;
+                streams_info_table[1][NUMBER_OF_STREAMS] = -1;
+                streams_info_table[2][NUMBER_OF_STREAMS] = -1;
+            }
         }
     } else if (proc_type_table.size() == 1) {
         if (stream_info[PROC_TYPE] == ALL_PROC) {
