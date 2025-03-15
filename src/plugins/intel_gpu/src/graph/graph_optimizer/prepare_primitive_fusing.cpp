@@ -806,6 +806,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<strided_slice>();
 
+            should_fuse |= input.is_type<swiglu>();
+
             bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
@@ -986,6 +988,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<scatter_nd_update>()) ||
                                       (parents[i].first->is_type<scatter_elements_update>()) ||
                                       (parents[i].first->is_type<pooling>()) ||
+                                      (parents[i].first->is_type<swiglu>()) ||
                                       (parents[i].first->is_type<depth_to_space>() &&
                                        dts_supports_fusings(parents[i].first->as<depth_to_space>())) ||
                                       (parents[i].first->is_type<gather>()) ||
