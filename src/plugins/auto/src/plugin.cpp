@@ -431,11 +431,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     bool is_cumulative =
         (auto_s_context->m_performance_hint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) ? true : false;
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
+    bool is_LLM_model;
     if (model_path.empty()) {
         support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
+        is_LLM_model = ov::op::util::is_large_language_model(*model);
     } else {
         // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
-        LOG_INFO_TAG("compile model with model path");
+        LOG_INFO_TAG("compile model with model path: %s", model_path.c_str());
+        auto m_model = get_core()->read_model(model_path, std::string{}, {});
+        is_LLM_model = ov::op::util::is_large_language_model(*m_model);
     }
     if (!is_cumulative) {
         devices_with_priority = get_valid_device(support_devices, model_precision);
@@ -455,8 +459,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         }
         LOG_INFO_TAG("device:%s, priority:%ld", iter->device_name.c_str(), iter->device_priority);
     }
-    auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
-    auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
+    // disable cpu helper when the model is LLM
+    auto_s_context->m_startup_fallback = is_LLM_model ? false : load_config.get_property(ov::intel_auto::enable_startup_fallback);
+    // disable runtime_fallback for only one device need to compile model when the model is LLM
+    auto_s_context->m_runtime_fallback = is_LLM_model ? false : load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
     auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;
     auto_s_context->m_model_path = model_path;
