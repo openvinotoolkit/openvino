@@ -28,7 +28,7 @@ std::shared_ptr<ov::Model> create_v15_model(const IndicesMode indices_mode,
     ov::ParameterVector params = {data};
     std::shared_ptr<op::v15::Squeeze> squeeze;
     if (indices_mode == IndicesMode::NONE) {
-        squeeze = std::make_shared<ov::opset15::Squeeze>(data, allow_axis_skip);
+        squeeze = std::make_shared<ov::opset15::Squeeze>(data);
     } else if (indices_mode == IndicesMode::PARAM) {
         const auto& indices =
             std::make_shared<ov::opset15::Parameter>(ov::element::i32, PartialShape({data_shape.rank()}));
