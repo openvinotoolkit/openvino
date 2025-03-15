@@ -9,7 +9,7 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 
 using namespace ov::test::behavior;
 
@@ -120,15 +120,18 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_mutable_properties = 
     {ov::device::id.name(), ov::Any(ov::test::utils::getDeviceNameID(ov::test::utils::getDeviceName()))},
 };
 
-std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties = {
+std::vector<std::pair<std::string, ov::Any>> compat_plugin_internal_mutable_properties = {
     {ov::intel_npu::compilation_mode_params.name(), ov::Any("use-user-precision=false propagate-quant-dequant=0")},
     {ov::intel_npu::dma_engines.name(), ov::Any(1)},
     {ov::intel_npu::platform.name(), ov::Any(ov::intel_npu::Platform::AUTO_DETECT)},
     {ov::intel_npu::compilation_mode.name(), ov::Any("DefaultHW")},
-    {ov::intel_npu::max_tiles.name(), ov::Any(8)},
-    {ov::intel_npu::stepping.name(), ov::Any(4)},
     {ov::intel_npu::dpu_groups.name(), ov::Any(2)},
     {ov::intel_npu::defer_weights_load.name(), ov::Any(true)},
+};
+
+std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties = {
+    {ov::intel_npu::max_tiles.name(), ov::Any(8)},
+    {ov::intel_npu::stepping.name(), ov::Any(4)},
 };
 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties = {
@@ -213,6 +216,12 @@ TEST_P(ClassPluginPropertiesTestSuite1NPU, CanSetGetInternalMutableProperty) {
 }
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_ClassPluginPropertiesTestNPU,
+                         ClassPluginPropertiesTestSuite1NPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
+                                            ::testing::ValuesIn(compat_plugin_internal_mutable_properties)),
+                         ClassPluginPropertiesTestNPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassPluginPropertiesTestNPU,
                          ClassPluginPropertiesTestSuite1NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
                                             ::testing::ValuesIn(plugin_internal_mutable_properties)),

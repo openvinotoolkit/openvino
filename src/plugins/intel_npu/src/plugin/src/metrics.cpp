@@ -102,14 +102,6 @@ ov::device::LUID Metrics::GetDeviceLUID(const std::string& specifiedDeviceName) 
     }};
 }
 
-std::vector<ov::PropertyName> Metrics::GetCachingProperties() const {
-    return _cachingProperties;
-}
-
-std::vector<ov::PropertyName> Metrics::GetInternalSupportedProperties() const {
-    return _internalSupportedProperties;
-}
-
 std::string Metrics::GetBackendName() const {
     if (_backends == nullptr) {
         OPENVINO_THROW("No available backends");
@@ -212,6 +204,14 @@ ov::device::Type Metrics::GetDeviceType(const std::string& specifiedDeviceName) 
         return device->getDeviceType();
     }
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
+std::string Metrics::GetCompilationPlatform(const std::string_view platform, const std::string& deviceId) const {
+    return _backends->getCompilationPlatform(platform, deviceId);
+}
+
+bool Metrics::IsCommandQueueExtSupported() const {
+    return _backends->isCommandQueueExtSupported();
 }
 
 }  // namespace intel_npu
