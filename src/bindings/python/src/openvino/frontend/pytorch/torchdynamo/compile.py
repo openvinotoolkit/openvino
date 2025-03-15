@@ -21,7 +21,6 @@ from typing import Callable, Optional
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 def cached_model_name(model_hash_str, device, args, cache_root, reversed = False):
     if model_hash_str is None:
@@ -138,4 +137,6 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             config["CACHE_DIR"] = cache_root
 
     compiled = core.compile_model(om, device, config)
+    logger.debug(f"OpenVINO graph compile successful on device {device}")
+
     return compiled
