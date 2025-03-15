@@ -512,8 +512,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
-                                                           const ov::npuw::s11n::Context& ctx) const {
+void ov::npuw::CompiledModel::CompiledModelDesc::serialize(
+    std::ostream& stream,
+    const ov::npuw::s11n::CompiledDescSerializeContext& ctx) const {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Serializing CompiledModelDesc...");
@@ -580,8 +581,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     LOG_DEBUG("DONE.");
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream,
-                                                             const ov::npuw::s11n::Weights& weights) {
+void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
+    std::istream& stream,
+    const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Deserializing CompiledModelDesc...");
@@ -601,9 +603,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, is_remote);
     read(stream, closure_uid);
 
-    if (weights) {
-        read_weightless(stream, scales, weights);
-        read_weightless(stream, zerops, weights);
+    if (ctx.weights || !ctx.consts_cache.empty()) {
+        read_weightless(stream, scales, ctx);
+        read_weightless(stream, zerops, ctx);
 
         std::size_t closure_size = 0;
         read(stream, closure_size);
@@ -614,7 +616,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
         read(stream, cpu_closure_ids);
 
         std::vector<ov::Tensor> cpu_closures;
-        read_weightless(stream, cpu_closures, weights);
+        read_weightless(stream, cpu_closures, ctx);
         std::size_t tidx = 0;
         for (const auto& idx : cpu_closure_ids) {
             closure[idx] = std::move(cpu_closures[tidx++]);
@@ -633,7 +635,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
         // Also read weights into LazyTensors
         for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
             if (closure_uid[cidx] != -1 && lazy_closure[cidx]) {  // previously registered before serialization
-                lazy_closure[cidx].read_weight(weights);
+                lazy_closure[cidx].read_weight(ctx);
             }
         }
     } else {
@@ -700,7 +702,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     write(stream, is_weightless);
 
     // Create weightless context
-    Context ctx(is_weightless, m_const_to_offset);
+    CompiledDescSerializeContext ctx(is_weightless, m_const_to_offset_name);
 
     // Serialize compiled submodels
     write(stream, m_compiled_submodels.size());
@@ -788,19 +790,36 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
     // Initialize weights stream if weightless flow
     std::string weights_path;
+    std::shared_ptr<const ov::Model> model_ptr;
+    // Cache model's constants
+    std::unordered_map<std::string, std::shared_ptr<ov::Node>> consts_cache;
     if (is_weightless) {
-        NPUW_ASSERT(properties.find(ov::weights_path.name()) != properties.end() &&
-                    "There is no WEIGHTS_PATH set in properties but the blob was exported as weightless!");
-        weights_path = properties.at(ov::weights_path.name()).as<std::string>();
+        if (properties.find(ov::weights_path.name()) != properties.end()) {
+            weights_path = properties.at(ov::weights_path.name()).as<std::string>();
+        } else if (properties.find(ov::hint::model.name()) != properties.end()) {
+            model_ptr = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+            // Fill the cache
+            for (const auto& node : model_ptr->get_ordered_ops()) {
+                if (ov::op::util::is_constant(node)) {
+                    consts_cache[ov::npuw::util::get_unique_const_name(node)] = node;
+                }
+            }
+        } else {
+            NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
+        }
     }
 
     ov::npuw::s11n::Weights weights = nullptr;
     if (is_weightless) {
-        auto mapped_memory = ov::load_mmap_object(weights_path);
-        weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
-                                                                                        mapped_memory->size(),
-                                                                                        mapped_memory);
+        if (!weights_path.empty()) {
+            auto mapped_memory = ov::load_mmap_object(weights_path);
+            weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
+                                                                                            mapped_memory->size(),
+                                                                                            mapped_memory);
+        }
     }
+
+    CompiledDescDeserializeContext ctx(weights, consts_cache);
 
     // Deserialize compiled submodels
     std::size_t subm_size = 0;
@@ -822,7 +841,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                 plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
         }
         compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
-        compiled->m_compiled_submodels[i].deserialize(stream, weights);
+        compiled->m_compiled_submodels[i].deserialize(stream, ctx);
     }
 
     compiled->implement_properties();
@@ -926,9 +945,10 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
             }
             std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
             auto data_ptr = c->get_data_ptr();
-            auto inserted = m_const_to_offset.insert({data_ptr, offset});
+            auto inserted =
+                m_const_to_offset_name.insert({data_ptr, {offset, ov::npuw::util::get_unique_const_name(c)}});
             if (!inserted.second) {
-                NPUW_ASSERT(inserted.first->second == offset &&
+                NPUW_ASSERT(inserted.first->second.first == offset &&
                             "Model contains two constants with same pointer and different offset!");
             }
         }

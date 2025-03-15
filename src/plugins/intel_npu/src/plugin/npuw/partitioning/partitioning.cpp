@@ -268,19 +268,6 @@ private:
         }
     }
 
-    // FIXME: a fix to overcome the model with duplicate friendly names in constants
-    std::string get_unique_name(const std::shared_ptr<ov::Node> node_ptr) {
-        if (!node_ptr) {
-            OPENVINO_THROW("NPUW: Fatal error");
-        }
-        if (!ov::is_type<ov::op::v0::Constant>(node_ptr)) {
-            OPENVINO_THROW("NPUW: trying to get a unique name of a non-Constant node");
-        }
-        // FIXME: cache this
-        return node_ptr->get_friendly_name() + " with meta " + ov::npuw::online::util::getMetaDesc(node_ptr) +
-               " with output " + (*node_ptr->output(0).get_target_inputs().begin()).get_node()->description();
-    }
-
 public:
     Partitioner(const std::shared_ptr<ov::Model>& _model,
                 ov::npuw::Ensemble& _ens,
@@ -846,7 +833,7 @@ void Partitioner::propagate(const std::string& func_name,
             if (test(node_ptr)) {
                 LOG_DEBUG("Process node " << node_ptr);
                 const auto& this_layer_name = ov::is_type<ov::op::v0::Constant>(node_ptr)
-                                                  ? get_unique_name(node_ptr)
+                                                  ? ov::npuw::util::get_unique_const_name(node_ptr)
                                                   : node_ptr->get_friendly_name();
 
                 ProtoReaders this_node_readers, this_node_proto_readers;
@@ -987,8 +974,9 @@ void Partitioner::propagateWeights(const std::string& func_name) {
     auto& const_bank = ens.repeated.at(func_name).consts;
     auto& layer_bank = ens.repeated.at(func_name).matches;
     auto match_fcn = [&](const std::shared_ptr<ov::Node>& node_ptr) -> bool {
-        const auto& this_layer_name =
-            ov::is_type<ov::op::v0::Constant>(node_ptr) ? get_unique_name(node_ptr) : node_ptr->get_friendly_name();
+        const auto& this_layer_name = ov::is_type<ov::op::v0::Constant>(node_ptr)
+                                          ? ov::npuw::util::get_unique_const_name(node_ptr)
+                                          : node_ptr->get_friendly_name();
         return ov::is_type<ov::op::v0::Constant>(node_ptr) &&
                const_bank.end() == std::find_if(const_bank.begin(), const_bank.end(), BankContains{this_layer_name})
                // FIXME: workaround for scalars which might pass the weights check
@@ -1024,8 +1012,9 @@ void Partitioner::propagateScalars(const std::string& func_name) {
     // The propagation procedure is generic, but the matching isn't.
     auto& scalar_bank = ens.repeated.at(func_name).scalars;
     auto match_fcn = [&](const std::shared_ptr<ov::Node>& node_ptr) -> bool {
-        const auto& this_layer_name =
-            ov::is_type<ov::op::v0::Constant>(node_ptr) ? get_unique_name(node_ptr) : node_ptr->get_friendly_name();
+        const auto& this_layer_name = ov::is_type<ov::op::v0::Constant>(node_ptr)
+                                          ? ov::npuw::util::get_unique_const_name(node_ptr)
+                                          : node_ptr->get_friendly_name();
         auto res =
             ov::is_type<ov::op::v0::Constant>(node_ptr) &&
             scalar_bank.end() == std::find_if(scalar_bank.begin(), scalar_bank.end(), BankContains{this_layer_name});
@@ -1204,8 +1193,12 @@ void Partitioner::sanityCheck(const std::string& func_name) {
 
         for (auto&& node : submodel->get_ordered_ops()) {
             if (ov::op::util::is_constant(node) &&
-                consts.end() == std::find_if(consts.begin(), consts.end(), BankContains{get_unique_name(node)}) &&
-                scalars.end() == std::find_if(scalars.begin(), scalars.end(), BankContains{get_unique_name(node)})) {
+                consts.end() == std::find_if(consts.begin(),
+                                             consts.end(),
+                                             BankContains{ov::npuw::util::get_unique_const_name(node)}) &&
+                scalars.end() == std::find_if(scalars.begin(),
+                                              scalars.end(),
+                                              BankContains{ov::npuw::util::get_unique_const_name(node)})) {
                 LOG_ERROR("Fatal: Const " << node->get_friendly_name() << "{ " << node->output(0) << " }"
                                           << " wasn't found in any bank");
                 LOG_BLOCK();
@@ -1328,7 +1321,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
     for (auto&& m : model_group) {
         for (auto&& n : m->get_ordered_ops()) {
             if (ov::is_type<CT>(n)) {
-                const_cache[get_unique_name(n)] = std::static_pointer_cast<CT>(n);
+                const_cache[ov::npuw::util::get_unique_const_name(n)] = std::static_pointer_cast<CT>(n);
             }
         }
     }  // for(models)

@@ -10,6 +10,7 @@
 
 #include "logging.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "util.hpp"
 
@@ -27,6 +28,7 @@ struct Const {
     std::size_t m_offset = 0;
     std::size_t m_byte_size = 0;
     ov::Tensor m_read_from_bin;
+    std::string m_cached_name;
 
     Const() = default;
 
@@ -35,6 +37,7 @@ struct Const {
         m_cached_shape = m_node->get_shape();
         m_cached_ptr = m_node->get_data_ptr();
         m_byte_size = m_node->get_byte_size();
+        m_cached_name = ov::npuw::util::get_unique_const_name(m_node);
 
         auto rt_info = m_node->get_rt_info();
         auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
@@ -62,11 +65,21 @@ struct Const {
         NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first!");
         return m_read_from_bin;
     }
-    void read_weight(const ov::npuw::s11n::Weights& weights) {
+    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
         NPUW_ASSERT(!m_node &&
                     "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
         m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
-        std::memcpy(m_read_from_bin.data(), weights->get_ptr(m_offset), m_byte_size);
+
+        if (ctx.weights) {
+            std::memcpy(m_read_from_bin.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
+        } else {
+            auto it = ctx.consts_cache.find(m_cached_name);
+            NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
+            auto tensor = ov::npuw::util::tensor_from_const(it->second);
+            NPUW_ASSERT(tensor.get_byte_size() == m_byte_size && tensor.get_shape() == m_cached_shape &&
+                        tensor.get_element_type() == m_cached_type);
+            tensor.copy_to(m_read_from_bin);
+        }
     }
     void detach() {
         m_node.reset();
@@ -78,6 +91,7 @@ struct Const {
         write(stream, m_cached_shape);
         write(stream, m_offset);
         write(stream, m_byte_size);
+        write(stream, m_cached_name);
     }
     static Const deserialize(std::istream& stream) {
         using namespace ov::npuw::s11n;
@@ -88,6 +102,7 @@ struct Const {
         read(stream, c.m_cached_shape);
         read(stream, c.m_offset);
         read(stream, c.m_byte_size);
+        read(stream, c.m_cached_name);
         return c;
     }
 };
@@ -114,9 +129,9 @@ struct Concat {
         }
         return ov::npuw::util::concat(to_concat, axis);
     }
-    void read_weight(const ov::npuw::s11n::Weights& weights) {
+    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
         for (auto& lt : tensors) {
-            lt.read_weight(weights);
+            lt.read_weight(ctx);
         }
     }
     void detach() {
@@ -173,12 +188,12 @@ struct Unpack {
         }
         return dst;
     }
-    void read_weight(const ov::npuw::s11n::Weights& weights) {
-        w.read_weight(weights);
+    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+        w.read_weight(ctx);
         if (z) {  // could be empty
-            z.read_weight(weights);
+            z.read_weight(ctx);
         }
-        s.read_weight(weights);
+        s.read_weight(ctx);
     }
     void detach() {
         w.detach();
@@ -225,8 +240,8 @@ struct Permute {
     ov::Tensor eval() const {
         return ov::npuw::util::permute(tensor.eval(), axes);
     }
-    void read_weight(const ov::npuw::s11n::Weights& weights) {
-        tensor.read_weight(weights);
+    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+        tensor.read_weight(ctx);
     }
     void detach() {
         tensor.detach();
@@ -262,8 +277,8 @@ struct Convert {
         NPUW_ASSERT(ov::element::f16 == type);
         return ov::npuw::util::to_f16(tensor.eval());
     }
-    void read_weight(const ov::npuw::s11n::Weights& weights) {
-        tensor.read_weight(weights);
+    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+        tensor.read_weight(ctx);
     }
     void detach() {
         tensor.detach();
@@ -302,7 +317,7 @@ public:
 
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<LazyTensorImpl> deserialize(std::istream& stream);
-    void read_weight(const ov::npuw::s11n::Weights& weights);
+    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx);
 
     Transform m_transform;
     std::size_t m_hash = 0;
@@ -351,9 +366,9 @@ ov::Tensor LazyTensorImpl::eval() const {
                       m_transform);
 }
 
-void LazyTensorImpl::read_weight(const ov::npuw::s11n::Weights& weights) {
-    std::visit(overloaded{[&weights](auto& op) {
-                   return op.read_weight(weights);
+void LazyTensorImpl::read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+    std::visit(overloaded{[&ctx](auto& op) {
+                   return op.read_weight(ctx);
                }},
                m_transform);
 }
@@ -469,9 +484,9 @@ ov::Tensor LazyTensor::eval() const {
     return m_impl->eval();
 }
 
-void LazyTensor::read_weight(const ov::npuw::s11n::Weights& weights) {
+void LazyTensor::read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
     NPUW_ASSERT(m_impl && "Trying to read weights into uninitialized tensor!");
-    m_impl->read_weight(weights);
+    m_impl->read_weight(ctx);
 }
 
 LazyTensor::operator bool() const {

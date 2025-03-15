@@ -8,9 +8,11 @@
 #include "lazy_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "spatial.hpp"
+#include "util.hpp"
 
 void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
@@ -316,7 +318,9 @@ void ov::npuw::s11n::read(std::istream& stream, ov::element::Type& var) {
 
 // Weightless
 // FIXME: all serialization needs a good rewriting
-void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx) {
+void ov::npuw::s11n::write_weightless(std::ostream& stream,
+                                      const std::vector<ov::Tensor>& var,
+                                      const ov::npuw::s11n::CompiledDescSerializeContext& ctx) {
     write(stream, var.size());
     for (const auto& t : var) {
         if (!t) {
@@ -325,8 +329,8 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov
         }
         write(stream, true);
         auto data = t.data();
-        auto iter = ctx.const_to_offset.find(data);
-        if (iter == ctx.const_to_offset.end()) {
+        auto iter = ctx.const_to_offset_name.find(data);
+        if (iter == ctx.const_to_offset_name.end()) {
             write(stream, false);
             write(stream, t);
         } else {
@@ -334,14 +338,15 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov
             write(stream, t.get_element_type().to_string());
             write(stream, t.get_shape());
             write(stream, t.get_byte_size());
-            write(stream, iter->second);  // offset in weights file
+            write(stream, iter->second.first);   // offset in weights file
+            write(stream, iter->second.second);  // name of the Constant in original model
         }
     }
 }
 
 void ov::npuw::s11n::read_weightless(std::istream& stream,
                                      std::vector<ov::Tensor>& var,
-                                     const ov::npuw::s11n::Weights& weights) {
+                                     const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
     var.clear();
     std::size_t size;
     read(stream, size);
@@ -364,8 +369,21 @@ void ov::npuw::s11n::read_weightless(std::istream& stream,
             read(stream, byte_size);
             std::size_t offset = 0;
             read(stream, offset);
+            std::string name;
+            read(stream, name);
             ov::Tensor t(type, shape);
-            std::memcpy(t.data(), weights->get_ptr(offset), byte_size);
+
+            if (ctx.weights) {
+                std::memcpy(t.data(), ctx.weights->get_ptr(offset), byte_size);
+            } else {
+                auto it = ctx.consts_cache.find(name);
+                NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
+                auto tensor = ov::npuw::util::tensor_from_const(it->second);
+                NPUW_ASSERT(tensor.get_byte_size() == byte_size && tensor.get_shape() == shape &&
+                            tensor.get_element_type() == type);
+                tensor.copy_to(t);
+            }
+
             var.push_back(t);
         } else {
             ov::Tensor t;
