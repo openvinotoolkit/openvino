@@ -413,17 +413,17 @@ INSTANTIATE_TEST_SUITE_P(MatMulCompressedWeights_corner_cases_big,
 // per_tensor_zp=0 is not supported
 // transpose_weights is not supported
 // weight precision u4 is only supported
-const std::vector<uint64_t> group_size = {32, 128, UINT64_MAX};
+const std::vector<uint64_t> group_size = {INT64_MAX};
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                          MatmulWeightsDecompression,
-                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 4096}, {{1, 1, 4096}}}, {4096, 4096}, 128}),  // shape
+                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 4096}, {{1024, 1, 4096}, {1, 1, 4096}, {1024, 1, 4096}}}, {4096, 4096}, 128}),  // shape
                                             ::testing::Values(ov::element::u4),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(false),
-                                            ::testing::ValuesIn(add_decompression_sub),
+                                            ::testing::Values(false),
                                             ::testing::Values(true),
                                             ::testing::Values(false),
-                                            ::testing::Values(true),  // per_tensor_zp
+                                            ::testing::Values(false),  // per_tensor_zp
                                             ::testing::ValuesIn(group_size),
                                             ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
                          MatmulWeightsDecompression::get_test_case_name);

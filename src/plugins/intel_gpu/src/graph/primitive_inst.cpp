@@ -512,6 +512,34 @@ void primitive_inst::update_shape() {
     }
 }
 
+void primitive_inst::update_data_type() {
+    // FIXME: add additional check to confirm that it is consumed by FC, not by SDPA
+    if (get_node().is_type<dynamic_quantize>()) {
+        GPU_DEBUG_COUT << "Now update data type of " << get_node().id() << "  " << _impl_params->input_layouts[0] << std::endl;
+
+        if (_impl_params->input_layouts[0].batch() == 1) {
+            // Skip dynamic quantize for better 2nd token performance
+            // SHAPE_CHANGED flag was already turned on by update_shape.
+            // FIXME: update only when it is changed since last execution
+            auto &old_layout = _impl_params->get_output_layout(0);
+            old_layout.data_type = data_types::f16;
+            GPU_DEBUG_COUT << "new output  " << _impl_params->output_layouts[0] << std::endl;
+            // _impl_params->output_layouts[0] = layout(data_types::f16, old_layout.format, old_layout.get_tensor());
+        } else {
+            // Execute dynamic quantize for better 1st token performance
+
+            // FIXME: update only when it is changed since last execution
+            // FIXME: update only when it is changed since last execution
+            auto &old_layout = _impl_params->get_output_layout(0);
+            GPU_DEBUG_COUT << "old output  " << old_layout << std::endl;
+            old_layout.data_type = data_types::i8;
+            // _impl_params->output_layouts[0] = layout(data_types::i8, old_layout.format, old_layout.get_tensor());
+            GPU_DEBUG_COUT << "new output  " << _impl_params->output_layouts[0] << std::endl;
+        }
+    }
+}
+
+
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
     auto updated_params = _node->type()->get_fake_aligned_params(orig_impl_param);
 
@@ -1870,6 +1898,7 @@ void primitive_inst::prepare_primitive() {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
+        update_data_type();
 
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;

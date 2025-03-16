@@ -434,6 +434,7 @@ protected:
     virtual void on_execute() {}
 
     virtual void update_shape();
+    virtual void update_data_type();
     virtual void update_weights();
 
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);

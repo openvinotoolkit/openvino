@@ -100,15 +100,16 @@ protected:
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, true);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
             }
+            bool is_dyn_quan_input = instance.get_input_layout(0).data_type == data_types::i8 || instance.get_input_layout(0).data_type == data_types::u8;
 
-            if (prim->activation_scale.is_valid()) {
+            if (is_dyn_quan_input && prim->activation_scale.is_valid()) {
                 auto activation_scale_idx = idx++;
                 auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_scale_mem->get_layout(), dnnl::memory::format_tag::ab, true);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0, act_scale_mem->get_onednn_memory(desc)});
             }
 
-            if (prim->activation_zero_point.is_valid()) {
+            if (is_dyn_quan_input && prim->activation_zero_point.is_valid()) {
                 auto activation_zp_idx = idx++;
                 auto act_zp_mem = instance.dep_memory_ptr(activation_zp_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab, true);
@@ -118,20 +119,36 @@ protected:
             // fixme: need to narrow the condition to avoid uncompress. It should be only 3d(?) and 4bit-weight
             // std::cout << "get_argument - layout " << layout.batch() << std::endl;
             auto dyn_quan_inst = instance.dependencies()[0].first;
+            GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
+
             if (dyn_quan_inst->get_node().is_type<dynamic_quantize>()) {
-                OPENVINO_ASSERT(!dyn_quan_inst->can_be_optimized() || _has_uncomp_input, "When dyn_quan is optimized-out, FC is supposed to have uncomp-input: ", instance.get_node().id());
-                // std::cout << "dependency of fc layer  " << instance.dependencies()[0].first->get_node().id() << "  can_be_optizmied " << dyn_quan_inst->can_be_optimized() << std::endl;
-                if (dyn_quan_inst->can_be_optimized()) {
-                    // overwrite input buffer to uncompressed version
+                if (is_dyn_quan_input) {
+                    OPENVINO_ASSERT(!dyn_quan_inst->can_be_optimized() || _has_uncomp_input, "When dyn_quan is optimized-out, FC is supposed to have uncomp-input: ", instance.get_node().id());
+                    // std::cout << "dependency of fc layer  " << instance.dependencies()[0].first->get_node().id() << "  can_be_optizmied " << dyn_quan_inst->can_be_optimized() << std::endl;
+                    if (dyn_quan_inst->can_be_optimized()) {
+                        // overwrite input buffer to uncompressed version
+                        auto input_uncomp_idx = idx++;
+                        auto input = instance.dep_memory_ptr(input_uncomp_idx);
+                        auto offset = onednn::get_offset(instance.get_input_layout(input_uncomp_idx), _pd_uncomp.dnnl::primitive_desc_base::src_desc(0));
+                        // XXX: not sure whether offset argument is correctly set or not
+                        auto input_mem = input->get_onednn_memory(_pd_uncomp.dnnl::primitive_desc_base::src_desc(0), offset);
+                        args.insert_or_assign(DNNL_ARG_SRC, input_mem);
+                        // std::cout << "get_argument - use uncomp_input " << instance.get_node().id() << "  size " << input->size() << std::endl;
+                        _use_input_uncomp = true;
+                    }
+                } else {
+                    if (prim->activation_scale.is_valid())
+                        idx++;
+                    if (prim->activation_zero_point.is_valid())
+                        idx++;
                     auto input_uncomp_idx = idx++;
                     auto input = instance.dep_memory_ptr(input_uncomp_idx);
-                    auto offset = onednn::get_offset(instance.get_input_layout(input_uncomp_idx), _pd_uncomp.dnnl::primitive_desc_base::src_desc(0));
+                    auto offset = onednn::get_offset(instance.get_input_layout(input_uncomp_idx), _pd.dnnl::primitive_desc_base::src_desc(0));
                     // XXX: not sure whether offset argument is correctly set or not
-                    auto input_mem = input->get_onednn_memory(_pd_uncomp.dnnl::primitive_desc_base::src_desc(0), offset);
+                    auto input_mem = input->get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset);
                     args.insert_or_assign(DNNL_ARG_SRC, input_mem);
-                    // std::cout << "get_argument - use uncomp_input " << instance.get_node().id() << "  size " << input->size() << std::endl;
-                    _use_input_uncomp = true;
-                }
+            }
+                
 
             }
 
@@ -389,12 +406,15 @@ public:
                 }
             }
 
+            bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
+            GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
+            
             std::shared_ptr<dnnl::matmul::primitive_desc> prim_desc_uncomp(new dnnl::matmul::primitive_desc);
             bool is_node_dyn_quantized = false;
             char *ptr = getenv("DYN_QUAN_2ND");
             // std::cout << __func__ << "  : " << arg.id() << "  " << prim->input_uncomp.is_valid() << "  " << arg.get_dependency(0).is_type<dynamic_quantize>() << "  " << is_four_bit_weight << "  " << !!ptr << std::endl;
             // std::cout << "   " << prim->input_uncomp.pid << std::endl;
-            if (prim->input_uncomp.is_valid() && arg.get_dependency(0).is_type<dynamic_quantize>() && !ptr) {
+            if (is_dyn_quan_input && prim->input_uncomp.is_valid() && arg.get_dependency(0).is_type<dynamic_quantize>() && !ptr) {
                 // std::cout << "Apply uncomp_input to: " << arg.id() << std::endl;
                 is_node_dyn_quantized = true;
                 // attr->set_scales(DNNL_ARG_SRC, 0, dnnl::memory::dims{});
@@ -405,7 +425,7 @@ public:
             }
 
 
-            if (prim->dynamic_quantized_activation) {
+            if (is_dyn_quan_input && prim->dynamic_quantized_activation) {
                 auto src_scale_idx = ++idx;
                 auto& partial_shape = impl_params.input_layouts[0].get_partial_shape();
                 auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
