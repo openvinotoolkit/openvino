@@ -1263,7 +1263,8 @@ void Transformations::MainSnippets() {
                 ov::op::v0::Sqrt,
                 ov::op::v1::Subtract,
                 ov::op::v4::Swish,
-                ov::op::v0::Tanh>(n));
+                ov::op::v0::Tanh,
+                ov::op::v0::Xor>(n));
         };
         return is_supported(n) || is_supported_with_scalar_inputs(n);
 #else
