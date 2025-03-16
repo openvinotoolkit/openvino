@@ -518,7 +518,10 @@ void primitive_inst::update_data_type() {
         auto desc = get_node().as<dynamic_quantize>().get_primitive();
         // GPU_DEBUG_COUT << "Now update data type of " << get_node().id() << "  " << _impl_params->input_layouts[0] << std::endl;
 
-        if (_impl_params->input_layouts[0].batch() == 1) {
+        // FIXME: what is proper way to calculate num batches?
+        size_t batch = _impl_params->input_layouts[0].batch() * _impl_params->input_layouts[0].feature();
+        
+        if (batch == 1) {
             // Skip dynamic quantize for better 2nd token performance
             // SHAPE_CHANGED flag was already turned on by update_shape.
             // FIXME: update only when it is changed since last execution
