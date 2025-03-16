@@ -513,7 +513,6 @@ void primitive_inst::update_shape() {
 }
 
 void primitive_inst::update_data_type() {
-    // FIXME: add additional check to confirm that it is consumed by FC, not by SDPA
     if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
         auto desc = get_node().as<dynamic_quantize>().get_primitive();
         auto &layout = _impl_params->get_output_layout(0);
@@ -1379,10 +1378,13 @@ void primitive_inst::do_runtime_skip_dynamic_quantize() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_dynamic_quantize: " + id()));
     if (!_node->is_type<dynamic_quantize>())
         return;
-    char *ptr = getenv("DYN_QUAN_2ND");
-    if (ptr)
+
+    if (get_config().get_dynamic_quantization_all())
         return;
 
+    // Do not skip dynamic quantization if this node is not fully connected.(such as SDPA)
+    if (!get_user_insts()[0]->get_node().is_type<fully_connected>())
+        return;
     set_can_be_optimized(false);
 
     OPENVINO_ASSERT(_impl_params->fused_desc.size() == 0, "Dynamic quantization is not supposed to have fused ops: ", get_node().id());
@@ -1400,7 +1402,6 @@ void primitive_inst::do_runtime_skip_dynamic_quantize() {
         set_can_be_optimized(true);
 
         OPENVINO_ASSERT(get_user_insts().size() == _node->get_outputs_count(), "Dynamic quantization is supposed to have only one user-node with duplicated connection: ", get_node().id());
-        OPENVINO_ASSERT(get_user_insts()[0]->get_node().is_type<fully_connected>(), "Use of dynamic quantization should be fully_connected: ", get_node().id());
     }
 }
 

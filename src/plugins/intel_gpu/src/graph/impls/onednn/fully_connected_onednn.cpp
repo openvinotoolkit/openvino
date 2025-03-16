@@ -94,10 +94,6 @@ protected:
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab, true);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC_0, act_zp_mem->get_onednn_memory(desc)});
             }
-            // fixme: need to narrow the condition to avoid uncompress. It should be only 3d(?) and 4bit-weight
-            // std::cout << "get_argument - layout " << layout.batch() << std::endl;
-
-            // GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
         }
 
         return args;
@@ -331,7 +327,6 @@ public:
             }
 
             bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
-            // GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
             
             if (is_dyn_quan_input && prim->dynamic_quantized_activation) {
                 auto src_scale_idx = ++idx;
@@ -348,11 +343,11 @@ public:
                     attr->set_zero_points(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
             }
 
-            
-            auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
-                                                            prim->input_size, !prim->bias.empty(), *attr);
 
-            auto prim_onednn = std::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc, std::shared_ptr<WeightsReorderParams>{});
+            auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
+                                                             prim->input_size, !prim->bias.empty(), *attr);
+
+            auto prim_onednn = std::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc);
             prim_onednn->_ds_group_size = group_size;
             prim_onednn->_ds_data_type = ds_data_type;
             prim_onednn->_dzp_data_type = dzp_data_type;
