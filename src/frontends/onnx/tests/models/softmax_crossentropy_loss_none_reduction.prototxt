@@ -7,26 +7,19 @@ graph {
     output: "z"
     op_type: "SoftmaxCrossEntropyLoss"
     attribute {
-        name: "reduction"
-        s: "mean"
-        type: STRING
-    }
-    attribute {
-        name: "axis"
-        i: 1
-        type: INT
+      name: "reduction"
+      s: "none"
+      type: STRING
     }
   }
-  name: "test_sce_higher_dim"
+  name: "test_sce_none_reduction"
   input {
     name: "x"
     type {
       tensor_type {
         elem_type: 1
         shape {
-          dim { dim_value: 2 }
-          dim { dim_value: 3 }
-          dim { dim_value: 2 }
+          dim { dim_value: 1 }
           dim { dim_value: 2 }
         }
       }
@@ -38,9 +31,7 @@ graph {
       tensor_type {
         elem_type: 7
         shape {
-          dim { dim_value: 2 }
-          dim { dim_value: 2 }
-          dim { dim_value: 2 }
+          dim { dim_value: 1 }
         }
       }
     }
@@ -50,7 +41,9 @@ graph {
     type {
       tensor_type {
         elem_type: 1
-        shape {}
+        shape {
+          dim { dim_value: 1 }
+        }
       }
     }
   }

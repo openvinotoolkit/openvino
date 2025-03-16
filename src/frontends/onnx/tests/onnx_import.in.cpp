@@ -6945,3 +6945,79 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e4m3fn_constant) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_none_reduction_basic) {
+    auto model = convert_model("softmax_crossentropy_loss_none_reduction.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({2.0f, 1.0f});
+    test_case.add_input<int64_t>({0});
+
+    test_case.add_expected_output<float>(Shape{1}, {0.3132617f});
+
+    test_case.run_with_tolerance_as_fp(0.002f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_mean_reduction_with_weights) {
+    auto model = convert_model("softmax_crossentropy_loss_mean_weight.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 1.0f});
+    test_case.add_input<int64_t>({1, 0});
+    test_case.add_input<float>({0.5f, 2.0f});
+
+    test_case.add_expected_output<float>(Shape{}, {0.275995f});
+
+    test_case.run_with_tolerance_as_fp(0.002f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_ignore_index) {
+    auto model = convert_model("softmax_crossentropy_loss_ignore_index.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f});
+    test_case.add_input<int64_t>({1});
+
+    test_case.add_expected_output<float>(Shape{1}, {0.0f});
+
+    test_case.run_with_tolerance_as_fp(1e-6f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_higher_dimension) {
+    auto model = convert_model("softmax_crossentropy_loss_4d_input.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> scores(2 * 3 * 2 * 2, 1.0f);
+    test_case.add_input<float>(scores);
+
+    test_case.add_input<int64_t>(std::vector<int64_t>(2 * 2 * 2, 0));
+
+    const std::vector<float> expected(2 * 2 * 2, 1.0986123f);
+    test_case.add_expected_output<float>(Shape{2, 2, 2}, expected);
+
+    test_case.run_with_tolerance_as_fp(1e-6f);
+}
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_extreme_values) {
+    auto model = convert_model("softmax_crossentropy_loss_extreme_values.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1000.0f, 1000.0f});
+    test_case.add_input<int64_t>({0});
+
+    test_case.add_expected_output<float>(Shape{1}, {0.693147f});
+
+    test_case.run_with_tolerance_as_fp(0.002f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_log_prob_output) {
+    auto model = convert_model("softmax_crossentropy_loss_log_prob.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({2.0f, 1.0f});
+    test_case.add_input<int64_t>({0});
+
+    test_case.add_expected_output<float>(Shape{1}, {0.3132617f});
+    test_case.add_expected_output<float>(Shape{1, 2}, {-0.3132617f, -1.3132617f});
+
+    test_case.run_with_tolerance_as_fp(0.002f);
+}

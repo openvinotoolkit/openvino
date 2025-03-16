@@ -4,21 +4,15 @@ graph {
   node {
     input: "x"
     input: "y"
-    input: "w"
     output: "z"
     op_type: "SoftmaxCrossEntropyLoss"
     attribute {
       name: "reduction"
-      s: "mean"
+      s: "none"
       type: STRING
     }
-    attribute {
-      name: "ignore_index"
-      i: -1
-      type: INT
-    }
   }
-  name: "test_sce_mean_weight_ii"
+  name: "test_sce_4d_input"
   input {
     name: "x"
     type {
@@ -27,6 +21,7 @@ graph {
         shape {
           dim { dim_value: 2 }
           dim { dim_value: 3 }
+          dim { dim_value: 2 }
           dim { dim_value: 2 }
         }
       }
@@ -40,17 +35,7 @@ graph {
         shape {
           dim { dim_value: 2 }
           dim { dim_value: 2 }
-        }
-      }
-    }
-  }
-  input {
-    name: "w"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim { dim_value: 3 }
+          dim { dim_value: 2 }
         }
       }
     }
@@ -60,7 +45,11 @@ graph {
     type {
       tensor_type {
         elem_type: 1
-        shape {}
+        shape {
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+        }
       }
     }
   }

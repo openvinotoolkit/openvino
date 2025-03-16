@@ -1,0 +1,66 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "x"
+    input: "y"
+    output: "loss"
+    output: "log_prob"
+    op_type: "SoftmaxCrossEntropyLoss"
+    attribute {
+      name: "reduction"
+      s: "none"
+      type: STRING
+    }
+  }
+  name: "test_sce_log_prob"
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  input {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+  output {
+    name: "loss"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+  output {
+    name: "log_prob"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}

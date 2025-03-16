@@ -4,15 +4,16 @@ graph {
   node {
     input: "x"
     input: "y"
+    input: "w"
     output: "z"
     op_type: "SoftmaxCrossEntropyLoss"
     attribute {
-        name: "reduction"
-        s: "none"
-        type: STRING
+      name: "reduction"
+      s: "mean"
+      type: STRING
     }
   }
-  name: "test_sce_none"
+  name: "test_sce_mean_weight"
   input {
     name: "x"
     type {
@@ -36,14 +37,23 @@ graph {
       }
     }
   }
-  output {
-    name: "z"
+  input {
+    name: "w"
     type {
       tensor_type {
         elem_type: 1
         shape {
           dim { dim_value: 2 }
         }
+      }
+    }
+  }
+  output {
+    name: "z"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {}
       }
     }
   }
