@@ -92,6 +92,8 @@ OP_CONVERTER(translate_expm1);
 OP_CONVERTER(translate_eye);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine);
+OP_CONVERTER(translate_fft_fftn);
+OP_CONVERTER(translate_fft_ifftn);
 OP_CONVERTER(translate_fft_irfftn);
 OP_CONVERTER(translate_fft_rfftn);
 OP_CONVERTER(translate_fill);
@@ -484,7 +486,17 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::fake_quantize_per_channel_affine", op::translate_fake_quantize_per_channel_affine},
         {"aten::fake_quantize_per_tensor_affine", op::translate_fake_quantize_per_tensor_affine},
         {"aten::feature_dropout", op::skip_node},
+        {"aten::fft_fft", op::translate_fft_fftn},
+        {"aten::fft_fft2", op::translate_fft_fftn},
+        {"aten::fft_fftn", op::translate_fft_fftn},
+        {"aten::fft_ifft", op::translate_fft_ifftn},
+        {"aten::fft_ifft2", op::translate_fft_ifftn},
+        {"aten::fft_ifftn", op::translate_fft_ifftn},
+        {"aten::fft_irfft", op::translate_fft_irfftn},
+        {"aten::fft_irfft2", op::translate_fft_irfftn},
         {"aten::fft_irfftn", op::translate_fft_irfftn},
+        {"aten::fft_rfft", op::translate_fft_rfftn},
+        {"aten::fft_rfft2", op::translate_fft_rfftn},
         {"aten::fft_rfftn", op::translate_fft_rfftn},
         {"aten::fill", op::translate_fill},
         {"aten::fill_diagonal", op::translate_fill_diagonal},
@@ -964,6 +976,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.repeat.default", op::translate_repeat_fx},
+        {"aten.repeat_interleave.Tensor", op::translate_repeat_interleave},
         {"aten.rms_norm.default", op::translate_rms_norm},
         {"aten.roll.default", op::translate_roll},
         {"aten.rsqrt.default", op::translate_rsqrt},
