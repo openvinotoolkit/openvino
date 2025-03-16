@@ -1265,6 +1265,7 @@ void Transformations::MainSnippets() {
                 ov::op::v0::PRelu,
                 ov::op::v0::Relu,
                 ov::op::v5::Round,
+                ov::op::v1::Select,
                 ov::op::v0::Sigmoid,
                 ov::op::v0::Sqrt,
                 ov::op::v1::Subtract,

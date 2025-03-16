@@ -169,6 +169,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[snippets::op::Store::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_store_memory_emitter);
 
     // ternary
+    jitters[op::v1::Select::get_type_info_static()] = CREATE_CPU_EMITTER(jit_select_emitter);
     jitters[intel_cpu::FusedMulAdd::get_type_info_static()] = CREATE_CPU_EMITTER(jit_mul_add_emitter);
 
     // binary
