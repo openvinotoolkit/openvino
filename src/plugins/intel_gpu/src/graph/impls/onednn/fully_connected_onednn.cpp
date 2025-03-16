@@ -27,25 +27,6 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::fully_connected_onednn)
 
-    // FIXME: can we hide pd_uncomp into FC onednn.cpp only?
-
-    // fully_connected_onednn(const engine& engine,
-    //     const ExecutionConfig& config,
-    //     std::shared_ptr<dnnl::primitive_attr> attrs,
-    //     const dnnl::primitive_desc& pd,
-    //     const dnnl::primitive_desc& pd_uncomp,
-    //     bool has_uncomp_input = false,
-    //     std::shared_ptr<WeightsReorderParams> weights_reorder = {})
-    //     : typed_primitive_onednn_impl(engine, config, attrs, pd, weights_reorder),
-    //       _pd_uncomp(pd_uncomp),
-    //       _has_uncomp_input(has_uncomp_input) {
-    //         if (has_uncomp_input)
-    //             std::cout << "has_uncomp_input = 1" << std::endl;
-
-    //         // fixme: need to support cache
-    //         _prim_uncomp = dnnl::primitive(_pd_uncomp);
-    //     }
-
 private:
     int _ds_group_size;
     dnnl::memory::data_type _ds_data_type;
@@ -60,7 +41,6 @@ private:
     }
 
 protected:
-
     std::unique_ptr<primitive_impl> clone() const override {
         return std::make_unique<fully_connected_onednn>(*this);
     }
@@ -115,28 +95,13 @@ protected:
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab, true);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC_0, act_zp_mem->get_onednn_memory(desc)});
             }
-            _use_input_uncomp = false;
             // fixme: need to narrow the condition to avoid uncompress. It should be only 3d(?) and 4bit-weight
             // std::cout << "get_argument - layout " << layout.batch() << std::endl;
             auto dyn_quan_inst = instance.dependencies()[0].first;
             GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
 
             if (dyn_quan_inst->get_node().is_type<dynamic_quantize>()) {
-                if (is_dyn_quan_input) {
-                    OPENVINO_ASSERT(!dyn_quan_inst->can_be_optimized() || _has_uncomp_input, "When dyn_quan is optimized-out, FC is supposed to have uncomp-input: ", instance.get_node().id());
-                    // std::cout << "dependency of fc layer  " << instance.dependencies()[0].first->get_node().id() << "  can_be_optizmied " << dyn_quan_inst->can_be_optimized() << std::endl;
-                    if (dyn_quan_inst->can_be_optimized()) {
-                        // overwrite input buffer to uncompressed version
-                        auto input_uncomp_idx = idx++;
-                        auto input = instance.dep_memory_ptr(input_uncomp_idx);
-                        auto offset = onednn::get_offset(instance.get_input_layout(input_uncomp_idx), _pd_uncomp.dnnl::primitive_desc_base::src_desc(0));
-                        // XXX: not sure whether offset argument is correctly set or not
-                        auto input_mem = input->get_onednn_memory(_pd_uncomp.dnnl::primitive_desc_base::src_desc(0), offset);
-                        args.insert_or_assign(DNNL_ARG_SRC, input_mem);
-                        // std::cout << "get_argument - use uncomp_input " << instance.get_node().id() << "  size " << input->size() << std::endl;
-                        _use_input_uncomp = true;
-                    }
-                } else {
+                if (!is_dyn_quan_input) {
                     if (prim->activation_scale.is_valid())
                         idx++;
                     if (prim->activation_zero_point.is_valid())
@@ -190,17 +155,12 @@ protected:
                                         cldnn::engine& engine,
                                         size_t prim_input_size,
                                         bool has_bias,
-                                        const dnnl::primitive_attr& attr = dnnl::primitive_attr(),
-                                        bool is_input_uncomp = false) {
+                                        const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
         auto input_layout = impl_params.get_input_layout(0);
         auto weights_layout = impl_params.get_input_layout(1);
         auto output_layout = impl_params.get_output_layout();
 
         transform_layouts(input_layout, weights_layout, output_layout, prim_input_size);
-        if (is_input_uncomp) {
-            input_layout.data_type = ov::element::f16;
-            // fixme: it may be f32 depending on the network
-        }
 
         auto input_md = onednn::layout_to_memory_desc(input_layout, dnnl::memory::format_tag::ab, false);
         // TODO: should change format to any. May need a reorder.
@@ -340,16 +300,6 @@ public:
 #endif
     }
 
-    void execute_prim(const dnnl::stream& stream, const std::unordered_map<int, dnnl::memory> &args) {
-        // std::cout << "FC execute_prim is called" << std::endl;
-        if (_has_uncomp_input) {
-            // std::cout << "execute_prim: uncompressed primitive is executed" << std::endl;
-            _prim_uncomp.execute(stream, args);
-        } else {
-            _prim.execute(stream, args);
-        }
-    }
-
     static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
@@ -360,13 +310,11 @@ public:
         dnnl::memory::data_type dzp_data_type = dnnl::memory::data_type::undef;
         bool is_four_bit_weight = false;
         int idx = !arg.bias_term() ? 1 : 2;
-        auto attr_uncomp = std::make_shared<dnnl::primitive_attr>();
-        
+
         // There may be a performance difference between InnerProduct and MatMul primitives in oneDNN,
         // so use MatMul only for weights compression and IP for all other cases.
         if (prim->compressed_weights) {
             attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
-            attr_uncomp->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
             auto weights_layout = impl_params.get_input_layout(1);
             is_four_bit_weight = weights_layout.data_type == data_types::u4 || weights_layout.data_type == data_types::i4;
             if (!prim->decompression_scale.empty()) {
@@ -378,11 +326,9 @@ public:
                 if (!is_four_bit_weight) {
                     // 8-bit quantized weight
                     attr->set_scales(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, ds_data_type);
-                    attr_uncomp->set_scales(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, ds_data_type);
                 } else {
                     // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
                     attr->set_scales(DNNL_ARG_WEIGHTS, GROUPED, {group_size, 1}, ds_data_type);
-                    attr_uncomp->set_scales(DNNL_ARG_WEIGHTS, GROUPED, {group_size, 1}, ds_data_type);
                 }
             }
 
@@ -393,15 +339,12 @@ public:
 
                 if (dzp_layout.count() == 1) {
                     attr->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, dzp_data_type);
-                    attr_uncomp->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, dzp_data_type);
                 } else {
                     auto ngroups = dzp_layout.get_dim(1);
                     if (ngroups == 1) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, dzp_data_type);
-                        attr_uncomp->set_zero_points(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, GROUPED, {group_size, 1}, dzp_data_type);
-                        attr_uncomp->set_zero_points(DNNL_ARG_WEIGHTS, GROUPED, {group_size, 1}, dzp_data_type);
                     }
                 }
             }
@@ -409,22 +352,6 @@ public:
             bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
             GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
             
-            std::shared_ptr<dnnl::matmul::primitive_desc> prim_desc_uncomp(new dnnl::matmul::primitive_desc);
-            bool is_node_dyn_quantized = false;
-            char *ptr = getenv("DYN_QUAN_2ND");
-            // std::cout << __func__ << "  : " << arg.id() << "  " << prim->input_uncomp.is_valid() << "  " << arg.get_dependency(0).is_type<dynamic_quantize>() << "  " << is_four_bit_weight << "  " << !!ptr << std::endl;
-            // std::cout << "   " << prim->input_uncomp.pid << std::endl;
-            if (is_dyn_quan_input && prim->input_uncomp.is_valid() && arg.get_dependency(0).is_type<dynamic_quantize>() && !ptr) {
-                // std::cout << "Apply uncomp_input to: " << arg.id() << std::endl;
-                is_node_dyn_quantized = true;
-                // attr->set_scales(DNNL_ARG_SRC, 0, dnnl::memory::dims{});
-                attr_uncomp->set_post_ops(attr->get_post_ops());
-                attr_uncomp->set_scratchpad_mode(dnnl::scratchpad_mode::user);        
-                prim_desc_uncomp = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
-                                                                prim->input_size, !prim->bias.empty(), *attr_uncomp, true);
-            }
-
-
             if (is_dyn_quan_input && prim->dynamic_quantized_activation) {
                 auto src_scale_idx = ++idx;
                 auto& partial_shape = impl_params.input_layouts[0].get_partial_shape();
@@ -444,8 +371,7 @@ public:
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
                                                             prim->input_size, !prim->bias.empty(), *attr);
 
-            auto prim_onednn = std::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc, std::shared_ptr<WeightsReorderParams>{}, *prim_desc_uncomp, is_node_dyn_quantized);
-            // auto prim_onednn = std::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc, std::shared_ptr<WeightsReorderParams>{}, *prim_desc_uncomp);
+            auto prim_onednn = std::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc, std::shared_ptr<WeightsReorderParams>{});
             prim_onednn->_ds_group_size = group_size;
             prim_onednn->_ds_data_type = ds_data_type;
             prim_onednn->_dzp_data_type = dzp_data_type;

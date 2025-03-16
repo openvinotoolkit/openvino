@@ -38,26 +38,15 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     dnnl::memory::desc _scratchpad_md;
     bool _enable_profiling = false;
 
-    PrimDescType _pd_uncomp;  // mingyuki: should it be private?
-    // fixme: _pd_uncomp can be empty.
-    // fixme: change data type
-    dnnl::primitive _prim_uncomp;
-    bool _has_uncomp_input = false;   // rename to has_input_uncomp
-    mutable bool _use_input_uncomp = false;
-
     typed_primitive_onednn_impl(const engine& engine,
             const ExecutionConfig& config,
             std::shared_ptr<dnnl::primitive_attr> attrs,
             const PrimDescType& pd,
-            std::shared_ptr<WeightsReorderParams> weights_reorder = {},
-            PrimDescType pd_uncomp = PrimDescType(),
-            bool has_uncomp_input = false) // FIXME: pd_uncomp initialization is weird
+            std::shared_ptr<WeightsReorderParams> weights_reorder = {})
         : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
         _engine(&engine),
         _attrs(attrs),
-        _pd(pd),
-        _pd_uncomp(pd_uncomp),
-        _has_uncomp_input(has_uncomp_input) {
+        _pd(pd) {
             _enable_profiling = config.get_enable_profiling();
 
             _scratchpad_md = _pd.scratchpad_desc();
@@ -355,10 +344,7 @@ private:
         if (!config.get_allow_new_shape_infer()) {
             cache_outpath = "";
         }
-        // FIXME: prim_uncomp should support cache too
-        if (_has_uncomp_input)
-            _prim_uncomp = PrimType(_pd_uncomp);
-        
+
         if (cache_outpath.empty()) {
             _prim = PrimType(_pd);
         } else {
@@ -554,16 +540,8 @@ protected:
 
         if (!instance.can_be_optimized()) {
             try {
-                if (_use_input_uncomp) {
-                    // auto l = instance.output_memory(0).get_layout();
-                    // std::cout << "execute_prim: uncompressed primitive is executed - format " << l.format << " - " << l.batch() << "x" << l.feature() << std::endl;
-                    _prim_uncomp.execute(stream.get_onednn_stream(), _args[net_id]);
-                } else {
-                    // auto l = instance.output_memory(0).get_layout();
-                    // std::cout << "execute_prim: compressed primitive is executed - format " << l.format << " - " << l.batch() << "x" << l.feature() << std::endl;
-                    _prim.execute(stream.get_onednn_stream(), _args[net_id]);
-                }
-                    } catch (dnnl::error& err) {
+                _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+            } catch (dnnl::error& err) {
                 auto err_code = err.status == dnnl_status_t::dnnl_out_of_memory ? CL_OUT_OF_RESOURCES : CL_INVALID_OPERATION;
                 ocl::rethrow(err.what(), err_code, _engine->get_device_info());
             }
