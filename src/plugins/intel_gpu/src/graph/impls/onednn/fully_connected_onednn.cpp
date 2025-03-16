@@ -97,30 +97,7 @@ protected:
             // fixme: need to narrow the condition to avoid uncompress. It should be only 3d(?) and 4bit-weight
             // std::cout << "get_argument - layout " << layout.batch() << std::endl;
 
-            GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
-            
-#if 0
-            auto dyn_quan_inst = instance.dependencies()[0].first;
-            if (dyn_quan_inst->get_node().is_type<dynamic_quantize>()) {
-                if (!is_dyn_quan_input) {
-                    if (prim->activation_scale.is_valid())
-                        idx++;
-                    if (prim->activation_zero_point.is_valid())
-                        idx++;
-                    auto input_uncomp_idx = idx++;
-                    auto src = instance.input_memory_ptr(0)->buffer_ptr();
-                    auto input = instance.dep_memory_ptr(input_uncomp_idx);
-                    GPU_DEBUG_COUT << "src " << src << "   uncomp_input " << input->buffer_ptr() << std::endl;
-                    auto offset = onednn::get_offset(instance.get_input_layout(input_uncomp_idx), _pd.dnnl::primitive_desc_base::src_desc(0));
-                    // XXX: not sure whether offset argument is correctly set or not
-                    auto input_mem = input->get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset);
-                    args.insert_or_assign(DNNL_ARG_SRC, input_mem);
-            }
-                
-
-            }
-#endif
-
+            // GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
         }
 
         return args;
@@ -354,7 +331,7 @@ public:
             }
 
             bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
-            GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
+            // GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
             
             if (is_dyn_quan_input && prim->dynamic_quantized_activation) {
                 auto src_scale_idx = ++idx;
