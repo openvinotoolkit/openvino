@@ -1274,7 +1274,8 @@ void Transformations::MainSnippets() {
                 ov::op::v1::LogicalAnd,
                 ov::op::v1::LogicalOr,
                 ov::op::v1::LogicalXor,
-                ov::op::v1::LogicalNot>(n));
+                ov::op::v1::LogicalNot,
+                ov::op::v0::Xor>(n));
         };
         return is_supported(n) || is_supported_with_scalar_inputs(n);
 #else
