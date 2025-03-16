@@ -515,6 +515,7 @@ void primitive_inst::update_shape() {
 void primitive_inst::update_data_type() {
     // FIXME: add additional check to confirm that it is consumed by FC, not by SDPA
     if (get_node().is_type<dynamic_quantize>()) {
+        auto desc = get_node().as<dynamic_quantize>().get_primitive();
         // GPU_DEBUG_COUT << "Now update data type of " << get_node().id() << "  " << _impl_params->input_layouts[0] << std::endl;
 
         if (_impl_params->input_layouts[0].batch() == 1) {
@@ -532,7 +533,10 @@ void primitive_inst::update_data_type() {
             // FIXME: update only when it is changed since last execution
             auto &old_layout = _impl_params->get_output_layout(0);
             // GPU_DEBUG_COUT << "old output  " << old_layout << std::endl;
-            old_layout.data_type = data_types::i8;
+            if (desc->attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric)
+                old_layout.data_type = data_types::i8;
+            else
+                old_layout.data_type = data_types::u8;
             // _impl_params->output_layouts[0] = layout(data_types::i8, old_layout.format, old_layout.get_tensor());
             // GPU_DEBUG_COUT << "new output  " << _impl_params->output_layouts[0] << std::endl;
         }
