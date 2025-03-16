@@ -47,7 +47,6 @@ protected:
 
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
-        auto layout = instance.output_memory(0).get_layout();
         {
             auto weights = instance.weights_memory();
             auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
@@ -97,9 +96,11 @@ protected:
             }
             // fixme: need to narrow the condition to avoid uncompress. It should be only 3d(?) and 4bit-weight
             // std::cout << "get_argument - layout " << layout.batch() << std::endl;
-            auto dyn_quan_inst = instance.dependencies()[0].first;
-            GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
 
+            GPU_DEBUG_COUT << "is_dyn_quan_input " << is_dyn_quan_input << std::endl;
+            
+#if 0
+            auto dyn_quan_inst = instance.dependencies()[0].first;
             if (dyn_quan_inst->get_node().is_type<dynamic_quantize>()) {
                 if (!is_dyn_quan_input) {
                     if (prim->activation_scale.is_valid())
@@ -107,7 +108,9 @@ protected:
                     if (prim->activation_zero_point.is_valid())
                         idx++;
                     auto input_uncomp_idx = idx++;
+                    auto src = instance.input_memory_ptr(0)->buffer_ptr();
                     auto input = instance.dep_memory_ptr(input_uncomp_idx);
+                    GPU_DEBUG_COUT << "src " << src << "   uncomp_input " << input->buffer_ptr() << std::endl;
                     auto offset = onednn::get_offset(instance.get_input_layout(input_uncomp_idx), _pd.dnnl::primitive_desc_base::src_desc(0));
                     // XXX: not sure whether offset argument is correctly set or not
                     auto input_mem = input->get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset);
@@ -116,6 +119,7 @@ protected:
                 
 
             }
+#endif
 
         }
 

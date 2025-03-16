@@ -13,14 +13,12 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
                                                    const ov::Output<Node>& w_decompression_zero_point,
                                                    const ov::Output<Node>& a_decompression_scale,
                                                    const ov::Output<Node>& a_decompression_zero_point,
-                                                   const ov::Output<Node>& A_uncomp,
                                                    const ov::element::Type output_type)
     : FullyConnected(A, B, bias, output_type) {
     set_argument(3, w_decompression_scale);
     set_argument(4, w_decompression_zero_point);
     set_argument(5, a_decompression_scale);
     set_argument(6, a_decompression_zero_point);
-    set_argument(7, A_uncomp);
     validate_and_infer_types();
 }
 
@@ -62,7 +60,7 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
                                                           new_args.at(3),
                                                           new_args.at(4),
                                                           m_output_type);
-    else if (new_args.size() == 8)
+    else if (new_args.size() == 7)
         return std::make_shared<FullyConnectedCompressed>(new_args.at(0),
                                                           new_args.at(1),
                                                           new_args.at(2),
@@ -70,7 +68,6 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
                                                           new_args.at(4),
                                                           new_args.at(5),
                                                           new_args.at(6),
-                                                          new_args.at(7),
                                                           m_output_type);
     else
         OPENVINO_THROW("Unexpected inputs count for FullyConnectedCompressed op: ", new_args.size());}

@@ -82,4 +82,36 @@ std::string dynamic_quantize_inst::to_string(dynamic_quantize_node const& node) 
 
 dynamic_quantize_inst::typed_primitive_inst(network& network, dynamic_quantize_node const& node) : parent(network, node) {}
 
+void dynamic_quantize_inst::on_execute() {
+    update_output_memory();
+}
+
+void dynamic_quantize_inst::update_output_memory() {
+    if (!can_be_optimized())
+        return;
+
+    if (static_cast<bool>(_outputs[0])
+        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())
+        && output_memory().get_layout().identical(get_output_layout()))
+        return;
+
+    // XXX: what is the purpose of this build_deps?
+    if (_node != nullptr)
+        build_deps();
+
+    // Do not update output memory when dynamic_quantize is optimized out
+    // but input memory is not allocated yet because input is dynamic.
+    // Since dep's _outputs may be empty, Check whether input memory is null by dep's outputs_allocated()
+    OPENVINO_ASSERT(dependencies().front().first->outputs_allocated(), "[GPU] Dynamic quantize is optimized out, but its predecessor does not have output buffer.");
+
+    // Can_be_optimized nodes are allocating from memory_pool too. In this case,
+    // we need release the legacy output memory from memory pool explicitly.
+    if (static_cast<bool>(_outputs[0]) &&
+        _node->get_program().get_config().get_enable_memory_pool()) {
+        _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
+    }
+
+    _outputs[0] = input_memory_ptr();
+    _mem_allocated = false;
+}
 }  // namespace cldnn

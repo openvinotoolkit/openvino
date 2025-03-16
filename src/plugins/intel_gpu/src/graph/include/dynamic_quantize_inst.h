@@ -40,6 +40,10 @@ public:
     static std::string to_string(dynamic_quantize_node const& node);
 
     typed_primitive_inst(network& network, dynamic_quantize_node const& node);
+    void update_output_memory() override;
+
+private:
+    void on_execute() override;
 };
 
 using dynamic_quantize_inst = typed_primitive_inst<dynamic_quantize>;

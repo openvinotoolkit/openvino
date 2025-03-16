@@ -111,7 +111,6 @@ struct fully_connected : public primitive_base<fully_connected> {
     /// @param compression_zero_point Primitive id containing zero points for weights decompression.
     /// @param activation_scale Primitive id containing scale factor for activation.
     /// @param activation_zero_point Primitive id containing zero point for activation.
-    /// @param input_uncomp Primitive id Uncompressed input data. This is used to avoid dynamic quantization in 2nd token.
     fully_connected(const primitive_id& id,
                     const input_info& input,
                     const primitive_id& weights,
@@ -120,7 +119,6 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& decompression_zero_point,
                     const input_info& activation_scale,
                     const input_info& activation_zero_point,
-                    const input_info& input_uncomp,
                     const data_types data_type,
                     const size_t input_size = 2,
                     const size_t weights_rank = 2)
@@ -134,7 +132,6 @@ struct fully_connected : public primitive_base<fully_connected> {
           dynamic_quantized_activation_zp(false),
           activation_scale(activation_scale),
           activation_zero_point(activation_zero_point),
-          input_uncomp(input_uncomp),
           input_size(input_size),
           weights_rank(weights_rank) {
         if (activation_scale.is_valid())
@@ -157,7 +154,6 @@ struct fully_connected : public primitive_base<fully_connected> {
     bool dynamic_quantized_activation_zp = false;
     input_info activation_scale = {"", 0};
     input_info activation_zero_point = {"", 0};
-    input_info input_uncomp = {"", 0};
     std::optional<float> decompression_zero_point_scalar = std::optional<float>();
 
     /// @brief Primitive dimension size.
@@ -177,7 +173,6 @@ struct fully_connected : public primitive_base<fully_connected> {
         seed = hash_combine(seed, activation_zero_point.is_valid());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
         seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0f));
-        seed = hash_combine(seed, input_uncomp.is_valid());
         return seed;
     }
 
@@ -195,8 +190,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                decompression_zero_point.empty() == rhs_casted.decompression_zero_point.empty() &&
                activation_scale.is_valid() == rhs_casted.activation_scale.is_valid() &&
                activation_zero_point.is_valid() == rhs_casted.activation_zero_point.is_valid() &&
-               decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f) &&
-               input_uncomp.is_valid() == rhs_casted.input_uncomp.is_valid();
+               decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -212,7 +206,6 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << weights_rank;
         ob << dynamic_quantized_activation;
         ob << dynamic_quantized_activation_zp;
-        ob << input_uncomp;
 
         if (decompression_zero_point_scalar.has_value()) {
             ob << true;
@@ -236,7 +229,6 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> weights_rank;
         ib >> dynamic_quantized_activation;
         ib >> dynamic_quantized_activation_zp;
-        ib >> input_uncomp;
 
         bool has_value;
         ib >> has_value;
@@ -268,9 +260,6 @@ protected:
 
         if (activation_zero_point.is_valid())
             ret.push_back(activation_zero_point);
-
-        if (input_uncomp.is_valid())
-            ret.push_back(input_uncomp);
 
         return ret;
     }

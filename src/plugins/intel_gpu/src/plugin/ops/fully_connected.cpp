@@ -25,7 +25,7 @@ using FullyConnectedCompressed = ov::intel_gpu::op::FullyConnectedCompressed;
 namespace ov::intel_gpu {
 
 static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::shared_ptr<op::FullyConnectedCompressed>& op) {
-    validate_inputs_count(op, {4, 5, 6, 8});
+    validate_inputs_count(op, {4, 5, 6, 7});
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
     auto supports_immad = p.get_engine().get_device_info().supports_immad;
@@ -39,7 +39,6 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     std::string zp_name = op->get_input_size() > input_idx ? inputs[input_idx++].pid : "";
     auto activation_scale_input = op->get_input_size() > input_idx ? inputs[input_idx++] : cldnn::input_info();
     auto activation_zero_point_input = op->get_input_size() > input_idx ? inputs[input_idx++] : cldnn::input_info();
-    auto input_uncomp = op->get_input_size() > input_idx ? inputs[input_idx++] : cldnn::input_info();
 
     float zp_value = 0.0f;
     bool has_scalar_zp = false;
@@ -60,7 +59,6 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
                                      has_scalar_zp && !supports_immad ? "" : zp_name,
                                      activation_scale_input,
                                      activation_zero_point_input,
-                                     input_uncomp,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      op->get_input_partial_shape(0).size(),
                                      op->get_input_partial_shape(1).size());

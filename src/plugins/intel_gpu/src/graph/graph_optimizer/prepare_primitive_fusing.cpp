@@ -472,7 +472,6 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 fc_with_bias_prim->activation_zero_point = desc->activation_zero_point;
                 fc_with_bias_prim->dynamic_quantized_activation = desc->dynamic_quantized_activation;
                 fc_with_bias_prim->dynamic_quantized_activation_zp = desc->dynamic_quantized_activation_zp;
-                fc_with_bias_prim->input_uncomp = desc->input_uncomp;
             }
             auto& new_fc_node = p.get_or_create(fc_with_bias_prim);
             fuse_bias_f(fc, new_fc_node, bias_node, eltw_node);
