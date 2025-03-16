@@ -1141,6 +1141,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18_axes_as_input) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18_axes_as_input_v2) {
+    auto model = convert_model("reduce_l1_18_axis_as_input_v2.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{1, 2, 3, 2}, {23, 41, 81, 61, 24, 45, 59, 24, 71, 91, 47, 35});
+    test_case.add_input<int64_t>({1});
+
+    test_case.add_expected_output(Shape{1, 1, 3, 2}, std::vector<float>{82,  65, 152, 152, 71,  80});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l2) {
     auto model = convert_model("reduce_l2.onnx");
 
