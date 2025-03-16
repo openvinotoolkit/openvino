@@ -89,6 +89,12 @@ class TestComplexReverseSequence(CommonTFLayerTest):
     test_data_complex = [
         dict(input_shape=[4, 5], seq_lengths_type=np.int32, seq_dim=1, batch_dim=0),
         dict(input_shape=[2, 3, 4], seq_lengths_type=np.int32, seq_dim=1, batch_dim=0),
+        dict(input_shape=[4, 5], seq_lengths_type=np.int32, seq_dim=-1, batch_dim=0),
+        dict(input_shape=[4, 5], seq_lengths_type=np.int32, seq_dim=1, batch_dim=-2),
+        dict(input_shape=[4, 5], seq_lengths_type=np.int32, seq_dim=-1, batch_dim=-2),
+        dict(input_shape=[2, 3, 4], seq_lengths_type=np.int32, seq_dim=-2, batch_dim=0),
+        dict(input_shape=[2, 3, 4], seq_lengths_type=np.int32, seq_dim=1, batch_dim=-3),
+        dict(input_shape=[2, 3, 4], seq_lengths_type=np.int32, seq_dim=-2, batch_dim=-3),
     ]
 
     @pytest.mark.parametrize("params", test_data_complex)
