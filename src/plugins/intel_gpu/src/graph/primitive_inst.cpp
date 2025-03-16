@@ -514,35 +514,22 @@ void primitive_inst::update_shape() {
 
 void primitive_inst::update_data_type() {
     // FIXME: add additional check to confirm that it is consumed by FC, not by SDPA
-    if (get_node().is_type<dynamic_quantize>()) {
+    if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
         auto desc = get_node().as<dynamic_quantize>().get_primitive();
-        // GPU_DEBUG_COUT << "Now update data type of " << get_node().id() << "  " << _impl_params->input_layouts[0] << std::endl;
-
-        // FIXME: what is proper way to calculate num batches?
-        size_t batch = _impl_params->input_layouts[0].batch() * _impl_params->input_layouts[0].feature();
+        auto &layout = _impl_params->get_output_layout(0);
+        auto old_type = layout.data_type;
         
-        if (batch == 1) {
+        if (can_be_optimized()) {
             // Skip dynamic quantize for better 2nd token performance
-            // SHAPE_CHANGED flag was already turned on by update_shape.
-            // FIXME: update only when it is changed since last execution
-            auto &old_layout = _impl_params->get_output_layout(0);
-            old_layout.data_type = data_types::f16;
-            // GPU_DEBUG_COUT << "new output  " << _impl_params->output_layouts[0] << std::endl;
-            // _impl_params->output_layouts[0] = layout(data_types::f16, old_layout.format, old_layout.get_tensor());
+            layout.data_type = data_types::f16;
         } else {
             // Execute dynamic quantize for better 1st token performance
-
-            // FIXME: update only when it is changed since last execution
-            // FIXME: update only when it is changed since last execution
-            auto &old_layout = _impl_params->get_output_layout(0);
-            // GPU_DEBUG_COUT << "old output  " << old_layout << std::endl;
             if (desc->attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric)
-                old_layout.data_type = data_types::i8;
+                layout.data_type = data_types::i8;
             else
-                old_layout.data_type = data_types::u8;
-            // _impl_params->output_layouts[0] = layout(data_types::i8, old_layout.format, old_layout.get_tensor());
-            // GPU_DEBUG_COUT << "new output  " << _impl_params->output_layouts[0] << std::endl;
+                layout.data_type = data_types::u8;
         }
+        GPU_DEBUG_TRACE_DETAIL << "Now update data type of " << get_node().id() << " " << layout.get_shape() << "  " << old_type << " -> " << layout.data_type << std::endl;
     }
 }
 
@@ -1905,6 +1892,8 @@ void primitive_inst::prepare_primitive() {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
+
+        do_runtime_skip_dynamic_quantize();
         update_data_type();
 
         if (_impl_params->output_layouts[0].count() == 0) {
@@ -1945,7 +1934,6 @@ void primitive_inst::prepare_primitive() {
         do_runtime_skip_broadcast();
         do_runtime_skip_scatter_update();
         do_runtime_in_place_crop();
-        do_runtime_skip_dynamic_quantize();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
