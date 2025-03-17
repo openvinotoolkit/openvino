@@ -176,7 +176,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
     Config config = m_plugin_config;
-    config.set_user_property(properties, OptionVisibility::RELEASE);
+    config.set_properties(properties, OptionVisibility::RELEASE);
 
     Transformations transformations(cloned_model, config);
 
@@ -219,7 +219,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 }
 
 void Plugin::set_property(const ov::AnyMap& config) {
-    m_plugin_config.set_user_property(config, OptionVisibility::RELEASE);
+    m_plugin_config.set_properties(config, OptionVisibility::RELEASE);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
@@ -364,7 +364,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return res;
     }
 
-    return m_plugin_config.get_property(name, OptionVisibility::RELEASE);
+    auto config = m_plugin_config;
+    config.finalize(get_default_context().get(), nullptr);
+    return config.get_property(name, OptionVisibility::RELEASE);
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties) const {
@@ -375,7 +377,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     Config config = m_plugin_config;
-    config.set_user_property(properties, OptionVisibility::RELEASE);
+    config.set_properties(properties, OptionVisibility::RELEASE);
     config.finalize(get_default_context().get(), model.get());
     auto context = std::make_shared<GraphContext>(config, fake_w_cache, false, false);
 
@@ -445,10 +447,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     deserializer >> model;
 
     Config config = m_plugin_config;
-    config.set_user_property(properties, OptionVisibility::RELEASE);
+    config.set_properties(_properties, OptionVisibility::RELEASE);
 
-    // import config props from caching model
-    // calculate_streams(config, model, true);
     config.finalize(get_default_context().get(), model.get());
 
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, loaded_from_cache);

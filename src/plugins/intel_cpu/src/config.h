@@ -25,6 +25,8 @@ struct Config : public ov::PluginConfig {
     Config(const Config& other);
     Config& operator=(const Config& other);
 
+    void set_properties(const ov::AnyMap& config, OptionVisibility allowed_visibility = OptionVisibility::ANY);
+
 private:
     void finalize_impl(const IRemoteContext* context, const ov::Model* model) override;
     void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override;

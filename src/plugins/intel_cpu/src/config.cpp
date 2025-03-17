@@ -117,6 +117,20 @@ Config Config::clone(int sub_stream_idx, bool enable_node_split) const {
     return new_config;
 }
 
+void Config::set_properties(const ov::AnyMap& config, OptionVisibility allowed_visibility) {
+    const auto& it = config.find(ov::num_streams.name());
+    if (it != config.end()) {
+        auto num_streams = it->second.as<std::string>();
+        auto new_config = config;
+        new_config.at(ov::num_streams.name()) = num_streams;
+        PluginConfig::set_user_property(new_config, allowed_visibility);
+
+        return;
+    }
+
+    PluginConfig::set_user_property(config, allowed_visibility);
+}
+
 void Config::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info) {
     apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
