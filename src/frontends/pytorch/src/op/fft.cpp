@@ -21,7 +21,6 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov {
