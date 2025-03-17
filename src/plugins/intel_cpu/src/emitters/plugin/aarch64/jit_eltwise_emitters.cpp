@@ -2304,22 +2304,18 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     const std::unordered_set<size_t> exclude = {src0.getIdx(), src1.getIdx(), dst.getIdx()};
     store_context(exclude);
+    h->str(func_reg, pre_ptr(h->sp, -16));
+    h->str(Xbyak_aarch64::QReg(src0.getIdx()), pre_ptr(h->sp, -16));
+    h->str(Xbyak_aarch64::QReg(src1.getIdx()), pre_ptr(h->sp, -16));
+    h->sub(h->sp, h->sp, 16);
     for (auto i = 0; i < 4; i++) {
-        h->mov(s0, src0.s[i]);
-        h->mov(s1, src1.s[i]);
-
-        h->str(Xbyak_aarch64::QReg(dst.getIdx()), pre_ptr(h->sp, -16));
-        h->str(Xbyak_aarch64::QReg(src0.getIdx()), pre_ptr(h->sp, -16));
-        h->str(Xbyak_aarch64::QReg(src1.getIdx()), pre_ptr(h->sp, -16));
+        h->ldr(s1, ptr(h->sp, 16 + i * 4));
+        h->ldr(s0, ptr(h->sp, 32 + i * 4));
+        h->ldr(func_reg, ptr(h->sp, 48));
         h->blr(func_reg);
-        h->ldr(Xbyak_aarch64::QReg(src1.getIdx()), post_ptr(h->sp, 16));
-        h->ldr(Xbyak_aarch64::QReg(src0.getIdx()), post_ptr(h->sp, 16));
-        h->ldr(Xbyak_aarch64::QReg(dst.getIdx()), post_ptr(h->sp, 16));
-
-        Xbyak_aarch64::WReg w0(0);
-        h->fmov(w0, s0);
-        h->mov(dst.s[i], w0);
+        h->str(s0, ptr(h->sp, i * 4));
     }
+    h->ldr(Xbyak_aarch64::QReg(dst.getIdx()), post_ptr(h->sp, 64));
     restore_context(exclude);
 }
 
