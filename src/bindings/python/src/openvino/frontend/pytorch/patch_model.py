@@ -84,11 +84,12 @@ def __make_16bit_traceable(model: torch.nn.Module,
      - Replace known list of modules with ModuleExtension.
      - Convert other modules with weights to FP32.
     """
+    supported = {torch.float16, torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2}
     if patch_condition is None:
         def patch_condition(module):
-            supported = {torch.float32, torch.float16, torch.bfloat16}
+            dtype_to_patch = {torch.float32, *supported}
             weight = getattr(module, "weight", None)
-            return weight is not None and weight.dtype in supported
+            return weight is not None and weight.dtype in dtype_to_patch
 
     def fp32_tensor(*shape):
         return torch.full(shape, 0.5, dtype=torch.float32)
@@ -123,10 +124,9 @@ def __make_16bit_traceable(model: torch.nn.Module,
     except ImportError:
         pass
     patch_model(model, extensions, orig_forward_name)
-    dtype_to_patch = {torch.float16, torch.bfloat16}
     for _, module in model.named_modules():
         if (module.__class__ not in extensions and
-            (any(p.dtype in dtype_to_patch for p in module.parameters(False))
-             or any(b.dtype in dtype_to_patch for b in module.buffers(False)))):
+            (any(p.dtype in supported for p in module.parameters(False))
+             or any(b.dtype in supported for b in module.buffers(False)))):
             log.debug("Casting module %s to float32", module)
             module.float()

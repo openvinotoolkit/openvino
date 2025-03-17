@@ -554,13 +554,10 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
                 SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithMatMulI8 : NodeFusingType::FusedWithMatMul);
                 channelAxis = out_rank.is_static() ? out_rank.get_length() - 1 : DEFAULT_AXIS;
             }
-        } else if (isSuitableSubtractAsZeroPointsParent(node)) {
-            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
-            channelAxis = DEFAULT_AXIS;
+        } else if (isSuitableSubtractAsZeroPointsParent(node) || (enableBF16 && isSuitableConvert(node))) {
             // CVS-105447
             // This WA skip convert with same I/O precision in Snippets
             // Such useless Convert is executed in Snippets
-        } else if (enableBF16 && isSuitableConvert(node)) {
             SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
             channelAxis = DEFAULT_AXIS;
         } else {

@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define _USE_MATH_DEFINES
+
+#include <math.h>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_tools.hpp"
@@ -2536,6 +2540,53 @@ TEST_F(TransformationTestsF, preprocessing_conv_decompression) {
         auto mul = std::make_shared<op::v1::Multiply>(convert, B);
         auto conv =
             std::make_shared<op::v1::Convolution>(input, mul, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+        auto res = std::make_shared<op::v0::Result>(conv);
+        model_ref = std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, preprocessing_gelu_fusion) {
+    auto in_shape = Shape{1, 3, 32, 32};
+    auto in_type = element::f32;
+    auto weight_type = element::f32;
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(in_type, in_shape);
+
+        auto mul_const_sqrt_1_2 = ov::op::v0::Constant::create(in_type, Shape{1}, {M_SQRT1_2});
+        auto mul_to_erf = std::make_shared<ov::op::v1::Multiply>(data, mul_const_sqrt_1_2);
+        auto erf = std::make_shared<ov::op::v0::Erf>(mul_to_erf);
+
+        auto add_const = ov::op::v0::Constant::create(in_type, Shape{1}, {1.0});
+        auto add = std::make_shared<ov::op::v1::Add>(erf, add_const);
+        auto mul_first = std::make_shared<ov::op::v1::Multiply>(data, add);
+
+        auto mul_const = ov::op::v0::Constant::create(in_type, Shape{1}, {0.5});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(mul_first, mul_const);
+
+        std::shared_ptr<Node> weights = std::make_shared<op::v0::Constant>(weight_type, ov::Shape{1, 3, 3, 3}, 1);
+        auto conv = std::make_shared<op::v1::Convolution>(mul,
+                                                          weights,
+                                                          Strides{},
+                                                          CoordinateDiff{},
+                                                          CoordinateDiff{},
+                                                          Strides{});
+        auto res = std::make_shared<op::v0::Result>(conv);
+        auto f = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data});
+        auto p = PrePostProcessor(f);
+        model = p.build();
+    }
+
+    {
+        auto input = std::make_shared<op::v0::Parameter>(in_type, in_shape);
+
+        auto gelu = std::make_shared<op::v7::Gelu>(input);
+        auto weights = op::v0::Constant::create(weight_type, ov::Shape({1, 3, 3, 3}), {1.f});
+        auto conv = std::make_shared<op::v1::Convolution>(gelu,
+                                                          weights,
+                                                          Strides{},
+                                                          CoordinateDiff{},
+                                                          CoordinateDiff{},
+                                                          Strides{});
         auto res = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{input});
     }
