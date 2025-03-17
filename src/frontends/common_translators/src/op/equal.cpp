@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/equal.hpp"
+
 #include "common_translators.hpp"
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/equal.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
 #include "utils.hpp"
 
