@@ -554,6 +554,9 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                     !check_mask(strided_slice_node->get_ellipsis_mask())) {
                     return false;
                 }
+                auto begain_mask = strided_slice_node->get_begin_mask();
+                if (begain_mask[concat_axis] == 1)
+                    return false;
 
                 auto begin_node = strided_slice_node->get_input_node_shared_ptr(1);
                 const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node);
