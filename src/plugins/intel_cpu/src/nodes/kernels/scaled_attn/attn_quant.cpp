@@ -590,7 +590,6 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const size_t value_group_size) {
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3];
     size_t block_size = quant_key_by_channel ? k_dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(KEY_DST_PREC) : k_dst.m_dims[2];
-    printf("paged_attn_quant_mt| B %ld H %ld L1 %ld S %ld by_channel %ld past_lens %d block_size %ld\n", B, H, L1, S, quant_key_by_channel, past_lens.ptr<int32_t>()[0], block_size);
     if (quant_key_by_channel) {
         parallel_for2d(past_lens.size(0), H, [&](size_t sub_seq_id, size_t h) {
             // scale f32[S] zp f32[S] offset in bytes
@@ -656,26 +655,12 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                                                             S,
                                                                             p_scales,
                                                                             p_zps);
-                        // printf("before dequant prev_nums %ld\n", prev_nums);
-                        // for (size_t i = 0; i < prev_nums; i++) {
-                        //     for (size_t j = 0; j < S; j++) {
-                        //         printf("%f ", buffer[i * S + j]);
-                        //     }
-                        //     printf("\n");
-                        // }
                         cvt_copy(buffer + prev_nums * S,
                                  k_src.ptr<T>(b_in_tokens, h, m),
                                  valid_length,
                                  S,
                                  k_src.stride(0),
                                  S);
-                        // printf("after dequant prev_nums %ld\n", prev_nums + valid_length);
-                        // for (size_t i = 0; i < prev_nums; i++) {
-                        //     for (size_t j = 0; j < S; j++) {
-                        //         printf("%f ", buffer[i * S + j]);
-                        //     }
-                        //     printf("\n");
-                        // }
                         quantize_by_channel<float, KEY_DST_PREC>(buffer,
                                                                  p_k,
                                                                  prev_nums + valid_length,

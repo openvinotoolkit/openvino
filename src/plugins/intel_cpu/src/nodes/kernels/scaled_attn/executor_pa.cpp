@@ -782,6 +782,60 @@ static void dot_product_block_quantized_by_channel(TA* a,
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0.0f;
         size_t i = 0;
+#    if defined(HAVE_AVX512F)
+        auto v512_sum0 = _mm512_set1_ps(0.0f);
+        auto v512_sum1 = _mm512_set1_ps(0.0f);
+        __m512 vb0, vb1;
+        for (; i + 2 * vec_len_f32_avx512 <= n; i += vec_len_f32_avx512 * 2) {
+            auto v0_zp = _mm512_loadu_ps(p_zps + i);
+            auto v1_zp = _mm512_loadu_ps(p_zps + i + vec_len_f32_avx512);
+            auto v0_scale = _mm512_loadu_ps(p_scales + i);
+            auto v1_scale = _mm512_loadu_ps(p_scales + i + vec_len_f32_avx512);
+            auto va0 = mm512_uni_loadu_ps(a + i);
+            auto va1 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512);
+
+            mm512_loadu_u4_to_f32(b + params_offset + i / 2, vb0, vb1);
+
+            vb0 = _mm512_sub_ps(vb0, v0_zp);
+            vb1 = _mm512_sub_ps(vb1, v1_zp);
+
+            vb0 = _mm512_mul_ps(vb0, v0_scale);
+            vb1 = _mm512_mul_ps(vb1, v1_scale);
+
+            v512_sum0 = _mm512_fmadd_ps(va0, vb0, v512_sum0);
+            v512_sum1 = _mm512_fmadd_ps(va1, vb1, v512_sum1);
+        }
+        v512_sum0 = _mm512_add_ps(v512_sum0, v512_sum1);
+        sum += _mm512_reduce_add_ps(v512_sum0);
+#    endif
+# if defined(HAVE_AVX2)
+        auto vsum0 = _mm256_set1_ps(0.0f);
+        auto vsum1 = _mm256_set1_ps(0.0f);
+        __m256 v256_b0, v256_b1;
+        for (; i + 2 * vec_len_f32_avx512 <= n; i += vec_len_f32_avx512 * 2) {
+            auto v0_zp = _mm256_loadu_ps(p_zps + i);
+            auto v1_zp = _mm256_loadu_ps(p_zps + i + vec_len_f32_avx2);
+            auto v0_scale = _mm256_loadu_ps(p_scales + i);
+            auto v1_scale = _mm256_loadu_ps(p_scales + i + vec_len_f32_avx2);
+
+            auto va0 = mm256_uni_loadu_ps(a + i);
+            auto va1 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2);
+
+            mm256_loadu_u4_to_f32(b + params_offset + i / 2, v256_b0, v256_b1);
+
+            v256_b0 = _mm256_sub_ps(v256_b0, v0_zp);
+            v256_b1 = _mm256_sub_ps(v256_b1, v1_zp);
+
+            v256_b0 = _mm256_mul_ps(v256_b0, v0_scale);
+            v256_b1 = _mm256_mul_ps(v256_b1, v1_scale);
+
+            vsum0 = _mm256_fmadd_ps(va0, v256_b0, vsum0);
+            vsum1 = _mm256_fmadd_ps(va1, v256_b1, vsum1);
+        }
+        vsum0 = _mm256_add_ps(vsum0, vsum1);
+        hsum(vsum0);
+        sum += _mm256_cvtss_f32(vsum0);
+# endif  
         for (; i < n; i += 2) {
             uint8_t data = b[i / 2 + params_offset];
             float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
@@ -2688,7 +2742,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         if constexpr(one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
             // slot_mapping could only be used for per token quantization
             // by_channel needs all data to calculation block info.
-            printf("ExecutorPA|concat_pastkv key %s val %s\n", k_cache.get_precision().to_string().c_str(), v_cache.get_precision().to_string().c_str());
             paged_attn_quantkv(k,
                                v,
                                k_cache,

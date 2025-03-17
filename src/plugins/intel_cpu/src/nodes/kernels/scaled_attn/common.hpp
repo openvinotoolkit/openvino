@@ -166,7 +166,7 @@ inline void mm512_uni_storeu_tail_ps(ov::float16* addr, __m512 v, size_t count) 
     _mm256_mask_storeu_epi16(reinterpret_cast<__m256i*>(addr), mask_addr, vec_f16);
 }
 
-inline void m512_loadu_u4_to_f32(uint8_t* src_data, __m512& first_half, __m512& second_half) {
+inline void mm512_loadu_u4_to_f32(uint8_t* src_data, __m512& first_half, __m512& second_half) {
     auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_data));
     auto v_i32 = _mm512_cvtepu8_epi32(data);
 
@@ -294,6 +294,29 @@ inline void mm256_uni_storeu_tail_ps(ov::bfloat16* addr, __m256 v, size_t count)
     auto mask = get_8bit_tail_mask_for_16bit_elts(count);
     __m128i bf16_o = __convert_avx2_packed_float_to_packed_ov_bfloat16(v);
     return _mm_maskmoveu_si128(bf16_o, mask, reinterpret_cast<char*>(addr));
+}
+
+inline void mm256_loadu_u4_to_f32(uint8_t* src, __m256& first_half, __m256& second_half) {
+    auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(src));
+
+    auto v_i32 = _mm256_cvtepu8_epi32(data);
+    auto v_256_low_half = _mm256_srli_epi32(v_i32, 4);
+    auto v_f32_low_half = _mm256_cvtepi32_ps(v_256_low_half);
+
+    auto mask = _mm256_set1_epi32(0x0F);
+    auto v_256_high_half = _mm256_and_si256(v_i32, mask);
+    auto v_f32_high_half = _mm256_cvtepi32_ps(v_256_high_half);
+
+    // 0,2,4,6,8,10,12,14 | 1,3,5,7,9,11,13,15
+    //         _mm256_permute2f128_ps
+    // 0,2,4,6,1,3,5,7    | 8,10,12,14,9,11,13,15
+    //         _mm256_permutevar8x32_ps
+    // 0,1,2,3,4,5,6,7    | 8,9,10,11,12,13,14,15
+    first_half = _mm256_permute2f128_ps(v_f32_low_half, v_f32_high_half, 0x20);
+    auto idx1 = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
+    first_half = _mm256_permutevar8x32_ps(first_half, idx1);
+    second_half = _mm256_permute2f128_ps(v_f32_low_half, v_f32_high_half, 0x31);
+    second_half = _mm256_permutevar8x32_ps(second_half, idx1);
 }
 
 inline void hsum(__m256& x) {
