@@ -1479,7 +1479,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 update_config[ov::loaded_from_cache.name()] = true;
 
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
-                    if (cacheContent.model) {
+                    if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::model) &&
+                        cacheContent.model) {
                         update_config[ov::hint::model.name()] = cacheContent.model;
                     } else {
                         std::filesystem::path weights_path = cacheContent.modelPath;
