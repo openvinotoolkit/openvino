@@ -37,7 +37,7 @@ uint64_t get_blob_data_size(std::istream& model) {
 }
 
 std::string get_model_str(std::istream& model) {
-    const auto model_size = get_blob_data_size(model);
+    const auto model_size = std::min<uint64_t>(model.rdbuf()->in_avail(), get_blob_data_size(model));
     std::string xml;
     xml.resize(model_size);
     model.read(xml.data(), model_size);
@@ -51,7 +51,7 @@ ov::Tensor read_weights(std::istream& model, const size_t weights_size) {
 }
 
 ov::Tensor get_model_weights(std::istream& model) {
-    const auto weights_size = get_blob_data_size(model);
+    const auto weights_size = std::min<uint64_t>(model.rdbuf()->in_avail(), get_blob_data_size(model));
     return weights_size != 0 ? read_weights(model, weights_size) : ov::Tensor();
 }
 
@@ -72,10 +72,10 @@ std::shared_ptr<ov::Model> get_ov_model_from_blob(const ov::template_plugin::Plu
                                                   const ov::AnyMap& properties) {
     if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
         if (auto&& blob = blob_it->second.as<ov::Tensor>(); blob) {
+            ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
+            std::istream blob_stream(&shared_buffer);
+            const auto model = get_model_str(blob_stream);
             try {
-                ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
-                std::istream blob_stream(&shared_buffer);
-                const auto model = get_model_str(blob_stream);
                 return weights ? plugin.get_core()->read_model(model, weights) : nullptr;
             } catch (...) {
             }
