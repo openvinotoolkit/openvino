@@ -207,23 +207,13 @@ void istft_impl(const float* in_data,
                                    {1},
                                    {1});
 
-            std::transform(frame_signal.begin(),
-                           frame_signal.end(),
-                           pad_window.begin(),
-                           frame_signal.begin(),
-                           std::multiplies<>());
-
-            std::transform(frame_signal.begin(),
-                           frame_signal.end(),
-                           mid_result.begin() + out_frame_start,
-                           mid_result.begin() + out_frame_start,
-                           std::plus<>());
-
-            std::transform(pow_window.begin(),
-                           pow_window.end(),
-                           window_sum.begin() + out_frame_start,
-                           window_sum.begin() + out_frame_start,
-                           std::plus<>());
+            // Overlap Add
+            float* mid_result_sum = mid_result.data() + out_frame_start;
+            float* window_frame_sum = window_sum.data() + out_frame_start;
+            for (size_t i = 0; i < frame_signal.size(); ++i) {
+                mid_result_sum[i] += frame_signal[i] * pad_window[i];
+                window_frame_sum[i] += pow_window[i];
+            }
         }
         float* result = mid_result.data() + (batch * signal_length);
         std::transform(result,
