@@ -518,13 +518,15 @@ jobs:
     steps:
       - name: Check matrix
         id: check_matrix
+        env:
+          SANMODE: ${{ (inputs.sanitizerMode == 'All' && 'All' || (inputs.sanitizerMode == 'AddressAndLeak' && 'AddressAndLeak' || (inputs.sanitizerMode == 'UndefinedBehavior' && 'UndefinedBehavior' || 'Thread'))) }}
         # by default in scheduled launch we run only AddressAndLeak with *smoke*Conv_* pattern
         # to prevent false-positive alerts and time exceeded error,
         # in workflow_dispatch case all smoke tests will be launched with all types of sanitizers
         # if gtestFilter and sanMode inputs are not specified
         if: ${{ (github.event_name == 'workflow_dispatch' && (inputs.sanitizerMode == 'All' || inputs.sanitizerMode == matrix.SANITIZER) || matrix.SANITIZER == 'AddressAndLeak')}}
         run: |
-          echo 'Sanitizer mode: ${{ inputs.sanitizerMode }}'
+          echo "Sanitizer mode: ${{ env.SANMODE }}"
 
       - name: Download OpenVINO package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
