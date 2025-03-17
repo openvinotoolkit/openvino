@@ -55,6 +55,7 @@ if "%~1"=="" (
     set "output_dir=%~1"
 )
 
+REM Generate stubs for C++ bindings
 python -m pybind11_stubgen --output-dir "%output_dir%" --root-suffix "" --ignore-invalid-expressions "%invalid_expressions_regex%" --ignore-invalid-identifiers "%invalid_identifiers_regex%" --ignore-unresolved-names "%unresolved_names_regex%" --print-invalid-expressions-as-is --numpy-array-use-type-var --exit-code openvino
 
 REM Check if the command was successful
@@ -79,6 +80,43 @@ if exist "%pyi_file%" (
 ) else (
     echo File %pyi_file% not found.
     exit /b 1
+)
+
+REM Find all changed .pyi files
+for /f "tokens=*" %%f in ('git diff --name-only ^| findstr /r "\.pyi$"') do (
+    REM Process each changed .pyi file
+    powershell -Command "(gc '%%f') -replace '<function _get_node_factory at 0x[0-9a-fA-F]+>', '<function _get_node_factory at memory_address>' | Out-File -encoding ASCII '%%f'"
+    powershell -Command "(gc '%%f') -replace '__version__: str = ''[^'']*''', '__version__: str = ''version_string''' | Out-File -encoding ASCII '%%f'"
+    REM Sort consecutive import statements at the beginning of the file
+    powershell -Command @"
+    \$content = Get-Content '%%f'
+    \$in_imports = \$false
+    \$start = 0
+    \$imports = @()
+
+    foreach (\$line in \$content) {
+        if (\$line -match '^from ' -or \$line -match '^import ') {
+            if (-not \$in_imports) {
+                \$start = \$true
+            }
+            \$in_imports = \$true
+            \$imports += \$line
+        } else {
+            if (\$in_imports) {
+                \$imports = \$imports | Sort-Object
+                \$imports | Out-File -Append -Encoding ASCII '%%f'
+                \$in_imports = \$false
+                \$imports = @()
+            }
+            Add-Content -Path '%%f' -Value \$line
+        }
+    }
+
+    if (\$in_imports) {
+        \$imports = \$imports | Sort-Object
+        \$imports | Out-File -Append -Encoding ASCII '%%f'
+    }
+"@
 )
 
 endlocal

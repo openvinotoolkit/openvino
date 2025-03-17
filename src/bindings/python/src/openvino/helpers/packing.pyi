@@ -1,9 +1,9 @@
 from __future__ import annotations
-import numpy as np
-import numpy
-import openvino._pyopenvino
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Type
+import numpy
+import numpy as np
+import openvino._pyopenvino
 __all__ = ['Shape', 'Type', 'np', 'pack_data', 'unpack_data']
 def pack_data(array: numpy.ndarray, type: openvino._pyopenvino.Type) -> numpy.ndarray:
     """
