@@ -83,7 +83,7 @@ struct sdpa_configuration {
     int64_t kv_heads_num = -1;
 
     // GQA configuration
-    int64_t group_size = -1;
+    int64_t kv_group_size = 1;
     int64_t broadcast_axis = -1;
 
     bool is_causal = false;
