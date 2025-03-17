@@ -143,6 +143,10 @@ void istft_impl(const float* in_data,
     const auto window_length = window_shape[0] < frame_size_dim ? window_shape[0] : frame_size_dim;
     std::vector<float> pad_window(frame_size, 0);
     std::copy(window, window + window_shape[0], pad_window.begin() + (frame_size_dim - window_length) / 2);
+    std::vector<float> pow_window(frame_size, 0);
+    std::transform(pad_window.begin(), pad_window.end(), pow_window.begin(), [](float win_val) {
+        return win_val * win_val;
+    });
 
     std::vector<float> data_t(shape_size(data_shape));
     const auto stft_transp_out_shape = ov::Shape{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]};
@@ -215,13 +219,11 @@ void istft_impl(const float* in_data,
                            mid_result.begin() + out_frame_start,
                            std::plus<>());
 
-            std::transform(pad_window.begin(),
-                           pad_window.end(),
+            std::transform(pow_window.begin(),
+                           pow_window.end(),
                            window_sum.begin() + out_frame_start,
                            window_sum.begin() + out_frame_start,
-                           [](float win, float win_sum) {
-                               return win_sum + std::pow(win, 2);
-                           });
+                           std::plus<>());
         }
         float* result = mid_result.data() + (batch * signal_length);
         std::transform(result,
