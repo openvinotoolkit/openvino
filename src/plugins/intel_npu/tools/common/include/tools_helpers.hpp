@@ -140,6 +140,9 @@ void modelDynamismCheck(std::shared_ptr<ov::Model>& model) {
     for (auto&& item : model->get_parameters()) {
         auto shape = item->get_partial_shape();
         auto rank = shape.rank();
+        if (shape.is_static()) {
+            continue;
+        }
         if (rank.is_dynamic()) {
             throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
                                    "\" is dynamic which is not supported by NPU");
