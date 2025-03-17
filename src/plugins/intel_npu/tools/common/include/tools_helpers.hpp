@@ -135,32 +135,43 @@ void setModelBatch(std::shared_ptr<ov::Model>& model, uint32_t batch = 1) {
     }
 }
 
-void modelDynamismCheck(std::shared_ptr<ov::Model>& model) {
+void modelDynamismCheck(std::shared_ptr<ov::Model>& model, bool shapeOrBatchGiven = true) {
     std::cout << "Checking model for dynamism..." << std::endl;
     for (auto&& item : model->get_parameters()) {
         auto shape = item->get_partial_shape();
         auto rank = shape.rank();
-        if (shape.is_static()) {
+        if (shape.is_static() && !shapeOrBatchGiven) {
             continue;
         }
         if (rank.is_dynamic()) {
             throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
                                    "\" is dynamic which is not supported by NPU");
         }
-        if (shape.is_dynamic()) {
-            throw std::logic_error("Model's input shape \"" + shape.to_string() + "\"" +
-                                   " is dynamic which is not supported by NPU");
-        }
         auto layout = item->get_layout();
         // Add batch N = 1 if not found in layout, and user does not provide `override_model_batch_size` or `shape`
-        if (!ov::layout::has_batch(layout)) {
+        if (!ov::layout::has_batch(layout) && !shapeOrBatchGiven) {
             std::cout << "WARNING: Batch layout not found. Inserting 'N' dimension = 1 to the layout." << std::endl;
             item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
             layout = item->get_layout();
         }
         if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
-            throw std::logic_error("ERROR: Shape \"" + shape.to_string() + "\"" +
-                                   " has dynamic batch size which is not supported by NPU\n");
+            if (shapeOrBatchGiven) {
+                throw std::logic_error("ERROR: Shape \"" + shape.to_string() + "\"" +
+                                       " has dynamic batch size which is not supported by NPU\n");
+            }
+            else {
+                std::cout << "WARNING: Shape \"" + shape.to_string() + "\"" +
+                             " has dynamic batch size which is not supported by NPU\n"
+                             "         Setting batch to 1 forcibly" 
+                            << std::endl;
+                ov::set_batch(model, 1);
+                // Get the shape again
+                shape = item->get_partial_shape();
+                if (shape.is_dynamic()) {
+                    throw std::logic_error("Model's input shape \"" + shape.to_string() + "\"" +
+                                           " is dynamic which is not supported by NPU");
+                }
+            }
         }
     }
 }
@@ -239,7 +250,7 @@ void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<o
             // std::cout << "Binding dynamic shapes..." << std::endl;
             // boundDynamicShape(model);
             std::cout << "New dynamism check..." << std::endl;
-            modelDynamismCheck(model);
+            modelDynamismCheck(model, false);
         }
     }
 }
