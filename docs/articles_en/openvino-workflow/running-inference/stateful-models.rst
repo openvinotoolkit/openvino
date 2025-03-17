@@ -139,5 +139,5 @@ sequences.
 
 You can find more examples demonstrating how to work with states in other articles:
 
-* `LLaVA-NeXT Multimodal Chatbot notebook <../../notebooks/llava-next-multimodal-chatbot-with-output.html>`__
+* `LLaVA-NeXT Multimodal Chatbot notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llava-next-multimodal-chatbot>`__
 * :doc:`Serving Stateful Models with OpenVINO Model Server <../../model-server/ovms_docs_stateful_models>`
