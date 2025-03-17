@@ -8,8 +8,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/unique.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -48,5 +47,4 @@ void CreateUniqueOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v10::Unique
 
 REGISTER_FACTORY_IMPL(v10, Unique);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

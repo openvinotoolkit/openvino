@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 /// Merges Gather into KVCache op
 ///     ┌─────────────────────┐                                               ┌─────────────────────┐
@@ -53,5 +52,5 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("IndirectSDPAOpt");
     IndirectSDPAOpt();
 };
-}   // namespace intel_gpu
-}   // namespace ov
+
+}   // namespace ov::intel_gpu

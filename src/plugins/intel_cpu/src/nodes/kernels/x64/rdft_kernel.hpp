@@ -9,8 +9,7 @@
 #    include "dnnl_types.h"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum dft_type {
     real_to_complex,
@@ -44,8 +43,8 @@ struct jit_dft_kernel {
         ker_(args);
     }
 
-    jit_dft_kernel() : ker_(nullptr) {}
-    virtual ~jit_dft_kernel() {}
+    jit_dft_kernel() = default;
+    virtual ~jit_dft_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -108,5 +107,4 @@ private:
 };
 
 #endif
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

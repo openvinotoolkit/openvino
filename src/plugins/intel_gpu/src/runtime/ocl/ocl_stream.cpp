@@ -189,22 +189,22 @@ void set_arguments_impl(ocl_kernel_type& kernel,
 }  // namespace
 
 ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
-    : stream(config.get_property(ov::intel_gpu::queue_type), stream::get_expected_sync_method(config))
+    : stream(config.get_queue_type(), stream::get_expected_sync_method(config))
     , _engine(engine) {
     auto context = engine.get_cl_context();
     auto device = engine.get_cl_device();
     ocl::command_queues_builder queue_builder;
-    queue_builder.set_profiling(config.get_property(ov::enable_profiling));
+    queue_builder.set_profiling(config.get_enable_profiling());
     queue_builder.set_out_of_order(m_queue_type == QueueTypes::out_of_order);
 
     OPENVINO_ASSERT(m_sync_method != SyncMethods::none || m_queue_type == QueueTypes::in_order,
                     "[GPU] Unexpected sync method (none) is specified for out_of_order queue");
 
     bool priorty_extensions = engine.extension_supported("cl_khr_priority_hints") && engine.extension_supported("cl_khr_create_command_queue");
-    queue_builder.set_priority_mode(config.get_property(ov::intel_gpu::hint::queue_priority), priorty_extensions);
+    queue_builder.set_priority_mode(config.get_queue_priority(), priorty_extensions);
 
     bool throttle_extensions = engine.extension_supported("cl_khr_throttle_hints") && engine.extension_supported("cl_khr_create_command_queue");
-    queue_builder.set_throttle_mode(config.get_property(ov::intel_gpu::hint::queue_throttle), throttle_extensions);
+    queue_builder.set_throttle_mode(config.get_queue_throttle(), throttle_extensions);
 
     bool queue_families_extension = engine.get_device_info().supports_queue_families;
     queue_builder.set_supports_queue_families(queue_families_extension);
@@ -289,7 +289,7 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     try {
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
     } catch (cl::Error const& err) {
-        ocl::rethrow_or_exit(err, _engine.get_device_info());
+        ocl::rethrow(err, _engine.get_device_info());
     }
 
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);

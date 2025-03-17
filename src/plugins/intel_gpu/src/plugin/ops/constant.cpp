@@ -28,8 +28,7 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static cldnn::tensor getConstTensor(const ov::Shape constDims) {
     std::vector<cldnn::tensor::value_type> shuffled_dims(constDims.size());
@@ -249,5 +248,4 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
 
 REGISTER_FACTORY_IMPL(v0, Constant);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

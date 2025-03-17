@@ -131,7 +131,7 @@ KernelsData DFTKernelRef::GetKernelsData(const Params& params) const {
 
         // Set internal buffer
         kd.internalBufferDataType = idft_input.GetDType();
-        kd.internalBufferSizes.push_back(idft_output.PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(idft_output.PhysicalSizeInBytes());
 
         // Fill IRDFT kernel data
         auto irdft_params = derived_params;

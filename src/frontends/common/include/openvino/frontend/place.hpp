@@ -61,7 +61,7 @@ class FRONTEND_API Place {
 public:
     typedef std::shared_ptr<Place> Ptr;
 
-    virtual ~Place() = 0;
+    virtual ~Place();
 
     /// \brief All associated names (synonyms) that identify this place in the graph in a
     /// framework specific way

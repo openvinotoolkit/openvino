@@ -26,8 +26,7 @@
 #include "transformations/utils/utils.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class KVCacheFusionMatcher : public ov::pass::MatcherPass {
 public:
@@ -132,5 +131,4 @@ KVCacheFusion::KVCacheFusion() {
     add_matcher<ov::intel_gpu::KVCacheFusionMatcher>();
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

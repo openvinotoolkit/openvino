@@ -10,7 +10,6 @@
 #include "low_precision/network_helper.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
@@ -65,8 +64,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
                         "Not found any Convolution or MatMul layer");
 
         auto insert_scale_down_layer = [&scale_factor, &scaled_prec](std::shared_ptr<ov::Node>& node,
-                                                                     const size_t input_idx,
-                                                                     const bool keep_precision) {
+                                                                     const size_t input_idx) {
             const std::vector<float> scale_down_value = {1.f / scale_factor};
 
             auto scale_down_layer = std::make_shared<ov::op::v1::Multiply>(
@@ -77,7 +75,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
             scale_down_layer->set_friendly_name(node->get_friendly_name() + "_scale_down");
             ov::copy_runtime_info(node, scale_down_layer);
 
-            if (scale_down_layer->output(0).get_element_type() != scaled_prec && !keep_precision) {
+            if (scale_down_layer->output(0).get_element_type() != scaled_prec) {
                 auto convert_prec = std::make_shared<ov::op::v0::Convert>(scale_down_layer->output(0), scaled_prec);
                 node->input(input_idx).replace_source_output(convert_prec->output(0));
             } else {
@@ -97,24 +95,21 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         if (transformation_callback(scaled_op))
             return false;
 
-        // in the case of decompressed_to_f32 nodes, scale_up layer will be added after Convert node.
-        bool keep_precision = false;
+        // in the case of decompressed_to_f32 nodes, no need to apply activations scaling
         std::shared_ptr<ov::Node> output_of_scaled_op = scaled_op;
         auto child_node = scaled_op->get_output_target_inputs(0).begin()->get_node();
         if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v0::Convert>(child_node) &&
             ov::fp16_compression_is_disabled(child_node->shared_from_this()) &&
             ov::pass::constant_folding_is_disabled(child_node->shared_from_this())) {
-            output_of_scaled_op = child_node->shared_from_this();
-            child_node = output_of_scaled_op->get_output_target_inputs(0).begin()->get_node();
-            keep_precision = true;
+            return false;
         }
 
         const std::vector<float> scale_up_value = {scale_factor};
         auto output_prec = output_of_scaled_op->output(0).get_element_type();
 
         // adding a scale_down layer before the target node
-        insert_scale_down_layer(scaled_op, 0, keep_precision);
-        if (scaled_op->input(1).get_element_type() != scaled_prec && !keep_precision) {
+        insert_scale_down_layer(scaled_op, 0);
+        if (scaled_op->input(1).get_element_type() != scaled_prec) {
             auto convert_prec1 =
                 std::make_shared<ov::op::v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
             scaled_op->input(1).replace_source_output(convert_prec1->output(0));
@@ -147,16 +142,16 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         if (has_bias) {
             auto add = child_node->shared_from_this();
             target_inputs = add->get_output_target_inputs(0);
-            insert_scale_down_layer(add, bias_index, keep_precision);
+            insert_scale_down_layer(add, bias_index);
             add->revalidate_and_infer_types();
-            if (add->output(0).get_element_type() != output_prec && !keep_precision) {
+            if (add->output(0).get_element_type() != output_prec) {
                 output_of_scaled_op = std::make_shared<ov::op::v0::Convert>(add->output(0), output_prec);
             } else {
                 output_of_scaled_op = add;
             }
         } else {
             target_inputs = output_of_scaled_op->get_output_target_inputs(0);
-            if (output_of_scaled_op->output(0).get_element_type() != output_prec && !keep_precision) {
+            if (output_of_scaled_op->output(0).get_element_type() != output_prec) {
                 output_of_scaled_op =
                     std::make_shared<ov::op::v0::Convert>(output_of_scaled_op->output(0), output_prec);
             }
@@ -205,96 +200,35 @@ ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
 
         norm->input(0).replace_source_output(activation);
 
-        return true;
-    };
+        auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(scale_const_m).get_node_shared_ptr());
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "EliminateScalarMul");
-    this->register_matcher(m, callback);
-}
-
-ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation() {
-    MATCHER_SCOPE(MulConcatTransformation);
-
-    auto concat_m = wrap_type<ov::op::v0::Concat>();
-
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-
-        OPENVINO_ASSERT(pattern_map.count(concat_m), "Not found any Concat layer");
-
-        auto concat = pattern_map.at(concat_m).get_node_shared_ptr();
-
-        if (transformation_callback(concat)) {
-            return false;
-        }
-
-        // check if all inputs are Multiply with scalar operand
-        ov::Output<ov::Node> last_dep_const = {};
-        ov::element::Type last_dep_const_type = ov::element::undefined;
-        for (auto& input : concat->inputs()) {
-            auto dep_node = ov::as_type_ptr<ov::op::v1::Multiply>(input.get_source_output().get_node_shared_ptr());
-            if (!dep_node) {
-                return false;
+        if (pattern_map.count(rms_m)) {
+            auto rms = ov::as_type_ptr<ov::op::internal::RMS>(pattern_map.at(rms_m).get_node_shared_ptr());
+            auto eps = rms->get_epsilon();
+            double scale_const_val = scale_const->cast_vector<double>()[0];
+            rms->set_epsilon(eps / scale_const_val / scale_const_val);
+        } else if (pattern_map.count(group_norm_m)) {
+            auto group_norm =
+                ov::as_type_ptr<ov::op::v12::GroupNormalization>(pattern_map.at(group_norm_m).get_node_shared_ptr());
+            auto eps = group_norm->get_epsilon();
+            double scale_const_val = scale_const->cast_vector<double>()[0];
+            group_norm->set_epsilon(eps / scale_const_val / scale_const_val);
+        } else if (pattern_map.count(mvn_m)) {
+            auto mvn = ov::as_type_ptr<ov::op::v6::MVN>(pattern_map.at(mvn_m).get_node_shared_ptr());
+            auto eps_mode = mvn->get_eps_mode();
+            auto eps = mvn->get_eps();
+            float scale_const_val = scale_const->cast_vector<float>()[0];
+            if (eps_mode == ov::op::MVNEpsMode::INSIDE_SQRT) {
+                mvn->set_eps(eps / scale_const_val / scale_const_val);
+            } else {
+                mvn->set_eps(eps / scale_const_val);
             }
-            auto dep_const0 =
-                ov::as_type_ptr<ov::op::v0::Constant>(dep_node->input(0).get_source_output().get_node_shared_ptr());
-            auto dep_const1 =
-                ov::as_type_ptr<ov::op::v0::Constant>(dep_node->input(1).get_source_output().get_node_shared_ptr());
-            if (!dep_const0 && !dep_const1) {
-                return false;
-            }
-            last_dep_const =
-                dep_const0 ? dep_node->input(0).get_source_output() : dep_node->input(1).get_source_output();
-            if (!is_scalar_node(last_dep_const))
-                return false;
-            if (last_dep_const_type != ov::element::undefined &&
-                last_dep_const_type != last_dep_const.get_element_type())
-                return false;
-            last_dep_const_type = last_dep_const.get_element_type();
-        }
-
-        auto target_inputs = concat->get_output_target_inputs(0);
-
-        for (auto& input : concat->inputs()) {
-            auto dep_node = input.get_source_output().get_node_shared_ptr();
-            auto dep_input0 = dep_node->input(0).get_source_output().get_node();
-            size_t const_index = ov::is_type<ov::op::v0::Constant>(dep_input0) ? 0 : 1;
-            size_t activation_index = ov::is_type<ov::op::v0::Constant>(dep_input0) ? 1 : 0;
-
-            auto dep_type = dep_node->get_output_element_type(0);
-            auto new_mul = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
-                std::vector<element::Type>{dep_type, dep_type},
-                std::vector<element::Type>{dep_type},
-                ov::op::TemporaryReplaceOutputType(dep_node->input(activation_index).get_source_output(), dep_type)
-                    .get(),
-                ov::op::TemporaryReplaceOutputType(
-                    ov::op::util::eltwise_fold<ov::op::v1::Divide>(dep_node->input(const_index).get_source_output(),
-                                                                   last_dep_const),
-                    dep_type)
-                    .get());
-            new_mul->set_friendly_name(dep_node->get_friendly_name() + "_c");
-            ov::copy_runtime_info(dep_node, new_mul);
-
-            input.replace_source_output(new_mul);
-        }
-
-        auto concat_type = concat->get_output_element_type(0);
-        auto new_mul = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
-            std::vector<element::Type>{concat_type, concat_type},
-            std::vector<element::Type>{concat_type},
-            ov::op::TemporaryReplaceOutputType(concat->output(0), concat_type).get(),
-            ov::op::TemporaryReplaceOutputType(last_dep_const, concat_type).get());
-        new_mul->set_friendly_name(concat->get_friendly_name() + "_c");
-        ov::copy_runtime_info(concat, new_mul);
-
-        for (auto& in : target_inputs) {
-            in.replace_source_output(new_mul);
         }
 
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_m, "MulConcatTransformation");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "EliminateScalarMul");
     this->register_matcher(m, callback);
 }
 
@@ -334,6 +268,32 @@ ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() 
 
                 if (is_scalar_node(const_input) && !is_non_const_node(const_input)) {
                     norm->input(0).replace_source_output(child.get_node()->output(0));
+
+                    auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(const_input.get_node_shared_ptr());
+
+                    if (pattern_map.count(rms_m)) {
+                        auto rms = ov::as_type_ptr<ov::op::internal::RMS>(pattern_map.at(rms_m).get_node_shared_ptr());
+                        auto eps = rms->get_epsilon();
+                        double scale_const_val = scale_const->cast_vector<double>()[0];
+                        rms->set_epsilon(eps * scale_const_val * scale_const_val);
+                    } else if (pattern_map.count(group_norm_m)) {
+                        auto group_norm = ov::as_type_ptr<ov::op::v12::GroupNormalization>(
+                            pattern_map.at(group_norm_m).get_node_shared_ptr());
+                        auto eps = group_norm->get_epsilon();
+                        double scale_const_val = scale_const->cast_vector<double>()[0];
+                        group_norm->set_epsilon(eps * scale_const_val * scale_const_val);
+                    } else if (pattern_map.count(mvn_m)) {
+                        auto mvn = ov::as_type_ptr<ov::op::v6::MVN>(pattern_map.at(mvn_m).get_node_shared_ptr());
+                        auto eps_mode = mvn->get_eps_mode();
+                        auto eps = mvn->get_eps();
+                        float scale_const_val = scale_const->cast_vector<float>()[0];
+                        if (eps_mode == ov::op::MVNEpsMode::INSIDE_SQRT) {
+                            mvn->set_eps(eps * scale_const_val * scale_const_val);
+                        } else {
+                            mvn->set_eps(eps * scale_const_val);
+                        }
+                    }
+
                     return true;
                 }
             }

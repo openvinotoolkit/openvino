@@ -64,7 +64,7 @@ void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
         auto casted = std::dynamic_pointer_cast<ocl_device>(_device);
         OPENVINO_ASSERT(casted, "[GPU] Invalid device type stored in ocl_engine");
 
-        std::string cache_dir = config.get_property(ov::cache_dir);
+        const auto& cache_dir = config.get_cache_dir();
         if (cache_dir.empty()) {
             _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
         } else {

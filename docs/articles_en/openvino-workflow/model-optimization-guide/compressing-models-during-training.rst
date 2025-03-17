@@ -45,8 +45,7 @@ quantization errors part of the overall training loss and tries to minimize thei
 
 To learn more, see:
 
-* guide on quantization for :doc:`PyTorch <./compressing-models-during-training/quantization-aware-training-pytorch>`.
-* guide on quantization for :doc:`Tensorflow <./compressing-models-during-training/quantization-aware-training-tensorflow>`.
+* guide on quantization for :doc:`PyTorch and TensorFlow <./compressing-models-during-training/quantization-aware-training>`.
 * Jupyter notebook on `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
 * Jupyter notebook on `Quantization Aware Training with NNCF and TensorFlow <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__.
 
@@ -71,7 +70,7 @@ NNCF provides some state-of-the-art compression methods that are still in the ex
 stages of development and are only recommended for expert developers. These include:
 
 * Mixed-precision quantization.
-* Sparsity (check out the `Sparsity-Aware Training  notebook <https://docs.openvino.ai/2024/notebooks/pytorch-quantization-sparsity-aware-training-with-output.html>`__).
+* Sparsity (check out the `Sparsity-Aware Training  notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-sparsity-aware-training>`__).
 * Movement Pruning (Movement Sparsity).
 
 To learn `more about these methods <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file#training-time-compression-algorithms>`__,

@@ -31,8 +31,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace dnnl;
 using namespace ov::element;
@@ -79,8 +78,9 @@ bool DnnlMatMulPrimitive::Key::operator==(const Key& rhs) const {
 
 template <typename dimsType>
 static dimsType normalizeToRank(const dimsType& vec, size_t rank) {
-    if (vec.size() == rank || vec.empty())
+    if (vec.size() == rank || vec.empty()) {
         return vec;
+    }
 
     dimsType result;
     result.reserve(rank);
@@ -211,7 +211,7 @@ static dnnl::matmul::primitive_desc createDescriptorInternal(const dnnl::memory:
 
     const dnnl::memory::desc weightsDesc = dnnl::memory::desc(weiDims, wdt, memory::format_tag::any);
 
-    return dnnl::matmul::primitive_desc(engine, inputsDesc, weightsDesc, newBiasDesc, outputsDesc, attr);
+    return {engine, inputsDesc, weightsDesc, newBiasDesc, outputsDesc, attr};
 }
 
 static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
@@ -238,8 +238,9 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
         return contains(implPriorities, implType);
     });
 
-    if (found)
+    if (found) {
         return std::move(prim_desc);
+    }
 
     return std::move(first_desc);
 }
@@ -278,8 +279,9 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
 bool DnnlMatMulPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputType,
                                                       const ov::element::Type weightsType) {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2))
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         return false;
+    }
 #endif
 
     return (one_of(inputType, f32, bf16, f16) && one_of(weightsType, u8, i8, u4, i4));
@@ -301,8 +303,9 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const FCAt
     const auto postOpData =
         createPrimitiveAttrs(mmAttrs, postOps, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
 
-    if (!cacheWeights)
+    if (!cacheWeights) {
         return std::make_shared<DnnlShapeAgnosticData>(postOpData);
+    }
 
     if (srcDesc->getShape().isDynamic()) {
         const auto& inShape = srcDesc->getShape();
@@ -373,5 +376,4 @@ void DnnlMatMulPrimitive::execute(const dnnl_primitive_args& primArgs) const {
     m_prim.execute(m_stream, primArgs);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

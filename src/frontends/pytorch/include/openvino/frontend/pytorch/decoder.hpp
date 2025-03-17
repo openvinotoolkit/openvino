@@ -6,6 +6,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/pytorch/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -14,8 +15,10 @@ namespace pytorch {
 using DecoderRTInfo = std::unordered_map<std::string, ov::Any>;
 
 /// Plays a role of node, block and module decoder (kind of temporary fat API)
-class TorchDecoder : public IDecoder {
+class PYTORCH_FRONTEND_API TorchDecoder : public IDecoder {
 public:
+    ~TorchDecoder() override;
+
     // Do not search for input in tensor map; try to access it as a constant of specified type T and return its value
     // Using Any here is an easy way to avoid template definition, returned object is supposed to be of one of the
     // fundamental types like int, float etc.

@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/runtime/layout.hpp"
@@ -11,7 +11,7 @@
 #include "openvino/core/except.hpp"
 #include "primitive_inst.h"
 #include "test_utils.h"
-#include "impls/registry/registry.hpp"
+#include "registry/registry.hpp"
 #include "primitive_type_base.h"
 #include <memory>
 
@@ -83,7 +83,7 @@ struct some_impl : public typed_primitive_impl<some_primitive>  {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::some_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<some_impl>(*this);
+        return std::make_unique<some_impl>(*this);
     }
 
     some_impl() : parent("some_impl") {}
@@ -95,7 +95,7 @@ struct some_impl : public typed_primitive_impl<some_primitive>  {
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {}
 
     static std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) {
-        return cldnn::make_unique<some_impl>();
+        return std::make_unique<some_impl>();
     }
 };
 
@@ -331,7 +331,7 @@ TEST_P(PrimitiveTypeTest, has_impl_for_test) {
     if (param_value == some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_1 || param_value == some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_2) {
         p.get_layout_optimizer().enable_onednn_for<some_primitive>();
     }
-#endif 
+#endif
 
     ASSERT_EQ(some_primitive::type_id()->has_impl_for(node, impl_type, shape_type), expected_has_impl) << (int)param_value;
     if (param_value != some_primitive::SomeParameter::UNSUPPORTED_VALUE_ALL)

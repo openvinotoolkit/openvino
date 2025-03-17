@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,7 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/x64/op/factory.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace pass {
+namespace ov::intel_cpu::tpp::pass {
 
 EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
     MATCHER_SCOPE(EltwiseToEltwiseTPP);
@@ -28,7 +25,7 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
                                                           ov::op::util::BinaryElementwiseArithmetic,
                                                           ov::snippets::op::ReduceBase>(is_supported_by_tpp);
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EltwiseToEltwiseTPP")
         const auto node = m.get_match_root();
         if (node->is_dynamic()) {
@@ -42,8 +39,9 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
         const size_t N_block =
             ov::is_type<ov::snippets::op::ReduceBase>(node) ? ov::snippets::utils::get_full_dim_value() : 64;
         ov::replace_node_update_name(node, tpp_eltwise);
-        for (size_t i = 0; i < node->get_input_size(); i++)
+        for (size_t i = 0; i < node->get_input_size(); i++) {
             ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(tpp_eltwise->input(i), {M_block, N_block});
+        }
 
         ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(tpp_eltwise->output(0), {M_block, N_block});
 
@@ -53,7 +51,4 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(supported_eltwise, matcher_name);
     register_matcher(m, callback);
 }
-}  // namespace pass
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::pass

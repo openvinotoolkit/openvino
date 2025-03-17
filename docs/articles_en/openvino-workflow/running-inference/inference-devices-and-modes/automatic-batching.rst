@@ -208,7 +208,7 @@ The following are limitations of the current AUTO Batching implementations:
 Testing Performance with Benchmark_app
 ######################################
 
-Using the :doc:`benchmark_app sample <../../../learn-openvino/openvino-samples/benchmark-tool>` is the best way to evaluate the performance of Automatic Batching:
+Using the :doc:`benchmark_app sample <../../../get-started/learn-openvino/openvino-samples/benchmark-tool>` is the best way to evaluate the performance of Automatic Batching:
 
 - The most straightforward way is using the performance hints:
 

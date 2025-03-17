@@ -18,7 +18,9 @@ file(GLOB_RECURSE KERNELS
   )
 
 file(GLOB_RECURSE CM_KERNELS
-  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*.cpp"
 )
 
 # Path which points to root directory where code generated elements are created
@@ -61,12 +63,33 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${PRIM_DB}"
   COMMENT "Updating file if the file changed (${PRIM_DB}) ..."
 )
 
+set(XETLA_HEADER "cm_xetla.h")
+set(XETLA_HEADER_FULL_PATH "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}")
+
+if(WIN32)
+    add_custom_command(OUTPUT "${XETLA_HEADER_FULL_PATH}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/" "${CODEGEN_CACHE_DIR}/cm_kernels"
+        COMMAND "${CMAKE_CXX_COMPILER}" "${XETLA_HEADER_FULL_PATH}" -I ${XETLA_INCLUDE_DIR} -D _WIN32 -EP > "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}"
+        COMMAND "${CMAKE_COMMAND}" -E rename "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}" "${XETLA_HEADER_FULL_PATH}"
+        DEPENDS "${CM_KERNELS}" "${CODEGEN_INCDIR}/${PRIM_DB}"
+        COMMENT "Copying CM sources and preprocessing XeTLA headers ..."
+    )
+else()
+    add_custom_command(OUTPUT "${XETLA_HEADER_FULL_PATH}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/" "${CODEGEN_CACHE_DIR}/cm_kernels"
+        COMMAND "${CMAKE_CXX_COMPILER}" "${XETLA_HEADER_FULL_PATH}" -I ${XETLA_INCLUDE_DIR} -E -P > "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}"
+        COMMAND "${CMAKE_COMMAND}" -E rename "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}" "${XETLA_HEADER_FULL_PATH}"
+        DEPENDS "${CM_KERNELS}" "${CODEGEN_INCDIR}/${PRIM_DB}"
+        COMMENT "Copying CM sources and preprocessing XeTLA headers ..."
+    )
+endif()
+
 add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/${CM_PRIM_DB}"
   COMMAND "${Python3_EXECUTABLE}" "${CODEGEN_SCRIPT}" -out_path "${CODEGEN_CACHE_DIR}"
                                                       -out_file_name_prim_db "${CM_PRIM_DB}"
                                                       -out_file_name_batch_headers "${CM_PRIM_DB_BATCH_HEADERS}"
-                                                      -kernels "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels" -cm
-  DEPENDS ${CM_KERNELS} "${CODEGEN_SCRIPT}" "${CODEGEN_INCDIR}/${PRIM_DB}"
+                                                      -kernels "${CODEGEN_CACHE_DIR}/cm_kernels" -cm
+  DEPENDS ${CM_KERNELS} "${CODEGEN_SCRIPT}" "${XETLA_HEADER_FULL_PATH}" "${CODEGEN_INCDIR}/${PRIM_DB}"
   COMMENT "Generating ${CODEGEN_CACHE_DIR}/${CM_PRIM_DB} ..."
 )
 
@@ -86,8 +109,7 @@ endif()
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${INCLUDE_DIR}>
                                                  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
                                                  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/kernels/>
-                                                 $<BUILD_INTERFACE:${CODEGEN_INCDIR}>
-                                          PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
+                                                 $<BUILD_INTERFACE:${CODEGEN_INCDIR}>)
 
 target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
@@ -101,6 +123,8 @@ if(COMMAND add_cpplint_target)
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL openvino::runtime PRIVATE openvino::runtime::dev)
+
+target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

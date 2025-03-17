@@ -306,7 +306,7 @@ public:
             indirect_kernel_params.is_shape_agnostic = params.is_dynamic();
             kernels_data.push_back(kernel_selector.get_best_kernel(indirect_kernel_params));
         }
-        return cldnn::make_unique<gemm_impl>(kernels_data);
+        return std::make_unique<gemm_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {

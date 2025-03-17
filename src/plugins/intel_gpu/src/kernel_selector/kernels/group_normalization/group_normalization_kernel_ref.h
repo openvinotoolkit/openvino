@@ -36,7 +36,7 @@ protected:
     static void SetKernelArguments(const group_normalization_params& params,
                                    KernelId kernelId,
                                    cldnn::arguments_desc& arguments,
-                                   std::vector<std::size_t>& internalBufferSizes);
+                                   std::vector<InternalBuffer>& internalBuffers);
 };
 
 }  // namespace kernel_selector

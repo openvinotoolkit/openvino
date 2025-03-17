@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -13,7 +14,6 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
-#include "openvino/runtime/threading/thread_local.hpp"
 #include "sub_memory_manager.hpp"
 
 namespace ov {
@@ -21,6 +21,8 @@ namespace intel_cpu {
 
 class CompiledModel : public ov::ICompiledModel {
 public:
+    typedef std::shared_ptr<CompiledModel> Ptr;
+
     struct GraphGuard : public Graph {
         std::mutex _mutex;
         struct Lock : public std::unique_lock<std::mutex> {
@@ -30,22 +32,13 @@ public:
     };
 
 public:
-    typedef std::shared_ptr<CompiledModel> Ptr;
-
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   Config cfg,
                   const bool loaded_from_cache,
                   std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
-    ~CompiledModel() {
-        if (m_has_sub_compiled_models) {
-            m_sub_compiled_models.clear();
-            m_sub_memory_manager->_memorys_table.clear();
-        }
-        auto streamsExecutor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_task_executor);
-        streamsExecutor->cpu_reset();
-    }
+    ~CompiledModel();
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 

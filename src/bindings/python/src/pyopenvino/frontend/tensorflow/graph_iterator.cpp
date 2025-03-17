@@ -8,7 +8,7 @@
 
 #include "graph_iterator.hpp"
 
-#include "openvino/frontend/graph_iterator.hpp"
+#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 
 namespace py = pybind11;
 

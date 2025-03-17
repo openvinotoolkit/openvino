@@ -23,6 +23,7 @@ public:
 
     void getSupportedDescriptors() override{};
     void selectOptimalPrimitiveDescriptor() override;
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
     void createPrimitive() override;
     void prepareParams() override;
     void execute(const dnnl::stream&) override;

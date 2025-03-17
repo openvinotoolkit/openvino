@@ -4,10 +4,15 @@
 
 #include "include/batch_headers/common.cl"
 
+#if IS_KV_COMPRESSED
+#define SUBGROUPS_PER_WG 1
+#else
 #define SUBGROUPS_PER_WG KV_HEADS_NUM
+#endif
+#define ACCUMULATOR_TYPE float
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
-__attribute__((reqd_work_group_size(SUBGROUP_SIZE, KV_HEADS_NUM, 1)))
+__attribute__((reqd_work_group_size(SUBGROUP_SIZE, SUBGROUPS_PER_WG, 1)))
 KERNEL(pa_kv_cache_rotate)(
     OPTIONAL_SHAPE_INFO_ARG
     __global const INPUT0_TYPE* rotated_block_indices,
@@ -62,22 +67,76 @@ KERNEL(pa_kv_cache_rotate)(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     const uint token_coefficient_idx = per_token_rotation ? sglid : 0;
-    const uint block_offset = rotated_block_indices[block_idx] * KV_HEADS_NUM * HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE +
-                              head_idx * HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + sglid;
+    const uint block_base_offset = rotated_block_indices[block_idx] * KV_HEADS_NUM * ADJUSTED_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE +
+                                   head_idx * ADJUSTED_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+    const uint token_offset = block_base_offset + sglid;
+
+#if IS_KV_COMPRESSED
+    const uint comp_offset = block_base_offset + HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+    UNCOMPRESSED_TYPE* comp_ptr = key_cache + comp_offset;
+    UNCOMPRESSED_TYPE comp_scale = comp_ptr[0 + sglid];
+    UNCOMPRESSED_TYPE comp_zp = comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
+
+    UNCOMPRESSED_TYPE max_value = UNCOMPRESSED_VAL_MIN;
+    UNCOMPRESSED_TYPE min_value = UNCOMPRESSED_VAL_MAX;
+
+    // Reuse SLM to store dequantized rotated values
+    __local UNCOMPRESSED_TYPE* rotated_data = (__local UNCOMPRESSED_TYPE*)(&rotation_coefficients[0][0]);
+#endif
+
+    // Apply cache rotation
     for (uint i = 0; i < HEAD_SIZE / 2; i++) {
-        const uint cache_offset = block_offset + i * PAGED_ATTENTION_BLOCK_SIZE;
-        OUTPUT_TYPE cache_value_first = key_cache[cache_offset];
-        OUTPUT_TYPE cache_value_second = key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE];
+        const uint cache_offset = token_offset + i * PAGED_ATTENTION_BLOCK_SIZE;
+
+#if IS_KV_COMPRESSED
+        UNCOMPRESSED_TYPE cache_value_first = TO_UNCOMPRESSED_TYPE(key_cache[cache_offset] - comp_zp) * comp_scale;
+        UNCOMPRESSED_TYPE cache_value_second = TO_UNCOMPRESSED_TYPE(key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE] - comp_zp) * comp_scale;
+#else
+        UNCOMPRESSED_TYPE cache_value_first = key_cache[cache_offset];
+        UNCOMPRESSED_TYPE cache_value_second = key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE];
+#endif
 
         INPUT2_TYPE rotation_value_cos = rotation_coefficients[i][token_coefficient_idx];
         INPUT2_TYPE rotation_value_sin = rotation_coefficients[i + (HEAD_SIZE / 2)][token_coefficient_idx];
 
-        OUTPUT_TYPE new_cache_value_first = cache_value_first * rotation_value_cos - cache_value_second * rotation_value_sin;
-        OUTPUT_TYPE new_cache_value_second = cache_value_first * rotation_value_sin + cache_value_second * rotation_value_cos;
+        UNCOMPRESSED_TYPE new_cache_value_first = cache_value_first * rotation_value_cos - cache_value_second * rotation_value_sin;
+        UNCOMPRESSED_TYPE new_cache_value_second = cache_value_first * rotation_value_sin + cache_value_second * rotation_value_cos;
 
+#if IS_KV_COMPRESSED
+        max_value = fmax(fmax(max_value, new_cache_value_first), new_cache_value_second);
+        min_value = fmin(fmin(min_value, new_cache_value_first), new_cache_value_second);
+
+        rotated_data[(i + 0) * PAGED_ATTENTION_BLOCK_SIZE + sglid] = new_cache_value_first;
+        rotated_data[(i + (HEAD_SIZE / 2)) * PAGED_ATTENTION_BLOCK_SIZE + sglid] = new_cache_value_second;
+#else
         key_cache[cache_offset] = new_cache_value_first;
         key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE] = new_cache_value_second;
+#endif
     }
+
+#if IS_KV_COMPRESSED
+    // Re-quantize cache data
+    ACCUMULATOR_TYPE grp_max = 0.001;
+    ACCUMULATOR_TYPE diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
+    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
+    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
+    UNCOMPRESSED_TYPE scale = (UNCOMPRESSED_TYPE)(scale_tmp);
+    UNCOMPRESSED_TYPE zp = (UNCOMPRESSED_TYPE)(zp_tmp);
+
+    // Note: absence of this explicit unrolling directive leads to automatic
+    // unrolling and causes registers spill. Set unrolling to a reasonable value manually
+    __attribute__((opencl_unroll_hint(8)))
+    for (uint i = 0; i < HEAD_SIZE; i++) {
+        OUTPUT_TYPE quantized_res = convert_char_rte(rotated_data[i * PAGED_ATTENTION_BLOCK_SIZE + sglid] * scale + zp);
+
+        const uint cache_offset = token_offset + i * PAGED_ATTENTION_BLOCK_SIZE;
+        key_cache[cache_offset] = quantized_res;
+    }
+
+    comp_ptr[0 + sglid] = 1.0 / scale;
+    comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid] = zp;
+#endif
 }
 
+#undef ACCUMULATOR_TYPE
 #undef SUBGROUPS_PER_WG

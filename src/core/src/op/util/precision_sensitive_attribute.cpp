@@ -4,6 +4,8 @@
 
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
+ov::PrecisionSensitive::~PrecisionSensitive() = default;
+
 void ov::mark_as_precision_sensitive(ov::Input<ov::Node> node_input) {
     auto& rt_info = node_input.get_rt_info();
     rt_info[PrecisionSensitive::get_type_info_static()] = PrecisionSensitive{};

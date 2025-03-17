@@ -98,6 +98,7 @@ public:
     void prepareParams() override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
 
     enum class NormEpsMode { ADD, MAX };
@@ -109,8 +110,8 @@ public:
         bool cornerCase = false;
         float eps = 1e-10f;
 
-        ov::element::Type input_prec = ov::element::undefined;
-        ov::element::Type output_prec = ov::element::undefined;
+        ov::element::Type input_prec = ov::element::dynamic;
+        ov::element::Type output_prec = ov::element::dynamic;
         size_t src_data_size = 0lu;
         size_t dst_data_size = 0lu;
     };

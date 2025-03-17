@@ -215,8 +215,13 @@ inline void (FUNC_NAME)(
                     #else
                         ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                     #endif
+                    #if TILE_OFM > 1
                     ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
                     acc_tmp[bi][fi] = 0;
+                    #else
+                    acc[bi] += acc_tmp[bi] * ds;
+                    acc_tmp[bi] = 0;
+                    #endif
                 }
             }
 #endif
@@ -233,8 +238,13 @@ inline void (FUNC_NAME)(
                 #else
                     ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #endif
+                #if TILE_OFM > 1
                 ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
                 acc_tmp[bi][fi] = 0;
+                #else
+                acc[bi] += acc_tmp[bi] * ds;
+                acc_tmp[bi] = 0;
+                #endif
             }
         }
 #endif

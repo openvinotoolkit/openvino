@@ -12,13 +12,13 @@ namespace ocl {
 
 sycl_stream::sycl_stream(const sycl_engine& engine, const ExecutionConfig& config)
     : ocl_stream(engine, config) {
-    sycl_queue = cldnn::make_unique<::sycl::queue>(::sycl::make_queue<::sycl::backend::opencl>(get_cl_queue().get(), engine.get_sycl_context()));
+    sycl_queue = std::make_unique<::sycl::queue>(::sycl::make_queue<::sycl::backend::opencl>(get_cl_queue().get(), engine.get_sycl_context()));
 }
 
 
 sycl_stream::sycl_stream(const sycl_engine &engine, const ExecutionConfig& config, void *handle)
     : ocl_stream(engine, config, handle) {
-    sycl_queue = cldnn::make_unique<::sycl::queue>(::sycl::make_queue<::sycl::backend::opencl>(get_cl_queue().get(), engine.get_sycl_context()));
+    sycl_queue = std::make_unique<::sycl::queue>(::sycl::make_queue<::sycl::backend::opencl>(get_cl_queue().get(), engine.get_sycl_context()));
 }
 
 ::sycl::queue& sycl_stream::get_sycl_queue() {

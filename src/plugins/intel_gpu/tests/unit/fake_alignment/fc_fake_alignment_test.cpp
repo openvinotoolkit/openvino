@@ -13,6 +13,9 @@
 #include "fully_connected_inst.h"
 #include "eltwise_inst.h"
 
+#include "test_utils.h"
+#include "random_generator.hpp"
+
 #include "program_wrapper.h"
 
 #include <cmath>
@@ -274,6 +277,53 @@ INSTANTIATE_TEST_SUITE_P(smoke, fully_connected_skip_fake_align_test,
             layout{ov::PartialShape{1, 1000, 512}, data_types::f32, format::bfyx},    // skipped fake_aligned output layout_igpu
             layout{ov::PartialShape{1, 1000, 2048}, data_types::u8, format::bfyx},    // skipped fake_aligned input layout_dgpu
             layout{ov::PartialShape{1, 1000, 512}, data_types::f32, format::bfyx}     // skipped fake_aligned output layout_dgpu
+        },
+    }));
+
+class fully_connected_skip_fake_align_test2 : public testing::TestWithParam<fc_fake_align_params> {};
+
+TEST_P(fully_connected_skip_fake_align_test2, runtime_skip_and_fake_alginement) {
+    auto p = GetParam();
+    tests::random_generator rg;
+    auto& engine = get_test_engine();
+    auto rank = p.input_layout.get_partial_shape().size();
+    auto input_layout_dynamic = layout {ov::PartialShape::dynamic(rank), data_types::f16, format::get_default_format(rank)};
+    auto weights_mem = engine.allocate_memory(p.weight_layout);
+    auto weights_data = rg.generate_random_2d<ov::float16>(3584, 3584, -1, 1);
+    set_values(weights_mem, weights_data);
+
+    topology topology(input_layout("input", input_layout_dynamic),
+                      permute("permute", input_info("input"), {0, 2, 1}),
+                      data("weight", weights_mem),
+                      fully_connected("fc", input_info("permute"), "weight", "", p.data_type, rank),
+                      reorder("reorder", input_info("fc"), format::get_default_format(rank), data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto input_mem = engine.allocate_memory(p.input_layout);
+    network.set_input_data("input", input_mem);
+
+    std::map<primitive_id, network_output> outputs;
+    OV_ASSERT_NO_THROW(outputs = network.execute());
+    outputs.begin()->second.get_memory();
+
+    auto permute_inst = network.get_primitive("permute");
+    ASSERT_EQ(permute_inst->can_be_optimized(), true);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, fully_connected_skip_fake_align_test2,
+    testing::ValuesIn(std::vector<fc_fake_align_params>{
+        {
+            layout{ov::PartialShape{1014, 3584, 1}, data_types::f16, format::bfyx},    // input_layout
+            layout{ov::PartialShape{3584, 3584}, data_types::f16, format::bfyx},        // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{1014, 1, 3584}, data_types::f16, format::bfyx},    // not used in this test
+            layout{ov::PartialShape{1014, 1, 3584}, data_types::f16, format::bfyx},    // not used in this test 
+            layout{ov::PartialShape{1014, 1, 3584}, data_types::f16, format::bfyx},    // not used in this test
+            layout{ov::PartialShape{1014, 1, 3584}, data_types::f16, format::bfyx}     // not used in this test
         },
     }));
 }  // fake_alignment_tests

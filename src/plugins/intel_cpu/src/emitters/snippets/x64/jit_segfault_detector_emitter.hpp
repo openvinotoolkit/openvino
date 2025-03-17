@@ -6,15 +6,14 @@
 
 #    pragma once
 
-#    include <string.h>
+#    include <cstring>
 
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "openvino/runtime/threading/thread_local.hpp"
 
 using namespace ov::threading;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_uni_segfault_detector_emitter;
 extern std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler;
@@ -52,7 +51,6 @@ private:
     friend std::string init_info_jit_uni_segfault_detector_emitter(const jit_uni_segfault_detector_emitter* emitter);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif

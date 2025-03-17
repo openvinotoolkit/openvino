@@ -9,10 +9,7 @@
 #include "common/cpu_memcpy.h"
 #include "shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace intel_cpu {
-
-namespace node {
+namespace ov::intel_cpu::node {
 
 Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, std::string errorMessage)
     : Node(op, context, NgraphShapeInferFactory(op)),
@@ -31,8 +28,9 @@ Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 void Reference::getSupportedDescriptors() {}
 
 void Reference::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inputConfigurators;
     inputConfigurators.reserve(inputShapes.size());
@@ -139,10 +137,10 @@ ov::TensorVector Reference::prepareInputs() const {
         if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) {
                 return dim == 0lu;
             })) {
-            inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape));
+            inputs.emplace_back(ovCoreNode->get_input_element_type(i), shape);
         } else {
             CPU_NODE_ASSERT(srcDataPtr, "has empty input data on port ", i);
-            inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape, srcDataPtr));
+            inputs.emplace_back(ovCoreNode->get_input_element_type(i), shape, srcDataPtr);
         }
     }
     return inputs;
@@ -159,15 +157,13 @@ ov::TensorVector Reference::prepareOutputs() const {
         if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) {
                 return dim == 0lu;
             })) {
-            outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape));
+            outputs.emplace_back(ovCoreNode->get_output_element_type(i), shape);
         } else {
             CPU_NODE_ASSERT(dstDataPtr, "has empty output data on port ", i);
-            outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape, dstDataPtr));
+            outputs.emplace_back(ovCoreNode->get_output_element_type(i), shape, dstDataPtr);
         }
     }
     return outputs;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

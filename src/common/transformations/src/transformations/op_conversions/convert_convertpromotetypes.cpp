@@ -14,7 +14,7 @@ ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
     MATCHER_SCOPE(ConvertConvertPromoteTypes);
 
     auto has_static_defined_type = [](const Output<Node>& output) -> bool {
-        return !pattern::type_matches_any({element::dynamic, element::undefined})(output);
+        return !pattern::type_matches_any({element::dynamic})(output);
     };
     auto convert_promote_types = pattern::wrap_type<ov::op::v14::ConvertPromoteTypes>(has_static_defined_type);
 

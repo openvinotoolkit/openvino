@@ -12,9 +12,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
 static constexpr int elementsStride = blockSize / sizeof(int);
@@ -43,15 +41,18 @@ NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 }
 
 void NonZero::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1)
+    if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    if (!getChildEdges().size())
+    }
+    if (!getChildEdges().size()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
+    }
 }
 
 void NonZero::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     const auto& inPrc = getOriginalInputPrecisionAtPort(0);
     if (!one_of(inPrc,
@@ -63,11 +64,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
                 ov::element::u32,
                 ov::element::i8,
                 ov::element::u8)) {
-        OPENVINO_THROW("Can't create primitive descriptor for NonZero layer with name: ",
-                       getName(),
-                       " doesn't support ",
-                       inPrc.get_type_name(),
-                       " precision on 0 port");
+        THROW_CPU_NODE_ERR("doesn't support ", inPrc.get_type_name(), " precision on 0 port");
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);
@@ -88,8 +85,9 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     }
     default: {
         threadsCount = parallel_get_max_threads();
-        if (inSize < static_cast<size_t>(blockSize * threadsCount))
+        if (inSize < static_cast<size_t>(blockSize) * threadsCount) {
             threadsCount = 1;
+        }
 
         counts.resize(threadsCount);
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
@@ -158,9 +156,10 @@ void NonZero::executeSpecified() {
         VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
-    int* dst = dstMemPtr->getDataAs<int>();
-    if (totalNonZeroCount == 0)
+    auto* dst = dstMemPtr->getDataAs<int>();
+    if (totalNonZeroCount == 0) {
         return;
+    }
 
     std::vector<int> srcDims(inRank);
     std::transform(inShape.getDims().begin(), inShape.getDims().end(), srcDims.begin(), [](size_t x) {
@@ -174,7 +173,7 @@ void NonZero::executeSpecified() {
     case 1: {
         // if nonZeroCounts.size() > 1, then the 2nd round scan could run in parallel.
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
-            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, 0);
+            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, size_t{0});
             for_1d(ithr, nthr, inShape.getElementsCount(), [&](size_t i) {
                 if (src[i] != zero) {
                     dst[outputIndex] = i;
@@ -403,6 +402,4 @@ bool NonZero::created() const {
     return getType() == Type::NonZero;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

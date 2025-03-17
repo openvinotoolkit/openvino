@@ -5,6 +5,7 @@
 #include "reduce.h"
 
 #include <algorithm>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -82,16 +83,14 @@ using namespace Xbyak;
     const uint8_t* in_ptr_ncd = in_ptr_n + src_data_size * (icb * ID + id) * IH * IW * blk_size; \
     uint8_t* out_ptr_ncd = out_ptr_n + dst_data_size * (ocb * OD + od) * OH * OW * blk_size;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct ReduceKey {
     jit_reduce_config_params jcp;
     dnnl::post_ops postOps;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const ReduceKey& rhs) const;
 };
 
@@ -150,8 +149,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
                                                                            data_type::f32);
         }
 
-        if (mayiuse(avx512_core))
-            uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
 
         this->preamble();
 
@@ -162,8 +160,9 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
         mov(reg_work_batch, ptr[reg_params + GET_OFF(work_batch)]);
-        if (planar_layout)
+        if (planar_layout) {
             mov(reg_reduce_w, ptr[reg_params + GET_OFF(reduce_w)]);
+        }
 
         if (jcp_.reduce_mode == Algorithm::ReduceAnd || jcp_.reduce_mode == Algorithm::ReduceL1 ||
             jcp_.reduce_mode == Algorithm::ReduceMax || jcp_.reduce_mode == Algorithm::ReduceMin ||
@@ -172,8 +171,9 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         }
 
         if (isa == cpu::x64::avx512_core || jcp_.reduce_mode == Algorithm::ReduceAnd ||
-            jcp_.reduce_mode == Algorithm::ReduceOr)
+            jcp_.reduce_mode == Algorithm::ReduceOr) {
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+        }
 
         if ((isa == cpu::x64::avx512_core && jcp_.reduce_mode == Algorithm::ReduceAnd) ||
             jcp_.reduce_mode == Algorithm::ReduceOr) {
@@ -185,8 +185,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
         this->postamble();
 
-        if (mayiuse(avx512_core))
-            uni_vcvtneps2bf16->emit_data();
+        uni_vcvtneps2bf16->emit_data();
 
         if (jcp_.reduce_mode == Algorithm::ReduceAnd || jcp_.reduce_mode == Algorithm::ReduceL1 ||
             jcp_.reduce_mode == Algorithm::ReduceMax || jcp_.reduce_mode == Algorithm::ReduceMin ||
@@ -369,10 +368,11 @@ private:
                 uni_vmovups(vmm_dst, table_val(0));
                 break;
             case Algorithm::ReduceProd:
-                if (isFloatCompatible(jcp_.src_dt))
+                if (isFloatCompatible(jcp_.src_dt)) {
                     uni_vmovups(vmm_dst, table_val(0));
-                else
+                } else {
                     uni_vmovups(vmm_dst, table_val(6));
+                }
                 break;
             case Algorithm::ReduceL1:
                 uni_vmovups(vmm_aux, table_val(1));
@@ -388,16 +388,18 @@ private:
                 uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
                 break;
             case Algorithm::ReduceMax:
-                if (isFloatCompatible(jcp_.dst_dt))
+                if (isFloatCompatible(jcp_.dst_dt)) {
                     uni_vmovups(vmm_dst, table_val(2));
-                else
+                } else {
                     uni_vmovups(vmm_dst, table_val(4));
+                }
                 break;
             case Algorithm::ReduceMin:
-                if (isFloatCompatible(jcp_.dst_dt))
+                if (isFloatCompatible(jcp_.dst_dt)) {
                     uni_vmovups(vmm_dst, table_val(3));
-                else
+                } else {
                     uni_vmovups(vmm_dst, table_val(5));
+                }
                 break;
             default:
                 assert(!"unsupported reduce mode");
@@ -691,8 +693,9 @@ private:
             assert(!"unknown src_dt");
         }
 
-        if (convert_i32_to_f32(src_dt))
+        if (convert_i32_to_f32(src_dt)) {
             uni_vcvtdq2ps(vmm_val, vmm_val);
+        }
         add(rsp, vlen);
     }
 
@@ -914,8 +917,9 @@ private:
 
     inline void load_dst_vector() {
         load_vector(vmm_dst, ptr[reg_dst], jcp_.dst_dt);
-        if (isa == cpu::x64::sse41)
+        if (isa == cpu::x64::sse41) {
             load_vector(vmm_dst_aux, ptr[reg_dst + 4 * jcp_.dst_data_size], jcp_.dst_dt);
+        }
     }
 
     inline void store_dst_vector() {
@@ -929,8 +933,9 @@ private:
             }
         }
         store_vector(ptr[reg_dst], vmm_dst, jcp_.dst_dt);
-        if (isa == cpu::x64::sse41)
+        if (isa == cpu::x64::sse41) {
             store_vector(ptr[reg_dst + 4 * jcp_.dst_data_size], vmm_dst_aux, jcp_.dst_dt);
+        }
     }
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
@@ -956,8 +961,9 @@ private:
             assert(!"unknown src_dt");
         }
 
-        if (convert_i32_to_f32(src_dt))
+        if (convert_i32_to_f32(src_dt)) {
             uni_vcvtdq2ps(vmm_src, vmm_src);
+        }
     }
 
     inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
@@ -991,8 +997,8 @@ private:
     }
 
     inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
-        Xmm xmm_dst = Xmm(vmm_dst.getIdx());
-        Ymm ymm_dst = Ymm(vmm_dst.getIdx());
+        auto xmm_dst = Xmm(vmm_dst.getIdx());
+        auto ymm_dst = Ymm(vmm_dst.getIdx());
         if (jcp_.round_to_zero && !support_intermediate_int) {
             uni_vroundps(vmm_dst, vmm_dst, 3);  // rounding to zero
         }
@@ -1006,9 +1012,15 @@ private:
             uni_vmovups(op, vmm_dst);
             break;
         case memory::data_type::bf16:
-            uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                         {static_cast<size_t>(ymm_dst.getIdx())});
-            vmovdqu16(op, ymm_dst);
+            if (isa == cpu::x64::avx512_core) {
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(ymm_dst.getIdx())});
+                vmovdqu16(op, ymm_dst);
+            } else {
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(xmm_dst.getIdx())});
+                uni_vmovdqu(op, xmm_dst);
+            }
             break;
         case memory::data_type::f16:
             vcvtps2ph(op, vmm_dst, 0x4);
@@ -1018,13 +1030,15 @@ private:
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vpermq(ymm_dst, ymm_dst, 0x08);
+                }
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vmovq(op, xmm_dst);
-                else
+                } else {
                     uni_vmovd(op, xmm_dst);
+                }
             }
             break;
         case memory::data_type::u8:
@@ -1033,13 +1047,15 @@ private:
                 vpmovusdb(op, vmm_dst);
             } else {
                 uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vpermq(ymm_dst, ymm_dst, 0x08);
+                }
                 uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vmovq(op, xmm_dst);
-                else
+                } else {
                     uni_vmovd(op, xmm_dst);
+                }
             }
             break;
         default:
@@ -1090,13 +1106,13 @@ private:
         if (isa == cpu::x64::sse41) {
             horiz_store(vmm_dst, dst_dt, load_embedded);
         } else if (isa == cpu::x64::avx2) {
-            Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
+            auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
             vextractf128(xmm_aux1, ymm_dst, 0);
             vextractf128(xmm_aux2, ymm_dst, 1);
             horiz_ps(xmm_aux1, xmm_aux2);
             horiz_store(xmm_aux1, dst_dt, load_embedded);
         } else {
-            Xbyak::Zmm zmm_dst = Xbyak::Zmm(vmm_dst.getIdx());
+            auto zmm_dst = Xbyak::Zmm(vmm_dst.getIdx());
             vextractf32x4(xmm_aux1, zmm_dst, 0);
             vextractf32x4(xmm_aux2, zmm_dst, 1);
             horiz_ps(xmm_aux1, xmm_aux2);
@@ -1144,10 +1160,11 @@ private:
             uni_vorps(xmm, xmm, op);
             break;
         case Algorithm::ReduceProd:
-            if (isFloatCompatible(jcp_.src_dt))
+            if (isFloatCompatible(jcp_.src_dt)) {
                 uni_vmulps(xmm, xmm, op);
-            else
+            } else {
                 uni_vpmulld(xmm, xmm, op);
+            }
             break;
         default:
             assert(!"unsupported reduce mode");
@@ -1237,8 +1254,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
                                                                            data_type::f32);
         }
 
-        if (mayiuse(avx512_core))
-            uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
 
         this->preamble();
 
@@ -1252,17 +1268,20 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         mov(reg_work_amount, ptr[reg_params + GET_OFF_POST(work_amount)]);
         mov(reg_channel_size, ptr[reg_params + GET_OFF_POST(channel_size)]);
         mov(reg_divisor, ptr[reg_params + GET_OFF_POST(divisor)]);
-        if (jcp_.fuse_low_precision)
+        if (jcp_.fuse_low_precision) {
             mov(reg_src, ptr[reg_params + GET_OFF_POST(src)]);
-        if (!planar_layout)
+        }
+        if (!planar_layout) {
             mov(reg_reduce_c, ptr[reg_params + GET_OFF_POST(reduce_c)]);
+        }
         if (post_ops_fusing) {
             mov(reg_post_ops_data, ptr[reg_params + GET_OFF_POST(post_op_data)]);
             mov(reg_oc_off, ptr[reg_params + GET_OFF_POST(oc_off)]);
         }
 
-        if (isa == cpu::x64::avx512_core)
+        if (isa == cpu::x64::avx512_core) {
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+        }
 
         if (jcp_.layout == ReduceLayoutType::reduce_blocked) {
             reduce_post_main();
@@ -1292,15 +1311,15 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 
         this->postamble();
 
-        if (mayiuse(avx512_core))
-            uni_vcvtneps2bf16->emit_data();
+        uni_vcvtneps2bf16->emit_data();
 
         if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector->prepare_table();
         }
 
-        for (auto& inj : eltwise_injectors)
+        for (auto& inj : eltwise_injectors) {
             inj->prepare_table();
+        }
     }
 
 private:
@@ -1377,17 +1396,20 @@ private:
 
                 // load
                 wrap_load_vector(vmm_dst, 0);
-                if (isa == cpu::x64::sse41)
+                if (isa == cpu::x64::sse41) {
                     wrap_load_vector(vmm_dst_aux, 4);
+                }
 
                 // reduce and store
                 horiz_reduce_store(vmm_dst, jcp_.dst_dt);
-                if (isa == cpu::x64::sse41)
+                if (isa == cpu::x64::sse41) {
                     horiz_reduce_store(vmm_dst_aux, jcp_.dst_dt, true);
+                }
 
                 add(reg_dst, step * jcp_.dst_data_size);
-                if (jcp_.fuse_low_precision)
+                if (jcp_.fuse_low_precision) {
                     add(reg_src, step * sizeof(float));
+                }
                 sub(reg_work_amount, step);
 
                 jmp(reduce_loop_label, T_NEAR);
@@ -1396,8 +1418,9 @@ private:
 
             if (post_reduce || post_ops_fusing) {
                 mov(reg_dst, ptr[reg_params + GET_OFF_POST(dst)]);
-                if (jcp_.fuse_low_precision)
+                if (jcp_.fuse_low_precision) {
                     mov(reg_src, ptr[reg_params + GET_OFF_POST(src)]);
+                }
                 mov(reg_work_amount, ptr[reg_params + GET_OFF_POST(work_amount)]);
             }
         }
@@ -1407,8 +1430,9 @@ private:
         L(reduce_map_label);
         {
             if (post_reduce) {
-                if (jcp_.reduce_mode == Algorithm::ReduceMean)
+                if (jcp_.reduce_mode == Algorithm::ReduceMean) {
                     uni_vbroadcastss(vmm_aux, ptr[reg_divisor]);
+                }
 
                 Xbyak::Label reduce_loop_label;
                 Xbyak::Label reduce_loop_end_label;
@@ -1421,28 +1445,33 @@ private:
 
                     wrap_load_vector(vmm_dst, 0);
                     reduce_map_kernel(vmm_dst);
-                    if (post_ops_fusing)
+                    if (post_ops_fusing) {
                         apply_post_ops(jcp_.dst_dt, jcp_.fuse_broadcast);
+                    }
                     store_vector(ptr[reg_dst], vmm_dst, jcp_.dst_dt);
 
                     if (isa == cpu::x64::sse41) {
                         wrap_load_vector(vmm_dst, 4);
                         reduce_map_kernel(vmm_dst);
                         if (post_ops_fusing) {
-                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp)
+                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp) {
                                 add(reg_oc_off, 4 * sizeof(float));
+                            }
                             apply_post_ops(jcp_.dst_dt, jcp_.fuse_broadcast);
-                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp)
+                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp) {
                                 sub(reg_oc_off, 4 * sizeof(float));
+                            }
                         }
                         store_vector(ptr[reg_dst + 4 * jcp_.dst_data_size], vmm_dst, jcp_.dst_dt);
                     }
 
                     add(reg_dst, step * jcp_.dst_data_size);
-                    if (jcp_.fuse_low_precision)
+                    if (jcp_.fuse_low_precision) {
                         add(reg_src, step * sizeof(float));
-                    if (post_ops_fusing && increase_oc_off)
+                    }
+                    if (post_ops_fusing && increase_oc_off) {
                         add(reg_oc_off, step * sizeof(float));
+                    }
                     sub(reg_work_amount, step);
 
                     jmp(reduce_loop_label, T_NEAR);
@@ -1465,19 +1494,23 @@ private:
 
                         if (isa == cpu::x64::sse41) {
                             wrap_load_vector(vmm_dst, 4);
-                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp)
+                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp) {
                                 add(reg_oc_off, 4 * sizeof(float));
+                            }
                             apply_post_ops(jcp_.dst_dt, jcp_.fuse_broadcast);
-                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp)
+                            if (jcp_.layout != ReduceLayoutType::reduce_ncsp) {
                                 sub(reg_oc_off, 4 * sizeof(float));
+                            }
                             store_vector(ptr[reg_dst + 4 * jcp_.dst_data_size], vmm_dst, jcp_.dst_dt);
                         }
 
                         add(reg_dst, step * jcp_.dst_data_size);
-                        if (jcp_.fuse_low_precision)
+                        if (jcp_.fuse_low_precision) {
                             add(reg_src, step * sizeof(float));
-                        if (post_ops_fusing && increase_oc_off)
+                        }
+                        if (post_ops_fusing && increase_oc_off) {
                             add(reg_oc_off, step * sizeof(float));
+                        }
                         sub(reg_work_amount, step);
 
                         jmp(reduce_loop_label, T_NEAR);
@@ -1492,8 +1525,9 @@ private:
         // reduce map for tail in dst memory
         // cases: [ReduceL2] [ReduceLogSum] [ReduceLogSumExp] [ReduceMean] in planar layout
         if (post_reduce) {
-            if (jcp_.reduce_mode == Algorithm::ReduceMean)
+            if (jcp_.reduce_mode == Algorithm::ReduceMean) {
                 uni_vbroadcastss(xmm_aux, ptr[reg_divisor]);
+            }
 
             Xbyak::Label reduce_loop_label;
             Xbyak::Label reduce_loop_end_label;
@@ -1511,15 +1545,18 @@ private:
                 reduce_map_kernel_scalar(xmm_dst);
 
                 // store
-                if (post_ops_fusing)
+                if (post_ops_fusing) {
                     apply_post_ops(jcp_.dst_dt, jcp_.fuse_broadcast);
+                }
                 store_scalar(ptr[reg_dst], xmm_dst, jcp_.dst_dt);
 
                 add(reg_dst, step * jcp_.dst_data_size);
-                if (jcp_.fuse_low_precision)
+                if (jcp_.fuse_low_precision) {
                     add(reg_src, step * sizeof(float));
-                if (post_ops_fusing && increase_oc_off)
+                }
+                if (post_ops_fusing && increase_oc_off) {
                     add(reg_oc_off, step * sizeof(float));
+                }
                 sub(reg_work_amount, step);
 
                 jmp(reduce_loop_label, T_NEAR);
@@ -1544,10 +1581,12 @@ private:
                     store_scalar(ptr[reg_dst], xmm_dst, jcp_.dst_dt);
 
                     add(reg_dst, step * jcp_.dst_data_size);
-                    if (jcp_.fuse_low_precision)
+                    if (jcp_.fuse_low_precision) {
                         add(reg_src, step * sizeof(float));
-                    if (post_ops_fusing && increase_oc_off)
+                    }
+                    if (post_ops_fusing && increase_oc_off) {
                         add(reg_oc_off, step * sizeof(float));
+                    }
                     sub(reg_work_amount, step);
 
                     jmp(reduce_loop_label, T_NEAR);
@@ -1618,35 +1657,39 @@ private:
     }
 
     inline void reduce_map_kernel(Vmm vmm_dst) {
-        if (jcp_.reduce_mode == Algorithm::ReduceMean)
+        if (jcp_.reduce_mode == Algorithm::ReduceMean) {
             uni_vdivps(vmm_dst, vmm_dst, vmm_aux);
-        else if (jcp_.reduce_mode == Algorithm::ReduceL2)
+        } else if (jcp_.reduce_mode == Algorithm::ReduceL2) {
             uni_vsqrtps(vmm_dst, vmm_dst);
-        else if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp)
+        } else if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector->compute_vector_range(vmm_dst.getIdx(), vmm_dst.getIdx() + 1);
+        }
     }
 
     inline void reduce_map_kernel_scalar(Xmm xmm_dst) {
-        if (jcp_.reduce_mode == Algorithm::ReduceMean)
+        if (jcp_.reduce_mode == Algorithm::ReduceMean) {
             uni_vdivps(xmm_dst, xmm_dst, xmm_aux);
-        else if (jcp_.reduce_mode == Algorithm::ReduceL2)
+        } else if (jcp_.reduce_mode == Algorithm::ReduceL2) {
             uni_vsqrtps(xmm_dst, xmm_dst);
-        else if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp)
+        } else if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector->compute_vector_range(xmm_dst.getIdx(), xmm_dst.getIdx() + 1);
+        }
     }
 
     inline void wrap_load_vector(Vmm vmm_val, size_t offset) {
-        if (jcp_.fuse_low_precision)
+        if (jcp_.fuse_low_precision) {
             load_vector(vmm_val, ptr[reg_src + offset * sizeof(float)], memory::data_type::f32);
-        else
+        } else {
             load_vector(vmm_val, ptr[reg_dst + offset * jcp_.dst_data_size], jcp_.dst_dt);
+        }
     }
 
     inline void wrap_load_scalar(Xmm xmm_val, size_t offset) {
-        if (jcp_.fuse_low_precision)
+        if (jcp_.fuse_low_precision) {
             load_scalar(xmm_val, ptr[reg_src + offset * sizeof(float)], memory::data_type::f32);
-        else
+        } else {
             load_scalar(xmm_val, ptr[reg_dst + offset * jcp_.dst_data_size], jcp_.dst_dt);
+        }
     }
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
@@ -1672,8 +1715,9 @@ private:
             assert(!"unknown src_dt");
         }
 
-        if (!isFloatCompatible(src_dt))
+        if (!isFloatCompatible(src_dt)) {
             uni_vcvtdq2ps(vmm_src, vmm_src);
+        }
     }
 
     inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
@@ -1707,8 +1751,8 @@ private:
     }
 
     inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
-        Xmm xmm_dst = Xmm(vmm_dst.getIdx());
-        Ymm ymm_dst = Ymm(vmm_dst.getIdx());
+        auto xmm_dst = Xmm(vmm_dst.getIdx());
+        auto ymm_dst = Ymm(vmm_dst.getIdx());
         // If there is post ops fusing, necessary rounding has ready been done, no need to do it again.
         if (!post_ops_fusing && jcp_.round_to_zero) {
             uni_vroundps(vmm_dst, vmm_dst, 3);
@@ -1723,9 +1767,15 @@ private:
             uni_vmovups(op, vmm_dst);
             break;
         case memory::data_type::bf16:
-            uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                         {static_cast<size_t>(ymm_dst.getIdx())});
-            vmovdqu16(op, ymm_dst);
+            if (isa == cpu::x64::avx512_core) {
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(ymm_dst.getIdx())});
+                vmovdqu16(op, ymm_dst);
+            } else {
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(xmm_dst.getIdx())});
+                uni_vmovdqu(op, xmm_dst);
+            }
             break;
         case memory::data_type::f16:
             vcvtps2ph(op, vmm_dst, 0x4);
@@ -1735,13 +1785,15 @@ private:
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vpermq(ymm_dst, ymm_dst, 0x08);
+                }
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vmovq(op, xmm_dst);
-                else
+                } else {
                     uni_vmovd(op, xmm_dst);
+                }
             }
             break;
         case memory::data_type::u8:
@@ -1750,13 +1802,15 @@ private:
                 vpmovusdb(op, vmm_dst);
             } else {
                 uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vpermq(ymm_dst, ymm_dst, 0x08);
+                }
                 uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vmovq(op, xmm_dst);
-                else
+                } else {
                     uni_vmovd(op, xmm_dst);
+                }
             }
             break;
         default:
@@ -1807,13 +1861,13 @@ private:
         if (isa == cpu::x64::sse41) {
             horiz_store(vmm_dst, dst_dt, load_embedded);
         } else if (isa == cpu::x64::avx2) {
-            Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
+            auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
             vextractf128(xmm_aux1, ymm_dst, 0);
             vextractf128(xmm_aux2, ymm_dst, 1);
             horiz_ps(xmm_aux1, xmm_aux2);
             horiz_store(xmm_aux1, dst_dt, load_embedded);
         } else {
-            Xbyak::Zmm zmm_dst = Xbyak::Zmm(vmm_dst.getIdx());
+            auto zmm_dst = Xbyak::Zmm(vmm_dst.getIdx());
             vextractf32x4(xmm_aux1, zmm_dst, 0);
             vextractf32x4(xmm_aux2, zmm_dst, 1);
             horiz_ps(xmm_aux1, xmm_aux2);
@@ -1968,15 +2022,17 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
             keep_dims = reduce->get_keep_dims();
             auto reduceConst =
                 ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
-            if (!reduceConst)
+            if (!reduceConst) {
                 THROW_CPU_NODE_ERR("second tensor is not constant!");
+            }
             raw_axes = reduceConst->cast_vector<int>();
         } else if (const auto reduce = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
             auto reduceConst =
                 ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
-            if (!reduceConst)
+            if (!reduceConst) {
                 THROW_CPU_NODE_ERR("second tensor is not constant!");
+            }
             raw_axes = reduceConst->cast_vector<int>();
         }
         set_use_aux_kernel = false;
@@ -1991,31 +2047,36 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 }
 
 void Reduce::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2)
+    if (getParentEdges().size() != 2) {
         THROW_CPU_NODE_ERR("gets incorrect number of input edges!");
-    if (getChildEdges().empty())
+    }
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("gets incorrect number of output edges!");
+    }
 
     if (getInputShapeAtPort(REDUCE_INDEXES).getRank() != 1) {
         THROW_CPU_NODE_ERR("gets incorrect index vector dimension! Index vector should be 1 dimension.");
     }
 
     if (keep_dims) {
-        if (getInputShapeAtPort(REDUCE_DATA).getRank() != getOutputShapeAtPort(0).getRank())
+        if (getInputShapeAtPort(REDUCE_DATA).getRank() != getOutputShapeAtPort(0).getRank()) {
             THROW_CPU_NODE_ERR("gets incorrect number of input/output dimensions!");
+        }
     } else {
         // In fact, after the Reduce operation, the shape must be a scalar if the previous one was 1d.
         // But for now, 0d tensor (scalar) is emulated as 1d tensor. Skip checking in such cases.
         bool is_emulated_0d_as_1d =
             getInputShapeAtPort(REDUCE_DATA).getRank() == 1 && getOutputShapeAtPort(0).getRank() == 1;
-        if (getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank() && !is_emulated_0d_as_1d)
+        if (getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank() && !is_emulated_0d_as_1d) {
             THROW_CPU_NODE_ERR("gets incorrect number of input/output dimensions!");
+        }
     }
 }
 
 void Reduce::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     input_prec = getOriginalInputPrecisionAtPort(REDUCE_DATA);
     output_prec = getOriginalOutputPrecisionAtPort(0);
@@ -2037,11 +2098,13 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         // use BF16/FP16 output precision due to the possible accuracy loss. Therefore, for such mods, we will change
         // the output precision to FP32.
         if (ov::element::bf16 == output_prec) {
-            if (!mayiuse(avx512_core) || is_precision_sensitive_reduce(algorithm))
+            if (!mayiuse(avx512_core) || is_precision_sensitive_reduce(algorithm)) {
                 output_prec = ov::element::f32;
+            }
         } else if (ov::element::f16 == output_prec) {
-            if (!mayiuse(cpu::x64::avx2) || is_precision_sensitive_reduce(algorithm))
+            if (!mayiuse(cpu::x64::avx2) || is_precision_sensitive_reduce(algorithm)) {
                 output_prec = ov::element::f32;
+            }
         }
 
         if (!fusedWith.empty()) {
@@ -2114,7 +2177,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
             }
 #endif
         } else {
-            supportedPrimitiveDescriptors.push_back({config, impl_type});
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
         }
     };
 
@@ -2173,6 +2236,10 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool Reduce::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
+}
+
 bool Reduce::isExecutable() const {
     return !isOutputTensorAtPortEmpty(0);
 }
@@ -2227,15 +2294,16 @@ void Reduce::prepareParams() {
         std::shared_ptr<jit_uni_reduce_post_kernel> post_kernel;
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_core>(key.jcp, *attr.get()));
+            post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_core>>(key.jcp, *attr.get());
         } else if (mayiuse(cpu::x64::avx2)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(key.jcp, *attr.get()));
+            post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>>(key.jcp, *attr.get());
         } else if (mayiuse(cpu::x64::sse41)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(key.jcp, *attr.get()));
+            post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>>(key.jcp, *attr.get());
         }
 #endif  // OPENVINO_ARCH_X86_64
-        if (post_kernel)
+        if (post_kernel) {
             post_kernel->create_ker();
+        }
 
         return post_kernel;
     };
@@ -2269,12 +2337,15 @@ void Reduce::createPrimitive() {
     }
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
-    if (!dstMemPtr)
+    if (!dstMemPtr) {
         THROW_CPU_NODE_ERR("has null destination memory.");
-    if (!srcMemPtr)
+    }
+    if (!srcMemPtr) {
         THROW_CPU_NODE_ERR("has null input memory.");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
+    }
+    if (getSelectedPrimitiveDescriptor() == nullptr) {
         THROW_CPU_NODE_ERR("has nullable preferable primitive descriptor");
+    }
 
     if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         layout = ReduceLayoutType::reduce_ncsp;
@@ -2316,8 +2387,9 @@ void Reduce::createPrimitive() {
     }
 
     if (inputShapesDefined()) {
-        if (needPrepareParams())
+        if (needPrepareParams()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
 
@@ -2350,15 +2422,16 @@ void Reduce::createPrimitive() {
 void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel, const jit_reduce_config_params& jcp) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
-        kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>(jcp));
+        kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>>(jcp);
     } else if (mayiuse(cpu::x64::avx2)) {
-        kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx2>(jcp));
+        kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::avx2>>(jcp);
     } else if (mayiuse(cpu::x64::sse41)) {
-        kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::sse41>(jcp));
+        kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::sse41>>(jcp);
     }
 #endif  // OPENVINO_ARCH_X86_64
-    if (kernel)
+    if (kernel) {
         kernel->create_ker();
+    }
     jit_mode = jit_mode && kernel;
 }
 
@@ -2370,8 +2443,8 @@ void Reduce::execute(const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
 
-    const uint8_t* src_data = srcMemPtr->getDataAs<const uint8_t>();
-    uint8_t* dst_data = dstMemPtr->getDataAs<uint8_t>();
+    const auto* src_data = srcMemPtr->getDataAs<const uint8_t>();
+    auto* dst_data = dstMemPtr->getDataAs<uint8_t>();
 
     if (empty_input && dst_size > 0) {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -2930,7 +3003,7 @@ inline void Reduce::reduce_kernel_process(const uint8_t* in_p,
                                           size_t reduce_w,
                                           size_t work_batch,
                                           const int* tab_idx) {
-    const float divisor = apply_division ? static_cast<float>(IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW)) : 1;
+    const float divisor = apply_division ? static_cast<float>(IB * IC * ID * IH * IW) / (OB * OC * OD * OH * OW) : 1;
     auto arg = jit_reduce_call_args();
     arg.src = static_cast<const void*>(in_p);
     arg.idx = tab_idx;
@@ -2948,7 +3021,7 @@ inline void Reduce::reduce_kernel_process(const uint8_t* in_p,
 inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
     const uint8_t* in_ptr = fuse_low_precision ? static_cast<uint8_t*>(&intermediate_buf[0]) : nullptr;
     const size_t integerDivisor = empty_input ? 1 : IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
-    const float divisor = static_cast<float>(integerDivisor);
+    const auto divisor = static_cast<float>(integerDivisor);
     if (layout == ReduceLayoutType::reduce_ncsp) {
         parallel_for2d(OB, OC, [&](size_t ob, size_t oc) {
             const uint8_t* in_p = in_ptr + (ob * OC + oc) * OD * OH * OW * intermediate_data_size;
@@ -2964,10 +3037,11 @@ inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
             (*reduce_post_kernel)(&arg);
         });
     } else if (layout == ReduceLayoutType::reduce_nspc) {
-        const size_t num_threads = static_cast<size_t>(parallel_get_max_threads());
+        const auto num_threads = static_cast<size_t>(parallel_get_max_threads());
         size_t OP = OB * OC >= num_threads ? OB * OC : OB * OC * OD;
-        if (OP < num_threads && OW > blk_size)
+        if (OP < num_threads && OW > blk_size) {
             OP *= OH;
+        }
         size_t work_amount = OB * OC * OD * OH * OW / OP;
         auto op_loop = [&](size_t op) {
             const uint8_t* in_p = in_ptr + op * work_amount * intermediate_data_size;
@@ -3341,10 +3415,12 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
     process_dst_dims.clear();
     axes_for_reduction.clear();
     for (auto& axis : reduce_axes) {
-        if (axis < 0)
+        if (axis < 0) {
             axis += src_dims.size();
-        if (static_cast<size_t>(axis) > src_dims.size())
+        }
+        if (static_cast<size_t>(axis) > src_dims.size()) {
             THROW_CPU_NODE_ERR("exceeds data tensor dimension on index to reduce");
+        }
         axes.insert(static_cast<size_t>(axis));
     }
     for (size_t i = 0; i < src_dims.size(); i++) {
@@ -3356,8 +3432,9 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
             }
         }
         if (found) {
-            if (keep_dims)
+            if (keep_dims) {
                 out_dims.push_back(1);
+            }
             process_dst_dims.push_back(1);
             axes_for_reduction.push_back(i);
         } else {
@@ -3366,13 +3443,15 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
         }
     }
     if (jit_mode && jit_beyond_5D) {
-        if (std::accumulate(out_dims.begin(), out_dims.end(), size_t(1), std::multiplies<size_t>()) !=
-            std::accumulate(dst_dims.begin(), dst_dims.end(), size_t(1), std::multiplies<size_t>()))
+        if (std::accumulate(out_dims.begin(), out_dims.end(), static_cast<size_t>(1), std::multiplies<>()) !=
+            std::accumulate(dst_dims.begin(), dst_dims.end(), static_cast<size_t>(1), std::multiplies<>())) {
             THROW_CPU_NODE_ERR("gets incorrect number of output dimensions!");
+        }
     } else {
         for (size_t i = 0; i < std::min(out_dims.size(), dst_dims.size()); i++) {
-            if (out_dims[i] != dst_dims[i])
+            if (out_dims[i] != dst_dims[i]) {
                 THROW_CPU_NODE_ERR("gets incorrect number of output dimensions!");
+            }
         }
     }
 }
@@ -3526,10 +3605,12 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                                 float init_value,
                                 std::function<float(float, float)> func) {
     size_t work_amount_dst = 1, reduced_dims_work_amount = 1;
-    for (size_t i = 0; i < process_dst_dims.size(); i++)
-        work_amount_dst *= process_dst_dims[i];
-    for (size_t i = 0; i < src_dims.size(); i++)
-        reduced_dims_work_amount *= src_dims[i];
+    for (size_t process_dst_dim : process_dst_dims) {
+        work_amount_dst *= process_dst_dim;
+    }
+    for (size_t src_dim : src_dims) {
+        reduced_dims_work_amount *= src_dim;
+    }
     reduced_dims_work_amount /= work_amount_dst;
 
     VectorDims src_strides =
@@ -3550,8 +3631,9 @@ void Reduce::reduce_ref_process(const float* in_ptr,
             for (i = 0; i < reduced_dims_work_amount; ++i) {
                 if (update_idx) {
                     src_idx = 0;
-                    for (j = 0; j < static_cast<int>(src_dims.size()); ++j)
+                    for (j = 0; j < static_cast<int>(src_dims.size()); ++j) {
                         src_idx += (src_counters[j] % src_dims[j]) * src_strides[j];
+                    }
                     update_idx = false;
                 }
                 reduce_prod = func(reduce_prod, in_ptr[src_idx]);
@@ -3560,19 +3642,18 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                     if (src_counters[axes_for_reduction[j]] < src_dims[axes_for_reduction[j]]) {
                         src_idx += src_strides[axes_for_reduction[j]];
                         break;
-                    } else {
-                        src_counters[axes_for_reduction[j]] = 0;
-                        update_idx = true;
                     }
+                    src_counters[axes_for_reduction[j]] = 0;
+                    update_idx = true;
                 }
             }
             out_ptr[dst_idx] = reduce_prod;
             for (j = process_dst_dims.size() - 1; j >= 0; j--) {
                 dst_counters[j]++;
-                if (dst_counters[j] < process_dst_dims[j])
+                if (dst_counters[j] < process_dst_dims[j]) {
                     break;
-                else
-                    dst_counters[j] = 0;
+                }
+                dst_counters[j] = 0;
             }
         }
     });
@@ -3616,9 +3697,11 @@ void Reduce::setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims
     dnnl::post_ops ops;
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
+        int channelAxis = 1;
+
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
             continue;
         }
 
@@ -3627,11 +3710,11 @@ void Reduce::setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims
             eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs, getFusingAxis());
             continue;
         }
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -3641,8 +3724,9 @@ void Reduce::setJITBeyond5D() {
     jit_beyond_5D = false;
     if (getInputShapeAtPort(REDUCE_DATA).getRank() > 5) {
         for (auto& axis : raw_axes) {
-            if (axis < 0)
+            if (axis < 0) {
                 axis += static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
+            }
         }
 
         if (raw_axes.size() <= 1) {
@@ -3662,8 +3746,9 @@ void Reduce::setJITBeyond5D() {
 std::vector<int> Reduce::update_src_dims() {
     std::vector<int> reduce_axes = raw_axes;
 
-    if (reduce_axes.size() < 1)
+    if (reduce_axes.size() < 1) {
         return reduce_axes;
+    }
 
     size_t axis_dim = 1;
     size_t outer_dim = 1;
@@ -3712,7 +3797,8 @@ int Reduce::getFusingAxis() const {
                 // channel axis has been reduced and doesn't exist any more
                 channelAxis = -1;
                 break;
-            } else if (axis == 0) {
+            }
+            if (axis == 0) {
                 channelAxis = 0;
             }
         }
@@ -3735,6 +3821,4 @@ bool Reduce::created() const {
     return getType() == Type::Reduce;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -11,8 +11,7 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 namespace {
 static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory, const ExecutorContext::CPtr context) {
     DEBUG_LOG("ShlFCExecutor: prepack weights");
@@ -123,7 +122,8 @@ bool ShlFCExecutor::update(const MemoryArgs& memory) {
 
     const auto src_shape = src.getShape();
     const auto dst_shape = dst.getShape();
-    dim_M = std::accumulate(dst_shape.rbegin() + 1, dst_shape.rend(), size_t(1), std::multiplies<size_t>());
+    dim_M =
+        std::accumulate(dst_shape.rbegin() + 1, dst_shape.rend(), static_cast<size_t>(1), std::multiplies<>());
     dim_In = src_shape.back();
     dim_Out = dst_shape.back();
     LDA = dim_In * memory.at(ARG_SRC)->getPrecision().size();
@@ -154,5 +154,4 @@ void ShlFCExecutor::execute(const MemoryArgs& memory) {
     });
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

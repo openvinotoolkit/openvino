@@ -38,6 +38,7 @@ private:
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions);
 
     void Lpt(const std::vector<ov::element::Type>& defaultPrecisions);
+    void runLptPasses(const std::vector<ov::element::Type>& defaultPrecisions);
 
     void MainSnippets(void);
 

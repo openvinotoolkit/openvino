@@ -3,7 +3,7 @@
 //
 
 #include "lstm_cell_inst.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 
 #include <memory>

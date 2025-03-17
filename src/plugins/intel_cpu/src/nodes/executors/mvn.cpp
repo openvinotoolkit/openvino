@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include <utility>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 MVNExecutor::MVNExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
 
@@ -42,5 +41,4 @@ VectorDims MVNExecutor::transformTo5DCase(const VectorDims& shape, bool initAcro
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

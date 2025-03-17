@@ -11,8 +11,7 @@
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
     const std::shared_ptr<snippets::lowered::UnifiedLoopInfo>& loop_info) {
@@ -35,7 +34,8 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                     // K blocking loop: account for zero padding
                     if (loop_port.get_dim_idx() == 1) {
                         const auto ptr_incr = loop_desc.ptr_increment;
-                        const auto blocked_shape_ptr_inc = brgemm_utils::repacking::compute_LDB(ptr_incr, precision);
+                        const auto blocked_shape_ptr_inc =
+                            brgemm_utils::repacking::compute_repacked_n_dim(ptr_incr, precision);
                         if (ptr_incr != 0 && ptr_incr != blocked_shape_ptr_inc) {
                             loop_desc.ptr_increment = blocked_shape_ptr_inc;
                             OPENVINO_ASSERT(loop_desc.finalization_offset % ptr_incr == 0,
@@ -74,8 +74,9 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
         const auto& shape_infer_seq = ov::snippets::utils::get_first_parent_shape_infer_expr_seq(brgemm_in1.get_expr());
         const auto source =
             shape_infer_seq.empty() ? brgemm_in1 : shape_infer_seq.back()->get_input_port_connector(0)->get_source();
-        if (is_type<ov::op::v0::Parameter>(source.get_expr()->get_node()))
+        if (is_type<ov::op::v0::Parameter>(source.get_expr()->get_node())) {
             return std::vector<size_t>{};
+        }
         const auto repacking_expr = brgemm_utils::repacking::get_copy_b_expr(brgemm_expr);
         OPENVINO_ASSERT(repacking_expr, "BrgemmCopyB expression is not found");
         return repacking_expr->get_loop_ids();
@@ -83,21 +84,24 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
 
     for (const auto& expr : linear_ir) {
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(expr->get_node());
-        if (!brgemm || !brgemm_utils::with_repacking(brgemm->get_type()))
+        if (!brgemm || !brgemm_utils::with_repacking(brgemm->get_type())) {
             continue;
+        }
         const auto& brgemm_loop_ids = expr->get_loop_ids();
         const auto& repacking_loop_ids = get_repacking_loop_idces(expr);
         // Continue if there is no blocking loop
-        if (brgemm_loop_ids.empty() && repacking_loop_ids.empty())
+        if (brgemm_loop_ids.empty() && repacking_loop_ids.empty()) {
             continue;
+        }
 
         OPENVINO_ASSERT(brgemm_loop_ids.size() > repacking_loop_ids.size(), "Invalid BrgemmCopyB loop configuration");
         const auto& loop_manager = linear_ir.get_loop_manager();
         for (auto i = repacking_loop_ids.size(); i < brgemm_loop_ids.size(); i++) {
             const auto& loop = loop_manager->get_loop_info(brgemm_loop_ids[i]);
             auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
-            if (!uni_loop)
+            if (!uni_loop) {
                 uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
+            }
             if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
                 m_affected_loops.insert(uni_loop);
                 modified = true;
@@ -107,5 +111,4 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
 
     return modified;
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

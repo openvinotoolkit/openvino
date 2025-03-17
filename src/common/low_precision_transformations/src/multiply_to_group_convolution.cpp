@@ -54,7 +54,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(ov::pass::pattern::Matc
         dequantization = NetworkHelper::foldDequantization(multiply, inputIndex, defaultPrecisions);
     }
 
-    element::Type weightsPrecision = element::undefined;
+    element::Type weightsPrecision = element::dynamic;
     if (updatePrecisions) {
         // try to find restrictions on weights for GroupConvolution
         if (restrictions.size() > 1ul) {
@@ -65,7 +65,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(ov::pass::pattern::Matc
         }
 
         // if restrictions are absent precisions attribute is used
-        if (weightsPrecision == element::undefined) {
+        if (weightsPrecision == element::dynamic) {
             const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
             const auto precisions = precisionsAttribute == nullptr ?
                 defaultPrecisions :

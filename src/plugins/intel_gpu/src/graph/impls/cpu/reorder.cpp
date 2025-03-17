@@ -5,7 +5,7 @@
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "reorder_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/convert.hpp"
 
@@ -21,7 +21,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::reorder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reorder_impl>(*this);
+        return std::make_unique<reorder_impl>(*this);
     }
 
     reorder_impl() : parent("reorder_cpu_impl") {}
@@ -56,7 +56,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
         auto output_mem_ptr = instance.output_memory_ptr();
 
         cldnn::mem_lock<uint8_t, mem_lock_type::read> input_lock(input_mem_ptr, stream);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read_write> output_lock(output_mem_ptr, stream);
 
         input_host_tensors.push_back(make_tensor(params->input_layouts[0], input_lock.data()));
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
@@ -81,7 +81,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<reorder_impl>();
+        return std::make_unique<reorder_impl>();
     }
 };
 

@@ -8,8 +8,7 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 namespace {
 size_t collect_stats(const std::shared_ptr<ov::Model>& m, std::map<DiscreteTypeInfo, size_t>& ops_stat) {
     const std::vector<std::shared_ptr<ov::Node>> ops = m->get_ops();
@@ -50,5 +49,4 @@ bool PrintModelStatistics::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return false;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

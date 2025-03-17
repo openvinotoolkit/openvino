@@ -4,6 +4,8 @@
 
 #include "non_max_suppression.hpp"
 
+#include <memory>
+
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl;
@@ -11,14 +13,14 @@ using namespace dnnl::impl::cpu;
 
 #define GET_OFF(field) offsetof(NmsCallArgs, field)
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 template <x64::cpu_isa_t isa>
 void NonMaxSuppression<isa>::generate() {
-    load_vector_emitter.reset(new jit_load_emitter(this, isa, ov::element::f32, ov::element::f32, vector_step));
-    load_scalar_emitter.reset(new jit_load_emitter(this, isa, ov::element::f32, ov::element::f32, scalar_step));
+    load_vector_emitter =
+        std::make_unique<jit_load_emitter>(this, isa, ov::element::f32, ov::element::f32, vector_step);
+    load_scalar_emitter =
+        std::make_unique<jit_load_emitter>(this, isa, ov::element::f32, ov::element::f32, scalar_step);
 
     exp_injector.reset(
         new x64::jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f, data_type::f32));
@@ -294,8 +296,9 @@ template <x64::cpu_isa_t isa>
 void NonMaxSuppression<isa>::suppressed_by_iou(bool is_scalar) {
     if (x64::mayiuse(x64::avx512_core)) {
         vcmpps(k_mask, vmm_temp3, vmm_iou_threshold, 0x0D);  // _CMP_GE_OS. vcmpps w/ kmask only on V5
-        if (is_scalar)
+        if (is_scalar) {
             kandw(k_mask, k_mask, k_mask_one);
+        }
         kortestw(k_mask, k_mask);  // bitwise check if all zero
     } else if (x64::mayiuse(x64::avx)) {
         // vex instructions with xmm on avx and ymm on avx2
@@ -348,10 +351,11 @@ void NonMaxSuppression<isa>::suppressed_by_score() {
 template <x64::cpu_isa_t isa>
 void NonMaxSuppression<isa>::iou(int ele_num) {
     auto load = [&](Xbyak::Reg64 reg_src, Vmm vmm_dst) {
-        if (ele_num != scalar_step && ele_num != vector_step)
+        if (ele_num != scalar_step && ele_num != vector_step) {
             OPENVINO_THROW("NMS JIT implementation supports load emitter with only element count scalar_step or "
                            "vector_step! Get: ",
                            ele_num);
+        }
 
         const auto& load_emitter = ele_num == 1 ? load_scalar_emitter : load_vector_emitter;
         load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())},
@@ -442,19 +446,19 @@ void NonMaxSuppression<isa>::horizontal_mul_xmm(const Xbyak::Xmm& xmm_weight, co
 // horizontal mul for vmm_weight(Vmm(3)), temp1 and temp2 as aux
 template <x64::cpu_isa_t isa>
 inline void NonMaxSuppression<isa>::horizontal_mul() {
-    Xbyak::Xmm xmm_weight = Xbyak::Xmm(vmm_temp3.getIdx());
-    Xbyak::Xmm xmm_temp1 = Xbyak::Xmm(vmm_temp1.getIdx());
-    Xbyak::Xmm xmm_temp2 = Xbyak::Xmm(vmm_temp2.getIdx());
+    auto xmm_weight = Xbyak::Xmm(vmm_temp3.getIdx());
+    auto xmm_temp1 = Xbyak::Xmm(vmm_temp1.getIdx());
+    auto xmm_temp2 = Xbyak::Xmm(vmm_temp2.getIdx());
     if (isa == x64::sse41) {
         horizontal_mul_xmm(xmm_weight, xmm_temp1);
     } else if (isa == x64::avx2) {
-        Xbyak::Ymm ymm_weight = Xbyak::Ymm(vmm_temp3.getIdx());
+        auto ymm_weight = Xbyak::Ymm(vmm_temp3.getIdx());
         vextractf128(xmm_temp1, ymm_weight, 0);
         vextractf128(xmm_temp2, ymm_weight, 1);
         uni_vmulps(xmm_weight, xmm_temp1, xmm_temp2);
         horizontal_mul_xmm(xmm_weight, xmm_temp1);
     } else {
-        Xbyak::Zmm zmm_weight = Xbyak::Zmm(vmm_temp3.getIdx());
+        auto zmm_weight = Xbyak::Zmm(vmm_temp3.getIdx());
         vextractf32x4(xmm_temp1, zmm_weight, 0);
         vextractf32x4(xmm_temp2, zmm_weight, 1);
         uni_vmulps(xmm_temp1, xmm_temp1, xmm_temp2);
@@ -470,6 +474,4 @@ template class NonMaxSuppression<x64::avx512_core>;
 template class NonMaxSuppression<x64::avx2>;
 template class NonMaxSuppression<x64::sse41>;
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

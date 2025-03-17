@@ -109,19 +109,19 @@ JitConstants GroupNormalizationKernelRef::GetJitConstants(KernelId kernelId,
 void GroupNormalizationKernelRef::SetKernelArguments(const group_normalization_params& params,
                                                      KernelId kernelId,
                                                      cldnn::arguments_desc& arguments,
-                                                     std::vector<std::size_t>& internalBufferSizes) {
+                                                     std::vector<InternalBuffer>& internalBuffers) {
     switch (kernelId) {
     case eCalcMeanKernel: {
         arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        internalBufferSizes.push_back(InternalBufferSize(params));
+        internalBuffers.push_back(InternalBufferSize(params));
         break;
     }
     case eCalcStandardDeviationKernel: {
         arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        internalBufferSizes.push_back(InternalBufferSize(params));
+        internalBuffers.push_back(InternalBufferSize(params));
         break;
     }
     case eNormalize: {
@@ -161,7 +161,7 @@ KernelsData GroupNormalizationKernelRef::GetKernelsData(const Params &params) co
                          0,
                          0,
                          0);
-        SetKernelArguments(parameters, id, kernel.params.arguments, kd.internalBufferSizes);
+        SetKernelArguments(parameters, id, kernel.params.arguments, kd.internalBuffers);
     }
     return {kd};
 }

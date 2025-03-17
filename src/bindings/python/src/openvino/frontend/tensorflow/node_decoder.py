@@ -20,7 +20,7 @@ def tf_type_to_ov_type(tf_type_int):
     try:
         ret_type = Type(numpy_type)
     except:
-        ret_type = Type.undefined
+        ret_type = Type.dynamic
     return ret_type
 
 
@@ -169,7 +169,7 @@ class TFGraphNodeDecoder(DecoderBase):
                         return OVAny(Type.dynamic)
                     return OVAny(tf_type_to_ov_type(variable_value.dtype))
                 else:
-                    return OVAny(Type.undefined)
+                    return OVAny(Type.dynamic)
             return OVAny(tf_type_to_ov_type(type_num))
 
         if name == "value":

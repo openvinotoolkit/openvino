@@ -14,8 +14,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 using namespace Xbyak::util;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 jit_perf_count_chrono_start_emitter::jit_perf_count_chrono_start_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                                                                          dnnl::impl::cpu::x64::cpu_isa_t host_isa,
@@ -81,6 +80,6 @@ void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t>& in_
     spill.postamble();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
+
 #endif  // SNIPPETS_DEBUG_CAPS

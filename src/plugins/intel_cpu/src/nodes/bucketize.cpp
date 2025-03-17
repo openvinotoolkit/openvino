@@ -12,9 +12,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset3.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Bucketize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -37,10 +35,9 @@ Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     }
 
     const auto bucketsize = ov::as_type_ptr<const ov::opset3::Bucketize>(op);
-    if (bucketsize == nullptr)
-        OPENVINO_THROW("Operation with name '",
-                       op->get_friendly_name(),
-                       "' is not an instance of Bucketize from opset3.");
+    if (bucketsize == nullptr) {
+        THROW_CPU_NODE_ERR("is not an instance of Bucketize from opset3.");
+    }
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
@@ -51,8 +48,9 @@ Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 }
 
 void Bucketize::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     // check precisions for input and output tensors
     input_precision = getOriginalInputPrecisionAtPort(INPUT_TENSOR_PORT);
@@ -77,8 +75,8 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
 
 inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
                                           ov::element::Type precision2,
-                                          ov::element::Type precision3 = ov::element::undefined,
-                                          ov::element::Type precision4 = ov::element::undefined) {
+                                          ov::element::Type precision3 = ov::element::dynamic,
+                                          ov::element::Type precision4 = ov::element::dynamic) {
     return static_cast<uint32_t>(ov::element::Type_t(precision1)) |
            (static_cast<uint32_t>(ov::element::Type_t(precision2)) << 8) |
            (static_cast<uint32_t>(ov::element::Type_t(precision3)) << 16) |
@@ -188,14 +186,18 @@ void Bucketize::prepareParams() {
     auto inputTensorMemPtr = getSrcMemoryAtPort(INPUT_TENSOR_PORT);
     auto inputBinsMemPtr = getSrcMemoryAtPort(INPUT_BINS_PORT);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW("Destination memory is undefined.");
-    if (!inputTensorMemPtr || !inputTensorMemPtr->isDefined())
-        OPENVINO_THROW("Input tensor is undefined.");
-    if (!inputBinsMemPtr || !inputBinsMemPtr->isDefined())
-        OPENVINO_THROW("Input bins is undefined.");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
+        THROW_CPU_NODE_ERR("has destination memory undefined.");
+    }
+    if (!inputTensorMemPtr || !inputTensorMemPtr->isDefined()) {
+        THROW_CPU_NODE_ERR("has input tensor undefined.");
+    }
+    if (!inputBinsMemPtr || !inputBinsMemPtr->isDefined()) {
+        THROW_CPU_NODE_ERR("has input bins undefined.");
+    }
+    if (getSelectedPrimitiveDescriptor() == nullptr) {
+        THROW_CPU_NODE_ERR("has preferable primitive descriptors unset.");
+    }
 
     // update with_bins/num_values/num_bin_values
     auto input_tensor_dims = inputTensorMemPtr->getStaticDims();
@@ -211,8 +213,14 @@ void Bucketize::prepareParams() {
     }
     num_bin_values = input_bin_dims[0];
 
-    num_values =
-        std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), size_t(1), std::multiplies<size_t>());
+    num_values = std::accumulate(input_tensor_dims.begin(),
+                                 input_tensor_dims.end(),
+                                 static_cast<size_t>(1),
+                                 std::multiplies<>());
+}
+
+bool Bucketize::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
 }
 
 bool Bucketize::isExecutable() const {
@@ -247,6 +255,4 @@ bool Bucketize::created() const {
     return getType() == Type::Bucketize;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

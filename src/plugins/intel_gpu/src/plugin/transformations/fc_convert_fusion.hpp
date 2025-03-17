@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class FullyConnectedConvertFusion: public ov::pass::MatcherPass {
 public:
@@ -15,5 +14,4 @@ public:
     FullyConnectedConvertFusion();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

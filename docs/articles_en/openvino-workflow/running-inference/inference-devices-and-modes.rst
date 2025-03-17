@@ -54,7 +54,7 @@ as an example):
        Device: GPU.1
 
 
-You may see how to obtain this information in the :doc:`Hello Query Device Sample <../../learn-openvino/openvino-samples/hello-query-device>`.
+You may see how to obtain this information in the :doc:`Hello Query Device Sample <../../get-started/learn-openvino/openvino-samples/hello-query-device>`.
 Here is an example of a simple programmatic way to enumerate the devices and use them with the
 multi-device mode:
 
@@ -82,7 +82,7 @@ Accordingly, the code that loops over all available devices of the "GPU" type on
 Additional Resources
 ####################
 
-* `OpenVINO™ Runtime API Tutorial <../../notebooks/openvino-api-with-output.html>`__
-* `AUTO Device Tutorial <../../notebooks/auto-device-with-output.html>`__
-* `GPU Device Tutorial <../../notebooks/gpu-device-with-output.html>`__
-* `NPU Device Tutorial <../../notebooks/hello-npu-with-output.html>`__
+* `OpenVINO™ Runtime API Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-api>`__
+* `AUTO Device Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/auto-device>`__
+* `GPU Device Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/gpu-device>`__
+* `NPU Device Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-npu>`__

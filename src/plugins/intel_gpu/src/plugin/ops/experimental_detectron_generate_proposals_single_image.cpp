@@ -10,8 +10,7 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/experimental_detectron_generate_proposals_single_image.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
         ProgramBuilder& p,
@@ -64,5 +63,4 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
 
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronGenerateProposalsSingleImage);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

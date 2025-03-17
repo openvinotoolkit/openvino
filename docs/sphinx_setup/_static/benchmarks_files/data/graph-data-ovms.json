@@ -9,31 +9,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 161.041,
-                        "fp32_ovms": 157.547,
-                        "int8_ov": 435.257,
-                        "int8_ovms": 422.689
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® Gold 6238M",
-        "Model": "efficientdet-d0",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 259.576,
-                        "fp32_ovms": 256.524,
-                        "int8_ov": 412.419,
-                        "int8_ovms": 376.69
+                        "fp32_ov": 160.015,
+                        "fp32_ovms": 155.787,
+                        "int8_ov": 430.342,
+                        "int8_ovms": 418.815
                     }
                 ],
                 "Unit": "FPS",
@@ -51,8 +30,8 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 385.381,
-                        "fp32_ovms": 312.784,
+                        "fp32_ov": 386.289,
+                        "fp32_ovms": 311.969,
                         "int8_ov": "",
                         "int8_ovms": ""
                     }
@@ -72,10 +51,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 1.64,
-                        "fp32_ovms": 1.718,
-                        "int8_ov": 6.426,
-                        "int8_ovms": 6.258
+                        "fp32_ov": 1.635,
+                        "fp32_ovms": 1.714,
+                        "int8_ov": 5.896,
+                        "int8_ovms": 5.981
                     }
                 ],
                 "Unit": "FPS",
@@ -93,10 +72,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 3349.207,
-                        "fp32_ovms": 2904.878,
-                        "int8_ov": 10365.087,
-                        "int8_ovms": 7521.115
+                        "fp32_ov": 3346.158,
+                        "fp32_ovms": 2884.83,
+                        "int8_ov": 10217.882,
+                        "int8_ovms": 7506.785
                     }
                 ],
                 "Unit": "FPS",
@@ -114,10 +93,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 580.494,
-                        "fp32_ovms": 572.921,
-                        "int8_ov": 2196.814,
-                        "int8_ovms": 2072.444
+                        "fp32_ov": 579.998,
+                        "fp32_ovms": 568.787,
+                        "int8_ov": 2152.72,
+                        "int8_ovms": 2044.272
                     }
                 ],
                 "Unit": "FPS",
@@ -135,31 +114,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 10.627,
-                        "fp32_ovms": 10.524,
-                        "int8_ov": 40.619,
-                        "int8_ovms": 38.733
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® Gold 6238M",
-        "Model": "ssd_mobilenet_v1_coco",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 1234.49,
-                        "fp32_ovms": 1203.314,
-                        "int8_ov": 4445.793,
-                        "int8_ovms": 4261.084
+                        "fp32_ov": 10.604,
+                        "fp32_ovms": 10.506,
+                        "int8_ov": 40.521,
+                        "int8_ovms": 38.57
                     }
                 ],
                 "Unit": "FPS",
@@ -177,10 +135,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 337.397,
-                        "fp32_ovms": 279.585,
-                        "int8_ov": 758.758,
-                        "int8_ovms": 641.433
+                        "fp32_ov": 337.844,
+                        "fp32_ovms": 280.168,
+                        "int8_ov": 772.698,
+                        "int8_ovms": 646.571
                     }
                 ],
                 "Unit": "FPS",
@@ -198,31 +156,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 182.454,
-                        "fp32_ovms": 181.015,
-                        "int8_ov": 487.412,
-                        "int8_ovms": 475.32
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® Platinum 8260M",
-        "Model": "efficientdet-d0",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 291.999,
-                        "fp32_ovms": 289.402,
-                        "int8_ov": 485.657,
-                        "int8_ovms": 442.145
+                        "fp32_ov": 181.155,
+                        "fp32_ovms": 179.775,
+                        "int8_ov": 483.863,
+                        "int8_ovms": 471.615
                     }
                 ],
                 "Unit": "FPS",
@@ -240,8 +177,8 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 437.295,
-                        "fp32_ovms": 354.521,
+                        "fp32_ov": 429.046,
+                        "fp32_ovms": 347.991,
                         "int8_ov": "",
                         "int8_ovms": ""
                     }
@@ -261,10 +198,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 1.889,
+                        "fp32_ov": 1.851,
                         "fp32_ovms": 1.961,
-                        "int8_ov": 7.085,
-                        "int8_ovms": 6.985
+                        "int8_ov": 6.489,
+                        "int8_ovms": 6.605
                     }
                 ],
                 "Unit": "FPS",
@@ -282,10 +219,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 3923.365,
-                        "fp32_ovms": 3332.521,
-                        "int8_ov": 12328.807,
-                        "int8_ovms": 7562.762
+                        "fp32_ov": 3889.571,
+                        "fp32_ovms": 3295.728,
+                        "int8_ov": 12185.144,
+                        "int8_ovms": 7554.759
                     }
                 ],
                 "Unit": "FPS",
@@ -303,10 +240,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 645.638,
-                        "fp32_ovms": 639.958,
-                        "int8_ov": 2493.033,
-                        "int8_ovms": 2349.919
+                        "fp32_ov": 640.525,
+                        "fp32_ovms": 634.776,
+                        "int8_ov": 2446.486,
+                        "int8_ovms": 2329.917
                     }
                 ],
                 "Unit": "FPS",
@@ -324,31 +261,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 12.196,
-                        "fp32_ovms": 12.091,
-                        "int8_ov": 47.197,
-                        "int8_ovms": 44.379
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® Platinum 8260M",
-        "Model": "ssd_mobilenet_v1_coco",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 1385.809,
-                        "fp32_ovms": 1374.891,
-                        "int8_ov": 5079.624,
-                        "int8_ovms": 4836.539
+                        "fp32_ov": 12.175,
+                        "fp32_ovms": 12.016,
+                        "int8_ov": 47.048,
+                        "int8_ovms": 44.25
                     }
                 ],
                 "Unit": "FPS",
@@ -366,10 +282,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 383.81,
-                        "fp32_ovms": 315.245,
-                        "int8_ov": 858.66,
-                        "int8_ovms": 704.713
+                        "fp32_ov": 380.133,
+                        "fp32_ovms": 315.262,
+                        "int8_ov": 844.036,
+                        "int8_ovms": 693.017
                     }
                 ],
                 "Unit": "FPS",
@@ -387,10 +303,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 34.685,
-                        "fp32_ovms": 32.405,
-                        "int8_ov": 100.893,
-                        "int8_ovms": 94.564
+                        "fp32_ov": 34.358,
+                        "fp32_ovms": 33.055,
+                        "int8_ov": 96.256,
+                        "int8_ovms": 94.822
                     }
                 ],
                 "Unit": "FPS",
@@ -400,18 +316,18 @@
     },
     {
         "Platform": "Intel® Core™ i7-11700K",
-        "Model": "efficientdet-d0",
+        "Model": "manual_yolo11",
         "featured_SKU": false,
-        "whats_new_model": false,
+        "whats_new_model": true,
         "PlatformType": "Client Platforms (Intel® Core™)",
         "Parameters": {
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 51.125,
-                        "fp32_ovms": 46.351,
-                        "int8_ov": 141.548,
-                        "int8_ovms": 115.788
+                        "fp32_ov": 76.234,
+                        "fp32_ovms": 68.254,
+                        "int8_ov": "",
+                        "int8_ovms": ""
                     }
                 ],
                 "Unit": "FPS",
@@ -429,10 +345,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 0.331,
-                        "fp32_ovms": 0.336,
-                        "int8_ov": 1.331,
-                        "int8_ovms": 1.354
+                        "fp32_ov": 0.328,
+                        "fp32_ovms": 0.342,
+                        "int8_ov": 1.239,
+                        "int8_ovms": 1.287
                     }
                 ],
                 "Unit": "FPS",
@@ -450,10 +366,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 774.104,
-                        "fp32_ovms": 628.503,
-                        "int8_ov": 2723.303,
-                        "int8_ovms": 1832.886
+                        "fp32_ov": 776.859,
+                        "fp32_ovms": 615.458,
+                        "int8_ov": 2719.431,
+                        "int8_ovms": 1941.306
                     }
                 ],
                 "Unit": "FPS",
@@ -471,10 +387,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 113.363,
-                        "fp32_ovms": 106.029,
-                        "int8_ov": 466.473,
-                        "int8_ovms": 433.532
+                        "fp32_ov": 113.701,
+                        "fp32_ovms": 105.17,
+                        "int8_ov": 455.604,
+                        "int8_ovms": 428.642
                     }
                 ],
                 "Unit": "FPS",
@@ -492,31 +408,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 2.047,
-                        "fp32_ovms": 2.047,
-                        "int8_ov": 8.016,
-                        "int8_ovms": 7.886
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i7-11700K",
-        "Model": "ssd_mobilenet_v1_coco",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 259.504,
-                        "fp32_ovms": 236.341,
-                        "int8_ov": 995.124,
-                        "int8_ovms": 869.518
+                        "fp32_ov": 2.035,
+                        "fp32_ovms": 2.05,
+                        "int8_ov": 7.958,
+                        "int8_ovms": 7.866
                     }
                 ],
                 "Unit": "FPS",
@@ -534,10 +429,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 71.24,
-                        "fp32_ovms": 62.319,
-                        "int8_ov": 199.772,
-                        "int8_ovms": 133.145
+                        "fp32_ov": 71.118,
+                        "fp32_ovms": 62.774,
+                        "int8_ov": 197.827,
+                        "int8_ovms": 138.845
                     }
                 ],
                 "Unit": "FPS",
@@ -555,10 +450,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 36.251,
-                        "fp32_ovms": 35.465,
-                        "int8_ov": 101.305,
-                        "int8_ovms": 99.151
+                        "fp32_ov": 36.214,
+                        "fp32_ovms": 35.607,
+                        "int8_ov": 102.417,
+                        "int8_ovms": 100.784
                     }
                 ],
                 "Unit": "FPS",
@@ -568,18 +463,18 @@
     },
     {
         "Platform": "Intel® Core™ i9-11900K",
-        "Model": "efficientdet-d0",
+        "Model": "manual_yolo11",
         "featured_SKU": false,
-        "whats_new_model": false,
+        "whats_new_model": true,
         "PlatformType": "Client Platforms (Intel® Core™)",
         "Parameters": {
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 59.247,
-                        "fp32_ovms": 55.459,
-                        "int8_ov": 148.119,
-                        "int8_ovms": 130.171
+                        "fp32_ov": 85.888,
+                        "fp32_ovms": 76.151,
+                        "int8_ov": "",
+                        "int8_ovms": ""
                     }
                 ],
                 "Unit": "FPS",
@@ -597,10 +492,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 0.37,
-                        "fp32_ovms": 0.388,
-                        "int8_ov": 1.321,
-                        "int8_ovms": 1.332
+                        "fp32_ov": 0.369,
+                        "fp32_ovms": 0.398,
+                        "int8_ov": 1.232,
+                        "int8_ovms": 1.293
                     }
                 ],
                 "Unit": "FPS",
@@ -618,10 +513,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 855.526,
-                        "fp32_ovms": 713.553,
-                        "int8_ov": 2745.282,
-                        "int8_ovms": 2129.129
+                        "fp32_ov": 862.648,
+                        "fp32_ovms": 729.555,
+                        "int8_ov": 2755.016,
+                        "int8_ovms": 2166.123
                     }
                 ],
                 "Unit": "FPS",
@@ -639,10 +534,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 115.109,
-                        "fp32_ovms": 112.189,
-                        "int8_ov": 455.027,
-                        "int8_ovms": 437.03
+                        "fp32_ov": 116.539,
+                        "fp32_ovms": 113.087,
+                        "int8_ov": 448.718,
+                        "int8_ovms": 437.208
                     }
                 ],
                 "Unit": "FPS",
@@ -660,31 +555,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 2.004,
-                        "fp32_ovms": 2.022,
-                        "int8_ov": 7.796,
-                        "int8_ovms": 7.729
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i9-11900K",
-        "Model": "ssd_mobilenet_v1_coco",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 274.523,
-                        "fp32_ovms": 260.272,
-                        "int8_ov": 966.639,
-                        "int8_ovms": 893.165
+                        "fp32_ov": 2.001,
+                        "fp32_ovms": 2.031,
+                        "int8_ov": 7.8,
+                        "int8_ovms": 7.755
                     }
                 ],
                 "Unit": "FPS",
@@ -702,10 +576,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 74.006,
-                        "fp32_ovms": 67.143,
-                        "int8_ov": 204.296,
-                        "int8_ovms": 151.136
+                        "fp32_ov": 73.838,
+                        "fp32_ovms": 67.918,
+                        "int8_ov": 203.49,
+                        "int8_ovms": 152.28
                     }
                 ],
                 "Unit": "FPS",
@@ -723,31 +597,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 17.146,
-                        "fp32_ovms": 17.085,
-                        "int8_ov": 26.112,
-                        "int8_ovms": 25.962
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i3-10100",
-        "Model": "efficientdet-d0",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 30.601,
-                        "fp32_ovms": 29.76,
-                        "int8_ov": 49.646,
-                        "int8_ovms": 47.222
+                        "fp32_ov": 16.485,
+                        "fp32_ovms": 16.481,
+                        "int8_ov": "",
+                        "int8_ovms": ""
                     }
                 ],
                 "Unit": "FPS",
@@ -765,31 +618,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 43.751,
-                        "fp32_ovms": 38.752,
+                        "fp32_ov": 43.456,
+                        "fp32_ovms": 38.454,
                         "int8_ov": "",
                         "int8_ovms": ""
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i3-10100",
-        "Model": "mask_rcnn_resnet50_atrous_coco",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 0.148,
-                        "fp32_ovms": 0.18,
-                        "int8_ov": 0.36,
-                        "int8_ovms": 0.39
                     }
                 ],
                 "Unit": "FPS",
@@ -807,10 +639,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 440.453,
-                        "fp32_ovms": 380.439,
-                        "int8_ov": 714.915,
-                        "int8_ovms": 611.391
+                        "fp32_ov": 434.543,
+                        "fp32_ovms": 373.17,
+                        "int8_ov": 709.881,
+                        "int8_ovms": 609.86
                     }
                 ],
                 "Unit": "FPS",
@@ -828,10 +660,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 57.896,
-                        "fp32_ovms": 56.88,
-                        "int8_ov": 117.702,
-                        "int8_ovms": 113.447
+                        "fp32_ov": 57.477,
+                        "fp32_ovms": 56.33,
+                        "int8_ov": 116.887,
+                        "int8_ovms": 113.373
                     }
                 ],
                 "Unit": "FPS",
@@ -849,31 +681,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 0.996,
-                        "fp32_ovms": 1.033,
+                        "fp32_ov": 0.948,
+                        "fp32_ovms": 0.982,
                         "int8_ov": 1.935,
-                        "int8_ovms": 1.946
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i3-10100",
-        "Model": "ssd_mobilenet_v1_coco",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 132.73,
-                        "fp32_ovms": 128.89,
-                        "int8_ov": 266.502,
-                        "int8_ovms": 256.113
+                        "int8_ovms": 1.947
                     }
                 ],
                 "Unit": "FPS",
@@ -891,388 +702,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 38.386,
-                        "fp32_ovms": 34.599,
-                        "int8_ov": 68.072,
-                        "int8_ovms": 55.668
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i7-11700K",
-        "Model": "bert-base-cased",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 34.685,
-                        "fp32_ovms": 33.575,
-                        "int8_ov": 100.893,
-                        "int8_ovms": 96.251
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i7-11700K",
-        "Model": "efficientdet-d0",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 51.125,
-                        "fp32_ovms": 47.06,
-                        "int8_ov": 141.548,
-                        "int8_ovms": 117.642
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i7-11700K",
-        "Model": "manual_yolo11",
-        "featured_SKU": false,
-        "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 80.399,
-                        "fp32_ovms": 68.631,
-                        "int8_ov": "",
-                        "int8_ovms": ""
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i7-11700K",
-        "Model": "mask_rcnn_resnet50_atrous_coco",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 0.331,
-                        "fp32_ovms": 0.344,
-                        "int8_ov": 1.331,
-                        "int8_ovms": 1.417
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i7-11700K",
-        "Model": "mobilenet-v2",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 774.104,
-                        "fp32_ovms": 628.386,
-                        "int8_ov": 2723.303,
-                        "int8_ovms": 1905.703
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i7-11700K",
-        "Model": "resnet-50",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 113.363,
-                        "fp32_ovms": 106.07,
-                        "int8_ov": 466.473,
-                        "int8_ovms": 433.345
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i7-11700K",
-        "Model": "ssd-resnet34-1200",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 2.047,
-                        "fp32_ovms": 2.055,
-                        "int8_ov": 8.016,
-                        "int8_ovms": 7.884
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i7-11700K",
-        "Model": "ssd_mobilenet_v1_coco",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 259.504,
-                        "fp32_ovms": 238.91,
-                        "int8_ov": 995.124,
-                        "int8_ovms": 880.377
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i7-11700K",
-        "Model": "yolo_v8n",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 71.24,
-                        "fp32_ovms": 62.386,
-                        "int8_ov": 199.772,
-                        "int8_ovms": 139.345
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i9-11900K",
-        "Model": "bert-base-cased",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 36.251,
-                        "fp32_ovms": 35.522,
-                        "int8_ov": 101.305,
-                        "int8_ovms": 99.886
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i9-11900K",
-        "Model": "efficientdet-d0",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 59.247,
-                        "fp32_ovms": 55.715,
-                        "int8_ov": 148.119,
-                        "int8_ovms": 131.749
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i9-11900K",
-        "Model": "manual_yolo11",
-        "featured_SKU": false,
-        "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 85.883,
-                        "fp32_ovms": 76.288,
-                        "int8_ov": "",
-                        "int8_ovms": ""
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i9-11900K",
-        "Model": "mask_rcnn_resnet50_atrous_coco",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 0.37,
-                        "fp32_ovms": 0.396,
-                        "int8_ov": 1.321,
-                        "int8_ovms": 1.337
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i9-11900K",
-        "Model": "mobilenet-v2",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 855.526,
-                        "fp32_ovms": 731.031,
-                        "int8_ov": 2745.282,
-                        "int8_ovms": 2154.044
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i9-11900K",
-        "Model": "resnet-50",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 115.109,
-                        "fp32_ovms": 112.697,
-                        "int8_ov": 455.027,
-                        "int8_ovms": 439.19
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i9-11900K",
-        "Model": "ssd-resnet34-1200",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 2.004,
-                        "fp32_ovms": 2.027,
-                        "int8_ov": 7.796,
-                        "int8_ovms": 7.748
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i9-11900K",
-        "Model": "ssd_mobilenet_v1_coco",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 274.523,
-                        "fp32_ovms": 263.584,
-                        "int8_ov": 966.639,
-                        "int8_ovms": 916.111
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ i9-11900K",
-        "Model": "yolo_v8n",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "fp32_ov": 74.006,
-                        "fp32_ovms": 67.401,
-                        "int8_ov": 204.296,
-                        "int8_ovms": 151.665
+                        "fp32_ov": 37.922,
+                        "fp32_ovms": 33.976,
+                        "int8_ov": 67.972,
+                        "int8_ovms": 55.756
                     }
                 ],
                 "Unit": "FPS",

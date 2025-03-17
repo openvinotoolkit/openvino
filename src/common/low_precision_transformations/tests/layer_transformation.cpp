@@ -35,6 +35,11 @@ TestTransformationParams::TestTransformationParams(
     }
 }
 
+TestTransformationParams& TestTransformationParams::setDeqPrecision(const element::Type deqPrecision) {
+    this->deqPrecision = deqPrecision;
+    return *this;
+}
+
 TestTransformationParams& TestTransformationParams::setUpdatePrecisions(const bool updatePrecisions) {
     this->updatePrecisions = updatePrecisions;
     return *this;

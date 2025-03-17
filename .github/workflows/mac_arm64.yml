@@ -4,7 +4,7 @@ on:
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
-  #pull_request:
+  # pull_request:
   #  paths-ignore:
   #    - '**/docs/**'
   #    - 'docs/**'
@@ -12,7 +12,7 @@ on:
   #    - '**.md'
   #    - '**/layer_tests_summary/**'
   #    - '**/conformance/**'
-  #push:
+  # push:
   #  paths-ignore:
   #    - '**/docs/**'
   #    - 'docs/**'
@@ -136,7 +136,7 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@ed74d11c0b343532753ecead8a951bb09bb34bc9 # v1.2.14
+        uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
@@ -241,43 +241,47 @@ jobs:
             -DCPACK_GENERATOR=NPM \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
-
           cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc)
-
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      - name: Pack openvino_js_package
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_js_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR_JS }}
+
       #
       # Upload build artifacts
       #
 
-      - name: Upload openvino package
+      - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
           
-      - name: Upload openvino wheels
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      - name: Upload OpenVINO wheels
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
 
-      - name: Upload openvino tests package
+      - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-      - name: Upload openvino js package
+      - name: Upload OpenVINO js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_js_package
-          path: ${{ env.INSTALL_DIR_JS }}
+          path: ${{ env.BUILD_DIR }}/openvino_js_package.tar.gz
           if-no-files-found: 'error'
 
   Samples:

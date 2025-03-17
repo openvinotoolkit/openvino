@@ -145,7 +145,7 @@ KernelsData DeformableConvolutionKernel_bfyx_opt::GetKernelsData(const Params& p
         return {};
     }
 
-    kd.internalBufferSizes.push_back(conv_params.intermediate_tensor.PhysicalSizeInBytes());
+    kd.internalBuffers.push_back(conv_params.intermediate_tensor.PhysicalSizeInBytes());
     kd.internalBufferDataType = conv_params.intermediate_tensor.GetDType();
 
     for (size_t i = 0; i < kKernelsNum; i++) {

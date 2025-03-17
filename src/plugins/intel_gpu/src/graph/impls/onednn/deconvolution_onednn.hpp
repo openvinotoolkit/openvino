@@ -5,7 +5,7 @@
 #include "deconvolution_inst.h"
 #include "impls/onednn/utils.hpp"
 #include "intel_gpu/runtime/utils.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 
@@ -19,8 +19,9 @@ struct DeconvolutionImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<deconvolution>());
+        const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown)
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
         const auto& deconv_node = node.as<deconvolution>();

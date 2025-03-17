@@ -9,8 +9,7 @@
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 #include "snippets/runtime_configurator.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @class BrgemmExternalRepackingAdjuster
@@ -32,7 +31,7 @@ public:
 private:
     using RepackExecutorPtr = std::shared_ptr<BrgemmCopyBKernelExecutor>;
     static VectorDims get_blk_order(size_t shape_rank);
-    static VectorDims get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc);
+    static VectorDims get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc, bool is_transposed);
 
     void update_kernel(const RepackExecutorPtr& executor,
                        const VectorDims& shape,
@@ -45,5 +44,4 @@ private:
     std::unordered_map<size_t, RepackExecutorPtr> m_executors;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -6,10 +6,8 @@
 
 #include "openvino/core/model.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& model);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

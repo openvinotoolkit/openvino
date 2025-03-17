@@ -10,8 +10,7 @@
 #include <cstddef>
 #include <openvino/core/type/element_type.hpp>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class BrgemmKernel {
 public:
@@ -37,10 +36,10 @@ public:
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
-    const size_t get_scratch_a_size() const;
+    [[nodiscard]] const size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
-    const size_t get_scratch_b_size() const;
-    const size_t get_wsp_size() const {
+    [[nodiscard]] const size_t get_scratch_b_size() const;
+    [[nodiscard]] const size_t get_wsp_size() const {
         return 4 * 1024;
     }
 
@@ -101,5 +100,4 @@ private:
                     void* pout,
                     void* wsp);
 };
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

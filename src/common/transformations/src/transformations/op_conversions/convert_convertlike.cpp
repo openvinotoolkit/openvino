@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ ov::pass::ConvertConvertLike::ConvertConvertLike() {
 
         auto like = cvtlike->input_value(1);
         const element::Type& dest_type = like.get_element_type();
-        if (dest_type == element::dynamic || dest_type == element::undefined)
+        if (dest_type == element::dynamic)
             return false;
 
         auto cvt = std::make_shared<ov::op::v0::Convert>(cvtlike->input_value(0), dest_type);

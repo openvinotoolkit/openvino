@@ -4,8 +4,7 @@
 
 #include "convert_list.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 const std::vector<ConvertExecutorDesc>& getConvertExecutorsList() {
     static std::vector<ConvertExecutorDesc> descs = {
@@ -44,5 +43,4 @@ ConvertExecutorPtr ConvertExecutorFactory::makeExecutor(const ConvertParams& con
     OPENVINO_THROW("Supported executor is not found");
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

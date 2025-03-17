@@ -12,7 +12,7 @@ namespace ocl {
 
 sycl_engine::sycl_engine(const device::ptr dev, runtime_types runtime_type)
     : ocl_engine(dev, runtime_type) {
-    sycl_context = cldnn::make_unique<::sycl::context>(sycl::make_context<::sycl::backend::opencl>(get_cl_context().get()));
+    sycl_context = std::make_unique<::sycl::context>(sycl::make_context<::sycl::backend::opencl>(get_cl_context().get()));
 }
 
 stream::ptr sycl_engine::create_stream(const ExecutionConfig& config) const {

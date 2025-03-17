@@ -24,8 +24,7 @@ using ReadValues = ov::intel_gpu::op::ReadValues;
 }  // namespace ov
 
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 template<typename T_PRIMITIVE>
@@ -114,5 +113,4 @@ REGISTER_FACTORY_IMPL(v6, ReadValue);
 REGISTER_FACTORY_IMPL(internal, ReadValue);
 REGISTER_FACTORY_IMPL(internal, ReadValues);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -9,6 +9,7 @@ Interface Tensor
        getData(): SupportedTypedArray;
        getShape(): number[];
        getSize(): number;
+       isContinuous(): boolean;
 
    }
 
@@ -116,3 +117,19 @@ Methods
    * **Defined in:**
      `addon.ts:421 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L421>`__
 
+
+.. rubric:: isContinuous
+
+*
+
+   .. code-block:: ts
+
+      isContinuous(): boolean;
+
+   Reports whether the tensor is continuous or not.
+
+   * **Returns:** boolean
+
+   * **Defined in:**
+     `addon.ts:425 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L425>`__
+  

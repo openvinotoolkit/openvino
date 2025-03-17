@@ -12,9 +12,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/reshape.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 Gemm::Gemm(const ov::Output<Node>& A,
            const ov::Output<Node>& B,
@@ -52,8 +50,7 @@ void Gemm::validate_and_infer_types() {
                                   m_order_a,
                                   m_order_b,
                                   m_order_c);
-
-    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
+    auto output_type = m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);
 }
 
@@ -113,6 +110,4 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
     }
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

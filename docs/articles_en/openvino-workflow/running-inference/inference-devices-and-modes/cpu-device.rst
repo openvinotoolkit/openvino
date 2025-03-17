@@ -75,7 +75,7 @@ CPU plugin supports the following data types as inference precision of internal 
   - ``INT8`` (Intel® x86-64)
   - ``uINT1`` (Intel® x86-64)
 
-:doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>` can be used to print out supported data types for all detected devices.
+:doc:`Hello Query Device C++ Sample <../../../get-started/learn-openvino/openvino-samples/hello-query-device>` can be used to print out supported data types for all detected devices.
 
 
 Quantized Data Types Specifics

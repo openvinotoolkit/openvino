@@ -4,12 +4,10 @@
 
 #include "intel_npu/utils/zero/zero_init.hpp"
 
-#include <loader/ze_loader.h>
 #include <ze_command_queue_npu_ext.h>
 
 #include <regex>
 
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 #ifdef _WIN32
@@ -135,7 +133,9 @@ void ZeroInitStructsHolder::initNpuDriver() {
     fallbackToZeDriverGet();
 }
 
-ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder", Logger::global().level()) {
+ZeroInitStructsHolder::ZeroInitStructsHolder()
+    : zero_api(ZeroApi::getInstance()),
+      log("NPUZeroInitStructsHolder", Logger::global().level()) {
     log.debug("ZeroInitStructsHolder - performing zeInit on NPU only");
     THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
 
@@ -280,7 +280,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     if (driver_properties.driverVersion != WIN_DRIVER_NO_MCL_SUPPORT) {
 #endif
         [[maybe_unused]] std::string mutuable_command_list_ext_name;
-        std::tie(mutable_command_list_version, mutuable_command_list_ext_name) =
+        std::tie(mutable_command_list_ext_version, mutuable_command_list_ext_name) =
             queryDriverExtensionVersion(ZE_MUTABLE_COMMAND_LIST_EXP_NAME,
                                         ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_CURRENT,
                                         extProps,
@@ -290,8 +290,8 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
 #endif
 
     log.debug("Mutable command list version %d.%d",
-              ZE_MAJOR_VERSION(mutable_command_list_version),
-              ZE_MINOR_VERSION(mutable_command_list_version));
+              ZE_MAJOR_VERSION(mutable_command_list_ext_version),
+              ZE_MINOR_VERSION(mutable_command_list_ext_version));
 
     // Load our profiling extension
     ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
@@ -313,20 +313,22 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
     log.debug("ZeroInitStructsHolder initialize complete");
 
-    // Obtain compiler-in-driver (vcl) version
-    ze_device_graph_properties_t graph_props;
-    graph_props.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &graph_props);
+    // Obtain compiler-in-driver properties
+    compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+    auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &compiler_properties);
     THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
-    compiler_version = ZE_MAKE_VERSION(graph_props.compilerVersion.major, graph_props.compilerVersion.minor);
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     if (context) {
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);
-        if (ZE_RESULT_SUCCESS != result) {
-            log.error("zeContextDestroy failed %#X", uint64_t(result));
+        if (result != ZE_RESULT_SUCCESS) {
+            if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
+                log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
+            } else {
+                log.error("zeContextDestroy failed %#X", uint64_t(result));
+            }
         }
     }
 }

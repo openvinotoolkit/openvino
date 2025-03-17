@@ -10,8 +10,7 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/runtime_configurator.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class CPURuntimeConfig : public ov::snippets::RuntimeConfig {
 public:
@@ -45,7 +44,7 @@ public:
 
     // Note: This method is temporarily used only by `BrgemmExternalRepackingAdjuster` to create kernels for repacking.
     //       Please, remove this method when the adjuster is deprecated
-    const ov::intel_cpu::MultiCacheWeakPtr& get_cache() const {
+    [[nodiscard]] const ov::intel_cpu::MultiCacheWeakPtr& get_cache() const {
         return compiled_kernel_cache;
     }
 
@@ -60,5 +59,4 @@ protected:
     ov::intel_cpu::MultiCacheWeakPtr compiled_kernel_cache;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

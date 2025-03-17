@@ -31,6 +31,10 @@ public:
         return false;
     }
 
+    bool neverExecute() const override {
+        return false;
+    }
+
     bool isExecutable() const override {
         return true;
     }
@@ -40,6 +44,8 @@ public:
     void createPrimitive() override;
     void execute(const dnnl::stream&) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
+
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
 
     const Graph& graph() const {
         return m_graph;

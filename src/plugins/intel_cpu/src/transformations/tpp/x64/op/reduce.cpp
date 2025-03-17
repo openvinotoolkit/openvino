@@ -1,13 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "reduce.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 
 ReduceMax::ReduceMax(const Output<Node>& arg, size_t axis)
     : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_REDUCE_X_OP_MAX),
@@ -41,7 +38,4 @@ bool ReduceSum::visit_attributes(AttributeVisitor& visitor) {
     return UnaryEltwiseTPP::visit_attributes(visitor);
 }
 
-}  // namespace op
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::op

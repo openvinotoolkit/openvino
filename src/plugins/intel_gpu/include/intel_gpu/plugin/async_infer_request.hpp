@@ -6,11 +6,8 @@
 
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "intel_gpu/plugin/sync_infer_request.hpp"
-#include <string>
-#include <map>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class AsyncInferRequest : public ov::IAsyncInferRequest {
 public:
@@ -29,5 +26,4 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

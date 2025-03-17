@@ -44,7 +44,7 @@ class OPENVINO_API PassBase {
 
 public:
     PassBase();
-    virtual ~PassBase() = default;
+    virtual ~PassBase();
     /// Check if this pass has all the pass properties.
     bool get_property(const PassPropertyMask& prop_mask) const;
 

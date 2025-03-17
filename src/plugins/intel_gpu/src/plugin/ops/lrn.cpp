@@ -10,8 +10,7 @@
 
 #include "intel_gpu/primitives/lrn.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static cldnn::lrn_norm_region GetNormRegion(std::vector<int64_t> axis_value) {
     if (axis_value.size() == 1 && axis_value[0] == 1) {
@@ -44,5 +43,4 @@ static void CreateLRNOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::LRN
 
 REGISTER_FACTORY_IMPL(v0, LRN);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

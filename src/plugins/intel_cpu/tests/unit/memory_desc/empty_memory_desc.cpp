@@ -22,7 +22,7 @@ TEST(MemoryTest, EmptyMemoryDescVerifyPublicInterface) {
 
     ASSERT_TRUE(emptyDesc->clone()->empty());
 
-    ASSERT_EQ(emptyDesc->getPrecision(), ov::element::undefined);
+    ASSERT_EQ(emptyDesc->getPrecision(), ov::element::dynamic);
 
     ASSERT_EQ(emptyDesc->getOffsetPadding(), 0);
 
@@ -41,5 +41,5 @@ TEST(MemoryTest, EmptyMemoryDescVerifyPublicInterface) {
     // not compatible with any other memory desc
     ASSERT_FALSE(emptyDesc->isCompatible(CpuBlockedMemoryDesc{ov::element::f32, Shape{1, 2, 3}}));
     ASSERT_FALSE(emptyDesc->isCompatible(DnnlBlockedMemoryDesc{ov::element::u8, Shape{1}}));
-    ASSERT_FALSE(emptyDesc->isCompatible(CpuBlockedMemoryDesc{ov::element::undefined, Shape{0}}));
+    ASSERT_FALSE(emptyDesc->isCompatible(CpuBlockedMemoryDesc{ov::element::dynamic, Shape{0}}));
 }

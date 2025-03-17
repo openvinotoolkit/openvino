@@ -28,10 +28,9 @@ void regclass_graph_Type(py::module m) {
             :param dtype: numpy dtype
             :type dtype: numpy.dtype
             :return: OpenVINO type object
-            :rtype: ov.Type
+            :rtype: openvino.Type
         )");
 
-    type.attr("undefined") = ov::element::undefined;
     type.attr("dynamic") = ov::element::dynamic;
     type.attr("boolean") = ov::element::boolean;
     type.attr("f16") = ov::element::f16;

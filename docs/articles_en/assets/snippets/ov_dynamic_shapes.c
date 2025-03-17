@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/c/openvino.h>
@@ -148,7 +148,7 @@ ov_compiled_model_create_infer_request(compiled_model, &infer_request);
 
 //! [ov_dynamic_shapes:set_input_tensor]
 ov_output_const_port_t* input_port = NULL;
-ov_element_type_e type = UNDEFINED;
+ov_element_type_e type = DYNAMIC;
 ov_shape_t input_shape_1;
 ov_tensor_t* input_tensor_1 = NULL;
 ov_tensor_t* output_tensor = NULL;

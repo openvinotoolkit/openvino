@@ -19,18 +19,18 @@ namespace snippets {
  */
 class BaseDummyOperation : public ov::op::Op {
 public:
-    BaseDummyOperation(
-        const Output<Node>& arg0,
-        const Output<Node>& arg1,
-        const element::Type& output_type = element::undefined) : Op({ arg0, arg1 }), output_type(output_type) {
+    BaseDummyOperation(const Output<Node>& arg0,
+                       const Output<Node>& arg1,
+                       const element::Type& output_type = element::dynamic)
+        : Op({arg0, arg1}),
+          output_type(output_type) {
         constructor_validate_and_infer_types();
     }
 
     void validate_and_infer_types() override {
-        set_output_type(
-            0,
-            output_type == element::undefined ? get_input_element_type(0) : output_type,
-            get_input_partial_shape(0));
+        set_output_type(0,
+                        output_type == element::dynamic ? get_input_element_type(0) : output_type,
+                        get_input_partial_shape(0));
     }
 
     element::Type get_output_type() const { return output_type; }
@@ -47,10 +47,10 @@ class DummyOperation1 : public BaseDummyOperation {
 public:
     OPENVINO_OP("DummyOperation1", "test::snippets");
 
-    DummyOperation1(
-        const Output<Node>& arg0,
-        const Output<Node>& arg1,
-        const element::Type& output_type = element::undefined) : BaseDummyOperation(arg0, arg1, output_type) {
+    DummyOperation1(const Output<Node>& arg0,
+                    const Output<Node>& arg1,
+                    const element::Type& output_type = element::dynamic)
+        : BaseDummyOperation(arg0, arg1, output_type) {
         constructor_validate_and_infer_types();
     }
 
@@ -71,10 +71,10 @@ class DummyOperation2 : public BaseDummyOperation {
 public:
     OPENVINO_OP("DummyOperation2", "test::snippets");
 
-    DummyOperation2(
-        const Output<Node>& arg0,
-        const Output<Node>& arg1,
-        const element::Type& output_type = element::undefined) : BaseDummyOperation(arg0, arg1, output_type) {
+    DummyOperation2(const Output<Node>& arg0,
+                    const Output<Node>& arg1,
+                    const element::Type& output_type = element::dynamic)
+        : BaseDummyOperation(arg0, arg1, output_type) {
         constructor_validate_and_infer_types();
     }
 

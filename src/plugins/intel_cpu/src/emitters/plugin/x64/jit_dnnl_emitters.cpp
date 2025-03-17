@@ -11,8 +11,7 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::set<std::vector<element::Type>> jit_dnnl_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
@@ -23,9 +22,7 @@ jit_dnnl_emitter::jit_dnnl_emitter(jit_generator* host,
                                    const std::shared_ptr<ov::Node>& node,
                                    ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc),
-      kind(dnnl_eltwise_tanh),
-      alpha(0.f),
-      beta(0.f) {
+      kind(dnnl_eltwise_tanh) {
     set_injector();
 }
 
@@ -66,21 +63,24 @@ size_t jit_dnnl_emitter::get_inputs_num() const {
     return 1;
 }
 
-void jit_dnnl_emitter::emit_code(const std::vector<size_t>& in_vec_idxs,
-                                 const std::vector<size_t>& out_vec_idxs,
-                                 const std::vector<size_t>& pool_vec_idxs,
-                                 const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_dnnl_emitter::emit_code_impl(const std::vector<size_t>& in_vec_idxs,
+                                      const std::vector<size_t>& out_vec_idxs,
+                                      const std::vector<size_t>& pool_vec_idxs,
+                                      const std::vector<size_t>& pool_gpr_idxs) const {
     if (host_isa_ == cpu::x64::sse41) {
-        if (out_vec_idxs[0] != in_vec_idxs[0])
+        if (out_vec_idxs[0] != in_vec_idxs[0]) {
             h->uni_vmovups(Xmm(out_vec_idxs[0]), Xmm(in_vec_idxs[0]));
+        }
         eltwise_injector_sse42->compute_vector(out_vec_idxs[0]);
     } else if (host_isa_ == cpu::x64::avx2) {
-        if (out_vec_idxs[0] != in_vec_idxs[0])
+        if (out_vec_idxs[0] != in_vec_idxs[0]) {
             h->uni_vmovups(Ymm(out_vec_idxs[0]), Ymm(in_vec_idxs[0]));
+        }
         eltwise_injector_avx2->compute_vector(out_vec_idxs[0]);
     } else if (host_isa_ == cpu::x64::avx512_core) {
-        if (out_vec_idxs[0] != in_vec_idxs[0])
+        if (out_vec_idxs[0] != in_vec_idxs[0]) {
             h->uni_vmovups(Zmm(out_vec_idxs[0]), Zmm(in_vec_idxs[0]));
+        }
         eltwise_injector_avx512_core->compute_vector(out_vec_idxs[0]);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
@@ -107,5 +107,4 @@ jit_dnnl_aux_emitter::jit_dnnl_aux_emitter(jit_generator* host,
                                            ov::element::Type exec_prc)
     : jit_dnnl_emitter(host, host_isa, algKind, inpAlpha, inpBeta, exec_prc) {}
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

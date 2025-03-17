@@ -10,7 +10,7 @@
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::AnyMap> remoteConfigs = {{ov::log::level(ov::log::Level::ERR)}};
+const std::vector<ov::AnyMap> remoteConfigs = {{}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          RemoteRunTests,

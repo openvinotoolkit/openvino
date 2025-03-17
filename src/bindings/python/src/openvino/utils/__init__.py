@@ -10,3 +10,4 @@ from openvino.package_utils import get_cmake_path
 from openvino.package_utils import deprecated
 from openvino.package_utils import classproperty
 from openvino.package_utils import deprecatedclassproperty
+from openvino.utils.postponed_constant import make_postponed_constant

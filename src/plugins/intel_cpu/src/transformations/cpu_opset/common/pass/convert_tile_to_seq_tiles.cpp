@@ -25,15 +25,17 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         }
 
         auto tiles_node = ov::as_type_ptr<ov::opset1::Constant>(tile->input_value(1).get_node_shared_ptr());
-        if (!tiles_node)
+        if (!tiles_node) {
             return false;
+        }
 
         auto tiles = tiles_node->cast_vector<int64_t>();
         auto input_shape_rank = static_cast<size_t>(tile->get_input_partial_shape(0).rank().get_length());
         int64_t cur_dim_id = tiles.size() - 1;
 
-        if (tiles.size() != input_shape_rank)
+        if (tiles.size() != input_shape_rank) {
             return false;
+        }
 
         auto last_node = tile->input_value(0);
         auto friendly_name = tile->get_friendly_name();

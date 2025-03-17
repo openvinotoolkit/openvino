@@ -8,8 +8,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 jit_fill_emitter::jit_fill_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                                    dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -22,18 +21,21 @@ jit_fill_emitter::jit_fill_emitter(dnnl::impl::cpu::x64::jit_generator* h,
 
     offset = fill->get_offset();
     fill_value = fill->get_fill_value();
-    if (!is_optimized())
+    if (!is_optimized()) {
         push_arg_entry_of("value", fill_value, true);
+    }
     prepare_table();
 }
 
 size_t jit_fill_emitter::aux_gprs_count() const {
     // Optimized version (fill full vector by zero) doesn't need additional register
-    if (is_optimized())
+    if (is_optimized()) {
         return 0;
+    }
     // + 1 reg for table value in full vector case
-    if (is_full_reg())
+    if (is_full_reg()) {
         return 1;
+    }
     // + 1 reg for temp reg for mask in avx512
     return one_of(host_isa_, dnnl::impl::cpu::x64::avx512_core) ? 2 : 1;
 }
@@ -55,8 +57,8 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
-    Vmm src_vmm = Vmm(in[0]);
-    Vmm dst_vmm = Vmm(out[0]);
+    auto src_vmm = Vmm(in[0]);
+    auto dst_vmm = Vmm(out[0]);
 
     const size_t supported_et_size = 4;
     const auto register_capacity = (src_vmm.getBit() / 8) / supported_et_size;
@@ -65,8 +67,9 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector
         // removed from the LIR
         // TODO: when inplace is supported, remove such Fill ops from the LIR and remove this logic.
         // Ticket: 126270
-        if (src_vmm.getIdx() != dst_vmm.getIdx())
+        if (src_vmm.getIdx() != dst_vmm.getIdx()) {
             h->uni_vmovups(dst_vmm, src_vmm);
+        }
     } else if (is_full_reg()) {
         fill_full<Vmm>(dst_vmm);
     } else {
@@ -105,5 +108,4 @@ void jit_fill_emitter::fill_tail(const Vmm& src_vmm, const Vmm& dst_vmm) const {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

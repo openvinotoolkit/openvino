@@ -55,3 +55,5 @@ void ov::AttributeAdapter<ov::AxisSet>::set(const std::vector<int64_t>& value) {
     }
     m_buffer_valid = false;
 }
+
+ov::AttributeAdapter<ov::AxisSet>::~AttributeAdapter() = default;

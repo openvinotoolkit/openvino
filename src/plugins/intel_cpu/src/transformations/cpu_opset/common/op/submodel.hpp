@@ -10,8 +10,7 @@
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @interface Subgraph
@@ -51,5 +50,4 @@ private:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

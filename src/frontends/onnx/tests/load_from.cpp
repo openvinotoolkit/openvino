@@ -30,8 +30,10 @@ static LoadFromFEParam getTestData() {
 }
 
 TEST_P(FrontEndLoadFromTest, testLoadFromStreamAndPassPath) {
-    const auto path = ov::util::path_join(
-        {ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "external_data/external_data.onnx"});
+    const auto path =
+        ov::util::path_join(
+            {ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "external_data/external_data.onnx"})
+            .string();
     std::ifstream ifs(path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(ifs.is_open()) << "Could not open an ifstream for the model path: " << path;
     std::istream* is = &ifs;
@@ -64,7 +66,8 @@ TEST_P(FrontEndLoadFromTest, load_model_not_exists_at_path) {
 
 TEST_P(FrontEndLoadFromTest, load_model_and_apply_ppp) {
     auto model_file_path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, m_param.m_stream});
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, m_param.m_stream})
+            .string();
 
     m_frontEnd = m_fem.load_by_model(model_file_path);
     const auto fe_model = m_frontEnd->load(model_file_path);
@@ -98,7 +101,7 @@ using ::ONNX_NAMESPACE::Version;
 
 TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoUint64) {
     const auto path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"});
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"}).string();
     std::ifstream ifs(path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(ifs.is_open()) << "Could not open an ifstream for the model path: " << path;
     std::vector<std::string> frontends;
@@ -126,7 +129,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoUint64) {
 
 TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoUint64_Negative) {
     const auto path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"});
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"}).string();
     std::ifstream ifs(path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(ifs.is_open()) << "Could not open an ifstream for the model path: " << path;
     std::vector<std::string> frontends;

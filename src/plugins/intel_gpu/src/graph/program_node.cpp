@@ -658,7 +658,7 @@ void program_node::select_preferred_formats(impl_types impl_type) {
 }
 
 void program_node::add_dependant_shape_of_node(const program_node* node) {
-    OPENVINO_ASSERT(node->is_type<shape_of>(), "[GPU] Expected node type is shape_of");
+    OPENVINO_ASSERT(node->is_type<shape_of>() || node->is_type<input_layout>(), "[GPU] Expected node type is shape_of");
     dependant_shape_of_nodes.insert(node);
 }
 
@@ -1579,15 +1579,19 @@ void program_node::create_onednn_primitive_attributes(
                     if (is_type<fully_connected>()) {
                         auto prim = this->as<fully_connected>().get_primitive();
                         if (prim->input_size == in_pshape.size()) {
-                            if (prim->input_size == 3 && !fc_needs_full_tensor()) {
+                            if (prim->input_size >= 3 && !fc_needs_full_tensor()) {
                                 cldnn::onednn::combine_bf_with_first_spatial_dim(in);
                                 in_pshape = in.get_partial_shape();
                             }
                             ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
                         } else {
-                            if (prim->input_size == 3)
+                            if (prim->input_size >= 3) {
                                 cldnn::onednn::combine_bf_with_first_spatial_dim(in);
-                            ones_to_add = std::max(in_pshape.size(), prim->input_size) - std::min(in_pshape.size(), prim->input_size);
+                                in_pshape = in.get_partial_shape();
+                                ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                            } else {
+                                ones_to_add = 2;
+                            }
                         }
                         if (ones_to_add > 0) {
                             layout new_layout = in;
@@ -1851,8 +1855,7 @@ void program_node::create_onednn_primitive_attributes(
         // Trying to combine multiplications and additions which are placed one after another.
         // We do it in the cycle because some optimization cases can be simplified again from time to time
         do {
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->disable_onednn_opt_post_ops)
+            GPU_DEBUG_IF(get_config().get_disable_onednn_post_ops_opt())
                 break;
             optimized_post_ops = try_optimize_post_ops(fused_ops, optimized_post_ops, attrs, optimization_is_finished);
         } while (!optimization_is_finished);

@@ -273,7 +273,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::pass::ConvertConvertLike>();
         manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
-        // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+        // Mark low precision compressed constants to prevent CF for them,
         // so that not extra memory is used for intermediate decompressed constants.
         manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
 
@@ -360,12 +360,12 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
-    if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+    if (auto conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(conv_ext);
         m_op_extension_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return conv_ext->get_converter()(context);
         };
-    } else if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::pytorch::ConversionExtension>(extension)) {
+    } else if (auto conv_ext = ov::as_type_ptr<ov::frontend::pytorch::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(conv_ext);
         m_op_extension_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return conv_ext->get_converter()(context);
@@ -397,14 +397,15 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     FRONT_END_GENERAL_CHECK(variants.size() == 1 + extra_variants_num,
                             "PyTorch Frontend supports exactly one parameter in model representation, got ",
-                            std::to_string(variants.size()),
+                            variants.size(),
                             " instead.");
     FRONT_END_GENERAL_CHECK(variants[0].is<std::shared_ptr<IDecoder>>(),
                             "PyTorch Frontend doesn't support provided model type. Please provide supported model "
                             "object using Python API.");
     auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
+    FRONT_END_GENERAL_CHECK(decoder, "Couldn't cast ov::Any to std::shared_ptr<IDecoder>");
     auto tdecoder = std::dynamic_pointer_cast<TorchDecoder>(decoder);
-    FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast ov::Any to TorchDecoder");
+    FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast IDecoder to TorchDecoder");
     return std::make_shared<pytorch::InputModel>(tdecoder);
 }
 

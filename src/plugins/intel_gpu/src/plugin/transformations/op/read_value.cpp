@@ -6,9 +6,7 @@
 #include "intel_gpu/op/read_values.hpp"
 #include "openvino/core/partial_shape.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 ReadValue::ReadValue(const std::shared_ptr<ov::op::util::Variable>& past_values) : Op() {
     m_variable = past_values;
@@ -150,6 +148,4 @@ std::vector<ov::op::util::VariableInfo> ReadValues::get_all_internal_states_info
     return m_internal_states_infos;
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

@@ -7,8 +7,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "openvino/op/grid_sample.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -24,5 +23,4 @@ void CreateGridSampleOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::Gri
 
 REGISTER_FACTORY_IMPL(v9, GridSample);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -108,8 +108,9 @@ def parse_args():
                       help="Optional. Enable model caching to specified directory")
     advs.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,
                       help="Optional. Loads model from file directly without read_model.")
-    args.add_argument('-api', '--api_type', type=str, required=False, default='async', choices=['sync', 'async'],
-                      help='Optional. Enable using sync/async API. Default value is async.')
+    args.add_argument('-api', '--api_type', type=str, required=False, default='', choices=['sync', 'async'],
+                      help='Optional. Enable using sync/async API. When hint is throughput, default value is async. '
+                           'When hint is latency, default value is sync.')
     advs.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=0,
                       help='Optional. Number of infer requests. Default value is determined automatically for device.')
     advs.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,

@@ -34,6 +34,7 @@ protected:
     Matcher* m_matcher;
     PatternValueMap m_pattern_value_map;
     PatternValueMaps m_pattern_value_maps;
+    PatternSymbolMap m_pattern_symbols;
     size_t m_watermark;
     size_t m_capture_size;
     bool m_restore{true};
@@ -108,7 +109,8 @@ public:
     Matcher(std::shared_ptr<Node> pattern_node, const std::string& name);
     Matcher(std::shared_ptr<Node> pattern_node, const std::string& name, bool strict_mode);
 
-    virtual ~Matcher() = default;
+    virtual ~Matcher();
+
     /// \brief Matches a pattern to \p graph_node
     ///
     /// \param graph_value is an input graph to be matched against
@@ -164,6 +166,14 @@ public:
     PatternValueMap& get_pattern_value_map() {
         return m_pattern_map;
     }
+    PatternSymbolMap& get_symbols() {
+        return m_pattern_symbols;
+    }
+
+    const PatternSymbolMap& get_symbols() const {
+        return m_pattern_symbols;
+    }
+
     PatternValueMaps& get_pattern_value_maps() {
         return m_pattern_value_maps;
     }
@@ -176,7 +186,7 @@ public:
 
     size_t add_node(Output<Node> node);
 
-    bool virtual match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value);
+    virtual bool match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value);
 
     bool is_strict_mode() {
         return m_strict_mode;
@@ -198,6 +208,7 @@ public:
     Output<Node> m_match_root;
     Output<Node> m_pattern_node;
     PatternValueMap m_pattern_map;
+    PatternSymbolMap m_pattern_symbols;
     PatternValueMaps m_pattern_value_maps;
     OutputVector m_matched_list;
 

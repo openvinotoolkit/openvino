@@ -138,11 +138,11 @@ KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params) const {
 
     // buffer for BoxInfos
     kd.internalBufferDataType = Datatype::F32;
-    kd.internalBufferSizes.resize(1);
+    kd.internalBuffers.resize(1);
     // double: 4 coordinates + 1 score; long: 1 class_idx + 1 batch_idx + 1 index
     const auto box_size = (4 + 1) * sizeof(double) + 3 * sizeof(long);
     const auto total_boxes = num_batches * num_classes * num_boxes;
-    kd.internalBufferSizes[0] = box_size * total_boxes;
+    kd.internalBuffers[0] = box_size * total_boxes;
     const auto common_jit_constants = GetJitConstants(op_params);
 
     for (size_t i = 0; i < kKernelsNum; ++i) {

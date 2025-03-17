@@ -22,7 +22,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForArch(const std::vector<CPUSpecifi
         auto selectedTypeStr = std::get<selectedTypeIndex>(param);
 
         if (selectedTypeStr.find("acl") == std::string::npos &&
-            selectedTypeStr.find("ref") == std::string::npos)
+            selectedTypeStr.find("ref") == std::string::npos &&
+            selectedTypeStr.find("kleidiai") == std::string::npos)
             continue;
 #if defined(OPENVINO_ARCH_ARM)
         // disable gemm_acl on 32-bit arm platforms because oneDNN\ACL does not support it

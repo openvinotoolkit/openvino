@@ -46,7 +46,8 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
             auto out_it = pattern_map.find(matched_constant_to_check);
             if (expected_bias == 0) {
                 return out_it == pattern_map.end();
-            } else if (out_it == pattern_map.end()) {
+            }
+            if (out_it == pattern_map.end()) {
                 return false;
             }
             const auto constant = ov::as_type_ptr<ov::opset1::Constant>(out_it->second.get_node_shared_ptr());
@@ -103,8 +104,9 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
             }
             // save symbol of cropped_shape and check it against first dimension of tokens shape
             cropped_shape_symbol = pattern_map.at(cropped_shape_m).get_tensor().get_value_symbol()[0];
-            if (!symbol::are_equal(tokens_shape[0].get_symbol(), cropped_shape_symbol))
+            if (!symbol::are_equal(tokens_shape[0].get_symbol(), cropped_shape_symbol)) {
                 return false;
+            }
         }
 
         auto cropped_shape_symbol_match = [cropped_shape_symbol](const ov::Output<ov::Node>& output) -> bool {
@@ -181,8 +183,9 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
             Matcher select_matcher(select_m);
 
             for (size_t i = 0; i < inputs.size(); ++i) {
-                if (i == as_is_idx)
+                if (i == as_is_idx) {
                     continue;
+                }
                 if (!select_matcher.match(inputs[i])) {
                     return false;
                 }

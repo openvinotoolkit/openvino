@@ -40,6 +40,10 @@ if (ENABLE_SHL_FOR_CPU)
     set(SHL_LIBRARY "shl")
 endif()
 
+if (ENABLE_KLEIDIAI_FOR_CPU)
+    set(KLEIDIAI_LIBRARY "kleidiai")
+endif()
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -70,6 +74,7 @@ ov_add_test_target(
             snippets_test_utils
             ${MLAS_LIBRARY}
             ${SHL_LIBRARY}
+            ${KLEIDIAI_LIBRARY}
         ADD_CPPLINT
         LABELS
             OV UNIT CPU

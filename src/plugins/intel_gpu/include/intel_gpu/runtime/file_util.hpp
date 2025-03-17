@@ -9,11 +9,9 @@
 
 #include "openvino/util/file_util.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 // Version of save_binary that don't trow an exception if attempt to open file fails
 void save_binary(const std::string& path, std::vector<uint8_t> binary);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

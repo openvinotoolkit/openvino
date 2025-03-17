@@ -252,7 +252,7 @@ void Config::fromString(const std::string& str) {
         auto pos_eq = token.find('=');
         auto key = token.substr(0, pos_eq);
         auto value = token.substr(pos_eq + 2, token.size() - pos_eq - 3);
-        config[key] = value;
+        config[key] = std::move(value);
     };
 
     size_t pos = 0;

@@ -9,25 +9,19 @@ namespace ov {
 namespace builder {
 namespace subgraph {
 
-Multiply::Multiply() :
-    isEmpty(true),
-    outPrecision(ov::element::undefined),
-    constantShapeIsDefined(false) {
-}
+Multiply::Multiply() : isEmpty(true), outPrecision(ov::element::dynamic), constantShapeIsDefined(false) {}
 
-Multiply::Multiply(const float value) :
-    isEmpty(false),
-    values({ value }),
-    outPrecision(ov::element::undefined),
-    constantShapeIsDefined(false) {
-}
+Multiply::Multiply(const float value)
+    : isEmpty(false),
+      values({value}),
+      outPrecision(ov::element::dynamic),
+      constantShapeIsDefined(false) {}
 
-Multiply::Multiply(const std::vector<float>& values) :
-    isEmpty(values.empty()),
-    values(values),
-    outPrecision(ov::element::undefined),
-    constantShapeIsDefined(false) {
-}
+Multiply::Multiply(const std::vector<float>& values)
+    : isEmpty(values.empty()),
+      values(values),
+      outPrecision(ov::element::dynamic),
+      constantShapeIsDefined(false) {}
 
 Multiply::Multiply(const std::vector<float>& values, const ov::element::Type outPrecision) :
     isEmpty(false),

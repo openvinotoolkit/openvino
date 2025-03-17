@@ -1,10 +1,10 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gemm_inst.h"
 #include "intel_gpu/runtime/utils.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 
@@ -18,8 +18,9 @@ struct GemmImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<gemm>());
+        const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown)
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
         const auto& gemm_node = node.as<gemm>();
@@ -60,6 +61,13 @@ struct GemmImplementationManager : public ImplementationManager {
             !one_of(in1_layout.format.value, supported_formats) ||
             !one_of(out_layout.format.value, supported_formats))
             return false;
+
+        //format bxfy not on whitelist for fusable_output_order_onednn in gemm_inst.h what makes assert error later
+        //skipped onednn implementation as ocl is faster
+        std::vector<size_t> out_transpose_order(std::begin(gemm_prim->output_transpose_order), std::end(gemm_prim->output_transpose_order));
+        if (out_transpose_order == format::traits(format::bxfy)._order) {
+            return false;
+        }
 
         bool f16f16_case = everyone_is(data_types::f16, in0_dt, in1_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::i8});
         bool u8s8_case = one_of(in0_dt, {data_types::i8, data_types::u8}) &&

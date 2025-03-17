@@ -6,6 +6,8 @@ from openvino.runtime.opset16 import ops
 
 # New operations added in Opset16
 from openvino.opset16.ops import identity
+from openvino.opset16.ops import istft
+from openvino.opset16.ops import segment_max
 
 # Operators from previous opsets
 # TODO (ticket: 156877): Add previous opset operators at the end of opset16 development

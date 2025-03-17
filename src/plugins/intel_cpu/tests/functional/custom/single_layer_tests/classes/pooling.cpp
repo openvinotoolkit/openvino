@@ -787,12 +787,11 @@ const CPUSpecificParams& expectedCpuConfigAnyLayout() {
 }
 
 const std::vector<CPUSpecificParams>& vecCpuConfigsFusing_4D() {
-    const auto sse42_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"};
     const auto avx2_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"};
     const auto avx512_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"};
     const auto acl_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"acl"}, "acl"};
 
-    static const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {sse42_nhwc, avx2_nhwc, avx512_nhwc, acl_nhwc, expectedCpuConfigAnyLayout()};
+    static const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {avx2_nhwc, avx512_nhwc, acl_nhwc, expectedCpuConfigAnyLayout()};
     return vecCpuConfigsFusing_4D;
 }
 

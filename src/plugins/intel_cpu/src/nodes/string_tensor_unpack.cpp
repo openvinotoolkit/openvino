@@ -8,9 +8,7 @@
 #include "openvino/reference/string_tensor_unpack.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 StringTensorUnpack::StringTensorUnpack(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
@@ -37,8 +35,9 @@ void StringTensorUnpack::getSupportedDescriptors() {
 }
 
 void StringTensorUnpack::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::string}},
                          {{LayoutType::ncsp, ov::element::i32},
                           {LayoutType::ncsp, ov::element::i32},
@@ -58,7 +57,7 @@ void StringTensorUnpack::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& srcMemory = getSrcMemoryAtPort(0);
     const auto& srcDataDims = srcMemory->getStaticDims();
     const auto& srcData = srcMemory->getDataAs<std::string>();
-    Dim stringCount = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<Dim>());
+    Dim stringCount = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<>());
     size_t totalCharLength = 0;
     for (Dim i = 0; i < stringCount; ++i) {
         totalCharLength += srcData[i].length();
@@ -75,6 +74,4 @@ void StringTensorUnpack::execute(const dnnl::stream& strm) {
                                         getDstDataAtPortAs<uint8_t>(2),
                                         stringCount);
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -4,7 +4,7 @@
 
 include(options)
 include(target_flags)
-include(compile_flags/os_flags)
+include(compile_flags/functions)
 
 if(WIN32)
     set (CPACK_GENERATOR "ZIP" CACHE STRING "Cpack generator for OpenVINO")
@@ -43,6 +43,8 @@ ov_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitiz
 ov_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG" OFF)
 
 ov_dependent_option (ENABLE_API_VALIDATOR "Enables API Validator usage" ON "WIN32" OFF)
+
+ov_dependent_option (ENABLE_PDB_IN_RELEASE "Enables PDB files for Release build" OFF "WIN32" OFF)
 
 # Defines CPU capabilities
 
@@ -116,6 +118,6 @@ if(ENABLE_SVE)
     ov_check_compiler_supports_sve("-march=armv8-a+sve")
 
     if(NOT CXX_HAS_SVE)
-        set(ENABLE_SVE OFF CACHE BOOL "" FORCE)
+        set(ENABLE_SVE OFF CACHE BOOL "Enables ARM64 SVE support" FORCE)
     endif()
 endif()

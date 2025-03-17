@@ -6,9 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 class Placeholder : public ov::op::Op {
 public:
@@ -21,6 +19,4 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 };
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

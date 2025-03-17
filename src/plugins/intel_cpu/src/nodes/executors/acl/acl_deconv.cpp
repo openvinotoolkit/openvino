@@ -6,8 +6,7 @@
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace arm_compute;
 
@@ -280,8 +279,9 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
         (deconvAttrs.dilation.size() > 1) ? deconvAttrs.dilation.at(1) : deconvAttrs.dilation.at(0);
     unsigned int dilation_y = deconvAttrs.dilation.at(0);
     if (!one_of(dilation_x, static_cast<unsigned int>(0), static_cast<unsigned int>(1)) ||
-        !one_of(dilation_y, static_cast<unsigned int>(0), static_cast<unsigned int>(1)))
+        !one_of(dilation_y, static_cast<unsigned int>(0), static_cast<unsigned int>(1))) {
         return false;
+    }
 
     try {
         arm_compute::Status status =
@@ -304,5 +304,4 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
     return true;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

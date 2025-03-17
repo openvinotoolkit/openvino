@@ -11,8 +11,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/mvn.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateCommonMVNOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op,
                               std::vector<int64_t> axes, bool normalize_variance, float eps, bool eps_inside_sqrt = true) {
@@ -66,5 +65,4 @@ static void CreateMVNOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v6::MVN
 REGISTER_FACTORY_IMPL(v0, MVN);
 REGISTER_FACTORY_IMPL(v6, MVN);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

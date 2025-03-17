@@ -55,8 +55,8 @@ private:
                       int& inBlockSize,
                       int& outBlockSize,
                       int& outBlockCount,
-                      unsigned long& inputChannelsPadding,
-                      unsigned long& outputChannelsPadding);
+                      uint64_t& inputChannelsPadding,
+                      uint64_t& outputChannelsPadding);
 
     template <typename inputType, typename outputType>
     void executeAverage(const inputType* srcData,

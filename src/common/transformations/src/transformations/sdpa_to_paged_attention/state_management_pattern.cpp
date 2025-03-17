@@ -329,7 +329,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto sdpa_node =
             pattern_map.at(pattern_map.count(sdpa_with_4_inputs) ? sdpa_with_4_inputs : sdpa_with_5_inputs).get_node();
         // E and Ev are from the SDPA specification at
-        // https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/scaled-dot-product-attention.html
+        // https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/scaled-dot-product-attention.html
         auto E = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];
         auto Ev = sdpa_node->get_input_tensor(2).get_partial_shape()[-1];  // in common case may not match E
 

@@ -10,8 +10,7 @@
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateTileOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Tile>& op) {
     validate_inputs_count(op, {2});
@@ -57,5 +56,4 @@ static void CreateTileOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Ti
 
 REGISTER_FACTORY_IMPL(v0, Tile);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

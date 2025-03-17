@@ -8,7 +8,8 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <vector>
+
+#include "openvino/core/version.hpp"
 
 namespace intel_npu {
 
@@ -34,6 +35,8 @@ public:
     virtual uint64_t get_blob_size() const = 0;
 
     virtual ~MetadataBase() = default;
+
+    static std::streampos getFileSize(std::istream& stream);
 
     /**
      * @brief Returns a uint32_t value which represents two uint16_t values concatenated.
@@ -72,25 +75,29 @@ constexpr std::string_view MAGIC_BYTES = "OVNPU";
 /**
  * @brief List of supported version formats.
  */
-constexpr uint32_t METADATA_VERSION_1_0{MetadataBase::make_version(1, 0)};
+constexpr uint32_t METADATA_VERSION_2_0{MetadataBase::make_version(2, 0)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_1_0};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_0};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
 
 struct OpenvinoVersion {
 private:
-    std::string _version;
-    uint32_t _size;
+    uint16_t _major;
+    uint16_t _minor;
+    uint16_t _patch;
 
 public:
-    OpenvinoVersion();
+    constexpr OpenvinoVersion(uint16_t major, uint16_t minor, uint16_t patch)
+        : _major(major),
+          _minor(minor),
+          _patch(patch) {}
 
-    OpenvinoVersion(std::string_view version);
+    OpenvinoVersion(const OpenvinoVersion& version);
 
     /**
      * @brief Reads version data from a stream.
@@ -102,11 +109,18 @@ public:
      */
     void write(std::ostream& stream);
 
-    /**
-     * @brief Gets the version string.
-     */
-    std::string get_version() const;
+    uint16_t get_major() const;
+
+    uint16_t get_minor() const;
+
+    uint16_t get_patch() const;
+
+    bool operator!=(const OpenvinoVersion& version);
 };
+
+constexpr OpenvinoVersion CURRENT_OPENVINO_VERSION(OPENVINO_VERSION_MAJOR,
+                                                   OPENVINO_VERSION_MINOR,
+                                                   OPENVINO_VERSION_PATCH);
 
 /**
  * @brief Template for metadata class handling.
@@ -118,13 +132,13 @@ struct Metadata : public MetadataBase {};
  * @brief Template specialization for metadata version 1.0.
  */
 template <>
-struct Metadata<METADATA_VERSION_1_0> : public MetadataBase {
+struct Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 protected:
     OpenvinoVersion _ovVersion;
     uint64_t _blobDataSize;
 
 public:
-    Metadata(uint64_t blobSize, std::optional<std::string_view> ovVersion = std::nullopt);
+    Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion = std::nullopt);
 
     void read(std::istream& stream) override;
 
@@ -147,7 +161,7 @@ public:
      *
      *              - true: if all versions match.
      *
-     * @note The version check can be disabled if the "NPU_DISABLE_VERSION_CHECK" environment variable is set to '1'.
+     * @note The version check can be disabled if the "OV_NPU_DISABLE_VERSION_CHECK" environment variable is set to '1'.
      */
     bool is_compatible() override;
 

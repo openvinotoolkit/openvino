@@ -186,9 +186,8 @@ public:
 
     static size_t getParentOutputIndex(const std::shared_ptr<ov::Node>& parent, const std::shared_ptr<ov::Node>& child);
 
-    static FakeQuantizeDequantizationValues createEmptyValues(
-        const FakeQuantizeDequantization& dequantization,
-        const element::Type& precision = element::undefined);
+    static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization,
+                                                              const element::Type& precision = element::dynamic);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
     static bool checkZeroPoint(const std::shared_ptr<Node>& node, const DataPrecision& dataPrecision = DataPrecision());
@@ -293,8 +292,13 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
 
 template <typename T>
 std::shared_ptr<Node> make_op_pattern(const ov::NodeVector& args) {
-    return std::make_shared<ov::pass::pattern::op::Any>(element::undefined, PartialShape{},
-                                                        [](std::shared_ptr<Node> n) {return !!ov::as_type_ptr<T>(n); }, args);
+    return std::make_shared<ov::pass::pattern::op::Any>(
+        element::dynamic,
+        PartialShape{},
+        [](std::shared_ptr<Node> n) {
+            return !!ov::as_type_ptr<T>(n);
+        },
+        args);
 }
 
 template <typename T, typename... Args>

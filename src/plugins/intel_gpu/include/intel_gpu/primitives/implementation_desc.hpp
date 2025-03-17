@@ -108,8 +108,7 @@ inline std::ostream& operator<<(std::ostream& out, const shape_types& shape_type
 
 }  // namespace cldnn
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 struct ImplementationDesc {
     cldnn::format::type output_format;  ///< Output format.
@@ -136,5 +135,4 @@ inline std::ostream& operator<<(std::ostream& out, const ImplementationDesc& des
 
 using ImplForcingMap = std::map<cldnn::primitive_id, ImplementationDesc>;
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

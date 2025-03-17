@@ -7,8 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 /**
  * @brief This transformation adds Clamp primitive between MatMul and Softmax operation
@@ -23,5 +22,4 @@ public:
     ClampFP16Output();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

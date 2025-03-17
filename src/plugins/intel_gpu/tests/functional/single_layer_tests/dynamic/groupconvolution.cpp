@@ -65,7 +65,7 @@ protected:
     void SetUp() override {
         groupConvSpecificParams groupConvParams;
         InputShape inputShape;
-        auto model_type = ov::element::undefined;
+        auto model_type = ov::element::dynamic;
         std::tie(groupConvParams, model_type, inputShape, targetDevice) = this->GetParam();
 
         init_input_shapes({inputShape});

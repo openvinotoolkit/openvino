@@ -152,11 +152,11 @@ Method 3 (Recommended): User Application Snap based on OpenVINO Debian Packages
 ###############################################################################
 
 OpenVINO toolkit is also distributed via the
-`APT repository <https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-apt.html>`__,
+`APT repository <https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-apt.html>`__,
 which can be used in the snaps. Third-party apt repositories can be added to the snap's
 snapcraft.yaml (`see the snapcraft guide <https://snapcraft.io/docs/package-repositories>`__).
 
-1. Download the `GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB <https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-apt.html#:~:text=Install%20the%20GPG,SW%2DPRODUCTS.PUB>`__:
+1. Download the `GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB <https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-apt.html#:~:text=Install%20the%20GPG,SW%2DPRODUCTS.PUB>`__:
 
    .. code-block:: sh
 

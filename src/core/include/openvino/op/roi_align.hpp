@@ -138,6 +138,7 @@ class OPENVINO_API AttributeAdapter<op::v3::ROIAlign::PoolingMode>
 public:
     AttributeAdapter(op::v3::ROIAlign::PoolingMode& value)
         : EnumAttributeAdapterBase<op::v3::ROIAlign::PoolingMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v3::ROIAlign::PoolingMode>");
 };
@@ -150,6 +151,7 @@ class OPENVINO_API AttributeAdapter<op::v9::ROIAlign::PoolingMode>
 public:
     AttributeAdapter(op::v9::ROIAlign::PoolingMode& value)
         : EnumAttributeAdapterBase<op::v9::ROIAlign::PoolingMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v9::ROIAlign::PoolingMode>");
 };
@@ -162,6 +164,7 @@ class OPENVINO_API AttributeAdapter<op::v9::ROIAlign::AlignedMode>
 public:
     AttributeAdapter(op::v9::ROIAlign::AlignedMode& value)
         : EnumAttributeAdapterBase<op::v9::ROIAlign::AlignedMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v9::ROIAlign::AlignedMode>");
 };

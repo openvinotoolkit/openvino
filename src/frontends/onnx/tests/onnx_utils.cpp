@@ -134,7 +134,7 @@ InputModel::Ptr load_model(const wstring& model_path, FrontEnd::Ptr* return_fron
 }
 
 std::string onnx_backend_manifest(const std::string& manifest) {
-    return ov::util::path_join({ov::test::utils::getExecutableDirectory(), manifest});
+    return ov::util::path_join({ov::test::utils::getExecutableDirectory(), manifest}).string();
 }
 
 }  // namespace tests

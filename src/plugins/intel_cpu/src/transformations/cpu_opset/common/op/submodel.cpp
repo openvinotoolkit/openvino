@@ -6,8 +6,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 SubModel::SubModel(const std::shared_ptr<ov::Model>& body) : SubGraphOp() {
     SubGraphOp::set_function(body);
@@ -16,10 +15,12 @@ SubModel::SubModel(const std::shared_ptr<ov::Model>& body) : SubGraphOp() {
 SubModel::SubModel(const ov::OutputVector& args, const std::shared_ptr<ov::Model>& body) : SubGraphOp(args) {
     SubGraphOp::set_function(body);
     constructor_validate_and_infer_types();
-    for (size_t i = 0; i < body->get_parameters().size(); ++i)
+    for (size_t i = 0; i < body->get_parameters().size(); ++i) {
         m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(i, i));
-    for (size_t i = 0; i < body->get_output_size(); ++i)
+    }
+    for (size_t i = 0; i < body->get_output_size(); ++i) {
         m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
+    }
 }
 
 SubModel::SubModel(const ov::NodeVector& args, const std::shared_ptr<ov::Model>& body)
@@ -57,5 +58,4 @@ bool SubModel::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

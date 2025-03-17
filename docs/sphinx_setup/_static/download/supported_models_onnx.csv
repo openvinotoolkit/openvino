@@ -1,0 +1,474 @@
+Model,Category,Framework,Precision,AI PC CPU,AI PC GPU,AI PC NPU
+GPT-2,Large Language Model,onnx,FP16,+,+,+
+GPT-2,Large Language Model,onnx,FP32,+,,+
+aclnet,Sound Classification,onnx,FP16,+,+,+
+aclnet,Sound Classification,onnx,FP16-INT8,+,,+
+aclnet,Sound Classification,onnx,FP32,,+,+
+aclnet-int8,Sound Classification,onnx,FP16-INT8,,,+
+albert-base-v2,Transformer,onnx,FP16,+,+,
+alexnet,Image Classification,onnx,FP32,+,,
+alexnet,Image Classification,onnx,FP16,,+,+
+anti-spoof-mn3,Object Detection,onnx,FP16,+,+,
+asl-recognition-0003,Image Classification,onnx,FP16,+,+,
+asl-recognition-0003,Image Classification,onnx,FP16-INT8,+,+,
+asl-recognition-0003,Image Classification,onnx,FP32,,+,
+asl-recognition-0004,Image Classification,onnx,FP16,+,+,
+began,"Image Processing, Enhancement",onnx,FP16,+,+,+
+began,"Image Processing, Enhancement",onnx,FP32,,+,+
+bert-base-cased,Natural Language Processing,onnx,FP16,+,+,
+bert-base-cased,Natural Language Processing,onnx,FP16-INT8,+,,+
+bert-base-cased,Natural Language Processing,onnx,FP32,,+,
+bert-base-cased-squad2,Natural Language Processing,onnx,FP32,+,+,
+bert-base-cased-squad2,Natural Language Processing,onnx,FP16,,+,+
+bert-base-ner,Natural Language Processing,onnx,FP16,+,+,
+bert-base-ner,Natural Language Processing,onnx,FP32,+,+,
+bert-base-ner,Natural Language Processing,onnx,FP16-INT8,,+,+
+bert-base-uncased-mrpc,Natural Language Processing,onnx,FP16-INT8,+,+,
+bert-base-uncased-mrpc,Natural Language Processing,onnx,FP32,+,+,
+bert-base-uncased-mrpc,Natural Language Processing,onnx,FP16,,+,+
+bert-large-cased,Natural Language Processing,onnx,FP16-INT8,+,,
+bert-large-cased,Natural Language Processing,onnx,FP32,+,+,
+bert-large-uncased-whole-word-masking-squad-0001,Natural Language Processing,onnx,FP16,+,+,+
+bert-large-uncased-whole-word-masking-squad-0001,Natural Language Processing,onnx,FP32,,+,
+bert-large-uncased-whole-word-masking-squad-emb-0001,Natural Language Processing,onnx,FP32,+,,
+bert-large-uncased-whole-word-masking-squad-int8-0001,Natural Language Processing,onnx,FP16-INT8,+,,+
+bert-small-uncased-whole-word-masking-squad-0001,Natural Language Processing,onnx,FP32,+,+,+
+bert-small-uncased-whole-word-masking-squad-0002,Natural Language Processing,onnx,FP16,+,+,+
+bert-small-uncased-whole-word-masking-squad-0002,Natural Language Processing,onnx,FP32,+,,+
+bert-small-uncased-whole-word-masking-squad-emb-int8-0001,Natural Language Processing,onnx,FP16-INT8,+,,+
+bert-small-uncased-whole-word-masking-squad-int8-0002,Natural Language Processing,onnx,FP16-INT8,,+,+
+brain-tumor-segmentation-0002,Image Classification,onnx,FP16,+,,
+brain-tumor-segmentation-0002,Image Classification,onnx,FP16-INT8,+,,
+clip-vit-b-16-plus-240-laion400m-e32,dual use,onnx,FP16,+,,
+clip-vit-b-16-plus-240-laion400m-e32,dual use,onnx,FP32,+,,
+colorization-siggraph,Colorization,onnx,FP16,+,+,+
+colorization-siggraph,Colorization,onnx,FP32,,+,+
+colorization-v2,Colorization,onnx,FP16-INT8,+,+,
+common-sign-language-0001,Image Classification,onnx,FP16,+,,+
+common-sign-language-0001,Image Classification,onnx,FP32,+,+,+
+common-sign-language-0002,Image Classification,onnx,FP16,+,+,+
+common-sign-language-0002,Image Classification,onnx,FP16-INT8,+,,
+common-sign-language-0002,Image Classification,onnx,FP32,+,+,
+convnext-tiny,Vision Transformer,onnx,FP16,+,,
+convnext-tiny,Vision Transformer,onnx,FP32,+,,
+corel_nnart_001,,onnx,FP16-INT8,+,,
+ctdet_coco_dlav0_512,Object Detection,onnx,FP16,+,,+
+ctdet_coco_dlav0_512,Object Detection,onnx,FP16-INT8,+,,
+ctdet_coco_dlav0_512,Object Detection,onnx,FP32,,,+
+deblurgan-v2,Image Motion Deblurring,onnx,FP16,+,+,
+deblurgan-v2,Image Motion Deblurring,onnx,FP32,+,+,
+deeplabv3-mobilenetv3,Semantic Image Segmentation,onnx,FP16-INT8,+,+,+
+deeplabv3-mobilenetv3,Semantic Image Segmentation,onnx,FP16,,+,
+deeplabv3-mobilenetv3,Semantic Image Segmentation,onnx,FP32,,+,
+deit-b,Image Classification Transformer,onnx,FP16,,+,
+densenet-121,Image Classification,onnx,FP16,+,+,+
+densenet-121,Image Classification,onnx,FP32,,+,
+densenet-161,Image Classification,onnx,FP16,+,,+
+densenet-161,Image Classification,onnx,FP16-INT8,+,,+
+detr_resnet50,Object Detection,onnx,FP16,+,,
+detr_resnet50,Object Detection,onnx,FP32,+,+,
+distilbert-base-cased,Natural Language Processing,onnx,FP16,+,+,+
+distilbert-base-cased,Natural Language Processing,onnx,FP32,,+,
+distilbert-base-uncased,Natural Language Processing,onnx,FP16,+,,+
+distilbert-base-uncased,Natural Language Processing,onnx,FP16-INT8,+,,+
+distilbert-base-uncased,Natural Language Processing,onnx,FP32,+,,
+distilbert-base-uncased-sst-2,Natural Language Processing,onnx,FP16-INT8,+,+,
+distilbert-base-uncased-sst-2,Natural Language Processing,onnx,FP32,+,+,+
+distilbert-base-uncased-sst-2,Natural Language Processing,onnx,FP16,,+,
+dla-34,Image Classification,onnx,FP16,+,,+
+dla-34,Image Classification,onnx,FP16-INT8,+,,
+dna_r9.4.1,DNA Classification,onnx,FP32,+,,
+dna_r9.4.1@v3,DNA Classification,onnx,FP16,+,,
+dna_r9.4.1@v3,DNA Classification,onnx,FP32,+,,
+dna_r9.4.1_2d,DNA Classification,onnx,FP16,+,,
+dna_r9.4.1_2d,DNA Classification,onnx,FP16-INT8,+,,
+dna_r9.4.1_2d,DNA Classification,onnx,FP32,+,,
+dpn-68,"Image Classification, Dual Path Network",onnx,FP16,+,,+
+dpn-68,"Image Classification, Dual Path Network",onnx,FP16-INT8,+,,
+dpn-68,"Image Classification, Dual Path Network",onnx,FP32,+,+,+
+drn-d-38,Semantic Image Segmentation,onnx,FP16,+,,
+ebgan,"Image Processing, Enhancement",onnx,FP16,+,+,+
+ebgan,"Image Processing, Enhancement",onnx,FP32,,+,+
+edsr3-nas,"Image Processing, Enhancement",onnx,FP32,+,+,+
+edsr3-nas,"Image Processing, Enhancement",onnx,FP16,,,+
+efficientnet-b0,Object Detection,onnx,FP16,+,+,+
+efficientnet-b0,Object Detection,onnx,FP32,+,,
+efficientnet-b0,Object Detection,onnx,FP16-INT8,,+,+
+efficientnet-v2-m,Object Detection,onnx,FP16,+,+,+
+efficientnet-v2-m,Object Detection,onnx,FP16-INT8,+,,
+efficientnet-v2-m,Object Detection,onnx,FP32,+,+,+
+esrgan,"Image Processing, Enhancement",onnx,FP32,+,+,
+esrgan,"Image Processing, Enhancement",onnx,FP16,,,+
+f3net,Object Detection,onnx,FP32,+,+,+
+f3net,Object Detection,onnx,FP16,,+,+
+f3net,Object Detection,onnx,FP16-INT8,,+,
+face-detection-0200,Object Detection,onnx,FP16,,,+
+face-detection-0202,Object Detection,onnx,FP16,+,,
+face-detection-0202,Object Detection,onnx,FP32,+,+,+
+face-detection-0204,Object Detection,onnx,FP16,+,+,+
+face-detection-0205,Object Detection,onnx,FP16,+,,
+face-detection-0205,Object Detection,onnx,FP32,+,,
+face-detection-0206,Object Detection,onnx,FP16,+,,
+face-detection-0206,Object Detection,onnx,FP16-INT8,+,,
+face-detection-retail-0005,Object Detection,onnx,FP16,+,+,+
+face-detection-retail-0005,Object Detection,onnx,FP16-INT8,+,+,
+face-detection-retail-0005,Object Detection,onnx,FP32,+,+,
+face-recognition-resnet100-arcface,Object Detection,onnx,FP16,+,+,
+face-recognition-resnet100-arcface,Object Detection,onnx,FP16-INT8,+,+,
+face-reidentification-retail-0095,Object Detection,onnx,FP16-INT8,+,+,+
+face-reidentification-retail-0095,Object Detection,onnx,FP16,,+,+
+faceboxes,Object Detection,onnx,FP16-INT8,+,+,
+faceboxes,Object Detection,onnx,FP32,+,+,+
+faceboxes,Object Detection,onnx,FP16,,+,
+facenet,Object Detection,onnx,FP16,+,+,
+facenet,Object Detection,onnx,FP16-INT8,+,,+
+facenet,Object Detection,onnx,FP32,,+,
+facial-landmarks-98-detection-0001,Object Detection,onnx,FP16,+,+,+
+facial-landmarks-98-detection-0001,Object Detection,onnx,FP32,+,+,+
+faster_rcnn_resnet50_fpn_coco,Object Detection,onnx,FP16,+,,
+faster_rcnn_resnet50_fpn_coco,Object Detection,onnx,FP16-INT8,+,,
+faster_rcnn_resnet50_fpn_coco,Object Detection,onnx,FP32,+,,
+fastseg-large,Semantic Segmentation,onnx,FP16,+,+,
+fastseg-large,Semantic Segmentation,onnx,FP32,+,+,
+fastseg-small,Semantic Segmentation,onnx,FP16,+,+,
+fastseg-small,Semantic Segmentation,onnx,FP16-INT8,+,+,
+fastseg-small,Semantic Segmentation,onnx,FP32,+,,
+fbcnn,"Image Processing, Enhancement",onnx,FP16-INT8,+,,
+fbcnn,"Image Processing, Enhancement",onnx,FP32,,+,
+fbnetc-100,Image Classification,onnx,FP16-INT8,+,+,+
+fbnetc-100,Image Classification,onnx,FP32,+,+,+
+fbnetc-100,Image Classification,onnx,FP16,,,+
+forward-tacotron-duration-prediction,Text-to-Speech,onnx,FP16,+,,
+forward-tacotron-duration-prediction,Text-to-Speech,onnx,FP32,+,,+
+forward-tacotron-regression,Text-to-Speech,onnx,FP16,+,,
+forward-tacotron-regression,Text-to-Speech,onnx,FP16-INT8,+,,
+gaze-estimation-adas-0002,Object Detection,onnx,FP16,+,+,+
+googlenet-v3,Image Classification,onnx,FP16,+,+,+
+googlenet-v3,Image Classification,onnx,FP16-INT8,+,+,+
+gpt2-wikitext2-int8-onnx-0001,Large Language Model,onnx,FP16-INT8,,+,
+handwritten-english-recognition-0001,Text Detection,onnx,FP16,+,,
+handwritten-english-recognition-0001,Text Detection,onnx,FP32,+,,
+handwritten-japanese-recognition-0001,Text Detection,onnx,FP16-INT8,+,,
+handwritten-simplified-chinese-recognition-0001,Text Detection,onnx,FP16,+,,+
+handwritten-simplified-chinese-recognition-0001,Text Detection,onnx,FP32,+,+,+
+hbonet-0.25,Image Classification,onnx,FP16,+,,
+hbonet-0.25,Image Classification,onnx,FP32,+,+,
+hbonet-0.5,Image Classification,onnx,FP16,+,+,
+hbonet-0.5,Image Classification,onnx,FP16-INT8,+,+,+
+hbonet-0.5,Image Classification,onnx,FP32,+,+,
+hbonet-1.0,Image Classification,onnx,FP16,+,+,
+hbonet-1.0,Image Classification,onnx,FP16-INT8,+,+,
+hg-s8-b1-mpii,Object Detection,onnx,FP16-INT8,+,+,+
+hg-s8-b1-mpii,Object Detection,onnx,FP16,,+,+
+higher-hrnet-w32-512,Object Detection,onnx,FP16,+,+,
+higher-hrnet-w32-512,Object Detection,onnx,FP32,+,+,
+horizontal-text-detection-0001,Text Detection,onnx,FP16,+,+,
+horizontal-text-detection-0001,Text Detection,onnx,FP16-INT8,+,,
+horizontal-text-detection-0001,Text Detection,onnx,FP32,+,+,
+hrnet-v2-c1-segmentation,Semantic Segmentation,onnx,FP16-INT8,+,,+
+human-pose-estimation-0002,Object Detection,onnx,FP16,+,,
+human-pose-estimation-0002,Object Detection,onnx,FP32,+,+,
+human-pose-estimation-0003,Object Detection,onnx,FP16,+,,
+human-pose-estimation-0003,Object Detection,onnx,FP32,+,,
+human-pose-estimation-0004,Object Detection,onnx,FP16,+,,
+human-pose-estimation-0005,Object Detection,onnx,FP32,+,,
+human-pose-estimation-0006,Object Detection,onnx,FP16,+,,
+human-pose-estimation-0007,Object Detection,onnx,FP16,+,,
+human-pose-estimation-3d-0001,Object Detection,onnx,FP32,+,,
+human-pose-estimation-3d-0001,Object Detection,onnx,FP16,,+,
+inceptionv3-int8-onnx-0001,Image Classification,onnx,FP16-INT8,+,,
+instance-segmentation-person-0007,Instance Segmentation,onnx,FP32,+,,
+instance-segmentation-security-0002,Instance Segmentation,onnx,FP16,+,,
+instance-segmentation-security-0010,Instance Segmentation,onnx,FP32,+,,
+instance-segmentation-security-0050,Instance Segmentation,onnx,FP16,+,,
+instance-segmentation-security-0050,Instance Segmentation,onnx,FP32,+,,
+instance-segmentation-security-0228,Instance Segmentation,onnx,FP16,+,,
+instance-segmentation-security-1025,Instance Segmentation,onnx,FP32,+,,
+instance-segmentation-security-1039,Instance Segmentation,onnx,FP16,+,,
+iseebetter,Video Super-Resolution,onnx,FP16,+,,
+iseebetter,Video Super-Resolution,onnx,FP32,+,+,
+landmarks-regression-retail-0009,Object Detection,onnx,FP16-INT8,+,,
+levit-128s,Image Classification,onnx,FP16-INT8,+,,
+lraspp-mobilenet-v3-large,Semantic Segmentation,onnx,FP16,+,,+
+lraspp-mobilenet-v3-large,Semantic Segmentation,onnx,FP16-INT8,+,+,+
+lraspp-mobilenet-v3-large,Semantic Segmentation,onnx,FP32,+,,
+machine-translation-nar-de-en-0001,Natural Language Processing,onnx,FP16,+,,
+machine-translation-nar-de-en-0002,Natural Language Processing,onnx,FP16,+,,
+machine-translation-nar-en-de-0001,Natural Language Processing,onnx,FP16,+,,
+machine-translation-nar-en-de-0002,Natural Language Processing,onnx,FP16,+,,
+machine-translation-nar-en-ru-0002,Natural Language Processing,onnx,FP16,+,,
+machine-translation-nar-en-ru-0002,Natural Language Processing,onnx,FP32,+,,
+machine-translation-nar-ru-en-0002,Natural Language Processing,onnx,FP16,+,,
+machine-translation-nar-ru-en-0002,Natural Language Processing,onnx,FP16-INT8,+,,
+midasnet,Monodepth,onnx,FP16,+,+,+
+midasnet,Monodepth,onnx,FP16-INT8,,+,+
+mlp-mixer-b16-224-miil,Image Classification,onnx,FP16,+,,+
+mlp-mixer-b16-224-miil,Image Classification,onnx,FP16-INT8,+,,+
+mlp-mixer-b16-224-miil,Image Classification,onnx,FP32,+,,
+mnasnet-0.5,Image Classification,onnx,FP16,,,+
+mobilebert,Natural Language Processing,onnx,FP16-INT8,+,+,
+mobilenet-v2,Object Detection,onnx,FP16,+,+,
+mobilenet-v2,Object Detection,onnx,FP16-INT8,+,+,+
+mobilenet-v2,Object Detection,onnx,FP32,+,+,
+mobilenet-v3-large-1.0-224,Object Detection,onnx,FP16,+,+,
+mobilenet-v3-large-1.0-224,Object Detection,onnx,FP16-INT8,,+,+
+mobilenet-v3-large-1.0-224,Object Detection,onnx,FP32,,+,+
+mobilenet-v3-small-1.0-224,Object Detection,onnx,FP16,+,,+
+mobilenet-v3-small-1.0-224,Object Detection,onnx,FP16-INT8,+,,+
+mobilenet-v3-small-1.0-224,Object Detection,onnx,FP32,+,,
+mobilenetv2-int8-onnx-0001,Object Detection,onnx,FP16-INT8,+,,
+modnet_photographic_portrait_matting,Background Matting,onnx,FP16,+,,
+modnet_photographic_portrait_matting,Background Matting,onnx,FP32,+,,
+modnet_webcam_portrait_matting,Background Matting,onnx,FP16-INT8,+,,
+modnet_webcam_portrait_matting,Background Matting,onnx,FP32,+,,
+nanodet-m-1.5x-416,Object Detection,onnx,FP16,+,,+
+nanodet-m-1.5x-416,Object Detection,onnx,FP32,+,+,+
+nanodet-m-1.5x-416,Object Detection,onnx,FP16-INT8,,,+
+nfnet-f0,Image Classification,onnx,FP16,+,,
+nfnet-f0,Image Classification,onnx,FP16-INT8,+,,
+nfnet-f0,Image Classification,onnx,FP32,+,,
+open-closed-eye-0001,Image Classification,onnx,FP16-INT8,+,+,+
+open-closed-eye-0001,Image Classification,onnx,FP16,,+,
+open-closed-eye-0001,Image Classification,onnx,FP32,,,+
+person-attributes-recognition-crossroad-0230,Object Detection,onnx,FP16,+,,+
+person-attributes-recognition-crossroad-0234,Object Detection,onnx,FP16,+,,
+person-attributes-recognition-crossroad-0238,Object Detection,onnx,FP16,+,,
+person-attributes-recognition-crossroad-0238,Object Detection,onnx,FP16-INT8,+,+,+
+person-detection-0100,Object Detection,onnx,FP32,+,,
+person-detection-0100,Object Detection,onnx,FP16,,+,+
+person-detection-0101,Object Detection,onnx,FP16,+,+,
+person-detection-0101,Object Detection,onnx,FP32,,+,
+person-detection-0102,Object Detection,onnx,FP16,+,+,
+person-detection-0200,Object Detection,onnx,FP16,+,+,+
+person-detection-0201,Object Detection,onnx,FP16,+,,
+person-detection-0201,Object Detection,onnx,FP32,,+,+
+person-detection-0202,Object Detection,onnx,FP16,+,+,+
+person-detection-0202,Object Detection,onnx,FP32,+,+,+
+person-detection-0203,Object Detection,onnx,FP16,+,+,
+person-detection-0203,Object Detection,onnx,FP16-INT8,+,+,
+person-detection-0301,Object Detection,onnx,FP16,+,,
+person-detection-0301,Object Detection,onnx,FP32,+,,
+person-detection-0302,Object Detection,onnx,FP16,+,,
+person-detection-0303,Object Detection,onnx,FP16,+,,
+person-detection-asl-0001,Object Detection,onnx,FP32,+,,
+person-reidentification-retail-0277,Object Detection,onnx,FP16,,+,+
+person-reidentification-retail-0286,Object Detection,onnx,FP16,+,,
+person-reidentification-retail-0287,Object Detection,onnx,FP16-INT8,,,+
+person-reidentification-retail-0288,Object Detection,onnx,FP16,+,+,+
+person-reidentification-retail-0288,Object Detection,onnx,FP32,+,+,
+person-vehicle-bike-detection-2000,Object Detection,onnx,FP16,+,,+
+person-vehicle-bike-detection-2001,Object Detection,onnx,FP16,+,,+
+person-vehicle-bike-detection-2001,Object Detection,onnx,FP32,,,+
+person-vehicle-bike-detection-2003,Object Detection,onnx,FP16,+,,
+person-vehicle-bike-detection-2003,Object Detection,onnx,FP32,+,,
+person-vehicle-bike-detection-2004,Object Detection,onnx,FP16,+,,
+person-vehicle-bike-detection-2004,Object Detection,onnx,FP32,+,,
+product-detection-0001,Object Detection,onnx,FP32,+,,+
+product-detection-0001,Object Detection,onnx,FP16,,+,+
+product-detection-0001,Object Detection,onnx,FP16-INT8,,+,
+pspnet-pytorch,Semantic Segmentation,onnx,FP16,+,,
+pspnet-pytorch,Semantic Segmentation,onnx,FP16-INT8,+,+,+
+quartznet-15x5-en,Speech Recognition,onnx,FP16,+,,
+quartznet-15x5-en,Speech Recognition,onnx,FP16-INT8,+,,
+quartznet-15x5-en,Speech Recognition,onnx,FP32,+,,
+rcan,"Image Processing, Enhancement",onnx,FP32,+,+,
+regnetx-3.2gf,Image Classification,onnx,FP16-INT8,+,,
+regnetx-3.2gf,Image Classification,onnx,FP32,+,,+
+regnetx-3.2gf,Image Classification,onnx,FP16,,,+
+repvgg-a0,Image Classification,onnx,FP16,+,,+
+repvgg-a0,Image Classification,onnx,FP32,,,+
+repvgg-b1,Image Classification,onnx,FP16,+,,+
+repvgg-b3,Image Classification,onnx,FP16,,,+
+repvgg-b3,Image Classification,onnx,FP32,,,+
+resmlp-12-distilled-224,Image Classification,onnx,FP32,+,,+
+resmlp-12-distilled-224,Image Classification,onnx,FP16-INT8,,,+
+resnest-50-pytorch,Image Classification,onnx,FP16,+,,+
+resnest-50-pytorch,Image Classification,onnx,FP32,+,,+
+resnest-50-pytorch,Image Classification,onnx,FP16-INT8,,,+
+resnet-101,Image Classification,onnx,FP16,+,,+
+resnet-101,Image Classification,onnx,FP32,+,,+
+resnet-152,Image Classification,onnx,FP16,+,,+
+resnet-152,Image Classification,onnx,FP32,+,,+
+resnet-18,Image Classification,onnx,FP16,+,,+
+resnet-18,Image Classification,onnx,FP16-INT8,+,+,+
+resnet-34-pytorch,Image Classification,onnx,FP16,+,,+
+resnet-34-pytorch,Image Classification,onnx,FP32,+,,+
+resnet-50,Image Classification,onnx,FP16-INT8,+,+,+
+resnet-50,Image Classification,onnx,FP32,+,,
+resnet-50,Image Classification,onnx,FP16,,,+
+resnet-50-pytorch,Image Classification,onnx,FP16,+,+,
+resnet-50-pytorch,Image Classification,onnx,FP16-INT8,+,+,+
+resnet-50-pytorch,Image Classification,onnx,FP32,+,+,+
+resnet18-xnor-binary-onnx-0001,Image Classification,onnx,FP16-INT1,+,,
+resnet50-int8-onnx-0001,Image Classification,onnx,FP16-INT8,+,,
+resnext-101-32x8d,Image Classification,onnx,FP16,+,+,
+resnext-101-32x8d,Image Classification,onnx,FP32,+,+,
+resnext-50-32x4d,Image Classification,onnx,FP16,+,,+
+resnext-50-32x4d,Image Classification,onnx,FP16-INT8,+,,
+resnext-50-32x4d,Image Classification,onnx,FP32,+,,+
+resnext101-32x16d-swsl,Image Classification,onnx,FP16,+,+,+
+resnext101-32x16d-swsl,Image Classification,onnx,FP16-INT8,+,,
+resnext101-32x16d-swsl,Image Classification,onnx,FP32,+,+,+
+retinaface-resnet50,Image Classification,onnx,FP16-INT8,+,+,+
+retinaface-resnet50,Image Classification,onnx,FP32,+,+,
+retinanet_resnet34,Image Classification,onnx,FP16-INT8,+,,+
+retinanet_resnet34,Image Classification,onnx,FP32,+,+,
+retinanet_resnet34,Image Classification,onnx,FP16,,+,+
+rexnet-v1-x1.0,Image Classification,onnx,FP32,+,,
+rnnt,Speech Recognition,onnx,FP16,+,,
+roberta-base,Natural Language Processing,onnx,FP16,+,+,
+roberta-base,Natural Language Processing,onnx,FP16-INT8,+,+,+
+roberta-base,Natural Language Processing,onnx,FP32,+,+,+
+roberta-base-mrpc,Natural Language Processing,onnx,FP16-INT8,,,+
+roberta-large,Natural Language Processing,onnx,FP16,+,+,+
+roberta-large,Natural Language Processing,onnx,FP32,+,+,
+sbert-base-mean-tokens,Natural Language Processing,onnx,FP16,+,+,+
+sbert-base-mean-tokens,Natural Language Processing,onnx,FP16-INT8,+,+,+
+sbert-base-mean-tokens,Natural Language Processing,onnx,FP32,+,+,+
+se-resnext-50,Image Classification,onnx,FP16,+,+,+
+se-resnext-50,Image Classification,onnx,FP16-INT8,+,,
+shufflenet,Image Classification,onnx,FP16-INT8,+,,
+shufflenet,Image Classification,onnx,FP32,+,,
+shufflenet-v2-x0.5,Image Classification,onnx,FP16,+,,+
+shufflenet-v2-x1.0,Image Classification,onnx,FP16-INT8,+,+,+
+shufflenet-v2-x1.0,Image Classification,onnx,FP32,+,+,
+single-human-pose-estimation-0001,Object Detection,onnx,FP16,,+,
+single-human-pose-estimation-0001,Object Detection,onnx,FP32,,+,
+single-image-super-resolution-1032,"Image Processing, Enhancement",onnx,FP16,+,+,
+single-image-super-resolution-1032,"Image Processing, Enhancement",onnx,FP32,+,+,
+single-image-super-resolution-1033,"Image Processing, Enhancement",onnx,FP16,+,,
+smartlab-object-detection-0001,Object Detection,onnx,FP16,+,+,+
+smartlab-object-detection-0001,Object Detection,onnx,FP32,+,+,+
+smartlab-object-detection-0003,Object Detection,onnx,FP16,+,+,+
+smartlab-object-detection-0003,Object Detection,onnx,FP32,+,+,+
+spnasnet-100,Image Classification,onnx,FP32,+,,+
+spnasnet-100,Image Classification,onnx,FP16-INT8,,,+
+squeezenet1.0,Image Classification,onnx,FP16,+,,+
+squeezenet1.0,Image Classification,onnx,FP16-INT8,+,,+
+squeezenet1.0,Image Classification,onnx,FP32,+,,+
+squeezenet1.1,Image Classification,onnx,FP16,+,+,
+squeezenet1.1,Image Classification,onnx,FP32,+,+,
+squeezenet1.1-pytorch1.2.0,Image Classification,onnx,FP16,+,,+
+squeezenet1.1-pytorch1.2.0,Image Classification,onnx,FP16-INT8,+,,
+squeezenet1.1-pytorch1.2.0,Image Classification,onnx,FP32,+,,+
+srgan,"Image Processing, Enhancement",onnx,FP16,+,,
+ssd-resnet34-1200,Object Detection,onnx,FP16,+,+,
+ssd-resnet34-1200,Object Detection,onnx,FP16-INT8,+,+,
+ssd-resnet34-1200,Object Detection,onnx,FP32,+,,
+ssd-vgg16,Object Detection,onnx,FP16,+,+,
+ssd-vgg16,Object Detection,onnx,FP32,+,+,
+ssd-vgg16,Object Detection,onnx,FP16-INT8,,+,+
+ssd300-int8-onnx-0001,Object Detection,onnx,FP16-INT8,+,+,
+ssd300-onnx-0001,Object Detection,onnx,FP16,+,+,+
+ssd300-onnx-0001,Object Detection,onnx,FP16-INT8,+,+,+
+style_transfer,Image Processing,onnx,FP32,+,+,+
+style_transfer,Image Processing,onnx,FP16,,,+
+style_transfer,Image Processing,onnx,FP16-INT8,,,+
+swin-tiny-patch4-window7-224,Image Classification,onnx,FP16-INT8,+,+,
+swin-tiny-patch4-window7-224,Image Classification,onnx,FP32,+,+,
+t2t-vit-14,Image Classification,onnx,FP16,+,,
+t2t-vit-7,Image Classification,onnx,FP16,+,,
+t2t-vit-7,Image Classification,onnx,FP32,+,,
+text-image-super-resolution-0001,"Image Processing, Enhancement",onnx,FP16,,+,
+text-image-super-resolution-0001,"Image Processing, Enhancement",onnx,FP32,,+,
+text-recognition-0013,Text Detection,onnx,FP16,+,,
+text-recognition-0013,Text Detection,onnx,FP32,+,+,
+text-recognition-0014,Text Detection,onnx,FP16,+,,
+text-recognition-0014,Text Detection,onnx,FP32,+,+,
+text-recognition-resnet-fc,Text Detection,onnx,FP16,+,,+
+text-recognition-resnet-fc,Text Detection,onnx,FP32,+,,
+time-series-forecasting-electricity-0001,Time-Series,onnx,FP16,+,,+
+time-series-forecasting-electricity-0001,Time-Series,onnx,FP16-INT8,,,+
+tiny_yolo_v2,Object Detection,onnx,FP16,+,+,+
+tiny_yolo_v2,Object Detection,onnx,FP32,,+,
+tinybert_6layer_768dim_cola,Natural Language Processing,onnx,FP16,+,+,+
+tinybert_6layer_768dim_cola,Natural Language Processing,onnx,FP16-INT8,+,,
+tinybert_6layer_768dim_cola,Natural Language Processing,onnx,FP32,+,+,
+ultra-lightweight-face-detection-rfb-320,Object Detection,onnx,FP16,+,+,+
+ultra-lightweight-face-detection-slim-320,Object Detection,onnx,FP16,,,+
+ultra-lightweight-face-detection-slim-320,Object Detection,onnx,FP16-INT8,,,+
+unet-2d,Semantic Segmentation,onnx,FP16,+,+,+
+unet-2d,Semantic Segmentation,onnx,FP32,+,+,
+unet-camvid-onnx-0001,Semantic Segmentation,onnx,FP16,+,+,
+unet-camvid-onnx-0001,Semantic Segmentation,onnx,FP16-INT8,+,+,+
+unet-camvid-onnx-0001,Semantic Segmentation,onnx,FP32,+,,
+unet3d_mlperf,Semantic Segmentation,onnx,FP16-INT8,+,,
+unet3d_mlperf,Semantic Segmentation,onnx,FP16,,+,
+unet3d_mlperf,Semantic Segmentation,onnx,FP32,,+,
+vehicle-detection-0200,Object Detection,onnx,FP16,+,,+
+vehicle-detection-0200,Object Detection,onnx,FP32,+,,+
+vehicle-detection-0201,Object Detection,onnx,FP16,+,,+
+vehicle-detection-0201,Object Detection,onnx,FP32,+,,
+vehicle-detection-0202,Object Detection,onnx,FP16,+,,+
+vehicle-detection-0202,Object Detection,onnx,FP32,+,,+
+vehicle-reid-0001,Object Detection,onnx,FP16,+,+,+
+vfnet-resnet50-fpn-pytorch,Object Detection,onnx,FP16,+,,
+vgg-16-bn,Image Classification,onnx,FP16,+,,+
+vgg-16-bn,Image Classification,onnx,FP16-INT8,+,,
+vgg-16-bn,Image Classification,onnx,FP32,,,+
+vgg16,Image Classification,onnx,FP16-INT8,+,,
+vgg16,Image Classification,onnx,FP32,+,,+
+vgg16,Image Classification,onnx,FP16,,,+
+vgg19,Image Classification,onnx,FP16,+,,
+vgg19,Image Classification,onnx,FP32,+,,+
+vit-base-16-224,Vision Transformer,onnx,FP16,+,,
+vit-base-16-224,Vision Transformer,onnx,FP32,+,,
+vitstr-small-patch16-224,Text Detection,onnx,FP16,+,,+
+vitstr-small-patch16-224,Text Detection,onnx,FP32,+,+,+
+wav2vec2-base,Speech Recognition,onnx,FP16-INT8,+,,
+wav2vec2-base,Speech Recognition,onnx,FP32,+,,
+wavernn-rnn,Text-to-Speech,onnx,FP16,+,+,+
+wavernn-rnn,Text-to-Speech,onnx,FP32,,,+
+wavernn-upsampler,Text-to-Speech,onnx,FP32,+,+,+
+wavernn-upsampler,Text-to-Speech,onnx,FP16,,+,+
+wdsr-small-x4,"Image Processing, Enhancement",onnx,FP16,+,,
+wdsr-small-x4,"Image Processing, Enhancement",onnx,FP16-INT8,+,,
+wdsr-small-x4,"Image Processing, Enhancement",onnx,FP32,,+,
+weld-porosity-detection-0001,Image Classification,onnx,FP32,+,,
+weld-porosity-detection-0001,Image Classification,onnx,FP16,,,+
+weld-porosity-detection-0001,Image Classification,onnx,FP16-INT8,,+,+
+wide-resnet-50-v2,Image Classification,onnx,FP16,+,+,+
+wide-resnet-50-v2,Image Classification,onnx,FP16-INT8,+,+,+
+wide-resnet-50-v2,Image Classification,onnx,FP32,+,,+
+xlm-roberta-base,Natural Language Processing,onnx,FP16,+,+,+
+xlm-roberta-base,Natural Language Processing,onnx,FP32,,+,
+xlnet,Transformer,onnx,FP16,+,+,
+xlnet,Transformer,onnx,FP16-INT8,+,,
+xlnet,Transformer,onnx,FP32,+,,
+yolact-resnet50-fpn-pytorch,Object Detection,onnx,FP16,+,,+
+yolact-resnet50-fpn-pytorch,Object Detection,onnx,FP32,+,,+
+yolo_v2,Object Detection,onnx,FP16,+,,+
+yolo_v2,Object Detection,onnx,FP32,+,+,
+yolo_v3,Object Detection,onnx,FP16-INT8,+,+,
+yolo_v3,Object Detection,onnx,FP32,+,,
+yolo_v3,Object Detection,onnx,FP16,,+,
+yolo_v3_tiny,Object Detection,onnx,FP16-INT8,+,+,
+yolo_v5l,Object Detection,onnx,FP16,+,+,+
+yolo_v5l,Object Detection,onnx,FP32,+,+,+
+yolo_v5m,Object Detection,onnx,FP16,+,,
+yolo_v5m,Object Detection,onnx,FP32,+,+,
+yolo_v5m,Object Detection,onnx,FP16-INT8,,+,+
+yolo_v5m-v6,Object Detection,onnx,FP16,+,+,+
+yolo_v5m-v6,Object Detection,onnx,FP32,+,+,+
+yolo_v5m-v6,Object Detection,onnx,FP16-INT8,,+,+
+yolo_v5m6-v6,Object Detection,onnx,FP16,+,,
+yolo_v5m6-v6,Object Detection,onnx,FP32,+,,
+yolo_v5s,Object Detection,onnx,FP16,+,+,+
+yolo_v5s,Object Detection,onnx,FP32,+,+,
+yolo_v5s,Object Detection,onnx,FP16-INT8,,+,+
+yolo_v5s-v6,Object Detection,onnx,FP32,+,+,
+yolo_v5s-v6,Object Detection,onnx,FP16,,+,
+yolo_v5s-v6,Object Detection,onnx,FP16-INT8,,,+
+yolo_v5x,Object Detection,onnx,FP16,+,+,
+yolo_v5x,Object Detection,onnx,FP32,,,+
+yolo_v8n,Object Detection,onnx,FP16,+,+,+
+yolo_v8n,Object Detection,onnx,FP16-INT8,+,+,+
+yolo_v8n,Object Detection,onnx,FP32,+,+,
+yolof,Object Detection,onnx,FP16,+,,
+yolof,Object Detection,onnx,FP16-INT8,+,,
+yolor_p6,Object Detection,onnx,FP16,+,+,+
+yolor_p6,Object Detection,onnx,FP32,+,,
+yolor_p6,Object Detection,onnx,FP16-INT8,,,+
+yolox-tiny,Object Detection,onnx,FP16,,+,+
+yolox-tiny,Object Detection,onnx,FP16-INT8,,,+
+yolox-tiny,Object Detection,onnx,FP32,,+,+

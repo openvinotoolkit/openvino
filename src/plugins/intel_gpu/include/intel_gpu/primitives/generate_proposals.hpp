@@ -62,7 +62,7 @@ struct generate_proposals
 
     primitive_id output_rois_scores;
     primitive_id output_rois_num;
-    data_types roi_num_type = data_types::undefined;
+    data_types roi_num_type = data_types::dynamic;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

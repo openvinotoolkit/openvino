@@ -379,4 +379,26 @@ struct COMPILER_DYNAMIC_QUANTIZATION final : OptionBase<COMPILER_DYNAMIC_QUANTIZ
     }
 };
 
+//
+// NPU_QDQ_OPTIMIZATION
+//
+
+struct QDQ_OPTIMIZATION final : OptionBase<QDQ_OPTIMIZATION, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::qdq_optimization.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
+
 }  // namespace intel_npu

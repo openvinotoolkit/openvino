@@ -11,14 +11,14 @@ const { after, describe, it, before, beforeEach } = require('node:test');
 const {
   testModels,
   compareModels,
-  getModelPath,
   isModelAvailable,
   sleep,
-} = require('./utils.js');
+  lengthFromShape,
+} = require('../utils.js');
 const epsilon = 0.5;
 
 describe('ov basic tests.', () => {
-  let testXml = null;
+  const { testModelFP32 } = testModels;
   let core = null;
   let model = null;
   let compiledModel = null;
@@ -27,13 +27,12 @@ describe('ov basic tests.', () => {
 
   before(async () => {
     outDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ov_js_out_'));
-    await isModelAvailable(testModels.testModelFP32);
-    testXml = getModelPath().xml;
+    await isModelAvailable(testModelFP32);
   });
 
   beforeEach(() => {
     core = new ov.Core();
-    model = core.readModelSync(testXml);
+    model = core.readModelSync(testModelFP32.xml);
     compiledModel = core.compileModelSync(model, 'CPU');
     modelLike = [model, compiledModel];
   });
@@ -139,12 +138,12 @@ describe('ov basic tests.', () => {
     });
 
     it('compileModelSync(model_path, deviceName, config: {}) ', () => {
-      const cm = core.compileModelSync(testXml, 'CPU', tput);
+      const cm = core.compileModelSync(testModelFP32.xml, 'CPU', tput);
       assert.equal(cm.inputs.length, 1);
     });
 
     it('compileModelSync(model:model_path, deviceName: string) ', () => {
-      const cm = core.compileModelSync(testXml, 'CPU');
+      const cm = core.compileModelSync(testModelFP32.xml, 'CPU');
       assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
     });
 
@@ -200,13 +199,13 @@ describe('ov basic tests.', () => {
     });
 
     it('compileModel(model_path, deviceName, config: {}) ', () => {
-      core.compileModel(testXml, 'CPU', tput).then((cm) => {
+      core.compileModel(testModelFP32.xml, 'CPU', tput).then((cm) => {
         assert.equal(cm.inputs.length, 1);
       });
     });
 
     it('compileModel(model:model_path, deviceName: string) ', () => {
-      core.compileModel(testXml, 'CPU').then((cm) => {
+      core.compileModel(testModelFP32.xml, 'CPU').then((cm) => {
         assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
       });
     });
@@ -277,8 +276,11 @@ describe('ov basic tests.', () => {
         assert.strictEqual(obj.input().getAnyName(), 'data');
         assert.strictEqual(obj.input().anyName, 'data');
 
-        assert.deepStrictEqual(obj.input(0).shape, [1, 3, 32, 32]);
-        assert.deepStrictEqual(obj.input(0).getShape(), [1, 3, 32, 32]);
+        assert.deepStrictEqual(obj.input(0).shape, testModelFP32.inputShape);
+        assert.deepStrictEqual(
+          obj.input(0).getShape(),
+          testModelFP32.inputShape,
+        );
       });
     });
   });
@@ -290,11 +292,11 @@ describe('ov basic tests.', () => {
 
     before(() => {
       tensor = Float32Array.from(
-        { length: 3072 },
+        { length: lengthFromShape(testModelFP32.inputShape) },
         () => Math.random() + epsilon,
       );
       const core = new ov.Core();
-      const model = core.readModelSync(testXml);
+      const model = core.readModelSync(testModelFP32.xml);
       const compiledModel = core.compileModelSync(model, 'CPU');
       userStream = compiledModel.exportModelSync();
       const inferRequest = compiledModel.createInferRequest();

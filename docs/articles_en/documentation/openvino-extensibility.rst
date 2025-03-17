@@ -25,7 +25,7 @@ OpenVINO Extensibility Mechanism
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural-network models trained with various frameworks, including
 TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle. The list of supported operations is different for each of the supported frameworks.
-To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <../about-openvino/compatibility-and-support/supported-operations>`.
+To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <../documentation/compatibility-and-support/supported-operations>`.
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
 
@@ -50,6 +50,8 @@ If the custom operation can be mathematically represented as a combination of ex
 If such decomposition is not possible or appears too bulky with a large number of constituent operations that do not perform well, then a new class for the custom operation should be implemented, as described in the :doc:`Custom Operation Guide <openvino-extensibility/custom-openvino-operations>`.
 
 You might prefer implementing a custom operation class if you already have a generic C++ implementation of operation kernel. Otherwise, try to decompose the operation first, as described above. Then, after verifying correctness of inference and resulting performance, you may move on to optional implementation of Bare Metal C++.
+
+Additionally, it is also possible to implement custom operations using Python. OpenVINO provides a Python API that allows you to define and register custom operations. This can be particularly useful for rapid prototyping and testing of new operations.
 
 Mapping from Framework Operation
 ################################
@@ -110,9 +112,7 @@ The ``Identity`` is a custom operation class defined in :doc:`Custom Operation G
          :language: cpp
          :fragment: [add_frontend_extension]
 
-When Python API is used, there is no way to implement a custom OpenVINO operation. Even if custom OpenVINO operation is implemented in C++ and loaded into the runtime by a shared library, there is still no way to add a frontend mapping extension that refers to this custom operation. In this case, use C++ shared library approach to implement both operations semantics and framework mapping.
-
-Python can still be used to map and decompose operations when only operations from the standard OpenVINO operation set are used.
+If custom OpenVINO operation is implemented in C++ and loaded into the runtime through a shared library, there is no way to add a frontend mapping extension that refers to this custom operation. In this case, use C++ shared library approach to implement both operations semantics and framework mapping.
 
 .. _create_a_library_with_extensions:
 
@@ -187,6 +187,6 @@ See Also
 ########
 
 * :doc:`OpenVINO Transformations <openvino-extensibility/transformation-api>`
-* :doc:`Using OpenVINO Runtime Samples <../learn-openvino/openvino-samples>`
-* :doc:`Hello Shape Infer SSD sample <../learn-openvino/openvino-samples/hello-reshape-ssd>`
+* :doc:`Using OpenVINO Runtime Samples <../get-started/learn-openvino/openvino-samples>`
+* :doc:`Hello Shape Infer SSD sample <../get-started/learn-openvino/openvino-samples/hello-reshape-ssd>`
 

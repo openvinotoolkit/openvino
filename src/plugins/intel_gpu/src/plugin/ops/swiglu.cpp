@@ -10,8 +10,7 @@
 
 using GLU = ov::op::internal::GLU;
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateGLUOp(ProgramBuilder& p, const std::shared_ptr<GLU>& op) {
     validate_inputs_count(op, {1});
@@ -43,5 +42,4 @@ static void CreateGLUOp(ProgramBuilder& p, const std::shared_ptr<GLU>& op) {
 
 REGISTER_FACTORY_IMPL(internal, GLU);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

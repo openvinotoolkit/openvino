@@ -5,7 +5,7 @@
 #include "lstm_seq_inst.h"
 #include "reshape_inst.h"
 #include "intel_gpu/runtime/utils.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "transformations/utils/utils.hpp"
 #include "impls/onednn/utils.hpp"
 
@@ -22,10 +22,10 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<lstm_seq>());
+        const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (info.arch == gpu_arch::unknown)
+        if (info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
-
         const auto& lstm_seq_node = node.as<lstm_seq>();
         const auto& in_layout = lstm_seq_node.get_input_layout(0);
         const auto& out_layout = lstm_seq_node.get_output_layout(0);

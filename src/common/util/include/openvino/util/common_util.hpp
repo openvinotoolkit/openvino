@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstring>
 #include <numeric>
@@ -172,6 +173,20 @@ inline void erase_if(Container& data, const PredicateT& predicate) {
 }
 
 std::string filter_lines_by_prefix(const std::string& str, const std::string& prefix);
+
+template <class T = void, class... Args>
+constexpr std::array<std::conditional_t<std::is_void_v<T>, std::common_type_t<Args...>, T>, sizeof...(Args)> make_array(
+    Args&&... args) {
+    return {std::forward<Args>(args)...};
+}
+
+#if defined(_WIN32)
+bool may_i_use_dynamic_code();
+#else
+constexpr bool may_i_use_dynamic_code() {
+    return true;
+}
+#endif
 
 }  // namespace util
 }  // namespace ov

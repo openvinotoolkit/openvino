@@ -18,10 +18,7 @@ std::shared_ptr<Node> PerfCountRdtscBegin::clone_with_new_inputs(const OutputVec
 }
 
 /////////////////////////PerfCountRdtscEnd//////////////////////
-PerfCountRdtscEnd::PerfCountRdtscEnd(const Output<Node>& pc_begin)
-    : ov::snippets::op::PerfCountEndBase({pc_begin}),
-      accumulation(0ul),
-      iteration(0u) {
+PerfCountRdtscEnd::PerfCountRdtscEnd(const Output<Node>& pc_begin) : ov::snippets::op::PerfCountEndBase({pc_begin}) {
     constructor_validate_and_infer_types();
 }
 

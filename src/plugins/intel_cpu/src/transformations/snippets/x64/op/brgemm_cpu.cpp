@@ -10,8 +10,7 @@
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 using namespace brgemm_utils;
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
@@ -159,20 +158,19 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
-    } else {
-        return std::make_shared<BrgemmCPU>(
-            new_args.at(0),
-            new_args.at(1),
-            new_args.at(2),
-            m_type,
-            get_input_port_descriptor(0),
-            get_input_port_descriptor(1),
-            get_input_port_descriptor(2),
-            get_output_port_descriptor(0),
-            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
-            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
-            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
     }
+    return std::make_shared<BrgemmCPU>(
+        new_args.at(0),
+        new_args.at(1),
+        new_args.at(2),
+        m_type,
+        get_input_port_descriptor(0),
+        get_input_port_descriptor(1),
+        get_input_port_descriptor(2),
+        get_output_port_descriptor(0),
+        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {
@@ -186,6 +184,4 @@ bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("type", m_type);
     return true;
 }
-}  // namespace intel_cpu
-
-}  // namespace ov
+}  // namespace ov::intel_cpu

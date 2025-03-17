@@ -67,6 +67,7 @@ class OPENVINO_API AttributeAdapter<op::util::EmbeddingBagPackedBase::Reduction>
 public:
     AttributeAdapter(op::util::EmbeddingBagPackedBase::Reduction& value)
         : EnumAttributeAdapterBase<op::util::EmbeddingBagPackedBase::Reduction>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::util::EmbeddingBagPackedBase::Reduction>");
 };

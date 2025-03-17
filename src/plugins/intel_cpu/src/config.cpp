@@ -9,6 +9,7 @@
 #include <string>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_map_scheduling.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -18,8 +19,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace ov::threading;
 using namespace dnnl::impl::cpu::x64;
@@ -94,8 +94,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 ov::Any value = val.as<std::string>();
                 int val_i = value.as<int>();
-                if (val_i < 0)
+                if (val_i < 0) {
                     OPENVINO_THROW("invalid value.");
+                }
                 hintNumRequests = static_cast<uint32_t>(val_i);
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
@@ -117,7 +118,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::enable_cpu_reservation.name()) {
             try {
+#if defined(__APPLE__)
+                enableCpuReservation = false;
+#else
                 enableCpuReservation = val.as<bool>();
+#endif
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -210,7 +215,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::internal::exclusive_async_requests.name(),
                                ". Expected only true/false");
             }
-        } else if (key == ov::intel_cpu::lp_transforms_mode.name()) {
+        } else if (key == ov::internal::enable_lp_transformations.name()) {
             try {
                 lpTransformsMode = val.as<bool>() ? LPTransformsMode::On : LPTransformsMode::Off;
             } catch (ov::Exception&) {
@@ -237,7 +242,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     if (hasHardwareSupport(ov::element::f16)) {
                         inferencePrecision = ov::element::f16;
                     }
-                } else if (one_of(prec, element::f32, element::undefined)) {
+                } else if (one_of(prec, element::f32, element::dynamic)) {
                     inferencePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
@@ -278,14 +283,15 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::intel_cpu::snippets_mode.name()) {
             try {
                 auto const mode = val.as<ov::intel_cpu::SnippetsMode>();
-                if (mode == ov::intel_cpu::SnippetsMode::ENABLE)
+                if (mode == ov::intel_cpu::SnippetsMode::ENABLE) {
                     snippetsMode = SnippetsMode::Enable;
-                else if (mode == ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK)
+                } else if (mode == ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK) {
                     snippetsMode = SnippetsMode::IgnoreCallback;
-                else if (mode == ov::intel_cpu::SnippetsMode::DISABLE)
+                } else if (mode == ov::intel_cpu::SnippetsMode::DISABLE) {
                     snippetsMode = SnippetsMode::Disable;
-                else
+                } else {
                     OPENVINO_THROW("invalid value");
+                }
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -373,6 +379,25 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                key,
                                ". Expected only unsinged integer numbers");
             }
+        } else if (key == ov::intel_cpu::key_cache_quant_mode.name()) {
+            try {
+                auto const mode = val.as<ov::intel_cpu::CacheQuantMode>();
+                if (mode == ov::intel_cpu::CacheQuantMode::AUTO) {
+                    keyCacheQuantMode = CacheQuantMode::AUTO;
+                } else if (mode == ov::intel_cpu::CacheQuantMode::BY_CHANNEL) {
+                    keyCacheQuantMode = CacheQuantMode::BY_CHANNEL;
+                } else if (mode == ov::intel_cpu::CacheQuantMode::BY_HIDDEN) {
+                    keyCacheQuantMode = CacheQuantMode::BY_HIDDEN;
+                } else {
+                    OPENVINO_THROW("invalid value");
+                }
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<ov::intel_cpu::CacheQuantMode>(),
+                               " for property key ",
+                               ov::intel_cpu::key_cache_quant_mode.name(),
+                               ". Expected only unsinged integer numbers");
+            }
         } else if (key == ov::cache_encryption_callbacks.name()) {
             try {
                 const auto& encryption_callbacks = val.as<EncryptionCallbacks>();
@@ -396,10 +421,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 inferencePrecision = ov::element::f16;
             }
 #endif
-            if (mayiuse(avx512_core_bf16))
+            if (mayiuse(avx512_core_bf16)) {
                 inferencePrecision = ov::element::bf16;
+            }
         } else {
-            inferencePrecision = ov::element::undefined;
+            inferencePrecision = ov::element::dynamic;
         }
     }
     // enable ACL fast math in PERFORMANCE mode
@@ -431,8 +457,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         }
     }
 
-    if (!prop.empty())
+    if (!prop.empty()) {
         _config.clear();
+    }
 
     if (exclusiveAsyncRequests) {  // Exclusive request feature disables the streams
         streams = 1;
@@ -453,17 +480,20 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
 }
 
 void Config::updateProperties() {
-    if (!_config.empty())
+    if (!_config.empty()) {
         return;
+    }
 
-    if (collectPerfCounters == true)
+    if (collectPerfCounters == true) {
         _config.insert({ov::enable_profiling.name(), "YES"});
-    else
+    } else {
         _config.insert({ov::enable_profiling.name(), "NO"});
-    if (exclusiveAsyncRequests == true)
+    }
+    if (exclusiveAsyncRequests == true) {
         _config.insert({ov::internal::exclusive_async_requests.name(), "YES"});
-    else
+    } else {
         _config.insert({ov::internal::exclusive_async_requests.name(), "NO"});
+    }
 
     _config.insert({ov::device::id.name(), device_id});
 
@@ -502,5 +532,4 @@ void Config::applyRtInfo(const std::shared_ptr<const ov::Model>& model) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

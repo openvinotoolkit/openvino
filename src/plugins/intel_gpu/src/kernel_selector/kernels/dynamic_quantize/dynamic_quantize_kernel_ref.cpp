@@ -70,7 +70,6 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
 }
 
 CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_params& params) const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     CommonDispatchData dispatchData;
 
     OPENVINO_ASSERT(params.outputs[0].GetLayout() == DataLayout::bfyx, "It supports only 4d tensor");

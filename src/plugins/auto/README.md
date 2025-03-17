@@ -20,7 +20,7 @@ The AUTO plugin follows the OpenVINO™ plugin architecture and consists of seve
  * [src](./src/) - folder contains sources of the AUTO plugin.
  * [tests](./tests/) - tests for Auto Plugin components.
 
-Learn more in the [OpenVINO™ Plugin Developer Guide](https://docs.openvino.ai/2024/documentation/openvino-extensibility/openvino-plugin-library.html).
+Learn more in the [OpenVINO™ Plugin Developer Guide](https://docs.openvino.ai/2025/documentation/openvino-extensibility/openvino-plugin-library.html).
 
 ## Architecture
 The diagram below shows an overview of the components responsible for the basic inference flow:

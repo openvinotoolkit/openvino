@@ -6,4 +6,4 @@
 
 using namespace ov::frontend;
 
-Variable::~Variable(){};
+Variable::~Variable() = default;

@@ -1577,6 +1577,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmul_integer_to_float) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_avg_pool) {
+    const auto model = convert_model("com.microsoft/qlinear_avg_pool.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<uint8_t> data_A = {140, 138, 137, 136, 135, 134, 133, 132, 131, 130, 129, 128, 127,
+                                         126, 125, 124, 123, 122, 121, 120, 119, 118, 117, 116, 115, 114,
+                                         113, 112, 111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101,
+                                         100, 99,  98,  97,  96,  95,  94,  93,  92,  91};
+
+    const std::vector<uint8_t> expected_output = {149};
+
+    test_case.add_input<uint8_t>(Shape{1, 1, 7, 7}, data_A);
+
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 1, 1}, expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsigmoid) {
     const auto model = convert_model("com.microsoft/q_linear_sigmoid.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
@@ -1680,5 +1697,46 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_mul) {
     test_case.add_input<int8_t>(Shape{1}, c_zero_point);
 
     test_case.add_expected_output<int8_t>(Shape{2, 2}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fast_gelu) {
+    const auto model = convert_model("com.microsoft/fast_gelu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X = {0.0f,  0.5f, 1.0f,  -0.5f, -1.0f, 2.0f, 1.5f,  -2.0f, 0.3f,  0.7f, -0.7f, 1.2f,
+                                  -0.3f, 0.8f, -1.5f, 1.1f,  -0.9f, 0.4f, -1.2f, 2.1f,  -0.4f, 0.6f, -1.1f, 1.3f};
+    const std::vector<float> bias = {0.1f, -0.1f, 0.2f};
+
+    const std::vector<float> expected_output = {
+        0.05398275f, 0.2621714f, 1.0615974f,  -0.1378286f, -0.1492447f, 2.1699832f, 1.51072f,     -0.0378f,
+        0.34569725f, 0.6304f,    -0.1696f,    1.2874f,     -0.0841f,    0.53025f,   -0.12675f,    1.0614f,
+        -0.159f,     0.4353f,    -0.1492447f, 1.954764f,   -0.0841f,    0.53025f,   -0.13829723f, 1.39957158f};
+
+    test_case.add_input<float>(Shape{2, 4, 3}, X);
+    test_case.add_input<float>(Shape{3}, bias);
+
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
+    test_case.run_with_tolerance_as_fp(0.0055f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_bias_add) {
+    const auto model = convert_model("com.microsoft/bias_add.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X = {1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                                  13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
+    const std::vector<float> bias = {2, 0, -1};
+    const std::vector<float> skip = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7};
+
+    const std::vector<float> expected_output = {3,  2,  2,  7,  6,  6,  11, 10, 10, 15, 14, 14,
+                                                19, 18, 18, 23, 22, 22, 27, 26, 26, 31, 30, 30};
+
+    test_case.add_input<float>(Shape{2, 4, 3}, X);
+    test_case.add_input<float>(Shape{3}, bias);
+    test_case.add_input<float>(Shape{2, 4, 3}, skip);
+
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
+
     test_case.run();
 }

@@ -11,15 +11,13 @@
 #include "experimental_detectron_detection_output.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct Indexer {
     std::vector<int> dims_;
     int total_{1};
 
-    explicit Indexer(std::vector<int> dims) : dims_(std::move(dims)), total_(1) {
+    explicit Indexer(std::vector<int> dims) : dims_(std::move(dims)) {
         for (const auto dim : dims_) {
             total_ *= dim;
         }
@@ -125,10 +123,12 @@ struct ConfidenceComparator {
     explicit ConfidenceComparator(const float* conf_data) : _conf_data(conf_data) {}
 
     bool operator()(int idx1, int idx2) {
-        if (_conf_data[idx1] > _conf_data[idx2])
+        if (_conf_data[idx1] > _conf_data[idx2]) {
             return true;
-        if (_conf_data[idx1] < _conf_data[idx2])
+        }
+        if (_conf_data[idx1] < _conf_data[idx2]) {
             return false;
+        }
         return idx1 < idx2;
     }
 
@@ -266,13 +266,15 @@ ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const
 }
 
 void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (size_t i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
+    }
 
     addSupportedPrimDesc(inDataConf,
                          {{LayoutType::ncsp, ov::element::f32},
@@ -350,7 +352,7 @@ void ExperimentalDetectronDetectionOutput::execute(const dnnl::stream& strm) {
         for (int i = 0; i < n; ++i) {
             int idx = indices[indices_offset + i];
             float score = refined_scores[refined_score_idx({c, idx})];
-            conf_index_class_map.push_back(std::make_pair(score, std::make_pair(c, idx)));
+            conf_index_class_map.emplace_back(score, std::make_pair(c, idx));
         }
         indices_offset += n;
     }
@@ -389,6 +391,4 @@ bool ExperimentalDetectronDetectionOutput::created() const {
     return getType() == Type::ExperimentalDetectronDetectionOutput;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

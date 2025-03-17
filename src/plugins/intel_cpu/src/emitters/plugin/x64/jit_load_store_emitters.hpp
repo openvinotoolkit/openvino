@@ -9,8 +9,7 @@
 #include "jit_bf16_emitters.hpp"
 #include "jit_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct load_emitter_params : public emitter_params {
     load_emitter_params(ov::element::Type src_prc,
@@ -24,7 +23,7 @@ struct load_emitter_params : public emitter_params {
           is_fill_(is_fill),
           fill_value_(std::move(fill_value)) {}
 
-    size_t hash() const override;
+    [[nodiscard]] size_t hash() const override;
 
     ov::element::Type src_prc_;
     ov::element::Type dst_prc_;
@@ -39,7 +38,7 @@ struct store_emitter_params : public emitter_params {
           dst_prc_(dst_prc),
           store_num_(store_num) {}
 
-    size_t hash() const override;
+    [[nodiscard]] size_t hash() const override;
 
     ov::element::Type src_prc_;
     ov::element::Type dst_prc_;
@@ -191,5 +190,4 @@ private:
     mutable int aux_src_idx = 0;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

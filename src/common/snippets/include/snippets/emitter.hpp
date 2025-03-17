@@ -52,16 +52,21 @@ public:
 
     /**
      * @brief called by generator to generate code to produce target code for a specific operation
+     * @details
+     *   Avoid passing default arguments to virtual function, but still allow user to call
+     *   emit_code function without "pool" or "gpr"
      * @param in vector of vector argument registers
      * @param out vector of vector resulting registers
      * @param pool optional vector of free vector registers which might be used inside method
-     * @param gpr vector of free generam puproce registers which might be used inside method
+     * @param gpr vector of free general purpose registers which might be used inside method
      * @return void
      */
-    virtual void emit_code(const std::vector<size_t>& in,
-                           const std::vector<size_t>& out,
-                           const std::vector<size_t>& pool = {},
-                           const std::vector<size_t>& gpr  = {}) const = 0;
+    void emit_code(const std::vector<size_t>& in,
+                        const std::vector<size_t>& out,
+                        const std::vector<size_t>& pool = {},
+                        const std::vector<size_t>& gpr = {}) const {
+        emit_code_impl(in, out, pool, gpr);
+    }
 
     /**
      * @brief called by generator to generate data section, if needed for a specific operation
@@ -70,6 +75,20 @@ public:
     virtual void emit_data() const {}
 
     virtual ~Emitter() = default;
+
+private:
+    /**
+     * @brief called by generator to generate code to produce target code for a specific operation
+     * @param in vector of vector argument registers
+     * @param out vector of vector resulting registers
+     * @param pool optional vector of free vector registers which might be used inside method
+     * @param gpr vector of free general purpose registers which might be used inside method
+     * @return void
+     */
+    virtual void emit_code_impl(const std::vector<size_t>& in,
+                                const std::vector<size_t>& out,
+                                const std::vector<size_t>& pool,
+                                const std::vector<size_t>& gpr) const = 0;
 };
 
 } // namespace snippets

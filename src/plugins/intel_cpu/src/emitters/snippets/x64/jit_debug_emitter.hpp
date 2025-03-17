@@ -10,8 +10,7 @@
 
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_debug_emitter : public jit_emitter {
 public:
@@ -29,10 +28,6 @@ public:
         prepare_table();
     }
 
-    void emit_code(const std::vector<size_t>& in_idxs,
-                   const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs = {},
-                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
     void emit_data() const override;
 
     size_t get_inputs_num() const override;
@@ -45,6 +40,11 @@ protected:
     void register_table_entries() override;
 
     void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const override;
+
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     void emitter_preamble(const std::vector<size_t>& in_idxs,
                           const std::vector<size_t>& out_idxs,
@@ -62,7 +62,6 @@ private:
     EmissionLocation m_decorator_emit_loc;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif

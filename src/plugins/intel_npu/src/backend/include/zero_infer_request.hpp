@@ -70,17 +70,24 @@ private:
                                                const ov::Shape& shape,
                                                const ov::Allocator& allocator = {}) const override;
 
+    void add_state(const IODescriptor& descriptor, size_t tensorIndex) const override;
+
+    void update_pipeline_if_memory_changed();
+    void update_states_if_memory_changed();
+
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
     const Config _config;
     Logger _logger;
+
+    const std::vector<ArgumentDescriptor>& _graphInputDescriptors;
+    const std::vector<ArgumentDescriptor>& _graphOutputDescriptors;
 
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
     mutable std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
 
-    ze_device_properties_t _properties = {};
     std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;
     std::shared_ptr<const zeroMemory::HostMemAllocator> _outputAllocator;
 
