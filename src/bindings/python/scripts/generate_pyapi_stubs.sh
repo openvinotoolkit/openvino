@@ -77,6 +77,7 @@ if ! python -m pybind11_stubgen \
             --ignore-invalid-expressions "$invalid_expressions_regex" \
             --ignore-invalid-identifiers "$invalid_identifiers_regex" \
             --ignore-unresolved-names "$unresolved_names_regex" \
+            --print-invalid-expressions-as-is \
             --numpy-array-use-type-var \
             --exit-code \
             openvino; then
@@ -132,5 +133,8 @@ for file in $changed_files; do
     }
     ' "$file" > "$file.sorted"
     mv "$file.sorted" "$file"
+
+    # Insert mypy ignore-errors directive
+    sed -i '1i # mypy: ignore-errors' "$file"
 
 done

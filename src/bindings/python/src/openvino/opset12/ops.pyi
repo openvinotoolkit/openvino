@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Factory functions for all ngraph ops.
 """

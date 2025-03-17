@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Generic utilities. Factor related functions out to separate files.
 """

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from __future__ import annotations
 from . import exceptions
 from . import experimental

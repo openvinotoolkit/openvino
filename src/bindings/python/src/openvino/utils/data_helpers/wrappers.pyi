@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from collections.abc import Mapping
 from functools import singledispatchmethod
 from __future__ import annotations

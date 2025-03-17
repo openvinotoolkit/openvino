@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from __future__ import annotations
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Type

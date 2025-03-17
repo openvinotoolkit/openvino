@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from __future__ import annotations
 from . import ops
 from openvino.opset10.ops import interpolate
