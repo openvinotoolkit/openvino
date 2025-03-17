@@ -212,7 +212,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
         OPENVINO_THROW("queryGraphExtensionVersion: Failed to find Graph extension in NPU Driver");
     }
 
-    const uint16_t supported_driver_ext_major_version = 1;
+    const uint16_t supported_driver_ext_major_version = ZE_MAJOR_VERSION(target_graph_ext_version);
     const uint16_t driver_ext_major_version = ZE_MAJOR_VERSION(graph_ext_version);
     if (supported_driver_ext_major_version != driver_ext_major_version) {
         OPENVINO_THROW("Plugin supports only driver with graph extension major version ",
