@@ -1373,15 +1373,9 @@ using UpdateNodes = UpdateNodesSeq;
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
 
-#    if (defined(_MSVC_LANG) && (_MSVC_LANG > 201703L)) || (defined(__cplusplus) && (__cplusplus > 201703L))
-#        define ov_memory_order_release std::memory_order_release
-#        define ov_memory_order_relaxed std::memory_order_relaxed
-#        define ov_memory_order_acquire std::memory_order_acquire
-#    else
-#        define ov_memory_order_release std::memory_order::memory_order_release
-#        define ov_memory_order_relaxed std::memory_order::memory_order_relaxed
-#        define ov_memory_order_acquire std::memory_order::memory_order_acquire
-#    endif
+#    define ov_memory_order_release std::memory_order_release
+#    define ov_memory_order_relaxed std::memory_order_relaxed
+#    define ov_memory_order_acquire std::memory_order_acquire
 
 class UpdateNodesBase {
 public:
