@@ -10,15 +10,15 @@
 
 namespace ov::op::internal {
 Convolution::Convolution(const Output<Node>& data_batch,
-                                       const Output<Node>& filters,
-                                       const Output<Node>& bias,
-                                       const Strides& strides,
-                                       const CoordinateDiff& pads_begin,
-                                       const CoordinateDiff& pads_end,
-                                       const Strides& dilations,
-                                       const int64_t groups,
-                                       const PadType& auto_pad,
-                                       const element::Type& output_type)
+                         const Output<Node>& filters,
+                         const Output<Node>& bias,
+                         const Strides& strides,
+                         const CoordinateDiff& pads_begin,
+                         const CoordinateDiff& pads_end,
+                         const Strides& dilations,
+                         const int64_t groups,
+                         const PadType& auto_pad,
+                         const element::Type& output_type)
     : op::util::ConvolutionFwdPropBase(
           bias.get_node() ? OutputVector{data_batch, filters, bias} : OutputVector{data_batch, filters},
           strides,
@@ -71,9 +71,10 @@ void Convolution::validate_and_infer_types() {
 
 std::shared_ptr<Node> Convolution::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
+    OPENVINO_ASSERT(new_args.size() >= 2, "Invalid number of new inputs");
     return std::make_shared<internal::Convolution>(new_args.at(0),
                                                    new_args.at(1),
-                                                   new_args.at(2),
+                                                   new_args.size() > 2 ? new_args.at(2) : Output<Node>(),
                                                    m_strides,
                                                    m_pads_begin,
                                                    m_pads_end,
@@ -95,4 +96,4 @@ bool Convolution::is_asymmetric() const {
     return m_asymmetric;
 }
 
-}  // namespace ov
+}  // namespace ov::op::internal

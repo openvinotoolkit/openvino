@@ -19,7 +19,7 @@
 
 static inline std::vector<size_t> getNormalizedDimsBySize(const std::vector<size_t>& dims, size_t ndims) {
     auto normalizedDims = dims;
-    if (size_t num_missing_dims = ndims - dims.size(); num_missing_dims <= ndims){
+    if (size_t num_missing_dims = ndims - dims.size(); num_missing_dims <= ndims) {
         normalizedDims.insert(normalizedDims.begin(), num_missing_dims, 1);
     }
     return normalizedDims;
