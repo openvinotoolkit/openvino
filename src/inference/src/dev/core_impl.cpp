@@ -1478,17 +1478,15 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
 
+                if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::model) && cacheContent.model) {
+                    update_config[ov::hint::model.name()] = cacheContent.model;
+                }
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
-                    if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::model) &&
-                        cacheContent.model) {
-                        update_config[ov::hint::model.name()] = cacheContent.model;
-                    } else {
-                        std::filesystem::path weights_path = cacheContent.modelPath;
-                        weights_path.replace_extension(".bin");
+                    std::filesystem::path weights_path = cacheContent.modelPath;
+                    weights_path.replace_extension(".bin");
 
-                        if (ov::util::file_exists(weights_path)) {
-                            update_config[ov::weights_path.name()] = weights_path.string();
-                        }
+                    if (ov::util::file_exists(weights_path)) {
+                        update_config[ov::weights_path.name()] = weights_path.string();
                     }
                 }
                 if (model_buffer) {
