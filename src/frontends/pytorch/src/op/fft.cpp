@@ -34,7 +34,7 @@ namespace {
 Output<Node> normalize(const NodeContext& context,
                        const Output<Node>& node,
                        const Output<Node>& s,
-                       std::string norm,
+                       const std::string& norm,
                        bool inverse) {
     if (norm == "backward") {
         // No normalization
