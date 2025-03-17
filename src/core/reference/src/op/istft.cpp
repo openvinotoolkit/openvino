@@ -98,9 +98,7 @@ void istft(const float* in_data,
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
             const auto in_frame_start = batch_in_start + frame_idx * fft_out_shape_size;
             const auto in_frame_end = in_frame_start + fft_out_shape_size;
-
             const auto out_frame_start = batch_out_start + frame_idx * frame_step;
-            const auto out_frame_end = out_frame_start + frame_size;
 
             std::vector<float> frame_data(data_t.data() + in_frame_start, data_t.data() + in_frame_end);
             reference::irdft(frame_data,

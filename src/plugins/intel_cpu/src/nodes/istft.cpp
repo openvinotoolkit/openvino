@@ -136,8 +136,6 @@ void istft_impl(const float* in_data,
     OPENVINO_ASSERT(fft_results_dim == static_cast<size_t>((frame_size / 2) + 1));
 
     const auto frame_size_dim = static_cast<size_t>(frame_size);
-    const auto frame_size_dim_shape = ov::Shape{frame_size_dim};
-    const auto frame_size_dim_shape_out = ov::Shape{frame_size_dim, 2};
     const auto fft_out_shape = ov::Shape{fft_results_dim, 2};
 
     const auto window_length = window_shape[0] < frame_size_dim ? window_shape[0] : frame_size_dim;
@@ -191,9 +189,7 @@ void istft_impl(const float* in_data,
             size_t batch_out_start = batch * signal_length;
 
             const auto in_frame_start = batch_in_start + frame_idx * fft_out_shape_size;
-
             const auto out_frame_start = batch_out_start + frame_idx * frame_step;
-            const auto out_frame_end = out_frame_start + frame_size;
 
             std::vector<float> frame_signal(frame_size);
             rdft_executor->execute(data_t.data() + in_frame_start,
