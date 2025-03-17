@@ -72,8 +72,10 @@ std::tuple<Output<Node>, Output<Node>> get_dim_s(const NodeContext& context, con
     std::tie(input_shape, input_rank_scalar) = get_shape_rank(context, x, true);
 
     auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
+    auto const_neg_1_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    auto const_2 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {2}));
 
     Output<Node> raw_s;
     // Inputs can be either none or List. Check whether input values should be used or should be set to default values.
@@ -99,21 +101,20 @@ std::tuple<Output<Node>, Output<Node>> get_dim_s(const NodeContext& context, con
         dim = context.mark_node(std::make_shared<v4::Range>(const_0, input_rank_scalar, const_1, element::i32));
     }
     if (dim.get_partial_shape().rank().is_dynamic() || dim.get_partial_shape().rank().get_length() == 0) {
-        auto const_neg_1_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
         dim = context.mark_node(std::make_shared<v1::Reshape>(dim, const_neg_1_1d, false));
     }
 
     Output<Node> default_s;
     if (is_irfft) {
-        auto const_2_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2}));
         // Calculate default s values. Use full available size except last element, which is set to even value in last
         // dimension: s[-1] = 2 * (complex_input_shape[dim[-1]])
         auto default_s_raw = context.mark_node(std::make_shared<v8::Gather>(input_shape, dim, const_0));
         auto last_s = context.mark_node(std::make_shared<v8::Gather>(default_s_raw, const_neg_1, const_0));
         auto last_s_m_1 = context.mark_node(std::make_shared<v1::Subtract>(last_s, const_1));
-        auto s_upd = context.mark_node(std::make_shared<v1::Multiply>(last_s_m_1, const_2_1d));
+        auto s_upd = context.mark_node(std::make_shared<v1::Multiply>(last_s_m_1, const_2));
         auto s_shape = context.mark_node(std::make_shared<v3::ShapeOf>(default_s_raw, element::i32));
         auto last_s_idx = context.mark_node(std::make_shared<v1::Subtract>(s_shape, const_1));
+        s_upd = context.mark_node(std::make_shared<v1::Reshape>(s_upd, const_neg_1_1d, false));
         default_s = context.mark_node(std::make_shared<v3::ScatterUpdate>(default_s_raw, last_s_idx, s_upd, const_0));
     } else {
         default_s = context.mark_node(std::make_shared<v8::Gather>(input_shape, dim, const_0));
