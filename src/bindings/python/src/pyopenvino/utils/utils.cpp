@@ -101,8 +101,8 @@ py::object from_ov_any_map(const ov::AnyMap& map) {
 
 py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
-    if (any.is<py::object>()) {
-        return any.as<py::object>();
+    if (any.is<std::shared_ptr<py::object>>()) {
+        return *any.as<std::shared_ptr<py::object>>();
     }  // Check for std::string
     else if (any.is<std::string>()) {
         return py::cast(any.as<std::string>().c_str());
@@ -169,6 +169,10 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for std::tuple<unsigned int, unsigned int, unsigned int>
     else if (any.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
         return py::cast(any.as<std::tuple<unsigned int, unsigned int, unsigned int>>());
+    }
+    // Check for py::tuple
+    else if (any.is<py::tuple>()) {
+        return py::cast<py::tuple>(any.as<py::tuple>());
     }
     // Check for std::map<std::string, std::string>
     else if (any.is<std::map<std::string, std::string>>()) {
@@ -267,10 +271,6 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::frontend::type::PyNone>());
     } else if (any.is<ov::frontend::type::PyScalar>()) {
         return py::cast(any.as<ov::frontend::type::PyScalar>());
-        // Check for py::object of type enum.Enum
-    } else if (auto enum_ptr = any.as<std::shared_ptr<py::object>>();
-               enum_ptr && py::isinstance(*enum_ptr, py::module_::import("enum").attr("Enum"))) {
-        return *enum_ptr;
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
@@ -421,8 +421,6 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py_obj.cast<double>();
     } else if (py::isinstance(py_obj, float_32_type)) {
         return py_obj.cast<float>();
-    } else if (py::isinstance(py_obj, py::module_::import("enum").attr("Enum"))) {
-        return std::make_shared<py::object>(std::move(py_obj));
     } else if (py::isinstance<py::int_>(py_obj)) {
         return py_obj.cast<int64_t>();
     } else if (py::isinstance<py::none>(py_obj)) {
@@ -499,9 +497,14 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::frontend::type::PyNone>(py_obj);
     } else if (py::isinstance<ov::frontend::type::PyScalar>(py_obj)) {
         return py::cast<ov::frontend::type::PyScalar>(py_obj);
+    } else if (py::isinstance<py::tuple>(py_obj)) {
+        return py::cast<py::tuple>(py_obj);
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
-        return py_obj;
+        return std::shared_ptr<py::object>(new py::object(py_obj), [](py::object* py_obj_reference) {
+            py::gil_scoped_acquire acquire;
+            delete py_obj_reference;
+        });
     }
     OPENVINO_ASSERT(false, "Unsupported attribute type.");
 }
