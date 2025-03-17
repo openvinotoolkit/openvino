@@ -8,6 +8,6 @@ jax==0.5.2; (platform_system != "Darwin" or platform_machine != "x86_64") and py
 jax==0.4.33; (platform_system == "Darwin" and platform_machine == "x86_64") and python_version > "3.9"
 jax==0.4.30; python_version <= "3.9"
 flax==0.10.4
-transformers==4.49.0 
+transformers==4.49.0
 defusedxml
 pillow
