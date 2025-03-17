@@ -86,6 +86,7 @@
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
+#include "plugin/transformations/feed_forward_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
@@ -173,6 +174,7 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
+
 
 namespace {
 template<typename T>
@@ -1100,6 +1102,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
+
+        manager.register_pass<ov::intel_gpu::FeedForwardFusion>();
 
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();

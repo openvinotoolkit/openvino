@@ -61,6 +61,7 @@
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
 #include "intel_gpu/primitives/swiglu.hpp"
+#include "intel_gpu/primitives/feed_forward.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
@@ -103,6 +104,7 @@ REGISTER_OCL(experimental_detectron_roi_feature_extractor);
 REGISTER_OCL(experimental_detectron_topk_rois);
 REGISTER_OCL(eltwise);
 REGISTER_OCL(embed);
+REGISTER_OCL(feed_forward);
 REGISTER_OCL(fully_connected);
 REGISTER_OCL(gather);
 REGISTER_OCL(gather_elements);
