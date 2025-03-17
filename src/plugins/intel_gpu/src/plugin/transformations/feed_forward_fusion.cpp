@@ -21,8 +21,8 @@ FeedForwardFusion::FeedForwardFusion() {
     using namespace ov::pass::pattern;
 
     auto matmul1 = any_input();
-    auto bios = any_input();
-    auto add1 = wrap_type<ov::op::v1::Add>({matmul1, bios}, consumers_count(5));
+    auto bias = any_input();
+    auto add1 = wrap_type<ov::op::v1::Add>({matmul1, bias}, consumers_count(5));
     auto mul1 = wrap_type<ov::op::v1::Multiply>({add1, add1});
     auto mul2 = wrap_type<ov::op::v1::Multiply>({add1, mul1});
     auto mul3_const = any_input();
