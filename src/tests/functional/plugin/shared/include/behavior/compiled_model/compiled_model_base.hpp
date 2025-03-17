@@ -920,7 +920,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_use_weight_h
 
     configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
     configuration.emplace(ov::weights_path(w_file_path.string()));
-    configuration.emplace(ov::cache_dir(cache_dir));
+    configuration.emplace(ov::cache_dir(cache_dir.string()));
     auto model = make_model_with_weights();
 
     {
@@ -934,7 +934,8 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_use_weight_h
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::filesystem::remove_all(cache_dir);
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 
 TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
@@ -948,7 +949,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
         w_file.write(reinterpret_cast<const char*>(w.data()), w.get_byte_size());
     }
 
-    configuration.emplace(ov::cache_dir(cache_dir));
+    configuration.emplace(ov::cache_dir(cache_dir.string()));
     auto model = make_model_with_weights();
 
     {
@@ -973,7 +974,8 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::filesystem::remove_all(cache_dir);
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache) {
@@ -989,7 +991,7 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache) {
         w_file.write(reinterpret_cast<const char*>(w.data()), w.get_byte_size());
     }
 
-    configuration.emplace(ov::cache_dir(cache_dir));
+    configuration.emplace(ov::cache_dir(cache_dir.string()));
     auto model = make_model_with_weights();
 
     {
@@ -1017,7 +1019,8 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache) {
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::filesystem::remove_all(cache_dir);
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weights_bind_from_model_hint) {
@@ -1033,7 +1036,7 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
         w_file.write(reinterpret_cast<const char*>(w.data()), w.get_byte_size());
     }
 
-    configuration.emplace(ov::cache_dir(cache_dir));
+    configuration.emplace(ov::cache_dir(cache_dir.string()));
     auto model = make_model_with_weights();
     {
         auto export_cfg = configuration;
@@ -1061,7 +1064,8 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::filesystem::remove_all(cache_dir);
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weights_from_model_path) {
@@ -1075,7 +1079,7 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
     auto model = make_model_with_weights();
     ov::save_model(model, model_file_path, false);
 
-    configuration.emplace(ov::cache_dir(cache_dir));
+    configuration.emplace(ov::cache_dir(cache_dir.string()));
     {
         auto export_cfg = configuration;
         export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
@@ -1100,7 +1104,8 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::filesystem::remove_all(cache_dir);
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_load_from_cache) {
@@ -1115,7 +1120,7 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_load_from_cache) {
         w_file.write(reinterpret_cast<const char*>(w.data()), w.get_byte_size());
     }
 
-    configuration.emplace(ov::cache_dir(cache_dir));
+    configuration.emplace(ov::cache_dir(cache_dir.string()));
     auto model = make_model_with_weights();
 
     {
@@ -1141,7 +1146,8 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_load_from_cache) {
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::filesystem::remove_all(cache_dir);
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 
 TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weights) {
@@ -1150,7 +1156,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weigh
     std::filesystem::create_directories(cache_dir);
 
     configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
-    configuration.emplace(ov::cache_dir(cache_dir));
+    configuration.emplace(ov::cache_dir(cache_dir.string()));
     auto model = make_model_with_weights();
 
     {
@@ -1165,6 +1171,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weigh
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::filesystem::remove_all(cache_dir);
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 }  // namespace ov::test::behavior
