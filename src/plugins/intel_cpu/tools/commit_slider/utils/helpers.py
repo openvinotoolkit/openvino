@@ -588,9 +588,13 @@ def safeClearDir(path, cfg):
 
 def runUtility(cfg, args):
     modName = args.utility
+    fullModName = "utils.{un}".format(un=modName)
     try:
-        mod = importlib.import_module(
-            "utils.{un}".format(un=modName))
+        if importlib.util.find_spec(fullModName) is not None:
+            mod = importlib.import_module(fullModName)
+        else:
+            mod = importlib.import_module(
+                "utils.preprocess.{un}".format(un=modName))
         utilName = checkAndGetUtilityByName(cfg, modName)
         utility = getattr(mod, utilName)
         utility(args)
