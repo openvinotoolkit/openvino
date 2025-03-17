@@ -1478,7 +1478,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
 
-                if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::model) && cacheContent.model) {
+                if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::model) &&
+                    cacheContent.model) {
                     update_config[ov::hint::model.name()] = cacheContent.model;
                 }
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
