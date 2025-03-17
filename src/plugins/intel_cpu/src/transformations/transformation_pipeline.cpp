@@ -485,7 +485,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 head_size += sizeof(float) * 2 * group_num;
             }
         } else if (precision == ov::element::u4) {
-            head_size += sizeof(float) * 2 * group_num * 2;
+            if (bychannel) {
+                block_size += 2 * sizeof(float) * 2;
+            } else {
+                head_size += sizeof(float) * 2 * group_num * 2;
+            }
         }
     };
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);

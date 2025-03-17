@@ -258,7 +258,7 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                    ov::element::f32,
                    ov::element::f16,
                    ov::element::bf16)) {
-            if (!one_of(kCachePrecision, ov::element::u8, ov::element::f16, ov::element::f32, ov::element::bf16)) {
+            if (!one_of(kCachePrecision, ov::element::u4, ov::element::u8, ov::element::f16, ov::element::f32, ov::element::bf16)) {
                 errorMessage = "PageAttn key value cache compression doesn't support key cache prec " +
                                kCachePrecision.to_string() + " value cache prec " + vCachePrecision.to_string();
                 return false;

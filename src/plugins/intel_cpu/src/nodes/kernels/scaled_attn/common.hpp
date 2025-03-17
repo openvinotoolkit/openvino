@@ -11,6 +11,7 @@
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -45,6 +46,25 @@ inline size_t vec_len_f16_sve() {
     return len;
 }
 #endif
+
+size_t inline get_sub_byte_multiplier(ov::element::Type type) {
+    if (type == ov::element::i4 || type == ov::element::u4) {
+        return 8 / type.bitwidth();
+    } else {
+        return 1;
+    }
+}
+
+uint8_t inline insert_half_byte(uint8_t dst, uint8_t val, bool high_half) {
+    uint8_t shift = high_half ? 0 : 4;
+    return dst | static_cast<uint8_t>(val << shift);
+}
+
+uint8_t inline extract_half_byte(uint8_t val, bool high_half) {
+    uint8_t shift = high_half ? 0 : 4;
+
+    return static_cast<uint8_t>((val >> shift) & 0x000F);
+};
 
 #ifdef HAVE_AVX512F
 inline __m512 cvt_bf16_to_fp32(const __m256i src) {
@@ -145,6 +165,23 @@ inline void mm512_uni_storeu_tail_ps(ov::float16* addr, __m512 v, size_t count) 
     __m256i vec_f16 = _mm512_cvtps_ph(v, 0);
     _mm256_mask_storeu_epi16(reinterpret_cast<__m256i*>(addr), mask_addr, vec_f16);
 }
+
+inline void m512_loadu_u4_to_f32(uint8_t* src_data, __m512& first_half, __m512& second_half) {
+    auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_data));
+    auto v_i32 = _mm512_cvtepu8_epi32(data);
+
+    auto v_512_low_half = _mm512_srli_epi32(v_i32, 4);
+    auto v_f32_low_half = _mm512_cvtepi32_ps(v_512_low_half);
+
+    auto mask = _mm512_set1_epi32(0x0F);
+    auto v_512_high_half = _mm512_and_si512(v_i32, mask);
+    auto v_f32_high_half = _mm512_cvtepi32_ps(v_512_high_half);
+    __m512i idx1 = _mm512_set_epi32(23, 7, 22, 6, 21, 5, 20, 4, 19, 3, 18, 2, 17, 1, 16, 0);
+    __m512i idx2 = _mm512_set_epi32(31, 15, 30, 14, 29, 13, 28, 12, 27, 11, 26, 10, 25, 9, 24, 8);
+    first_half = _mm512_permutex2var_ps(v_f32_low_half, idx1, v_f32_high_half);
+    second_half = _mm512_permutex2var_ps(v_f32_low_half, idx2, v_f32_high_half);
+}
+
 #endif
 
 #ifdef HAVE_AVX2

@@ -329,7 +329,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 keyCachePrecisionSetExplicitly = true;
                 auto const prec = val.as<ov::element::Type>();
-                if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
+                if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8, ov::element::u4)) {
                     keyCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("keyCachePrecision doesn't support value ", prec);

@@ -55,10 +55,6 @@ using namespace ov::intel_cpu;
 
 #    endif
 
-size_t inline get_sub_byte_multiplier(ov::element::Type type) {
-    return one_of(type, ov::element::i4, ov::element::u4) ? 8 / type.bitwidth() : 1;
-}
-
 template <typename T,
           ov::element::Type_t SRC_PREC,
           std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16> ||
@@ -354,11 +350,6 @@ static void attn_acc_value_block(float* out,
     auto* v_ptr = reinterpret_cast<uint8_t*>(v);
     auto sub_byte_multiplier = 8 / 4;
     const size_t src_stride = S / group_size * (group_size / sub_byte_multiplier + params_offset);
-    auto extract_half_byte = [](uint8_t val, bool high_half) -> uint8_t {
-        uint8_t shift = high_half ? 0 : 4;
-
-        return static_cast<uint8_t>((val >> shift) & 0x000F);
-    };
     for (size_t j = 0; j < block_size; j++) {
         dst_offset = 0;
         src_offset = 0;
@@ -560,7 +551,7 @@ static void dot_product_block(TA* a,
     }
 }
 
-template <typename TA, ov::element::Type_t SRC_PREC>
+template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8), bool> = true>
 static void dot_product_block_quantized_by_channel(TA* a,
                                                    uint8_t* b,
                                                    float* c,
@@ -775,7 +766,35 @@ static void dot_product_block_quantized_by_channel(TA* a,
     }
 }
 
-template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8), bool> = true>
+template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u4), bool> = true>
+static void dot_product_block_quantized_by_channel(TA* a,
+                                                   uint8_t* b,
+                                                   float* c,
+                                                   const size_t n,
+                                                   const size_t block_size) {
+    const size_t sub_byte_multiplier = 2;
+    // parans scale f32 [n] + zp f32[n]
+    const size_t params_offset = sizeof(float) * 2 * n;
+    // src_stride must / 2 because of u4
+    const size_t src_stride = n / sub_byte_multiplier;
+    auto p_scales = reinterpret_cast<float*>(b);
+    auto p_zps = p_scales + n;
+    for (size_t j = 0; j < block_size; j++) {
+        float sum = 0.0f;
+        size_t i = 0;
+        for (; i < n; i += 2) {
+            uint8_t data = b[i / 2 + params_offset];
+            float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
+            float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
+            sum += a[i] * (tmp0 - p_zps[i]) * p_scales[i];
+            sum += a[i + 1] * (tmp1 - p_zps[i + 1]) * p_scales[i + 1];
+        }
+        b += src_stride;
+        *c++ = sum;
+    }
+}
+
+template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8 || SRC_PREC == ov::element::u4), bool> = true>
 static void dot_product_block_quantized_by_dims(TA* a,
                                                 uint8_t* b,
                                                 float* c,
@@ -1008,7 +1027,7 @@ static void dot_product_block_quantized_by_dims(TA* a,
     }
 }
 
-template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8), bool> = true>
+template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8 || SRC_PREC == ov::element::u4), bool> = true>
 static void dot_product_block_quantized(TA* a,
                                         uint8_t* b,
                                         float* c,
@@ -1121,7 +1140,7 @@ static void transpose_16NxK(T* dst,
 }
 #    endif
 
-template <typename TDST, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
+template <typename TDST, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8 || SRC_PREC == ov::element::u4, bool> = true>
 void transpose_16NxK(TDST* dst,
                      void* src,
                      TDST* tmp,
@@ -1134,14 +1153,15 @@ void transpose_16NxK(TDST* dst,
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
+    auto s = reinterpret_cast<uint8_t*>(src);
+    const auto sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     auto t = tmp;
     // if group_size not set, the whole row is used as a group
     if (quant_key_bychannel) {
         auto p_scales = reinterpret_cast<float*>(s);
         auto p_zps = p_scales + K;
         s = s + sizeof(float) * 2 * K;
-        attn_dequant_u8_by_channel_kernel(s, t, N, K, K, src_stride, p_scales, p_zps);
+        attn_dequant_by_channel_kernel<TDST, SRC_PREC>(s, t, N, K, K / sub_byte_multiplier, src_stride, p_scales, p_zps);
     } else {
         for (size_t n = 0; n < N; n++) {
             size_t src_offset = 0;
@@ -1822,10 +1842,10 @@ struct MHAHelper {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        if constexpr (KEY_PREC == ov::element::u8) {
+                        if constexpr (KEY_PREC == ov::element::u8 || KEY_PREC == ov::element::u4) {
                             dot_product_block_quantized<DATA_TYPE, KEY_PREC>(
                                 query.ptr<DATA_TYPE>(h, pq),
-                                present_key.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number,
+                                present_key.ptr<uint8_t>(block_number,
                                                                                                         hk),
                                 _weight.ptr<float>(ithr, h, pq) + pk,
                                 _S,
@@ -1981,10 +2001,10 @@ struct MHAHelper {
 #    endif
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
-                            if constexpr (KEY_PREC == ov::element::u8) {
+                            if constexpr (KEY_PREC == ov::element::u8 || KEY_PREC == ov::element::u4) {
                                 dot_product_block_quantized<DATA_TYPE, KEY_PREC>(
                                     query.ptr<DATA_TYPE>(b, h, pq),
-                                    key_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number,
+                                    key_cache.ptr<uint8_t>(block_number,
                                                                                                           hk),
                                     _weight_bhl.ptr<float>(b, h, pq) + pk,
                                     _S,
@@ -2552,24 +2572,25 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             h_each_group_len = H / Hk;
         }
         auto B_seq = past_lens.size(0);
-
         q.assert_dims({B_token, H * S});
         k.assert_dims({B_token, Hk * S});
         v.assert_dims({B_token, Hk * SV});
         q = q.reshape({B_token, H, 1, S});
         k = k.reshape({B_token, Hk, 1, S});
         v = v.reshape({B_token, Hk, 1, SV});
-
-        if (k_cache.m_dt == ov::element::Type_t::u8) {
+        if (k_cache.get_precision().is_integral()) {
             if (_helper._quant_key_bychannel) {
                 k_cache.assert_dims({0, Hk, block_size + key_params_size, S}, true);
             } else {
                 k_cache.assert_dims({0, Hk, block_size, S + key_params_size * key_group_num}, true);
             }
-            v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, SV + value_params_size * value_group_num});
 
         } else {
             k_cache.assert_dims({0, Hk, block_size, S}, true);
+        }
+        if (v_cache.get_precision().is_integral()) {
+            v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, SV + value_params_size * value_group_num});
+        } else {
             v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, SV});
         }
         past_lens.assert_dims({B_seq});
@@ -2664,9 +2685,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             }
         }
 
-        if (k_cache.m_dt == ov::element::Type_t::u8) {
+        if constexpr(one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
             // slot_mapping could only be used for per token quantization
             // by_channel needs all data to calculation block info.
+            printf("ExecutorPA|concat_pastkv key %s val %s\n", k_cache.get_precision().to_string().c_str(), v_cache.get_precision().to_string().c_str());
             paged_attn_quantkv(k,
                                v,
                                k_cache,
@@ -2721,12 +2743,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              output_score);
 
         if (rotated_block_indices) {
-            rotate_kv_cache<typename ov::element_type_traits<KEY_PREC>::value_type>(
-                k_cache,
-                rotated_block_indices,
-                rotation_deltas,
-                rotation_trig_lut,
-                _helper._block_rotation_coefficient_scratch);
+            // TODO: implement u4
+            if constexpr (KEY_PREC != ov::element::u4)
+                rotate_kv_cache<typename ov::element_type_traits<KEY_PREC>::value_type>(
+                    k_cache,
+                    rotated_block_indices,
+                    rotation_deltas,
+                    rotation_trig_lut,
+                    _helper._block_rotation_coefficient_scratch);
         }
 
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
@@ -2753,6 +2777,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          size_t value_group_size,
                                                          bool quant_key_bychannel) {
     std::shared_ptr<PagedAttentionExecutor> executor;
+    std::cout << "make_pa_executor|" << data_type << "|" << key_cache_type << "|quant_key_bychannel|" << quant_key_bychannel << std::endl;
 #if defined(OPENVINO_ARCH_X86_64)
     if (data_type == ov::element::bf16) {
 #    if defined(HAVE_AVX512F)
@@ -2773,6 +2798,11 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                " is not support");
             }
 
+        } else if (key_cache_type == ov::element::u4) {
+            executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::u4, ov::element::u8>>(
+                key_group_size,
+                value_group_size,
+                quant_key_bychannel);
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::bf16, "expect kvcache type bf16, current: ", key_cache_type);
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::bf16, ov::element::bf16>>();
@@ -2822,6 +2852,11 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                value_cache_type.to_string(),
                                " is not support");
             }
+        } else if (key_cache_type == ov::element::u4) {
+            executor = std::make_shared<AttentionExecutor<float, ov::element::u4, ov::element::u8>>(
+                key_group_size,
+                value_group_size,
+                quant_key_bychannel);
         } else if (key_cache_type == ov::element::f16) {
             executor =
                 std::make_shared<AttentionExecutor<float, ov::element::f16, ov::element::f16>>(key_group_size,

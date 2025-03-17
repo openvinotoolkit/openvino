@@ -299,11 +299,6 @@ static void quant_u8_by_channel_kernel(const T* src,
     }
 }
 
-uint8_t inline insert_half_byte(uint8_t dst, uint8_t val, bool high_half) {
-    uint8_t shift = high_half ? 0 : 4;
-    return dst | static_cast<uint8_t>(val << shift);
-}
-
 template <typename T>
 static void quant_u4_by_channel_kernel(const T* src,
                                        uint8_t* dst,
@@ -317,10 +312,11 @@ static void quant_u4_by_channel_kernel(const T* src,
     for (size_t j = 0; j < hidden_dims; j++) {
         for (size_t i = 0; i < seq_dim; i++) {
             float tmp = src[i * src_stride + j];
-            uint8_t src_val = std::min((uint8_t)15, (uint8_t)(std::round(tmp / scale[j] + zp[j])));
-            src_val = std::max((uint8_t)0, (uint8_t)(std::round(tmp / scale[j] + zp[j])));
+            tmp = std::round(tmp / scale[j] + zp[j]);
+            uint8_t src_val = std::min((uint8_t)15, (uint8_t)(tmp));
+            src_val = std::max((uint8_t)0, (uint8_t)(tmp));
             uint8_t dst_val = j % 2 == 0 ? 0 : dst[i * dst_stride + j / 2];
-            dst_val = insert_half_byte(dst_val, src_val, static_cast<uint8_t>(i % 2));
+            dst_val = insert_half_byte(dst_val, src_val, static_cast<uint8_t>(j % 2));
             dst[i * dst_stride + j / 2] = dst_val;
         }
     }
@@ -474,7 +470,7 @@ static void quantize_by_channel(const T* src,
                                 size_t dst_stride,
                                 float* scale,
                                 float* zp) {
-    return;
+    quant_u4_by_channel_kernel(src, dst, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp);
 }
 
 template <typename T, typename T2>
@@ -511,14 +507,15 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                 float* thread_temp_buffer = temp_buffer + thread_id * key_group_size * S;
                 size_t remaining_group_size = prev_nums ? (key_group_size - prev_nums) : 0;
                 if (prev_nums) {
-                    attn_dequant_u8_by_channel_kernel(k_dst.ptr<uint8_t>(b, h, group_id * key_group_size),
-                                                      thread_temp_buffer,
-                                                      prev_nums,
-                                                      S,
-                                                      k_dst.m_strides[2],
-                                                      S,
-                                                      k_scale_zp.ptr<float>(group_id * 2, b, h),
-                                                      k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                    attn_dequant_by_channel_kernel<float, ov::element::u8>(
+                        k_dst.ptr<uint8_t>(b, h, group_id * key_group_size),
+                        thread_temp_buffer,
+                        prev_nums,
+                        S,
+                        k_dst.stride_bytes(2),
+                        S,
+                        k_scale_zp.ptr<float>(group_id * 2, b, h),
+                        k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
                     remaining_group_size = std::min(remaining_group_size, L1);
                     cvt_copy(thread_temp_buffer + prev_nums * S,
                              k_src.ptr<T>(b, h),
@@ -591,12 +588,13 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const bool quant_key_by_channel,
                                 const size_t key_group_size,
                                 const size_t value_group_size) {
-    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2];
-    size_t block_size = quant_key_by_channel ? k_dst.m_dims[2] - 2 * sizeof(float) : k_dst.m_dims[2];
+    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3];
+    size_t block_size = quant_key_by_channel ? k_dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(KEY_DST_PREC) : k_dst.m_dims[2];
+    printf("paged_attn_quant_mt| B %ld H %ld L1 %ld S %ld by_channel %ld past_lens %d block_size %ld\n", B, H, L1, S, quant_key_by_channel, past_lens.ptr<int32_t>()[0], block_size);
     if (quant_key_by_channel) {
         parallel_for2d(past_lens.size(0), H, [&](size_t sub_seq_id, size_t h) {
-            size_t key_sub_byte_multiplier = 8 / k_dst.get_precision().bitwidth();
-            size_t params_offset = 2 * sizeof(float) * key_sub_byte_multiplier;
+            // scale f32[S] zp f32[S] offset in bytes
+            size_t params_offset = 2 * sizeof(float) * S;
             auto past_len = past_lens.ptr<int32_t>()[sub_seq_id];
             float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
             auto q_len =
@@ -615,9 +613,10 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                          ? (q_len - block_count * block_size)
                                          : block_size;
                     size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
-                    auto p_scales = reinterpret_cast<float*>(k_dst.ptr<uint8_t>(block_number, h, 0, 0));
+                    auto k_base = k_dst.ptr<uint8_t>(block_number, h, 0, 0);
+                    auto p_scales = reinterpret_cast<float*>(k_base);
                     auto p_zps = p_scales + S;
-                    auto p_k = k_dst.ptr<uint8_t>(block_number, h, params_offset);
+                    auto p_k = k_base + params_offset;
                     quantize_by_channel<T, KEY_DST_PREC>(k_src.ptr<T>(b_in_tokens, h, m),
                                                          p_k,
                                                          token_num,
@@ -634,9 +633,10 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                 for (size_t block_id = 0; block_id < total_blocks; block_id++) {
                     size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id];
                     auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
-                    auto p_k = k_dst.ptr<uint8_t>(block_number, h, params_offset);
-                    auto p_scales = reinterpret_cast<float*>(k_dst.ptr<uint8_t>(block_number, h, 0, 0));
+                    auto k_base = k_dst.ptr<uint8_t>(block_number, h, 0, 0);
+                    auto p_scales = reinterpret_cast<float*>(k_base);
                     auto p_zps = p_scales + S;
+                    auto p_k = k_base + params_offset;
                     size_t valid_length = 0;
                     bool is_first_block = block_id == 0;
                     if (is_first_block) {
@@ -648,20 +648,34 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                             std::min(static_cast<size_t>(q_len) - block_size * block_id - prev_nums, block_size);
                     }
                     if (is_first_block && prev_nums) {
-                        attn_dequant_u8_by_channel_kernel(p_k,
-                                                          buffer,
-                                                          prev_nums,
-                                                          S,
-                                                          k_dst.stride_bytes(2),
-                                                          S,
-                                                          p_scales,
-                                                          p_zps);
+                        attn_dequant_by_channel_kernel<float, KEY_DST_PREC>(p_k,
+                                                                            buffer,
+                                                                            prev_nums,
+                                                                            S,
+                                                                            k_dst.stride_bytes(2),
+                                                                            S,
+                                                                            p_scales,
+                                                                            p_zps);
+                        // printf("before dequant prev_nums %ld\n", prev_nums);
+                        // for (size_t i = 0; i < prev_nums; i++) {
+                        //     for (size_t j = 0; j < S; j++) {
+                        //         printf("%f ", buffer[i * S + j]);
+                        //     }
+                        //     printf("\n");
+                        // }
                         cvt_copy(buffer + prev_nums * S,
                                  k_src.ptr<T>(b_in_tokens, h, m),
                                  valid_length,
                                  S,
                                  k_src.stride(0),
                                  S);
+                        // printf("after dequant prev_nums %ld\n", prev_nums + valid_length);
+                        // for (size_t i = 0; i < prev_nums; i++) {
+                        //     for (size_t j = 0; j < S; j++) {
+                        //         printf("%f ", buffer[i * S + j]);
+                        //     }
+                        //     printf("\n");
+                        // }
                         quantize_by_channel<float, KEY_DST_PREC>(buffer,
                                                                  p_k,
                                                                  prev_nums + valid_length,
@@ -790,28 +804,29 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
     static constexpr function_type funcs_fp32[] = {
         paged_attn_quant_mt<float, ov::element::u8, ov::element::u8>,
         paged_attn_quant_mt<float, ov::element::u8, ov::element::u4>,
+        paged_attn_quant_mt<float, ov::element::u4, ov::element::u8>,
+        paged_attn_quant_mt<float, ov::element::u4, ov::element::u4>,
     };
     static constexpr function_type funcs_bf16[] = {
         paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u8>,
         paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u4>,
+        paged_attn_quant_mt<ov::bfloat16, ov::element::u4, ov::element::u8>,
+        paged_attn_quant_mt<ov::bfloat16, ov::element::u4, ov::element::u4>,
     };
     static constexpr function_type funcs_f16[] = {
         paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u8>,
         paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u4>,
+        paged_attn_quant_mt<ov::float16, ov::element::u4, ov::element::u8>,
+        paged_attn_quant_mt<ov::float16, ov::element::u4, ov::element::u4>,
     };
-    if (k_dst.get_precision() != ov::element::u8) {
-        OPENVINO_THROW("unsupport src type: ",
-                       k_src.get_precision(),
-                       ", dst type: ",
-                       k_dst.get_precision(),
-                       " in paged_attn_quantkv");
+    size_t dispatch = 0;
+    if (k_dst.get_precision() == ov::element::u4) {
+        dispatch |= 0x02;
     }
-    std::map<ov::element::Type, size_t> dispatch_table = {
-        {ov::element::u8, 0},
-        {ov::element::u4, 1},
-        {ov::element::i4, 2},
-    };
-    size_t dispatch = dispatch_table[v_dst.get_precision()];
+    if (v_dst.get_precision() == ov::element::u4) {
+        dispatch |= 0x01;
+    }
+    printf("paged_attn_quantkv|dispatch %d %x\n", dispatch, dispatch);
     if (k_src.get_precision() == ov::element::f32) {
         funcs_fp32[dispatch](k_src,
                              v_src,
@@ -884,7 +899,8 @@ void attn_dequant_by_channel_u8(const uint8_t* src,
                                 size_t dst_stride,
                                 float* scale,
                                 float* zp) {
-    attn_dequant_u8_by_channel_kernel(src, dst, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp);
+    attn_dequant_by_channel_kernel<float,
+                                   ov::element::u8>(src, dst, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp);
 }
 
 }  // namespace ov::Extensions::Cpu::XARCH
