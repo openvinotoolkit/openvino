@@ -107,7 +107,7 @@ std::tuple<Output<Node>, Output<Node>> get_dim_s(const NodeContext& context, con
     Output<Node> default_s;
     if (is_irfft) {
         // Calculate default s values. Use full available size except last element, which is set to even value in last
-        // dimension: s[-1] = 2 * (complex_input_shape[dim[-1]])
+        // dimension: s[-1] = 2 * (complex_input_shape[dim[-1]] - 1).
         auto default_s_raw = context.mark_node(std::make_shared<v8::Gather>(input_shape, dim, const_0));
         auto last_s = context.mark_node(std::make_shared<v8::Gather>(default_s_raw, const_neg_1, const_0));
         auto last_s_m_1 = context.mark_node(std::make_shared<v1::Subtract>(last_s, const_1));
