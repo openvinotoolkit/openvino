@@ -99,6 +99,30 @@ class TestFFT(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.parametrize("input_shape", [[20, 30], [15, 20, 30], [10, 15, 20, 30]])
+    @pytest.mark.parametrize("s", [None, (10, 10)])
+    @pytest.mark.parametrize("dim", [(0, 1), (-2, -1)])
+    @pytest.mark.parametrize("norm", [None, "forward", "backward", "ortho"])
+    @pytest.mark.parametrize("op,aten_name,in_complex", [
+        (torch.fft.fft2, "aten::fft_fft2", True),
+        (torch.fft.fft2, "aten::fft_fft2", False),
+        pytest.param(torch.fft.hfft2, "aten::fft_hfft2", True, marks=pytest.mark.skip(reason="Not supported yet.")),
+        (torch.fft.rfft2, "aten::fft_rfft2", False),
+        (torch.fft.ifft2, "aten::fft_ifft2", True),
+        pytest.param(torch.fft.ihfft2, "aten::fft_ihfft2", False, marks=pytest.mark.skip(reason="Not supported yet.")),
+        (torch.fft.irfft2, "aten::fft_irfft2", True),
+    ])
+    def test_2d(self, ie_device, precision, ir_version, input_shape, op, s, dim, norm, aten_name, in_complex):
+        if in_complex:
+            self.input_shape = input_shape + [2]
+        else:
+            self.input_shape = input_shape
+        m = aten_fft(op, s, dim, norm)
+        self._test(m, None, aten_name, ie_device,
+                   precision, ir_version, trace_model=True, dynamic_shapes=False, custom_eps=1e-3)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.parametrize("input_shape,s,dim", [
         ((4, 5), None, None),
         ((4, 5), None, (0,)),

@@ -92,9 +92,17 @@ OP_CONVERTER(translate_expm1);
 OP_CONVERTER(translate_eye);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine);
+OP_CONVERTER(translate_fft_fft);
+OP_CONVERTER(translate_fft_fft2);
 OP_CONVERTER(translate_fft_fftn);
+OP_CONVERTER(translate_fft_ifft);
+OP_CONVERTER(translate_fft_ifft2);
 OP_CONVERTER(translate_fft_ifftn);
+OP_CONVERTER(translate_fft_irfft);
+OP_CONVERTER(translate_fft_irfft2);
 OP_CONVERTER(translate_fft_irfftn);
+OP_CONVERTER(translate_fft_rfft);
+OP_CONVERTER(translate_fft_rfft2);
 OP_CONVERTER(translate_fft_rfftn);
 OP_CONVERTER(translate_fill);
 OP_CONVERTER(translate_fill_diagonal);
@@ -486,17 +494,17 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::fake_quantize_per_channel_affine", op::translate_fake_quantize_per_channel_affine},
         {"aten::fake_quantize_per_tensor_affine", op::translate_fake_quantize_per_tensor_affine},
         {"aten::feature_dropout", op::skip_node},
-        {"aten::fft_fft", op::translate_fft_fftn},
-        {"aten::fft_fft2", op::translate_fft_fftn},
+        {"aten::fft_fft", op::translate_fft_fft},
+        {"aten::fft_fft2", op::translate_fft_fft2},
         {"aten::fft_fftn", op::translate_fft_fftn},
-        {"aten::fft_ifft", op::translate_fft_ifftn},
-        {"aten::fft_ifft2", op::translate_fft_ifftn},
+        {"aten::fft_ifft", op::translate_fft_ifft},
+        {"aten::fft_ifft2", op::translate_fft_ifft2},
         {"aten::fft_ifftn", op::translate_fft_ifftn},
-        {"aten::fft_irfft", op::translate_fft_irfftn},
-        {"aten::fft_irfft2", op::translate_fft_irfftn},
+        {"aten::fft_irfft", op::translate_fft_irfft},
+        {"aten::fft_irfft2", op::translate_fft_irfft2},
         {"aten::fft_irfftn", op::translate_fft_irfftn},
-        {"aten::fft_rfft", op::translate_fft_rfftn},
-        {"aten::fft_rfft2", op::translate_fft_rfftn},
+        {"aten::fft_rfft", op::translate_fft_rfft},
+        {"aten::fft_rfft2", op::translate_fft_rfft2},
         {"aten::fft_rfftn", op::translate_fft_rfftn},
         {"aten::fill", op::translate_fill},
         {"aten::fill_diagonal", op::translate_fill_diagonal},
@@ -881,6 +889,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.expand_copy.default", op::translate_expand},
         {"aten.eye.m", op::translate_eye_fx},
         {"aten.fake_quantize_per_channel_affine_cachemask.default", op::translate_fake_quantize_per_channel_affine_fx},
+        {"aten.fft_fft.default", op::translate_fft_fftn},
         {"aten.fill.Scalar", op::translate_fill},
         {"aten.fill_.Scalar", op::inplace_op<op::translate_fill>},
         {"aten.fill.Tensor", op::translate_fill},

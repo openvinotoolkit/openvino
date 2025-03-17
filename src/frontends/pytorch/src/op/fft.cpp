@@ -66,7 +66,10 @@ Output<Node> normalize(const NodeContext& context,
     return normalized;
 }
 
-std::tuple<Output<Node>, Output<Node>> get_dim_s(const NodeContext& context, const Output<Node>& x, bool is_irfft) {
+std::tuple<Output<Node>, Output<Node>> get_dim_s(const NodeContext& context,
+                                                 const Output<Node>& x,
+                                                 int size,
+                                                 bool is_irfft) {
     Output<Node> input_shape;
     Output<Node> input_rank_scalar;
     std::tie(input_shape, input_rank_scalar) = get_shape_rank(context, x, true);
@@ -97,8 +100,20 @@ std::tuple<Output<Node>, Output<Node>> get_dim_s(const NodeContext& context, con
         auto start_scalar = context.mark_node(std::make_shared<v0::Squeeze>(start));
         dim = context.mark_node(std::make_shared<v4::Range>(start_scalar, input_rank_scalar, const_1, element::i32));
     } else {
-        // Dim and s are set to default, use all of dimensions.
-        dim = context.mark_node(std::make_shared<v4::Range>(const_0, input_rank_scalar, const_1, element::i32));
+        // Dim and s are set to default.
+        switch (size) {
+        case 1:
+            dim = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+            break;
+        case 2:
+            dim = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {-2, -1}));
+            break;
+        case -1:
+            dim = context.mark_node(std::make_shared<v4::Range>(const_0, input_rank_scalar, const_1, element::i32));
+            break;
+        default:
+            FRONT_END_THROW("Invalid FFT size.");
+        }
     }
     if (dim.get_partial_shape().rank().is_dynamic() || dim.get_partial_shape().rank().get_length() == 0) {
         dim = context.mark_node(std::make_shared<v1::Reshape>(dim, const_neg_1_1d, false));
@@ -130,23 +145,31 @@ std::tuple<Output<Node>, Output<Node>> get_dim_s(const NodeContext& context, con
     }
     return {dim, s};
 }
-}  // namespace
 
-OutputVector translate_fft_fftn(const NodeContext& context) {
+template <typename T>
+OutputVector translate_fft_fft_base(const NodeContext& context,
+                                    int size,
+                                    bool complex_input,
+                                    bool complex_output,
+                                    bool inverse = false,
+                                    bool is_irfft = false) {
     num_inputs_check(context, 1, 4, true);
     auto input = context.get_input(0);
 
     Output<Node> dim;
     Output<Node> s;
-    std::tie(dim, s) = get_dim_s(context, input, false);
+    std::tie(dim, s) = get_dim_s(context, input, size, is_irfft);
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     if (complex_type_mark) {
+        PYTORCH_OP_CONVERSION_CHECK(complex_input, "Operation does not support complex type tensor on input.");
         input = complex_type_mark->get_data();
     } else {
-        auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-        const_0 = context.mark_node(std::make_shared<v1::ConvertLike>(const_0, input));
-        input = std::make_shared<ComplexTypeMark>(input, const_0)->get_data();
+        if (complex_input) {
+            auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+            const_0 = context.mark_node(std::make_shared<v1::ConvertLike>(const_0, input));
+            input = std::make_shared<ComplexTypeMark>(input, const_0)->get_data();
+        }
     }
 
     // Handle norm parameter indicating normalization mode to use. Defaults to "backward".
@@ -155,83 +178,65 @@ OutputVector translate_fft_fftn(const NodeContext& context) {
         norm = context.const_input<std::string>(3);
     }
 
-    auto node = context.mark_node(std::make_shared<v7::DFT>(input, dim, s));
+    auto node = context.mark_node(std::make_shared<T>(input, dim, s));
 
     // Apply normalizations
-    Output<Node> normalized = normalize(context, node, s, norm, false);
-    return {std::make_shared<ComplexTypeMark>(normalized, normalized.get_element_type())};
+    Output<Node> normalized = normalize(context, node, s, norm, inverse);
+    if (complex_output) {
+        normalized = std::make_shared<ComplexTypeMark>(normalized, normalized.get_element_type());
+    }
+    return {normalized};
+}
+}  // namespace
+
+OutputVector translate_fft_fft(const NodeContext& context) {
+    return translate_fft_fft_base<v7::DFT>(context, 1, true, true);
+}
+
+OutputVector translate_fft_fft2(const NodeContext& context) {
+    return translate_fft_fft_base<v7::DFT>(context, 2, true, true);
+}
+
+OutputVector translate_fft_fftn(const NodeContext& context) {
+    return translate_fft_fft_base<v7::DFT>(context, -1, true, true);
+}
+
+OutputVector translate_fft_rfft(const NodeContext& context) {
+    return translate_fft_fft_base<v9::RDFT>(context, 1, false, true);
+}
+
+OutputVector translate_fft_rfft2(const NodeContext& context) {
+    return translate_fft_fft_base<v9::RDFT>(context, 2, false, true);
 }
 
 OutputVector translate_fft_rfftn(const NodeContext& context) {
     // aten::fft_rfftn(Tensor self, int[1]? s=None, int[1]? dim=None, str? norm=None) -> Tensor
-    num_inputs_check(context, 1, 4);
-    auto input = context.get_input(0);
+    return translate_fft_fft_base<v9::RDFT>(context, -1, false, true);
+}
 
-    Output<Node> dim;
-    Output<Node> s;
-    std::tie(dim, s) = get_dim_s(context, input, false);
+OutputVector translate_fft_ifft(const NodeContext& context) {
+    return translate_fft_fft_base<v7::IDFT>(context, 1, true, true, true);
+}
 
-    // Handle norm parameter indicating normalization mode to use. Defaults to "backward".
-    std::string norm = "backward";
-    if (!context.input_is_none(3)) {
-        norm = context.const_input<std::string>(3);
-    }
-
-    auto node = context.mark_node(std::make_shared<v9::RDFT>(input, dim, s));
-
-    // Apply normalizations
-    Output<Node> normalized = normalize(context, node, s, norm, false);
-    return {std::make_shared<ComplexTypeMark>(normalized, normalized.get_element_type())};
+OutputVector translate_fft_ifft2(const NodeContext& context) {
+    return translate_fft_fft_base<v7::IDFT>(context, 2, true, true, true);
 }
 
 OutputVector translate_fft_ifftn(const NodeContext& context) {
-    // aten::fft_irfftn(Tensor self, int[1]? s=None, int[1]? dim=None, str? norm=None) -> Tensor
-    num_inputs_check(context, 1, 4, true);
-    auto input = context.get_input(0);
+    return translate_fft_fft_base<v7::IDFT>(context, -1, true, true, true);
+}
 
-    Output<Node> dim;
-    Output<Node> s;
-    std::tie(dim, s) = get_dim_s(context, input, false);
+OutputVector translate_fft_irfft(const NodeContext& context) {
+    return translate_fft_fft_base<v9::IRDFT>(context, 1, true, false, true, true);
+}
 
-    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
-    PYTORCH_OP_CONVERSION_CHECK(complex_type_mark, "Operation expects complex type tensor on input.");
-    input = complex_type_mark->get_data();
-
-    // Handle norm parameter indicating normalization mode to use. Defaults to "backward".
-    std::string norm = "backward";
-    if (!context.input_is_none(3)) {
-        norm = context.const_input<std::string>(3);
-    }
-
-    auto node = context.mark_node(std::make_shared<v7::IDFT>(input, dim, s));
-
-    Output<Node> normalized = normalize(context, node, s, norm, true);
-    return {std::make_shared<ComplexTypeMark>(normalized, normalized.get_element_type())};
+OutputVector translate_fft_irfft2(const NodeContext& context) {
+    return translate_fft_fft_base<v9::IRDFT>(context, 2, true, false, true, true);
 }
 
 OutputVector translate_fft_irfftn(const NodeContext& context) {
     // aten::fft_irfftn(Tensor self, int[1]? s=None, int[1]? dim=None, str? norm=None) -> Tensor
-    num_inputs_check(context, 1, 4, true);
-    auto input = context.get_input(0);
-
-    Output<Node> dim;
-    Output<Node> s;
-    std::tie(dim, s) = get_dim_s(context, input, true);
-
-    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
-    PYTORCH_OP_CONVERSION_CHECK(complex_type_mark, "Operation expects complex type tensor on input.");
-    input = complex_type_mark->get_data();
-
-    // Handle norm parameter indicating normalization mode to use. Defaults to "backward".
-    std::string norm = "backward";
-    if (!context.input_is_none(3)) {
-        norm = context.const_input<std::string>(3);
-    }
-
-    auto node = context.mark_node(std::make_shared<v9::IRDFT>(input, dim, s));
-
-    Output<Node> normalized = normalize(context, node, s, norm, true);
-    return {normalized};
+    return translate_fft_fft_base<v9::IRDFT>(context, -1, true, false, true, true);
 }
 
 }  // namespace op
