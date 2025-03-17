@@ -2,13 +2,21 @@ name: Linux RISC-V with Xuantie (Ubuntu 22.04, Python 3.10)
 on:
   workflow_dispatch:
     inputs:
-      testFilter:
-        description: 'Filter for google tests'
+      testFilterType:
+        description: 'Filter for google tests {SMOKE | CONCISE}'
         required: true
-        default: '*smoke_AdaPoolAvg4DLayoutTest*'
+        default: 'CONCISE'
   pull_request:
     paths:
       - '.github/workflows/linux_riscv_xuantie_dev_cpu.yml'
+      - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
+      - 'src/plugins/intel_cpu/src/emitters/plugin/riscv64/**'
+      - 'src/plugins/intel_cpu/src/emitters/plugin/x64/**'
+      - 'src/plugins/intel_cpu/src/nodes/executors/aarch64/**'
+      - 'src/plugins/intel_cpu/src/nodes/executors/shl/**'
+      - 'src/plugins/intel_cpu/src/nodes/kernels/riscv64/**'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/riscv64/**'
+      - 'src/plugins/intel_cpu/thirdparty/xbyak_riscv/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -19,7 +27,6 @@ permissions: read-all
 
 env:
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
-  GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.testFilter || '*smoke_AdaPoolAvg4DLayoutTest*' }}
   RISCV_TOOLCHAIN_ROOT: /opt/riscv
 
 jobs:
@@ -157,7 +164,7 @@ jobs:
           -DCMAKE_VERBOSE_MAKEFILE=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
-          -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-071-xuantie-gnu.toolchain.cmake
+          -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-100-xuantie-gnu.toolchain.cmake
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
 
@@ -214,6 +221,7 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*' }}
 
     steps:
       - name: Download OpenVINO artifacts (tarballs)
@@ -232,8 +240,8 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu c910v ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
-        timeout-minutes: 25
+          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu rv64,x-v=true,vlen=256 ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
+        timeout-minutes: ${{ inputs.testFilterType == 'SMOKE' && 125 || 25}}
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
