@@ -77,6 +77,35 @@ ov::Tensor generate(const std::shared_ptr<ov::Node>& node,
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 
+ov::Tensor generate(const std::shared_ptr<ov::op::v3::Broadcast>& node,
+                    size_t port,
+                    const ov::element::Type& elemType,
+                    const ov::Shape& targetShape,
+                    std::shared_ptr<InputGenerateData> inGenRangeData = nullptr) {
+    if (port == 0) {
+        if (node->get_broadcast_spec().m_type == ov::op::BroadcastType::NUMPY) {
+            ov::Shape output_shape;
+            if (node->get_output_partial_shape(0).is_static()) {
+                output_shape = node->get_output_shape(0);
+                
+                ov::Shape adjusted_shape = targetShape;
+                
+                if (output_shape.size() >= targetShape.size()) {
+                    const size_t start_axis = output_shape.size() - targetShape.size();
+                    for (size_t i = 0; i < targetShape.size(); ++i) {
+                        if (targetShape[i] != 1 && targetShape[i] != output_shape[i + start_axis]) {
+                            adjusted_shape[i] = 1;
+                        }
+                    }
+                    
+                    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, adjusted_shape, inGenRangeData);
+                }
+            }
+        }
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape, inGenRangeData);
+}
+
 namespace Activation {
 ov::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
