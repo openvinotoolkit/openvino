@@ -69,11 +69,13 @@ ov::Tensor get_model_weights(const ov::AnyMap& properties) {
 
 std::shared_ptr<ov::Model> get_ov_model_from_blob(const ov::template_plugin::Plugin& plugin,
                                                   ov::Tensor& weights,
+                                                  size_t offset,
                                                   const ov::AnyMap& properties) {
     if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
         if (auto&& blob = blob_it->second.as<ov::Tensor>(); blob) {
             ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
             std::istream blob_stream(&shared_buffer);
+            blob_stream.seekg(offset, std::ios::beg);
             const auto model = get_model_str(blob_stream);
             try {
                 return weights ? plugin.get_core()->read_model(model, weights) : nullptr;
@@ -180,27 +182,15 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     fullConfig.threads = streamsExecutorConfig.get_threads();
     fullConfig.threads_per_stream = streamsExecutorConfig.get_threads_per_stream();
 
-    auto weights = get_model_weights(properties);
-    auto ov_model = get_ov_model_from_blob(*this, weights, properties);
-    bool loaded_from_cache = false;
-    if (!ov_model) {
-        OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
-        ov_model = model->clone();
-    } else {
-        if (auto&& it = properties.find(ov::loaded_from_cache.name()); it != properties.end()) {
-            loaded_from_cache = it->second.as<bool>();
-        }
-    }
-
     return std::make_shared<CompiledModel>(
-        ov_model,
+        model->clone(),
         shared_from_this(),
         context,
         fullConfig.exclusive_async_requests
             ? get_executor_manager()->get_executor(template_exclusive_executor)
             : get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
         fullConfig,
-        loaded_from_cache);
+        false);
 }
 // ! [plugin:compile_model_with_remote]
 
@@ -246,7 +236,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
             }
         }
     }
-    auto ov_model = get_ov_model_from_blob(*this, weights, properties);
+    auto ov_model = get_ov_model_from_blob(*this, weights, model.tellg(), properties);
     if (!ov_model) {
         // read XML content
         std::string xmlString = get_model_str(model);
