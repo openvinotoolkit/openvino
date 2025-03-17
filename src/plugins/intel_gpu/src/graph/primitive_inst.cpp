@@ -368,7 +368,7 @@ void primitive_inst::update_shape() {
     if (_node->is_in_shape_of_subgraph()) {
         bool subgraph_input_changed = false;
         for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
-            if (dependant_shape_of_insts[i]->get_flag(ExecutionFlags::SHAPE_CHANGED) || dependant_shape_of_insts[i]->_node->is_type<input_layout>()) {
+            if (dependant_shape_of_insts[i]->get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                 subgraph_input_changed = true;
                 break;
             }
@@ -396,7 +396,6 @@ void primitive_inst::update_shape() {
             const auto& insts = _deps[i].first->dependant_shape_of_insts;
             for (auto& inst : insts) {
                 can_skip &= !inst->get_flag(ExecutionFlags::SHAPE_CHANGED);
-                can_skip &= !inst->_node->is_type<input_layout>();
             }
             if (can_skip)
                 continue;
@@ -1850,7 +1849,7 @@ void primitive_inst::prepare_primitive() {
         if (_node->is_in_shape_of_subgraph() && dependant_shape_of_insts.front()->is_dynamic()) {
             bool subgraph_input_changed = false;
             for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
-                if (dependant_shape_of_insts[i]->get_flag(ExecutionFlags::SHAPE_CHANGED) || dependant_shape_of_insts[i]->_node->is_type<input_layout>()) {
+                if (dependant_shape_of_insts[i]->get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                     subgraph_input_changed = true;
                     break;
                 }
