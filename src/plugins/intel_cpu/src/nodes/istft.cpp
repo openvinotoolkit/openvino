@@ -153,20 +153,23 @@ void istft_impl(const float* in_data,
                     sizeof(float));
 
     // Setting function for the result postprocessing
-    const float norm_factor = (float(frame_size) / float(frame_step) / 2.f);
-    const auto norm_div = [&](float a) {
-        return a / norm_factor;
+    const auto norm_window_div = [sqrt_frame_size](float a, float b) {
+        if (b != 0.f) {
+            return (a * sqrt_frame_size) / b;
+        }
+        return 0.f;
     };
-
-    const auto norm_sqrt_div = [&](float a) {
-        return (a * sqrt_frame_size) / norm_factor;
+    const auto window_div = [](float a, float b) {
+        if (b != 0.f) {
+            return a / b;
+        }
+        return 0.f;
     };
-
-    std::function<float(float)> postprocess_func;
+    std::function<float(float, float)> postprocess_func;
     if (normalized) {
-        postprocess_func = norm_sqrt_div;
+        postprocess_func = norm_window_div;
     } else {
-        postprocess_func = norm_div;
+        postprocess_func = window_div;
     }
 
     const auto fft_out_shape_size = shape_size(fft_out_shape);
@@ -211,9 +214,21 @@ void istft_impl(const float* in_data,
                            mid_result.begin() + out_frame_start,
                            mid_result.begin() + out_frame_start,
                            std::plus<>());
+
+            std::transform(pad_window.begin(),
+                           pad_window.end(),
+                           window_sum.begin() + out_frame_start,
+                           window_sum.begin() + out_frame_start,
+                           [](float win, float win_sum) {
+                               return win_sum + std::pow(win, 2);
+                           });
         }
         float* result = mid_result.data() + (batch * signal_length);
-        std::transform(result, result + signal_length, result, norm_div);
+        std::transform(result,
+                       result + signal_length,
+                       window_sum.begin() + batch * signal_length,
+                       result,
+                       postprocess_func);
         const auto result_start = result + margin;
         std::copy(result_start, result_start + copy_end, final_result + batch * final_signal_length);
     });
