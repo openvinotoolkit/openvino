@@ -2478,10 +2478,8 @@ TEST_P(CachingTest, Load_mmap_is_disabled) {
         if (m_checkConfigCb) {
             m_checkConfigCb(config);
         }
-        ov::Tensor compiled_blob;
-        if (config.count(ov::hint::compiled_blob.name()))
-            compiled_blob = config.at(ov::hint::compiled_blob.name()).as<ov::Tensor>();
-        EXPECT_FALSE(compiled_blob);
+
+        EXPECT_GT(config.count(ov::hint::compiled_blob.name()), 0);
 
         std::string name;
         istr >> name;
@@ -2525,10 +2523,8 @@ TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin) {
         if (m_checkConfigCb) {
             m_checkConfigCb(config);
         }
-        ov::Tensor compiled_blob;
-        if (config.count(ov::hint::compiled_blob.name()))
-            compiled_blob = config.at(ov::hint::compiled_blob.name()).as<ov::Tensor>();
-        EXPECT_FALSE(compiled_blob);
+
+        EXPECT_GT(config.count(ov::hint::compiled_blob.name()), 0);
 
         std::string name;
         istr >> name;
@@ -2567,10 +2563,8 @@ TEST_P(CachingTest, Load_mmap_is_disabled_local_cfg) {
         if (m_checkConfigCb) {
             m_checkConfigCb(config);
         }
-        ov::Tensor compiled_blob;
-        if (config.count(ov::hint::compiled_blob.name()))
-            compiled_blob = config.at(ov::hint::compiled_blob.name()).as<ov::Tensor>();
-        EXPECT_FALSE(compiled_blob);
+
+        EXPECT_GT(config.count(ov::hint::compiled_blob.name()), 0);
 
         std::string name;
         istr >> name;
@@ -2613,10 +2607,7 @@ TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin_local_cfg) {
         if (m_checkConfigCb) {
             m_checkConfigCb(config);
         }
-        ov::Tensor compiled_blob;
-        if (config.count(ov::hint::compiled_blob.name()))
-            compiled_blob = config.at(ov::hint::compiled_blob.name()).as<ov::Tensor>();
-        EXPECT_FALSE(compiled_blob);
+        EXPECT_GT(config.count(ov::hint::compiled_blob.name()), 0);
 
         std::string name;
         istr >> name;
