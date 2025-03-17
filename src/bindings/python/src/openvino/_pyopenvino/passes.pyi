@@ -638,7 +638,7 @@ class Predicate:
                           :type predicate: Callable
         """
     @typing.overload
-    def __init__(self, predicate: typing.Callable[[dict[str, ov::pass::pattern::PatternSymbolValue], openvino._pyopenvino.Output], bool]) -> None:
+    def __init__(self, predicate: typing.Callable[[dict[str, ...], openvino._pyopenvino.Output], bool]) -> None:
         """
                           Create Predicate from a given function.
         

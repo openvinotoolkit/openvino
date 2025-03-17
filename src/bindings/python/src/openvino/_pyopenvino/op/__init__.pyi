@@ -22,7 +22,7 @@ class Constant(openvino._pyopenvino.Node):
     def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[str]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[ov::float16]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[...]) -> None:
         ...
     @typing.overload
     def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[float]) -> None:

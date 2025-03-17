@@ -1929,7 +1929,7 @@ class Input:
                         :return: Index value as integer.
                         :rtype: int
         """
-    def get_node(self) -> ov::Node:
+    def get_node(self) -> ...:
         """
                         Get node referenced by this input handle.
         
@@ -3629,7 +3629,7 @@ class Output:
         ...
     def __repr__(self) -> str:
         ...
-    def _from_node(self: ov::Node) -> Output:
+    def _from_node(self: ...) -> Output:
         ...
     def add_names(self, names: set[str]) -> None:
         """
@@ -3667,7 +3667,7 @@ class Output:
                         :return: Set of tensor names.
                         :rtype: Set[str]
         """
-    def get_node(self) -> ov::Node:
+    def get_node(self) -> ...:
         """
                         Get node referenced by this output handle.
         
@@ -3695,7 +3695,7 @@ class Output:
                         :return: Copy of Shape of the output.
                         :rtype: openvino.Shape
         """
-    def get_target_inputs(self) -> set[ov::Input<ov::Node>]:
+    def get_target_inputs(self) -> set[...]:
         """
                         A set containing handles for all inputs, targeted by the output,
                         referenced by this output handle.
@@ -3703,14 +3703,14 @@ class Output:
                         :return: Set of Inputs.
                         :rtype: Set[openvino.Input]
         """
-    def get_tensor(self) -> ov::descriptor::Tensor:
+    def get_tensor(self) -> ...:
         """
                         A reference to the tensor descriptor for this output.
         
                         :return: Tensor of the output.
                         :rtype: openvino._pyopenvino.DescriptorTensor
         """
-    def remove_target_input(self, target_input: ov::Input<ov::Node>) -> None:
+    def remove_target_input(self, target_input: ...) -> None:
         """
                         Removes a target input from the output referenced by this output handle.
         
@@ -3744,7 +3744,7 @@ class Output:
     def names(self) -> set[str]:
         ...
     @property
-    def node(self) -> ov::Node:
+    def node(self) -> ...:
         ...
     @property
     def partial_shape(self) -> PartialShape:
@@ -3756,10 +3756,10 @@ class Output:
     def shape(self) -> Shape:
         ...
     @property
-    def target_inputs(self) -> set[ov::Input<ov::Node>]:
+    def target_inputs(self) -> set[...]:
         ...
     @property
-    def tensor(self) -> ov::descriptor::Tensor:
+    def tensor(self) -> ...:
         ...
 class PartialShape:
     """
@@ -3768,7 +3768,7 @@ class PartialShape:
     __hash__: typing.ClassVar[None] = None
     @staticmethod
     @typing.overload
-    def dynamic(rank: Dimension = <Dimension: ?>) -> PartialShape:
+    def dynamic(rank: Dimension = ...) -> PartialShape:
         """
                                Construct a PartialShape with the given rank and all dimensions are dynamic.
         
@@ -4454,7 +4454,7 @@ class Tensor:
                         :type shared_memory: bool
         """
     @typing.overload
-    def __init__(self, array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]], shape: Shape, type: Type = <Type: 'dynamic'>) -> None:
+    def __init__(self, array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]], shape: Shape, type: Type = ...) -> None:
         """
                         Another Tensor's special constructor.
         
@@ -4482,7 +4482,7 @@ class Tensor:
                             t = ov.Tensor(arr, ov.Shape([100, 8]), ov.Type.u1)
         """
     @typing.overload
-    def __init__(self, array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]], shape: list[int], type: Type = <Type: 'dynamic'>) -> None:
+    def __init__(self, array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]], shape: list[int], type: Type = ...) -> None:
         """
                          Another Tensor's special constructor.
         
@@ -4561,7 +4561,7 @@ class Tensor:
                         :type array: numpy.array
         """
     @typing.overload
-    def __init__(self, port: ov::Output<ov::Node const>) -> None:
+    def __init__(self, port: ...) -> None:
         """
                     Constructs Tensor using port from node.
                     Type and shape will be taken from the port.
@@ -4570,7 +4570,7 @@ class Tensor:
                     :type param: openvino.ConstOutput
         """
     @typing.overload
-    def __init__(self, port: ov::Output<ov::Node const>, array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> None:
+    def __init__(self, port: ..., array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> None:
         """
                         Constructs Tensor using port from node.
                         Type and shape will be taken from the port.
