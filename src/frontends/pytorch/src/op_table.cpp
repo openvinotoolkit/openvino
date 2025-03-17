@@ -19,6 +19,7 @@ namespace op {
 using namespace ov::frontend;
 
 // TorchScript translations
+OP_CONVERTER(translate_abs);
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_avg_pool2d);
 OP_CONVERTER(translate_adaptive_avg_pool1d);
@@ -86,6 +87,7 @@ OP_CONVERTER(translate_erf);
 OP_CONVERTER(translate_erfc);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
+OP_CONVERTER(translate_exp);
 OP_CONVERTER(translate_expm1);
 OP_CONVERTER(translate_eye);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine);
@@ -364,8 +366,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},
         {"aten::_upsample_bilinear2d_aa", op::translate_upsample_bilinear2d_aa},
         {"aten::_weight_norm", op::translate_weight_norm},
-        {"aten::abs", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Abs>, 1>},
-        {"aten::abs_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Abs>>},
+        {"aten::abs", op::optional_out<op::translate_abs, 1>},
+        {"aten::abs_", op::inplace_op<op::translate_abs>},
         {"aten::acos", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acos>, 1>},
         {"aten::acos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acos>>},
         {"aten::acosh",
@@ -473,8 +475,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::equal", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::erf", op::translate_erf},
         {"aten::erfc", op::translate_erfc},
-        {"aten::exp", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>, 1>},
-        {"aten::exp_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>>},
+        {"aten::exp", op::optional_out<op::translate_exp, 1>},
+        {"aten::exp_", op::inplace_op<op::translate_exp>},
         {"aten::expand", op::translate_expand},
         {"aten::expand_as", op::translate_expand_as},
         {"aten::expm1", op::translate_expm1},

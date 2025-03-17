@@ -376,4 +376,3 @@ jobs:
     with:
       runner: 'macos-13-xlarge'
       python-version: '3.11'
-      scope: ${{ contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event_name)  && 'nightly' || 'smoke' }}

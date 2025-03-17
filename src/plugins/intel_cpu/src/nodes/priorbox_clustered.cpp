@@ -65,7 +65,7 @@ bool PriorBoxClustered::needShapeInfer() const {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int h = in_data[0];
     const int w = in_data[1];
-    const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
+    const auto output = static_cast<size_t>(4) * h * w * number_of_priors;
 
     return output_shape[1] != output;
 }

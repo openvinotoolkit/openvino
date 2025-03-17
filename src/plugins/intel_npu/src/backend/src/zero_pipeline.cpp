@@ -29,10 +29,6 @@ Pipeline::Pipeline(const Config& config,
       _config(config),
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
-      _event_pool{
-          std::make_shared<EventPool>(init_structs->getDevice(),
-                                      init_structs->getContext(),
-                                      _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1)},
       _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
