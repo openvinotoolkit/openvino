@@ -72,10 +72,13 @@ std::shared_ptr<ov::Model> get_ov_model_from_blob(const ov::template_plugin::Plu
                                                   const ov::AnyMap& properties) {
     if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
         if (auto&& blob = blob_it->second.as<ov::Tensor>(); blob) {
-            ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
-            std::istream blob_stream(&shared_buffer);
-            const auto model = get_model_str(blob_stream);
-            return weights ? plugin.get_core()->read_model(model, weights) : nullptr;
+            try {
+                ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
+                std::istream blob_stream(&shared_buffer);
+                const auto model = get_model_str(blob_stream);
+                return weights ? plugin.get_core()->read_model(model, weights) : nullptr;
+            } catch (...) {
+            }
         }
     }
     return nullptr;

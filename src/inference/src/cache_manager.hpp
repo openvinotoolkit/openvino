@@ -136,18 +136,14 @@ private:
     void read_cache_entry(const std::string& id, bool enable_mmap, StreamReader reader) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
-        auto blob_file_name = getBlobFile(id);
+        const auto blob_file_name = getBlobFile(id);
         if (ov::util::file_exists(blob_file_name)) {
-            Tensor compiled_blob;
-            if (enable_mmap) {
-                compiled_blob = ov::read_tensor_data(blob_file_name);
-                SharedStreamBuffer buf{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
-                std::istream stream(&buf);
-                reader(stream, compiled_blob);
-            } else {
-                std::ifstream stream(blob_file_name, std::ios_base::binary);
-                reader(stream, compiled_blob);
-            }
+            auto compiled_blob =
+                read_tensor_data(blob_file_name, element::u8, PartialShape::dynamic(1), 0, enable_mmap);
+            std::cout << std::endl;
+            SharedStreamBuffer buf{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
+            std::istream stream(&buf);
+            reader(stream, compiled_blob);
         }
     }
 
