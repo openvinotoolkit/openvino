@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "plugin.hpp"
+
 #include <fstream>
 
 #include "compiled_model.hpp"
@@ -25,7 +27,6 @@
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
-#include "plugin.hpp"
 #include "remote_context.hpp"
 
 using namespace intel_npu;
