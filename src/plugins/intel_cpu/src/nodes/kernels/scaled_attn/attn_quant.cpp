@@ -811,7 +811,6 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
     if (v_dst.get_precision() == ov::element::u4) {
         dispatch |= 0x01;
     }
-    printf("paged_attn_quantkv|dispatch %d %x\n", dispatch, dispatch);
     if (k_src.get_precision() == ov::element::f32) {
         funcs_fp32[dispatch](k_src,
                              v_src,
