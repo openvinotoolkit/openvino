@@ -17,7 +17,7 @@ namespace ov::intel_cpu {
 
 namespace {
 
-class StaticPartitionMemoryBlock : public IMemoryBlockObserver {
+class StaticPartitionMemoryBlock : public IMemoryBlock {
 public:
     StaticPartitionMemoryBlock(MemoryBlockPtr pBlock, ptrdiff_t offset)
         : m_pBlock(std::move(pBlock)),
@@ -38,61 +38,16 @@ public:
     [[nodiscard]] bool hasExtBuffer() const noexcept override {
         return m_pBlock->hasExtBuffer();
     }
-    void registerMemory(Memory* memPtr) override {
-        m_pBlock->registerMemory(memPtr);
-    }
-    void unregisterMemory(Memory* memPtr) override {
-        m_pBlock->unregisterMemory(memPtr);
-    }
 
 private:
     MemoryBlockPtr m_pBlock;
     ptrdiff_t m_offset = 0;
 };
 
-class MemoryBlockWithRelease : public IMemoryBlockObserver {
-public:
-    MemoryBlockWithRelease() {
-        auto pInternalMem = make_unique<MemoryBlockWithReuse>();
-        m_pInternalMem = pInternalMem.get();
-        m_pBlock = std::make_shared<DnnlMemoryBlock>(std::move(pInternalMem));
-    }
-
-    [[nodiscard]] void* getRawPtr() const noexcept override {
-        return m_pBlock->getRawPtr();
-    }
-    void setExtBuff(void* ptr, size_t size) override {
-        m_pBlock->setExtBuff(ptr, size);
-    }
-    bool resize(size_t size) override {
-        return m_pBlock->resize(size);
-    }
-    [[nodiscard]] bool hasExtBuffer() const noexcept override {
-        return m_pBlock->hasExtBuffer();
-    }
-    void registerMemory(Memory* memPtr) override {
-        m_pBlock->registerMemory(memPtr);
-    }
-    void unregisterMemory(Memory* memPtr) override {
-        m_pBlock->unregisterMemory(memPtr);
-    }
-    void free() {
-        m_pInternalMem->free();
-    }
-
-    [[nodiscard]] size_t size() const {
-        return m_pInternalMem->size();
-    }
-
-private:
-    MemoryBlockPtr m_pBlock;
-    MemoryBlockWithReuse* m_pInternalMem;
-};
-
 #ifdef CPU_DEBUG_CAPS
-class IndividualMemoryBlockWithRelease : public IMemoryBlockObserver {
+class IndividualMemoryBlockWithRelease : public IMemoryBlock {
 public:
-    IndividualMemoryBlockWithRelease(std::shared_ptr<MemoryBlockWithRelease> pBlock) : m_pBlock(std::move(pBlock)) {}
+    IndividualMemoryBlockWithRelease(std::shared_ptr<MemoryBlockWithReuse> pBlock) : m_pBlock(std::move(pBlock)) {}
 
     [[nodiscard]] void* getRawPtr() const noexcept override {
         return m_pBlock->getRawPtr();
@@ -107,12 +62,6 @@ public:
     }
     [[nodiscard]] bool hasExtBuffer() const noexcept override {
         return m_pBlock->hasExtBuffer();
-    }
-    void registerMemory(Memory* memPtr) override {
-        m_pBlock->registerMemory(memPtr);
-    }
-    void unregisterMemory(Memory* memPtr) override {
-        m_pBlock->unregisterMemory(memPtr);
     }
     void free() {
         m_max_requested_size = 0;
@@ -125,12 +74,12 @@ public:
         return m_max_requested_size;
     }
 
-    [[nodiscard]] std::shared_ptr<const MemoryBlockWithRelease> getParentBlock() const {
+    [[nodiscard]] std::shared_ptr<const MemoryBlockWithReuse> getParentBlock() const {
         return m_pBlock;
     }
 
 private:
-    std::shared_ptr<MemoryBlockWithRelease> m_pBlock;
+    std::shared_ptr<MemoryBlockWithReuse> m_pBlock;
     size_t m_max_requested_size = 0;
 };
 #endif  // CPU_DEBUG_CAPS
@@ -146,16 +95,6 @@ public:
 
 using MemoryManagerPtr = std::shared_ptr<IMemoryManager>;
 
-template <typename T, typename... Args>
-std::shared_ptr<DnnlMemoryBlock> makeDnnlMemoryBlock(Args&&... args) {
-    return std::make_shared<DnnlMemoryBlock>(make_unique<T>(std::forward<Args>(args)...));
-}
-
-template <typename T>
-std::shared_ptr<DnnlMemoryBlock> makeDnnlMemoryBlock(std::unique_ptr<T> ptr) {
-    return std::make_shared<DnnlMemoryBlock>(std::move(ptr));
-}
-
 class MemoryManagerIO : public IMemoryManager {
 public:
     using BlockType = MemoryBlockWithReuse;
@@ -165,7 +104,7 @@ public:
         (void)syncInds;
         auto block = make_unique<BlockType>();
         CPU_DEBUG_CAP_ENABLE(m_blocks.emplace_back(*block);)
-        m_solution.insert({reg.id, makeDnnlMemoryBlock(std::move(block))});
+        m_solution.insert({reg.id, std::move(block)});
     }
 
     const MemoryControl::MemorySolution& lastSolution() override {
@@ -218,7 +157,7 @@ private:
         ov::MemorySolver staticMemSolver(boxes_to_process);
         m_totalSize = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
-        m_workspace = std::make_shared<MemoryBlockWithRelease>();
+        m_workspace = std::make_shared<MemoryBlockWithReuse>();
 
         for (const auto& box : boxes_to_process) {
             int64_t offset = staticMemSolver.get_offset(box.id);
@@ -245,7 +184,7 @@ private:
 private:
     MemoryControl::MemorySolution m_blocks;
     std::vector<MemorySolver::Box> m_boxes;
-    std::shared_ptr<MemoryBlockWithRelease> m_workspace;
+    std::shared_ptr<MemoryBlockWithReuse> m_workspace;
     size_t m_totalSize = 0;
     bool reset_flag = true;
     CPU_DEBUG_CAP_ENABLE(friend MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerStatic& obj);)
@@ -286,12 +225,12 @@ public:
 private:
 #ifdef CPU_DEBUG_CAPS
     using InternalBlock = IndividualMemoryBlockWithRelease;
-    std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithRelease>& block) {
+    std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithReuse>& block) {
         return std::make_shared<InternalBlock>(block);
     }
 #else
-    using InternalBlock = MemoryBlockWithRelease;
-    std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithRelease>& block) {
+    using InternalBlock = MemoryBlockWithReuse;
+    std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithReuse>& block) {
         return block;
     }
 #endif  // CPU_DEBUG_CAPS
@@ -319,7 +258,7 @@ private:
             }
         }
         for (auto& group : groups) {
-            auto unique_block = std::make_shared<MemoryBlockWithRelease>();
+            auto unique_block = std::make_shared<MemoryBlockWithReuse>();
             for (auto& box : group) {
                 m_internalBlocks.insert({box.id, internalBlock(unique_block)});
             }
@@ -420,7 +359,7 @@ MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerNonOverlappingSets&
     retVal.id = MemoryManagerNonOverlappingSets::getClassName();
     retVal.total_regions = obj.m_boxes.size();
 
-    std::unordered_set<std::shared_ptr<const MemoryBlockWithRelease>> uniqueBlocks;
+    std::unordered_set<std::shared_ptr<const MemoryBlockWithReuse>> uniqueBlocks;
     for (auto&& item : obj.m_internalBlocks) {
         uniqueBlocks.insert(item.second->getParentBlock());
     }

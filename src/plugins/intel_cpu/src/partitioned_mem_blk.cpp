@@ -22,11 +22,3 @@ bool PartitionedMemoryBlock::resize(size_t size) {
 bool PartitionedMemoryBlock::hasExtBuffer() const noexcept {
     return m_pBlock->hasExtBuffer();
 }
-
-void PartitionedMemoryBlock::registerMemory(Memory* memPtr) {
-    m_pBlock->registerMemory(memPtr);
-}
-
-void PartitionedMemoryBlock::unregisterMemory(Memory* memPtr) {
-    m_pBlock->unregisterMemory(memPtr);
-}

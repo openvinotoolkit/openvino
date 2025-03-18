@@ -12,7 +12,7 @@ namespace intel_cpu {
 /**
  * @brief A proxy object that additionally implements observer pattern
  */
-class ProxyMemoryBlock : public IMemoryBlockObserver {
+class ProxyMemoryBlock : public IMemoryBlock {
 public:
     ProxyMemoryBlock() : m_pOrigBlock(std::make_shared<MemoryBlockWithReuse>()), m_pMemBlock(m_pOrigBlock) {}
     explicit ProxyMemoryBlock(const std::shared_ptr<IMemoryBlock>& pBlock) {
@@ -25,21 +25,14 @@ public:
     bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
 
-    void registerMemory(Memory* memPtr) override;
-    void unregisterMemory(Memory* memPtr) override;
-
     void setMemBlock(std::shared_ptr<IMemoryBlock> pBlock);
     void setMemBlockResize(std::shared_ptr<IMemoryBlock> pBlock);
     void reset();
 
 private:
-    void notifyUpdate();
-
     // We keep the original MemBlock as may fallback to copy output.
     std::shared_ptr<IMemoryBlock> m_pOrigBlock = nullptr;
     std::shared_ptr<IMemoryBlock> m_pMemBlock = nullptr;
-
-    std::unordered_set<Memory*> m_setMemPtrs;
 
     // WA: resize stage might not work because there is no shape change,
     // but the underlying actual memory block changes.

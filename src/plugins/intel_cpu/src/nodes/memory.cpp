@@ -26,7 +26,7 @@ namespace ov::intel_cpu::node {
 namespace {
 class MemoryStub : public IMemory {
 public:
-    class MemoryBlockStub : public IMemoryBlockObserver {
+    class MemoryBlockStub : public IMemoryBlock {
         [[nodiscard]] void* getRawPtr() const noexcept override {
             return nullptr;
         }
@@ -40,12 +40,6 @@ public:
         [[nodiscard]] bool hasExtBuffer() const noexcept override {
             // pass
             return false;
-        }
-        void registerMemory(Memory* memPtr) override {
-            // pass
-        }
-        void unregisterMemory(Memory* memPtr) override {
-            // pass
         }
     };
 
@@ -89,10 +83,6 @@ public:
 
     [[nodiscard]] MemoryBlockPtr getMemoryBlock() const override {
         return m_pMemoryBlock;
-    }
-
-    [[nodiscard]] dnnl::memory getPrimitive() const override {
-        OPENVINO_THROW("Unexpected call MemoryStub::getPrimitive()");
     }
 
     void nullify() override {
@@ -888,7 +878,6 @@ MemStatePtr MemoryInput::makeState() const {
         std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
 
     auto mem_desc = getBaseMemDescAtOutputPort(0);
-    const auto& eng = getEngine();
 
     auto state_name = getId();
 
@@ -1057,7 +1046,6 @@ MemStatePtr MemoryInputSingle::makeState() const {
         std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
 
     auto mem_desc = getBaseMemDescAtOutputPort(0);
-    const auto& eng = getEngine();
 
     auto state_name = getId();
 
