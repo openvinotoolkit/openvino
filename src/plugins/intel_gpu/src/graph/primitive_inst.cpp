@@ -1991,9 +1991,16 @@ void primitive_inst::prepare_primitive() {
         set_arguments();
     }
     on_execute();
-
+    
     if (!_node->is_type<condition>() && !_node->is_type<loop>()) {
         for (size_t i = 0; i < _outputs.size(); ++i) {
+            GPU_DEBUG_TRACE << "TEST  " << _outputs.size() << "  "  << orig_outputs[i] << "  " << _outputs[i] << std::endl;
+            if (!orig_outputs[i] && !_outputs[i]) { // XXX: not sure why this is needed.
+                // XXX
+                // OPENVINO_ASSERT(_can_be_optimized);
+                continue;
+            }
+
             if ((!orig_outputs[i] && _outputs[i]) || (orig_outputs[i] && !_outputs[i])) {
                 set_flag(ExecutionFlags::MEMORY_CHANGED);
                 break;
