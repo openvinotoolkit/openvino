@@ -628,7 +628,7 @@ void Plugin::reset_compiler_dependent_properties() const {
     // NPU_QDQ_OPTIMIZATION
     // unpublish if compiler version requirement is not met
     if (_properties.find(ov::intel_npu::qdq_optimization.name()) != _properties.end()) {
-        if (active_compiler_version >= ICOMPILER_MAKE_VERSION(7, 5)) {
+        if (active_compiler_version >= ICOMPILER_MAKE_VERSION(7, 20)) {
             std::get<0>(_properties[ov::intel_npu::qdq_optimization.name()]) = true;  /// mark supported
         } else {
             std::get<0>(_properties[ov::intel_npu::qdq_optimization.name()]) = false;  // mark unsupported
