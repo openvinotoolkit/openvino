@@ -2,19 +2,6 @@
 OpenVINO 2025.0
 ============================
 
-.. meta::
-   :google-site-verification: _YqumYQ98cmXUTwtzM_0WIIadtDc6r_TMYGbmGgNvrk
-
-**OpenVINO is an open-source toolkit** for optimizing and deploying deep learning models from
-cloud to edge. It accelerates deep learning inference across various use cases, such as
-generative AI, video, audio, and language with models from popular frameworks like PyTorch,
-TensorFlow, ONNX, and more. Convert and optimize models, and deploy across a mix of Intel®
-hardware and environments, on-premises and on-device, in the browser or in the cloud.
-
-| Check out the `OpenVINO Cheat Sheet [PDF] <https://docs.openvino.ai/2025/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
-| Check out the `GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2025/_static/download/GenAI_Quick_Start_Guide.pdf>`__
-
-
 .. container::
    :name: ov-homepage-banner
 
@@ -26,8 +13,8 @@ hardware and environments, on-premises and on-device, in the browser or in the c
            <div class="splide__track">
          		<ul class="splide__list">
                <li id="ov-homepage-slide2" class="splide__slide">
-                  <p class="ov-homepage-slide-title">New GenAI API</p>
-                  <p class="ov-homepage-slide-subtitle">Generative AI in only a few lines of code!</p>
+                  <p class="ov-homepage-slide-title">OpenVINO GenAI</p>
+                  <p class="ov-homepage-slide-subtitle">Simplify GenAI model deployment!</p>
                   <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-genai.html">Check out our guide</a>
                   </li>
                   <li id="ov-homepage-slide1" class="splide__slide">
@@ -36,9 +23,9 @@ hardware and environments, on-premises and on-device, in the browser or in the c
                   <a class="ov-homepage-banner-btn" href="https://huggingface.co/OpenVINO">Visit Hugging Face</a>
                   </li>
                   <li id="ov-homepage-slide3" class="splide__slide">
-                  <p class="ov-homepage-slide-title">Improved model serving</p>
-                  <p class="ov-homepage-slide-subtitle">OpenVINO Model Server has improved parallel inference!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2025/model-server/ovms_what_is_openvino_model_server.html">Learn more</a>
+                  <p class="ov-homepage-slide-title">OpenVINO Model Hub</p>
+                  <p class="ov-homepage-slide-subtitle">See performance benchmarks for top AI models!</p>
+                  <a class="ov-homepage-banner-btn" href="https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/model-hub.html">Explore now</a>
                   </li>
                   <li id="ov-homepage-slide4" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO via PyTorch 2.0 torch.compile()</p>
@@ -51,15 +38,45 @@ hardware and environments, on-premises and on-device, in the browser or in the c
       </div>
 
 |
+
+**OpenVINO is an open-source toolkit** for deploying performant AI solutions in the cloud,
+on-prem, and on the edge alike. Develop your applications with both generative and traditional
+AI models, coming from the most popular model frameworks.
+Convert, optimize, and run inference utilizing the full potential of Intel® hardware.
+There are three main tools in OpenVINO to meet all your deployment needs:
+
+.. grid:: 1 1 3 3
+
+   .. grid-item-card:: OpenVINO GenAI
+      :link: ./openvino-workflow-generative.html
+
+      Run and deploy generative AI models
+
+   .. grid-item-card:: OpenVINO Runtime
+      :link: ./openvino-workflow.html
+
+      Run and deploy traditional AI models
+
+   .. grid-item-card:: OpenVINO Model Server
+      :link: ./model-server/ovms_what_is_openvino_model_server.html
+
+      Deploy both generative and traditional AI inference on a server
+
+|
+| For a quick ramp-up, check out the
+  `OpenVINO Toolkit Cheat Sheet [PDF] <https://docs.openvino.ai/2025/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+  and the
+  `OpenVINO GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2025/_static/download/GenAI_Quick_Start_Guide.pdf>`__
 |
 
 .. image:: ./assets/images/openvino-overview-diagram.jpg
    :align: center
    :alt: openvino diagram
+   :width: 90%
 
 |
 
-Places to Begin
+Where to Begin
 ++++++++++++++++++++++++++++
 
 .. grid:: 2 2 3 3
@@ -193,8 +210,8 @@ Key Features
    :hidden:
 
    GET STARTED <get-started>
-   HOW TO USE - MAIN WORKFLOW <openvino-workflow>
    HOW TO USE - GENERATIVE AI WORKFLOW <openvino-workflow-generative>
+   HOW TO USE - TRADITIONAL AI WORKFLOW <openvino-workflow>
    HOW TO USE - MODEL SERVING <model-server/ovms_what_is_openvino_model_server>
    REFERENCE DOCUMENTATION <documentation>
    ABOUT OPENVINO <about-openvino>
