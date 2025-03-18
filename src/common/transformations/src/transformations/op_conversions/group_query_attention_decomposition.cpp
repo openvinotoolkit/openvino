@@ -29,12 +29,12 @@
 
 ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
     MATCHER_SCOPE(GroupQeuryAttentionDecomposition);
-    auto pattern_node = ov::pass::pattern::wrap_type<ov::op::GroupQueryAttention>();
+    auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::GroupQueryAttention>();
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto node =
-            ov::as_type_ptr<ov::op::GroupQueryAttention>(pattern_to_output.at(pattern_node).get_node_shared_ptr());
+        auto node = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(
+            pattern_to_output.at(pattern_node).get_node_shared_ptr());
 
         if (node == nullptr || transformation_callback(node)) {
             return false;
@@ -50,7 +50,7 @@ ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
 }
 
 ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
-    std::shared_ptr<ov::op::GroupQueryAttention> node) {
+    std::shared_ptr<ov::op::internal::GroupQueryAttention> node) {
     using namespace ov::op;
 
     const auto num_heads = node->get_num_heads();
@@ -75,8 +75,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto T = Q.get_element_type();
     const auto q_shape = register_new_node<v3::ShapeOf>(Q);
     const auto current_sequence_length = get_dimensions(q_shape, {2});
-    auto head_size_node =
-        register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {node->get_head_size()}));
+    const auto head_size_node = get_dimensions(q_shape, {3});
 
     auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));

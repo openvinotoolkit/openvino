@@ -19,10 +19,8 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
+namespace ov::frontend::onnx::com_microsoft {
+
 namespace detail {
 namespace {
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims);
@@ -97,12 +95,12 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
             continue;
         ov_op_inputs.push_back(onnx_op_inputs[i]);
     }
-    return std::make_shared<GroupQueryAttention>(ov_op_inputs,
-                                                 num_heads,
-                                                 kv_num_heads,
-                                                 scale,
-                                                 do_rotary,
-                                                 rotary_interleaved)
+    return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,
+                                                           num_heads,
+                                                           kv_num_heads,
+                                                           scale,
+                                                           do_rotary,
+                                                           rotary_interleaved)
         ->outputs();
 }
 
@@ -119,7 +117,5 @@ std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& sha
 }
 }  // namespace
 }  // namespace detail
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+
+}  // namespace ov::frontend::onnx::com_microsoft
