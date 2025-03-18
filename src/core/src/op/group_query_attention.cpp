@@ -68,4 +68,4 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_rotary_interleaved);
 }
 
-}  // namespace op::ov::internal
+}  // namespace ov::op::internal
