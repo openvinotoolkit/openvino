@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+#include "common_translators.hpp"
 #include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
@@ -125,6 +126,15 @@ OutputVector translate_sub_op(const NodeContext& node) {
 
     set_node_name(node.get_name(), result.get_node_shared_ptr());
     return {result};
+}
+
+OutputVector translate_equal_op(const NodeContext& node) {
+    default_op_checks(node, 2, {"Equal"}, true);
+
+    auto result = common_translators::translate_equal(node);
+
+    set_node_name(node.get_name(), result[0].get_node_shared_ptr());
+    return result;
 }
 
 template OutputVector translate_binary_op<v1::Add>(const NodeContext& node);
