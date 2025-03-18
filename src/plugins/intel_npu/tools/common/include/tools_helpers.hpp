@@ -74,66 +74,66 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(std::string
     return return_value;
 }
 
-void boundDynamicShape(std::shared_ptr<ov::Model>& model) {
-    for (auto&& item : model->get_parameters()) {
-        auto shape = item->get_partial_shape();
-        if (shape.is_static()) {
-            continue;
-        }
-        auto rank = shape.rank();
-        if (rank.is_dynamic()) {
-            throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
-                                   "\" is dynamic which is not supported by NPU");
-        }
-        auto layout = item->get_layout();
-        if (!ov::layout::has_batch(layout)) {
-            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
-            layout = item->get_layout();
-        }
-        if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
-            std::cout << "WARNING: Shape \"" + shape.to_string() + "\"" +
-                                 " has dynamic batch size which is not supported by NPU\n"
-                                 "         Setting batch to 1 forcibly"
-                      << std::endl;
-            ov::set_batch(model, 1);
-        }
-        shape = item->get_partial_shape();
-        if (shape.is_dynamic()) {
-            throw std::logic_error("Model's input shape \"" + shape.to_string() + "\"" +
-                                   " is dynamic which is not supported by NPU");
-        }
-    }
-}
+// void boundDynamicShape(std::shared_ptr<ov::Model>& model) {
+//     for (auto&& item : model->get_parameters()) {
+//         auto shape = item->get_partial_shape();
+//         if (shape.is_static()) {
+//             continue;
+//         }
+//         auto rank = shape.rank();
+//         if (rank.is_dynamic()) {
+//             throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
+//                                    "\" is dynamic which is not supported by NPU");
+//         }
+//         auto layout = item->get_layout();
+//         if (!ov::layout::has_batch(layout)) {
+//             item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
+//             layout = item->get_layout();
+//         }
+//         if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
+//             std::cout << "WARNING: Shape \"" + shape.to_string() + "\"" +
+//                                  " has dynamic batch size which is not supported by NPU\n"
+//                                  "         Setting batch to 1 forcibly"
+//                       << std::endl;
+//             ov::set_batch(model, 1);
+//         }
+//         shape = item->get_partial_shape();
+//         if (shape.is_dynamic()) {
+//             throw std::logic_error("Model's input shape \"" + shape.to_string() + "\"" +
+//                                    " is dynamic which is not supported by NPU");
+//         }
+//     }
+// }
 
-void setModelBatch(std::shared_ptr<ov::Model>& model, uint32_t batch = 1) {
-    if (batch == 1) {
-        return;
-    }
-    std::cout << "Configuring model batch: " << batch << std::endl;
-    for (auto&& item : model->get_parameters()) {
-        auto shape = item->get_partial_shape();
-        auto rank = shape.rank();
-        if (rank.is_dynamic()) {
-            throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
-                                   "\" is dynamic which is not supported by NPU");
-        }
-        auto layout = item->get_layout();
-        if (!ov::layout::has_batch(layout)) {
-            std::cout << "WARNING: Batch layout not found. Inserting 'N' dimension = 1 to the layout before "
-            << "setting new model batch of " << batch << std::endl;
-            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
-            layout = item->get_layout();
-        }
-        if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
-            throw std::logic_error("ERROR: Shape \"" + shape.to_string() + "\"" +
-                                   " has dynamic batch size which is not supported by NPU\n"
-                                   "Cannot apply fixed batch: " +
-                                   std::to_string(batch) +
-                                   ". Please remove the parameter from config: \"override_model_batch_size\"");
-        }
-        ov::set_batch(model, batch);
-    }
-}
+// void setModelBatch(std::shared_ptr<ov::Model>& model, uint32_t batch = 1) {
+//     if (batch == 1) {
+//         return;
+//     }
+//     std::cout << "Configuring model batch: " << batch << std::endl;
+//     for (auto&& item : model->get_parameters()) {
+//         auto shape = item->get_partial_shape();
+//         auto rank = shape.rank();
+//         if (rank.is_dynamic()) {
+//             throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
+//                                    "\" is dynamic which is not supported by NPU");
+//         }
+//         auto layout = item->get_layout();
+//         if (!ov::layout::has_batch(layout)) {
+//             std::cout << "WARNING: Batch layout not found. Inserting 'N' dimension = 1 to the layout before "
+//             << "setting new model batch of " << batch << std::endl;
+//             item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
+//             layout = item->get_layout();
+//         }
+//         if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
+//             throw std::logic_error("ERROR: Shape \"" + shape.to_string() + "\"" +
+//                                    " has dynamic batch size which is not supported by NPU\n"
+//                                    "Cannot apply fixed batch: " +
+//                                    std::to_string(batch) +
+//                                    ". Please remove the parameter from config: \"override_model_batch_size\"");
+//         }
+//         ov::set_batch(model, batch);
+//     }
+// }
 
 void modelDynamismCheck(std::shared_ptr<ov::Model>& model, bool shapeOrBatchGiven = true) {
     std::cout << "Checking model for dynamism..." << std::endl;
@@ -188,8 +188,6 @@ void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<o
     // Case 1: override_model_batch_size is specified
     std::vector<InputsInfo> infoMapsTemp;
     if (overrideModelBatchSize != 1) {
-        // setModelBatch(model, overrideModelBatchSize);
-        
         // Batch info from model
         for (auto&& item : model->get_parameters()) {
             auto layout = item->get_layout();
@@ -199,22 +197,23 @@ void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<o
                 << "setting new model batch of " << overrideModelBatchSize << std::endl;
                 item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
             }
-            else {
-                std::cout << "----- BATCH FOUND IN LAYOUT! BATCH --> " << ov::get_batch(model).to_string() << std::endl;
-                std::cout << "----- Setting batch size to " << overrideModelBatchSize << std::endl;
-                modelDynamismCheck(model);
-            }
-            ov::set_batch(model, overrideModelBatchSize);
+
+            // Get partial shape and layout again (in case it's changed after setting batch dimension)
+            auto shape = item->get_partial_shape();
+            layout = item->get_layout();
+
+            // Set shape at batch index to match overrideModelBatchSize
+            shape[ov::layout::batch_idx(layout)] = overrideModelBatchSize;
+            shapeString = shape.to_string();
+
+            // Log shape string
+            std::cout << "----- Shape string after setting batch size: " << shapeString << std::endl;
         }
-        // return;
     }
 
     if (!shapeString.empty()) {
         std::map<std::string, std::vector<std::string>> shapesMap = parseInputParameters(shapeString, inputsInfo);
 
-        if (overrideModelBatchSize != 1) {
-            throw std::logic_error(R"(Incompatible params: "shape" and "override_model_batch_size")");
-        }
         for (auto& item : inputsInfo) {
             InputInfo info;
             auto name = item.get_any_name();
