@@ -918,6 +918,10 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
                      << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(skipversioncheck.str()), "");
 
+    std::ostringstream modelPtrStream;
+    modelPtrStream << ov::hint::model.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+    content = std::regex_replace(content, std::regex(modelPtrStream.str()), "");
+
     std::ostringstream benchmarkInitStream;
     benchmarkInitStream << ov::intel_npu::benchmark_init.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                         << VALUE_DELIMITER;

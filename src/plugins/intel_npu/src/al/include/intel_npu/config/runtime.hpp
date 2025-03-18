@@ -220,6 +220,27 @@ struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
 };
 
 //
+// MODEL_PTR
+//
+struct MODEL_PTR final : OptionBase<MODEL_PTR, std::string> {
+    static std::string_view key() {
+        return ov::hint::model.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "std::string";
+    }
+
+    static std::string defaultValue() {
+        return "";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+//
 // ENABLE_CPU_PINNING
 //
 struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
