@@ -247,21 +247,23 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
                                                     const ov::AnyMap& config,
                                                     const model_hint_t& model_hint) {
     auto cfg = config;
-    const auto apply_model_hint =
-        ov::util::VariantVisitor{[&cfg](const std::shared_ptr<const ov::Model>& model_ptr) {
-                                     if (model_ptr != nullptr) {
-                                         cfg[ov::hint::model.name()] = std::const_pointer_cast<ov::Model>(model_ptr);
-                                     }
-                                 },
-                                 [&cfg](const std::string& model_path) {
-                                     if (cfg.count(ov::weights_path.name()) == 0) {
-                                         ov::util::Path weights_path{model_path};
-                                         weights_path.replace_extension(".bin");
-                                         if (ov::util::file_exists(weights_path)) {
-                                             cfg[ov::weights_path.name()] = weights_path.string();
-                                         }
-                                     }
-                                 }};
+    const auto apply_model_hint = ov::util::VariantVisitor{
+        [&cfg, &plugin](const std::shared_ptr<const ov::Model>& model_ptr) {
+            if (model_ptr != nullptr &&
+                ov::util::contains(plugin.get_property(ov::supported_properties), ov::hint::model)) {
+                cfg[ov::hint::model.name()] = std::const_pointer_cast<ov::Model>(model_ptr);
+            }
+        },
+        [&cfg, &plugin](const std::string& model_path) {
+            if (cfg.count(ov::weights_path.name()) == 0 &&
+                ov::util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
+                ov::util::Path weights_path{model_path};
+                weights_path.replace_extension(".bin");
+                if (ov::util::file_exists(weights_path)) {
+                    cfg[ov::weights_path.name()] = weights_path.string();
+                }
+            }
+        }};
     std::visit(apply_model_hint, model_hint);
     return import_compiled_model(plugin, context, cfg);
 }
@@ -1543,6 +1545,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
+                if (cacheContent.model &&
+                    util::contains(plugin.get_property(ov::supported_properties), ov::hint::model)) {
+                    update_config[ov::hint::model.name()] = cacheContent.model;
+                }
 
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
                     util::Path weights_path;
@@ -1557,10 +1563,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                     if (ov::util::file_exists(weights_path)) {
                         update_config[ov::weights_path.name()] = weights_path.string();
-                    }
-
-                    if (cacheContent.model) {
-                        update_config[ov::hint::model.name()] = cacheContent.model;
                     }
                 }
 

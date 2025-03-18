@@ -2640,6 +2640,135 @@ TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin_local_cfg) {
     std::cout << "Caching Load multiple threads test completed. Tried " << index << " times" << std::endl;
 }
 
+TEST_P(CachingTest, import_from_cache_model_and_weights_path_properties_not_supported) {
+    ON_CALL(*mockPlugin, import_model(_, _)).WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+        if (m_checkConfigCb) {
+            m_checkConfigCb(config);
+        }
+        EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 1);
+        EXPECT_EQ(config.count(ov::hint::model.name()), 0);
+        EXPECT_EQ(config.count(ov::weights_path.name()), 0);
+
+        std::string name;
+        istr >> name;
+        char space;
+        istr.read(&space, 1);
+        std::lock_guard<std::mutex> lock(mock_creation_mutex);
+        return create_mock_compiled_model(m_models[name], mockPlugin);
+    }));
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return;  // skip the remote Context test for Multi plugin
+    }
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    MkDirGuard guard(m_cacheDir);
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(1);
+    testLoad([&](ov::Core& core) {
+        const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}};
+        m_testFunctionWithCfg(core, config);
+        // load from cache
+        m_testFunctionWithCfg(core, config);
+    });
+}
+
+TEST_P(CachingTest, import_from_cache_model_and_weights_path_properties_are_supported) {
+    ON_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _))
+        .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
+            return std::vector<ov::PropertyName>{
+                ov::supported_properties.name(),
+                ov::device::capabilities.name(),
+                ov::device::architecture.name(),
+                ov::hint::model.name(),
+                ov::weights_path.name(),
+            };
+        }));
+    ON_CALL(*mockPlugin, import_model(_, _)).WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+        if (m_checkConfigCb) {
+            m_checkConfigCb(config);
+        }
+        EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 1);
+        EXPECT_EQ(config.count(ov::hint::model.name()), m_type != TestLoadType::EModelName ? 1 : 0);
+        EXPECT_EQ(config.count(ov::weights_path.name()), m_type == TestLoadType::EModelName ? 1 : 0);
+
+        std::string name;
+        istr >> name;
+        char space;
+        istr.read(&space, 1);
+        std::lock_guard<std::mutex> lock(mock_creation_mutex);
+        return create_mock_compiled_model(m_models[name], mockPlugin);
+    }));
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return;  // skip the remote Context test for Multi plugin
+    }
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    MkDirGuard guard(m_cacheDir);
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(1);
+    testLoad([&](ov::Core& core) {
+        const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}};
+        m_testFunctionWithCfg(core, config);
+        // load from cache
+        m_testFunctionWithCfg(core, config);
+    });
+}
+
+TEST_P(CachingTest, import_from_compiled_blob_weights_path_property_is_supported) {
+    ON_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _))
+        .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
+            return std::vector<ov::PropertyName>{ov::supported_properties.name(),
+                                                 ov::device::capabilities.name(),
+                                                 ov::device::architecture.name(),
+                                                 ov::weights_path.name(),
+                                                 ov::hint::model.name()};
+        }));
+    ON_CALL(*mockPlugin, import_model(_, _)).WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+        if (m_checkConfigCb) {
+            m_checkConfigCb(config);
+        }
+        EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 1);
+        EXPECT_EQ(config.count(ov::hint::model.name()), m_type != TestLoadType::EModelName ? 1 : 0);
+        EXPECT_EQ(config.count(ov::weights_path.name()), m_type == TestLoadType::EModelName ? 1 : 0);
+        return nullptr;
+    }));
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return;  // skip the remote Context test for Multi plugin
+    }
+    m_modelCallback = nullptr;
+    MkDirGuard guard(m_cacheDir);
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(1);
+
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
+    if (m_type == TestLoadType::EModelName) {
+        EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(1);
+    }
+    testLoad([&](ov::Core& core) {
+        auto compiled_blob = ov::Tensor(ov::element::u8, ov::Shape{100});
+        const auto config = ov::AnyMap{{ov::hint::compiled_blob(compiled_blob)}};
+        m_testFunctionWithCfg(core, config);
+    });
+}
 #if defined(ENABLE_OV_IR_FRONTEND)
 
 static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<TestParam, std::string>>& obj) {
