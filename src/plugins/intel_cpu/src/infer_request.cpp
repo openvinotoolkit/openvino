@@ -533,10 +533,9 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
                             memDims.push_back(dim != Shape::UNDEFINED_DIM ? dim : 0);
                         }
 
-                        dnnl::engine eng(dnnl::engine::kind::cpu, 0);
                         CpuBlockedMemoryDescPtr desc =
                             std::make_shared<CpuBlockedMemoryDesc>(model_prec, Shape{memDims});
-                        auto memory = std::make_shared<StringMemory>(eng, desc);
+                        auto memory = std::make_shared<StringMemory>(desc);
 
                         tensor = std::make_shared<Tensor>(memory);
                     } else {

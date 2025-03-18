@@ -736,7 +736,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
                 outSpDimsVecShape = {outSpDims.size()};
                 inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
                 CpuBlockedMemoryDesc desc(ov::element::i32, Shape(outSpDimsVecShape));
-                auto mem = std::make_shared<Memory>(getEngine(), desc, outSpDims.data());
+                auto mem = std::make_shared<Memory>(desc, outSpDims.data());
                 inputValues[i] = mem;
                 break;
             }

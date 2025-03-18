@@ -1111,7 +1111,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
         if (!legacyWeightsZeroPointsMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {legacyWeightsZeroPoints.size()});
             legacyWeightsZeroPointsMemPtr =
-                std::make_shared<Memory>(getEngine(), memoryDesc, legacyWeightsZeroPoints.data());
+                std::make_shared<Memory>(memoryDesc, legacyWeightsZeroPoints.data());
         }
     }
 

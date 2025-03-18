@@ -729,7 +729,7 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaini
     };
 
     auto allocateStringMemory = [&context](const EdgePtr& edge) {
-        auto memory = std::make_shared<StringMemory>(context->getEngine(), edge->getOriginalDesc());
+        auto memory = std::make_shared<StringMemory>(edge->getOriginalDesc());
         edge->reuse(memory);
         return memory->getStringMemoryBlockPtr();
     };
@@ -759,7 +759,7 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaini
                 for (size_t i = 1; i < cluster.size(); i++) {
                     const auto& edge = cluster.at(i);
                     edge->reuse(
-                        std::make_shared<StringMemory>(context->getEngine(), edge->getOriginalDesc(), memBlock));
+                        std::make_shared<StringMemory>(edge->getOriginalDesc(), memBlock));
                 }
                 return false;
             }

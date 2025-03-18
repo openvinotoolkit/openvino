@@ -482,13 +482,13 @@ void Input::cloneBlobIfRequired() {
         if (m_constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
             if (m_constOp->get_element_type() == element::string) {
                 memory =
-                    std::make_shared<StringMemory>(getEngine(), memDesc, m_constOp->get_data_ptr<element::string>());
+                    std::make_shared<StringMemory>(memDesc, m_constOp->get_data_ptr<element::string>());
             } else {
                 memory = std::make_shared<Memory>(memDesc, m_constOp->get_data_ptr());
             }
         } else {
             if (m_constOp->get_element_type() == element::string) {
-                memory = std::make_shared<StringMemory>(getEngine(), memDesc);
+                memory = std::make_shared<StringMemory>(memDesc);
                 auto src = m_constOp->get_data_ptr<StringMemory::OvString>();
                 auto dst = memory->getDataAs<StringMemory::OvString>();
                 std::copy(src, src + size, dst);
@@ -500,9 +500,9 @@ void Input::cloneBlobIfRequired() {
 
         MemoryPtr ptr;
         if (memDesc.getPrecision() == element::string) {
-            ptr = std::make_shared<StringMemory>(getEngine(), memDesc);
+            ptr = std::make_shared<StringMemory>(memDesc);
         } else {
-            ptr = std::make_shared<StaticMemory>(getEngine(), memDesc);
+            ptr = std::make_shared<StaticMemory>(memDesc);
         }
         ptr->load(*memory.get(), has_subnormals, has_bf16_overflows);
 
