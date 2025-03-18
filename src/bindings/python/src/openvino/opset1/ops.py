@@ -42,8 +42,6 @@ _get_node_factory_opset1 = partial(_get_node_factory, "opset1")
 def absolute(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies f(x) = abs(x) to the input node element-wise.
 
-    :param name: Optional new name for output node.
-    :return: New node with Abs operation applied on it.
     """
     return _get_node_factory_opset1().create("Abs", [node])
 

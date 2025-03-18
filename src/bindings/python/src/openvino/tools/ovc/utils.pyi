@@ -1,13 +1,13 @@
 from __future__ import annotations
-import importlib as importlib
 from importlib import metadata as importlib_metadata
+from openvino_telemetry.backend import backend_ga4
+from openvino.tools.ovc.error import Error
+import importlib as importlib
 import logging as log
 import numpy
 import numpy as np
 import numpy.ma.core
-from openvino.tools.ovc.error import Error
 import openvino_telemetry as tm
-from openvino_telemetry.backend import backend_ga4
 import os as os
 import sys as sys
 __all__ = ['Error', 'backend_ga4', 'bool_cast', 'check_values_equal', 'dynamic_dimension', 'get_ir_version', 'get_mo_root_dir', 'import_openvino_tokenizers', 'importlib', 'importlib_metadata', 'log', 'mo_array', 'np', 'np_map_cast', 'os', 'refer_to_faq_msg', 'sys', 'tm', 'validate_batch_in_shape']
@@ -51,4 +51,4 @@ def validate_batch_in_shape(shape, layer_name: str):
         
     """
 dynamic_dimension: numpy.ma.core.MaskedConstant  # value = masked
-np_map_cast: dict  # value = {bool: <function <lambda> at 0x7f9e3357fe20>, numpy.int8: <function <lambda> at 0x7f9e333e8360>, numpy.int16: <function <lambda> at 0x7f9e333ea200>, numpy.int32: <function <lambda> at 0x7f9e333ea2a0>, numpy.int64: <function <lambda> at 0x7f9e333ea340>, numpy.uint8: <function <lambda> at 0x7f9e333ea3e0>, numpy.uint16: <function <lambda> at 0x7f9e333ea480>, numpy.uint32: <function <lambda> at 0x7f9e333ea520>, numpy.uint64: <function <lambda> at 0x7f9e333ea5c0>, numpy.float16: <function <lambda> at 0x7f9e333ea660>, numpy.float32: <function <lambda> at 0x7f9e333ea700>, numpy.float64: <function <lambda> at 0x7f9e333ea7a0>, str: <function <lambda> at 0x7f9e333ea840>}
+np_map_cast: dict  # value = {bool: <function <lambda> at 0x7fdc965f1ee0>, numpy.int8: <function <lambda> at 0x7fdc9644d440>, numpy.int16: <function <lambda> at 0x7fdc9644f2e0>, numpy.int32: <function <lambda> at 0x7fdc9644f380>, numpy.int64: <function <lambda> at 0x7fdc9644f420>, numpy.uint8: <function <lambda> at 0x7fdc9644f4c0>, numpy.uint16: <function <lambda> at 0x7fdc9644f560>, numpy.uint32: <function <lambda> at 0x7fdc9644f600>, numpy.uint64: <function <lambda> at 0x7fdc9644f6a0>, numpy.float16: <function <lambda> at 0x7fdc9644f740>, numpy.float32: <function <lambda> at 0x7fdc9644f7e0>, numpy.float64: <function <lambda> at 0x7fdc9644f880>, str: <function <lambda> at 0x7fdc9644f920>}
