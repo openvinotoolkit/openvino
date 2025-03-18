@@ -585,13 +585,13 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         // wgt
         // split N direction
         tp_cfg.cached_splited_weight =
-            attrs.weightsNonTransposed ? split_vertical(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                                       : split_horizontal(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            attrs.weightsNonTransposed ? split_vertical(wgt, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                                       : split_horizontal(wgt, 0, tp_cfg.w_rank, tp_cfg.w_size);
         memory[ARG_WEI] = tp_cfg.cached_splited_weight;
         // bias
         if (attrs.withBias) {
             auto bias = getSrcMemoryAtPort(BIAS);
-            auto select_bias = split_horizontal(context->getEngine(), bias, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            auto select_bias = split_horizontal(bias, 0, tp_cfg.w_rank, tp_cfg.w_size);
             tp_cfg.cached_splited_bias = std::move(select_bias);
         } else {
             tp_cfg.cached_splited_bias = MemoryDescUtils::makeEmptyMemory(context);
@@ -599,11 +599,10 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         memory[ARG_BIAS] = tp_cfg.cached_splited_bias;
         // dst
         memory[ARG_DST] = getDstMemoryAtPort(0);
-        tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
+        tp_cfg.cached_dst = split_horizontal(dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
         if (memory.count(ARG_DST | ARG_ATTR_SCALES)) {
-            memory[ARG_DST | ARG_ATTR_SCALES] = split_horizontal(context->getEngine(),
-                                                                 memory[ARG_DST | ARG_ATTR_SCALES],
+            memory[ARG_DST | ARG_ATTR_SCALES] = split_horizontal(memory[ARG_DST | ARG_ATTR_SCALES],
                                                                  0,
                                                                  tp_cfg.w_rank,
                                                                  tp_cfg.w_size);
@@ -613,8 +612,8 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
             auto scale_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_SCALES]);
             memory[ARG_WEI | ARG_ATTR_SCALES] =
                 attrs.weightsNonTransposed
-                    ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                    : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+                    ? split_vertical(scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                    : split_horizontal(scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
         if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
@@ -625,8 +624,8 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
             } else {
                 tp_cfg.cached_zeropoint =
                     attrs.weightsNonTransposed
-                        ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                        : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+                        ? split_vertical(zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                        : split_horizontal(zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
             }
         }
     }
