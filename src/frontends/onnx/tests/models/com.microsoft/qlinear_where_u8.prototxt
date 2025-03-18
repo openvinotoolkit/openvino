@@ -1,0 +1,154 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+producer_version: ""
+model_version: 0
+graph {
+  name: "test_qlinear_where_uint8_large"
+
+  node {
+    input: "condition"
+    input: "X"
+    input: "X_scale"
+    input: "X_zero_point"
+    input: "Y"
+    input: "Y_scale"
+    input: "Y_zero_point"
+    input: "Z_scale"
+    input: "Z_zero_point"
+    output: "Z"
+    op_type: "QLinearWhere"
+    domain: "com.microsoft"
+  }
+
+  input {
+    name: "condition"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+          dim { dim_value: 4 }
+          dim { dim_value: 5 }
+          dim { dim_value: 6 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim { dim_value: 4 }
+          dim { dim_value: 5 }
+          dim { dim_value: 6 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "X_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "X_zero_point"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim { dim_value: 4 }
+          dim { dim_value: 5 }
+          dim { dim_value: 6 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "Y_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "Y_zero_point"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "Z_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "Z_zero_point"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  output {
+    name: "Z"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim { dim_value: 4 }
+          dim { dim_value: 5 }
+          dim { dim_value: 6 }
+        }
+      }
+    }
+  }
+}
+
+opset_import {
+  version: 1
+}
