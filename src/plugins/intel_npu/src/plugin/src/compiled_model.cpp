@@ -272,7 +272,7 @@ void CompiledModel::initialize_properties() {
               return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
           }}},
         {ov::intel_npu::qdq_optimization.name(),
-         {true,
+         {false,
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<QDQ_OPTIMIZATION>();

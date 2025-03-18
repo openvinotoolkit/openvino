@@ -336,5 +336,14 @@ static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFEREN
  */
 static constexpr ov::Property<bool> disable_version_check{"NPU_DISABLE_VERSION_CHECK"};
 
+/**
+ * @brief [Only for NPU compiler]
+ * Type: boolean
+ * This option enables additional optimizations and balances performance and accuracy for QDQ format models, quantized
+ * using ONNX Runtime
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> qdq_optimization{"NPU_QDQ_OPTIMIZATION"};
+
 }  // namespace intel_npu
 }  // namespace ov
