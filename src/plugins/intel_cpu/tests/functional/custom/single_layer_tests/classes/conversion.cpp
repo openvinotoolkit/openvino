@@ -146,6 +146,7 @@ void ConvertCPULayerTest::SetUp() {
 
     function = makeNgraphFunction(inPrc, params, conversion, "ConversionCPU");
 
+    // issue 161636
     if (special_value == ov::test::SpecialValue::none && outPrc == ov::element::f8e4m3) {
         abs_threshold = 0.0078125f;
         rel_threshold = 1e-2f;

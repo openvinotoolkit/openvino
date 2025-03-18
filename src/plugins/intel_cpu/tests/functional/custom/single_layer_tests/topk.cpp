@@ -102,8 +102,7 @@ protected:
             inPrc = outPrc = netPrecision;
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        // BF16 is not supported for TopK on AVX2_VNNI_2 platforms
-        if (with_cpu_x86_avx2_vnni_2() && netPrecision == ElementType::bf16) {
+        if (!ov::with_cpu_x86_avx512_core() && netPrecision == ElementType::bf16) {
             selectedType = makeSelectedTypeStr(getPrimitiveType(), ElementType::f32);
         } else {
             selectedType = makeSelectedTypeStr(getPrimitiveType(), netPrecision);

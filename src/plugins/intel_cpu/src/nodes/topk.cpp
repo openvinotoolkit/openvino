@@ -1988,9 +1988,7 @@ void TopK::initSupportedPrimitiveDescriptors() {
     ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
     bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision) !=
                               std::end(supportedPrecision);
-    // BF16 is not supported for AVX2_VNNI_2 platforms
-    precisionSupported =
-        (dataPrecision == ov::element::bf16 && mayiuse(cpu::x64::avx2_vnni_2)) ? false : precisionSupported;
+    precisionSupported = (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core)) ? false : precisionSupported;
     if (!precisionSupported) {
         if (dataPrecision.is_real()) {
             dataPrecision = ov::element::f32;
