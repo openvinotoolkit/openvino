@@ -153,10 +153,9 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadType) {
         ASSERT_TRUE(is_called);
     } else {
         ASSERT_FALSE(workloadTypeSupported);
-        OV_EXPECT_THROW_HAS_SUBSTRING(
-            execNet.set_property(modelConfiguration),
-            ov::Exception,
-            "[ NOT_FOUND ] Option 'WORKLOAD_TYPE' is not supported for current configuration");
+        OV_EXPECT_THROW_HAS_SUBSTRING(execNet.set_property(modelConfiguration),
+                                      ov::Exception,
+                                      "Unsupported configuration key: WORKLOAD_TYPE");
     }
 }
 
