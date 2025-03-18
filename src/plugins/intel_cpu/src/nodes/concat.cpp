@@ -363,7 +363,7 @@ void Concat::prepareParams() {
 
     const auto& outputStrides = dstMemDesc->getStrides();
     size_t curConcatOffset = 0;
-    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->getDataType());
+    const size_t elemSize = dstMemPtr->getPrecision().size();
     const auto& src0BlkMemDesc = getSrcMemoryAtPort(0)->getDescPtr()->as<BlockedMemoryDesc>();
     const auto& outputOrder = src0BlkMemDesc->getOrder();
     for (size_t i = 0; i < outputOrder.size(); i++) {
@@ -530,14 +530,16 @@ void Concat::execute(const dnnl::stream& strm) {
     } else {
         const auto& dst_memory = getChildEdgeAt(0)->getMemory();
         const size_t num_src = getParentEdges().size();
-        std::unordered_map<int, memory> mem_ags{{DNNL_ARG_DST, dst_memory.getPrimitive()}};
+        auto dnnl_dst_mem = DnnlExtensionUtils::createMemoryPrimitive(dst_memory, getEngine());
+        std::unordered_map<int, memory> mem_ags{{DNNL_ARG_DST, dnnl_dst_mem}};
         size_t nonZeroInShapes = 0;
         for (size_t i = 0; i < num_src; i++) {
             const auto& srcMem = getParentEdgeAt(i)->getMemory();
             if (srcMem.getShape().hasZeroDims()) {
                 continue;
             }
-            mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.getPrimitive();
+            mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] =
+                DnnlExtensionUtils::createMemoryPrimitive(srcMem, getEngine());
             nonZeroInShapes++;
         }
         prim.execute(strm, mem_ags);
@@ -565,7 +567,7 @@ void Concat::execNspcSpecCase() {
     const auto& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
     auto* dst_ptr = dst_memory.getDataAs<uint8_t>();
-    const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.getDataType());
+    const size_t dataSize = dst_memory.getPrecision().size();
 
     std::vector<size_t> channelsDataSize;
     size_t channels_size = 0;
@@ -632,7 +634,7 @@ void Concat::execRef() {
             });
         }
     } else {
-        const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.getDataType());
+        const size_t elemSize = dstMemory.getPrecision().size();
         const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
         const auto& outputShape = dstMemBlkDesc->getBlockDims();
         size_t outputStrides[MAX_RANK_REF] = {0};

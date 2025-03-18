@@ -32,12 +32,12 @@ TEST(MemoryTest, ConcurrentGetPrimitive) {
 
     std::thread worker1([&](){
         while (lock.load()) {}
-        dnnl_mem1 = cpu_mem1.getPrimitive();
+        dnnl_mem1 = DnnlExtensionUtils::createMemoryPrimitive(cpu_mem1, eng);
     });
 
     std::thread worker2([&](){
         while (lock.load()) {}
-        dnnl_mem2 = cpu_mem1.getPrimitive();
+        dnnl_mem2 = DnnlExtensionUtils::createMemoryPrimitive(cpu_mem1, eng);
     });
 
     lock.store(false);
@@ -60,9 +60,9 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
 
         std::atomic<bool> lock{true};
 
-        std::thread worker1([&](){
+        std::thread worker1([&]() {
             while (lock.load()) {}
-            dnnl_mem = cpu_mem1.getPrimitive();
+            dnnl_mem = DnnlExtensionUtils::createMemoryPrimitive(cpu_mem1, eng);
         });
 
         std::thread worker2([&](){
