@@ -627,7 +627,7 @@ class TorchScriptPythonDecoder(Decoder):
 
     def has_converter(self):
         if op_extension := self.get_op_extension():
-            trampoline, target_extension = op_extension
+            _, target_extension = op_extension
             return isinstance(target_extension, InlineConversionExtension)
         return False
 

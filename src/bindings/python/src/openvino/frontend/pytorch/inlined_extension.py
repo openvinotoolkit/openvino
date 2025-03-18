@@ -74,7 +74,6 @@ global_counter_id = 0
 def make_custom_op_class(func, input_signature, output_signature, input_packer, output_packer):
     import torch, numpy
     global global_counter_id
-    # print('make_custom_op_class, id =', global_counter_id)
     class InlinedCustomOp(ov.Op):
         class_type_info = ov.runtime.DiscreteTypeInfo("InlinedCustomOp", "extension")
 
@@ -82,18 +81,12 @@ def make_custom_op_class(func, input_signature, output_signature, input_packer, 
             # TODO: What about attributes?
             super().__init__(self, args)
             self.attrs = {"id": global_counter_id}  # `id` attribute distinguishes different instances of the same class, we need it because different instances may have different behaviour
-            #print('output_signature from ctro:', output_signature)
             if output_signature == ():
                 # The operation doesn't have outputs, so we need to take extra care to avoid eliminating the op from the graph
-                #print('===================== MARKING AS SINK ========================')
                 self.get_rt_info()['__sink__'] = True
-            #print(f'Made custom op class with id = {self.attrs["id"]}')
-            #print(f"Input signature: {input_signature}")
-            #print(f"Output signature: {output_signature}")
             self.constructor_validate_and_infer_types()
 
         def evaluate(self, outputs, inputs):
-            # print("called evaluate")
             inputs_torch = tuple(torch.from_numpy(input.data) for input in inputs)   # TODO: Check memory sharing
             args, kwargs = pack(inputs_torch, input_packer)
             result = func(*args, **kwargs)
@@ -132,15 +125,11 @@ def make_signature(args):
 # Returns a tuple of tuples (element_type, partial_shape) for each argument, flattening nested structures if needed, setting all dimensions dynamic preserving rank
 # Currently assumes that all input arguments are torch.Tensor objects
 def make_input_signature(args):
-    # TODO: Avoid the current limitation: kwargs parameters should be passed in the same order as the function signature without gaps
-    # flatten kwargs relying on the order of the keys
     return make_signature(args)
 
 
 def make_output_signature(args):
     if args is None:
-        # TODO: This case is not really supported by PT FE -- because we don't support ops that do not have outputs, they will be lost
-        #print('=================== None PROCESSING ======================')
         args = ()
     if not isinstance(args, tuple):
         args = (args,)
@@ -155,20 +144,16 @@ def make_trampoline_class(func, op, op_attrs):
         # This function defines how the operation behaves when called as a part of PyTorch model code in eager execution or while jit.trace
         @staticmethod
         def forward(ctx, *call_args):  #TODO: what is `ctx`?
-            # print('Called through the trampoline')
             if not op:
                 input_signature = make_input_signature(call_args)
             # TODO: Try to trace `func` with the hope to obtain tracable shapes to build more precise `validate_and_infer_types` automatically (unlikely possible)
-            print('about to call func_target with call_args:', call_args)
             packed_args, packed_kwargs = pack(call_args, __class__.input_packer)
             assert isinstance(packed_args, tuple)
             assert isinstance(packed_kwargs, dict)
             result = func(*packed_args, **packed_kwargs)
             result, __class__.output_packer, _ = unpack(result, torch.Tensor)
-            print('output_packer:', __class__.output_packer)
             if not op:
                 output_signature = make_output_signature(result)
-                #print('about to make custom op class with output signature', output_signature)
                 __class__.op = make_custom_op_class(func, input_signature, output_signature, __class__.input_packer, __class__.output_packer)
             else:
                 __class__.op = op
@@ -180,7 +165,6 @@ def make_trampoline_class(func, op, op_attrs):
         @staticmethod
         def unpack_inputs(args, kwargs):
             unpacked, __class__.input_packer, _ = unpack((args, kwargs), torch.Tensor)
-            print('input_packer:', __class__.input_packer)
             return unpacked
 
         @staticmethod
@@ -201,14 +185,14 @@ def inlined_extension(*args, **op_attrs):
         def trampoline(*args, **kwargs):
             # Keep trampoline class creation at the point when the function is called to make each time a new trampoline.
             # It is required because `func` is fused inside Trampoline class and can have different behaviour from call to call in PyTorch world even if
-            # the same op is specified to wrap multiple different functions.
+            # the same op is specified to wrap multiple different functions. It happens due to capturing a global context and values kept in non-tracable part of inputs.
             trampoline = make_trampoline_class(func, op, op_attrs)
-            print('calling trampoline.apply with args:', args, 'kwargs:', kwargs)
+            # flattening inputs and unflattening outputs should be visible for PyTorch jit tracer, so it should be called outside of `trampoline.apply`
+            # to have clean Tensor-only signature for the custom op. Non-tracable part of inputs (and outputs) is captured as `trampoline` class fields.
             args = trampoline.unpack_inputs(args, kwargs)
             result = trampoline.apply(*args)
             result = trampoline.pack_outputs(result)
             # pack to the expected nested data types here
-            #print('just called trampoline with result:', result)
             return result
         return trampoline
 
