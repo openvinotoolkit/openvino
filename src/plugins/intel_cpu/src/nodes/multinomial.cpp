@@ -10,15 +10,13 @@
 #include "openvino/op/multinomial.hpp"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     auto multinomial_op = as_type_ptr<op::v13::Multinomial>(op);
@@ -116,6 +114,11 @@ void Multinomial::prepareParams() {
     m_batches_samples_probs_count = m_output_elements_count * m_probs_count;
 }
 
+bool Multinomial::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(PROBS_PORT) ||
+           getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(NUM_SAMPLES_PORT);
+}
+
 bool Multinomial::isExecutable() const {
     return !isInputTensorAtPortEmpty(PROBS_PORT) && !isInputTensorAtPortEmpty(NUM_SAMPLES_PORT);
 }
@@ -180,7 +183,7 @@ void Multinomial::execute_convert_type() {
     // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
     std::mt19937 gen;
     if (m_global_seed == 0 && m_op_seed == 0) {
-        gen.seed(std::time(NULL));
+        gen.seed(std::time(nullptr));
     } else {
         std::seed_seq seed{m_global_seed, m_op_seed};
         gen.seed(seed);
@@ -254,6 +257,4 @@ void Multinomial::execute_convert_type() {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -79,17 +79,24 @@ Prerequisites
 .. code:: ipython3
 
     import requests
+    from pathlib import Path
     
+    if not Path("notebook_utilspy").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
-    )
-    open("cmd_helper.py", "w").write(r.text)
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("jax-classification-to-openvino.ipynb")
 
 .. code:: ipython3
 
@@ -100,8 +107,11 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2024.5.0"
-    %pip install -q Pillow "jax>=0.4.2" "absl-py>=0.12.0" "flax>=0.6.4" "pandas>=1.1.0" "tensorflow-cpu>=2.4.0" tf_keras tqdm "einops>=0.3.0" "ml-collections>=0.1.0"
+    %pip install --pre -Uq "openvino>=2024.5.0" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q "tensorflow-macos>=2.5 jax-metal>=0.4.2"; sys_platform == 'darwin' and platform_machine == 'arm64'" # macOS M1 and M2
+    %pip install -q "tensorflow>=2.5 jax>=0.4.2"; sys_platform == 'darwin' and platform_machine != 'arm64'" # macOS x86
+    %pip install -q "tensorflow-cpu>=2.5 jax>=0.4.2"; sys_platform != 'darwin'"
+    %pip install -q Pillow "absl-py>=0.12.0" "flax>=0.6.4" "pandas>=1.1.0" tf_keras tqdm "einops>=0.3.0" "ml-collections>=0.1.0"
 
 .. code:: ipython3
 
@@ -159,13 +169,15 @@ Download a pre-trained model.
     
     if model_name.startswith("Mixer"):
         # Download model trained on imagenet2012
-        model_name_path = download_file(f"https://storage.googleapis.com/mixer_models/imagenet1k/{model_name}.npz", filename=f"{model_name}_imagenet2012.npz")
+        if not Path(f"{model_name}_imagenet2012.npz").exists():
+            download_file(f"https://storage.googleapis.com/mixer_models/imagenet1k/{model_name}.npz", filename=f"{model_name}_imagenet2012.npz")
         model = models_mixer.MlpMixer(num_classes=1000, **model_config)
     else:
         # Download model pre-trained on imagenet21k and fine-tuned on imagenet2012.
-        model_name_path = download_file(
-            f"https://storage.googleapis.com/vit_models/imagenet21k+imagenet2012/{model_name}.npz", filename=f"{model_name}_imagenet2012.npz"
-        )
+        if not Path(f"{model_name}_imagenet2012.npz").exists():
+            model_name_path = download_file(
+                f"https://storage.googleapis.com/vit_models/imagenet21k+imagenet2012/{model_name}.npz", filename=f"{model_name}_imagenet2012.npz"
+            )
         model = models_vit.VisionTransformer(num_classes=1000, **model_config)
 
 
@@ -188,8 +200,9 @@ Get imagenet labels.
 
     from notebook_utils import download_file
     
-    
-    imagenet_labels_path = download_file("https://storage.googleapis.com/bit_models/ilsvrc2012_wordnet_lemmas.txt")
+    imagenet_labels_path = Path("ilsvrc2012_wordnet_lemmas.txt")
+    if not imagenet_labels_path.exists():
+        download_file("https://storage.googleapis.com/bit_models/ilsvrc2012_wordnet_lemmas.txt")
     imagenet_labels = dict(enumerate(open(imagenet_labels_path)))
 
 
@@ -204,7 +217,11 @@ Get a random picture with the correct dimensions.
 .. code:: ipython3
 
     resolution = 224 if model_name.startswith("Mixer") else 384
-    image_path = download_file(f"https://picsum.photos/{resolution}", filename="picsum.jpg")
+    url_224 = "https://github.com/user-attachments/assets/a9337f2b-20a5-4930-9fd1-75932154b285"
+    url_384 = "https://github.com/user-attachments/assets/c07a0e72-b909-4521-b6f8-f22a7867071d"
+    image_path = Path("img_{resolution}.jpg")
+    if not image_path.exists():
+        download_file(url_224 if resolution == 224 else url_384, filename="img_{resolution}.jpg")
     img = PIL.Image.open(image_path)
 
 
@@ -230,7 +247,7 @@ Run the original model inference
 
 .. code:: ipython3
 
-    # Predict on a batch with a single item (note very efficient TPU usage...)
+    # Predict on a batch with a single item
     data = (np.array(img) / 128 - 1)[None, ...]
     (logits,) = model.apply(dict(params=params), data, train=False)
     
@@ -352,3 +369,8 @@ Run OpenVINO model inference
     0.00017 : mountain_bike, all-terrain_bike, off-roader
     0.00017 : mountain_tent
     
+
+.. code:: ipython3
+
+    # Cleanup
+    # %pip uninstall -q -y "tensorflow-cpu" tensorflow tf_keras

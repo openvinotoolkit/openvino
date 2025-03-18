@@ -76,16 +76,23 @@ Imports
     import openvino as ov
     from IPython import display
     import matplotlib.pyplot as plt
+    from pathlib import Path
     
     # Fetch the notebook utils script from the openvino_notebooks repo
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     
     import notebook_utils as utils
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("async-api.ipynb")
 
 Prepare model and data processing
 ---------------------------------
@@ -366,7 +373,7 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 66.25 fps
+    average throuput in sync mode: 65.23 fps
 
 
 Async Mode
@@ -505,7 +512,7 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 107.22 fps
+    average throuput in async mode: 106.63 fps
 
 
 Compare the performance
@@ -648,5 +655,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 145.66 fps
+    average throughput in async mode with async infer queue: 146.24 fps
 

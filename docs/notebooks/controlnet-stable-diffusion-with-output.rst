@@ -216,15 +216,25 @@ Prerequisites
         "diffusers>=0.14.0",
         "matplotlib>=3.4",
         "transformers>=4.30.2",
-        "controlnet-aux>=0.0.6",
+        "einops",
+        "timm",
         "gradio>=3.36",
         "datasets>=2.14.6",
         "nncf>=2.7.0",
         "opencv-python",
+        "scipy",
+        "filelock",
+        "scikit-image",
         "--extra-index-url",
         "https://download.pytorch.org/whl/cpu",
     )
+    pip_install("--no-deps", "controlnet-aux>=0.0.6")
     pip_install("openvino>=2023.1.0")
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("controlnet-stable-diffusion.ipynb")
 
 Instantiating Generation Pipeline
 ---------------------------------

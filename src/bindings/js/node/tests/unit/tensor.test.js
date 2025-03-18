@@ -6,6 +6,7 @@ const { addon: ov } = require('../..');
 const assert = require('assert');
 const { test, describe, it, before } = require('node:test');
 const getRandomBigInt = require('random-bigint');
+const { lengthFromShape } = require('../utils');
 
 describe('ov.Tensor tests', () => {
   let shape = null;
@@ -260,7 +261,7 @@ describe('ov.Tensor tests', () => {
   describe('Tensor getSize', () => {
     it('getSize returns the correct total number of elements', () => {
       const tensor = new ov.Tensor(ov.element.f32, shape, data);
-      const expectedSize = shape.reduce((acc, dim) => acc * dim, 1);
+      const expectedSize = lengthFromShape(shape);
       assert.strictEqual(tensor.getSize(), expectedSize);
     });
 

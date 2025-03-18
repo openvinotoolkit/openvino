@@ -118,7 +118,6 @@ private:
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
 
-    std::string errorMsgPrefix;
     bool inverse;
     std::vector<int> axes;
     std::vector<int> signalSizes;

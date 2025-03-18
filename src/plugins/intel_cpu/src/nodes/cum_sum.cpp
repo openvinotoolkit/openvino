@@ -13,9 +13,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -38,8 +36,9 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     }
 
     if ((getOriginalInputsNumber() != numOfInputs && getOriginalInputsNumber() != (numOfInputs - 1)) ||
-        getOriginalOutputsNumber() != 1)
+        getOriginalOutputsNumber() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
+    }
 
     const auto& dataShape = getInputShapeAtPort(CUM_SUM_DATA);
     numOfDims = dataShape.getRank();
@@ -48,25 +47,29 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     }
 
     const auto cumsum = ov::as_type_ptr<const ov::opset3::CumSum>(op);
-    if (cumsum == nullptr)
-        OPENVINO_THROW("Operation with name '", op->get_friendly_name(), "' is not an instance of CumSum from opset3.");
+    if (cumsum == nullptr) {
+        THROW_CPU_NODE_ERR("is not an instance of CumSum from opset3.");
+    }
 
     exclusive = cumsum->is_exclusive();
     reverse = cumsum->is_reverse();
 
     if (getOriginalInputsNumber() == numOfInputs) {
         const auto axis_shape = cumsum->get_input_partial_shape(AXIS);
-        if (axis_shape.is_dynamic() || !ov::is_scalar(axis_shape.to_shape()))
+        if (axis_shape.is_dynamic() || !ov::is_scalar(axis_shape.to_shape())) {
             THROW_CPU_NODE_ERR("doesn't support 'axis' input tensor with non scalar rank");
+        }
     }
 
-    if (dataShape != getOutputShapeAtPort(0))
+    if (dataShape != getOutputShapeAtPort(0)) {
         THROW_CPU_NODE_ERR("has different 'data' input and output dimensions");
+    }
 }
 
 void CumSum::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     dataPrecision = getOriginalInputPrecisionAtPort(CUM_SUM_DATA);
     if (!one_of(dataPrecision,
@@ -78,27 +81,31 @@ void CumSum::initSupportedPrimitiveDescriptors() {
                 ov::element::u64,
                 ov::element::bf16,
                 ov::element::f16,
-                ov::element::f32))
+                ov::element::f32)) {
         THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+    }
 
     if (inputShapes.size() == numOfInputs) {
         const auto& axisTensorPrec = getOriginalInputPrecisionAtPort(AXIS);
-        if (axisTensorPrec != ov::element::i32 && axisTensorPrec != ov::element::i64)
+        if (axisTensorPrec != ov::element::i32 && axisTensorPrec != ov::element::i64) {
             THROW_CPU_NODE_ERR("has unsupported 'axis' input precision: ", axisTensorPrec.get_type_name());
+        }
     }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
     inDataConf.emplace_back(LayoutType::ncsp, dataPrecision);
-    for (size_t i = 1; i < inputShapes.size(); ++i)
+    for (size_t i = 1; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
+    }
 
     addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, dataPrecision}}, impl_desc_type::ref_any);
 }
 
 void CumSum::execute(const dnnl::stream& strm) {
-    if (inputShapes.size() == numOfInputs)
+    if (inputShapes.size() == numOfInputs) {
         axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
+    }
 
     OV_SWITCH(intel_cpu,
               CumSumExecute,
@@ -143,12 +150,13 @@ void CumSum::cumSum(const dataType* input, dataType* output, const VectorDims& s
     size_t j = 0;
     const auto& shape = getParentEdgeAt(CUM_SUM_DATA)->getMemory().getStaticDims();
     for (size_t i = 0; i < shape.size(); i++) {
-        if (i == axis)
+        if (i == axis) {
             continue;
+        }
         iterationRange[j++] = shape[i];
     }
     size_t work_amount_dst =
-        std::accumulate(iterationRange.begin(), iterationRange.end(), size_t(1), std::multiplies<size_t>());
+        std::accumulate(iterationRange.begin(), iterationRange.end(), static_cast<size_t>(1), std::multiplies<>());
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         VectorDims counters(numOfDims - 1, 0);
@@ -239,7 +247,7 @@ inline size_t CumSum::getStartOffset(const std::vector<size_t>& forStartOffset,
 
 size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
     const auto& axisPrecision = _axis.getDesc().getPrecision();
-    const int64_t dataShapeSize = static_cast<int64_t>(_data.getShape().getRank());
+    const auto dataShapeSize = static_cast<int64_t>(_data.getShape().getRank());
     int64_t axisValueFromBlob = 0;
     switch (axisPrecision) {
     case ov::element::i32: {
@@ -256,8 +264,9 @@ size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
         THROW_CPU_NODE_ERR("doesn't support 'axis' input with precision: ", axisPrecision.get_type_name());
     }
     }
-    if (axisValueFromBlob < -dataShapeSize || axisValueFromBlob > dataShapeSize - 1)
+    if (axisValueFromBlob < -dataShapeSize || axisValueFromBlob > dataShapeSize - 1) {
         THROW_CPU_NODE_ERR("has axis with a value out of range: ", axisValueFromBlob);
+    }
     return axisValueFromBlob >= 0 ? axisValueFromBlob : (axisValueFromBlob + dataShapeSize);
 }
 
@@ -273,6 +282,4 @@ void CumSum::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -97,10 +97,12 @@ public:
         ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
         const void* mem = nullptr);
 
-    virtual ov::SoPtr<ov::ITensor> createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
-                                                    const ov::element::Type& element_type,
-                                                    const ov::Shape& shape,
-                                                    const Config& config);
+    virtual ov::SoPtr<ov::ITensor> createHostTensor(
+        std::shared_ptr<ov::IRemoteContext> context,
+        const ov::element::Type& element_type,
+        const ov::Shape& shape,
+        const Config& config,
+        ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED);
 
 protected:
     virtual ~IDevice() = default;

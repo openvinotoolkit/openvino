@@ -6,4 +6,4 @@
 
 using namespace ov::frontend;
 
-HashTable::~HashTable(){};
+HashTable::~HashTable() = default;

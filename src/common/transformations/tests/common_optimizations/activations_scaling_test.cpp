@@ -12,7 +12,6 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_normalization.hpp"
@@ -71,14 +70,16 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest) {
 }
 
 TEST_F(TransformationTestsF, EliminateScalarMulTest) {
+    double epsilon = 1.f;
+    float scale_factor = 8.f;
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {scale_factor});
         auto mul = std::make_shared<ov::op::v1::Multiply>(input, scale_const);
         auto norm_scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{3}, {10});
         auto norm_bias_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{3}, {10});
         auto group_norm =
-            std::make_shared<ov::op::v12::GroupNormalization>(mul, norm_scale_const, norm_bias_const, 1, 0.01f);
+            std::make_shared<ov::op::v12::GroupNormalization>(mul, norm_scale_const, norm_bias_const, 1, epsilon);
         auto convert = std::make_shared<ov::op::v0::Convert>(group_norm, ov::element::f32);
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
@@ -86,48 +87,18 @@ TEST_F(TransformationTestsF, EliminateScalarMulTest) {
         manager.register_pass<ov::pass::activations_scaling::EliminateScalarMul>();
     }
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
         auto norm_scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{3}, {10});
         auto norm_bias_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{3}, {10});
+        epsilon /= scale_factor;
         auto group_norm =
-            std::make_shared<ov::op::v12::GroupNormalization>(input, norm_scale_const, norm_bias_const, 1, 0.01f);
+            std::make_shared<ov::op::v12::GroupNormalization>(input, norm_scale_const, norm_bias_const, 1, epsilon);
         auto convert = std::make_shared<ov::op::v0::Convert>(group_norm, ov::element::f32);
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
     }
-}
-
-TEST_F(TransformationTestsF, ConcatTransformationTest) {
-    {
-        auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
-        auto scale_const0 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
-        auto mul0 = std::make_shared<ov::op::v1::Multiply>(input0, scale_const0);
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
-        auto scale_const1 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
-        auto mul1 = std::make_shared<ov::op::v1::Multiply>(input1, scale_const1);
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{mul0, mul1}, 0);
-        auto convert = std::make_shared<ov::op::v0::Convert>(concat, ov::element::f32);
-        auto result = std::make_shared<ov::op::v0::Result>(convert);
-
-        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});
-        manager.register_pass<ov::pass::activations_scaling::MulConcatTransformation>();
-    }
-    {
-        auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
-        auto scale_const0 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1});
-        auto mul0 = std::make_shared<ov::op::v1::Multiply>(input0, scale_const0);
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
-        auto scale_const1 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1});
-        auto mul1 = std::make_shared<ov::op::v1::Multiply>(input1, scale_const1);
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{mul0, mul1}, 0);
-        auto new_scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
-        auto new_mul = std::make_shared<ov::op::v1::Multiply>(concat, new_scale_const);
-        auto convert = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
-        auto result = std::make_shared<ov::op::v0::Result>(convert);
-
-        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});
-    }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, MoveDownScalarMulTest) {
@@ -157,12 +128,15 @@ TEST_F(TransformationTestsF, MoveDownScalarMulTest) {
 }
 
 TEST_F(TransformationTestsF, MulShareTransformationTest) {
+    float epsilon = 1.f;
+    float scale_factor = 8.f;
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
-        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(input);
-        auto convert0 = std::make_shared<ov::op::v0::Convert>(shape_of, ov::element::f32);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto mvn_axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 3});
+        auto mvn = std::make_shared<ov::op::v6::MVN>(input, mvn_axes, true, epsilon, ov::op::MVNEpsMode::INSIDE_SQRT);
+        auto convert0 = std::make_shared<ov::op::v0::Convert>(mvn, ov::element::f32);
         auto result0 = std::make_shared<ov::op::v0::Result>(convert0);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {scale_factor});
         auto mul = std::make_shared<ov::op::v1::Multiply>(input, scale_const);
         auto convert1 = std::make_shared<ov::op::v0::Convert>(mul, ov::element::f32);
         auto result1 = std::make_shared<ov::op::v0::Result>(convert1);
@@ -171,15 +145,18 @@ TEST_F(TransformationTestsF, MulShareTransformationTest) {
         manager.register_pass<ov::pass::activations_scaling::MulShareTransformation>();
     }
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {scale_factor});
         auto mul = std::make_shared<ov::op::v1::Multiply>(input, scale_const);
-        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(mul);
-        auto convert0 = std::make_shared<ov::op::v0::Convert>(shape_of, ov::element::f32);
+        auto mvn_axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 3});
+        epsilon *= scale_factor * scale_factor;
+        auto mvn = std::make_shared<ov::op::v6::MVN>(mul, mvn_axes, true, epsilon, ov::op::MVNEpsMode::INSIDE_SQRT);
+        auto convert0 = std::make_shared<ov::op::v0::Convert>(mvn, ov::element::f32);
         auto result0 = std::make_shared<ov::op::v0::Result>(convert0);
         auto convert1 = std::make_shared<ov::op::v0::Convert>(mul, ov::element::f32);
         auto result1 = std::make_shared<ov::op::v0::Result>(convert1);
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }

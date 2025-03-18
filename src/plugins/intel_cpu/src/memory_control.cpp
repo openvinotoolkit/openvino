@@ -4,14 +4,14 @@
 
 #include "memory_control.hpp"
 
-#include <ov_optional.hpp>
+#include <cstddef>
+#include <memory>
 #include <utility>
 
-#include "node.h"
 #include "openvino/runtime/memory_solver.hpp"
+#include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 
@@ -23,7 +23,7 @@ public:
         OPENVINO_ASSERT(m_pBlock, "Memory block is uninitialized");
     }
 
-    void* getRawPtr() const noexcept override {
+    [[nodiscard]] void* getRawPtr() const noexcept override {
         return static_cast<uint8_t*>(m_pBlock->getRawPtr()) + m_offset;
     }
     void setExtBuff(void* ptr, size_t size) override {
@@ -33,7 +33,7 @@ public:
         // don't pass over as it's static memory
         return false;
     }
-    bool hasExtBuffer() const noexcept override {
+    [[nodiscard]] bool hasExtBuffer() const noexcept override {
         return m_pBlock->hasExtBuffer();
     }
     void registerMemory(Memory* memPtr) override {
@@ -56,7 +56,7 @@ public:
         m_pBlock = std::make_shared<DnnlMemoryBlock>(std::move(pInternalMem));
     }
 
-    void* getRawPtr() const noexcept override {
+    [[nodiscard]] void* getRawPtr() const noexcept override {
         return m_pBlock->getRawPtr();
     }
     void setExtBuff(void* ptr, size_t size) override {
@@ -65,7 +65,7 @@ public:
     bool resize(size_t size) override {
         return m_pBlock->resize(size);
     }
-    bool hasExtBuffer() const noexcept override {
+    [[nodiscard]] bool hasExtBuffer() const noexcept override {
         return m_pBlock->hasExtBuffer();
     }
     void registerMemory(Memory* memPtr) override {
@@ -86,8 +86,8 @@ private:
 class IMemoryManager {
 public:
     virtual ~IMemoryManager() = default;
-    virtual void insert(const MemoryRegion& reg) = 0;
-    virtual const MemoryControl::MemoryBlockMap& lastSolution() = 0;
+    virtual void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) = 0;
+    virtual const MemoryControl::MemorySolution& lastSolution() = 0;
     virtual void allocate() = 0;
     virtual void release() = 0;
 };
@@ -101,11 +101,12 @@ std::shared_ptr<DnnlMemoryBlock> makeDnnlMemoryBlock(Args&&... args) {
 
 class MemoryManagerIO : public IMemoryManager {
 public:
-    void insert(const MemoryRegion& reg) override {
+    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
+        (void)syncInds;
         m_blocks.insert({reg.id, makeDnnlMemoryBlock<MemoryBlockWithReuse>()});
     }
 
-    const MemoryControl::MemoryBlockMap& lastSolution() override {
+    const MemoryControl::MemorySolution& lastSolution() override {
         return m_blocks;
     }
 
@@ -117,16 +118,17 @@ public:
     }
 
 private:
-    MemoryControl::MemoryBlockMap m_blocks;
+    MemoryControl::MemorySolution m_blocks;
 };
 
 class MemoryManagerStatic : public IMemoryManager {
 public:
-    void insert(const MemoryRegion& reg) override {
+    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
+        (void)syncInds;
         m_boxes.emplace_back(MemorySolver::Box{reg.start, reg.finish, reg.size, reg.id});
     }
 
-    const MemoryControl::MemoryBlockMap& lastSolution() override {
+    const MemoryControl::MemorySolution& lastSolution() override {
         if (!m_boxes.empty() && m_blocks.empty()) {
             solve();
         }
@@ -154,16 +156,18 @@ private:
     }
 
     void allocate() override {
-        if (m_workspace)
+        if (m_workspace) {
             m_workspace->resize(m_totalSize);
+        }
     }
     void release() override {
-        if (m_workspace)
+        if (m_workspace) {
             m_workspace->free();
+        }
     }
 
 private:
-    MemoryControl::MemoryBlockMap m_blocks;
+    MemoryControl::MemorySolution m_blocks;
     std::vector<MemorySolver::Box> m_boxes;
     std::shared_ptr<MemoryBlockWithRelease> m_workspace;
     size_t m_totalSize = 0;
@@ -171,18 +175,17 @@ private:
 
 class MemoryManageNonOverlapingSets : public IMemoryManager {
 public:
-    MemoryManageNonOverlapingSets(std::vector<size_t> syncInds) : m_syncInds(std::move(syncInds)) {}
-    void insert(const MemoryRegion& reg) override {
+    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
         MemorySolver::Box box = {reg.start, reg.finish, reg.size, reg.id};
         if (-1 != reg.finish) {
             // We have to extend the lifespan of tensors that are crossing a sync point border in order to save
             // the intermediate computation results from possible loss due to the tensor resize
-            auto itr_upper = std::upper_bound(m_syncInds.begin(), m_syncInds.end(), box.finish, [](int y, int x) {
+            auto itr_upper = std::upper_bound(syncInds.begin(), syncInds.end(), box.finish, [](int y, int x) {
                 return y <= x;
             });
-            auto itr_lower = std::lower_bound(m_syncInds.begin(), m_syncInds.end(), box.start);
+            auto itr_lower = std::lower_bound(syncInds.begin(), syncInds.end(), box.start);
             if (itr_lower != itr_upper) {  // across sections
-                if (itr_upper == m_syncInds.end()) {
+                if (itr_upper == syncInds.end()) {
                     box.finish = -1;
                 } else {
                     box.finish = *itr_upper;
@@ -192,10 +195,10 @@ public:
         m_boxes.emplace_back(box);
     }
 
-    const MemoryControl::MemoryBlockMap& lastSolution() override {
+    const MemoryControl::MemorySolution& lastSolution() override {
         if (!m_boxes.empty() && m_blocks.empty()) {
             solve();
-            m_blocks = MemoryControl::MemoryBlockMap{m_internalBlocks.begin(), m_internalBlocks.end()};
+            m_blocks = MemoryControl::MemorySolution{m_internalBlocks.begin(), m_internalBlocks.end()};
         }
         return m_blocks;
     }
@@ -241,11 +244,10 @@ private:
     }
 
 private:
-    MemoryControl::MemoryBlockMap m_blocks;
-    std::unordered_map<MemoryControl::MemoryBlockMap::key_type, std::shared_ptr<MemoryBlockWithRelease>>
+    MemoryControl::MemorySolution m_blocks;
+    std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<MemoryBlockWithRelease>>
         m_internalBlocks;
     std::vector<MemorySolver::Box> m_boxes;
-    std::vector<size_t> m_syncInds;
 };
 
 }  // namespace
@@ -259,16 +261,16 @@ public:
         : m_cond(std::move(cond)),
           m_memManager(std::move(memManager)) {}
 
-    bool insert(const MemoryRegion& reg) {
+    bool insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) {
         if (!m_cond(reg)) {
             return false;
         }
 
-        m_memManager->insert(reg);
+        m_memManager->insert(reg, syncInds);
         return true;
     }
 
-    const MemoryControl::MemoryBlockMap& lastSolution() const {
+    [[nodiscard]] const MemoryControl::MemorySolution& lastSolution() const {
         return m_memManager->lastSolution();
     }
 
@@ -295,10 +297,8 @@ MemoryControl::RegionHandlerPtr buildHandler(F&& f, Args&&... args) {
 
 }  // namespace
 
-MemoryControl::MemoryControl(std::vector<size_t> syncInds) {
+MemoryControl::MemoryControl() {
     // init handlers
-
-    // handler for dynamic tensors
     m_handlers.emplace_back(buildHandler<MemoryManagerStatic>([](const MemoryRegion& reg) {
         if (reg.size < 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
             MemoryRegion::AllocType::POD != reg.alloc_type) {
@@ -308,15 +308,13 @@ MemoryControl::MemoryControl(std::vector<size_t> syncInds) {
     }));
 
     // handler for static tensors
-    m_handlers.emplace_back(buildHandler<MemoryManageNonOverlapingSets>(
-        [](const MemoryRegion& reg) {
-            if (reg.size >= 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
-                MemoryRegion::AllocType::POD != reg.alloc_type) {
-                return false;
-            }
-            return true;
-        },
-        std::move(syncInds)));
+    m_handlers.emplace_back(buildHandler<MemoryManageNonOverlapingSets>([](const MemoryRegion& reg) {
+        if (reg.size >= 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
+            MemoryRegion::AllocType::POD != reg.alloc_type) {
+            return false;
+        }
+        return true;
+    }));
 
     // handler for I/O tensors, so far simply individual blocks
     m_handlers.emplace_back(buildHandler<MemoryManagerIO>([](const MemoryRegion& reg) {
@@ -327,22 +325,23 @@ MemoryControl::MemoryControl(std::vector<size_t> syncInds) {
     }));
 }
 
-void MemoryControl::insert(const MemoryRegion& region) {
+void MemoryControl::insert(const MemoryRegion& region, const std::vector<size_t>& syncInds) {
     for (auto&& handler : m_handlers) {
-        if (handler->insert(region)) {
+        if (handler->insert(region, syncInds)) {
             return;
         }
     }
     OPENVINO_THROW("No suitable hanlder was found for the given memory region");
 }
 
-MemoryControl::MemoryBlockMap MemoryControl::insert(const std::vector<MemoryRegion>& regions) {
+void MemoryControl::insert(const std::vector<MemoryRegion>& regions, const std::vector<size_t>& syncInds) {
     for (auto&& region : regions) {
-        insert(region);
+        insert(region, syncInds);
     }
+}
 
-    MemoryControl::MemoryBlockMap blocksMap;
-    blocksMap.reserve(regions.size());
+MemoryControl::MemorySolution MemoryControl::solve() {
+    MemoryControl::MemorySolution blocksMap;
 
     for (auto&& handler : m_handlers) {
         auto&& solution = handler->lastSolution();
@@ -369,52 +368,9 @@ void MemoryControl::releaseMemory() {
     m_allocated = false;
 }
 
-edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
-    typedef std::unordered_map<EdgePtr, size_t> edge_cluster_idx_map_t;
-
-    edgeClusters edge_clusters;
-    edge_cluster_idx_map_t edge_cluster_indices;
-
-    for (auto& edge : graphEdges) {
-        auto edge_it = edge_cluster_indices.find(edge);
-        if (edge_it != edge_cluster_indices.end())
-            continue;  // edge is visited
-
-        size_t cluster_idx = edge_clusters.size();
-        EdgePtr last_shared_edge = nullptr;
-
-        // find cluster index
-        for (auto shared_edge = edge->getSharedEdge(std::nothrow); shared_edge;
-             shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
-            auto shared_edge_it = edge_cluster_indices.find(shared_edge);
-            if (shared_edge_it != edge_cluster_indices.end()) {
-                cluster_idx = shared_edge_it->second;
-                last_shared_edge = shared_edge;
-                break;
-            }
-        }
-
-        // add shared edges to cluster
-        edge_cluster_indices.emplace(edge, cluster_idx);
-
-        if (cluster_idx == edge_clusters.size())
-            edge_clusters.emplace_back(edgeCluster{edge});
-        else
-            edge_clusters[cluster_idx].emplace(edge);
-
-        for (auto shared_edge = edge->getSharedEdge(std::nothrow); shared_edge != last_shared_edge;
-             shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
-            edge_cluster_indices.emplace(shared_edge, cluster_idx);
-            edge_clusters[cluster_idx].emplace(shared_edge);
-        }
-    }
-
-    return edge_clusters;
-}
-
-MemoryControl& NetworkMemoryControl::createMemoryControlUnit(std::vector<size_t> syncInds) {
-    m_controlUnits.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(std::move(syncInds))));
-    return *(m_controlUnits.back());
+MemoryControl::Ptr NetworkMemoryControl::createMemoryControlUnit() {
+    m_controlUnits.emplace_back(std::shared_ptr<MemoryControl>(new MemoryControl()));
+    return m_controlUnits.back();
 }
 
 void NetworkMemoryControl::allocateMemory() {
@@ -429,5 +385,4 @@ void NetworkMemoryControl::releaseMemory() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

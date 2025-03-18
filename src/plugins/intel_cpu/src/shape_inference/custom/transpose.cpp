@@ -6,9 +6,7 @@
 
 #include "utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 TransposeShapeInfer::TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec)
     : m_out_rank(out_rank),
@@ -35,10 +33,7 @@ ShapeInferPtr TransposeShapeInferFactory::makeShapeInfer() const {
             m_op->get_input_node_shared_ptr(ov::op::v1::Transpose::ORDER))) {
         const auto axes_vec = order->cast_vector<size_t>();
         return std::make_shared<TransposeShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length(), axes_vec);
-    } else {
-        return std::make_shared<TransposeDynShapeInfer>();
     }
+    return std::make_shared<TransposeDynShapeInfer>();
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

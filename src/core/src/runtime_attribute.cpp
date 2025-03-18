@@ -9,6 +9,8 @@
 
 namespace ov {
 
+RuntimeAttribute::~RuntimeAttribute() = default;
+
 std::string RuntimeAttribute::to_string() const {
     return {};
 }

@@ -13,7 +13,7 @@ This phase takes 2-4 weeks and involves scoping the backlog, prioritizing it, an
 
 ### Execution (development of new features)
 - [OpenVINO Contributing Guide](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md)
-- [Code Contribution Guide](https://docs.openvino.ai/2024/about-openvino/contributing/code-contribution-guide.html)
+- [Code Contribution Guide](https://docs.openvino.ai/2025/about-openvino/contributing/code-contribution-guide.html)
 - [OpenVINO First Good Issue](https://github.com/openvinotoolkit/openvino/issues/17502)
 
 ### Stabilization (Feature Freeze, Code Freeze milestones)
@@ -25,5 +25,5 @@ This phase takes 2-4 weeks and involves scoping the backlog, prioritizing it, an
 - After Code Freeze, the testing team can perform final regression testing to ensure that recent changes have not introduced new bugs and that the software meets the required quality standards.
 
 ### Distribution
-- OpenVINO has different types of build distribution: Regular releases, Long-Term Support, Pre-release releases, Nightly builds. Read more here: [OpenVINO Release Policy](https://docs.openvino.ai/2024/about-openvino/release-notes-openvino/release-policy.html)
+- OpenVINO has different types of build distribution: Regular releases, Long-Term Support, Pre-release releases, Nightly builds. Read more here: [OpenVINO Release Policy](https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/release-policy.html)
 - Different distribution channels are supported. Explore different options here: [OpenVINO Download](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

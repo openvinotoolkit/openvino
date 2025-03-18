@@ -42,9 +42,9 @@ protected:
     void SetUp() override;
     void compile_model() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void init_thresholds() override;
     virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph() const = 0;
     virtual void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) = 0;
-    virtual void init_thresholds();
 
     size_t m_thread_count;
     std::vector<ov::element::Type> m_input_types;

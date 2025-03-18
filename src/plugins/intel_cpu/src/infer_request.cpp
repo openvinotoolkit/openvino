@@ -20,8 +20,7 @@
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 SyncInferRequest::SyncInferRequest(CompiledModelHolder compiled_model)
     : ov::ISyncInferRequest(compiled_model.compiled_model()),
       m_compiled_model(std::move(compiled_model)) {
@@ -125,8 +124,9 @@ void SyncInferRequest::infer() {
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
     auto&& graph = m_compiled_model.graph();
-    if (!graph.IsReady())
+    if (!graph.IsReady()) {
         OPENVINO_THROW("Graph is not ready!");
+    }
     std::vector<ov::ProfilingInfo> perfMap;
     graph.GetPerfData(perfMap);
     return perfMap;
@@ -164,15 +164,17 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
     for (auto& it : m_input_external_ptr) {
         auto inputNodePtr = graph.getInputNodeByIndex(it.first);
         OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", it.first);
-        if (inputNodePtr->getDstDataAtPort(0) == static_cast<void*>(it.second->data()))
+        if (inputNodePtr->getDstDataAtPort(0) == static_cast<void*>(it.second->data())) {
             continue;
+        }
         auto& childEdges = inputNodePtr->getChildEdges();
         // Perform checks that the user's memory will not be modified
         bool canBeInPlace = true;
         for (auto& childEdge : childEdges) {
             auto ce = childEdge.lock();
-            if (!ce)
+            if (!ce) {
                 OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
+            }
 
             auto& child = ce->getChild();
 
@@ -201,8 +203,9 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
         if (canBeInPlace) {
             for (auto& edge : childEdges) {
                 auto e = edge.lock();
-                if (!e)
+                if (!e) {
                     OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
+                }
                 changeInpPtr(e, it.second);
             }
         }
@@ -213,8 +216,9 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
         OPENVINO_ASSERT(output, "Cannot find output tensor with index: ", it.first);
         auto parentEdge = output->getParentEdgeAt(0);
         void* const outputRawPtr = parentEdge->getMemory().getData();
-        if (outputRawPtr == static_cast<void*>(it.second->data()))
+        if (outputRawPtr == static_cast<void*>(it.second->data())) {
             continue;
+        }
 
         bool canBeInPlace = true;
         // Cannot be in-place after concat because concat is using different ptrs without offsets
@@ -235,8 +239,9 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
             auto& parentEdges = parent->getParentEdges();
             for (auto& edge : parentEdges) {
                 auto e = edge.lock();
-                if (!e)
+                if (!e) {
                     OPENVINO_THROW("Node ", parent->getName(), " contains empty parent edge");
+                }
 
                 if (parent_port == parent->inPlaceInputPort(e->getOutputNum())) {
                     parent = e->getParent();
@@ -245,8 +250,9 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
                 }
             }
         } while (previousParent != parent);
-        if (canBeInPlace)
+        if (canBeInPlace) {
             change_edge_ptr(parentEdge, it.second);
+        }
     }
 
     if (graph.IsDynamic()) {
@@ -328,15 +334,15 @@ const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::
     OPENVINO_ASSERT(port_find.found(), "Can not find port: ", port.get_any_name());
     if (port_find.is_input()) {
         return m_input_ports_map.at(port_find.idx);
-    } else {
-        return m_output_ports_map.at(port_find.idx);
     }
+    return m_output_ports_map.at(port_find.idx);
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, const ov::SoPtr<ov::ITensor>& in_tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
-    if (!in_tensor)
+    if (!in_tensor) {
         OPENVINO_THROW("Failed to set empty tensor for port!");
+    }
     auto port = get_internal_port(in_port);
     auto tensor = in_tensor;
 
@@ -546,8 +552,9 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
                                   control_block.tensor()->get_memory().get());
 
                         tensor = control_block.tensor();
-                        if (model_prec == graph_prec)
-                            m_outputControlBlocks.emplace(std::make_pair(port_index, std::move(control_block)));
+                        if (model_prec == graph_prec) {
+                            m_outputControlBlocks.emplace(port_index, std::move(control_block));
+                        }
                     }
                 } else {
                     tensor_shape = shape.to_shape();
@@ -635,5 +642,4 @@ void SyncInferRequest::sub_streams_infer() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

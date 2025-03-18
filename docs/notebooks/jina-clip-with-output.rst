@@ -76,8 +76,22 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2024.2.0" "datasets>=2.20" "nncf>=2.11.0"
+    import platform
+    
+    %pip install -q "openvino>=2024.6.0" "datasets>=2.20" "nncf>=2.14.0"
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "gradio>=4.19" "pillow" "einops" "timm" "transformers[torch]>=4.39" "torch>=2.1" "matplotlib>=3.4" "typing_extensions>=4.9"
+    
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0.0"
+
+
+.. parsed-literal::
+
+    ERROR: Could not find a version that satisfies the requirement openvino>=2024.6.0 (from versions: 2021.3.0, 2021.4.0, 2021.4.1, 2021.4.2, 2022.1.0, 2022.2.0, 2022.3.0, 2022.3.1, 2022.3.2, 2023.0.0.dev20230119, 2023.0.0.dev20230217, 2023.0.0.dev20230407, 2023.0.0.dev20230427, 2023.0.0, 2023.0.1, 2023.0.2, 2023.1.0.dev20230623, 2023.1.0.dev20230728, 2023.1.0.dev20230811, 2023.1.0, 2023.2.0.dev20230922, 2023.2.0, 2023.3.0, 2024.0.0, 2024.1.0, 2024.2.0, 2024.3.0, 2024.4.0, 2024.4.1.dev20240926)
+    ERROR: No matching distribution found for openvino>=2024.6.0
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
 
 Instantiate model
 -----------------
@@ -95,6 +109,15 @@ weights, using ``from_pretrained`` method.
     from transformers import AutoModel
     
     model = AutoModel.from_pretrained("jinaai/jina-clip-v1", trust_remote_code=True)
+
+
+.. parsed-literal::
+
+    2025-02-04 02:41:35.566346: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2025-02-04 02:41:35.599646: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2025-02-04 02:41:36.268007: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
 
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
@@ -142,18 +165,23 @@ passing in the PIL.Image objects.
     
     # text input data
     TEXT_INPUTS = ["Seal", "Cobra", "Rat", "Penguin", "Dog"]
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("jina-clip.ipynb")
 
 
 
 .. parsed-literal::
 
-    data/furseal.png:   0%|          | 0.00/2.55M [00:00<?, ?B/s]
+    furseal.png:   0%|          | 0.00/2.55M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    data/coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
+    coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
 
 
 .. code:: ipython3
@@ -278,6 +306,24 @@ loading on device using ``core.complie_model``.
         ov_text_model = ov.convert_model(model.text_model, example_input=text_inputs["input_ids"])
         ov.save_model(ov_text_model, fp16_text_model_path)
 
+
+.. parsed-literal::
+
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/jinaai/jina-bert-flash-implementation/b78d1595de294f13ffe7b19d6cd63892a6e4e7a4/mha.py:333: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      softmax_scale = self.softmax_scale or 1.0 / math.sqrt(q.shape[-1])
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/jinaai/jina-bert-flash-implementation/b78d1595de294f13ffe7b19d6cd63892a6e4e7a4/mha.py:343: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seqlen > self.linear_biases.shape[-1]:
+
+
 .. code:: ipython3
 
     fp16_vision_model_path = Path("jina-clip-vision_v1_fp16.xml")
@@ -285,6 +331,13 @@ loading on device using ``core.complie_model``.
     if not fp16_vision_model_path.exists():
         ov_vision_model = ov.convert_model(model.vision_model, example_input=vision_inputs["pixel_values"])
         ov.save_model(ov_vision_model, fp16_vision_model_path)
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/jinaai/jina-clip-implementation/51f02de9f2cf8afcd3bac4ce996859ba96f9f8e9/eva_model.py:471: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert h == self.img_size[0] and w == self.img_size[1], (
+
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -482,9 +535,9 @@ Dataset with text data
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
     Fetching 50 samples for the initialization...
-    
+
 
 
 .. parsed-literal::
@@ -560,18 +613,18 @@ Dataset with image data
         train_dataset = dataset["train"].shuffle(seed=42)
     
         dataloader_vis = torch.utils.data.DataLoader(train_dataset, collate_fn=collate_fn_vision, batch_size=1)
-        calibration_data_vision = prepare_calibration_data_vis(dataloader_vis, 50)
+        calibration_data_vision = prepare_calibration_data_vis(dataloader_vis, 250)
 
 
 .. parsed-literal::
 
-    Fetching 50 samples for the initialization...
-    
+    Fetching 250 samples for the initialization...
+
 
 
 .. parsed-literal::
 
-      0%|          | 0/50 [00:00<?, ?it/s]
+      0%|          | 0/250 [00:00<?, ?it/s]
 
 
 Perform quantization
@@ -596,7 +649,7 @@ Quantization of text model
     if not int8_text_model_path.exists():
         if len(calibration_data_text) == 0:
             raise RuntimeError(
-                'Calibration dataset is empty. Please check internet connection and try to download images manually.'
+                'Calibration dataset is empty. Please check your internet connection and try to download images manually.'
             )
     
         ov_model_text = core.read_model(fp16_text_model_path)
@@ -604,9 +657,65 @@ Quantization of text model
         calibration_dataset = nncf.Dataset(calibration_data_text)
         quantized_model = nncf.quantize(
             model=ov_model_text,
-            calibration_dataset=calibration_dataset
+            calibration_dataset=calibration_dataset,
+            subset_size=50,
+            model_type=nncf.ModelType.TRANSFORMER,
+            advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alphas=nncf.AdvancedSmoothQuantParameters(matmul=0.6))
         )
         ov.save_model(quantized_model, int8_text_model_path)
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
 
 Quantization of image model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -628,9 +737,65 @@ Quantization of image model
         calibration_dataset = nncf.Dataset(calibration_data_vision)
         quantized_model = nncf.quantize(
             model=ov_model_vision,
-            calibration_dataset=calibration_dataset
+            calibration_dataset=calibration_dataset,
+            subset_size=250,
+            model_type=nncf.ModelType.TRANSFORMER,
+            advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alphas=nncf.AdvancedSmoothQuantParameters(matmul=0.6))
         )
         ov.save_model(quantized_model, int8_vision_model_path)
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
 
 .. code:: ipython3
 
@@ -677,9 +842,9 @@ Compare File Size
 
 .. parsed-literal::
 
-    Text model:   FP16 model size - 266.88 MB; INT8 model size - 136.98 MB; Model compression rate: 1.948
-    Vision model: FP16 model size - 163.83 MB; INT8 model size - 82.64 MB;  Model compression rate: 1.983
-    
+    Text model:   FP16 model size - 266.88 MB; INT8 model size - 137.34 MB; Model compression rate: 1.943
+    Vision model: FP16 model size - 163.83 MB; INT8 model size - 82.83 MB;  Model compression rate: 1.978
+
 
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -728,9 +893,9 @@ approximately estimate the speed up of the dynamic quantized models.
 
 .. parsed-literal::
 
-    Performance speed up for text model: 1.610
-    Performance speed up for vision model: 1.489
-    
+    Performance speed up for text model: 1.430
+    Performance speed up for vision model: 1.533
+
 
 Gradio demo
 -----------
@@ -814,9 +979,23 @@ example, ``cat,dog,bird``)
     demo = make_demo(image_text_fn=image_text_sim, text_text_fn=text_text_sim, image_image_fn=image_image_sim, model_choice_visible=model_choice_visible)
     
     try:
-        demo.queue().launch(debug=True)
+        demo.queue().launch(debug=False)
     except Exception:
-        demo.queue().launch(share=True, debug=True)
+        demo.queue().launch(share=True, debug=False)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+    
+    To create a public link, set `share=True` in `launch()`.
+
+
+
+
+
+
+

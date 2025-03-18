@@ -20,8 +20,7 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, cldnn::reduce_mode mode, bool keep_dims) {
     validate_inputs_count(op, {2});
@@ -140,5 +139,4 @@ REGISTER_FACTORY_IMPL(v1, ReduceSum);
 REGISTER_FACTORY_IMPL(v4, ReduceL1);
 REGISTER_FACTORY_IMPL(v4, ReduceL2);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

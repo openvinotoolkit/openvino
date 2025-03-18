@@ -114,7 +114,7 @@ OutputVector translate_fft_irfftn(const NodeContext& context) {
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     PYTORCH_OP_CONVERSION_CHECK(complex_type_mark, "aten::fft_irfftn operation expects complex type tensor on input.");
-    input = complex_type_mark->input_value(0);
+    input = complex_type_mark->get_data();
 
     auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));

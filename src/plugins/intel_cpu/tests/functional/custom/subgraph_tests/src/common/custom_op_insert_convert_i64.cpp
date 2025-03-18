@@ -116,6 +116,7 @@ public:
 
 protected:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         targetDevice = test::utils::DEVICE_CPU;
 
         const auto& params = this->GetParam();

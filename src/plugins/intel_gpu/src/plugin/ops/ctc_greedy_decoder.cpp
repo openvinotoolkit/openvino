@@ -15,8 +15,7 @@
 
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, bool ctc_merge_repeated) {
     validate_inputs_count(op, {2, 3});
@@ -144,5 +143,4 @@ static void CreateCTCGreedyDecoderSeqLenOp(ProgramBuilder& p, const std::shared_
 REGISTER_FACTORY_IMPL(v0, CTCGreedyDecoder);
 REGISTER_FACTORY_IMPL(v6, CTCGreedyDecoderSeqLen);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

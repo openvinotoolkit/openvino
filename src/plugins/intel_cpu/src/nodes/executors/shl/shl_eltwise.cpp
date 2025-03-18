@@ -8,8 +8,7 @@
 #include "utils/debug_capabilities.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool ShlEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
     if (one_of(algorithm, Algorithm::EltwiseAdd,
@@ -52,8 +51,9 @@ bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
     const auto unifiedRank = srcDescs.front()->as<BlockedMemoryDesc>()->getBlockDims().size();
     auto has_unified_layout = [unifiedLayout, unifiedRank](const MemoryDescPtr& desc) {
         if (desc->hasLayoutType(LayoutType::nspc)) {    // ensure the same rank
-            if (desc->as<BlockedMemoryDesc>()->getBlockDims().size() != unifiedRank)
+            if (desc->as<BlockedMemoryDesc>()->getBlockDims().size() != unifiedRank) {
                 return false;
+            }
         }
         return desc->hasLayoutType(unifiedLayout);
     };
@@ -237,5 +237,4 @@ void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
     return;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

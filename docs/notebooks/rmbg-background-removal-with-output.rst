@@ -59,18 +59,13 @@ install required dependencies
 
     %pip install -q torch torchvision pillow huggingface_hub "openvino>=2024.0.0" "matplotlib>=3.4" "gradio>=4.15" "transformers>=4.39.1" tqdm --extra-index-url https://download.pytorch.org/whl/cpu
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
 Download model code from HuggingFace hub
 
 .. code:: ipython3
 
     from huggingface_hub import hf_hub_download
     from pathlib import Path
+    import requests
 
     repo_id = "briaai/RMBG-1.4"
 
@@ -80,18 +75,16 @@ Download model code from HuggingFace hub
         if not Path(file_for_downloading).exists():
             hf_hub_download(repo_id=repo_id, filename=file_for_downloading, local_dir=".")
 
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
 
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
 
-.. parsed-literal::
-
-    utilities.py:   0%|          | 0.00/980 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    example_input.jpg:   0%|          | 0.00/327k [00:00<?, ?B/s]
-
+    collect_telemetry("rmbg-background-removal.ipynb")
 
 Load PyTorch model
 ------------------
@@ -108,14 +101,6 @@ it may take some time.
     from transformers import AutoModelForImageSegmentation
 
     net = AutoModelForImageSegmentation.from_pretrained("briaai/RMBG-1.4", trust_remote_code=True)
-
-
-.. parsed-literal::
-
-    2024-12-10 05:02:42.657474: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-10 05:02:42.682685: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
 
 Run PyTorch model inference
 ---------------------------
@@ -231,20 +216,6 @@ function or directly loading on device using ``core.complie_model``.
         ov_model = ov.convert_model(net, example_input=image, input=[1, 3, *model_input_size])
         ov.save_model(ov_model, ov_model_path)
 
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
-
-
 Run OpenVINO model inference
 ----------------------------
 
@@ -256,16 +227,11 @@ please use dropdown list below:
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
 
     core = ov.Core()
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -274,7 +240,7 @@ please use dropdown list below:
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
 
 
 
@@ -344,28 +310,9 @@ Interactive demo
     demo = make_demo(fn=on_submit)
 
     try:
-        demo.launch(debug=False)
+        demo.launch(debug=True)
     except Exception:
-        demo.launch(share=True, debug=False)
+        demo.launch(share=True, debug=True)
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()

@@ -7,7 +7,7 @@
 #include <pybind11/pybind11.h>
 
 #include "openvino/frontend/decoder.hpp"
-#include "openvino/frontend/graph_iterator.hpp"
+#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 
 namespace py = pybind11;
 

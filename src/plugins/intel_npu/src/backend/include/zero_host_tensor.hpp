@@ -15,9 +15,11 @@ class ZeroHostTensor : public ov::ITensor {
 public:
     ZeroHostTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                   const ze_device_properties_t& device_properties,
                    const ov::element::Type element_type,
                    const ov::Shape& shape,
-                   const Config& config);
+                   const Config& config,
+                   ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED);
 
     ~ZeroHostTensor() override = default;
 
@@ -33,7 +35,7 @@ public:
     std::shared_ptr<ZeroRemoteTensor> get_impl() const;
 
 private:
-    std::shared_ptr<ZeroRemoteTensor> m_impl;
+    std::shared_ptr<ZeroRemoteTensor> _impl;
 };
 
 }  // namespace intel_npu

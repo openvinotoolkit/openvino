@@ -15,9 +15,11 @@ post <https://azure.microsoft.com/en-us/blog/new-models-added-to-the-phi-3-famil
 `technical report <https://aka.ms/phi3-tech-report>`__,
 `Phi-3-cookbook <https://github.com/microsoft/Phi-3CookBook>`__
 
-In this tutorial we consider how to launch Phi-3-vision using OpenVINO
-for creation multimodal chatbot. Additionally, we optimize model to low
-precision using `NNCF <https://github.com/openvinotoolkit/nncf>`__
+In this tutorial we consider how to use Phi-3-Vision model to build
+multimodal chatbot using `Optimum
+Intel <https://github.com/huggingface/optimum-intel>`__. Additionally,
+we optimize model to low precision using
+`NNCF <https://github.com/openvinotoolkit/nncf>`__
 
 **Table of contents:**
 
@@ -51,24 +53,24 @@ install required packages and setup helper functions.
 
 .. code:: ipython3
 
-    %pip install -q "torch>=2.1" "torchvision" "transformers>=4.40" "protobuf>=3.20" "gradio>=4.26" "Pillow" "accelerate" "tqdm"  --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install  -q "openvino>=2024.2.0" "nncf>=2.11.0"
+    import platform
 
+    %pip install -q -U "torch>=2.1" "torchvision" "transformers>=4.45" "protobuf>=3.20" "gradio>=4.26" "Pillow" "accelerate" "tqdm"  --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install --pre -qU "openvino>=2024.6.0" "openvino-tokenizers>=2024.6.0" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q -U "nncf>=2.14.0"
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
 
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0"
 
 .. code:: ipython3
 
     import requests
     from pathlib import Path
 
-    if not Path("ov_phi3_vision_helper.py").exists():
-        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/phi-3-vision/ov_phi3_vision_helper.py")
-        open("ov_phi3_vision_helper.py", "w").write(r.text)
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
+        open("cmd_helper.py", "w").write(r.text)
 
 
     if not Path("gradio_helper.py").exists():
@@ -78,6 +80,11 @@ install required packages and setup helper functions.
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("phi-3-vision.ipynb")
 
 Select Model
 ------------
@@ -119,6 +126,18 @@ You can select one from the provided options below.
 
 
 
+.. code:: ipython3
+
+    model_id = model_dropdown.value
+    print(f"Selected {model_id}")
+    MODEL_DIR = Path(model_id.split("/")[-1])
+
+
+.. parsed-literal::
+
+    Selected microsoft/Phi-3.5-vision-instruct
+
+
 Convert and Optimize model
 --------------------------
 
@@ -132,86 +151,66 @@ should be used for these purposes. ``ov.convert_model`` function accepts
 original PyTorch model instance and example input for tracing and
 returns ``ov.Model`` representing this model in OpenVINO framework.
 Converted model can be used for saving on disk using ``ov.save_model``
-function or directly loading on device using ``core.complie_model``.
+function or directly loading on device using ``core.compile_model``.
 
-The script ``ov_phi3_vision_helper.py`` contains helper function for
-model conversion, please check its content if you interested in
-conversion details.
+For convenience, we will use OpenVINO integration with HuggingFace
+Optimum. `Optimum
+Intel <https://huggingface.co/docs/optimum/intel/index>`__ is the
+interface between the Transformers and Diffusers libraries and the
+different tools and libraries provided by Intel to accelerate end-to-end
+pipelines on Intel architectures.
 
-.. raw:: html
+Among other use cases, Optimum Intel provides a simple interface to
+optimize your Transformers and Diffusers models, convert them to the
+OpenVINO Intermediate Representation (IR) format and run inference using
+OpenVINO Runtime. ``optimum-cli`` provides command line interface for
+model conversion and optimization.
 
-   <details>
+General command format:
 
-Click here for more detailed explanation of conversion steps
-Phi-3-vision is autoregressive transformer generative model, it means
-that each next model step depends from model output from previous step.
-The generation approach is based on the assumption that the probability
-distribution of a word sequence can be decomposed into the product of
-conditional next word distributions. In other words, model predicts the
-next token in the loop guided by previously generated tokens until the
-stop-condition will be not reached (generated sequence of maximum length
-or end of string token obtained). The way the next token will be
-selected over predicted probabilities is driven by the selected decoding
-methodology. You can find more information about the most popular
-decoding methods in this blog. The entry point for the generation
-process for models from the Hugging Face Transformers library is the
-``generate`` method. You can find more information about its parameters
-and configuration in the documentation. To preserve flexibility in the
-selection decoding methodology, we will convert only model inference for
-one step.
+.. code:: bash
 
-The inference flow has difference on first step and for the next. On the
-first step, model accept preprocessed input instruction and image, that
-transformed to the unified embedding space using ``input_embedding`` and
-``image_encoder`` models, after that ``language model``, LLM-based part
-of model, runs on input embeddings to predict probability of next
-generated tokens. On the next step, ``language_model`` accepts only next
-token id selected based on sampling strategy and processed by
-``input_embedding`` model and cached attention key and values. Since the
-output side is auto-regressive, an output token hidden state remains the
-same once computed for every further generation step. Therefore,
-recomputing it every time you want to generate a new token seems
-wasteful. With the cache, the model saves the hidden state once it has
-been computed. The model only computes the one for the most recently
-generated output token at each time step, re-using the saved ones for
-hidden tokens. This reduces the generation complexity from
-:math:`O(n^3)` to :math:`O(n^2)` for a transformer model. More details
-about how it works can be found in this
-`article <https://scale.com/blog/pytorch-improvements#Text%20Translation>`__.
-For improving support images of various resolution, input image
-separated on patches and processed by ``image feature extractor`` and
-``image projector`` that are part of image encoder.
+   optimum-cli export openvino --model <model_id_or_path> --task <task> <output_dir>
 
-To sum up above, model consists of 4 parts:
-
--  **Image feature extractor** and **Image projector** for encoding
-   input images into embedding space.
--  **Input Embedding** for conversion input text tokens into embedding
-   space
--  **Language Model** for generation answer based on input embeddings
-   provided by Image Encoder and Input Embedding models.
-
-.. raw:: html
-
-   </details>
+where task is task to export the model for, if not specified, the task
+will be auto-inferred based on the model. You can find a mapping between
+tasks and model classes in Optimum TaskManager
+`documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
+Additionally, you can specify weights compression using
+``--weight-format`` argument with one of following options: ``fp32``,
+``fp16``, ``int8`` and ``int4``. For int8 and int4
+`nncf <https://github.com/openvinotoolkit/nncf>`__ will be used for
+weight compression. More details about model export provided in `Optimum
+Intel
+documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-your-model>`__.
 
 Compress model weights to 4-bit
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For reducing memory
 consumption, weights compression optimization can be applied using
-`NNCF <https://github.com/openvinotoolkit/nncf>`__.
+`NNCF <https://github.com/openvinotoolkit/nncf>`__ during run Optimum
+Intel CLI.
 
 .. raw:: html
 
    <details>
 
-Click here for more details about weight compression Weight compression
-aims to reduce the memory footprint of a model. It can also lead to
-significant performance improvement for large memory-bound models, such
-as Large Language Models (LLMs). LLMs and other models, which require
-extensive memory to store the weights during inference, can benefit from
-weight compression in the following ways:
+.. raw:: html
+
+   <summary>
+
+Click here for more details about weight compression
+
+.. raw:: html
+
+   </summary>
+
+Weight compression aims to reduce the memory footprint of a model. It
+can also lead to significant performance improvement for large
+memory-bound models, such as Large Language Models (LLMs). LLMs and
+other models, which require extensive memory to store the weights during
+inference, can benefit from weight compression in the following ways:
 
 -  enabling the inference of exceptionally large models that cannot be
    accommodated in the memory of the device;
@@ -247,177 +246,92 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 .. code:: ipython3
 
-    from ov_phi3_vision_helper import convert_phi3_model
+    to_compress = widgets.Checkbox(value=True, description="Compress model", disabled=False)
 
-    # uncomment these lines to see model conversion code
-    # convert_phi3_model??
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    2024-12-10 02:45:22.930209: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-10 02:45:22.954429: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
+    to_compress
 
 .. code:: ipython3
 
-    from pathlib import Path
-    import nncf
+    from cmd_helper import optimum_cli
+
+    model_dir = MODEL_DIR / "INT4" if to_compress.value else MODEL_DIR / "FP16"
+    if not model_dir.exists():
+        optimum_cli(model_id, model_dir, additional_args={"weight-format": "int4" if to_compress.value else "fp16", "trust-remote-code": ""})
 
 
-    model_id = model_dropdown.value
-    out_dir = Path("model") / Path(model_id).name / "INT4"
-    compression_configuration = {
-        "mode": nncf.CompressWeightsMode.INT4_SYM,
-        "group_size": 64,
-        "ratio": 0.6,
-    }
-    convert_phi3_model(model_id, out_dir, compression_configuration)
+
+**Export command:**
 
 
-.. parsed-literal::
 
-    ⌛ Phi-3.5-vision-instruct conversion started. Be patient, it may takes some time.
-    ⌛ Load Original model
-
+``optimum-cli export openvino --model microsoft/Phi-3.5-vision-instruct Phi-3.5-vision-instruct/INT4 --weight-format int4 --trust-remote-code``
 
 
 .. parsed-literal::
 
-    Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/auto/image_processing_auto.py:520: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
-      warnings.warn(
-
-
-.. parsed-literal::
-
-    ✅ Original model successfully loaded
-    ⌛ Convert Input embedding model
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
+    2024-12-24 08:39:28.193255: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-12-24 08:39:28.205380: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+    E0000 00:00:1735015168.220063  230613 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1735015168.224457  230613 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-12-24 08:39:28.238718: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    Loading checkpoint shards: 100%|██████████| 2/2 [00:04<00:00,  2.14s/it]
+    The class `optimum.bettertransformers.transformation.BetterTransformer` is deprecated and will be removed in a future release.
+    WARNING:root:Cannot apply model.to_bettertransformer because of the exception:
+    The model type phi3_v is not yet supported to be used with BetterTransformer. Feel free to open an issue at https://github.com/huggingface/optimum/issues if you would like this model type to be supported. Currently supported models are: dict_keys(['albert', 'bark', 'bart', 'bert', 'bert-generation', 'blenderbot', 'bloom', 'camembert', 'blip-2', 'clip', 'codegen', 'data2vec-text', 'deit', 'distilbert', 'electra', 'ernie', 'fsmt', 'gpt2', 'gptj', 'gpt_neo', 'gpt_neox', 'hubert', 'layoutlm', 'm2m_100', 'marian', 'markuplm', 'mbart', 'opt', 'pegasus', 'rembert', 'prophetnet', 'roberta', 'roc_bert', 'roformer', 'splinter', 'tapas', 't5', 'vilt', 'vit', 'vit_mae', 'vit_msn', 'wav2vec2', 'xlm-roberta', 'yolos']).. Usage model with stateful=True may be non-effective if model does not contain torch.functional.scaled_dot_product_attention
     `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
-
-
-.. parsed-literal::
-
-    ✅ Input embedding model successfully converted
-    ⌛ Convert Image embedding model
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:243: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/cache_utils.py:458: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+      or len(self.key_cache[layer_idx]) == 0  # the layer has no cache
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/modeling_attn_mask_utils.py:116: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if (input_shape[-1] > 1 or self.sliding_window is not None) and self.is_causal:
+    /home/ea/work/py311/lib/python3.11/site-packages/optimum/exporters/onnx/model_patcher.py:306: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if past_key_values_length > 0:
+    /home/ea/.cache/huggingface/modules/transformers_modules/microsoft/Phi-3.5-vision-instruct/4a0d683eba9f1d0cbfb6151705d1ee73c25a80ca/modeling_phi3_v.py:444: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      seq_len = seq_len or torch.max(position_ids) + 1
+    /home/ea/.cache/huggingface/modules/transformers_modules/microsoft/Phi-3.5-vision-instruct/4a0d683eba9f1d0cbfb6151705d1ee73c25a80ca/modeling_phi3_v.py:445: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.original_max_position_embeddings:
+    /home/ea/work/py311/lib/python3.11/site-packages/nncf/torch/dynamic_graph/wrappers.py:85: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+      op1 = operator(\*args, \*\*kwargs)
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/cache_utils.py:443: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+      elif len(self.key_cache[layer_idx]) == 0:  # fills previously skipped layers; checking for tensor causes errors
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/models/clip/modeling_clip.py:243: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if not interpolate_pos_encoding and (height != self.image_size or width != self.image_size):
 
 
 .. parsed-literal::
 
-    ✅ Image embedding model successfully converted
-    ⌛ Convert Image projection model
-
-
-.. parsed-literal::
-
-    You are not running the flash-attention implementation, expect numerical differences.
-
-
-.. parsed-literal::
-
-    ✅ Image projection model successfully converted
-    ⌛ Convert Language model
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:458: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
-      or len(self.key_cache[layer_idx]) == 0  # the layer has no cache
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:116: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if (input_shape[-1] > 1 or self.sliding_window is not None) and self.is_causal:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if past_key_values_length > 0:
-    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/microsoft/Phi-3.5-vision-instruct/4a0d683eba9f1d0cbfb6151705d1ee73c25a80ca/modeling_phi3_v.py:444: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      seq_len = seq_len or torch.max(position_ids) + 1
-    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/microsoft/Phi-3.5-vision-instruct/4a0d683eba9f1d0cbfb6151705d1ee73c25a80ca/modeling_phi3_v.py:445: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if seq_len > self.original_max_position_embeddings:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:86: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      op1 = operator(\*args, \*\*kwargs)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:443: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
-      elif len(self.key_cache[layer_idx]) == 0:  # fills previously skipped layers; checking for tensor causes errors
-    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/microsoft/Phi-3.5-vision-instruct/4a0d683eba9f1d0cbfb6151705d1ee73c25a80ca/modeling_phi3_v.py:683: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
-    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/microsoft/Phi-3.5-vision-instruct/4a0d683eba9f1d0cbfb6151705d1ee73c25a80ca/modeling_phi3_v.py:690: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
-    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/microsoft/Phi-3.5-vision-instruct/4a0d683eba9f1d0cbfb6151705d1ee73c25a80ca/modeling_phi3_v.py:702: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:168: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:489.)
-      if a.grad is not None:
-
-
-.. parsed-literal::
-
-    ✅ Language model successfully converted
-    ⌛ Weights compression with int4_sym mode started
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 42% (54 / 129)              │ 40% (53 / 128)                         │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 58% (75 / 129)              │ 60% (75 / 128)                         │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ Weights compression finished
-    ✅ Phi-3.5-vision-instruct model conversion finished. You can find results in model/Phi-3.5-vision-instruct/INT4
-
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_asym                 │ 3% (1 / 129)                │ 0% (0 / 128)                           │
+    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │ int4_asym                 │ 97% (128 / 129)             │ 100% (128 / 128)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m • [38;2;0;104;181m0:01:58[0m • [38;2;0;104;181m0:00:00[0m;0;104;181m0:00:01[0m181m0:00:05[0m
+    [?25hINFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_sym                  │ 100% (139 / 139)            │ 100% (139 / 139)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m • [38;2;0;104;181m0:00:01[0m • [38;2;0;104;181m0:00:00[0m01[0m • [38;2;0;104;181m0:00:01[0m
+    [?25hINFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_sym                  │ 100% (1 / 1)                │ 100% (1 / 1)                           │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m • [38;2;0;104;181m0:00:00[0m • [38;2;0;104;181m0:00:00[0m
+    [?25hINFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_sym                  │ 100% (2 / 2)                │ 100% (2 / 2)                           │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m • [38;2;0;104;181m0:00:00[0m • [38;2;0;104;181m0:00:00[0m
+    [?25h
 
 Select inference device
 -----------------------
@@ -446,29 +360,39 @@ Run OpenVINO model
 
 
 
-``OvPhi3vison`` class provides convenient way for running model. It
-accepts directory with converted model and inference device as
-arguments. For running model we will use ``generate`` method.
+OpenVINO integration with Optimum Intel provides ready-to-use API for
+model inference that can be used for smooth integration with
+transformers-based solutions. For loading model, we will use
+``OVModelForVisualCausalLM`` class that have compatible interface with
+Transformers LLaVA implementation. For loading a model,
+``from_pretrained`` method should be used. It accepts path to the model
+directory or model_id from HuggingFace hub (if model is not converted to
+OpenVINO format, conversion will be triggered automatically).
+Additionally, we can provide an inference device, quantization config
+(if model has not been quantized yet) and device-specific OpenVINO
+Runtime configuration. More details about model inference with Optimum
+Intel can be found in
+`documentation <https://huggingface.co/docs/optimum/intel/openvino/inference>`__.
 
 .. code:: ipython3
 
-    from ov_phi3_vision_helper import OvPhi3Vision
+    from optimum.intel.openvino import OVModelForVisualCausalLM
 
-    # Uncomment below lines to see the model inference class code
-
-    # OvPhi3Vision??
-
-.. code:: ipython3
-
-    model = OvPhi3Vision(out_dir, device.value)
+    model = OVModelForVisualCausalLM.from_pretrained(model_dir, device=device.value, trust_remote_code=True)
 
 .. code:: ipython3
 
     import requests
     from PIL import Image
 
-    url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
-    image = Image.open(requests.get(url, stream=True).raw)
+    image_path = Path("cat.png")
+
+    if not image_path.exists():
+        url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+        image = Image.open(requests.get(url, stream=True).raw)
+        image.save(image_path)
+    else:
+        image = Image.open(image_path)
 
     print("Question:\n What is unusual on this picture?")
     image
@@ -494,7 +418,7 @@ arguments. For running model we will use ``generate`` method.
         {"role": "user", "content": "<|image_1|>\nWhat is unusual on this picture?"},
     ]
 
-    processor = AutoProcessor.from_pretrained(out_dir, trust_remote_code=True)
+    processor = AutoProcessor.from_pretrained(MODEL_DIR / "INT4" if to_compress.value else "FP16", trust_remote_code=True)
 
     prompt = processor.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
@@ -509,7 +433,7 @@ arguments. For running model we will use ``generate`` method.
 .. parsed-literal::
 
     Answer:
-    Nothing unusual, it's a cat lying in a box.
+    A cat is lying in a box.
 
 
 Interactive demo
@@ -524,23 +448,9 @@ Interactive demo
     demo = make_demo(model, processor)
 
     try:
-        demo.launch(debug=False, height=600)
+        demo.launch(debug=True, height=600)
     except Exception:
-        demo.launch(debug=False, share=True, height=600)
+        demo.launch(debug=True, share=True, height=600)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-

@@ -14,9 +14,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/priorbox.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 float clip_great(float x, float threshold) {
     return x < threshold ? x : threshold;
@@ -114,7 +112,7 @@ bool PriorBox::needShapeInfer() const {
     const int* in_data = memory->getDataAs<int>();
     const int h = in_data[0];
     const int w = in_data[1];
-    const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
+    const auto output = static_cast<size_t>(4) * h * w * number_of_priors;
 
     return outputShape[1] != output;
 }
@@ -124,8 +122,9 @@ bool PriorBox::needPrepareParams() const {
 }
 
 void PriorBox::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, ov::element::f32}},
@@ -134,8 +133,9 @@ void PriorBox::initSupportedPrimitiveDescriptors() {
 
 void PriorBox::createPrimitive() {
     if (inputShapesDefined()) {
-        if (needPrepareParams())
+        if (needPrepareParams()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
 }
@@ -152,18 +152,20 @@ void PriorBox::execute(const dnnl::stream& strm) {
     const int OH = 4 * H * W * number_of_priors;
     const int OW = 1;
 
-    float* dst_data = getDstDataAtPortAs<float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
 
     float step_ = step;
     auto min_size_ = min_size;
     if (!scale_all_sizes) {
         // mxnet-like PriorBox
-        if (step_ == -1)
+        if (step_ == -1) {
             step_ = 1.f * IH / H;
-        else
+        } else {
             step_ *= IH;
-        for (auto& size : min_size_)
+        }
+        for (auto& size : min_size_) {
             size *= IH;
+        }
     }
 
     int64_t idx = 0;
@@ -218,8 +220,8 @@ void PriorBox::execute(const dnnl::stream& strm) {
                         float box_height_ratio = fixed_size[s] * 0.5f / ar;
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
-                                float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
-                                float center_y_temp = center_y - fixed_size_ / 2 + shift / 2.f + r * shift;
+                                float center_x_temp = center_x - fixed_size_ / 2.f + shift / 2.f + c * shift;
+                                float center_y_temp = center_y - fixed_size_ / 2.f + shift / 2.f + r * shift;
                                 calculate_data(center_x_temp, center_y_temp, box_width_ratio, box_height_ratio, true);
                             }
                         }
@@ -230,8 +232,8 @@ void PriorBox::execute(const dnnl::stream& strm) {
                         auto shift = static_cast<int64_t>(fixed_size[s] / density_);
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
-                                float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
-                                float center_y_temp = center_y - fixed_size_ / 2 + shift / 2.f + r * shift;
+                                float center_x_temp = center_x - fixed_size_ / 2.f + shift / 2.f + c * shift;
+                                float center_y_temp = center_y - fixed_size_ / 2.f + shift / 2.f + r * shift;
                                 calculate_data(center_x_temp, center_y_temp, box_width, box_height, true);
                             }
                         }
@@ -249,8 +251,8 @@ void PriorBox::execute(const dnnl::stream& strm) {
                         float box_height_ratio = fixed_size[s] * 0.5f / ar;
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
-                                float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
-                                float center_y_temp = center_y - fixed_size_ / 2 + shift / 2.f + r * shift;
+                                float center_x_temp = center_x - fixed_size_ / 2.f + shift / 2.f + c * shift;
+                                float center_y_temp = center_y - fixed_size_ / 2.f + shift / 2.f + r * shift;
                                 calculate_data(center_x_temp, center_y_temp, box_width_ratio, box_height_ratio, true);
                             }
                         }
@@ -309,6 +311,4 @@ bool PriorBox::created() const {
     return getType() == Type::PriorBox;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

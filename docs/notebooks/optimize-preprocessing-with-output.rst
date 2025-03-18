@@ -87,17 +87,8 @@ Settings
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    %pip install -q tf_keras tensorflow_hub
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q --no-deps tensorflow_hub
+    %pip install -q tf_keras
 
 Imports
 -------
@@ -122,12 +113,27 @@ Imports
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("optimize-preprocessing.ipynb")
+
+
+.. parsed-literal::
+
+    2023-07-10 12:05:28.419803: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-10 12:05:28.457913: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-07-10 12:05:29.065916: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    
 
 Setup image and device
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -137,18 +143,14 @@ Setup image and device
 .. code:: ipython3
 
     # Download the image from the openvino_notebooks storage
-    image_path = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
-        directory="data",
-    )
+    image_path = Path("data/coco.jpg")
+    
+    if not image_path.exists():
+        image_path = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
+            directory="data",
+        )
     image_path = str(image_path)
-
-
-
-.. parsed-literal::
-
-    coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
-
 
 .. code:: ipython3
 
@@ -162,7 +164,7 @@ Setup image and device
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -200,14 +202,20 @@ and save it to the disk.
 
 .. parsed-literal::
 
+    2023-09-07 13:15:54.259701: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1960] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    Skipping registering GPU devices...
+    
+
+.. parsed-literal::
+
     WARNING:tensorflow:Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
     INFO:tensorflow:Assets written to: model/InceptionResNetV2/assets
-
+    
 
 .. parsed-literal::
 
     INFO:tensorflow:Assets written to: model/InceptionResNetV2/assets
-
+    
 
 Create core
 ~~~~~~~~~~~
@@ -235,7 +243,7 @@ Check the original parameters of image
 
     The original shape of the image is (577, 800, 3)
     The original data type of the image is uint8
-
+    
 
 
 .. image:: optimize-preprocessing-with-output_files/optimize-preprocessing-with-output_14_1.png
@@ -288,6 +296,12 @@ The options for preprocessing are not required.
     else:
         ppp_model = ov.convert_model(model_path, input=[1, 299, 299, 3])
         ov.save_model(ppp_model, str(ir_path))
+
+
+.. parsed-literal::
+
+    Model in OpenVINO format already exists: model/ir_model/InceptionResNetV2.xml
+    
 
 Create ``PrePostProcessor`` Object
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -344,7 +358,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f69f01394b0>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f9b0466bdb0>
 
 
 
@@ -369,13 +383,13 @@ may be specified is input data
 .. parsed-literal::
 
     The input shape of the model is [1,299,299,3]
-
+    
 
 
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f687432f330>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f37c03b9330>
 
 
 
@@ -413,7 +427,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f69131f9670>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f37c03b9e30>
 
 
 
@@ -434,7 +448,7 @@ configuration for debugging purposes.
 
 .. parsed-literal::
 
-    Dump preprocessor: Input "input_1":
+    Dump preprocessor: Input "Func/StatefulPartitionedCall/input/_0:0":
         User's input tensor: [1,?,?,3], [N,H,W,C], u8
         Model's expected tensor: [1,299,299,3], [N,H,W,C], f32
         Pre-processing steps (4):
@@ -443,7 +457,7 @@ configuration for debugging purposes.
           mean (127.5,127.5,127.5): ([1,299,299,3], [N,H,W,C], f32) -> ([1,299,299,3], [N,H,W,C], f32)
           scale (127.5,127.5,127.5): ([1,299,299,3], [N,H,W,C], f32) -> ([1,299,299,3], [N,H,W,C], f32)
     
-
+    
 
 Load model and perform inference
 --------------------------------
@@ -514,7 +528,7 @@ Load image and fit it to model input
 
     The shape of the image is (1, 299, 299, 3)
     The data type of the image is float32
-
+    
 
 Perform inference
 ~~~~~~~~~~~~~~~~~
@@ -554,10 +568,13 @@ Compare results on one image
     
     
     # Convert the inference result to a class name.
-    imagenet_filename = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
-        directory="data",
-    )
+    imagenet_filename = Path("data/imagenet_2012.txt")
+    
+    if not imagenet_filename.exists():
+        imagenet_filename = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
+            directory="data",
+        )
     imagenet_classes = imagenet_filename.read_text().splitlines()
     imagenet_classes = ["background"] + imagenet_classes
     
@@ -572,19 +589,13 @@ Compare results on one image
     res = check_results(input_tensor, compiled_model, imagenet_classes)
 
 
-
-.. parsed-literal::
-
-    imagenet_2012.txt:   0%|          | 0.00/30.9k [00:00<?, ?B/s]
-
-
 .. parsed-literal::
 
     Result of inference with Preprocessing API:
-    n02099601 golden retriever, 0.80560
-    n02098413 Lhasa, Lhasa apso, 0.10039
-    n02108915 French bulldog, 0.01915
-    n02111129 Leonberg, 0.00825
+    n02099601 golden retriever, 0.80578
+    n02098413 Lhasa, Lhasa apso, 0.09990
+    n02108915 French bulldog, 0.01920
+    n02111129 Leonberg, 0.00829
     n02097047 miniature schnauzer, 0.00294
     
     
@@ -594,7 +605,7 @@ Compare results on one image
     n02111129 Leonberg, 0.00720
     n02097047 miniature schnauzer, 0.00287
     n02100877 Irish setter, red setter, 0.00115
-
+    
 
 Compare performance
 ~~~~~~~~~~~~~~~~~~~
@@ -627,6 +638,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0150 seconds per image, FPS: 66.66
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0141 seconds per image, FPS: 71.16
-
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0162 seconds per image, FPS: 61.85
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0204 seconds per image, FPS: 48.97
+    

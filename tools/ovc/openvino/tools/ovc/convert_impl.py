@@ -478,6 +478,12 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                     get_jax_decoder(args['input_model'], args)
                 else:
                     raise Error("JAX Frontend is not available.")
+            if model_framework == "tf" and "nncf" in sys.modules:
+                try:
+                    from nncf.tensorflow.strip import strip as nncf_tf_strip
+                    args['input_model'] = nncf_tf_strip(args['input_model'])
+                except:
+                    pass
 
         argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
 

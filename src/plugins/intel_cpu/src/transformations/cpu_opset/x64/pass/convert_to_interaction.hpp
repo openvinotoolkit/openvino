@@ -6,8 +6,7 @@
 
 #include <openvino/pass/graph_rewrite.hpp>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ConvertToInteraction : public ov::pass::MatcherPass {
 public:
@@ -27,5 +26,4 @@ public:
     ConvertInteractionInt8();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

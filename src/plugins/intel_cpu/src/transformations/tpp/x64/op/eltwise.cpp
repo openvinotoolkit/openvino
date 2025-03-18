@@ -1,13 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "eltwise.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 
 #define GENERAL_AUX_METHODS(OP, OP_TYPE, ...)                                             \
     std::shared_ptr<Node> OP::clone_with_new_inputs(const OutputVector& new_args) const { \
@@ -29,8 +26,7 @@ namespace op {
 #define UNARY_AUX_METHODS(UNARY_OP) GENERAL_AUX_METHODS(UNARY_OP, UnaryEltwiseTPP, new_args.at(0))
 
 bool EltwiseTPP::is_supported(const std::shared_ptr<ov::Node>& node) {
-    return ov::is_type<ov::op::v1::Add>(node) || ov::is_type<ov::op::v1::Subtract>(node) ||
-           ov::is_type<ov::op::v1::Multiply>(node) || ov::is_type<ov::op::v1::Divide>(node);
+    return ov::is_type_any_of<ov::op::v1::Add, ov::op::v1::Subtract, ov::op::v1::Multiply, ov::op::v1::Divide>(node);
 }
 
 bool EltwiseTPP::visit_attributes(AttributeVisitor& visitor) {
@@ -72,20 +68,22 @@ libxsmm_bitfield BinaryEltwiseTPP::get_broadcasting_flags(const snippets::Vector
     } else {
         libxsmm_bitfield flags = LIBXSMM_MELTW_FLAG_BINARY_NONE;
         if (subshape_0[0] != subshape_1[0]) {
-            if (subshape_0[0] == 1)
+            if (subshape_0[0] == 1) {
                 flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_COL_IN_0;
-            else if (subshape_1[0] == 1)
+            } else if (subshape_1[0] == 1) {
                 flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_COL_IN_1;
-            else
+            } else {
                 OPENVINO_THROW("Unsupported subshape combination: dim 0");
+            }
         }
         if (subshape_0[1] != subshape_1[1]) {
-            if (subshape_0[1] == 1)
+            if (subshape_0[1] == 1) {
                 flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_ROW_IN_0;
-            else if (subshape_1[1] == 1)
+            } else if (subshape_1[1] == 1) {
                 flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_ROW_IN_1;
-            else
+            } else {
                 OPENVINO_THROW("Unsupported subshape combination: dim 1");
+            }
         }
         return flags;
     }
@@ -153,7 +151,4 @@ SquareRoot::SquareRoot(const Output<Node>& arg)
 
 UNARY_AUX_METHODS(SquareRoot)
 
-}  // namespace op
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::op

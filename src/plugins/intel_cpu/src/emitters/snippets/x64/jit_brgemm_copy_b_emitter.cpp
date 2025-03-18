@@ -18,8 +18,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace ov::intel_cpu::brgemm_utils;
 using namespace ov::snippets::utils;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
                                                      cpu_isa_t isa,
@@ -68,8 +67,9 @@ void jit_brgemm_copy_b_emitter::validate_arguments(const std::vector<size_t>& in
 void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
     std::vector<size_t> mem_ptrs_idxs{in[0], out[0]};
-    if (out.size() > 1)
+    if (out.size() > 1) {
         mem_ptrs_idxs.emplace_back(out[1]);
+    }
     init_binary_call_regs(2, mem_ptrs_idxs);
 
     const Xbyak::Reg64& aux_reg = get_call_address_reg();
@@ -99,8 +99,9 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     }
 
     // No scratchpad => need to write nullptr manually
-    if (!m_with_comp)
+    if (!m_with_comp) {
         h->mov(h->qword[h->rsp + args_offsets.back()], reinterpret_cast<uintptr_t>(nullptr));
+    }
 
     h->mov(aux_reg, reinterpret_cast<uintptr_t>(BrgemmCopyBKernelExecutor::execute));
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_kernel_executor.get()));
@@ -115,5 +116,4 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     spill.postamble();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

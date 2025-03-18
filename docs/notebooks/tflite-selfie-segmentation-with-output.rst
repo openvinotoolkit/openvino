@@ -85,13 +85,6 @@ Install required dependencies
     %pip install -q "openvino>=2023.1.0" "opencv-python" "tqdm"
     %pip install -q "matplotlib>=3.4"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     import requests
@@ -104,6 +97,11 @@ Install required dependencies
         )
     
         open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("tflite-selfie-segmentation.ipynb")
 
 Download pretrained model and test image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -120,17 +118,16 @@ Download pretrained model and test image
     download_file(tflite_model_url, tflite_model_path)
 
 
+.. parsed-literal::
+
+    'selfie_multiclass_256x256.tflite' already exists.
+    
+
+
 
 .. parsed-literal::
 
-    selfie_multiclass_256x256.tflite:   0%|          | 0.00/15.6M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
+    PosixPath('/home/ea/work/openvino_notebooks/notebooks/tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
 
 
 
@@ -181,7 +178,7 @@ support <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/conve
 .. parsed-literal::
 
     Model input info: [<Output: names[input_29] shape[1,256,256,3] type: f32>]
-
+    
 
 Model input is a floating point tensor with shape [1, 256, 256, 3] in
 ``N, H, W, C`` format, where
@@ -202,7 +199,7 @@ division on 255.
 .. parsed-literal::
 
     Model output info: [<Output: names[Identity] shape[1,256,256,6] type: f32>]
-
+    
 
 Model output is a floating point tensor with the similar format and
 shape, except number of channels - 6 that represents number of supported
@@ -236,7 +233,7 @@ Load model
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -559,11 +556,11 @@ Run Live Background Blurring
 
 
 Use a webcam as the video input. By default, the primary webcam is set
-with \ ``source=0``. If you have multiple webcams, each one will be
-assigned a consecutive number starting at 0. Set \ ``flip=True`` when
+with ``source=0``. If you have multiple webcams, each one will be
+assigned a consecutive number starting at 0. Set ``flip=True`` when
 using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering,
-set \ ``use_popup=True``.
+set ``use_popup=True``.
 
    **NOTE**: To use this notebook with a webcam, you need to run the
    notebook on a computer with a webcam. If you run the notebook on a
@@ -588,13 +585,6 @@ set \ ``use_popup=True``.
             VIDEO_SOURCE,
         )
 
-
-
-.. parsed-literal::
-
-    CEO-Pat-Gelsinger-on-Leading-Intel.mp4:   0%|          | 0.00/1.55M [00:00<?, ?B/s]
-
-
 Select device for inference:
 
 .. code:: ipython3
@@ -606,7 +596,7 @@ Select device for inference:
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -628,4 +618,4 @@ Run:
 .. parsed-literal::
 
     Source ended
-
+    

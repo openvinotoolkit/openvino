@@ -148,6 +148,19 @@ applicable for other models from pix2struct family.
     from pathlib import Path
     from optimum.intel.openvino import OVModelForPix2Struct
     
+    import requests
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("pix2struct-docvqa.ipynb")
+    
     model_id = "google/pix2struct-docvqa-base"
     model_dir = Path(model_id.split("/")[-1])
     
@@ -167,13 +180,6 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget()
@@ -234,14 +240,23 @@ documentation <https://docs.openvino.ai/2024/get-started.html#openvino-advanced-
     
     
     def load_image(image_file):
-        response = requests.get(image_file)
-        image = Image.open(BytesIO(response.content)).convert("RGB")
-        return image
+        if isinstance(image_file, str) and image_file.startswith("https://"):
+            response = requests.get(image_file)
+            image = Image.open(BytesIO(response.content))
+        else:
+            image = Image.open(image_file)
+        return image.convert("RGB")
     
     
+    test_image_path = Path("ov_docs.png")
     test_image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/aa46ef0c-c14d-4bab-8bb7-3b22fe73f6bc"
     
-    image = load_image(test_image_url)
+    if not test_image_path.exists():
+        image = load_image(test_image_url)
+        image.save(test_image_path)
+    else:
+        image = load_image(test_image_path)
+    
     text = "What performance hints do?"
     
     inputs = processor(images=image, text=text, return_tensors="pt")
@@ -304,8 +319,3 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()

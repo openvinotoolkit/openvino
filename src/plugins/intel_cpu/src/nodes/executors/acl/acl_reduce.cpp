@@ -4,8 +4,7 @@
 
 #include "acl_reduce.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace arm_compute;
 
@@ -63,11 +62,11 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
 
     std::function<std::unique_ptr<IFunction>(void)> exec_func;
     std::vector<int> castedAxes;
-    for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
-        int axis =
-            axisCast(reduceAttrs.axes[i], srcDims.size(), hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
-        if (hasSrcNspcLayout && axis == -1)
+    for (int axe : reduceAttrs.axes) {
+        int axis = axisCast(axe, srcDims.size(), hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
+        if (hasSrcNspcLayout && axis == -1) {
             return false;
+        }
         castedAxes.push_back(axis);
     }
     switch (reduceAttrs.operation) {
@@ -136,5 +135,4 @@ void AclReduceExecutor::exec(const std::vector<MemoryCPtr>& src,
     dstTensor.allocator()->free();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

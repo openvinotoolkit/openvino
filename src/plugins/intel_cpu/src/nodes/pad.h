@@ -23,6 +23,7 @@ public:
 
     void prepareParams() override;
     bool needShapeInfer() const override;
+    bool neverExecute() const override;
     bool isExecutable() const override;
     bool needPrepareParams() const override;
 

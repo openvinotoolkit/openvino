@@ -19,9 +19,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct Indexer4d {
@@ -153,12 +151,14 @@ void nms_cpu(const int num_boxes,
 #endif
 
     for (int box = 0; box < num_boxes; ++box) {
-        if (is_dead[box])
+        if (is_dead[box]) {
             continue;
+        }
 
         index_out[count++] = base_index + box;
-        if (count == max_num_out)
+        if (count == max_num_out) {
             break;
+        }
 
         int tail = box + 1;
 
@@ -245,8 +245,9 @@ void nms_cpu(const int num_boxes,
                 res = area / (A_area + B_area - area);
             }
 
-            if (nms_thresh < res)
+            if (nms_thresh < res) {
                 is_dead[tail] = 1;
+            }
         }
     }
 
@@ -325,8 +326,9 @@ ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerate
 }
 
 void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, ov::element::f32},
@@ -339,39 +341,41 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
 void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
-            OPENVINO_THROW("Incorrect number of input or output edges!");
+            THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
         }
 
         size_t anchor_dims_size = 1;
         const auto& anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
-        for (size_t i = 0; i < anchorDims.size(); i++) {
-            anchor_dims_size *= anchorDims[i];
+        for (uint64_t anchorDim : anchorDims) {
+            anchor_dims_size *= anchorDim;
         }
 
         size_t deltas_dims_size = 1;
         const auto& deltaDims = getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims();
-        for (size_t i = 0; i < deltaDims.size(); i++) {
-            deltas_dims_size *= deltaDims[i];
+        for (uint64_t deltaDim : deltaDims) {
+            deltas_dims_size *= deltaDim;
         }
-        if (anchor_dims_size != deltas_dims_size)
-            OPENVINO_THROW("'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
+        if (anchor_dims_size != deltas_dims_size) {
+            THROW_CPU_NODE_ERR("'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
+        }
 
         size_t score_dims_size = 1;
         const auto& scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
-        for (size_t i = 0; i < scoreDims.size(); i++) {
-            score_dims_size *= scoreDims[i];
+        for (uint64_t scoreDim : scoreDims) {
+            score_dims_size *= scoreDim;
         }
-        if (deltas_dims_size != (4 * score_dims_size))
-            OPENVINO_THROW("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
+        if (deltas_dims_size != (4 * score_dims_size)) {
+            THROW_CPU_NODE_ERR("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
+        }
 
         // Prepare memory
-        const float* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
-        const float* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
-        const float* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
-        const float* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
+        const auto* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
+        const auto* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
+        const auto* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
+        const auto* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
-        float* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
-        float* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
+        auto* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
+        auto* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
 
         const int anchors_num = scoreDims[0];
 
@@ -455,8 +459,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
                               post_nms_topn_);
         }
     } catch (const std::exception& e) {
-        std::string errorMsg = e.what();
-        OPENVINO_THROW(errorMsg);
+        THROW_CPU_NODE_ERR(e.what());
     }
 }
 
@@ -472,6 +475,4 @@ bool ExperimentalDetectronGenerateProposalsSingleImage::needPrepareParams() cons
     return false;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

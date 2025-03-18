@@ -58,13 +58,6 @@ Prerequisites
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
     %pip install -q  "openvino>=2023.1.0"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 Get a test image
 ----------------
 
@@ -74,23 +67,32 @@ image from an open dataset.
 .. code:: ipython3
 
     import requests
+    from pathlib import Path
     
     from torchvision.io import read_image
     import torchvision.transforms as transforms
     
     
-    img_path = "cats_image.jpeg"
-    r = requests.get("https://huggingface.co/datasets/huggingface/cats-image/resolve/main/cats_image.jpeg")
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     
-    with open(img_path, "wb") as f:
-        f.write(r.content)
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("convnext-classification.ipynb")
+    
+    img_path = Path("cats_image.jpeg")
+    
+    if not img_path.exists():
+        r = requests.get("https://huggingface.co/datasets/huggingface/cats-image/resolve/main/cats_image.jpeg")
+    
+        with open(img_path, "wb") as f:
+            f.write(r.content)
     image = read_image(img_path)
     display(transforms.ToPILImage()(image))
-
-
-
-.. image:: convnext-classification-with-output_files/convnext-classification-with-output_4_0.png
-
 
 Get a pretrained model
 ----------------------
@@ -109,12 +111,6 @@ models <https://pytorch.org/vision/stable/models.html#listing-and-retrieving-ava
     classification_models = models.list_models(module=models)
     
     print(classification_models)
-
-
-.. parsed-literal::
-
-    ['alexnet', 'convnext_base', 'convnext_large', 'convnext_small', 'convnext_tiny', 'densenet121', 'densenet161', 'densenet169', 'densenet201', 'efficientnet_b0', 'efficientnet_b1', 'efficientnet_b2', 'efficientnet_b3', 'efficientnet_b4', 'efficientnet_b5', 'efficientnet_b6', 'efficientnet_b7', 'efficientnet_v2_l', 'efficientnet_v2_m', 'efficientnet_v2_s', 'googlenet', 'inception_v3', 'maxvit_t', 'mnasnet0_5', 'mnasnet0_75', 'mnasnet1_0', 'mnasnet1_3', 'mobilenet_v2', 'mobilenet_v3_large', 'mobilenet_v3_small', 'regnet_x_16gf', 'regnet_x_1_6gf', 'regnet_x_32gf', 'regnet_x_3_2gf', 'regnet_x_400mf', 'regnet_x_800mf', 'regnet_x_8gf', 'regnet_y_128gf', 'regnet_y_16gf', 'regnet_y_1_6gf', 'regnet_y_32gf', 'regnet_y_3_2gf', 'regnet_y_400mf', 'regnet_y_800mf', 'regnet_y_8gf', 'resnet101', 'resnet152', 'resnet18', 'resnet34', 'resnet50', 'resnext101_32x8d', 'resnext101_64x4d', 'resnext50_32x4d', 'shufflenet_v2_x0_5', 'shufflenet_v2_x1_0', 'shufflenet_v2_x1_5', 'shufflenet_v2_x2_0', 'squeezenet1_0', 'squeezenet1_1', 'swin_b', 'swin_s', 'swin_t', 'swin_v2_b', 'swin_v2_s', 'swin_v2_t', 'vgg11', 'vgg11_bn', 'vgg13', 'vgg13_bn', 'vgg16', 'vgg16_bn', 'vgg19', 'vgg19_bn', 'vit_b_16', 'vit_b_32', 'vit_h_14', 'vit_l_16', 'vit_l_32', 'wide_resnet101_2', 'wide_resnet50_2']
-
 
 We will use ``convnext_tiny``. To get a pretrained model just use
 ``models.get_model("convnext_tiny", weights='DEFAULT')`` or a specific
@@ -164,13 +160,15 @@ And print results
 .. code:: ipython3
 
     # download class number to class label mapping
-    imagenet_classes_file_path = "imagenet_2012.txt"
-    r = requests.get(
-        url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
-    )
+    imagenet_classes_file_path = Path("imagenet_2012.txt")
     
-    with open(imagenet_classes_file_path, "w") as f:
-        f.write(r.text)
+    if not imagenet_classes_file_path.exists():
+        r = requests.get(
+            url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
+        )
+    
+        with open(imagenet_classes_file_path, "w") as f:
+            f.write(r.text)
     
     imagenet_classes = open(imagenet_classes_file_path).read().splitlines()
     
@@ -186,14 +184,6 @@ And print results
 .. code:: ipython3
 
     print_results(outputs)
-
-
-.. parsed-literal::
-
-    Predicted Class: 281
-    Predicted Label: n02123045 tabby, tabby cat
-    Predicted Probability: 0.5351971983909607
-
 
 Convert the model to OpenVINO Intermediate representation format
 ----------------------------------------------------------------
@@ -237,27 +227,11 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget()
     
     device
-
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
 
 .. code:: ipython3
 
@@ -274,11 +248,3 @@ Use the OpenVINO IR model to run an inference
 
     outputs = compiled_model(input_data)[0]
     print_results(torch.from_numpy(outputs))
-
-
-.. parsed-literal::
-
-    Predicted Class: 281
-    Predicted Label: n02123045 tabby, tabby cat
-    Predicted Probability: 0.5664422512054443
-

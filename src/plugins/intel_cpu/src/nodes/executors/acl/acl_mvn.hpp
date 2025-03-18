@@ -9,8 +9,7 @@
 #include "nodes/executors/mvn.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AclMVNExecutor : public MVNExecutor {
 public:
@@ -24,7 +23,7 @@ public:
               const std::vector<MemoryPtr>& dst,
               const void* post_ops_data_) override;
 
-    impl_desc_type getImplType() const override {
+    [[nodiscard]] impl_desc_type getImplType() const override {
         return implType;
     }
 
@@ -38,14 +37,13 @@ private:
 
 class AclMVNExecutorBuilder : public MVNExecutorBuilder {
 public:
-    bool isSupported(const MVNAttrs& mvnAttrs,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override;
+    [[nodiscard]] bool isSupported(const MVNAttrs& mvnAttrs,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   const std::vector<MemoryDescPtr>& dstDescs) const override;
 
-    MVNExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] MVNExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<AclMVNExecutor>(context);
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

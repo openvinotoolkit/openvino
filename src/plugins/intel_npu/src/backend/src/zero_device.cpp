@@ -192,21 +192,20 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
 
     auto progilingPool = zeroProfiling::ProfilingPool(_initStructs, initGraph, zeroProfiling::POOL_SIZE);
     auto profilingQuery = zeroProfiling::ProfilingQuery(_initStructs, 0);
+    auto npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_initStructs, config.get<LOG_LEVEL>());
 
     ze_device_properties_t properties = {};
     properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties", zeDeviceGetProperties(_initStructs->getDevice(), &properties));
 
-    auto groupOrdinal = zeroUtils::findGroupOrdinal(_initStructs->getDevice(), properties);
     const auto pipeline = std::make_unique<Pipeline>(config,
                                                      _initStructs,
                                                      initGraph,
                                                      progilingPool,
                                                      profilingQuery,
-                                                     nullptr,
+                                                     npuProfiling,
                                                      inputTensors,
-                                                     outputTensors,
-                                                     groupOrdinal);
+                                                     outputTensors);
     begin = std::chrono::steady_clock::now();
     pipeline->push();
     pipeline->pull();
@@ -339,13 +338,27 @@ ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::
                                                             ov::intel_npu::TensorType tensor_type,
                                                             ov::intel_npu::MemType mem_type,
                                                             const void* mem) {
-    return {std::make_shared<
-        ZeroRemoteTensor>(context, _initStructs, element_type, shape, config, tensor_type, mem_type, mem)};
+    return {std::make_shared<ZeroRemoteTensor>(context,
+                                               _initStructs,
+                                               device_properties,
+                                               element_type,
+                                               shape,
+                                               config,
+                                               tensor_type,
+                                               mem_type,
+                                               mem)};
 };
 
 ov::SoPtr<ov::ITensor> ZeroDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
                                                     const ov::element::Type& element_type,
                                                     const ov::Shape& shape,
-                                                    const Config& config) {
-    return {std::make_shared<ZeroHostTensor>(context, _initStructs, element_type, shape, config)};
+                                                    const Config& config,
+                                                    ov::intel_npu::TensorType tensor_type) {
+    return {std::make_shared<ZeroHostTensor>(context,
+                                             _initStructs,
+                                             device_properties,
+                                             element_type,
+                                             shape,
+                                             config,
+                                             tensor_type)};
 };

@@ -13,8 +13,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "utils/precision_support.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <size_t bypassId>
 struct use {
@@ -88,19 +87,21 @@ public:
           m_translation(std::move(translation)),
           m_enabled(std::move(enabled)) {}
 
-    const InOutTypeMask& mask() const {
+    [[nodiscard]] const InOutTypeMask& mask() const {
         return m_mask;
     }
 
-    InOutTypes translate(const InOutTypes& types) const {
-        if (m_translation)
+    [[nodiscard]] InOutTypes translate(const InOutTypes& types) const {
+        if (m_translation) {
             return m_translation(types);
+        }
         return {};
     }
 
-    bool enabled() const {
-        if (m_enabled)
+    [[nodiscard]] bool enabled() const {
+        if (m_enabled) {
             return m_enabled();
+        }
         return true;
     }
 
@@ -118,5 +119,4 @@ InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors,
                                 const TypeMapping& mapping,
                                 const MappingNotation& notation);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

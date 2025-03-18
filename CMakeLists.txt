@@ -41,9 +41,14 @@ if(POLICY CMP0149)
     cmake_policy(SET CMP0149 NEW)
 endif()
 
+if(POLICY CMP0177)
+    # install() DESTINATION paths are normalized.
+    cmake_policy(SET CMP0177 NEW)
+endif()
+
 project(OpenVINO
         DESCRIPTION "OpenVINO toolkit"
-        HOMEPAGE_URL "https://docs.openvino.ai/2024/home.html"
+        HOMEPAGE_URL "https://docs.openvino.ai/2025/index.html"
         LANGUAGES C CXX)
 
 find_package(OpenVINODeveloperScripts REQUIRED

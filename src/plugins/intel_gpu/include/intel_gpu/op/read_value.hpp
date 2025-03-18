@@ -8,9 +8,7 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_extension.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 /// \brief Similar to common v6::ReadValue, but it's not derived from ReadValueBase class to avoid ReadValue-Assign pairing check
 /// This is needed to have ReadValue-KVCache pair instead of ReadValue-Assign
@@ -42,6 +40,4 @@ protected:
     }
 };
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

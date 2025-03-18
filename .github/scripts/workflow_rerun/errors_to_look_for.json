@@ -118,5 +118,17 @@
     {
         "error_text": "file DOWNLOAD cannot compute hash on failed download",
         "ticket": 156593
+    },
+    {
+        "error_text": "lost communication with the server",
+        "ticket": 160816
+    },
+    {
+        "error_text": "the runner has received a shutdown signal",
+        "ticket": 160818
+    },
+    {
+        "error_text": "Timed out waiting for server startup",
+        "ticket": 161077
     }
 ]

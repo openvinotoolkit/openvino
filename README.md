@@ -6,7 +6,7 @@ Open-source software toolkit for optimizing and deploying deep learning models.
 </h3>
 
 <p align="center">
- <a href="https://docs.openvino.ai/2024/index.html"><b>Documentation</b></a> • <a href="https://blog.openvino.ai"><b>Blog</b></a> • <a href="https://docs.openvino.ai/2024/about-openvino/key-features.html"><b>Key Features</b></a> • <a href="https://docs.openvino.ai/2024/learn-openvino.html"><b>Tutorials</b></a> • <a href="https://docs.openvino.ai/2024/documentation/openvino-ecosystem.html"><b>Integrations</b></a> • <a href="https://docs.openvino.ai/2024/about-openvino/performance-benchmarks.html"><b>Benchmarks</b></a> • <a href="https://github.com/openvinotoolkit/openvino.genai"><b>Generative AI</b></a>
+ <a href="https://docs.openvino.ai/2025/index.html"><b>Documentation</b></a> • <a href="https://blog.openvino.ai"><b>Blog</b></a> • <a href="https://docs.openvino.ai/2025/about-openvino/key-features.html"><b>Key Features</b></a> • <a href="https://docs.openvino.ai/2025/get-started/learn-openvino.html"><b>Tutorials</b></a> • <a href="https://docs.openvino.ai/2025/documentation/openvino-ecosystem.html"><b>Integrations</b></a> • <a href="https://docs.openvino.ai/2025/about-openvino/performance-benchmarks.html"><b>Benchmarks</b></a> • <a href="https://github.com/openvinotoolkit/openvino.genai"><b>Generative AI</b></a>
 </p>
 
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
@@ -24,22 +24,22 @@ Open-source software toolkit for optimizing and deploying deep learning models.
 - **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud. OpenVINO™ supports inference on CPU (x86, ARM), GPU (OpenCL capable, integrated and discrete) and AI accelerators (Intel NPU).
 - **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
 
-Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf) and [Key Features](https://docs.openvino.ai/2024/about-openvino/key-features.html) for a quick reference.
+Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2025/_static/download/OpenVINO_Quick_Start_Guide.pdf) and [Key Features](https://docs.openvino.ai/2025/about-openvino/key-features.html) for a quick reference.
 
 
 ## Installation
 
-[Get your preferred distribution of OpenVINO](https://docs.openvino.ai/2024/get-started/install-openvino.html) or use this command for quick installation:
+[Get your preferred distribution of OpenVINO](https://docs.openvino.ai/2025/get-started/install-openvino.html) or use this command for quick installation:
 
 ```sh
 pip install -U openvino
 ```
 
-Check [system requirements](https://docs.openvino.ai/2024/about-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html) for detailed information.
+Check [system requirements](https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-devices.html) for detailed information.
 
 ## Tutorials and Examples
 
-[OpenVINO Quickstart example](https://docs.openvino.ai/2024/get-started.html) will walk you through the basics of deploying your first model.
+[OpenVINO Quickstart example](https://docs.openvino.ai/2025/get-started.html) will walk you through the basics of deploying your first model.
 
 Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)📚:
 - [Create an LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/llm-chatbot-generate-api.ipynb)
@@ -48,7 +48,7 @@ Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](ht
 - [Multimodal assistant with LLaVa and OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llava-multimodal-chatbot/llava-multimodal-chatbot-genai.ipynb)
 - [Automatic speech recognition using Whisper and OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/whisper-asr-genai/whisper-asr-genai.ipynb)
 
-Discover more examples in the [OpenVINO Samples (Python & C++)](https://docs.openvino.ai/2024/learn-openvino/openvino-samples.html) and [Notebooks (Python)](https://docs.openvino.ai/2024/learn-openvino/interactive-tutorials-python.html).
+Discover more examples in the [OpenVINO Samples (Python & C++)](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples.html) and [Notebooks (Python)](https://docs.openvino.ai/2025/get-started/learn-openvino/interactive-tutorials-python.html).
 
 Here are easy-to-follow code examples demonstrating how to run PyTorch and TensorFlow model inference using OpenVINO:
 
@@ -96,11 +96,11 @@ data = np.random.rand(1, 224, 224, 3)
 output = compiled_model({0: data})
 ```
 
-OpenVINO supports the CPU, GPU, and NPU [devices](https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes.html) and works with models from PyTorch, TensorFlow, ONNX, TensorFlow Lite, PaddlePaddle, and JAX/Flax [frameworks](https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html). It includes [APIs](https://docs.openvino.ai/2024/api/api_reference.html) in C++, Python, C, NodeJS, and offers the GenAI API for optimized model pipelines and performance.
+OpenVINO supports the CPU, GPU, and NPU [devices](https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes.html) and works with models from PyTorch, TensorFlow, ONNX, TensorFlow Lite, PaddlePaddle, and JAX/Flax [frameworks](https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html). It includes [APIs](https://docs.openvino.ai/2025/api/api_reference.html) in C++, Python, C, NodeJS, and offers the GenAI API for optimized model pipelines and performance.
 
 ## Generative AI with OpenVINO
 
-Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2024/openvino-workflow-generative/generative-inference.html) to explore the capabilities of Generative AI using OpenVINO.
+Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2025/openvino-workflow-generative/generative-inference.html) to explore the capabilities of Generative AI using OpenVINO.
 
 Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) in the [OpenVINO™ GenAI repo](https://github.com/openvinotoolkit/openvino.genai). See GenAI in action with Jupyter notebooks: [LLM-powered Chatbot](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/README.md) and [LLM Instruction-following pipeline](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-question-answering/README.md).
 
@@ -122,7 +122,7 @@ Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolki
 ### Integrations
 
 -   [🤗Optimum Intel](https://github.com/huggingface/optimum-intel) - grab and use models leveraging OpenVINO within the Hugging Face API.
--   [Torch.compile](https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html) - use OpenVINO for Python-native applications by JIT-compiling code into optimized kernels.
+-   [Torch.compile](https://docs.openvino.ai/2025/openvino-workflow/torch-compile.html) - use OpenVINO for Python-native applications by JIT-compiling code into optimized kernels.
 -   [OpenVINO LLMs inference and serving with vLLM​](https://docs.vllm.ai/en/stable/getting_started/openvino-installation.html) - enhance vLLM's fast and easy model serving with the OpenVINO backend.
 -   [OpenVINO Execution Provider for ONNX Runtime](https://onnxruntime.ai/docs/execution-providers/OpenVINO-ExecutionProvider.html) - use OpenVINO as a backend with your existing ONNX Runtime code.
 -   [LlamaIndex](https://docs.llamaindex.ai/en/stable/examples/llm/openvino/) - build context-augmented GenAI applications with the LlamaIndex framework and enhance runtime performance with OpenVINO.
@@ -133,7 +133,7 @@ Check out the [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-open
 
 ## Performance
 
-Explore [OpenVINO Performance Benchmarks](https://docs.openvino.ai/2024/about-openvino/performance-benchmarks.html) to discover the optimal hardware configurations and plan your AI deployment based on verified data.
+Explore [OpenVINO Performance Benchmarks](https://docs.openvino.ai/2025/about-openvino/performance-benchmarks.html) to discover the optimal hardware configurations and plan your AI deployment based on verified data.
 
 ## Contribution and Support
 
@@ -149,7 +149,7 @@ You can ask questions and get support on:
 
 ## Resources
 
-* [Release Notes](https://docs.openvino.ai/2024/about-openvino/release-notes-openvino.html)
+* [Release Notes](https://docs.openvino.ai/2025/about-openvino/release-notes-openvino.html)
 * [OpenVINO Blog](https://blog.openvino.ai/)
 * [OpenVINO™ toolkit on Medium](https://medium.com/@openvino)
 
@@ -164,7 +164,7 @@ You can opt-out at any time by running the command:
 opt_in_out --opt_out
 ```
 
-More Information is available at [OpenVINO™ Telemetry](https://docs.openvino.ai/2024/about-openvino/additional-resources/telemetry.html).
+More Information is available at [OpenVINO™ Telemetry](https://docs.openvino.ai/2025/about-openvino/additional-resources/telemetry.html).
 
 ## License
 

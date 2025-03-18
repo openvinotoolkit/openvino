@@ -10,9 +10,7 @@
 #include "openvino/core/parallel.hpp"
 #include "proposal.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static std::vector<float> generate_anchors(proposal_conf& conf) {
     auto base_size = conf.base_size_;
@@ -29,7 +27,7 @@ static std::vector<float> generate_anchors(proposal_conf& conf) {
     auto anchors_ptr = anchors.data();
 
     // base box's width & height & center location
-    const float base_area = static_cast<float>(base_size * base_size);
+    const auto base_area = static_cast<float>(base_size * base_size);
     const float half_base_size = base_size * 0.5f;
     const float center = 0.5f * (base_size - coordinates_offset);
 
@@ -138,8 +136,9 @@ Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 }
 
 void Proposal::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     if (store_prob) {
         addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
@@ -162,13 +161,14 @@ void Proposal::executeDynamicImpl(const dnnl::stream& strm) {
 
 void Proposal::execute(const dnnl::stream& strm) {
     try {
-        const float* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
-        const float* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
-        const float* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
-        float* outRoiData = reinterpret_cast<float*>(getDstDataAtPort(ROI_OUT_IDX));
+        const auto* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
+        const auto* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
+        const auto* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
+        auto* outRoiData = reinterpret_cast<float*>(getDstDataAtPort(ROI_OUT_IDX));
         float* outProbData = nullptr;
-        if (store_prob)
+        if (store_prob) {
             outProbData = reinterpret_cast<float*>(getDstDataAtPort(PROBABILITIES_OUT_IDX));
+        }
 
         auto inProbDims = getParentEdgeAt(0)->getMemory().getStaticDims();
         const size_t imgInfoSize = getParentEdgeAt(2)->getMemory().getStaticDims()[0];
@@ -177,14 +177,14 @@ void Proposal::execute(const dnnl::stream& strm) {
         const float imgHeight = imgInfoData[0];
         const float imgWidth = imgInfoData[1];
         if (!std::isnormal(imgHeight) || !std::isnormal(imgWidth) || (imgHeight < 0.f) || (imgWidth < 0.f)) {
-            OPENVINO_THROW("Proposal operation image info input must have positive image height and width.");
+            THROW_CPU_NODE_ERR("image info input must have positive image height and width.");
         }
 
         // scale factor for height & width
         const float scaleHeight = imgInfoData[2];
         const float scaleWidth = imgInfoSize == 4 ? imgInfoData[3] : scaleHeight;
         if (!std::isfinite(scaleHeight) || !std::isfinite(scaleWidth) || (scaleHeight < 0.f) || (scaleWidth < 0.f)) {
-            OPENVINO_THROW("Proposal operation image info input must have non negative scales.");
+            THROW_CPU_NODE_ERR("image info input must have non negative scales.");
         }
 
         ov::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData,
@@ -197,8 +197,7 @@ void Proposal::execute(const dnnl::stream& strm) {
                                                   outProbData,
                                                   conf);
     } catch (const ov::Exception& e) {
-        std::string errorMsg = e.what();
-        OPENVINO_THROW(errorMsg);
+        THROW_CPU_NODE_ERR(e.what());
     }
 }
 
@@ -206,6 +205,4 @@ bool Proposal::created() const {
     return getType() == Type::Proposal;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

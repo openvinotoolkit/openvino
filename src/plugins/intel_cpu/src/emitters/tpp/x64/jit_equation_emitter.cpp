@@ -11,8 +11,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
@@ -114,8 +113,9 @@ void EquationTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vec
         const auto addr = h->rsp + i * sizeof(void*);
         h->mov(h->qword[addr], Reg64(static_cast<int>(reg_idx)));
         const auto bytes_offset = io_offsets[i];
-        if (bytes_offset)
+        if (bytes_offset) {
             h->add(h->qword[addr], bytes_offset);
+        }
     }
 
     const auto& compiled_kernel = get_compiled_kernel_ptr();
@@ -138,8 +138,9 @@ void EquationTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vec
 
 void EquationTppEmitter::execute_kernel(libxsmm_meqn_function equation_kernel, int argc, void** argv) {
     std::vector<libxsmm_matrix_arg> inputs(argc - 1);
-    for (int i = 0; i < argc - 1; i++)
+    for (int i = 0; i < argc - 1; i++) {
         inputs[i].primary = argv[i];
+    }
     libxsmm_meqn_param param;
     param.ops_args = nullptr;
     param.inputs = inputs.data();
@@ -147,5 +148,4 @@ void EquationTppEmitter::execute_kernel(libxsmm_meqn_function equation_kernel, i
     equation_kernel(&param);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

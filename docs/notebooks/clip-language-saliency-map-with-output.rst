@@ -138,10 +138,16 @@ Initial Implementation with Transformers and Pytorch
     from PIL import Image
     from transformers import CLIPModel, CLIPProcessor
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("clip-language-saliency-map.ipynb")
 
 To get the CLIP model, you will use the ``transformers`` library and the
 official ``openai/clip-vit-base-patch16`` from OpenAI. You can use any
@@ -215,10 +221,11 @@ parameters at the end, when you get an optimized model.
     query = "Who developed the Theory of General Relativity?"
     image_path = Path("example.jpg")
     
-    r = requests.get("https://github.com/user-attachments/assets/a5bedef2-e915-4286-bcc9-d599083a99a6")
+    if not image_path.exists():
+        r = requests.get("https://github.com/user-attachments/assets/a5bedef2-e915-4286-bcc9-d599083a99a6")
     
-    with image_path.open("wb") as f:
-        f.write(r.content)
+        with image_path.open("wb") as f:
+            f.write(r.content)
     image = Image.open(image_path)
     im_tensor = np.array(image)
     

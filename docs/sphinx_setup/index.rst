@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2024.6
+OpenVINO 2025.0
 ============================
 
 .. meta::
@@ -11,8 +11,8 @@ generative AI, video, audio, and language with models from popular frameworks li
 TensorFlow, ONNX, and more. Convert and optimize models, and deploy across a mix of Intel®
 hardware and environments, on-premises and on-device, in the browser or in the cloud.
 
-| Check out the `OpenVINO Cheat Sheet [PDF] <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
-| Check out the `GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2024/_static/download/GenAI_Quick_Start_Guide.pdf>`__
+| Check out the `OpenVINO Cheat Sheet [PDF] <https://docs.openvino.ai/2025/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+| Check out the `GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2025/_static/download/GenAI_Quick_Start_Guide.pdf>`__
 
 
 .. container::
@@ -28,7 +28,7 @@ hardware and environments, on-premises and on-device, in the browser or in the c
                <li id="ov-homepage-slide2" class="splide__slide">
                   <p class="ov-homepage-slide-title">New GenAI API</p>
                   <p class="ov-homepage-slide-subtitle">Generative AI in only a few lines of code!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/nightly/openvino-workflow-generative/inference-with-genai.html">Check out our guide</a>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-genai.html">Check out our guide</a>
                   </li>
                   <li id="ov-homepage-slide1" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO models on Hugging Face!</p>
@@ -37,13 +37,13 @@ hardware and environments, on-premises and on-device, in the browser or in the c
                   </li>
                   <li id="ov-homepage-slide3" class="splide__slide">
                   <p class="ov-homepage-slide-title">Improved model serving</p>
-                  <p class="ov-homepage-slide-subtitle">OpenVINO Model Server has improved parallel inferencing!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/ovms_what_is_openvino_model_server.html">Learn more</a>
+                  <p class="ov-homepage-slide-subtitle">OpenVINO Model Server has improved parallel inference!</p>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2025/model-server/ovms_what_is_openvino_model_server.html">Learn more</a>
                   </li>
                   <li id="ov-homepage-slide4" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO via PyTorch 2.0 torch.compile()</p>
                   <p class="ov-homepage-slide-subtitle">Use OpenVINO directly in PyTorch-native applications!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html">Learn more</a>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2025/openvino-workflow/torch-compile.html">Learn more</a>
                   </li>
             </ul>
            </div>
@@ -124,7 +124,7 @@ Places to Begin
 
       Cloud-ready deployments for microservice applications.
 
-      .. button-link:: openvino-workflow/model-server/ovms_what_is_openvino_model_server.html
+      .. button-link:: model-server/ovms_what_is_openvino_model_server.html
          :color: primary
          :outline:
 
@@ -193,8 +193,8 @@ Key Features
    :hidden:
 
    GET STARTED <get-started>
-   LEARN OPENVINO <learn-openvino>
    HOW TO USE - MAIN WORKFLOW <openvino-workflow>
    HOW TO USE - GENERATIVE AI WORKFLOW <openvino-workflow-generative>
-   DOCUMENTATION <documentation>
+   HOW TO USE - MODEL SERVING <model-server/ovms_what_is_openvino_model_server>
+   REFERENCE DOCUMENTATION <documentation>
    ABOUT OPENVINO <about-openvino>

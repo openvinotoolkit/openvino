@@ -334,7 +334,7 @@ Model Quantization and Weights Compression
 
 Model quantization and weights compression are effective methods for accelerating model inference and reducing memory consumption, with minimal impact on model accuracy. The `torch.compile` OpenVINO backend supports two key model optimization APIs:
 
-1. Neural Network Compression Framework (`NNCF <https://docs.openvino.ai/2024/openvino-workflow/model-optimization.html>`__). NNCF offers advanced algorithms for post-training quantization and weights compression in the OpenVINO toolkit.
+1. Neural Network Compression Framework (`NNCF <https://docs.openvino.ai/2025/openvino-workflow/model-optimization.html>`__). NNCF offers advanced algorithms for post-training quantization and weights compression in the OpenVINO toolkit.
 
 2. PyTorch 2 export quantization. A general-purpose API designed for quantizing models captured by ``torch.export``.
 
@@ -344,7 +344,7 @@ NNCF is the recommended approach for model quantization and weights compression.
 NNCF Model Optimization Support (Preview)
 +++++++++++++++++++++++++++++++++++++++++++++
 
-The Neural Network Compression Framework (`NNCF <https://docs.openvino.ai/2024/openvino-workflow/model-optimization.html>`__) implements advanced quantization and weights compression algorithms, which can be applied to ``torch.fx.GraphModule`` to speed up inference
+The Neural Network Compression Framework (`NNCF <https://docs.openvino.ai/2025/openvino-workflow/model-optimization.html>`__) implements advanced quantization and weights compression algorithms, which can be applied to ``torch.fx.GraphModule`` to speed up inference
 and decrease memory consumption.
 
 Model quantization example:
@@ -381,7 +381,7 @@ Model weights compression example:
 
 NNCF unlocks the full potential of low-precision OpenVINO kernels due to the placement of quantizers designed specifically for the OpenVINO.
 Advanced algorithms like ``SmoothQuant`` or ``BiasCorrection`` allow further metrics improvement while minimizing the outputs discrepancies between the original and compressed models.
-For further details, please see the `documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimization.html>`__
+For further details, please see the `documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimization.html>`__
 and a `tutorial <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/torch_fx/resnet18>`__.
 
 Support for PyTorch 2 export quantization (Preview)

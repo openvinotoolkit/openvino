@@ -54,7 +54,7 @@ OutputVector translate_index(const NodeContext& context) {
         }
     }
     if (index_ov_type == element::boolean || index_ov_type == element::u8) {
-        auto nonzero = context.mark_node(std::make_shared<v3::NonZero>(indices, element::i32));
+        auto nonzero = context.mark_node(std::make_shared<v3::NonZero>(indices));
         auto input_order = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
         auto masked_id = context.mark_node(std::make_shared<v1::Transpose>(nonzero, input_order));
         auto gather = context.mark_node(std::make_shared<v8::GatherND>(x, masked_id));

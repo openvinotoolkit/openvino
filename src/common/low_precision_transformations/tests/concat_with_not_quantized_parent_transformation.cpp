@@ -150,7 +150,7 @@ public:
             testValues.actual.dequantization2,
             true,
             {},
-            ov::element::undefined,
+            ov::element::dynamic,
             {},
             testValues.axis,
             testValues.addNotPrecisionPreservedOperation);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 #include "executor.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct EltwiseData {
     Algorithm algo;
@@ -94,7 +93,7 @@ public:
                       const void* post_ops_data_) = 0;
     virtual ~EltwiseExecutor() = default;
 
-    virtual impl_desc_type getImplType() const = 0;
+    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
 
 protected:
     EltwiseAttrs eltwiseAttrs;
@@ -107,14 +106,13 @@ using EltwiseExecutorCPtr = std::shared_ptr<const EltwiseExecutor>;
 class EltwiseExecutorBuilder {
 public:
     ~EltwiseExecutorBuilder() = default;
-    virtual bool isSupported(const EltwiseAttrs& eltwiseAttrs,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual bool isSupported(const EltwiseAttrs& eltwiseAttrs,
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+    [[nodiscard]] virtual EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using EltwiseExecutorBuilderPtr = std::shared_ptr<EltwiseExecutorBuilder>;
 using EltwiseExecutorBuilderCPtr = std::shared_ptr<const EltwiseExecutorBuilder>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -80,12 +80,14 @@ apply Consistency Distilled AnimateLCM weights.
     import gc
     import requests
     
-    lcm_scheduler_url = "https://huggingface.co/spaces/wangfuyun/AnimateLCM-SVD/raw/main/lcm_scheduler.py"
     
-    r = requests.get(lcm_scheduler_url)
+    if not Path("lcm_scheduler.py").exists():
+        lcm_scheduler_url = "https://huggingface.co/spaces/wangfuyun/AnimateLCM-SVD/raw/main/lcm_scheduler.py"
     
-    with open("lcm_scheduler.py", "w") as f:
-        f.write(r.text)
+        r = requests.get(lcm_scheduler_url)
+    
+        with open("lcm_scheduler.py", "w") as f:
+            f.write(r.text)
     
     from lcm_scheduler import AnimateLCMSVDStochasticIterativeScheduler
     from huggingface_hub import hf_hub_download
@@ -143,8 +145,14 @@ apply Consistency Distilled AnimateLCM weights.
         gc.collect()
     
     # Load the conditioning image
-    image = load_image("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/svd/rocket.png?download=true")
-    image = image.resize((512, 256))
+    
+    image_path = Path("rocket.png")
+    if not image_path.exists():
+        image = load_image("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/svd/rocket.png?download=true")
+        image = image.resize((512, 256))
+        image.save(image_path)
+    else:
+        image = load_image(image_path)
 
 Convert Model to OpenVINO Intermediate Representation
 -----------------------------------------------------
@@ -888,6 +896,11 @@ Select Inference Device
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("stable-video-diffusion.ipynb")
     
     from notebook_utils import device_widget
     

@@ -14,9 +14,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                              std::string& errorMessage) noexcept {
     try {
@@ -67,7 +65,7 @@ bool PriorBoxClustered::needShapeInfer() const {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int h = in_data[0];
     const int w = in_data[1];
-    const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
+    const auto output = static_cast<size_t>(4) * h * w * number_of_priors;
 
     return output_shape[1] != output;
 }
@@ -77,8 +75,9 @@ bool PriorBoxClustered::needPrepareParams() const {
 }
 
 void PriorBoxClustered::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, ov::element::f32}},
@@ -87,8 +86,9 @@ void PriorBoxClustered::initSupportedPrimitiveDescriptors() {
 
 void PriorBoxClustered::createPrimitive() {
     if (inputShapesDefined()) {
-        if (needPrepareParams())
+        if (needPrepareParams()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
 }
@@ -109,7 +109,7 @@ void PriorBoxClustered::execute(const dnnl::stream& strm) {
         step_h = static_cast<float>(img_height) / layer_height;
     }
 
-    float* dst_data = getDstDataAtPortAs<float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
     const auto& out_shape = getChildEdgeAt(0)->getMemory().getShape().getStaticDims();
 
     size_t var_size = variances.size();
@@ -143,11 +143,13 @@ void PriorBoxClustered::execute(const dnnl::stream& strm) {
             // 1. A single variance value (to be repeated 4 times for each prior)
             // 2. 4 variance values
             if (var_size == 1) {
-                for (size_t j = 0; j < 4; j++)
+                for (size_t j = 0; j < 4; j++) {
                     dst_data[idx + j + out_shape[1]] = variances[0];
+                }
             } else {
-                for (size_t j = 0; j < var_size; j++)
+                for (size_t j = 0; j < var_size; j++) {
                     dst_data[idx + j + out_shape[1]] = variances[j];
+                }
             }
         }
     });
@@ -157,6 +159,4 @@ bool PriorBoxClustered::created() const {
     return getType() == Type::PriorBoxClustered;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,11 +16,10 @@
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
-#include "transformations/tpp/x64/op/modifiers.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace snippets::lowered;
 
@@ -28,7 +27,7 @@ namespace {
 template <typename T>
 void set_full_port_desc(const T& port) {
     const auto& shape_rank = port.get_partial_shape().size();
-    static const std::vector<size_t> full_dim_subtensor(std::min(shape_rank, size_t(2)),
+    static const std::vector<size_t> full_dim_subtensor(std::min(shape_rank, static_cast<size_t>(2)),
                                                         ov::snippets::utils::get_full_dim_value());
     PortDescriptorUtils::set_port_descriptor(port, full_dim_subtensor);
 }
@@ -47,8 +46,9 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto node = m.get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
         const auto brgemm_plugin = ov::as_type_ptr<BrgemmCPU>(node);
-        if (!brgemm || brgemm_plugin)
+        if (!brgemm || brgemm_plugin) {
             OPENVINO_THROW("BrgemmCPU cannot be in body before BrgemmToBrgemmCPU pass");
+        }
 
         const auto& brgemm_in0_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0));
         const auto& brgemm_in1_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1));
@@ -93,8 +93,9 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
             PortDescriptorUtils::set_port_descriptor(brgemm_repacking->input(0),
                                                      brgemm_in1_desc->get_subtensor(),
                                                      layout_b);
-            for (const auto& output : brgemm_repacking->outputs())
+            for (const auto& output : brgemm_repacking->outputs()) {
                 set_full_port_desc(output);
+            }
 
             if (with_amx(brgemm_type)) {
                 const auto scratch = std::make_shared<snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
@@ -152,8 +153,9 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
 
         // need to run validate_and_infer_types manually: either input shapes were updated or
         // output Layout was updated (out shape will be updated in validate_and_infer_types())
-        if (brgemm_repacking)
+        if (brgemm_repacking) {
             brgemm_repacking->validate_and_infer_types();
+        }
         brgemm_cpu->validate_and_infer_types();
 
         return true;
@@ -162,5 +164,4 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_brgemm, matcher_name);
     register_matcher(m, callback);
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

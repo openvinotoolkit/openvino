@@ -105,7 +105,7 @@ Install necessary packages.
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.0.0" "nncf>=2.9.0"
-    %pip install -q "torch>=2.1" "torchvision>=0.16" "ultralytics==8.2.24" onnx opencv-python tqdm --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1" "torchvision>=0.16" "ultralytics==8.3.59" opencv-python tqdm --extra-index-url https://download.pytorch.org/whl/cpu
 
 Import required utility functions. The lower cell will download the
 ``notebook_utils`` Python module from GitHub.
@@ -117,22 +117,29 @@ Import required utility functions. The lower cell will download the
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, VideoPlayer, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("yolov8-instance-segmentation.ipynb")
 
 .. code:: ipython3
 
     # Download a test sample
     IMAGE_PATH = Path("./data/coco_bike.jpg")
-    download_file(
-        url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
-        filename=IMAGE_PATH.name,
-        directory=IMAGE_PATH.parent,
-    )
+    if not IMAGE_PATH.exists():
+        download_file(
+            url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
+            filename=IMAGE_PATH.name,
+            directory=IMAGE_PATH.parent,
+        )
 
 
 
@@ -367,11 +374,11 @@ evaluation function.
     LABELS_PATH = OUT_DIR / "coco2017labels-segments.zip"
     CFG_PATH = OUT_DIR / "coco.yaml"
     
-    download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
-    download_file(LABELS_URL, LABELS_PATH.name, LABELS_PATH.parent)
-    download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
     
     if not (OUT_DIR / "coco/labels").exists():
+        download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
+        download_file(LABELS_URL, LABELS_PATH.name, LABELS_PATH.parent)
+        download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
         with ZipFile(LABELS_PATH, "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
         with ZipFile(DATA_PATH, "r") as zip_ref:
@@ -421,7 +428,7 @@ Define validation function
         """
         validator.seen = 0
         validator.jdict = []
-        validator.stats = dict(tp_m=[], tp=[], conf=[], pred_cls=[], target_cls=[])
+        validator.stats = dict(tp_m=[], tp=[], conf=[], pred_cls=[], target_cls=[], target_img=[])
         validator.batch_i = 1
         validator.confusion_matrix = ConfusionMatrix(nc=validator.nc)
         model.reshape({0: [1, 3, -1, -1]})
@@ -652,10 +659,11 @@ Let’s load ``skip magic`` extension to skip quantization if
     # Fetch skip_kernel_extension module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     %load_ext skip_kernel_extension
 
@@ -1317,7 +1325,10 @@ set \ ``use_popup=True``.
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:
-        VIDEO_SOURCE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4"
+        VIDEO_URL = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4"
+        VIDEO_SOURCE = "people.mp4"
+        if not Path(VIDEO_SOURCE).exists():
+            download_file(VIDEO_URL)
 
 .. code:: ipython3
 

@@ -51,8 +51,8 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    
-    %pip install -q "openvino>=2024.0.0" "nncf>=2.7.0" "tensorflow-hub>=0.15.0" tf_keras
+    %pip install -q --no-deps "tensorflow-hub>=0.15.0"
+    %pip install -q "openvino>=2024.0.0" "nncf>=2.7.0" tf_keras
     %pip install -q "scikit-learn>=1.3.2"
     
     if platform.system() != "Windows":
@@ -65,8 +65,6 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     import os
     import numpy as np
     from pathlib import Path
-    
-    from openvino.runtime import Core
     import openvino as ov
     import nncf
     import logging
@@ -90,14 +88,21 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("tensorflow-bit-image-classification-nncf-quantization.ipynb")
 
 .. code:: ipython3
 
-    core = Core()
+    core = ov.Core()
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
     
     
@@ -248,28 +253,28 @@ Model Fine-tuning
 .. code:: ipython3
 
     # Load the Big Transfer model
-    bit_model_url = "https://www.kaggle.com/models/google/bit/frameworks/TensorFlow2/variations/m-r50x1/versions/1"
-    bit_m = hub.KerasLayer(bit_model_url, trainable=True)
-    
     tf_model_dir = Path("bit_tf_model")
     
-    # Customize the model for the new task
-    model = tf.keras.Sequential([bit_m, tf.keras.layers.Dense(NUM_CLASSES, activation="softmax")])
+    if not tf_model_dir.exists():
+        bit_model_url = "https://www.kaggle.com/models/google/bit/frameworks/TensorFlow2/variations/m-r50x1/versions/1"
+        bit_m = hub.KerasLayer(bit_model_url, trainable=True)
+        # Customize the model for the new task
+        model = tf.keras.Sequential([bit_m, tf.keras.layers.Dense(NUM_CLASSES, activation="softmax")])
     
-    # Compile the model
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=LR),
-        loss="categorical_crossentropy",
-        metrics=["accuracy"],
-    )
+        # Compile the model
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=LR),
+            loss="categorical_crossentropy",
+            metrics=["accuracy"],
+        )
     
-    # Fine-tune the model
-    model.fit(
-        train_dataset.take(3000),
-        epochs=FINE_TUNING_STEPS,
-        validation_data=validation_dataset.take(1000),
-    )
-    model.save(tf_model_dir, save_format="tf")
+        # Fine-tune the model
+        model.fit(
+            train_dataset.take(3000),
+            epochs=FINE_TUNING_STEPS,
+            validation_data=validation_dataset.take(1000),
+        )
+        model.save(tf_model_dir, save_format="tf")
 
 
 .. parsed-literal::

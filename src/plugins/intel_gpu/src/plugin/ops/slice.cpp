@@ -11,8 +11,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -27,5 +26,4 @@ static void CreateSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::S
 
 REGISTER_FACTORY_IMPL(v8, Slice);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

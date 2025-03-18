@@ -74,27 +74,34 @@ Prerequisites
 
     import platform
     
-    
-    if platform.system() == "Darwin":
-        %pip install -q "numpy<2.0.0"
     %pip install -q "openvino>=2024.4" "nncf>=2.13.0"
     %pip install -q "torch>=2.1" "diffusers>=0.29.1" torchvision opencv_python --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q fvcore "pillow" "tqdm" "gradio>=4.36" "omegaconf==2.4.0.dev3" av pycocotools cloudpickle scipy accelerate "transformers>=4.27.3"
+    
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0.0"
 
 .. code:: ipython3
 
     import requests
+    from pathlib import Path
     
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
-    )
-    open("cmd_helper.py", "w").write(r.text)
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("catvton.ipynb")
 
 .. code:: ipython3
 
@@ -221,10 +228,11 @@ Let’s load ``skip magic`` extension to skip quantization if
     is_optimized_pipe_available = False
     
     # Fetch skip_kernel_extension module
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     %load_ext skip_kernel_extension
 

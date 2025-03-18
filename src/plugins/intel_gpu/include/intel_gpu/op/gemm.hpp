@@ -9,9 +9,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 class Gemm : public ov::op::v0::MatMul {
 public:
@@ -24,7 +22,7 @@ public:
          const std::vector<int64_t>& order_a,
          const std::vector<int64_t>& order_b,
          const std::vector<int64_t>& order_c,
-         const ov::element::Type output_type = ov::element::undefined);
+         const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
@@ -56,6 +54,4 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
                                           const std::vector<int64_t>& order_b,
                                           const std::vector<int64_t>& order_c);
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

@@ -6,8 +6,7 @@
 
 #include "emitters/utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace Xbyak;
 using namespace dnnl::impl::cpu::x64;
@@ -31,29 +30,32 @@ inline snippets::Reg Xbyak2SnippetsReg(const Xbyak::Reg& xb_reg) {
     return {get_reg_type(xb_reg), static_cast<size_t>(xb_reg.getIdx())};
 }
 
-template <
-    cpu_isa_t isa,
-    typename std::enable_if<dnnl::impl::utils::one_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core),
-                            bool>::type = true>
+template <cpu_isa_t isa,
+          std::enable_if_t<dnnl::impl::utils::one_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core),
+                           bool> = true>
 struct regs_to_spill {
     static std::vector<Xbyak::Reg> get(const std::set<snippets::Reg>& live_regs) {
         std::vector<Xbyak::Reg> regs_to_spill;
         auto push_if_live = [&live_regs, &regs_to_spill](Xbyak::Reg&& reg) {
-            if (live_regs.empty() || live_regs.count(Xbyak2SnippetsReg(reg)))
+            if (live_regs.empty() || live_regs.count(Xbyak2SnippetsReg(reg))) {
                 regs_to_spill.emplace_back(reg);
+            }
         };
         for (int i = 0; i < 16; i++) {
             // do not spill rsp;
-            if (i != Xbyak::Reg::RSP)
+            if (i != Xbyak::Reg::RSP) {
                 push_if_live(Reg64(i));
+            }
         }
 
-        for (int i = 0; i < cpu_isa_traits<isa>::n_vregs; ++i)
+        for (int i = 0; i < cpu_isa_traits<isa>::n_vregs; ++i) {
             push_if_live(typename cpu_isa_traits<isa>::Vmm(i));
+        }
 
         const int num_k_mask = isa == cpu_isa_t::avx512_core ? 8 : 0;
-        for (int i = 0; i < num_k_mask; ++i)
+        for (int i = 0; i < num_k_mask; ++i) {
             push_if_live(Xbyak::Opmask(i));
+        }
         return regs_to_spill;
     }
 };
@@ -213,14 +215,16 @@ cpu_isa_t EmitABIRegSpills::get_isa() {
     // e.g. other emitters isa is avx512, while this emitter isa is avx2, and internal call is used. Internal call may
     // use avx512 and spoil k-reg, ZMM. do not care about platform w/ avx512_common but w/o avx512_core(knight landing),
     // which is obsoleted.
-    if (mayiuse(cpu_isa_t::avx512_core))
+    if (mayiuse(cpu_isa_t::avx512_core)) {
         return cpu_isa_t::avx512_core;
-    if (mayiuse(cpu_isa_t::avx2))
+    }
+    if (mayiuse(cpu_isa_t::avx2)) {
         return cpu_isa_t::avx2;
-    if (mayiuse(cpu_isa_t::sse41))
+    }
+    if (mayiuse(cpu_isa_t::sse41)) {
         return cpu_isa_t::sse41;
+    }
     OV_CPU_JIT_EMITTER_THROW("unsupported isa");
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

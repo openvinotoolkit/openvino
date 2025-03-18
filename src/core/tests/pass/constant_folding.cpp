@@ -3925,7 +3925,7 @@ TEST(constant_folding, gather_with_dynamic_shapes_in_data_input) {
 }
 
 TEST(constant_folding, parameter_with_unspecified_type_from_host_tensor) {
-    auto param = std::make_shared<ov::op::v0::Parameter>(element::undefined, ov::PartialShape{});
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::dynamic, ov::PartialShape{});
     auto res = std::make_shared<ov::op::v0::Result>(param);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
     EXPECT_NO_THROW(run_constant_folding(model));

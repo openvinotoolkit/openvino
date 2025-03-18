@@ -36,7 +36,6 @@ using OpenVINO. Additionally, we will use
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ for optimizing model
 in low precision.
 
-
 **Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
@@ -90,6 +89,17 @@ Prerequisites
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
         )
         open("cmd_helper.py", "w").write(r.text)
+
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("hunyuan-dit-image-generation.ipynb")
 
 .. code:: ipython3
 
@@ -758,11 +768,6 @@ Please select inference device using dropdown widget:
 
 .. code:: ipython3
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-
     from notebook_utils import device_widget
 
     device = device_widget()
@@ -938,8 +943,3 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()

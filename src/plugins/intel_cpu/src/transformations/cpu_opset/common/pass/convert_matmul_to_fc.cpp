@@ -147,7 +147,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
-        auto bias = std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});
+        auto bias = std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
         new_ops.push_back(bias);
 
         auto fc = std::make_shared<ov::op::internal::FullyConnected>(fc_input_a,
@@ -157,8 +157,9 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         fc->set_friendly_name(matmul->get_friendly_name());
         /// todo: CVS-130863 Remove after fp16_compression is copyable
-        if (ov::fp16_compression_is_disabled(matmul))
+        if (ov::fp16_compression_is_disabled(matmul)) {
             disable_fp16_compression(fc);
+        }
         new_ops.push_back(fc);
         ov::copy_runtime_info(matmul, new_ops);
         ov::replace_node(matmul, fc);

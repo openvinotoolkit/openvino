@@ -6,8 +6,7 @@
 
 #include "jit_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_uni_vcvtneps2bf16 : public jit_emitter {
 public:
@@ -18,7 +17,12 @@ public:
                           conversion_mode mode = conversion_mode::default_mode)
         : jit_emitter(host, host_isa, exec_prc),
           mode_(mode) {
-        prepare_table();
+        // only saturation_mode or non avx512_core_bf16/avx2_vnni_2 platforms requires table
+        if ((!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) &&
+             !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) ||
+            mode_ == conversion_mode::saturation_mode) {
+            prepare_table();
+        }
     }
 
     size_t get_inputs_num() const override {
@@ -45,9 +49,9 @@ private:
         using Vmm = typename dnnl::impl::utils::
             conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
-        Vmm in = Vmm(in_vec_idxs[0]);
+        auto in = Vmm(in_vec_idxs[0]);
         if (mode_ == conversion_mode::saturation_mode) {
-            Vmm vmm_temp = Vmm(out_vec_idxs[0]);
+            auto vmm_temp = Vmm(out_vec_idxs[0]);
 
             h->uni_vmaxps(vmm_temp, in, table_val("bf16_min"));
             h->uni_vminps(vmm_temp, vmm_temp, table_val("bf16_max"));
@@ -55,7 +59,7 @@ private:
             if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                 h->vfixupimmps(vmm_temp, in, table_val("selector"), 0);
             } else {
-                Vmm mask = Vmm(aux_vec_idxs[0]);
+                auto mask = Vmm(aux_vec_idxs[0]);
                 h->uni_vcmpps(mask, in, in, 0x03);  // _CMP_UNORD_Q
                 h->uni_vblendvps(vmm_temp, vmm_temp, table_val("nan"), mask);
                 h->uni_vcmpps(mask, in, table_val("inf"), 0x00);  // _CMP_EQ_OQ
@@ -67,12 +71,12 @@ private:
         }
 
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
-            Ymm out = Ymm(out_vec_idxs[0]);
+            auto out = Ymm(out_vec_idxs[0]);
             h->vcvtneps2bf16(out, in);
         } else if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
-            Zmm aux = Zmm(aux_vec_idxs[0]);
-            Zmm aux1 = Zmm(aux_vec_idxs[1]);
-            Ymm out = Ymm(out_vec_idxs[0]);
+            auto aux = Zmm(aux_vec_idxs[0]);
+            auto aux1 = Zmm(aux_vec_idxs[1]);
+            auto out = Ymm(out_vec_idxs[0]);
 
             h->uni_vpsrld(aux, in, 16);
             h->vpandd(aux, aux, table_val("one"));
@@ -83,11 +87,11 @@ private:
             h->vpsrad(aux, aux, 16);
             h->vpmovdw(out, aux);
         } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2)) {
-            Xmm out = Xmm(out_vec_idxs[0]);
+            auto out = Xmm(out_vec_idxs[0]);
             h->vcvtneps2bf16(out, in, PreferredEncoding::VexEncoding);
         } else {  // round_to_nearest_even emulation
-            Vmm aux = Vmm(aux_vec_idxs[0]);
-            Xmm out = Xmm(out_vec_idxs[0]);
+            auto aux = Vmm(aux_vec_idxs[0]);
+            auto out = Xmm(out_vec_idxs[0]);
 
             if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
                 h->uni_vandps(aux, in, table_val("rounding"));
@@ -148,11 +152,11 @@ private:
     }
 
     size_t aux_vecs_count() const override {
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
             return 0;
+        }
         return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 2 : 1;
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

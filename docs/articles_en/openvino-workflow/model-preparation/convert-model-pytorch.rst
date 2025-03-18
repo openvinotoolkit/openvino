@@ -97,7 +97,7 @@ inference in the existing PyTorch application to OpenVINO and how to get value f
    category_name = weights.meta["categories"][class_id]
    print(f"{category_name}: {100 * score:.1f}% (with OpenVINO)")
 
-Check out more examples in :doc:`interactive Python tutorials <../../learn-openvino/interactive-tutorials-python>`.
+Check out more examples in :doc:`interactive Python tutorials <../../get-started/learn-openvino/interactive-tutorials-python>`.
 
 .. note::
 

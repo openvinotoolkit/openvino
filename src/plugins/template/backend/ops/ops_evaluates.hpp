@@ -527,6 +527,10 @@ extern template bool evaluate_node<ov::op::v15::STFT>(std::shared_ptr<ov::Node> 
                                                       ov::TensorVector& outputs,
                                                       const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v16::ISTFT>(std::shared_ptr<ov::Node> node,
+                                                       ov::TensorVector& outputs,
+                                                       const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::internal::AUGRUCell>(std::shared_ptr<ov::Node> node,
                                                                 ov::TensorVector& outputs,
                                                                 const ov::TensorVector& inputs);
@@ -554,3 +558,7 @@ extern template bool evaluate_node<ov::op::v15::SearchSorted>(std::shared_ptr<ov
 extern template bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::Node> node,
                                                           ov::TensorVector& outputs,
                                                           const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v16::SegmentMax>(std::shared_ptr<ov::Node> node,
+                                                            ov::TensorVector& outputs,
+                                                            const ov::TensorVector& inputs);

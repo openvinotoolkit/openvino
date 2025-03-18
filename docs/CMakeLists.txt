@@ -84,7 +84,7 @@ function(build_docs)
         list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${FILE_HELPER_SCRIPT}
         --filetype=md
         --input_dir=${OVMS_DOCS_DIR}
-        --output_dir=${SPHINX_SOURCE_DIR}/openvino-workflow/model-server
+        --output_dir=${SPHINX_SOURCE_DIR}/model-server
         --exclude_dir=${SPHINX_SOURCE_DIR})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OVMS")
     endif()

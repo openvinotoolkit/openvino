@@ -114,7 +114,7 @@ generative models as it already includes all the core functionality
 
 .. code:: ipython3
 
-    %pip install -Uq "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0" huggingface_hub
+    %pip install --pre -U openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly huggingface_hub datasets
 
 Prepare models
 --------------
@@ -136,7 +136,7 @@ In case, if you want run own models, you should convert them using
 Optimum <https://huggingface.co/docs/optimum/intel/openvino/export>`__
 library accelerated by OpenVINO integration. More details about model
 preparation can be found in `OpenVINO LLM inference
-guide <https://docs.openvino.ai/2024/openvino-workflow-generative/llm-inference-native-ov.html#convert-hugging-face-tokenizer-and-model-to-openvino-ir-format>`__
+guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html#convert-hugging-face-tokenizer-and-model-to-openvino-ir-format>`__
 
 .. code:: ipython3
 
@@ -167,10 +167,11 @@ use GPU as target device if it is available.
 
     import requests
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
 
     from notebook_utils import device_widget
 
@@ -178,12 +179,17 @@ use GPU as target device if it is available.
 
     device
 
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("speculative-sampling.ipynb")
+
 
 
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU',), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'GPU'), value='CPU')
 
 
 
@@ -244,11 +250,6 @@ generation is finished, we will write streamer function.
     pipe.generate(prompt, config, streamer=streamer)
     end_time = time.perf_counter()
 
-
-.. parsed-literal::
-
-     it is made of gas. The gas is heated to a high temperature and then cooled. The gas is yellow because it has a band of light called the "Bondeson Pendulum Effect." The Bondeson Pendulum Effect is caused by the light waves bouncing off of the gas molecules. The light waves bounce off of the gas molecules in different ways, some of the light waves get scattered, and some of the light waves get reflected. The light waves that get scattered and reflected combine to
-
 .. code:: ipython3
 
     import gc
@@ -256,12 +257,6 @@ generation is finished, we will write streamer function.
     print(f"Generation time: {end_time - start_time:.2f}s")
     del pipe
     gc.collect()
-
-
-.. parsed-literal::
-
-    Generation time: 18.44s
-
 
 Run Speculative decoding pipeline
 ---------------------------------
@@ -313,20 +308,9 @@ stops the current token generation iteration is not yet reached.
     result = pipe.generate(prompt, config, streamer=streamer)
     end_time = time.perf_counter()
 
-
-.. parsed-literal::
-
-     it is made of gas. The gas is heated to a high temperature and then cooled. The gas changes from a hot gas to a cold gas and then from a cold gas to a hot gas. The gas is very hot when it changes from a hot gas to a cold gas and very cold when it changes from a cold gas to a hot gas. When the gas changes from a hot gas to a cold gas it becomes yellow. When the gas changes from a cold gas to a hot gas it
-
 .. code:: ipython3
 
     print(f"Generation time: {end_time - start_time:.2f}s")
-
-
-.. parsed-literal::
-
-    Generation time: 15.62s
-
 
 Alternative approach, Dynamic Speculative Decoding, described in the
 `paper <https://arxiv.org/abs/2405.04304>`__ is based on heuristics and
@@ -355,17 +339,178 @@ for draft model is unknown and draft model has low acceptance rate.
     result = pipe.generate(["Sun is yellow because"], config, streamer)
     end_time = time.perf_counter()
 
-
-.. parsed-literal::
-
-     it is made of gas. The gas is heated to a high temperature and then cooled. The gas changes from a hot gas to a cold gas and then from a cold gas to a hot gas. The gas is very hot when it changes from a hot gas to a cold gas and very cold when it changes from a cold gas to a hot gas. The gas is very light and can float in the air. When the gas cools it becomes a liquid. The Sun is a huge sphere of
-
 .. code:: ipython3
 
     print(f"Generation time: {end_time - start_time:.2f}s")
 
+Evaluate Speculative Decoding on multiple examples
+--------------------------------------------------
+
+Configure the data type and the number of examples to run:
+
+.. code:: ipython3
+
+    num_samples_to_select = 50
+
+    import ipywidgets as widgets
+
+    data_options = ["Code", "Text"]
+    data_type = widgets.Dropdown(
+        options=data_options,
+        value=data_options[0],
+        description="Data type:",
+        disabled=False,
+    )
+    data_type
+
+
+
 
 .. parsed-literal::
 
-    Generation time: 17.97s
+    Dropdown(description='Data type:', options=('Code', 'Text'), value='Code')
+
+
+
+Load the dataset and prepare the prompts:
+
+.. code:: ipython3
+
+    from datasets import load_dataset
+
+    print("loading dataset...")
+
+    if data_type.value == "Code":
+        ds = load_dataset("openai_humaneval", split="test")
+        prompts = ds["prompt"]
+        prompts = ["<s>" + prompts[i] for i in range(num_samples_to_select)]
+    else:
+        ds = load_dataset("abisee/cnn_dailymail", "3.0.0", split="test")
+        prompts = ds["article"]
+        prompts = [
+            "<|user|> ###\nArticle: " + prompts[i] + "\n\nSummarize the above article in 5 sentence.\n<|end|><|assistant|>" for i in range(num_samples_to_select)
+        ]
+    print("Done")
+
+
+.. parsed-literal::
+
+    loading dataset...
+    Done
+
+
+Run auto-regressive generation and get total runtime per example:
+
+.. code:: ipython3
+
+    import openvino_genai as ov_genai
+    import time
+    from tqdm import tqdm
+
+    print("Running Auto-Regressive generation...")
+    pipe = ov_genai.LLMPipeline(target_model_path, device.value)
+
+    config = ov_genai.GenerationConfig()
+    config.max_new_tokens = 330
+
+    times_auto_regressive = []
+    for prompt in tqdm(prompts):
+        start_time = time.perf_counter()
+        result = pipe.generate(prompt, config)
+        end_time = time.perf_counter()
+        times_auto_regressive.append(end_time - start_time)
+    print("Done")
+
+    import gc
+
+    del pipe
+    gc.collect()
+
+
+.. parsed-literal::
+
+    Running Auto-Regressive generation...
+
+
+.. parsed-literal::
+
+    100%|██████████████████████████████████████████████████████████████████████████████████| 50/50 [04:26<00:00,  5.32s/it]
+
+.. parsed-literal::
+
+    Done
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    9
+
+
+
+Now run generation with speculative-decoding:
+
+.. code:: ipython3
+
+    scheduler_config = ov_genai.SchedulerConfig()
+    # cache params
+    scheduler_config.cache_size = 0
+    scheduler_config.num_kv_blocks = 2048 // 8
+    scheduler_config.max_num_batched_tokens = 2048
+
+    draft_model = ov_genai.draft_model(draft_model_path, device.value)
+
+    pipe = ov_genai.LLMPipeline(target_model_path, device.value, draft_model=draft_model, scheduler_config=scheduler_config)
+
+    config = ov_genai.GenerationConfig()
+    config.max_new_tokens = 330
+    config.num_assistant_tokens = 5
+
+
+    times_speculative_decoding = []
+    print("Running Speculative Decoding generation...")
+    for prompt in tqdm(prompts):
+        start_time = time.perf_counter()
+        result = pipe.generate(prompt, config)
+        end_time = time.perf_counter()
+        times_speculative_decoding.append((end_time - start_time))
+    print("Done")
+
+
+.. parsed-literal::
+
+    Running Speculative Decoding generation...
+
+
+.. parsed-literal::
+
+    100%|██████████████████████████████████████████████████████████████████████████████████| 50/50 [01:52<00:00,  2.25s/it]
+
+.. parsed-literal::
+
+    Done
+
+
+
+
+
+
+
+Now let’s calculate the speedup:
+
+.. code:: ipython3
+
+    avg_speedup = sum([x / y for x, y in zip(times_auto_regressive, times_speculative_decoding)]) / len(prompts)
+    print(f"average speedup: {avg_speedup:.2f}")
+
+
+.. parsed-literal::
+
+    average speedup: 2.23
 

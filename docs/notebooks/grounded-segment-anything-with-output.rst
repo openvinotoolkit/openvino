@@ -64,7 +64,7 @@ Clone repositories and install requirements
 
 .. parsed-literal::
 
-    WARNING: supervision 0.25.0 does not provide the extra 'desktop'
+    WARNING: supervision 0.25.1 does not provide the extra 'desktop'
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -99,26 +99,24 @@ segmentation you can select vanilla ``SAM``.
 .. code:: ipython3
 
     import requests
+    from pathlib import Path
     
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
-    )
-    open("cmd_helper.py", "w").write(r.text)
-
-
-
-
-.. parsed-literal::
-
-    1491
-
-
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("grounded-segment-anything.ipynb")
 
 .. code:: ipython3
 
@@ -187,11 +185,12 @@ Download checkpoints and load PyTorch models
     from notebook_utils import download_file, device_widget
     
     
-    download_file(
-        "https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth",
-        directory=CKPT_BASE_PATH,
-    )
-    if not use_efficient_sam:
+    if not (CKPT_BASE_PATH / "groundingdino_swint_ogc.pth").exists():
+        download_file(
+            "https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth",
+            directory=CKPT_BASE_PATH,
+        )
+    if not use_efficient_sam and not (CKPT_BASE_PATH / "sam_vit_h_4b8939.pth").exists():
         download_file(
             "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth",
             directory=CKPT_BASE_PATH,
@@ -221,10 +220,10 @@ GroundingDINO imports
 
 .. parsed-literal::
 
-    2024-12-10 01:55:01.921329: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-10 01:55:01.957327: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2025-02-04 02:34:38.131198: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2025-02-04 02:34:38.165686: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-12-10 01:55:02.563186: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2025-02-04 02:34:38.716239: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
     UserWarning: Failed to load custom C++ ops. Running on CPU mode Only!
 
@@ -448,7 +447,7 @@ class, but the inference will be done using OpenVINO optimized model.
         text_threshold: float,
         dino_tokenizer: transformers.PreTrainedTokenizerBase = dino_tokenizer,
         max_text_len: int = max_text_len,
-    ) -> (torch.Tensor, List[str], torch.Tensor):
+    ):
         #  for text prompt pre-processing we reuse existing routines from GroundignDINO repo
         if isinstance(caption, list):
             caption = ". ".join(caption)

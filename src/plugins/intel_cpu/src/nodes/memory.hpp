@@ -7,15 +7,13 @@
 #include <graph.h>
 
 #include <map>
+#include <optional>
 
 #include "input.h"
 #include "memory_state_base.h"
-#include "ov_optional.hpp"
 #include "proxy_mem_blk.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class MemoryOutputBase;
 class MemoryInputBase;
@@ -66,7 +64,9 @@ public:
 
     void execute(const dnnl::stream& strm) override final;             // NOLINT
     void executeDynamicImpl(const dnnl::stream& strm) override final;  // NOLINT
-    bool isExecutable() const override final;                          // NOLINT
+
+    bool isExecutable() const override final;  // NOLINT
+    bool neverExecute() const override final;  // NOLINT
 
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
@@ -149,6 +149,7 @@ public:
     bool needPrepareParams() const override {
         return false;
     }
+    bool neverExecute() const override final;  // NOLINT
     bool isExecutable() const override final;  // NOLINT
 
     void registerOutputNode(MemoryOutputBase* node);
@@ -164,8 +165,8 @@ protected:
                     const Shape& output_shape,
                     const ov::element::Type& output_prc,
                     const GraphContext::CPtr& context,
-                    const ov::optional<std::vector<Shape>>& input_shape,
-                    const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                    const std::optional<std::vector<Shape>>& input_shape,
+                    const std::optional<std::vector<ov::element::Type>>& input_prc,
                     mode mode = mode::read_value_assign);
 
 protected:
@@ -177,7 +178,7 @@ protected:
     }
 
 private:
-    using executeHookPtr = void (MemoryInputBase::*)(void);
+    using executeHookPtr = void (MemoryInputBase::*)();
 
 private:
     void assignState();
@@ -201,8 +202,8 @@ public:
                 const Shape& output_shape,
                 const ov::element::Type& output_prc,
                 const GraphContext::CPtr& context,
-                const ov::optional<std::vector<Shape>>& input_shape,
-                const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                const std::optional<std::vector<Shape>>& input_shape,
+                const std::optional<std::vector<ov::element::Type>>& input_prc,
                 std::shared_ptr<ov::Model> func = nullptr,
                 mode mode = mode::read_value_assign);
 
@@ -211,6 +212,8 @@ public:
     void initOptimalPrimitiveDescriptor() override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
+
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
 
     void createPrimitive() override;
 
@@ -247,8 +250,8 @@ public:
                       const Shape& output_shape,
                       const ov::element::Type& output_prc,
                       const GraphContext::CPtr& context,
-                      const ov::optional<std::vector<Shape>>& input_shape,
-                      const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                      const std::optional<std::vector<Shape>>& input_shape,
+                      const std::optional<std::vector<ov::element::Type>>& input_prc,
                       std::shared_ptr<ov::Model> func);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -268,8 +271,8 @@ public:
                     const Shape& output_shape,
                     const ov::element::Type& output_prc,
                     const GraphContext::CPtr& context,
-                    const ov::optional<std::vector<Shape>>& input_shape,
-                    const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                    const std::optional<std::vector<Shape>>& input_shape,
+                    const std::optional<std::vector<ov::element::Type>>& input_prc,
                     const std::shared_ptr<ScaledDotProductAttention>& sdpaNode);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -288,6 +291,4 @@ private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
 };
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

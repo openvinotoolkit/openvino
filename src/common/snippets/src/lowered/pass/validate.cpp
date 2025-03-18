@@ -153,9 +153,14 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
         if (found != m_validation_map.cend()) {
             (found->second)(expr, linear_ir);
         }
-        OPENVINO_ASSERT(expr->get_output_count() == node->get_output_size() ||
-                        ov::is_type<op::LoopEnd>(node) ||
-                        ov::is_type<ov::op::v0::Result>(node), "Incorrect count of output port descriptors!");
+        bool bypass_output_size_check =
+#ifdef SNIPPETS_DEBUG_CAPS
+            ov::is_type_any_of<snippets::op::PerfCountBegin, snippets::op::PerfCountEnd>(node) ||
+#endif  // SNIPPETS_DEBUG_CAPS
+            ov::is_type_any_of<op::LoopEnd, ov::op::v0::Result>(node);
+
+        OPENVINO_ASSERT(expr->get_output_count() == node->get_output_size() || bypass_output_size_check,
+                        "Incorrect count of output port descriptors!");
         expr->validate();
         // Loop expr doesn't have shapes and layouts
         if (!ov::is_type<op::LoopBase>(node))

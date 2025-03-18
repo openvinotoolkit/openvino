@@ -26,7 +26,7 @@ public:
     std::vector<std::shared_ptr<IGraph>> compileWS(const std::shared_ptr<ov::Model>& model,
                                                    const Config& config) const override;
 
-    std::shared_ptr<IGraph> parse(std::vector<uint8_t> network, const Config& config) const override;
+    std::shared_ptr<IGraph> parse(std::unique_ptr<BlobContainer> blobPtr, const Config& config) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
@@ -58,7 +58,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
-    ze_device_graph_properties_t _deviceGraphProperties = {};
+    ze_device_graph_properties_t _compilerProperties = {};
 
     Logger _logger;
 };

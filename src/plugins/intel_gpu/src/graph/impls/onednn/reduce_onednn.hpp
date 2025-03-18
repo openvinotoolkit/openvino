@@ -4,7 +4,7 @@
 
 #include "impls/onednn/utils.hpp"
 #include "reduce_inst.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -48,8 +48,9 @@ struct ReduceImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<reduce>());
+        const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown)
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
         const auto& reduce_node = node.as<reduce>();

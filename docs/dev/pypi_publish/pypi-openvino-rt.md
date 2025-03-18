@@ -110,7 +110,7 @@ If installation was successful, you will see the list of available devices.
     </td>
   </tr>
   <tr>
-    <td><a href="https://docs.openvino.ai/2025/learn-openvino/openvino-samples/benchmark-tool.html">Benchmark Tool</a></td>
+    <td><a href="https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html">Benchmark Tool</a></td>
     <td>`benchmark_app`</td>
     <td>Benchmark Application** allows you to estimate deep learning inference performance on
         supported devices for synchronous and asynchronous modes.
@@ -122,7 +122,7 @@ If installation was successful, you will see the list of available devices.
 ## Troubleshooting
 
 For general troubleshooting, see the
-[Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2025/get-started/troubleshooting-install-config.html).
+[Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2025/get-started/install-openvino/configurations/troubleshooting-install-config.html).
 The following sections also provide explanations to several error messages.
 
 ### Errors with Installing via PIP for Users in China

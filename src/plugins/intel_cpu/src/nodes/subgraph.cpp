@@ -11,6 +11,7 @@
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
+#include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/analyze_broadcastable_inputs.hpp"
@@ -52,17 +53,17 @@
 
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "snippets/lowered/pass/optimize_domain.hpp"
-#    include "transformations/tpp/x64/pass/brgemm_to_brgemm_tpp.hpp"
-#    include "transformations/tpp/x64/pass/eltwise_to_eltwise_tpp.hpp"
-#    include "transformations/tpp/x64/pass/fuse_tpp_to_equations.hpp"
-#    include "transformations/tpp/x64/pass/lowered/brgemm_tpp_blocking.hpp"
-#    include "transformations/tpp/x64/pass/lowered/set_tpp_leading_dim.hpp"
-#    include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
+#    include "transformations/tpp/common/pass/brgemm_to_brgemm_tpp.hpp"
+#    include "transformations/tpp/common/pass/lowered/brgemm_tpp_blocking.hpp"
+#    include "transformations/tpp/common/pass/lowered/set_tpp_leading_dim.hpp"
+#    if defined(OPENVINO_ARCH_X86_64)
+#        include "transformations/tpp/x64/pass/eltwise_to_eltwise_tpp.hpp"
+#        include "transformations/tpp/x64/pass/fuse_tpp_to_equations.hpp"
+#        include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
+#    endif
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
@@ -73,13 +74,14 @@ struct SubgraphKey {
           in_shapes(std::move(in_shapes_)) {}
     virtual ~SubgraphKey() = default;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
         size_t seed = get_attr_hash(0, attrs);
-        for (const auto& shape : in_shapes)
+        for (const auto& shape : in_shapes) {
             seed = get_vector_hash(seed, shape);
+        }
 
         return seed;
     }
@@ -96,7 +98,7 @@ struct SubgraphCodeGeneratorKey {
         : attrs(std::move(attrs_)),
           broadcasting_mask(mask_) {}
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
@@ -117,13 +119,14 @@ struct SubgraphShapeInferResultKey {
         : in_shapes(std::move(in_shapes_)),
           body_hash(body_hash_) {}
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
         size_t seed = hash_combine(0, body_hash);
-        for (const auto& shape : in_shapes)
+        for (const auto& shape : in_shapes) {
             seed = get_vector_hash(seed, shape);
+        }
 
         return seed;
     }
@@ -167,7 +170,7 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 #elif defined(OPENVINO_ARCH_X86_64)
     subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getParamsCache()));
 #else
-    OPENVINO_THROW("CPU plugin: Subgraphs code-generator is not supported on non-x64 platforms");
+    THROW_CPU_NODE_ERR("Subgraphs code-generator is not supported on non-x64 platforms");
 #endif
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy
@@ -183,8 +186,9 @@ uint64_t Subgraph::getBodyHash(const std::shared_ptr<snippets::op::Subgraph>& sn
 }
 
 void Subgraph::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     const std::set<ov::element::Type> supportedPrecisions =
         {ov::element::f32, ov::element::i32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8};
@@ -192,8 +196,9 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
     bool dimRanksAreEqual = true;
     for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
         for (size_t j = 0; dimRanksAreEqual && j < outputShapes.size(); j++) {
-            if (inputShapes[i].getRank() != outputShapes[j].getRank())
+            if (inputShapes[i].getRank() != outputShapes[j].getRank()) {
                 dimRanksAreEqual = false;
+            }
         }
     }
 
@@ -212,13 +217,14 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         dnnl::impl::utils::one_of(ndims, 3u, 4u, 5u) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
 
     for (const auto& inShape : inputShapes) {
-        if (isDynamic && inShape.getRank() != 1)
+        if (isDynamic && inShape.getRank() != 1) {
             isBlockedApplicable =
                 isBlockedApplicable && inShape.getMinDims()[1] != Shape::UNDEFINED_DIM && inShape.getMinDims()[1] > 1;
+        }
     }
 #endif
 
-    enum LayoutType { Planar, ChannelsFirst, Blocked };
+    enum LayoutType : uint8_t { Planar, ChannelsFirst, Blocked };
     auto initDesc = [&](LayoutType lt) -> NodeDesc {
         auto createMemoryDesc =
             [lt](const Shape& shape, ov::element::Type prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
@@ -238,8 +244,9 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
                 }
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
-            } else if (lt == Blocked && shape.getRank() != 1 &&
-                       (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
+            }
+            if (lt == Blocked && shape.getRank() != 1 &&
+                (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
 #if defined(OPENVINO_ARCH_ARM64)
                 size_t blockSize = 16;
 #else
@@ -255,13 +262,12 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
                 order.push_back(1);
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
-            } else {
-                VectorDims blocks = dims;
-                VectorDims order(blocks.size());
-                std::iota(order.begin(), order.end(), 0);
-
-                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             }
+            VectorDims blocks = dims;
+            VectorDims order(blocks.size());
+            std::iota(order.begin(), order.end(), 0);
+
+            return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
         };
 
         size_t offset = 0;
@@ -275,8 +281,9 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
                  subgraph_attrs->snippet->has_domain_sensitive_ops())
                     ? context->getConfig().inferencePrecision
                     : originalInputPrecision;
-            if (supportedPrecisions.count(precision) == 0)
-                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
+            if (supportedPrecisions.count(precision) == 0) {
+                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
+            }
 
             const auto equalPrecisions =
                 getOriginalOutputPrecisions().size() == 1 && precision == getOriginalOutputPrecisionAtPort(0);
@@ -294,8 +301,9 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         config.outConfs.resize(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); i++) {
             auto precision = getOriginalOutputPrecisionAtPort(i);
-            if (supportedPrecisions.count(precision) == 0)
-                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
+            if (supportedPrecisions.count(precision) == 0) {
+                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
+            }
 
             BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
@@ -323,10 +331,12 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         return {config, impl_type};
     };
 
-    if (isChannelsFirstApplicable)
+    if (isChannelsFirstApplicable) {
         supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
-    if (isBlockedApplicable)
+    }
+    if (isBlockedApplicable) {
         supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
+    }
     supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
 }
 
@@ -367,10 +377,12 @@ void Subgraph::createPrimitive() {
 void Subgraph::initMemoryPtrs() {
     srcMemPtrs.resize(input_num);
     dstMemPtrs.resize(output_num);
-    for (size_t i = 0; i < input_num; i++)
+    for (size_t i = 0; i < input_num; i++) {
         srcMemPtrs[i] = getSrcMemoryAtPort(i);
-    for (size_t i = 0; i < output_num; i++)
+    }
+    for (size_t i = 0; i < output_num; i++) {
         dstMemPtrs[i] = getDstMemoryAtPort(i);
+    }
 }
 
 void Subgraph::initAttributes() {
@@ -400,10 +412,12 @@ void Subgraph::initStartOffsets() {
     };
     start_offset_in.resize(input_num);
     start_offset_out.resize(output_num);
-    for (size_t i = 0; i < input_num; i++)
+    for (size_t i = 0; i < input_num; i++) {
         start_offset_in[i] = get_offset(srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>());
-    for (size_t i = 0; i < output_num; i++)
+    }
+    for (size_t i = 0; i < output_num; i++) {
         start_offset_out[i] = get_offset(dstMemPtrs[i]->getDescWithType<BlockedMemoryDesc>());
+    }
 }
 
 snippets::op::Subgraph::BlockedShapeVector Subgraph::getSnippetsBlockedShapes() const {
@@ -424,17 +438,20 @@ std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> Subgra
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> precisions;
     precisions.first.reserve(input_num);
     precisions.second.reserve(output_num);
-    for (const auto& p : subgraph_attrs->inMemPrecs)
+    for (const auto& p : subgraph_attrs->inMemPrecs) {
         precisions.first.push_back(p);
-    for (const auto& p : subgraph_attrs->outMemPrecs)
+    }
+    for (const auto& p : subgraph_attrs->outMemPrecs) {
         precisions.second.push_back(p);
+    }
     return precisions;
 }
 
 void Subgraph::initPluginBlockedShapes() const {
     in_shapes.resize(input_num);
-    for (size_t i = 0; i < srcMemPtrs.size(); i++)
+    for (size_t i = 0; i < srcMemPtrs.size(); i++) {
         in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    }
 }
 
 Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
@@ -460,11 +477,20 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_X86_64
 
+#if defined(OPENVINO_ARCH_ARM64)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)              \
+        backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
+                                    std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)
+#endif  // OPENVINO_ARCH_ARM64
+
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineStart, ConvertToSwishCPU);
     SNIPPETS_REGISTER_PASS_RELATIVE_COMMON(Place::After,
                                            ov::snippets::pass::Canonicalization,
                                            ov::snippets::pass::AnalyzeBroadcastableInputs,
                                            broadcastable_inputs);
+
     if (one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
         subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
@@ -498,54 +524,84 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP,
                                            ov::intel_cpu::tpp::pass::FuseTPPToEquations);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
+                                          ov::snippets::pass::PropagatePrecision,
+                                          ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
 #endif
 
 #undef SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_COMMON
 #undef SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_ARM64
 
     return backend_passes;
 }
 
 Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     ControlFlowPasses backend_passes;
-
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(SNIPPETS_LIBXSMM_TPP))
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
-#    define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...)                    \
+#endif
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)             \
         backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
                                     std::make_shared<PASS>(__VA_ARGS__))
 #else
-#    define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_X86_64
 
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
-                                    ov::snippets::lowered::pass::MarkLoops,
-                                    ov::intel_cpu::pass::BrgemmCPUBlocking);
+#if defined(OPENVINO_ARCH_ARM64)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)              \
+        backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
+                                    std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)
+#endif  // OPENVINO_ARCH_ARM64
 
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
-                                    ov::snippets::lowered::pass::InitLoops,
-                                    ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                           ov::snippets::lowered::pass::MarkLoops,
+                                           ov::intel_cpu::pass::BrgemmCPUBlocking);
+#ifdef SNIPPETS_DEBUG_CAPS
+    const auto& debug_config = subgraph_attrs->snippet->get_debug_config();
+    if (debug_config.perf_count_mode != snippets::DebugCapsConfig::PerfCountMode::Disabled) {
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                               ov::snippets::lowered::pass::InsertPerfCountVerbose,
+                                               getName());
+    }
+#endif  // SNIPPETS_DEBUG_CAPS
 
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
-                                    ov::snippets::lowered::pass::InsertLoops,
-                                    ov::intel_cpu::pass::FuseLoadStoreConvert);
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before,
-                                    ov::snippets::lowered::pass::InsertBuffers,
-                                    ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                           ov::snippets::lowered::pass::InitLoops,
+                                           ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts);
+
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                           ov::snippets::lowered::pass::InsertLoops,
+                                           ov::intel_cpu::pass::FuseLoadStoreConvert);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
+                                           ov::snippets::lowered::pass::InsertBuffers,
+                                           ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before,
-                                    ov::intel_cpu::pass::BrgemmCPUBlocking,
-                                    ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
-                                    ov::intel_cpu::pass::FuseLoadStoreConvert,
-                                    ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
+                                           ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                           ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                           ov::intel_cpu::pass::FuseLoadStoreConvert,
+                                           ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::MarkLoops,
+                                          ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::InsertLoops,
+                                          ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
 #endif
 
-#undef SNIPPETS_REGISTER_PASS_RELATIVE
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_ARM64
     return backend_passes;
 }
 
@@ -556,8 +612,9 @@ uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shap
     for (const auto& broadcastable_input : broadcastable_inputs) {
         const auto& shape = input_shapes[broadcastable_input.first];
         mask = mask << 1;
-        if (*(shape.rbegin() + broadcastable_input.second) == 1)
+        if (*(shape.rbegin() + broadcastable_input.second) == 1) {
             mask = mask | 1;
+        }
     }
     return mask;
 }
@@ -582,8 +639,9 @@ void Subgraph::optimizeIR() {
     // TODO: Snippets don't support backend-provided blocking, so we need to reshape body
     //       using blocked shapes first. This can be removed after [121670]
     std::vector<snippets::VectorDimsRef> in_shapes;
-    for (const auto& s : in_blocked_shapes)
+    for (const auto& s : in_blocked_shapes) {
         in_shapes.emplace_back(s.first);
+    }
     subgraph->shape_infer(in_shapes);
 
     const auto control_flow_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
@@ -643,26 +701,24 @@ void Subgraph::prepareParams() {
                                                                         start_offset_out,
                                                                         allocator,
                                                                         cache);
-        } else {
-            // Static case:
-            // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be
-            // compiled in JIT code
-            // 2. Generate JIT code with this static data if needed
-            // 3. Create SubgraphStaticExecutor
-            const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
-            const auto code_gen_result = cache->getOrCreate(
-                SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
-                [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
-                    return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
-                });
-            return std::make_shared<SubgraphStaticExecutor>(snippet_config,
-                                                            key.attrs,
-                                                            code_gen_result.first,
-                                                            start_offset_in,
-                                                            start_offset_out,
-                                                            allocator,
-                                                            cache);
-        }
+        }  // Static case:
+        // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be
+        // compiled in JIT code
+        // 2. Generate JIT code with this static data if needed
+        // 3. Create SubgraphStaticExecutor
+        const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
+        const auto code_gen_result = cache->getOrCreate(
+            SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
+            [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
+            });
+        return std::make_shared<SubgraphStaticExecutor>(snippet_config,
+                                                        key.attrs,
+                                                        code_gen_result.first,
+                                                        start_offset_in,
+                                                        start_offset_out,
+                                                        allocator,
+                                                        cache);
     };
 
     const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes), builder);
@@ -673,8 +729,9 @@ void Subgraph::prepareParams() {
 }
 
 IShapeInfer::Result Subgraph::shapeInfer() const {
-    for (size_t i = 0; i < srcMemPtrs.size(); i++)
+    for (size_t i = 0; i < srcMemPtrs.size(); i++) {
         in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    }
 
     auto builder = [this](const SubgraphShapeInferResultKey& key) -> std::shared_ptr<SubgraphShapeInferResult> {
         return std::make_shared<SubgraphShapeInferResult>(Node::shapeInfer());
@@ -695,15 +752,17 @@ bool Subgraph::canBeInPlace() const {
 
     for (auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
-        if (parent->getChildEdges().size() != 1)
+        if (parent->getChildEdges().size() != 1) {
             return false;
+        }
 
         // WA to prevent memory corruption caused by inplace feature
         if (parent->getType() == Type::Concatenation) {
             for (auto& parentParentEdge : parent->getParentEdges()) {
                 auto parentParent = parentParentEdge.lock()->getParent();
-                if (parentParent->getChildEdges().size() != 1)
+                if (parentParent->getChildEdges().size() != 1) {
                     return false;
+                }
             }
         }
     }
@@ -723,6 +782,4 @@ void Subgraph::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

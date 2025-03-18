@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 #    include "acl/acl_pooling.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct PoolingExecutorDesc {
     ExecutorType executorType;
@@ -34,7 +33,7 @@ public:
         }
     }
 
-    ~PoolingExecutorFactory() = default;
+    ~PoolingExecutorFactory() override = default;
     virtual PoolingExecutorPtr makeExecutor(const PoolingAttrs& poolingAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs,
@@ -73,5 +72,4 @@ private:
 using PoolingExecutorFactoryPtr = std::shared_ptr<PoolingExecutorFactory>;
 using PoolingExecutorFactoryCPtr = std::shared_ptr<const PoolingExecutorFactory>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

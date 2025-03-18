@@ -92,8 +92,8 @@ Install required dependencies
             r = requests.get(
                 url=f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/{local_path.name}",
             )
-        with local_path.open("w") as f:
-            f.write(r.text)
+            with local_path.open("w") as f:
+                f.write(r.text)
     
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
     
@@ -104,19 +104,22 @@ Install required dependencies
         "--extra-index-url",
         "https://download.pytorch.org/whl/cpu",
         "llama-index",
-        "llama-index-llms-huggingface==0.3.3",  # pin to keep compatibility due to https://github.com/run-llama/llama_index/commit/f037de8d0471b37f9c4069ebef5dfb329633d2c6
         "llama-index-readers-file",
         "llama-index-core",
-        "llama-index-llms-huggingface",
-        "llama-index-embeddings-huggingface",
         "transformers>=4.43.1",
-        "llama-index-llms-huggingface>=0.3.0,<0.3.4",
-        "llama-index-embeddings-huggingface>=0.3.0",
+        "llama-index-llms-huggingface>=0.4.0,<0.5.0",
+        "llama-index-embeddings-huggingface>=0.4.0,<0.5.0",
+        "huggingface-hub>=0.26.5",
     )
     pip_install("-q", "git+https://github.com/huggingface/optimum-intel.git", "git+https://github.com/openvinotoolkit/nncf.git", "datasets", "accelerate")
     pip_install("--pre", "-Uq", "openvino>=2024.2.0", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/nightly")
     pip_install("--pre", "-Uq", "openvino-tokenizers[transformers]", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/nightly")
     pip_install("-q", "--no-deps", "llama-index-llms-openvino", "llama-index-embeddings-openvino")
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llm-agent-rag-llamaindex.ipynb")
 
 .. code:: ipython3
 
@@ -230,7 +233,7 @@ code:
         if repo_name == "OpenVINO":
             hf_hub.snapshot_download(llm_model_id.value, local_dir=llm_model_path)
         else:
-            optimum_cli(llm_model_id.value, llm_model_path, additional_args=-{"task": "text-generation-with-past", "weight-format": "int4"})
+            optimum_cli(llm_model_id.value, llm_model_path, additional_args={"task": "text-generation-with-past", "weight-format": "int4"})
 
 Download Embedding model
 ~~~~~~~~~~~~~~~~~~~~~~~~

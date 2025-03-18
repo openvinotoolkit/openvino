@@ -22,8 +22,7 @@ using FullyConnectedCompressed = ov::intel_gpu::op::FullyConnectedCompressed;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::shared_ptr<op::FullyConnectedCompressed>& op) {
     validate_inputs_count(op, {4, 5, 6, 7});
@@ -157,5 +156,4 @@ static void CreateFullyConnectedOp(ProgramBuilder& p, const std::shared_ptr<op::
 REGISTER_FACTORY_IMPL(internal, FullyConnected);
 REGISTER_FACTORY_IMPL(internal, FullyConnectedCompressed);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

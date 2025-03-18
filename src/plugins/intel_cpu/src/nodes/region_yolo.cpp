@@ -5,6 +5,7 @@
 #include "region_yolo.h"
 
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -27,9 +28,7 @@ using namespace dnnl::impl::utils;
 #    define GET_OFF(field) offsetof(jit_args_logistic, field)
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
@@ -49,8 +48,9 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
         exp_injector.reset(
             new jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f, data_type::f32));
 
-        if (mayiuse(avx512_core))
-            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
+        if (mayiuse(avx512_core)) {
+            uni_vcvtneps2bf16 = std::make_unique<jit_uni_vcvtneps2bf16>(this, isa);
+        }
 
         this->preamble();
 
@@ -101,8 +101,9 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
 
         this->postamble();
 
-        if (uni_vcvtneps2bf16)
+        if (uni_vcvtneps2bf16) {
             uni_vcvtneps2bf16->emit_data();
+        }
 
         exp_injector->prepare_table();
 
@@ -197,7 +198,7 @@ private:
         }
     }
     inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
-        Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
+        auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
 
         switch (dst_dt) {
         case ov::element::f32:
@@ -265,8 +266,9 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (op->get_input_size() != 1 || op->get_output_size() != 1)
+    if (op->get_input_size() != 1 || op->get_output_size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
+    }
 
     const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
     classes = regionYolo->get_num_classes();
@@ -278,8 +280,9 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
 }
 
 void RegionYolo::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     input_prec = getOriginalInputPrecisionAtPort(0);
     output_prec = getOriginalOutputPrecisionAtPort(0);
@@ -324,18 +327,19 @@ void RegionYolo::createPrimitive() {
 
     block_size = 1;
     if (mayiuse(x64::avx512_core)) {
-        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx512_core>(jcp));
+        logistic_kernel = std::make_shared<jit_uni_logistic_kernel_f32<x64::avx512_core>>(jcp);
         block_size = 16;
     } else if (mayiuse(x64::avx2)) {
-        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx2>(jcp));
+        logistic_kernel = std::make_shared<jit_uni_logistic_kernel_f32<x64::avx2>>(jcp);
         block_size = 8;
     } else if (mayiuse(x64::sse41)) {
-        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::sse41>(jcp));
+        logistic_kernel = std::make_shared<jit_uni_logistic_kernel_f32<x64::sse41>>(jcp);
         block_size = 4;
     }
 
-    if (logistic_kernel)
+    if (logistic_kernel) {
         logistic_kernel->create_ker();
+    }
 #endif
     softmax_kernel = std::make_shared<SoftmaxGeneric>(input_prec, output_prec);
 }
@@ -344,14 +348,16 @@ inline float RegionYolo::logistic_scalar(float src) {
     U aux2;
     aux2.as_float_value = src;
     int sign = aux2.as_int_value >> 31;
-    if (sign == 0)
+    if (sign == 0) {
         src *= -1;
+    }
 
     src = std::exp(src);
 
     src = src / (src + 1);
-    if (sign == 0)
+    if (sign == 0) {
         src = 1 - src;
+    }
 
     return src;
 }
@@ -382,7 +388,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }
         } else {
-            OPENVINO_THROW("Unsupported precision configuration outPrc=", output_prec.get_type_name());
+            THROW_CPU_NODE_ERR("Unsupported precision configuration outPrc=", output_prec.get_type_name());
         }
     }
 }
@@ -411,11 +417,12 @@ void RegionYolo::execute(const dnnl::stream& strm) {
         output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
 
-    if (output_size != getDstMemoryAtPort(0)->getShape().getElementsCount())
-        OPENVINO_THROW("Incorrect layer configuration or output dimensions. ",
-                       output_size,
-                       " != ",
-                       getDstMemoryAtPort(0)->getShape().getElementsCount());
+    if (output_size != getDstMemoryAtPort(0)->getShape().getElementsCount()) {
+        THROW_CPU_NODE_ERR("Incorrect layer configuration or output dimensions. ",
+                           output_size,
+                           " != ",
+                           getDstMemoryAtPort(0)->getShape().getElementsCount());
+    }
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;
@@ -457,6 +464,4 @@ bool RegionYolo::created() const {
     return getType() == Type::RegionYolo;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

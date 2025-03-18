@@ -415,10 +415,10 @@ For details on additional CMake build options, refer to the `CMake page <https:/
        .. doxygensnippet:: docs/snippets/CMakeLists.txt
           :language: cpp
           :fragment: [cmake:integration_example_c]
-          
+
     .. tab-item:: C++ (PyPI)
-      :sync: cpp 
-      
+      :sync: cpp
+
       .. doxygensnippet:: docs/snippets/CMakeLists.txt
          :language: cpp
          :fragment: [cmake:integration_example_cpp_py]
@@ -439,7 +439,7 @@ Additional Resources
 ####################
 
 * `OpenVINO™ Runtime API Tutorial <./../../notebooks/openvino-api-with-output.html>`__
-* See the :doc:`OpenVINO Samples <../../learn-openvino/openvino-samples>` page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
+* See the :doc:`OpenVINO Samples <../../get-started/learn-openvino/openvino-samples>` page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
 * Models in the OpenVINO IR format on `Hugging Face <https://huggingface.co/models>`__.
 * :doc:`OpenVINO™ Runtime Preprocessing <optimize-inference/optimize-preprocessing>`
 * :doc:`String Tensors <string-tensors>`

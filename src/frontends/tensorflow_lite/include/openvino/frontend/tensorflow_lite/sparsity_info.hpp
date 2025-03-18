@@ -16,7 +16,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-class TENSORFLOW_LITE_API SparsityInfo : public ov::RuntimeAttribute {
+class TENSORFLOW_LITE_FRONTEND_API SparsityInfo : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("SparsityInfo", "0", RuntimeAttribute);
 
@@ -28,13 +28,13 @@ public:
     };
 
     SparsityInfo() = default;
-    explicit SparsityInfo(const std::vector<int32_t>& shape,
-                          const std::vector<int32_t>& traversal_order,
-                          const std::vector<int32_t>& block_map,
-                          const std::vector<uint16_t>& dim_format,
-                          const std::vector<SparsityDataDesc>& data_desc,
-                          const ov::element::Type target_type,
-                          const uint8_t* values)
+    SparsityInfo(const std::vector<int32_t>& shape,
+                 const std::vector<int32_t>& traversal_order,
+                 const std::vector<int32_t>& block_map,
+                 const std::vector<uint16_t>& dim_format,
+                 const std::vector<SparsityDataDesc>& data_desc,
+                 const ov::element::Type target_type,
+                 const uint8_t* values)
         : m_shape(shape),
           m_traversal_order(traversal_order),
           m_block_map(block_map),

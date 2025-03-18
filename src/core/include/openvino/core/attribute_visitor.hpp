@@ -56,7 +56,7 @@ class VisitorAdapter;
 /// deserialization.
 class OPENVINO_API AttributeVisitor {
 public:
-    virtual ~AttributeVisitor() = default;
+    virtual ~AttributeVisitor();
     // Must implement these methods
     /// \brief handles all specialized on_adapter methods implemented by the visitor.
     ///

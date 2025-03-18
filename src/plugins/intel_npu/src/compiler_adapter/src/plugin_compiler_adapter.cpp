@@ -81,6 +81,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("compile start");
     auto networkDesc = _compiler->compile(model, config);
+    auto blobPtr = std::make_unique<BlobContainerVector>(std::move(networkDesc.compiledNetwork));
     _logger.debug("compile end");
 
     ze_graph_handle_t graphHandle = nullptr;
@@ -88,7 +89,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled network
         try {
-            graphHandle = _zeGraphExt->getGraphHandle(networkDesc.compiledNetwork);
+            graphHandle =
+                _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -100,7 +102,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                          _zeroInitStruct,
                                          graphHandle,
                                          std::move(networkDesc.metadata),
-                                         std::move(networkDesc.compiledNetwork),
+                                         std::move(blobPtr),
                                          config);
 }
 
@@ -186,14 +188,18 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
               << std::chrono::duration_cast<std::chrono::milliseconds>(compileNetEnd - compileNetBegin).count() << " ms"
               << std::endl;
 
+    auto initContainer = std::make_unique<BlobContainerVector>(std::move(initNetworkDescription->compiledNetwork));
+    auto mainContainer = std::make_unique<BlobContainerVector>(std::move(mainNetworkDescription->compiledNetwork));
     ze_graph_handle_t initGraphHandle = nullptr;
     ze_graph_handle_t mainGraphHandle = nullptr;
 
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled network
         try {
-            initGraphHandle = _zeGraphExt->getGraphHandle(initNetworkDescription->compiledNetwork);
-            mainGraphHandle = _zeGraphExt->getGraphHandle(mainNetworkDescription->compiledNetwork);
+            initGraphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(initContainer->get_ptr()),
+                                                          initContainer->size());
+            mainGraphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainContainer->get_ptr()),
+                                                          mainContainer->size());
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -205,30 +211,37 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
                                                          _zeroInitStruct,
                                                          initGraphHandle,
                                                          std::move(initNetworkDescription->metadata),
-                                                         std::move(initNetworkDescription->compiledNetwork),
+                                                         std::move(initContainer),
                                                          config);
     auto mainPluginGraph = std::make_shared<PluginGraph>(_zeGraphExt,
                                                          _compiler,
                                                          _zeroInitStruct,
                                                          mainGraphHandle,
                                                          std::move(mainNetworkDescription->metadata),
-                                                         std::move(mainNetworkDescription->compiledNetwork),
+                                                         std::move(mainContainer),
                                                          config);
 
     return {initPluginGraph, mainPluginGraph};
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::vector<uint8_t> network, const Config& config) const {
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,
+                                                     const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
+    std::vector<uint8_t> network(blobPtr->size());
+    network.assign(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()),
+                   reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()) + blobPtr->size());
     auto networkMeta = _compiler->parse(network, config);
+    network.clear();
+    network.shrink_to_fit();
     _logger.debug("parse end");
 
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {
-        graphHandle = _zeGraphExt->getGraphHandle(network);
+        graphHandle =
+            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
     }
 
     return std::make_shared<PluginGraph>(_zeGraphExt,
@@ -236,7 +249,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::vector<uint8_t> networ
                                          _zeroInitStruct,
                                          graphHandle,
                                          std::move(networkMeta),
-                                         std::move(network),
+                                         std::move(blobPtr),
                                          config);
 }
 
