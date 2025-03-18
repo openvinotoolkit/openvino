@@ -116,4 +116,32 @@ const WeightsSharing::Ptr& SocketsWeights::operator[](int socket_id) const {
     return found->second;
 }
 
+#ifdef CPU_DEBUG_CAPS
+WeightsSharing::Statistics WeightsSharing::dumpStatistics() const {
+    Statistics retVal = {0, 0};
+
+    std::lock_guard<std::mutex> lock(guard);
+
+    for (const auto& item : sharedWeights) {
+        auto memory = item.second->sharedMemory.lock();
+        if (memory) {
+            retVal.total_size += memory->getDesc().getCurrentMemSize();
+            retVal.total_memory_objects++;
+        }
+    }
+
+    return retVal;
+}
+
+std::vector<std::pair<int, WeightsSharing::Statistics>> SocketsWeights::dumpStatistics() const {
+    std::vector<std::pair<int, WeightsSharing::Statistics>> retVal;
+    for (const auto& item : _cache_map) {
+        if (item.second) {
+            retVal.emplace_back(item.first, item.second->dumpStatistics());
+        }
+    }
+
+    return retVal;
+}
+#endif  // CPU_DEBUG_CAPS
 }  // namespace ov::intel_cpu
