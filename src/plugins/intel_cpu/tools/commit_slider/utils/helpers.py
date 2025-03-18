@@ -137,21 +137,21 @@ def getBlobDiff(file1, file2):
         content = file.readlines()
     with open(file2) as sampleFile:
         sampleContent = sampleFile.readlines()
-    # ignore first line with memory address
-    i = -1
     curMaxDiff = 0
-    for sampleLine in sampleContent:
-        i = i + 1
+    for i, sampleLine in enumerate(sampleContent):
+        if i == 0:
+            # ignore first line with memory address
+            continue
         if i >= len(sampleContent):
             break
         line = content[i]
+        if "nan" in sampleLine.lower() or "nan" in line.lower():
+            import sys
+            return sys.float_info.max
         sampleVal = 0
         val = 0
-        try:
-            sampleVal = float(sampleLine)
-            val = float(line)
-        except ValueError:
-            continue
+        sampleVal = float(sampleLine)
+        val = float(line)
         if val != sampleVal:
             curMaxDiff = max(curMaxDiff, abs(val - sampleVal))
     return curMaxDiff
