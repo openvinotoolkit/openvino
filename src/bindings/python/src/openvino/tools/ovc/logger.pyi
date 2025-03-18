@@ -1,5 +1,5 @@
-from __future__ import annotations
 from copy import copy
+from __future__ import annotations
 import importlib as importlib
 import logging
 import logging as log
