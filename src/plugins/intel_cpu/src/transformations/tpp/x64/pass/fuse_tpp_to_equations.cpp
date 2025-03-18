@@ -83,8 +83,8 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
     replace_nodes(m, {}, node_replace_map);
     for (const auto& in : equation->inputs()) {
         auto subtensor = root_subtensor;
-        if (in.get_partial_shape().size() < 2) {
-            subtensor = {root_subtensor.back()};
+        if (in.get_partial_shape().size() < root_subtensor.size()) {
+            subtensor.resize(in.get_partial_shape().size());
         }
         ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(in, subtensor);
     }
