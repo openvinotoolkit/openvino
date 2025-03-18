@@ -61,7 +61,8 @@ Output<Node> normalize(const NodeContext& context,
             normalized = context.mark_node(std::make_shared<v1::Divide>(node, sqrt_n));
         }
     } else {
-        FRONT_END_THROW("Unrecognized normalization mode. Only forward, backward and ortho are supported.");
+        FRONT_END_THROW("Unrecognized normalization mode " + norm +
+                        ". Only forward, backward and ortho are supported.");
     }
     return normalized;
 }
@@ -112,7 +113,7 @@ std::tuple<Output<Node>, Output<Node>> get_dim_s(const NodeContext& context,
             dim = context.mark_node(std::make_shared<v4::Range>(const_0, input_rank_scalar, const_1, element::i32));
             break;
         default:
-            FRONT_END_THROW("Invalid FFT size.");
+            FRONT_END_THROW("Invalid FFT size: " + std::to_string(size));
         }
     }
     if (dim.get_partial_shape().rank().is_dynamic() || dim.get_partial_shape().rank().get_length() == 0) {
@@ -147,12 +148,12 @@ std::tuple<Output<Node>, Output<Node>> get_dim_s(const NodeContext& context,
 }
 
 template <typename T>
-OutputVector translate_fft_fft_base(const NodeContext& context,
-                                    int size,
-                                    bool complex_input,
-                                    bool complex_output,
-                                    bool inverse = false,
-                                    bool is_irfft = false) {
+OutputVector translate_fft_base(const NodeContext& context,
+                                int size,
+                                bool complex_input,
+                                bool complex_output,
+                                bool inverse = false,
+                                bool is_irfft = false) {
     num_inputs_check(context, 1, 4, true);
     auto input = context.get_input(0);
 
@@ -190,53 +191,53 @@ OutputVector translate_fft_fft_base(const NodeContext& context,
 }  // namespace
 
 OutputVector translate_fft_fft(const NodeContext& context) {
-    return translate_fft_fft_base<v7::DFT>(context, 1, true, true);
+    return translate_fft_base<v7::DFT>(context, 1, true, true);
 }
 
 OutputVector translate_fft_fft2(const NodeContext& context) {
-    return translate_fft_fft_base<v7::DFT>(context, 2, true, true);
+    return translate_fft_base<v7::DFT>(context, 2, true, true);
 }
 
 OutputVector translate_fft_fftn(const NodeContext& context) {
-    return translate_fft_fft_base<v7::DFT>(context, -1, true, true);
+    return translate_fft_base<v7::DFT>(context, -1, true, true);
 }
 
 OutputVector translate_fft_rfft(const NodeContext& context) {
-    return translate_fft_fft_base<v9::RDFT>(context, 1, false, true);
+    return translate_fft_base<v9::RDFT>(context, 1, false, true);
 }
 
 OutputVector translate_fft_rfft2(const NodeContext& context) {
-    return translate_fft_fft_base<v9::RDFT>(context, 2, false, true);
+    return translate_fft_base<v9::RDFT>(context, 2, false, true);
 }
 
 OutputVector translate_fft_rfftn(const NodeContext& context) {
     // aten::fft_rfftn(Tensor self, int[1]? s=None, int[1]? dim=None, str? norm=None) -> Tensor
-    return translate_fft_fft_base<v9::RDFT>(context, -1, false, true);
+    return translate_fft_base<v9::RDFT>(context, -1, false, true);
 }
 
 OutputVector translate_fft_ifft(const NodeContext& context) {
-    return translate_fft_fft_base<v7::IDFT>(context, 1, true, true, true);
+    return translate_fft_base<v7::IDFT>(context, 1, true, true, true);
 }
 
 OutputVector translate_fft_ifft2(const NodeContext& context) {
-    return translate_fft_fft_base<v7::IDFT>(context, 2, true, true, true);
+    return translate_fft_base<v7::IDFT>(context, 2, true, true, true);
 }
 
 OutputVector translate_fft_ifftn(const NodeContext& context) {
-    return translate_fft_fft_base<v7::IDFT>(context, -1, true, true, true);
+    return translate_fft_base<v7::IDFT>(context, -1, true, true, true);
 }
 
 OutputVector translate_fft_irfft(const NodeContext& context) {
-    return translate_fft_fft_base<v9::IRDFT>(context, 1, true, false, true, true);
+    return translate_fft_base<v9::IRDFT>(context, 1, true, false, true, true);
 }
 
 OutputVector translate_fft_irfft2(const NodeContext& context) {
-    return translate_fft_fft_base<v9::IRDFT>(context, 2, true, false, true, true);
+    return translate_fft_base<v9::IRDFT>(context, 2, true, false, true, true);
 }
 
 OutputVector translate_fft_irfftn(const NodeContext& context) {
     // aten::fft_irfftn(Tensor self, int[1]? s=None, int[1]? dim=None, str? norm=None) -> Tensor
-    return translate_fft_fft_base<v9::IRDFT>(context, -1, true, false, true, true);
+    return translate_fft_base<v9::IRDFT>(context, -1, true, false, true, true);
 }
 
 }  // namespace op
