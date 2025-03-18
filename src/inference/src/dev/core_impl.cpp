@@ -1565,10 +1565,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     update_config[ov::hint::model.name()] = cacheContent.model;
                 }
 
-                if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::model) &&
-                    cacheContent.model) {
-                    update_config[ov::hint::model.name()] = cacheContent.model;
-                }
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
                     util::Path weights_path;
 
@@ -1577,7 +1573,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                         weights_path = path_hint->second.as<std::string>();
                     } else if (weights_path = extract_weight_path(header.get_runtime_info()); weights_path.empty()) {
                         weights_path = cacheContent.modelPath;
-                        weights_path.replace_extension(".bin");
                     }
                     weights_path.replace_extension(".bin");
 
