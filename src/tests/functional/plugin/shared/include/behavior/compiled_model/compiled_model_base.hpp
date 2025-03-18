@@ -908,8 +908,8 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob_but_no_weights) {
 }
 
 TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_use_weight_hint) {
-    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
-    auto w_file_path = ov::util::path_join({cache_dir, utils::generateTestFilePrefix() + "_weights.bin"});
+    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "cache"});
+    auto w_file_path = ov::util::path_join({cache_dir, "weights.bin"});
     {
         // store weights in file, not same as in original model model
         std::filesystem::create_directories(cache_dir);
@@ -939,8 +939,8 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_use_weight_h
 }
 
 TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
-    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
-    auto w_file_path = ov::util::path_join({cache_dir, utils::generateTestFilePrefix() + "_weights.bin"});
+    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "cache"});
+    auto w_file_path = ov::util::path_join({cache_dir, "weights.bin"});
     {
         // store weights in file, not same as in original model model
         std::filesystem::create_directories(cache_dir);
@@ -974,13 +974,14 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    utils::removeFile(w_file_path.string());
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache) {
-    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
-    auto w_file_path = ov::util::path_join({cache_dir, utils::generateTestFilePrefix() + "_weights.bin"});
-    auto blob_file_path = cache_dir / (utils::generateTestFilePrefix() + "_export.blob");
+    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "cache"});
+    auto w_file_path = ov::util::path_join({cache_dir, "weights.bin"});
+    auto blob_file_path = cache_dir / "export.blob";
 
     {
         // store weights in file, not same as in original model model
@@ -1018,14 +1019,14 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache) {
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    utils::removeFile(blob_file_path.string());
-    utils::removeFile(w_file_path.string());
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weights_bind_from_model_hint) {
-    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
-    auto w_file_path = ov::util::path_join({cache_dir, utils::generateTestFilePrefix() + "_weights.bin"});
-    auto blob_file_path = cache_dir / (utils::generateTestFilePrefix() + "_export.blob");
+    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "cache"});
+    auto w_file_path = ov::util::path_join({cache_dir, "weights.bin"});
+    auto blob_file_path = cache_dir / "export.blob";
     std::filesystem::create_directories(cache_dir);
 
     {
@@ -1063,16 +1064,16 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    utils::removeFile(blob_file_path.string());
-    utils::removeFile(w_file_path.string());
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weights_from_model_path) {
-    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
-    auto model_file_path = cache_dir / ((utils::generateTestFilePrefix() + "_model.xml"));
+    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "cache"});
+    auto model_file_path = cache_dir / "model.xml";
     auto w_file_path = model_file_path;
     w_file_path.replace_extension(".bin");
-    auto blob_file_path = cache_dir / (utils::generateTestFilePrefix() + "_export.blob");
+    auto blob_file_path = cache_dir / "export.blob";
     std::filesystem::create_directories(cache_dir);
 
     auto model = make_model_with_weights();
@@ -1103,13 +1104,13 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    utils::removeFile(blob_file_path.string());
-    utils::removeFile(w_file_path.string());
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_load_from_cache) {
-    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
-    auto w_file_path = ov::util::path_join({cache_dir, utils::generateTestFilePrefix() + "_weights.bin"});
+    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "cache"});
+    auto w_file_path = ov::util::path_join({cache_dir, "weights.bin"});
 
     {
         // store weights in file, not same as in original model model
@@ -1145,12 +1146,13 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_load_from_cache) {
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    utils::removeFile(w_file_path.string());
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 
 TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weights) {
-    auto cache_dir = ov::util::Path(utils::getCurrentWorkingDir()) / "cache";
-    auto w_file_path = cache_dir / (utils::generateTestFilePrefix() + "_weights.bin");
+    auto cache_dir = ov::util::Path(utils::getCurrentWorkingDir()) / (utils::generateTestFilePrefix() + "cache");
+    auto w_file_path = cache_dir / "weights.bin";
     std::filesystem::create_directories(cache_dir);
 
     configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
@@ -1169,6 +1171,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weigh
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    utils::removeFile(w_file_path.string());
+    std::error_code ec;
+    std::filesystem::remove_all(cache_dir, ec);
 }
 }  // namespace ov::test::behavior
