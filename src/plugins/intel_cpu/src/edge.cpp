@@ -305,7 +305,7 @@ void Edge::allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& all
 void Edge::allocate(const void* mem_ptr) {
     auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
         auto parentPtr = getParent();
-        return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, mem_ptr, false);  // no pads zeroing
+        return std::make_shared<Memory>(inputDesc, mem_ptr, false);  // no pads zeroing
     };
 
     allocateCommon(allocateFunc);
@@ -318,7 +318,7 @@ void Edge::allocate(MemoryBlockPtr memBlock) {
 
     auto allocateFunc = [this, block = std::move(memBlock)](const MemoryDesc& inputDesc) mutable -> MemoryPtr {
         auto parentPtr = getParent();
-        return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, std::move(block));
+        return std::make_shared<Memory>(inputDesc, std::move(block));
     };
 
     allocateCommon(allocateFunc);
@@ -341,8 +341,7 @@ void Edge::externalAllocate(const WeightsSharing::Ptr& weightsCache) {
         auto alloc = [this]() {
             auto allocateFunc = [this](const MemoryDesc& inputDesc) -> MemoryPtr {
                 auto parentPtr = getParent();
-                return std::make_shared<StaticMemory>(parentPtr->getEngine(),
-                                                      inputDesc,
+                return std::make_shared<StaticMemory>(inputDesc,
                                                       nullptr,
                                                       false);  // no pads zeroing
             };

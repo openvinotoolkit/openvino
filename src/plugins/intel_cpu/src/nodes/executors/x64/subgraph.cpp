@@ -155,7 +155,7 @@ std::vector<MemoryPtr> SubgraphExecutor::separately_repack_inputs(const dnnl::st
 
         OPENVINO_ASSERT(in_idx < srcMemPtrs.size(), "Incorrect index of input repacked mem ptr");
         const auto& src_mem = srcMemPtrs[in_idx];
-        const auto& dst_mem = std::make_shared<Memory>(strm.get_engine(), desc, data_ptr, false);
+        const auto& dst_mem = std::make_shared<Memory>(desc, data_ptr, false);
 
         const auto* src = src_mem->getDataAs<const uint8_t>() + m_start_offset_in[in_idx];
         auto* dst = dst_mem->getDataAs<uint8_t>();

@@ -1586,7 +1586,7 @@ void FakeQuantize::prepareParams() {
 
             if (internalBlobMemory.empty() || needUpdThr) {
                 auto binarizationThresholdsDataMem =
-                    std::make_shared<Memory>(getEngine(), weightsDataDesc, getBinarizationTresholdsPtr());
+                    std::make_shared<Memory>(weightsDataDesc, getBinarizationTresholdsPtr());
                 if (internalBlobMemory.empty()) {
                     internalBlobMemory.push_back(binarizationThresholdsDataMem);
                 } else {
@@ -1596,7 +1596,7 @@ void FakeQuantize::prepareParams() {
 
             if (internalBlobMemory.size() == (numBinFqIntBlob - 1) || needUpdMask) {
                 auto binarizationMaskDataMem =
-                    std::make_shared<Memory>(getEngine(), weightsDataDesc, getBinarizationOutputMaskPtr());
+                    std::make_shared<Memory>(weightsDataDesc, getBinarizationOutputMaskPtr());
                 if (internalBlobMemory.size() == (numBinFqIntBlob - 1)) {
                     internalBlobMemory.push_back(binarizationMaskDataMem);
                 } else {
@@ -2053,7 +2053,7 @@ void FakeQuantize::appendMemory(const size_t dataSize,
                                 std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
         DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {dataSize});
-        memPtr = std::make_shared<Memory>(getEngine(), memoryDesc, data);
+        memPtr = std::make_shared<Memory>(memoryDesc, data);
 
         postOpsMem.push_back(memPtr);
     }

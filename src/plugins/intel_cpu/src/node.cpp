@@ -526,7 +526,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
             auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock);
             auto newMem =
-                std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memBlock);
+                std::make_shared<Memory>(selected_pd->getConfig().inConfs[i].getMemDesc(), memBlock);
             parentEdge->reuse(newMem);
         }
     }
@@ -547,7 +547,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
                                 " Unexpected inplace resolve call to an allocated edge: ",
                                 *childEdge);
                 auto newMem =
-                    std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memBlock);
+                    std::make_shared<Memory>(selected_pd->getConfig().outConfs[i].getMemDesc(), memBlock);
                 childEdge->reuse(newMem);
             }
         }
@@ -1107,9 +1107,9 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
 
     auto create = [&]() {
         auto newDesc = internalBlob->getDescPtr();
-        Memory memory{engine, newDesc, internalBlob->getData()};
+        Memory memory{newDesc, internalBlob->getData()};
 
-        MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
+        MemoryPtr _ptr = std::make_shared<Memory>(intDesc);
         node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
         return _ptr;
     };
@@ -1717,7 +1717,7 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         buffer.resize(elementsCount);
         cpu_convert(constBlob->getData(),
                     &buffer[0],
-                    DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
+                    constBlob->getPrecision(),
                     ov::element::f32,
                     elementsCount);
     };

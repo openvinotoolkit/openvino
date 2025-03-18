@@ -651,14 +651,14 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
     DnnlBlockedMemoryDesc dstMemoryDesc(dstShape,
                                         DnnlExtensionUtils::ElementTypeToDataType(dstPrc),
                                         dnnl::memory::format_tag::io);
-    auto dstMem = std::make_shared<Memory>(engine, dstMemoryDesc);
+    auto dstMem = std::make_shared<Memory>(dstMemoryDesc);
     auto srcFormat = needTranspose ? dnnl::memory::format_tag::oi : dnnl::memory::format_tag::io;
 
     DnnlBlockedMemoryDesc srcMemoryDesc(
         dstShape,
         DnnlExtensionUtils::ElementTypeToDataType(paramsPtr->getDescPtr()->getPrecision()),
         srcFormat);
-    auto srcMem = std::make_shared<Memory>(engine, srcMemoryDesc, paramsPtr->getData());
+    auto srcMem = std::make_shared<Memory>(srcMemoryDesc, paramsPtr->getData());
 
     dstMem->load(*srcMem, true, false);
     return dstMem;

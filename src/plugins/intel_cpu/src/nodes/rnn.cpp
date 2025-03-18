@@ -887,7 +887,7 @@ void RNN::fillWeights() {
         std::make_shared<DnnlBlockedMemoryDesc>(Shape(dims_w), targetWeightDataType, getWeightsFormatTagByDims(dims_w));
 
     auto create_w = [&]() {
-        MemoryPtr w_data_mem = std::make_shared<Memory>(getEngine(), w_data_desc);
+        MemoryPtr w_data_mem = std::make_shared<Memory>(w_data_desc);
         auto w_ptr = reinterpret_cast<DataType*>(w_data_mem->getData());
         if (w_ptr == nullptr) {
             THROW_CPU_NODE_ERR("has unallocated internal blob.");
@@ -925,7 +925,7 @@ void RNN::fillWeights() {
         std::make_shared<DnnlBlockedMemoryDesc>(Shape(dims_s), targetWeightDataType, getWeightsFormatTagByDims(dims_s));
 
     auto create_r = [&]() {
-        MemoryPtr w_state_mem = std::make_shared<Memory>(getEngine(), w_state_desc);
+        MemoryPtr w_state_mem = std::make_shared<Memory>(w_state_desc);
         auto r_ptr = reinterpret_cast<DataType*>(w_state_mem->getData());
         if (r_ptr == nullptr) {
             THROW_CPU_NODE_ERR("has unallocated internal blob.");
@@ -995,7 +995,7 @@ void RNN::fillBiases() {
         std::make_shared<DnnlBlockedMemoryDesc>(Shape(dims_b), dnnl_type, getWeightsFormatTagByDims(dims_b));
 
     auto create = [&]() {
-        MemoryPtr w_bias_data_mem = std::make_shared<Memory>(getEngine(), w_bias_data_desc);
+        MemoryPtr w_bias_data_mem = std::make_shared<Memory>(w_bias_data_desc);
         auto b_ptr = reinterpret_cast<DataType*>(w_bias_data_mem->getData());
         if (b_ptr == nullptr) {
             THROW_CPU_NODE_ERR("has unallocated internal blob.");

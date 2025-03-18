@@ -1475,13 +1475,13 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
                                                                  Shape(shape),
                                                                  permute_axes(shape, real_order),
                                                                  real_order);
-        auto new_internal_mem_k = std::make_shared<Memory>(getEngine(), mem_desc_k);
+        auto new_internal_mem_k = std::make_shared<Memory>(mem_desc_k);
         shape = reverse({B, H, (L0 + L1) * 2, SV});
         auto mem_desc_v = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
                                                                  Shape(shape),
                                                                  permute_axes(shape, real_order),
                                                                  real_order);
-        auto new_internal_mem_v = std::make_shared<Memory>(getEngine(), mem_desc_v);
+        auto new_internal_mem_v = std::make_shared<Memory>(mem_desc_v);
 
         PlainTensor new_pastk, new_pastv, old_past_k, old_past_v;
         new_pastk.reset(new_internal_mem_k);
@@ -1618,8 +1618,8 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
     {
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{B, (L0 + L1) * 2});
 
-        auto new_hidden_state_k = std::make_shared<Memory>(getEngine(), mem_desc);
-        auto new_hidden_state_v = std::make_shared<Memory>(getEngine(), mem_desc);
+        auto new_hidden_state_k = std::make_shared<Memory>(mem_desc);
+        auto new_hidden_state_v = std::make_shared<Memory>(mem_desc);
         PlainTensor new_beam_table_k, new_beam_table_v;
         new_beam_table_k.reset(new_hidden_state_k);
         new_beam_table_v.reset(new_hidden_state_v);
@@ -1704,8 +1704,8 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     if (B * (L0 + L1) > m_k_state->hidden_state_max_size()) {
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{B, (L0 + L1) * 2});
 
-        auto new_hidden_state_k = std::make_shared<Memory>(getEngine(), mem_desc);
-        auto new_hidden_state_v = std::make_shared<Memory>(getEngine(), mem_desc);
+        auto new_hidden_state_k = std::make_shared<Memory>(mem_desc);
+        auto new_hidden_state_v = std::make_shared<Memory>(mem_desc);
         PlainTensor new_beam_table_k, new_beam_table_v;
         new_beam_table_k.reset(new_hidden_state_k);
         new_beam_table_v.reset(new_hidden_state_v);
@@ -1854,7 +1854,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             auto real_shape = permute_axes(new_shape, real_order);
             auto mem_desc =
                 std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision, Shape(new_shape), real_shape, real_order);
-            return std::make_shared<Memory>(getEngine(), mem_desc);
+            return std::make_shared<Memory>(mem_desc);
         };
 
         auto new_internal_mem_k = new_memory(S);

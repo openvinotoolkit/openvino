@@ -974,7 +974,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
         CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");
 
         auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseDim, offset);
-        auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memBlock);
+        auto newMem = std::make_shared<Memory>(config.outConfs[outputPort].getMemDesc(), memBlock);
 
         childEdge->reuse(newMem);
     }

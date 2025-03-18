@@ -162,7 +162,7 @@ static MemoryPtr prepareWeightMemory(const std::vector<MemoryCPtr>& src, const E
     const auto N = src[1]->getStaticDims()[0];
 
     auto create = [&]() {
-        MemoryPtr newWei = std::make_shared<Memory>(context->getEngine(), src[1]->getDesc());
+        MemoryPtr newWei = std::make_shared<Memory>(src[1]->getDesc());
         if (src[0]->getDescPtr()->getPrecision() == element::Type_t::f16) {
             transpose_weights<ov::float16>(src[1], newWei, src[0]->getDescPtr()->hasLayoutType(LayoutType::ncsp));
         }

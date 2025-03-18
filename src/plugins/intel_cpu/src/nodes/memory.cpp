@@ -279,7 +279,7 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto memDesc = selected_pd->getConfig().inConfs.front().getMemDesc();
     memBlock = std::make_shared<ProxyMemoryBlock>();
-    auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
+    auto edgeMem = std::make_shared<Memory>(memDesc, memBlock);
     parentEdge->reuse(edgeMem);
 }
 
@@ -877,7 +877,7 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
                         "Unexpected inplace resolve call to an allocated edge: ",
                         *edge);
 
-        auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
+        auto edgeMem = std::make_shared<Memory>(memDesc, memBlock);
         edge->reuse(edgeMem);
     }
 }
@@ -899,8 +899,8 @@ MemStatePtr MemoryInput::makeState() const {
     }
 
     return std::make_shared<VariableStateDoubleBuffer>(state_name,
-                                                       std::make_shared<Memory>(eng, mem_desc),
-                                                       std::make_shared<Memory>(eng, mem_desc),
+                                                       std::make_shared<Memory>(mem_desc),
+                                                       std::make_shared<Memory>(mem_desc),
                                                        original_desc);
 }
 
@@ -1068,7 +1068,7 @@ MemStatePtr MemoryInputSingle::makeState() const {
     }
 
     return std::make_shared<VariableStateSingleBuffer>(state_name,
-                                                       std::make_shared<Memory>(eng, mem_desc),
+                                                       std::make_shared<Memory>(mem_desc),
                                                        original_desc);
 }
 

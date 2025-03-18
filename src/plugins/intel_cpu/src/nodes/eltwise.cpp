@@ -2119,7 +2119,7 @@ void Eltwise::fuseInto(NodePtr& parentNode) {
 void Eltwise::appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
         DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {data.size()});
-        memPtr = std::make_shared<Memory>(getEngine(), memoryDesc, data.data());
+        memPtr = std::make_shared<Memory>(memoryDesc, data.data());
         postOpsMem.push_back(memPtr);
     }
 }

@@ -1122,7 +1122,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
         if (!legacyOutputCompensationMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(ov::element::i32, {legacyOutputCompensation.size()});
             legacyOutputCompensationMemPtr =
-                std::make_shared<Memory>(getEngine(), memoryDesc, legacyOutputCompensation.data());
+                std::make_shared<Memory>(memoryDesc, legacyOutputCompensation.data());
         }
     }
 }

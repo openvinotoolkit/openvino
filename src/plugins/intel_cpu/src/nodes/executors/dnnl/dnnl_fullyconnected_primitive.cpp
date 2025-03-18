@@ -248,7 +248,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
             // introduces 128/8 as zero-points.
             uint8_t zp_value = (wei_precision == ov::element::i8) ? 128 : 8;
             DnnlBlockedMemoryDesc zpMemoryDesc(ov::element::u8, Shape({1}));
-            auto decompressionSubtractPtr = std::make_shared<Memory>(context->getEngine(), zpMemoryDesc, &zp_value);
+            auto decompressionSubtractPtr = std::make_shared<Memory>(zpMemoryDesc, &zp_value);
             dnnlpoc.appendDecompressionZeroPointsLegacy(decompressionSubtractPtr,
                                                         !attrs.weightsNonTransposed,
                                                         ov::element::u8);

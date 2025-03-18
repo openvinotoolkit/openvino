@@ -484,7 +484,7 @@ void Input::cloneBlobIfRequired() {
                 memory =
                     std::make_shared<StringMemory>(getEngine(), memDesc, m_constOp->get_data_ptr<element::string>());
             } else {
-                memory = std::make_shared<Memory>(getEngine(), memDesc, m_constOp->get_data_ptr());
+                memory = std::make_shared<Memory>(memDesc, m_constOp->get_data_ptr());
             }
         } else {
             if (m_constOp->get_element_type() == element::string) {
@@ -493,7 +493,7 @@ void Input::cloneBlobIfRequired() {
                 auto dst = memory->getDataAs<StringMemory::OvString>();
                 std::copy(src, src + size, dst);
             } else {
-                memory = std::make_shared<Memory>(getEngine(), memDesc);
+                memory = std::make_shared<Memory>(memDesc);
                 memcpy(memory->getData(), m_constOp->get_data_ptr(), m_constOp->get_byte_size());
             }
         }
@@ -539,7 +539,7 @@ void Input::cloneBlobIfRequired() {
         // original weights are stored.
         (!weightCache || context->getNumNumaNodes() == 1 || context->getCPUStreamExecutor()->get_streams_num() == 1);
 
-    memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(getEngine(), memDesc, m_constOp->get_data_ptr())
+    memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(memDesc, m_constOp->get_data_ptr())
                                     : std::const_pointer_cast<const IMemory>(
                                           weightCache ? *weightCache->findOrCreate(blobKey(), cloneBlob) : cloneBlob());
 }

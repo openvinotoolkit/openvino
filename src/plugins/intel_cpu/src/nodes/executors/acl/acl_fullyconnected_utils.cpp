@@ -88,8 +88,7 @@ std::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr
                 weightPrecision,
                 input->getSize() / input->getDesc().getPrecision().size());
 
-    return std::optional<MemoryPtr>(std::make_shared<Memory>(output->getDesc().cloneWithNewPrecision(weightPrecision),
-                                                             tmpBuff.data()));
+    return std::optional<MemoryPtr>(std::make_shared<Memory>(tmpBuff.data()));
 }
 
 std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& input,
@@ -118,9 +117,7 @@ std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& i
             dnnl::stream loc_stream(context->getEngine(), dnnl::stream::flags::in_order);
             auto src = DnnlExtensionUtils::createMemoryPrimitive(convertOutput, context->getEngine());
             auto dst = DnnlExtensionUtils::createMemoryPrimitive(output, context->getEngine());
-            reorderWithoutConvert.execute(
-                loc_stream,
-                {{DNNL_ARG_FROM, src}, {DNNL_ARG_TO, dst}});
+            reorderWithoutConvert.execute(loc_stream, {{DNNL_ARG_FROM, src}, {DNNL_ARG_TO, dst}});
             return std::optional<MemoryPtr>(output);
         }
     }
@@ -131,8 +128,8 @@ MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
                                        const DnnlMemoryDescPtr& dstWeightDesc,
                                        const MemoryCPtr& weightsMem,
                                        const ExecutorContext::CPtr& context) {
-    MemoryPtr input = std::make_shared<Memory>(context->getEngine(), srcWeightDesc, weightsMem->getData());
-    MemoryPtr output = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
+    MemoryPtr input = std::make_shared<Memory>(srcWeightDesc, weightsMem->getData());
+    MemoryPtr output = std::make_shared<Memory>(dstWeightDesc);
     if (!input->getDesc().isDefined() || !output->getDesc().isDefined()) {
         OPENVINO_THROW("Can't reorder data with dynamic shapes");
     }
@@ -168,8 +165,7 @@ MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
         dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
         auto src = DnnlExtensionUtils::createMemoryPrimitive(input, context->getEngine());
         auto dst = DnnlExtensionUtils::createMemoryPrimitive(output, context->getEngine());
-        directReorder.execute(loc_stream,
-                              {{DNNL_ARG_FROM, src}, {DNNL_ARG_TO, dst}});
+        directReorder.execute(loc_stream, {{DNNL_ARG_FROM, src}, {DNNL_ARG_TO, dst}});
     } else {
         OPENVINO_THROW("Could not make onednn reorder.");
     }
@@ -233,11 +229,9 @@ MemoryPtr acl_fc_executor::prepareWeightMemory(const MemoryArgs& memory,
         const auto& outDymmyDims =
             makeDummyOutputDims(inDymmyDims, wShape.getStaticDims(), memory.at(ARG_DST)->getShape().getRank());
         memoryArgs[ARG_SRC_0] =
-            std::make_shared<Memory>(context->getEngine(),
-                                     memory.at(ARG_SRC_0)->getDescPtr()->cloneWithNewDims(inDymmyDims));
+            std::make_shared<Memory>(memory.at(ARG_SRC_0)->getDescPtr()->cloneWithNewDims(inDymmyDims));
         memoryArgs[ARG_DST] =
-            std::make_shared<Memory>(context->getEngine(),
-                                     memory.at(ARG_DST)->getDescPtr()->cloneWithNewDims(outDymmyDims));
+            std::make_shared<Memory>(memory.at(ARG_DST)->getDescPtr()->cloneWithNewDims(outDymmyDims));
     } else {
         memoryArgs[ARG_SRC_0] = memory.at(ARG_SRC_0);
         memoryArgs[ARG_DST] = memory.at(ARG_DST);

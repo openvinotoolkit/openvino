@@ -606,7 +606,7 @@ SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type
 
     CpuBlockedMemoryDescPtr desc = std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{memDims});
 
-    auto memory = std::make_shared<Memory>(eng, desc, m_proxyMemBlock);
+    auto memory = std::make_shared<Memory>(desc, m_proxyMemBlock);
     m_tensor = std::make_shared<Tensor>(memory);
 }
 

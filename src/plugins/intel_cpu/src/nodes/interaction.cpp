@@ -310,7 +310,7 @@ void Interaction::prepareParams() {
     prim = matmul(matmul_pd);
     featureSizes.assign(inputSizes, featureSize);
     auto initMemoryPtr = [&](const ov::element::Type& prc, const intel_cpu::Shape& shape, MemoryPtr& ptr) {
-        ptr = std::make_shared<Memory>(getEngine(), intel_cpu::DnnlBlockedMemoryDesc(prc, shape));
+        ptr = std::make_shared<Memory>(intel_cpu::DnnlBlockedMemoryDesc(prc, shape));
     };
     initMemoryPtr(dataPrecision, intel_cpu::Shape{inputSizes, featureSize}, inputMemPtr);
     initMemoryPtr(dataPrecision, intel_cpu::Shape{inputShapes.size(), inputShapes.size()}, outputMemPtr);

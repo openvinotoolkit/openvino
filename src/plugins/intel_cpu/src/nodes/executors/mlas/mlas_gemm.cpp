@@ -43,8 +43,7 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
         auto* weightPtr = weightsMemory->getDataAs<float>();
         size_t ldb = weightsTransposed ? K : N;
 
-        MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine(),
-                                                  intel_cpu::CpuBlockedMemoryDesc(i8, intel_cpu::Shape{packedBsize}));
+        MemoryPtr _ptr = std::make_shared<Memory>(intel_cpu::CpuBlockedMemoryDesc(i8, intel_cpu::Shape{packedBsize}));
         auto* prepackedDst = _ptr->getDataAs<float>();
         DEBUG_LOG("MlasGemmExecutor: cache miss, perform packing");
         mlas_sgemm_pack(weightsTransposed ? "T" : "F", N, K, ldb, weightPtr, prepackedDst);

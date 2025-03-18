@@ -56,7 +56,7 @@ void VariableStateBase::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
 
     auto src = state->data();
 
-    Memory mem(get_engine(), state_desc, src);
+    Memory mem(state_desc, src);
     input_mem()->load(mem, true, false);
     reset_state_flag = false;
 }
@@ -80,7 +80,7 @@ ov::SoPtr<ov::ITensor> VariableStateBase::get_state() const {
         auto internal_prc = current_internal_desc->getPrecision();
         auto tmp_desc = current_ext_desc->cloneWithNewPrecision(internal_prc);
         if (tmp_desc->isCompatible(*current_internal_desc)) {
-            auto mem = std::make_shared<Memory>(get_engine(), current_ext_desc);
+            auto mem = std::make_shared<Memory>(current_ext_desc);
             size_t elements_to_convert =
                 internal_state_mem()->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             auto external_prc = current_ext_desc->getPrecision();
@@ -95,7 +95,7 @@ ov::SoPtr<ov::ITensor> VariableStateBase::get_state() const {
     }
 
     // reorder
-    auto mem = std::make_shared<Memory>(get_engine(), current_ext_desc);
+    auto mem = std::make_shared<Memory>(current_ext_desc);
     mem->load(*(internal_state_mem()), true, false);
     return std::make_shared<Tensor>(mem);
 }
@@ -224,7 +224,7 @@ VariableStateKVcache::VariableStateKVcache(const std::string& name,
 ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     if (!m_internal_mem || !m_hidden_state || is_reset_state()) {
         auto new_desc = to_static(get_external_desc());
-        auto external_mem = std::make_shared<Memory>(get_engine(), new_desc);
+        auto external_mem = std::make_shared<Memory>(new_desc);
         return std::make_shared<Tensor>(external_mem);
     }
 
@@ -232,7 +232,7 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     auto&& dims = actual_internal_desc->getShape().getStaticDims();
 
     auto actual_external_desc = get_external_desc()->cloneWithNewDims(dims);
-    auto external_mem = std::make_shared<Memory>(get_engine(), actual_external_desc);
+    auto external_mem = std::make_shared<Memory>(actual_external_desc);
 
     // let's assume 4th rank KV tensors. This may be extended later
     OPENVINO_ASSERT(actual_internal_desc->getShape().getRank() == 4);
@@ -304,8 +304,8 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     // May be optimized by reusing the state tensor underlining memory pointer, but corner cases should be considered
     auto dense_internal_desc = m_dense_internal_desc->cloneWithNewDims(state_desc->getShape().getStaticDims());
 
-    m_internal_mem = std::make_shared<Memory>(get_engine(), dense_internal_desc);
-    Memory external_mem(get_engine(), state_desc, m_state->data());
+    m_internal_mem = std::make_shared<Memory>(dense_internal_desc);
+    Memory external_mem(state_desc, m_state->data());
 
     if (dense_internal_desc->getPrecision() == element::u8) {
         PlainTensor external, internal;
@@ -369,7 +369,7 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     const size_t size_L = state_dims[order.at(0)];
     auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{size_B, size_L});
 
-    m_hidden_state = std::make_shared<Memory>(get_engine(), mem_desc);
+    m_hidden_state = std::make_shared<Memory>(mem_desc);
     auto buff = m_hidden_state->getDataAs<int>();
     for (size_t i = 0; i < size_B; ++i) {
         for (size_t j = 0; j < size_L; ++j) {
