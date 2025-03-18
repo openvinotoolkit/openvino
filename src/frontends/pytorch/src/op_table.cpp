@@ -19,6 +19,7 @@ namespace op {
 using namespace ov::frontend;
 
 // TorchScript translations
+OP_CONVERTER(translate_abs);
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_avg_pool2d);
 OP_CONVERTER(translate_adaptive_avg_pool1d);
@@ -63,7 +64,6 @@ OP_CONVERTER(translate_celu);
 OP_CONVERTER(translate_channel_shuffle);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_col2im);
-OP_CONVERTER(translate_complex);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
 OP_CONVERTER(translate_convnd);
@@ -87,6 +87,7 @@ OP_CONVERTER(translate_erf);
 OP_CONVERTER(translate_erfc);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
+OP_CONVERTER(translate_exp);
 OP_CONVERTER(translate_expm1);
 OP_CONVERTER(translate_eye);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine);
@@ -115,7 +116,6 @@ OP_CONVERTER(translate_hann_window);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
-OP_CONVERTER(translate_imag);
 OP_CONVERTER(translate_index);
 OP_CONVERTER(translate_index_add);
 OP_CONVERTER(translate_index_copy_);
@@ -201,13 +201,13 @@ OP_CONVERTER(translate_randn);
 OP_CONVERTER(translate_randint);
 OP_CONVERTER(translate_rand_like);
 OP_CONVERTER(translate_randn_like);
-OP_CONVERTER(translate_real);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
+OP_CONVERTER(translate_rms_norm);
 OP_CONVERTER(translate_rnn);
 OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
@@ -245,6 +245,7 @@ OP_CONVERTER(translate_triu);
 OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
+OP_CONVERTER(translate_unique2);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
 OP_CONVERTER(translate_upsample_bicubic2d_aa);
@@ -326,19 +327,18 @@ OP_CONVERTER(translate_sum_fx);
 OP_CONVERTER(translate_std_fx);
 OP_CONVERTER(translate_topk_fx);
 OP_CONVERTER(translate_to_fx);
-OP_CONVERTER(translate_transpose_fx);
 OP_CONVERTER(translate_quantize_per_channel_fx);
 OP_CONVERTER(translate_quantize_per_tensor_fx);
 OP_CONVERTER(translate_var_fx);
 OP_CONVERTER(translate_var_mean_fx);
 OP_CONVERTER(translate_unbind_int_fx);
-OP_CONVERTER(translate_unique2);
 OP_CONVERTER(translate_zeros_fx);
 OP_CONVERTER(translate_zeros_like_fx);
 // Extensions
 OP_CONVERTER(translate_conv1d_ext);
 OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
+OP_CONVERTER(translate_linear_ext);
 
 }  // namespace op
 
@@ -366,8 +366,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},
         {"aten::_upsample_bilinear2d_aa", op::translate_upsample_bilinear2d_aa},
         {"aten::_weight_norm", op::translate_weight_norm},
-        {"aten::abs", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Abs>, 1>},
-        {"aten::abs_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Abs>>},
+        {"aten::abs", op::optional_out<op::translate_abs, 1>},
+        {"aten::abs_", op::inplace_op<op::translate_abs>},
         {"aten::acos", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acos>, 1>},
         {"aten::acos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acos>>},
         {"aten::acosh",
@@ -475,8 +475,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::equal", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::erf", op::translate_erf},
         {"aten::erfc", op::translate_erfc},
-        {"aten::exp", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>, 1>},
-        {"aten::exp_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>>},
+        {"aten::exp", op::optional_out<op::translate_exp, 1>},
+        {"aten::exp_", op::inplace_op<op::translate_exp>},
         {"aten::expand", op::translate_expand},
         {"aten::expand_as", op::translate_expand_as},
         {"aten::expm1", op::translate_expm1},
@@ -639,6 +639,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // for real dtypes, these operations return input tensor without changes and can be skipped
         {"aten::resolve_conj", op::skip_node},
         {"aten::resolve_neg", op::skip_node},
+        {"aten::rms_norm", op::translate_rms_norm},
         {"aten::rnn_relu", op::translate_rnn},
         {"aten::rnn_tanh", op::translate_rnn},
         {"aten::roll", op::translate_roll},
@@ -724,7 +725,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"ov_ext::awq_gemm", op::translate_linear_awq},
         {"ov_ext::embedding", op::translate_embedding_ext},
         {"ov_ext::conv1d", op::translate_conv1d_ext},
-        {"ov_ext::linear", op::translate_linear},
+        {"ov_ext::linear", op::translate_linear_ext},
         {"prim::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"prim::Constant", op::translate_constant},
         {"prim::device", op::translate_constant},
@@ -963,6 +964,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.repeat.default", op::translate_repeat_fx},
+        {"aten.rms_norm.default", op::translate_rms_norm},
         {"aten.roll.default", op::translate_roll},
         {"aten.rsqrt.default", op::translate_rsqrt},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
