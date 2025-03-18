@@ -154,6 +154,12 @@ public:
     DQUnpackDictMatMulCWu(Context::Ref ctx);
 };
 
+class DQUnpackDictMatMulCWi8 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictMatMulCWi8");
+    DQUnpackDictMatMulCWi8(Context::Ref ctx);
+};
+
 class DQUnpackDictMatMulGQi : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictMatMulGQi");
