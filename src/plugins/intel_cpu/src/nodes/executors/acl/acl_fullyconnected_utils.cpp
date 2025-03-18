@@ -84,7 +84,7 @@ std::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr
     tmpBuff.resize(output->getSize());
     cpu_convert(data,
                 tmpBuff.data(),
-                DnnlExtensionUtils::DataTypeToElementType(input->getDataType()),
+                input->getPrecision(),
                 weightPrecision,
                 input->getSize() / input->getDesc().getPrecision().size());
 
@@ -94,10 +94,10 @@ std::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr
 std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& input,
                                                               const MemoryPtr& output,
                                                               const ExecutorContext::CPtr& context) {
-    if (output->getDataType() == input->getDataType()) {
+    if (output->getPrecision() == input->getPrecision()) {
         return {};
     }
-    const auto inPrc = DnnlExtensionUtils::DataTypeToElementType(input->getDataType());
+    const auto inPrc = input->getPrecision();
     auto convertedDstMemoryDesc = output->getDesc().cloneWithNewPrecision(inPrc);
     dnnl::reorder reorderWithoutConvert =
         getReorderPrim(context->getRuntimeCache(),

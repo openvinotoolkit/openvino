@@ -1004,14 +1004,14 @@ void RNN::fillBiases() {
         std::vector<DataType> ie_b_vec;
         DataType* ie_b_ptr = nullptr;
 
-        if (dnnl_type != b_const_blob->getDataType()) {
+        if (ET != b_const_blob->getPrecision()) {
             const size_t ie_b_vec_size = getInputShapeAtPort(bIdx).getElementsCount();
             ie_b_vec.resize(ie_b_vec_size);
             ie_b_ptr = ie_b_vec.data();
 
             cpu_convert(b_const_blob->getData(),
                         ie_b_ptr,
-                        DnnlExtensionUtils::DataTypeToElementType(b_const_blob->getDataType()),
+                        b_const_blob->getPrecision(),
                         ET,
                         ie_b_vec_size);
         } else {
