@@ -46,6 +46,8 @@ unresolved_names=(
     "VASurfaceTensorWrapper"
     "_abc._abc_data"
     "openvino._ov_api.undefined_deprecated"
+    "InputCutInfo"
+    "ParamData"
 )
 
 create_regex_pattern() {

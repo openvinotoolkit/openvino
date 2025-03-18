@@ -12,7 +12,7 @@ REM Invalid identifiers
 set "invalid_identifiers=<locals>"
 
 REM Unresolved names
-set "unresolved_names=InferRequestWrapper RemoteTensorWrapper capsule VASurfaceTensorWrapper _abc._abc_data openvino._ov_api.undefined_deprecated"
+set "unresolved_names=InferRequestWrapper RemoteTensorWrapper capsule VASurfaceTensorWrapper _abc._abc_data openvino._ov_api.undefined_deprecated  InputCutInfo ParamData"
 
 REM Function to escape characters for regex
 :escape_characters

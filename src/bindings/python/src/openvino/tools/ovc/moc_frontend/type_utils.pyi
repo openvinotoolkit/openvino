@@ -1,0 +1,10 @@
+from __future__ import annotations
+import numpy as np
+import openvino as ov
+from openvino._pyopenvino import Type
+import sys as sys
+__all__ = ['Type', 'is_type', 'np', 'ov', 'sys', 'to_ov_type']
+def is_type(val):
+    ...
+def to_ov_type(val):
+    ...

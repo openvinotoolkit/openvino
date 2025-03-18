@@ -15,7 +15,7 @@ from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.help import get_convert_model_help_specifics
 from openvino.tools.ovc.moc_frontend.shape_utils import to_partial_shape, is_shape_type
 from openvino.tools.ovc.moc_frontend.type_utils import to_ov_type, is_type
-from openvino.tools.ovc.utils import get_mo_root_dir, ParamData
+from openvino.tools.ovc.utils import get_mo_root_dir
 
 # Helper class for storing input cut information
 _InputCutInfo = namedtuple("InputCutInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
