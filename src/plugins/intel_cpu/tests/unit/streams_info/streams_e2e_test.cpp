@@ -8,6 +8,7 @@
 #include "cpu_map_scheduling.hpp"
 #include "remote_context.hpp"
 #include "cpu_streams_calculation.hpp"
+#include "plugin.h"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "os/cpu_map_info.hpp"
@@ -93,9 +94,25 @@ public:
             config.m_model_prefer_threads = test_data.input_model_prefer;
 
             config.finalize(remote_context.get(), nullptr);
-            ASSERT_EQ(test_data.output_stream_info_table, config.m_stream_executor_config.get_streams_info_table());
+            auto streams = config.get_num_streams();
+            ov::threading::IStreamsExecutor::Config stream_executor_config;
+            if (streams == 0) {
+                stream_executor_config = ov::threading::IStreamsExecutor::Config{"CPUStreamsExecutor", streams};
+            } else {
+                stream_executor_config = ov::threading::IStreamsExecutor::Config{"CPUStreamsExecutor",
+                                                                                 streams,
+                                                                                 0,
+                                                                                 ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                                 config.get_enable_cpu_reservation(),
+                                                                                 config.get_enable_cpu_pinning(),
+                                                                                 true,
+                                                                                 std::move(config.get_stream_info_table()),
+                                                                                 {},
+                                                                                 false};
+            }
+            ASSERT_EQ(test_data.output_stream_info_table, config.get_stream_info_table());
             ASSERT_EQ(test_data.output_proc_type_table, config.m_proc_type_table);
-            ASSERT_EQ(test_data.output_cpu_value, config.m_stream_executor_config.get_cpu_pinning());
+            ASSERT_EQ(test_data.output_cpu_value, config.get_enable_cpu_pinning());
             ASSERT_EQ(test_data.output_ht_value, config.get_enable_hyper_threading());
             ASSERT_EQ(test_data.output_type, config.get_scheduling_core_type());
             ASSERT_EQ(test_data.output_pm_hint, config.get_performance_mode());

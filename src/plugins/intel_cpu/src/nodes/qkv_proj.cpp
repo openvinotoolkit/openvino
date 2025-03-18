@@ -336,7 +336,7 @@ QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphCon
     std::string errorMessage;
 
     const auto& config = context->getConfig();
-    size_t concurrency = config.get_stream_executor_config().get_threads_per_stream();
+    size_t concurrency = context->getCPUStreamExecutor()->get_threads_per_stream();
     if (concurrency == 0) {
         concurrency = parallel_get_max_threads();
     }

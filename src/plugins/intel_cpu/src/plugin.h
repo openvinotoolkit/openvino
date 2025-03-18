@@ -49,6 +49,8 @@ public:
     }
 
 private:
+    ov::threading::IStreamsExecutor::Config createStreamExecutorConfig(const Config& config) const;
+
     Config m_plugin_config;
     const std::string deviceFullName;
     ov::AnyMap m_compiled_model_runtime_properties;

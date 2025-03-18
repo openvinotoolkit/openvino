@@ -944,7 +944,7 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
     runLptPasses(defaultPrecisions);
 }
 
-void Transformations::PostLpt() {
+void Transformations::PostLpt(int threads_per_stream) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PostLpt);
 
     ov::pass::Manager postLPTPassManager("CPU:PostLPT");
@@ -1007,7 +1007,7 @@ void Transformations::PostLpt() {
             },
             MLPFusion);
 
-        size_t concurrency = config.get_stream_executor_config().get_threads_per_stream();
+        size_t concurrency = threads_per_stream;
         if (concurrency == 0) {
             concurrency = parallel_get_max_threads();
         }
@@ -1062,7 +1062,7 @@ void Transformations::PostLpt() {
     postLPTPassManager.run_passes(model);
 }
 
-void Transformations::MainSnippets() {
+void Transformations::MainSnippets(int threads_per_stream) {
 // Disable MainSnippets for int8 models on arm platforms due to performance issues
 // Ticket: 163408
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
@@ -1099,7 +1099,7 @@ void Transformations::MainSnippets() {
     // To avoid situations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
     bool mha_token_enable_transpose_on_output = one_of(config.get_inference_precision(), element::f32, element::dynamic);
-    size_t concurrency = config.get_stream_executor_config().get_threads_per_stream();
+    size_t concurrency = threads_per_stream;
     if (concurrency == 0) {
         concurrency = parallel_get_max_threads();
     }
@@ -1429,7 +1429,7 @@ void Transformations::PostSnippets() {
     postSnippetsManager.run_passes(model);
 }
 
-void Transformations::Snippets() {
+void Transformations::Snippets(int threads_per_stream) {
     const bool useSnippets = config.get_snippets_mode() != SnippetsMode::DISABLE &&
                              CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
     if (!useSnippets) {
@@ -1437,7 +1437,7 @@ void Transformations::Snippets() {
     }
 
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Snippets);
-    MainSnippets();
+    MainSnippets(threads_per_stream);
     PostSnippets();
 }
 

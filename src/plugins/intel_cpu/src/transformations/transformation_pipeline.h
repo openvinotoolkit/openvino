@@ -28,8 +28,8 @@ public:
 
     void UpToLpt();
     void CpuSpecificOpSet();
-    void PostLpt();
-    void Snippets(void);
+    void PostLpt(int threads_per_stream);
+    void Snippets(int threads_per_stream);
 
 private:
     std::shared_ptr<ov::Model> model;
@@ -40,9 +40,9 @@ private:
     void Lpt(const std::vector<ov::element::Type>& defaultPrecisions);
     void runLptPasses(const std::vector<ov::element::Type>& defaultPrecisions);
 
-    void MainSnippets(void);
+    void MainSnippets(int threads_per_stream);
 
-    void PostSnippets(void);
+    void PostSnippets();
 
     bool is_decompression_multiply(const std::shared_ptr<const ov::Node>& node) const;
 

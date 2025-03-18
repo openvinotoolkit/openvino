@@ -148,6 +148,45 @@ Plugin::~Plugin() {
     executor_manager()->clear("CPUCallbackExecutor");
 }
 
+ov::threading::IStreamsExecutor::Config Plugin::createStreamExecutorConfig(const Config& config) const {
+    auto streams = config.get_num_streams();
+    if (streams == 0) {
+        return ov::threading::IStreamsExecutor::Config{"CPUStreamsExecutor", streams};
+    } else {
+        return ov::threading::IStreamsExecutor::Config{"CPUStreamsExecutor",
+                                                                           streams,
+                                                                           0,
+                                                                           ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                           config.get_enable_cpu_reservation(),
+                                                                           config.get_enable_cpu_pinning(),
+                                                                           true,
+                                                                           std::move(config.get_stream_info_table()),
+                                                                           {},
+                                                                           false};
+    }
+    // if (0 != streams || !is_set_by_user(ov::num_streams)) {
+    //     std::lock_guard<std::mutex> lock{ov::threading::_streams_executor_mutex};
+    //     m_proc_type_table = get_proc_type_table();
+    //     auto stream_info_table = generate_stream_info(streams, model);
+
+    //     // ???
+    //     auto threadsPerStream = m_stream_executor_config.get_threads_per_stream();
+
+    //     m_stream_executor_config = ov::threading::IStreamsExecutor::Config{"CPUStreamsExecutor",
+    //                                                                    streams,
+    //                                                                    threadsPerStream,
+    //                                                                    ov::hint::SchedulingCoreType::ANY_CORE,
+    //                                                                    get_enable_cpu_reservation(),
+    //                                                                    get_enable_cpu_pinning(),
+    //                                                                    true,
+    //                                                                    std::move(stream_info_table),
+    //                                                                    {},
+    //                                                                    false};
+    // } else {
+    //     m_stream_executor_config = ov::threading::IStreamsExecutor::Config{"CPUStreamsExecutor", streams};
+    // }
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
@@ -175,23 +214,24 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
-    Config config = m_plugin_config;
-    config.set_properties(properties, OptionVisibility::RELEASE);
+    Config compilation_config = m_plugin_config;
+    compilation_config.set_properties(properties, OptionVisibility::RELEASE);
 
-    Transformations transformations(cloned_model, config);
-
+    Config transformation_config = compilation_config;
+    transformation_config.finalize(get_default_context().get(), nullptr);
+    Transformations transformations(cloned_model, transformation_config);
     transformations.UpToLpt();
 
-    config.finalize(get_default_context().get(), model.get());
+    compilation_config.finalize(get_default_context().get(), model.get());
+    auto streamExecutorConfig = createStreamExecutorConfig(compilation_config);
 
     ov::AnyMap hints_props;
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
-    hints_props.insert({model_prefer_name, std::to_string(config.get_model_prefer_threads())});
+    hints_props.insert({model_prefer_name, std::to_string(compilation_config.get_model_prefer_threads())});
     cloned_model->set_rt_info(hints_props, "intel_cpu_hints_config");
 
-    transformations.PostLpt();
-    transformations.Snippets();
-
+    transformations.PostLpt(streamExecutorConfig.get_threads_per_stream());
+    transformations.Snippets(streamExecutorConfig.get_threads_per_stream());
     transformations.CpuSpecificOpSet();
 
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
@@ -215,7 +255,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         new_result.get_tensor().set_names(orig_result.get_tensor().get_names());
     }
 
-    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), config, false);
+    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), compilation_config, streamExecutorConfig, false);
 }
 
 void Plugin::set_property(const ov::AnyMap& config) {
@@ -340,6 +380,13 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
 #endif
     }
 
+    if (name == ov::optimal_number_of_infer_requests) {
+        auto config = m_plugin_config;
+        config.finalize(get_default_context().get(), nullptr);
+        return static_cast<decltype(ov::optimal_number_of_infer_requests)::value_type>(
+            config.get_num_streams());  // ov::optimal_number_of_infer_requests has no negative values
+    }
+
     if (name == ov::internal::compiled_model_runtime_properties.name()) {
         auto model_runtime_properties = ov::Any(m_compiled_model_runtime_properties);
         return decltype(ov::internal::compiled_model_runtime_properties)::value_type(
@@ -386,8 +433,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         [&](std::shared_ptr<ov::Model>& model) {
             Transformations transformation(model, config);
             transformation.UpToLpt();
-            transformation.PostLpt();
-            transformation.Snippets();
+            transformation.PostLpt(1);
+            transformation.Snippets(1);
             transformation.CpuSpecificOpSet();
         },
         [&](const std::shared_ptr<ov::Node>& op) {
@@ -450,8 +497,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     config.set_properties(_properties, OptionVisibility::RELEASE);
 
     config.finalize(get_default_context().get(), model.get());
+    auto streamExecutorConfig = createStreamExecutorConfig(config);
 
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, loaded_from_cache);
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, streamExecutorConfig, loaded_from_cache);
     return compiled_model;
 }
 

@@ -141,7 +141,7 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
         return supported_properties;
     }
 
-    void finalize_impl(const IRemoteContext* context, const ov::Model* model) override {
+    void finalize_impl(const IRemoteContext* context) override {
         if (!is_set_by_user(low_level_property)) {
             m_low_level_property.value = m_high_level_property.value;
         }

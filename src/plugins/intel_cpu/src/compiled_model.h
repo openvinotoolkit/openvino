@@ -35,6 +35,7 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   Config cfg,
+                  ov::threading::IStreamsExecutor::Config streamExecutorConfig,
                   const bool loaded_from_cache,
                   std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 

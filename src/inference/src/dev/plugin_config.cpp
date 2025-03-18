@@ -116,7 +116,7 @@ void PluginConfig::finalize(const IRemoteContext* context, const ov::Model* mode
         option->set_any(value);
     }
 
-    finalize_impl(context, model);
+    finalize_impl(context);
 
 #ifdef ENABLE_DEBUG_CAPS
     apply_env_options();

@@ -56,6 +56,7 @@ CompiledModel::~CompiledModel() {
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              Config cfg,
+                             ov::threading::IStreamsExecutor::Config streamExecutorConfig,
                              const bool loaded_from_cache,
                              std::shared_ptr<SubMemoryManager> sub_memory_manager)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
@@ -84,10 +85,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                              ov::hint::SchedulingCoreType::ANY_CORE,
                                                                              false,
                                                                              true}
-                                                          : m_cfg.get_stream_executor_config();
+                                                          : streamExecutorConfig;
         m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_config);
     }
-    if (0 != m_cfg.get_stream_executor_config().get_streams()) {
+    if (0 != streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0});
     } else {
@@ -136,9 +137,26 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         m_sub_memory_manager = std::make_shared<SubMemoryManager>(m_cfg.get_num_sub_streams());
         message->set_num_sub_streams(m_cfg.get_num_sub_streams());
         for (int i = 0; i < m_cfg.get_num_sub_streams(); i++) {
-            auto sub_cfg = m_cfg.clone(i, true);
+            auto sub_cfg = m_cfg.clone(1);
+
+            auto streams_info_table = sub_cfg.get_stream_info_table();
+            std::vector<std::vector<int>> sub_streams_table;
+            sub_streams_table.push_back(streams_info_table[i + 1]);
+            sub_streams_table[0][NUMBER_OF_STREAMS] = 1;
+            auto subStreamExecutorConfig =
+                ov::threading::IStreamsExecutor::Config{
+                    "CPUStreamsExecutor",
+                    1,
+                    1,
+                    ov::hint::SchedulingCoreType::ANY_CORE,
+                    false,
+                    true,
+                    true,
+                    std::move(sub_streams_table),
+                    sub_cfg.get_stream_rank_table()[i]};
+
             m_sub_compiled_models.push_back(
-                std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache, m_sub_memory_manager));
+                std::make_shared<CompiledModel>(model, plugin, sub_cfg, subStreamExecutorConfig, loaded_from_cache, m_sub_memory_manager));
         }
     }
 }
@@ -278,7 +296,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::loaded_from_cache)::value_type {m_loaded_from_cache};
     }
     if (name == ov::optimal_number_of_infer_requests) {
-        const auto streams = m_cfg.get_stream_executor_config().get_streams();
+        const auto streams = m_cfg.get_num_streams().num;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
             streams > 0 ? streams : 1);  // ov::optimal_number_of_infer_requests has no negative values
     }

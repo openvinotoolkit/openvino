@@ -20,7 +20,7 @@ struct Config : public ov::PluginConfig {
     explicit Config(const ov::AnyMap::value_type& property) : Config() { set_property(property); }
 
     Config clone() const;
-    Config clone(int sub_stream_idx, bool enable_node_split) const;
+    Config clone(int num_sub_streamst) const;
 
     Config(const Config& other);
     Config& operator=(const Config& other);
@@ -28,7 +28,7 @@ struct Config : public ov::PluginConfig {
     void set_properties(const ov::AnyMap& config, OptionVisibility allowed_visibility = OptionVisibility::ANY);
 
 private:
-    void finalize_impl(const IRemoteContext* context, const ov::Model* model) override;
+    void finalize_impl(const IRemoteContext* context) override;
     void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override;
     void apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info);
     void apply_cpu_rt_info(const ov::RTMap& rt_info);
@@ -38,9 +38,12 @@ private:
     void set_default_values();
     void apply_execution_hints();
     void apply_performance_hints();
-    void apply_threading_properties(const ov::Model* model);
+    void apply_threading_properties();
 
-    std::vector<std::vector<int>> generate_stream_info(int streams, const ov::Model* model);
+    int get_default_num_streams();
+    std::vector<std::vector<int>> get_default_proc_type_table();
+
+    std::vector<std::vector<int>> generate_stream_info(int streams);
 
     #include "config_options.inl"
 
@@ -49,18 +52,22 @@ public:
         return m_model_prefer_threads;
     }
 
-    const ov::threading::IStreamsExecutor::Config& get_stream_executor_config() const {
-        return m_stream_executor_config;
-    }
-
     int get_num_sub_streams() const {
         return m_num_sub_streams;
     }
 
+    const std::vector<std::vector<int>>& get_stream_rank_table() const {
+        return m_stream_rank_table;
+    }
+
+    const std::vector<std::vector<int>>& get_stream_info_table() const {
+        return m_stream_info_table;
+    }
+
 private:
-    ov::threading::IStreamsExecutor::Config m_stream_executor_config;
     int m_model_prefer_threads = -1;
-    std::vector<std::vector<int>> m_streams_rank_table = {};
+    std::vector<std::vector<int>> m_stream_rank_table = {};
+    std::vector<std::vector<int>> m_stream_info_table = {};
     int m_num_sub_streams = 0;
     std::vector<std::vector<int>> m_proc_type_table = {};
     int m_numa_node_id = -1;

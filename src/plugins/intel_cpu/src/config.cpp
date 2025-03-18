@@ -62,9 +62,10 @@ Config::Config(const Config& other) : Config() {
         m_options_map.at(kv.first)->set_any(kv.second->get_any());
     }
 
-    m_stream_executor_config = other.m_stream_executor_config;
+    // m_stream_executor_config = other.m_stream_executor_config;
     m_model_prefer_threads = other.m_model_prefer_threads;
-    m_streams_rank_table = other.m_streams_rank_table;
+    m_stream_rank_table = other.m_stream_rank_table;
+    m_stream_info_table = other.m_stream_info_table;
     m_num_sub_streams = other.m_num_sub_streams;
     m_proc_type_table = other.m_proc_type_table;
     m_numa_node_id = other.m_numa_node_id;
@@ -77,9 +78,10 @@ Config& Config::operator=(const Config& other) {
         m_options_map.at(kv.first)->set_any(kv.second->get_any());
     }
 
-    m_stream_executor_config = other.m_stream_executor_config;
+    // m_stream_executor_config = other.m_stream_executor_config;
     m_model_prefer_threads = other.m_model_prefer_threads;
-    m_streams_rank_table = other.m_streams_rank_table;
+    m_stream_rank_table = other.m_stream_rank_table;
+    m_stream_info_table = other.m_stream_info_table;
     m_num_sub_streams = other.m_num_sub_streams;
     m_proc_type_table = other.m_proc_type_table;
     m_numa_node_id = other.m_numa_node_id;
@@ -94,26 +96,9 @@ Config Config::clone() const {
 }
 
 
-Config Config::clone(int sub_stream_idx, bool enable_node_split) const {
+Config Config::clone(int num_sub_streamst) const {
     Config new_config = *this;
-
-    new_config.m_num_sub_streams = 1;
-    auto streams_info_table = new_config.m_stream_executor_config.get_streams_info_table();
-    std::vector<std::vector<int>> sub_streams_table;
-    sub_streams_table.push_back(streams_info_table[sub_stream_idx + 1]);
-    sub_streams_table[0][NUMBER_OF_STREAMS] = 1;
-    new_config.m_stream_executor_config =
-        ov::threading::IStreamsExecutor::Config{
-            "CPUStreamsExecutor",
-            1,
-            1,
-            ov::hint::SchedulingCoreType::ANY_CORE,
-            false,
-            true,
-            true,
-            std::move(sub_streams_table),
-            new_config.m_streams_rank_table[sub_stream_idx]};
-
+    new_config.m_num_sub_streams = num_sub_streamst;
     return new_config;
 }
 
@@ -152,9 +137,9 @@ void Config::apply_cpu_rt_info(const ov::RTMap& rt_info) {
     }
 }
 
-void Config::finalize_impl(const IRemoteContext* context, const ov::Model* model) {
+void Config::finalize_impl(const IRemoteContext* context) {
     apply_hints();
-    apply_threading_properties(model);
+    apply_threading_properties();
 
     if (!m_cache_encryption_callbacks.value.encrypt || !m_cache_encryption_callbacks.value.decrypt) {
         m_cache_encryption_callbacks.value.encrypt = codec_xor_str;
@@ -236,11 +221,9 @@ void Config::apply_execution_hints() {
         m_value_cache_precision = m_kv_cache_precision;
     }
 
-    if (!hasHardwareSupport(m_inference_precision)) {
+    if (!hasHardwareSupport(m_inference_precision) && m_inference_precision != ov::element::dynamic) {
         m_inference_precision = ov::element::f32;
     }
-
-
 
 #if defined(__APPLE__)
     m_enable_cpu_reservation = false;
@@ -254,91 +237,26 @@ void Config::apply_model_specific_options(const IRemoteContext* context, const o
     if (!is_set_by_user(ov::intel_cpu::model_type)) {
         m_model_type = getModelType(model.shared_from_this());
     }
+
+    if (-1 == m_model_prefer_threads) {
+        m_model_prefer_threads = calc_model_prefer_threads(get_default_num_streams(), get_default_proc_type_table(), model.shared_from_this());
+    }
 }
 
 void Config::apply_performance_hints() {
-    // if (is_set_by_user(ov::hint::performance_mode)) {
-    //     const auto mode = get_property(ov::hint::performance_mode);
-    //     if (!is_set_by_user(ov::num_streams)) {
-    //         if (mode == ov::hint::PerformanceMode::LATENCY) {
-    //             set_property(ov::num_streams(1));
-    //         } else if (mode == ov::hint::PerformanceMode::THROUGHPUT) {
-    //             set_property(ov::num_streams(ov::streams::AUTO));
-    //         }
-    //     }
-    // }
-
-    // if (get_property(ov::num_streams) == ov::streams::AUTO) {
-    //     int32_t n_streams = std::max<int32_t>(info.num_ccs, 2);
-    //     set_property(ov::num_streams(n_streams));
-    // }
-
-    // if (get_property(ov::internal::exclusive_async_requests)) {
-    //     set_property(ov::num_streams(1));
-    // }
-
-    // // Allow kernels reuse only for single-stream scenarios
-    // if (get_property(ov::intel_gpu::hint::enable_kernels_reuse)) {
-    //     if (get_property(ov::num_streams) != 1) {
-    //         set_property(ov::intel_gpu::hint::enable_kernels_reuse(false));
-    //     }
-    // }
 }
 
-void Config::apply_threading_properties(const ov::Model* model) {
-#if defined(OV_CPU_WITH_SHL)
-    // TODO: multi-stream execution is unsafe when SHL is used:
-    //       The library uses global static variables as flags and counters.
-    streams = 1;
-#else
-    // int streams_set
-    int streams = get_num_streams();
-    if (get_exclusive_async_requests()) {
-        streams = 1;
-    } else if (streams == ov::streams::NUMA) {
-        streams = ov::get_num_numa_nodes();
-    } else if (streams == ov::streams::AUTO) {
-        // bare minimum of streams (that evenly divides available number of cores)
-        streams = ov::threading::IStreamsExecutor::Config::get_default_num_streams();
-    }
-#endif
-
-    // if (is_set_by_user(ov::num_streams) && streams_set > 0) {
-    //     streams = streams_set;
-    // } else if (get_performance_mode() == ov::hint::PerformanceMode::LATENCY) {
-    //     streams = 1;
-    // } else if (get_performance_mode() == ov::hint::PerformanceMode::THROUGHPUT) {
-    //     streams = 0;
-    // } else {
-    //     streams = streams_set == 1 ? 0 : streams_set;
-    // }
-
-    if (!(0 == streams && is_set_by_user(ov::num_streams))) {
-        std::lock_guard<std::mutex> lock{ov::threading::_streams_executor_mutex};
-        m_proc_type_table = get_proc_type_table();
-        auto stream_info_table = generate_stream_info(streams, model);
-
-        // ???
-        auto threadsPerStream = m_stream_executor_config.get_threads_per_stream();
-
-        m_stream_executor_config = ov::threading::IStreamsExecutor::Config{"CPUStreamsExecutor",
-                                                                       streams,
-                                                                       threadsPerStream,
-                                                                       ov::hint::SchedulingCoreType::ANY_CORE,
-                                                                       get_enable_cpu_reservation(),
-                                                                       get_enable_cpu_pinning(),
-                                                                       true,
-                                                                       std::move(stream_info_table),
-                                                                       {},
-                                                                       false};
-    } else {
-        m_stream_executor_config = ov::threading::IStreamsExecutor::Config{"CPUStreamsExecutor", streams};
+void Config::apply_threading_properties() {
+    auto streams = get_default_num_streams();
+    if (0 != streams || !is_set_by_user(ov::num_streams)) {
+        m_proc_type_table = get_default_proc_type_table();
+        m_stream_info_table = generate_stream_info(streams);
     }
 
     m_num_streams = ov::streams::Num(streams);
 }
 
-std::vector<std::vector<int>> Config::generate_stream_info(int streams, const ov::Model* model) {
+std::vector<std::vector<int>> Config::generate_stream_info(int streams) {
 #if defined(__APPLE__)
     // CPUStreamExecutor doesn't support CPU reservation on Mac
     config.set_user_property(ov::hint::enable_cpu_reservation(false));
@@ -353,10 +271,6 @@ std::vector<std::vector<int>> Config::generate_stream_info(int streams, const ov
                                             is_set_by_user(ov::hint::enable_hyper_threading),
                                             ov::util::to_string(get_performance_mode()),
                                             m_proc_type_table);
-
-    if (-1 == m_model_prefer_threads && model) {
-        m_model_prefer_threads = calc_model_prefer_threads(streams, m_proc_type_table, model->shared_from_this());
-    }
 
     if (m_proc_type_table.size() > 1) {
         const auto cur_numa_node_id = m_numa_node_id < 0 ? get_current_numa_node_id() : m_numa_node_id;
@@ -379,7 +293,7 @@ std::vector<std::vector<int>> Config::generate_stream_info(int streams, const ov
 
     auto modelDistributionPolicy = get_model_distribution_policy();
     if (modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) != modelDistributionPolicy.end()) {
-        m_streams_rank_table = get_streams_rank_table(streams_info_table, 1, m_num_sub_streams);
+        m_stream_rank_table = get_streams_rank_table(streams_info_table, 1, m_num_sub_streams);
     }
 
     m_enable_cpu_pinning = check_cpu_pinning(get_enable_cpu_pinning(),
@@ -388,6 +302,41 @@ std::vector<std::vector<int>> Config::generate_stream_info(int streams, const ov
                                             streams_info_table);
 
     return streams_info_table;
+}
+
+int Config::get_default_num_streams() {
+#if defined(OV_CPU_WITH_SHL)
+    // TODO: multi-stream execution is unsafe when SHL is used:
+    //       The library uses global static variables as flags and counters.
+    return 1;
+#else
+    // int streams_set
+    auto streams = get_property(ov::num_streams.name()).as<ov::streams::Num>();
+    if (get_exclusive_async_requests()) {
+        return 1;
+    } else if (streams == ov::streams::NUMA) {
+        return ov::get_num_numa_nodes();
+    } else if (streams == ov::streams::AUTO) {
+        // bare minimum of streams (that evenly divides available number of cores)
+        return ov::threading::IStreamsExecutor::Config::get_default_num_streams();
+    }
+#endif
+    // if (is_set_by_user(ov::num_streams) && streams_set > 0) {
+    //     streams = streams_set;
+    // } else if (get_performance_mode() == ov::hint::PerformanceMode::LATENCY) {
+    //     streams = 1;
+    // } else if (get_performance_mode() == ov::hint::PerformanceMode::THROUGHPUT) {
+    //     streams = 0;
+    // } else {
+    //     streams = streams_set == 1 ? 0 : streams_set;
+    // }
+
+    return streams.num;
+}
+
+std::vector<std::vector<int>> Config::get_default_proc_type_table() {
+    std::lock_guard<std::mutex> lock{ov::threading::_streams_executor_mutex};
+    return get_proc_type_table();
 }
 
 }  // namespace ov::intel_cpu

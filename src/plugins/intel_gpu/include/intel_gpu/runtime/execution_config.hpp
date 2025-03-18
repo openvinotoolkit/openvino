@@ -34,7 +34,7 @@ struct ExecutionConfig : public ov::PluginConfig {
     const ov::AnyMap& get_user_properties() const { return m_user_properties; }
 
 protected:
-    void finalize_impl(const IRemoteContext* context, const ov::Model* model) override;
+    void finalize_impl(const IRemoteContext* context) override;
     void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override;
     void apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm);
 
