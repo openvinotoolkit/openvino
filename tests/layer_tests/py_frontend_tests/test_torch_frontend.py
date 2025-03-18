@@ -455,7 +455,7 @@ def test_multiple_module_extension():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Convert", "Convert", "Cos", "Relu", "Constant", "Convert", "Multiply", "Add", "Result"]
+        "Parameter", "Convert", "Convert", "Cos", "Constant", "Convert", "Relu", "Multiply", "Add", "Result"]
 
     converted_model = convert_model(model, example_input=(
         torch.randn(100),), extension=[ModuleExtension(CosModel, "aten::sin"), ModuleExtension(model.relu_module, "aten::tan")])
