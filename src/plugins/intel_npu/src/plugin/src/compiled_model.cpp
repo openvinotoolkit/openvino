@@ -124,10 +124,6 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    if (_config.get<SEPARATE_WEIGHTS_VERSION>() != 0) {
-        _graph->custom_export(stream, _initGraph, _initModel);
-        return;
-    }
 
     size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
     auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning,
