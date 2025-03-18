@@ -66,61 +66,6 @@ size_t DriverGraph::export_blob(std::ostream& stream) const {
     return blobSize;
 }
 
-void DriverGraph::custom_export(std::ostream& stream,
-                                const std::shared_ptr<IGraph> initGraph,
-                                const std::shared_ptr<ov::Model> initModel) const {
-    const uint8_t* initBlobPtr = nullptr;
-    const uint8_t* mainBlobPtr = nullptr;
-    size_t initBlobSize = -1;
-    size_t mainBlobSize = -1;
-    std::vector<uint8_t> initBlob;
-    std::vector<uint8_t> mainBlob;
-
-    if (_blobIsReleased) {
-        OPENVINO_THROW("Model was imported (not compiled) by the plugin. Model export is forbidden in this case!");
-    }
-
-    _zeGraphExt->getGraphBinary(initGraph->get_handle(), initBlob, initBlobPtr, initBlobSize);
-    _zeGraphExt->getGraphBinary(_handle, mainBlob, mainBlobPtr, mainBlobSize);
-
-    std::stringstream xmlContent;
-    std::stringstream binContent;
-
-    ov::pass::Manager manager("SaveModel");
-    manager.register_pass<ov::pass::Serialize>(xmlContent, binContent);
-    manager.run_passes(initModel);
-
-    xmlContent.seekg(0, std::ios::end);
-    uint32_t xmlSize = static_cast<uint32_t>(xmlContent.tellp());
-    xmlContent.seekg(0, std::ios::beg);
-    binContent.seekg(0, std::ios::end);
-    uint32_t binSize = static_cast<uint32_t>(binContent.tellp());
-    binContent.seekg(0, std::ios::beg);
-
-    stream << xmlSize;
-    stream << xmlContent.rdbuf();
-
-    stream << binSize;
-    stream << binContent.rdbuf();
-
-    stream << static_cast<uint32_t>(mainBlobSize);
-    stream.write(reinterpret_cast<const char*>(mainBlobPtr), mainBlobSize);
-
-    stream << static_cast<uint32_t>(initBlobSize);
-    stream.write(reinterpret_cast<const char*>(initBlobPtr), initBlobSize);
-
-    if (!stream) {
-        _logger.error("Write blob to stream failed. Blob is broken!");
-    } else {
-        if (_logger.level() >= ov::log::Level::INFO) {
-            std::stringstream str;
-            str << "Blob size: " << mainBlobSize + initBlobSize + 4 * sizeof(uint32_t) + xmlSize + binSize << std::endl;
-            _logger.info(str.str().c_str());
-        }
-        _logger.info("Write blob to stream successfully.");
-    }
-}
-
 std::vector<ov::ProfilingInfo> DriverGraph::process_profiling_output(const std::vector<uint8_t>& profData,
                                                                      const Config& config) const {
     OPENVINO_THROW("Profiling post-processing is not supported.");

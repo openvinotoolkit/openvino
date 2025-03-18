@@ -412,6 +412,13 @@ std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std:
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
 
+    if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {
+        OPENVINO_THROW("Minimum compiler version required for weights separation: 6.3. Found: ",
+                       compilerVersion.major,
+                       ".",
+                       compilerVersion.minor);
+    }
+
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
