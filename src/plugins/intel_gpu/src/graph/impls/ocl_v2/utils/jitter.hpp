@@ -8,17 +8,17 @@
 #include <string>
 
 #include "common_utils/dispatch_utils.hpp"
-#include "common_utils/jitter.hpp"
 #include "common_utils/jit_term.hpp"
+#include "common_utils/jitter.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_gpu::ocl {
 
-using cldnn::layout;
-using cldnn::format;
 using cldnn::activation_func;
+using cldnn::format;
+using cldnn::layout;
 
 template <typename T>
 inline std::string get_ocl_type_name() {
@@ -108,7 +108,6 @@ public:
 private:
     void make_definitions(const layout& l, size_t shape_info_offset);
 };
-
 
 inline JitTerm make_type(ov::element::Type dt, size_t vec_size = 1) {
     if (vec_size > 1) {

@@ -5,7 +5,7 @@
 #include "kernel_generator_base.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include "micro_utils.hpp"
+#    include "micro_utils.hpp"
 #endif
 
 #include <cctype>

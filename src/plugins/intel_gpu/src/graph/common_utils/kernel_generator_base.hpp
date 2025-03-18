@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <type_traits>
+
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"

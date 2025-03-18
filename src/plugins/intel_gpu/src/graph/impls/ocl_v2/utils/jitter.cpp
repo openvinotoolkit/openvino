@@ -543,9 +543,7 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
         break;
     case activation_func::relu_negative_slope: {
         const JitTerm slope = convert_to_type("m"_jit, calc_dt);
-        jit.add(make_jit_constant(
-            macro_def,
-            ternary(isinf(slope), ternary(input.ge(zero), input, neg(slope)), max(input, zero) + (slope * min(input, zero)))));
+        jit.add(make_jit_constant(macro_def, ternary(isinf(slope), ternary(input.ge(zero), input, neg(slope)), max(input, zero) + (slope * min(input, zero)))));
         break;
     }
     case activation_func::elu: {
