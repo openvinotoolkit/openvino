@@ -177,7 +177,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"RightShift", CreatorFunction(translate_binary_op<v15::BitwiseRightShift>)},
         {"LeftShift", CreatorFunction(translate_binary_op<v15::BitwiseLeftShift>)},
         {"Div", CreatorFunction(translate_div_op)},
-        {"Equal", CreatorFunction(translate_binary_op<v1::Equal>)},
+        {"Equal", CreatorFunction(translate_equal_op)},
         {"FloorMod", CreatorFunction(translate_binary_op<v1::FloorMod>)},
         {"Greater", CreatorFunction(translate_binary_op<v1::Greater>)},
         {"GreaterEqual", CreatorFunction(translate_binary_op<v1::GreaterEqual>)},
