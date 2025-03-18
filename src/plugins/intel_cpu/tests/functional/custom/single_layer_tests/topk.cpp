@@ -102,7 +102,11 @@ protected:
             inPrc = outPrc = netPrecision;
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        selectedType = getPrimitiveType() + "_" + ov::element::Type(netPrecision).get_type_name();
+        if (!ov::with_cpu_x86_avx512_core() && netPrecision == ElementType::bf16) {
+            selectedType = makeSelectedTypeStr(getPrimitiveType(), ElementType::f32);
+        } else {
+            selectedType = makeSelectedTypeStr(getPrimitiveType(), netPrecision);
+        }
 
         staticShape = inputShape.first.rank() == 0;
         if (staticShape) {
