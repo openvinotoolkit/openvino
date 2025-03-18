@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "openvino/core/version.hpp"
 
@@ -33,6 +34,8 @@ public:
     virtual bool is_compatible() = 0;
 
     virtual uint64_t get_blob_size() const = 0;
+
+    virtual std::vector<uint64_t> get_init_sizes() const = 0;
 
     virtual ~MetadataBase() = default;
 
@@ -76,11 +79,12 @@ constexpr std::string_view MAGIC_BYTES = "OVNPU";
  * @brief List of supported version formats.
  */
 constexpr uint32_t METADATA_VERSION_2_0{MetadataBase::make_version(2, 0)};
+constexpr uint32_t METADATA_VERSION_2_1{MetadataBase::make_version(2, 1)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_0};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_1};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -166,6 +170,31 @@ public:
     bool is_compatible() override;
 
     uint64_t get_blob_size() const override;
+
+    std::vector<uint64_t> get_init_sizes() const override;
+};
+
+template <>
+struct Metadata<METADATA_VERSION_2_1> : public MetadataBase {
+protected:
+    OpenvinoVersion _ovVersion;
+    uint64_t _blobDataSize;
+    std::vector<uint64_t> _initSizes;
+
+public:
+    Metadata(uint64_t blobSize,
+             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
+             const std::vector<uint64_t> initSizes = std::vector<uint64_t>());
+
+    void read(std::istream& stream) override;
+
+    void write(std::ostream& stream) override;
+
+    bool is_compatible() override;
+
+    uint64_t get_blob_size() const override;
+
+    std::vector<uint64_t> get_init_sizes() const override;
 };
 
 /**

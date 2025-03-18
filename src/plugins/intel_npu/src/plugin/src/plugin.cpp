@@ -35,6 +35,8 @@ namespace {
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
+constexpr std::string_view WEIGHTS_EXTENSION = ".bin";
+constexpr std::string_view XML_EXTENSION = ".xml";
 
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
@@ -952,79 +954,90 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
         uint64_t graphSize;
+        std::vector<uint64_t> initSizes;
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
-        if (localConfig.get<SEPARATE_WEIGHTS_VERSION>() == 0) {
-            if (!skipCompatibility) {
-                auto storedMeta = read_metadata_from(stream);
-                if (!storedMeta->is_compatible()) {
-                    OPENVINO_THROW("Incompatible blob version!");
-                }
-
-                graphSize = storedMeta->get_blob_size();
-            } else {
-                _logger.info("Blob compatibility check skipped.");
-                graphSize = MetadataBase::getFileSize(stream);
+        if (!skipCompatibility) {
+            auto storedMeta = read_metadata_from(stream);
+            if (!storedMeta->is_compatible()) {
+                OPENVINO_THROW("Incompatible blob version!");
             }
 
-            std::unique_ptr<BlobContainer> blobPtr;
+            graphSize = storedMeta->get_blob_size();
+            initSizes = storedMeta->get_init_sizes();
+        } else {
+            _logger.info("Blob compatibility check skipped.");
+            graphSize = MetadataBase::getFileSize(stream);
+        }
 
-            if (modelBuffer == nullptr) {
-                std::vector<uint8_t> blob(graphSize);
-                stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
-                if (!stream) {
-                    OPENVINO_THROW("Failed to read data from stream!");
-                }
-                _logger.debug("Successfully read %zu bytes into blob.", graphSize);
+        std::unique_ptr<BlobContainer> blobPtr;
 
-                blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
-            } else {
-                blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
+        if (modelBuffer == nullptr) {
+            std::vector<uint8_t> blob(graphSize);
+            stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
+            if (!stream) {
+                OPENVINO_THROW("Failed to read data from stream!");
             }
+            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-            auto graph = compiler->parse(std::move(blobPtr), localConfig);
-            graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+            blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
+        } else {
+            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
+        }
 
+        auto graph = compiler->parse(std::move(blobPtr), localConfig);
+        graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+
+        if (initSizes.empty()) {
             const std::shared_ptr<ov::Model> modelDummy =
                 create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
-
             compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
         } else {
-            uint32_t xmlSize;
-            uint32_t binSize;
-            uint32_t blobSize;
-            uint32_t initBlobSize;
-            std::string xml;
+            // Read the init compiled models as well
+            // TODO adjust for multiple init parts
+            std::vector<std::shared_ptr<IGraph>> initGraphs;
+            for (uint64_t initSize : initSizes) {
+                if (modelBuffer == nullptr) {
+                    std::vector<uint8_t> blob(initSize);
+                    stream.read(reinterpret_cast<char*>(blob.data()), initSize);
+                    if (!stream) {
+                        OPENVINO_THROW("Failed to read data from stream!");
+                    }
+                    _logger.debug("Successfully read %zu bytes into init blob.", initSize);
 
-            stream >> xmlSize;
-            xml.resize(xmlSize);
-            stream.read(xml.data(), xmlSize);
+                    blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
+                } else {
+                    blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
+                }
 
-            stream >> binSize;
-            ov::Tensor weightsTensor(ov::element::Type_t::u8, ov::Shape({binSize}));
-            stream.read(reinterpret_cast<char*>(weightsTensor.data()), binSize);
+                std::shared_ptr<IGraph> initGraph = compiler->parse(std::move(blobPtr), localConfig);
+                initGraph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+                initGraphs.push_back(initGraph);
+            }
 
-            const std::shared_ptr<ov::Model> initModel = get_core()->read_model(xml, weightsTensor);
+            // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
+            std::shared_ptr<ov::Model> originalModel;
+            if (!localConfig.get<MODEL_PTR>().empty()) {
+                originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>();
+            } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
+                const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
+                const size_t weightsPathLength = weightsPath.length();
+                if (weightsPathLength < WEIGHTS_EXTENSION.length() ||
+                    !weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                         WEIGHTS_EXTENSION.length(),
+                                         WEIGHTS_EXTENSION)) {
+                    OPENVINO_THROW("Invalid path to the weights: ",
+                                   weightsPath,
+                                   ". A \".bin\" extension was expected.");
+                }
 
-            stream >> blobSize;
-            std::vector<uint8_t> blob(blobSize);
-            stream.read(reinterpret_cast<char*>(blob.data()), blobSize);
-
-            stream >> initBlobSize;
-            std::vector<uint8_t> initBlob(initBlobSize);
-            stream.read(reinterpret_cast<char*>(initBlob.data()), initBlobSize);
-
-            std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-            auto initGraph =
-                compiler->parse(std::make_unique<BlobContainerVector>(std::move(std::move(initBlob))), localConfig);
-            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-            std::cout << "Init compiler->parse "
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
-                      << std::endl;
-
-            initGraph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
-            auto graph =
-                compiler->parse(std::make_unique<BlobContainerVector>(std::move(std::move(blob))), localConfig);
-            graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+                std::string xmlPath = weightsPath;
+                xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                WEIGHTS_EXTENSION.length(),
+                                WEIGHTS_EXTENSION);
+                originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
+            } else {
+                OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
+            }
 
             if (!localConfig.get<BENCHMARK_INIT>()) {
                 const std::shared_ptr<ov::Model> modelDummy =
@@ -1034,13 +1047,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                                                                 device,
                                                                 graph,
                                                                 localConfig,
-                                                                initGraph,
-                                                                initModel);
+                                                                initGraphs[0],
+                                                                originalModel);
             } else {
-                const std::shared_ptr<ov::Model> modelDummy =
-                    create_dummy_model(initGraph->get_metadata().inputs, initGraph->get_metadata().outputs, true);
+                const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(initGraphs[0]->get_metadata().inputs,
+                                                                                 initGraphs[0]->get_metadata().outputs,
+                                                                                 true);
                 compiledModel =
-                    std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, initGraph, localConfig);
+                    std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, initGraphs[0], localConfig);
             }
         }
     } catch (const std::exception& ex) {
