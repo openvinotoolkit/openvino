@@ -1233,10 +1233,11 @@ void Transformations::MainSnippets() {
 
     auto is_supported_op = [](const std::shared_ptr<const ov::Node>& n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
-        // Power on ARM64 only supports jit_power_static_emitter
+        // Power on ARM64 only supports power and swish with scalar second inputs
         auto is_supported_with_scalar_inputs = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type<ov::op::v1::Power>(n) && n->inputs().size() > 1 &&
-                    !ov::is_type<ov::snippets::op::Scalar>(n->get_input_node_shared_ptr(1)));
+            return (ov::is_type_any_of<const ov::op::v1::Power, const ov::op::v4::Swish>(n) &&
+                n->inputs().size() > 1 &&
+                ov::snippets::utils::is_scalar_constant(n->get_input_node_shared_ptr(1)));
         };
         auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
             return (ov::is_type_any_of<ov::op::v0::Abs,
@@ -1269,7 +1270,6 @@ void Transformations::MainSnippets() {
                 ov::op::v0::Sigmoid,
                 ov::op::v0::Sqrt,
                 ov::op::v1::Subtract,
-                ov::op::v4::Swish,
                 ov::op::v0::Tanh,
                 ov::op::v1::LogicalAnd,
                 ov::op::v1::LogicalOr,
