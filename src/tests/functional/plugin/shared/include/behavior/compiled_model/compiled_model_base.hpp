@@ -974,8 +974,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::error_code ec;
-    std::filesystem::remove_all(cache_dir, ec);
+    utils::removeFile(w_file_path.string());
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache) {
@@ -1019,8 +1018,8 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache) {
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::error_code ec;
-    std::filesystem::remove_all(cache_dir, ec);
+    utils::removeFile(blob_file_path.string());
+    utils::removeFile(w_file_path.string());
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weights_bind_from_model_hint) {
@@ -1064,8 +1063,8 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::error_code ec;
-    std::filesystem::remove_all(cache_dir, ec);
+    utils::removeFile(blob_file_path.string());
+    utils::removeFile(w_file_path.string());
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weights_from_model_path) {
@@ -1104,8 +1103,8 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::error_code ec;
-    std::filesystem::remove_all(cache_dir, ec);
+    utils::removeFile(blob_file_path.string());
+    utils::removeFile(w_file_path.string());
 }
 
 TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_load_from_cache) {
@@ -1146,8 +1145,7 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_load_from_cache) {
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::error_code ec;
-    std::filesystem::remove_all(cache_dir, ec);
+    utils::removeFile(w_file_path.string());
 }
 
 TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weights) {
@@ -1171,7 +1169,6 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weigh
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
-    std::error_code ec;
-    std::filesystem::remove_all(cache_dir, ec);
+    utils::removeFile(w_file_path.string());
 }
 }  // namespace ov::test::behavior
