@@ -9,15 +9,10 @@
 #include <utility>
 
 #include "common_utils/dispatch_utils.hpp"
-#include "intel_gpu/primitives/activation.hpp"
+#include "common_utils/jit_term.hpp"
 #include "intel_gpu/runtime/layout.hpp"
-#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_gpu {
-
-using cldnn::layout;
-using cldnn::format;
-using cldnn::activation_func;
 
 class CodeBuilder {
     std::ostringstream oss;
@@ -84,64 +79,13 @@ struct JitConstant {
 };
 
 template <typename T>
-std::string to_code_string(T val) {
-    std::stringstream ss;
-    ss.imbue(std::locale("C"));
-    ss << val;
-    return ss.str();
-}
-
-template <typename T>
 JitConstant make_jit_constant(const std::string& name, T value) {
     return JitConstant(name, to_code_string(value));
 }
-
 template <typename T>
-inline std::string get_ocl_type_name() {
-    throw std::runtime_error("Implement me");
+inline JitConstant make_jit_constant(const JitTerm& name, T value) {
+    return JitConstant(name.str(), to_code_string(value));
 }
-template <>
-inline std::string get_ocl_type_name<int8_t>() {
-    return "char";
-}
-template <>
-inline std::string get_ocl_type_name<uint8_t>() {
-    return "uchar";
-}
-template <>
-inline std::string get_ocl_type_name<int16_t>() {
-    return "short";
-}
-template <>
-inline std::string get_ocl_type_name<uint16_t>() {
-    return "ushort";
-}
-template <>
-inline std::string get_ocl_type_name<int32_t>() {
-    return "int";
-}
-template <>
-inline std::string get_ocl_type_name<uint32_t>() {
-    return "uint";
-}
-template <>
-inline std::string get_ocl_type_name<int64_t>() {
-    return "long";
-}
-template <>
-inline std::string get_ocl_type_name<uint64_t>() {
-    return "ulong";
-}
-template <>
-inline std::string get_ocl_type_name<float>() {
-    return "float";
-}
-template <>
-inline std::string get_ocl_type_name<double>() {
-    return "double";
-}
-
-std::string to_ocl_type(ov::element::Type_t et);
 
 struct JitConstants : public std::vector<JitConstant> {
     void add(const JitConstant& constant) {
@@ -174,217 +118,8 @@ struct JitConstants : public std::vector<JitConstant> {
     JitConstants() = default;
 };
 
-class JitTerm {
-public:
-    JitTerm() = default;
-    explicit JitTerm(std::string text) : text(std::move(text)) {}
-
-    [[nodiscard]] const std::string& str() const {
-        return text;
-    }
-
-    [[nodiscard]] JitTerm gt(const JitTerm& rhs) const {
-        JitTerm jit_term{"(" + text + ">" + rhs.str() + ")"};
-        return jit_term;
-    }
-
-    [[nodiscard]] JitTerm ge(const JitTerm& rhs) const {
-        JitTerm jit_term{"(" + text + ">=" + rhs.str() + ")"};
-        return jit_term;
-    }
-
-    [[nodiscard]] JitTerm le(const JitTerm& rhs) const {
-        JitTerm jit_term{"(" + text + "<=" + rhs.str() + ")"};
-        return jit_term;
-    }
-
-    [[nodiscard]] JitTerm eq(const JitTerm& rhs) const {
-        JitTerm jit_term{"(" + text + "==" + rhs.str() + ")"};
-        return jit_term;
-    }
-
-    template <typename... Args>
-    JitTerm operator()(Args... args) const {
-        return JitTerm{text + "(" + concat(std::forward<Args>(args)..., ",").str() + ")"};
-    }
-
-    JitTerm operator[](const JitTerm& idx) const {
-        JitTerm jit_term{text + "[" + idx.str() + "]"};
-        return jit_term;
-    }
-    JitTerm operator[](size_t idx) const {
-        JitTerm jit_term{text + "[" + to_code_string(idx) + "]"};
-        return jit_term;
-    }
-
-private:
-    template <typename... Args>
-    JitTerm concat(const JitTerm& arg, Args... args, std::string separator) const {
-        return concat(arg, concat(std::forward<Args>(args)..., separator), separator);
-    }
-
-    [[nodiscard]] static JitTerm concat(const JitTerm& t1, const JitTerm& t2, const std::string& separator) {
-        return JitTerm{t1.str() + separator + t2.str()};
-    }
-
-    [[nodiscard]] static JitTerm concat(const JitTerm& t1, const std::string& separator) {
-        return JitTerm{t1.str()};
-    }
-
-    [[nodiscard]] static JitTerm concat(const std::string& separator) {
-        return JitTerm{""};
-    }
-
-    std::string text;
-};
-
-inline bool is_number(const JitTerm& s) {
-    return !s.str().empty() && std::all_of(s.str().begin(), s.str().end(), ::isdigit);
-}
-template <typename T>
-inline T as_number(const JitTerm& s) {
-    T val;
-    std::stringstream ss(s.str());
-    ss >> val;
-    return val;
-}
-
-inline JitTerm neg(const JitTerm& arg) {
-    return JitTerm{"(-" + arg.str() + ")"};
-}
-inline JitTerm operator+(const JitTerm& lhs, const JitTerm& rhs) {
-    if (lhs.str() == "0") {
-        return rhs;
-    }
-    if (rhs.str() == "0") {
-        return lhs;
-    }
-    if (is_number(lhs) && is_number(rhs)) {
-        return JitTerm{std::to_string(as_number<int64_t>(lhs) + as_number<int64_t>(rhs))};
-    }
-
-    return JitTerm{"(" + lhs.str() + " + " + rhs.str() + ")"};
-}
-
-inline JitTerm operator-(const JitTerm& lhs, const JitTerm& rhs) {
-    if (lhs.str() == "0") {
-        return neg(rhs);
-    }
-    if (rhs.str() == "0") {
-        return lhs;
-    }
-    if (is_number(lhs) && is_number(rhs)) {
-        return JitTerm{std::to_string(as_number<int64_t>(lhs) - as_number<int64_t>(rhs))};
-    }
-
-    return JitTerm{"(" + lhs.str() + " - " + rhs.str() + ")"};
-}
-
-inline JitTerm operator*(const JitTerm& lhs, const JitTerm& rhs) {
-    if (lhs.str() == "0" || rhs.str() == "0") {
-        return JitTerm{"0"};
-    }
-    if (lhs.str() == "1") {
-        return rhs;
-    }
-    if (rhs.str() == "1") {
-        return lhs;
-    }
-    if (is_number(lhs) && is_number(rhs)) {
-        return JitTerm{std::to_string(as_number<int64_t>(lhs) * as_number<int64_t>(rhs))};
-    }
-    return JitTerm{"(" + lhs.str() + " * " + rhs.str() + ")"};
-}
-inline JitTerm operator/(const JitTerm& lhs, const JitTerm& rhs) {
-    if (rhs.str() == "1") {
-        return lhs;
-    }
-    if (is_number(lhs) && is_number(rhs)) {
-        return JitTerm{std::to_string(as_number<int64_t>(lhs) / as_number<int64_t>(rhs))};
-    }
-    return JitTerm{"(" + lhs.str() + " / " + rhs.str() + ")"};
-}
-inline JitTerm operator%(const JitTerm& lhs, const JitTerm& rhs) {
-    return JitTerm{"(" + lhs.str() + " % " + rhs.str() + ")"};
-}
-inline JitTerm ternary(const JitTerm& condition, const JitTerm& true_expr, const JitTerm& false_expr) {
-    return JitTerm{"(" + condition.str() + " ? " + true_expr.str() + " : " + false_expr.str() + ")"};
-}
-inline JitTerm isinf(const JitTerm& arg) {
-    return JitTerm{"(isinf(" + arg.str() + "))"};
-}
-inline JitTerm exp(const JitTerm& arg) {
-    return JitTerm{"(exp(" + arg.str() + "))"};
-}
-inline JitTerm erf(const JitTerm& arg) {
-    return JitTerm{"(erf(" + arg.str() + "))"};
-}
-inline JitTerm tanh(const JitTerm& arg) {
-    return JitTerm{"(tanh(" + arg.str() + "))"};
-}
-inline JitTerm log(const JitTerm& arg) {
-    return JitTerm{"(log(" + arg.str() + "))"};
-}
-inline JitTerm operator"" _jit(const char* str, size_t /*unused*/) {
-    return JitTerm{str};
-}
-inline JitTerm concat(const JitTerm& t1, const JitTerm& t2) {
-    return JitTerm{t1.str() + t2.str()};
-}
-
-class LayoutJitter {
-public:
-    // definition of tensor element accessors in the following order:
-    // data tensor: b, f, u, v, w, z, y, x
-    // weights tensor: g, ofm, ifm, z, y, x
-    std::vector<JitTerm> m_dims;
-    std::vector<JitTerm> m_strides;
-    std::vector<JitTerm> m_pad_lower;
-    std::vector<JitTerm> m_pad_upper;
-    JitTerm m_offset;
-
-    LayoutJitter(const layout& l, size_t shape_info_offset) {
-        OPENVINO_ASSERT(!format::is_weights_format(l.format));
-        make_definitions(l, shape_info_offset);
-    }
-
-    std::map<ChannelName, size_t> channels_map;
-
-    [[nodiscard]] std::string dim(ChannelName channel) const {
-        return m_dims[channels_map.at(channel)].str();
-    }
-
-    [[nodiscard]] std::string pad_l(ChannelName channel) const {
-        return m_pad_lower[channels_map.at(channel)].str();
-    }
-
-    [[nodiscard]] std::string pad_u(ChannelName channel) const {
-        return m_pad_upper[channels_map.at(channel)].str();
-    }
-
-    [[nodiscard]] std::string stride(ChannelName channel) const {
-        return m_strides[channels_map.at(channel)].str();
-    }
-
-    [[nodiscard]] std::string offset() const {
-        return m_offset.str();
-    }
-
-private:
-    void make_definitions(const layout& l, size_t shape_info_offset);
-};
-
-size_t extract_channel(ChannelName channel, const layout& l);
+size_t extract_channel(ChannelName channel, const cldnn::layout& l);
 int get_channel_index(ChannelName channel_name, size_t rank, bool is_weights_fmt = false, bool is_grouped = false);
 std::vector<ChannelName> get_default_channels_order(size_t rank, bool is_weights_fmt = false, bool is_grouped = false);
 
-JitConstants make_layout_jit_constants(const std::string& name, const cldnn::layout& value, size_t shape_info_offset);
-JitConstants make_type_jit_constants(const std::string& name, const ov::element::Type& value);
-JitConstants make_indexing_jit_functions(const std::string& name, const layout& l);
-JitConstants make_activation_jit_constants(activation_func activation_function,
-                                           ov::element::Type_t out_dt,
-                                           const std::string& suffix,
-                                           bool use_type_parameter,
-                                           bool disable_type_conversion);
-JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, ov::element::Type type, size_t pack_size);
 }  // namespace ov::intel_gpu

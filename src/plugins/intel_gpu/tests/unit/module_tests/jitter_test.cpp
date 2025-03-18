@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <gtest/internal/gtest-param-util.h>
-#include "common_utils/jitter.hpp"
+#include "impls/ocl_v2/utils/jitter.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/runtime/layout.hpp"
@@ -19,6 +19,7 @@
 using namespace cldnn;
 using namespace ::tests;
 using namespace ov::intel_gpu;
+using namespace ov::intel_gpu::ocl;
 
 namespace {
 
