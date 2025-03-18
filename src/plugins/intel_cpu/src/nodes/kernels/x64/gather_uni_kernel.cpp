@@ -1110,6 +1110,8 @@ void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst,
                                               const Xbyak::Reg64& rToStoreCounter,
                                               Vmm& vmmSrc,
                                               Vmm& vAux) {
+    Xbyak::Ymm ymmTemp(vmmZeros.getIdx());
+    Xbyak::Xmm xmmTemp(vmmZeros.getIdx());
     Xbyak::Label lEnd;
     Xbyak::Xmm xAux(vAux.getIdx());
     for (size_t j = 0; j < vlen / vlenXmm; j++) {
@@ -1129,19 +1131,19 @@ void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst,
                 if (jcp.in_prec == jcp.out_prec) {
                     uni_vpextrw(ptr[rDst], xAux, k * 2);
                 } else if (jcp.out_prec == element::f32) {
-                    Xbyak::Ymm yAux(vAux.getIdx());
+                    // xAux should not changed
                     if (jcp.in_prec == element::bf16) {
-                        uni_vpmovzxwd(yAux, xAux);
-                        uni_vpslld(yAux, yAux, 16);
+                        uni_vpmovzxwd(ymmTemp, xAux);
+                        uni_vpslld(ymmTemp, ymmTemp, 16);
                     }
                     if (jcp.in_prec == element::f16) {
-                        vcvtph2ps(yAux, xAux);
+                        vcvtph2ps(ymmTemp, xAux);
                     }
                     if (k < 2) {
-                        uni_vpextrd(ptr[rDst], xAux, k * 2);
+                        uni_vpextrd(ptr[rDst], xmmTemp, k * 2);
                     } else {
-                        vperm2f128(yAux, yAux, yAux, 0x1);
-                        uni_vpextrd(ptr[rDst], xAux, k * 2 - 4);
+                        vperm2f128(ymmTemp, ymmTemp, ymmTemp, 0x1);
+                        uni_vpextrd(ptr[rDst], xmmTemp, k * 2 - 4);
                     }
                 }
             } else if (jcp.dataTypeSize == 1) {
@@ -1152,6 +1154,10 @@ void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst,
             sub(rToStoreCounter, 1);
         }
     }
+    if (is_real16_to_f32) {
+        uni_vpxor(vmmZeros, vmmZeros, vmmZeros);
+    }
+
     L(lEnd);
 }
 

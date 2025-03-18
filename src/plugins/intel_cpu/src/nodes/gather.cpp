@@ -130,11 +130,8 @@ void Gather::initSupportedPrimitiveDescriptors() {
 
     dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
     outPrecision = getOriginalOutputPrecisionAtPort(0);
-    if (!compressed) {
-        // gather(not GatherCompressed) support same input and output precision or real16->f32
-        if (!(one_of(dataPrecision, ov::element::f16, ov::element::bf16) && outPrecision == ov::element::f32)) {
-            outPrecision = dataPrecision;
-        }
+    if (!fusedWith.empty()) {
+        outPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
     dataTypeSize = dataPrecision.size();
@@ -217,7 +214,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                           {LayoutType::ncsp, ov::element::i32},
                           {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
-                         {{LayoutType::ncsp, dataPrecision}},
+                         {{LayoutType::ncsp, outPrecision}},
                          ref_any);
 
     // Let's check for the special inPlace memory use case
@@ -533,7 +530,7 @@ void Gather::executeDynamicImpl(const dnnl::stream& strm) {
             auto arg = gatherJitExecArgs();
 
             arg.src = srcData;
-            arg.dst = dstData + afterAxisSizeInBytes * start;
+            arg.dst = dstData + afterAxisSizeInBytesOut * start;
             arg.indices = srcIndices;
             arg.start = &start;
             arg.axisDim = &axisDim;
@@ -1002,6 +999,10 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
 
         childEdge->reuse(newMem);
     }
+}
+
+bool Gather::canFuse(const NodePtr& node) const {
+    return node->getType() == Type::Convert && node->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
 }
 
 }  // namespace ov::intel_cpu::node
