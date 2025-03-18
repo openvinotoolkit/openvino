@@ -95,7 +95,7 @@ The advantages of using OpenVINO for generative model deployment:
      inference performance and memory usage in long-running text generation tasks by managing past
      KV-cache tensors more efficiently internally. This feature is automatically activated for
      many supported models, while unsupported ones remain stateless. Learn more about the
-     :doc:`Stateful models and State API <../openvino-workflow/running-inference/stateful-models>`.
+     :doc:`Stateful models and State API <../openvino-workflow/running-inference/inference-request/stateful-models>`.
 
 | **Optimized LLM inference**
 |    Includes a Python API for rapid development and C++ for further optimization, offering
