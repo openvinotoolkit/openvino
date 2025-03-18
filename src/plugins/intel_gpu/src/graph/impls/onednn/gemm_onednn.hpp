@@ -54,6 +54,11 @@ struct GemmImplementationManager : public ImplementationManager {
         if (out_layout.data_padding)
             return false;
 
+        // Do not allow onednn if INT4 weight compressed layout has odd dimension.
+        if (one_of(in1_dt, {data_types::i4, data_types::u4})
+            && (in1_layout.batch() % 2 != 0 || in1_layout.feature() % 2 != 0))
+                return false;
+
         if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64}))
             return false;
 
