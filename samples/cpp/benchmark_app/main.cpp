@@ -609,8 +609,7 @@ int main(int argc, char* argv[]) {
 
             if (!FLAGS_cache_dir.empty()) {
                 // Choose between better model compilation time and cache file size.
-                 //device_config[ov::cache_mode.name()] = ov::CacheMode::OPTIMIZE_SPEED;
-                 device_config[ov::cache_mode.name()] = ov::CacheMode::OPTIMIZE_SIZE;
+                device_config[ov::cache_mode.name()] = ov::CacheMode::OPTIMIZE_SPEED;
             }
         }
         auto result = std::find_if(config.begin(), config.end(), [&](const std::pair<std::string, ov::AnyMap>& item) {

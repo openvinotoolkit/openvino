@@ -415,6 +415,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     auto RW_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
     };
+    auto WO_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::WO);
+    };
 
     if (name == ov::supported_properties) {
         std::vector<ov::PropertyName> roProperties{
@@ -451,7 +454,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
                                                    RW_property(ov::value_cache_precision.name()),
                                                    RW_property(ov::key_cache_group_size.name()),
                                                    RW_property(ov::value_cache_group_size.name()),
-                                                   RW_property(ov::weights_path.name())};
+                                                   WO_property(ov::weights_path.name())};
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
