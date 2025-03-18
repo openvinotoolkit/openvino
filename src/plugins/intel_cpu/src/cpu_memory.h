@@ -12,7 +12,6 @@
 #include <unordered_set>
 #include <utility>
 
-#include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -92,75 +91,8 @@ private:
     static void destroy(void* ptr);
 };
 
-class IMemoryBlockObserver : public IMemoryBlock {
-public:
-    virtual void registerMemory(Memory* memPtr) = 0;
-    virtual void unregisterMemory(Memory* memPtr) = 0;
-};
-
-/**
- * @brief A proxy object that additionally implements observer pattern
- */
-class DnnlMemoryBlock : public IMemoryBlockObserver {
-public:
-    explicit DnnlMemoryBlock(std::unique_ptr<IMemoryBlock> memBlock) : m_pMemBlock(std::move(memBlock)) {}
-    void* getRawPtr() const noexcept override;
-    void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size) override;
-    bool hasExtBuffer() const noexcept override;
-    void registerMemory(Memory* memPtr) override;
-    void unregisterMemory(Memory* memPtr) override;
-
-private:
-    void notifyUpdate();
-
-private:
-    std::unordered_set<Memory*> m_setMemPtrs;
-    std::unique_ptr<IMemoryBlock> m_pMemBlock;
-};
-
-using MemoryBlockPtr = std::shared_ptr<IMemoryBlockObserver>;
-using MemoryBlockCPtr = std::shared_ptr<const IMemoryBlockObserver>;
-
-class DnnlMemBlockHandle {
-public:
-    DnnlMemBlockHandle(MemoryBlockPtr pBlock, Memory* pMem) : m_pMemBlock(std::move(pBlock)), m_pMem(pMem) {
-        if (m_pMemBlock) {
-            m_pMemBlock->registerMemory(m_pMem);
-        }
-    }
-
-    DnnlMemBlockHandle(const DnnlMemBlockHandle&) = delete;
-    DnnlMemBlockHandle& operator=(const DnnlMemBlockHandle&) = delete;
-
-    DnnlMemBlockHandle(DnnlMemBlockHandle&& source) noexcept {
-        std::swap(m_pMemBlock, source.m_pMemBlock);
-        std::swap(m_pMem, source.m_pMem);
-    }
-    DnnlMemBlockHandle& operator=(DnnlMemBlockHandle&& rhs) noexcept {
-        std::swap(m_pMemBlock, rhs.m_pMemBlock);
-        std::swap(m_pMem, rhs.m_pMem);
-        return *this;
-    }
-
-    ~DnnlMemBlockHandle() {
-        if (m_pMemBlock) {
-            m_pMemBlock->unregisterMemory(m_pMem);
-        }
-    }
-
-    MemoryBlockPtr get() const {
-        return m_pMemBlock;
-    }
-
-    MemoryBlockPtr::element_type* operator->() const noexcept {
-        return m_pMemBlock.get();
-    }
-
-private:
-    MemoryBlockPtr m_pMemBlock = nullptr;
-    Memory* m_pMem = nullptr;
-};
+using MemoryBlockPtr = std::shared_ptr<IMemoryBlock>;
+using MemoryBlockCPtr = std::shared_ptr<const IMemoryBlock>;
 
 class IMemory {
 public:
@@ -202,15 +134,8 @@ public:
         return false;
     }
 
-    // oneDNN specifics for backward compatibility
-    virtual dnnl::memory getPrimitive() const = 0;
-
     ov::element::Type getPrecision() const {
         return getDesc().getPrecision();
-    }
-
-    dnnl::memory::data_type getDataType() const {
-        return DnnlExtensionUtils::ElementTypeToDataType(getDesc().getPrecision());
     }
 
     template <typename T,
@@ -221,7 +146,7 @@ public:
 
 class StaticMemory final : public IMemory {
 public:
-    class StaticMemoryBlock : public IMemoryBlockObserver {
+    class StaticMemoryBlock : public IMemoryBlock {
     public:
         explicit StaticMemoryBlock(size_t size);
         StaticMemoryBlock(void* data, size_t size);
@@ -229,8 +154,6 @@ public:
         void setExtBuff(void* ptr, size_t size) override;
         bool resize(size_t size) override;
         bool hasExtBuffer() const noexcept override;
-        void registerMemory(Memory* memPtr) override;
-        void unregisterMemory(Memory* memPtr) override;
 
     private:
         size_t m_size = 0;
@@ -240,8 +163,8 @@ public:
     using MemBlockPtr = std::shared_ptr<StaticMemoryBlock>;
 
 public:
-    StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
-    StaticMemory(dnnl::engine eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    StaticMemory(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
+    StaticMemory(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
     StaticMemory(const StaticMemory&) = delete;
     StaticMemory& operator=(const StaticMemory&) = delete;
@@ -265,34 +188,26 @@ public:
 
     MemoryBlockPtr getMemoryBlock() const override;
 
-    // oneDNN specifics for backward compatibility
-    dnnl::memory getPrimitive() const override;
-
     void nullify() override;
 
 private:
-    dnnl::engine m_eng;
     MemoryDescPtr m_pMemDesc;
-    size_t m_size;
-    dnnl::memory m_prim;
     MemBlockPtr m_pMemBlock;
-    std::string dnnlErrorCtx;
+    size_t m_size;
 };
 
 class Memory : public IMemory {
 public:
-    Memory(dnnl::engine eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
-    Memory(dnnl::engine eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
-    Memory(dnnl::engine eng, MemoryDescPtr desc, MemoryBlockPtr block);
-    Memory(dnnl::engine eng, const MemoryDesc& desc, MemoryBlockPtr block);
+    Memory(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
+    Memory(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    Memory(MemoryDescPtr desc, MemoryBlockPtr block);
+    Memory(const MemoryDesc& desc, MemoryBlockPtr block);
 
     Memory(const Memory&) = delete;
     Memory& operator=(const Memory&) = delete;
 
     Memory(Memory&&) = delete;
     Memory& operator=(Memory&&) = delete;
-
-    dnnl::memory getPrimitive() const override;
 
     const MemoryDesc& getDesc() const override {
         return *m_pMemDesc;
@@ -319,47 +234,24 @@ public:
     void load(const IMemory& src, bool ftz, bool bf16saturation) const override;
     void nullify() override;
 
-    dnnl::engine getEngine() const {
-        return m_eng;
-    }
-
     MemoryBlockPtr getMemoryBlock() const override {
-        return m_blockHandle.get();
+        return m_memBlock;
     }
 
 private:
-    friend DnnlMemoryBlock;
     friend ProxyMemoryBlock;
 
 private:
-    void update();
-
     void create(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
     void create(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
+    void* getDataNoThrow() const noexcept {
+        return m_memBlock->getRawPtr();
+    }
 
 private:
-    dnnl::engine m_eng;
     MemoryDescPtr m_pMemDesc;
-    DnnlMemBlockHandle m_blockHandle;
+    MemoryBlockPtr m_memBlock;
     bool m_padsZeroing = true;
-    class DnnlMemPrimHandle {
-    public:
-        explicit DnnlMemPrimHandle(const Memory* memObjPtr) : m_memObjPtr(memObjPtr) {}
-        bool isInit() const;
-        dnnl::memory getPrim() const;
-        void resetDnnlPrim();
-
-    private:
-        // Since getPrim should behave as a constant method, even though it changes state, it must be thread safe.
-        // To provide thead safety we use this mutex
-        mutable std::mutex m_primCachingLock;
-        mutable dnnl::memory m_prim;
-        const Memory* m_memObjPtr;
-    } dnnlMemHandle;
-
-    void* getDataNoThrow() const noexcept {
-        return m_blockHandle->getRawPtr();
-    }
 };
 
 class StringMemory : public IMemory {
@@ -387,18 +279,17 @@ public:
 
     using StringMemoryBlockPtr = std::shared_ptr<StringMemoryBlock>;
 
-    StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* data = nullptr);
+    StringMemory(MemoryDescPtr desc, const void* data = nullptr);
 
-    StringMemory(dnnl::engine engine, const MemoryDesc& desc, const void* data = nullptr)
-        : StringMemory(std::move(engine), desc.clone(), data) {}
+    StringMemory(const MemoryDesc& desc, const void* data = nullptr)
+        : StringMemory(desc.clone(), data) {}
 
-    StringMemory(dnnl::engine engine, MemoryDescPtr desc, StringMemoryBlockPtr block)
-        : m_engine(std::move(engine)),
-          m_mem_desc(std::move(desc)),
+    StringMemory(MemoryDescPtr desc, StringMemoryBlockPtr block)
+        : m_mem_desc(std::move(desc)),
           m_memoryBlock(std::move(block)) {}
 
-    StringMemory(dnnl::engine engine, const MemoryDesc& desc, StringMemoryBlockPtr block)
-        : StringMemory(std::move(engine), desc.clone(), std::move(block)) {}
+    StringMemory(const MemoryDesc& desc, StringMemoryBlockPtr block)
+        : StringMemory(desc.clone(), std::move(block)) {}
 
     const MemoryDesc& getDesc() const override {
         return *m_mem_desc;
@@ -430,12 +321,9 @@ public:
         return m_memoryBlock;
     }
 
-    dnnl::memory getPrimitive() const override;
-
     void nullify() override;
 
 private:
-    dnnl::engine m_engine;
     MemoryDescPtr m_mem_desc;
     StringMemoryBlockPtr m_memoryBlock;
 };
@@ -448,14 +336,12 @@ bool mbind_move(void* data, size_t size, int numaNodeID);
 bool mbind_move(const MemoryCPtr& mem, int numaNodeID);
 bool mbind_move(const dnnl::memory& mem, int numaNodeID);
 
-MemoryPtr split_horizontal(const dnnl::engine& eng,
-                           const MemoryPtr& src,
+MemoryPtr split_horizontal(const MemoryPtr& src,
                            int dim,
                            int w_rank,
                            int w_size,
                            bool need_fill = true);
-MemoryPtr split_vertical(const dnnl::engine& eng,
-                         const MemoryPtr& src,
+MemoryPtr split_vertical(const MemoryPtr& src,
                          int dim,
                          int w_rank,
                          int w_size,

@@ -554,7 +554,7 @@ MemoryDescPtr MatMul::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_
         return std::make_shared<CpuBlockedMemoryDesc>(
             DnnlExtensionUtils::DataTypeToElementType(desc.get_data_type()),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
-    }                                  // bias
+    }  // bias
     return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
@@ -680,17 +680,17 @@ void MatMul::prepareParams() {
         OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
     }
 
-    auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
+    auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
-    primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->getPrimitive();
-    primArgs[DNNL_ARG_SRC_0] = src0MemPtr->getPrimitive();
-    primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->getPrimitive();
-    primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = DnnlExtensionUtils::createMemoryPrimitive(scratchpadMem, getEngine());
+    primArgs[DNNL_ARG_SRC_0] = DnnlExtensionUtils::createMemoryPrimitive(src0MemPtr, getEngine());
+    primArgs[DNNL_ARG_WEIGHTS_0] = DnnlExtensionUtils::createMemoryPrimitive(src1MemPtr, getEngine());
+    primArgs[DNNL_ARG_DST] = DnnlExtensionUtils::createMemoryPrimitive(dstMemPtr, getEngine());
     if (withBiases) {
-        primArgs[DNNL_ARG_BIAS] = getSrcMemoryAtPort(2)->getPrimitive();
+        primArgs[DNNL_ARG_BIAS] = DnnlExtensionUtils::createMemoryPrimitive(getSrcMemoryAtPort(2), getEngine());
     }
 
-    appendPostOpArgs(*attr, primArgs, postOpsArgs);
+    appendPostOpArgs(*attr, primArgs, postOpsArgs, getEngine());
 #ifdef CPU_DEBUG_CAPS
     auto pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
@@ -699,6 +699,12 @@ void MatMul::prepareParams() {
 
 void MatMul::execute(const dnnl::stream& strm) {
     if (execPtr) {
+        primArgs[DNNL_ARG_SRC_0].set_data_handle(getSrcDataAtPort(0));
+        primArgs[DNNL_ARG_WEIGHTS_0].set_data_handle(getSrcDataAtPort(1));
+        primArgs[DNNL_ARG_DST].set_data_handle(getDstDataAtPort(0));
+        if (withBiases) {
+            primArgs[DNNL_ARG_BIAS].set_data_handle(getSrcDataAtPort(2));
+        }
         execPtr->exec(primArgs, strm);
     } else if (hasEmptyInputTensors()) {
         // this is a degenerate case, fill output with zeroes

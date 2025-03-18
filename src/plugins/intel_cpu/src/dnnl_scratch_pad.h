@@ -20,13 +20,11 @@ class DnnlScratchPad {
 
 public:
     DnnlScratchPad(dnnl::engine eng, int numa_node = -1) : eng(std::move(eng)) {
-        auto baseMemoryBlock = make_unique<MemoryBlockWithReuse>(numa_node);
-        baseBlockPtr = baseMemoryBlock.get();
-        blockPtr = std::make_shared<DnnlMemoryBlock>(std::move(baseMemoryBlock));
+        blockPtr = std::make_shared<MemoryBlockWithReuse>(numa_node);
     }
 
     MemoryPtr createScratchPadMem(const MemoryDescPtr& md) {
-        return std::make_shared<Memory>(eng, md, blockPtr);
+        return std::make_shared<Memory>(md, blockPtr);
     }
 
     size_t size() const {

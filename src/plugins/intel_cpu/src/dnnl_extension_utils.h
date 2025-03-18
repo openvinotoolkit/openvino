@@ -13,6 +13,7 @@
 
 #include "common/c_types_map.hpp"
 #include "cpu_types.h"
+#include "cpu_memory.h"
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
@@ -124,6 +125,8 @@ public:
      */
     static std::string computeWeightsStringHash(const std::shared_ptr<const IMemory>& memory,
                                                 const std::shared_ptr<DnnlMemoryDesc>& dstDesc);
+    static dnnl::memory createMemoryPrimitive(const MemoryPtr& mem, const dnnl::engine& eng);
+    static dnnl::memory createMemoryPrimitive(const IMemory& mem, const dnnl::engine& eng);
 };
 
 }  // namespace intel_cpu

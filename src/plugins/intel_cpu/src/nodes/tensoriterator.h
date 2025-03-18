@@ -43,6 +43,9 @@ protected:
     dnnl::primitive reorder;
     dnnl::memory mem_holder_src;
     dnnl::memory mem_holder_dst;
+
+    MemoryPtr src;
+    MemoryPtr dst;
 };
 
 /**
@@ -56,7 +59,7 @@ public:
     virtual int getStatus() = 0;
 
 protected:
-    dnnl::memory mem_holder;
+    MemoryPtr mem_holder;
 };
 
 /**
@@ -73,11 +76,11 @@ public:
     void reset(int max_iter_count_);  // reset local
 
 private:
-    void init(const dnnl::engine& eng);
+    void init();
 
     /* methods for resize and refill buffer */
     bool check_buffer();
-    MemoryPtr create_buffer(const dnnl::engine& eng);
+    MemoryPtr create_buffer();
     void move_buffer(const MemoryPtr& new_buffer);
     void move_data();
 

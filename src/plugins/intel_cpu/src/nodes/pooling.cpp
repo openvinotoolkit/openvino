@@ -512,11 +512,11 @@ void Pooling::prepareParams() {
         }
 
         auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
-        primArgs[DNNL_ARG_SRC] = getSrcMemoryAtPort(0)->getPrimitive();
-        primArgs[DNNL_ARG_DST] = getDstMemoryAtPort(0)->getPrimitive();
+        primArgs[DNNL_ARG_SCRATCHPAD] = DnnlExtensionUtils::createMemoryPrimitive(scratchpadMem, getEngine());
+        primArgs[DNNL_ARG_SRC] = DnnlExtensionUtils::createMemoryPrimitive(getSrcMemoryAtPort(0), getEngine());
+        primArgs[DNNL_ARG_DST] = DnnlExtensionUtils::createMemoryPrimitive(getDstMemoryAtPort(0), getEngine());
 
-        Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
+        Node::appendPostOpArgs(*attr, primArgs, postOpsArgs, getEngine());
 
 #ifdef CPU_DEBUG_CAPS
         auto pd = dnnlExecPtr->getPrimitiveDesc();
@@ -527,6 +527,8 @@ void Pooling::prepareParams() {
 
 void Pooling::execute(const dnnl::stream& strm) {
     if (dnnlExecPtr) {
+        primArgs[DNNL_ARG_SRC].set_data_handle(getSrcMemoryAtPort(0)->getData());
+        primArgs[DNNL_ARG_DST].set_data_handle(getDstMemoryAtPort(0)->getData());
         dnnlExecPtr->exec(primArgs, strm);
     } else if (execPtr) {
         std::vector<MemoryCPtr> srcMemory;

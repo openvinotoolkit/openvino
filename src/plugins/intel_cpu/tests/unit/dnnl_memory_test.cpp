@@ -89,7 +89,7 @@ TEST(StaticMemoryTest, UnsupportedDnnlPrecision) {
     void* raw_data_ptr = nullptr;
     OV_ASSERT_NO_THROW(raw_data_ptr = testMemory->getData());
     ASSERT_FALSE(nullptr == raw_data_ptr);
-    OV_ASSERT_NO_THROW(dnnl_memory = testMemory->getPrimitive());
+    OV_ASSERT_NO_THROW(dnnl_memory = DnnlExtensionUtils::createMemoryPrimitive(testMemory, eng));
     ASSERT_TRUE(dnnl_memory);
 
     CpuBlockedMemoryDesc memDescUnSupportedPrc(ov::element::i64, {5, 4, 7, 10});
@@ -99,6 +99,6 @@ TEST(StaticMemoryTest, UnsupportedDnnlPrecision) {
     OV_ASSERT_NO_THROW(raw_data_ptr = testMemory->getData());
     ASSERT_FALSE(nullptr == raw_data_ptr);
     dnnl_memory = dnnl::memory();
-    ASSERT_THROW(dnnl_memory = testMemory->getPrimitive(), ov::Exception);
+    ASSERT_THROW(dnnl_memory = DnnlExtensionUtils::createMemoryPrimitive(testMemory, eng), ov::Exception);
     ASSERT_FALSE(dnnl_memory);
 }

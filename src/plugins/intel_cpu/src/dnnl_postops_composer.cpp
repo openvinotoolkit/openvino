@@ -416,10 +416,10 @@ void DnnlPostOpsComposer::updateWeiScales() {
     attr.set_scales_mask(DNNL_ARG_WEIGHTS, wei_scale_mask);
 
     DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({wei_scale_values.size()}));
-    auto mem = std::make_shared<Memory>(engine, memoryDesc);
+    auto mem = std::make_shared<Memory>(memoryDesc);
     memcpy(mem->getData(), wei_scale_values.data(), wei_scale_values.size() * sizeof(float));
     cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = mem;
-    dnnlArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = mem->getPrimitive();
+    dnnlArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = DnnlExtensionUtils::createMemoryPrimitive(mem, engine);
 }
 
 void DnnlPostOpsComposer::updateDestScales() {
@@ -431,10 +431,10 @@ void DnnlPostOpsComposer::updateDestScales() {
     attr.set_scales_mask(DNNL_ARG_DST, 0);
 
     DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({1}));
-    auto mem = std::make_shared<Memory>(engine, memoryDesc);
+    auto mem = std::make_shared<Memory>(memoryDesc);
     memcpy(mem->getData(), &dst_scale_val, sizeof(float));
     cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST] = mem;
-    dnnlArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST] = mem->getPrimitive();
+    dnnlArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST] = DnnlExtensionUtils::createMemoryPrimitive(mem, engine);
 }
 
 void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vector<float>& data) {
@@ -450,10 +450,11 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
 
     // copy the data as args
-    auto mem = std::make_shared<Memory>(engine, memoryDesc);
+    auto mem = std::make_shared<Memory>(memoryDesc);
     memcpy(mem->getData(), data.data(), data.size() * sizeof(float));
     cpuArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
-    dnnlArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem->getPrimitive();
+    dnnlArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] =
+        DnnlExtensionUtils::createMemoryPrimitive(mem, engine);
 }
 
 void DnnlPostOpsComposer::appendEltwise(const dnnl::algorithm alg, float alpha, float beta) {
@@ -707,7 +708,7 @@ void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr
     attr.set_scales(DNNL_ARG_WEIGHTS, mask, groupDims, DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
     cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = std::move(scaleMem);
     dnnlArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] =
-        cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS]->getPrimitive();
+        DnnlExtensionUtils::createMemoryPrimitive(cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS], engine);
 }
 
 void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr,
@@ -724,7 +725,8 @@ void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_p
 
     attr.set_zero_points(DNNL_ARG_WEIGHTS, mask, groupDims, DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
     cpuArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem;
-    dnnlArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem->getPrimitive();
+    dnnlArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] =
+        DnnlExtensionUtils::createMemoryPrimitive(zeroPointsMem, engine);
 }
 
 void DnnlPostOpsComposer::appendDecompressionScalesLegacy(const MemoryCPtr& scales_ptr,
@@ -740,7 +742,7 @@ void DnnlPostOpsComposer::appendDecompressionScalesLegacy(const MemoryCPtr& scal
                          DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
     cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = std::move(scalesMem);
     dnnlArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] =
-        cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS]->getPrimitive();
+        DnnlExtensionUtils::createMemoryPrimitive(cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS], engine);
 }
 
 void DnnlPostOpsComposer::appendDecompressionZeroPointsLegacy(const MemoryCPtr& zero_points_ptr,
@@ -755,7 +757,8 @@ void DnnlPostOpsComposer::appendDecompressionZeroPointsLegacy(const MemoryCPtr& 
                               DnnlExtensionUtils::convertToDnnlDims(zeroPointsMem->getStaticDims()),
                               DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
     cpuArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem;
-    dnnlArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem->getPrimitive();
+    dnnlArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] =
+        DnnlExtensionUtils::createMemoryPrimitive(zeroPointsMem, engine);
 }
 
 void DnnlPostOpsComposer::setDynamicQuantizationParams(uint64_t groupSize) {
@@ -795,7 +798,7 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
     attr.set_post_ops(ops);
 
     for (const auto& args : cpuArgs) {
-        dnnlArgs[args.first] = args.second->getPrimitive();
+        dnnlArgs[args.first] = DnnlExtensionUtils::createMemoryPrimitive(args.second, engine);
     }
 
     return {attr, dnnlArgs, cpuArgs};

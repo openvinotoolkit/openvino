@@ -19,6 +19,8 @@
 #    include <utility>
 #endif
 
+#include <cstdlib>
+
 namespace ov::intel_cpu {
 template <>
 DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
@@ -93,35 +95,31 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz, bool bf16sat
 
 }  // namespace
 
-Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, const void* data, bool pads_zeroing)
-    : m_eng(std::move(eng)),
-      m_pMemDesc(std::move(desc)),
-      m_blockHandle(std::make_shared<DnnlMemoryBlock>(make_unique<MemoryBlockWithReuse>()), this),
-      dnnlMemHandle(this) {
+Memory::Memory(MemoryDescPtr desc, const void* data, bool pads_zeroing)
+    : m_pMemDesc(std::move(desc)),
+      m_memBlock(std::make_shared<MemoryBlockWithReuse>()) {
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object cannot be created for string data.");
     }
     create(m_pMemDesc, data, pads_zeroing);
 }
 
-Memory::Memory(dnnl::engine eng, const MemoryDesc& desc, const void* data, bool pads_zeroing)
-    : Memory::Memory(std::move(eng), desc.clone(), data, pads_zeroing) {}
+Memory::Memory(const MemoryDesc& desc, const void* data, bool pads_zeroing)
+    : Memory::Memory(desc.clone(), data, pads_zeroing) {}
 
-Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, MemoryBlockPtr block)
-    : m_eng(std::move(eng)),
-      m_pMemDesc(std::move(desc)),
-      m_blockHandle(std::move(block), this),
-      dnnlMemHandle(this) {
+Memory::Memory(MemoryDescPtr desc, MemoryBlockPtr block)
+    : m_pMemDesc(std::move(desc)),
+      m_memBlock(std::move(block)) {
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
     }
-    bool memAllocated = m_blockHandle->getRawPtr();
+    bool memAllocated = m_memBlock->getRawPtr();
 
     create(m_pMemDesc, nullptr, !memAllocated);
 }
 
-Memory::Memory(dnnl::engine eng, const MemoryDesc& desc, MemoryBlockPtr block)
-    : Memory::Memory(std::move(eng), desc.clone(), std::move(block)) {}
+Memory::Memory(const MemoryDesc& desc, MemoryBlockPtr block)
+    : Memory::Memory(desc.clone(), std::move(block)) {}
 
 size_t Memory::getSize() const {
     auto size = getDesc().getCurrentMemSize();
@@ -138,16 +136,15 @@ void Memory::create(const MemoryDesc& desc, const void* data, bool pads_zeroing)
 void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     m_pMemDesc = std::move(desc);
     m_padsZeroing = pads_zeroing;
-    dnnlMemHandle.resetDnnlPrim();
 
     if (!m_pMemDesc->isDefined()) {
         return;
     }
     auto memSize = m_pMemDesc->getCurrentMemSize();
     if (nullptr != data) {
-        m_blockHandle->setExtBuff(const_cast<void*>(data), memSize);
+        m_memBlock->setExtBuff(const_cast<void*>(data), memSize);
     } else {
-        m_blockHandle->resize(memSize);
+        m_memBlock->resize(memSize);
     }
 }
 
@@ -176,48 +173,6 @@ void Memory::redefineDesc(MemoryDescPtr desc) {
     this->create(desc, nullptr, false);
 }
 
-void Memory::update() {
-    if (dnnlMemHandle.isInit()) {
-        auto prim = dnnlMemHandle.getPrim();
-        prim.set_data_handle(m_blockHandle->getRawPtr());
-    }
-}
-
-dnnl::memory Memory::getPrimitive() const {
-    return dnnlMemHandle.getPrim();
-}
-
-void Memory::DnnlMemPrimHandle::resetDnnlPrim() {
-    m_prim = dnnl::memory();
-}
-
-bool Memory::DnnlMemPrimHandle::isInit() const {
-    std::lock_guard<std::mutex> guard(m_primCachingLock);
-    return m_prim.get(true) != nullptr;
-}
-
-dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
-    std::lock_guard<std::mutex> guard(m_primCachingLock);
-    if (!m_prim) {
-        if (!m_memObjPtr->getDesc().isDefined()) {
-            OPENVINO_THROW("Can not create oneDNN memory from undefined memory descriptor");
-        }
-
-        // ========================
-        // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
-        // but with ability to skip pads zeroing.
-        auto desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_memObjPtr->getDescPtr());
-        m_prim = dnnl::memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
-        //
-        // ========================
-        auto data = m_memObjPtr->getDataNoThrow();
-        if (data != nullptr) {
-            m_prim.set_data_handle(data);
-        }
-    }
-    return m_prim;
-}
-
 void* Memory::getData() const {
     void* data = getDataNoThrow();
     if (data == nullptr && m_pMemDesc->getShape().isStatic() && m_pMemDesc->getShape().getElementsCount() != 0) {
@@ -237,10 +192,12 @@ void MemoryBlockWithReuse::setExtBuff(void* ptr, size_t size) {
 }
 
 bool MemoryBlockWithReuse::resize(size_t size) {
-    constexpr int cacheLineSize = 64;
+    constexpr size_t cacheLineSize = 64;
     bool sizeChanged = false;
     if (size > m_memUpperBound) {
-        void* ptr = dnnl::impl::malloc(size, cacheLineSize);
+        // ensure the size is an integral multiple of cacheLineSize
+        size = (size + cacheLineSize - 1) & ~(cacheLineSize - 1);
+        void* ptr = std::aligned_alloc(cacheLineSize, size);
         if (!ptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
@@ -275,14 +232,13 @@ size_t MemoryBlockWithReuse::size() const {
 void MemoryBlockWithReuse::release(void* ptr) {}
 
 void MemoryBlockWithReuse::destroy(void* ptr) {
-    dnnl::impl::free(ptr);
+    std::free(ptr);
 }
 
 /////////////// StringMemory ///////////////
 
-StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* data)
-    : m_engine(std::move(engine)),
-      m_mem_desc(std::move(desc)) {
+StringMemory::StringMemory(MemoryDescPtr desc, const void* data)
+    : m_mem_desc(std::move(desc)) {
     if (m_mem_desc->getPrecision() != element::string) {
         OPENVINO_THROW("[CPU] StringMemory supports String type only.");
     }
@@ -347,10 +303,6 @@ MemoryBlockPtr StringMemory::getMemoryBlock() const {
     OPENVINO_THROW("Unexpected call of StringMemory::getMemoryBlock()");
 }
 
-dnnl::memory StringMemory::getPrimitive() const {
-    OPENVINO_THROW("Unexpected call of StringMemory::getPrimitive()");
-}
-
 void StringMemory::StringMemoryBlock::setExtBuff(OvString* ptr, size_t size) {
     m_use_external_storage = true;
     m_str_upper_bound = size;
@@ -396,52 +348,8 @@ void* StringMemory::StringMemoryBlock::getRawPtr() const noexcept {
     return reinterpret_cast<void*>(m_data.get());
 }
 
-/////////////// DnnlMemoryBlock ///////////////
-
-void* DnnlMemoryBlock::getRawPtr() const noexcept {
-    return m_pMemBlock->getRawPtr();
-}
-
-void DnnlMemoryBlock::setExtBuff(void* ptr, size_t size) {
-    m_pMemBlock->setExtBuff(ptr, size);
-    notifyUpdate();
-}
-
-bool DnnlMemoryBlock::resize(size_t size) {
-    bool sizeChanged = m_pMemBlock->resize(size);
-    if (sizeChanged) {
-        notifyUpdate();
-    }
-    return sizeChanged;
-}
-
-bool DnnlMemoryBlock::hasExtBuffer() const noexcept {
-    return m_pMemBlock->hasExtBuffer();
-}
-
-void DnnlMemoryBlock::registerMemory(Memory* memPtr) {
-    if (memPtr) {
-        m_setMemPtrs.insert(memPtr);
-    }
-}
-
-void DnnlMemoryBlock::unregisterMemory(Memory* memPtr) {
-    if (memPtr) {
-        m_setMemPtrs.erase(memPtr);
-    }
-}
-
-void DnnlMemoryBlock::notifyUpdate() {
-    for (auto& item : m_setMemPtrs) {
-        if (item) {
-            item->update();
-        }
-    }
-}
-
-StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data, bool pads_zeroing)
-    : m_eng(std::move(eng)),
-      m_pMemDesc(std::move(desc)) {
+StaticMemory::StaticMemory(MemoryDescPtr desc, const void* data, bool pads_zeroing)
+    : m_pMemDesc(std::move(desc)) {
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] StaticMemory object cannot be created for string data.");
     }
@@ -456,26 +364,10 @@ StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* dat
     } else {
         m_pMemBlock = std::make_shared<StaticMemoryBlock>(m_size);
     }
-
-    try {
-        auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_pMemDesc);
-        // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
-        // but with ability to skip pads zeroing.
-        const auto& memory_desc = dnnl_desc->getDnnlDesc();
-        if (memory_desc.is_zero()) {
-            // dnnl memory created using an empty memory_desc is not empty, so use a default constructor
-            m_prim = dnnl::memory();
-        } else {
-            m_prim = dnnl::memory(memory_desc, m_eng, DNNL_MEMORY_NONE);
-            m_prim.set_data_handle(m_pMemBlock->getRawPtr());
-        }
-    } catch (const std::exception& exc) {
-        dnnlErrorCtx = exc.what();
-    }
 }
 
-StaticMemory::StaticMemory(dnnl::engine eng, const MemoryDesc& desc, const void* data, bool pads_zeroing)
-    : StaticMemory::StaticMemory(std::move(eng), desc.clone(), data, pads_zeroing) {}
+StaticMemory::StaticMemory(const MemoryDesc& desc, const void* data, bool pads_zeroing)
+    : StaticMemory::StaticMemory(desc.clone(), data, pads_zeroing) {}
 
 const MemoryDesc& StaticMemory::getDesc() const {
     return *m_pMemDesc;
@@ -516,15 +408,6 @@ MemoryBlockPtr StaticMemory::getMemoryBlock() const {
     return m_pMemBlock;
 }
 
-// oneDNN specifics for backward compatibility
-dnnl::memory StaticMemory::getPrimitive() const {
-    if (!m_prim && !getDesc().empty()) {  // for an empty memory m_prim is expected to be empty
-        OPENVINO_THROW("Couldn't create dnnl::memory object: ", dnnlErrorCtx);
-    }
-
-    return m_prim;
-}
-
 void StaticMemory::nullify() {
     void* dataPtr = getData();
     if (dataPtr != nullptr) {
@@ -557,14 +440,6 @@ bool StaticMemory::StaticMemoryBlock::resize(size_t size) {
 
 bool StaticMemory::StaticMemoryBlock::hasExtBuffer() const noexcept {
     return memBlockImpl.hasExtBuffer();
-}
-
-void StaticMemory::StaticMemoryBlock::registerMemory(Memory* memPtr) {
-    // do nothing
-}
-
-void StaticMemory::StaticMemoryBlock::unregisterMemory(Memory* memPtr) {
-    // do nothing
 }
 
 #if defined(__linux__)
@@ -634,8 +509,7 @@ bool mbind_move(const dnnl::memory& mem, int numaNodeID) {
     return mbind_move(data, size, numaNodeID);
 }
 
-MemoryPtr split_horizontal(const dnnl::engine& eng,
-                           const MemoryPtr& src,
+MemoryPtr split_horizontal(const MemoryPtr& src,
                            int dim,
                            int w_rank,
                            int w_size,
@@ -665,7 +539,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
         new_pshape[dim] = splited_dim_vec[w_rank];
 
         auto new_desc = std::make_shared<CpuBlockedMemoryDesc>(prec, Shape{new_pshape});
-        MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc);
+        MemoryPtr ptr = std::make_shared<Memory>(new_desc);
         return ptr;
     }
     assert(static_cast<int>(dims[dim]) >= w_size);
@@ -684,7 +558,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
 
     auto new_desc = desc->cloneWithNewDims(new_dims, true);
     if (!need_fill) {
-        MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc, nullptr);
+        MemoryPtr ptr = std::make_shared<Memory>(new_desc, nullptr);
         return ptr;
     }
 
@@ -693,12 +567,11 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
         stride /= 2;
     }
 
-    MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc, srcPtr + w_rank * stride);
+    MemoryPtr ptr = std::make_shared<Memory>(new_desc, srcPtr + w_rank * stride);
     return ptr;
 }
 
-MemoryPtr split_vertical(const dnnl::engine& eng,
-                         const MemoryPtr& src,
+MemoryPtr split_vertical(const MemoryPtr& src,
                          int dim,
                          int w_rank,
                          int w_size,
@@ -726,7 +599,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         new_pshape[dim] = splited_dim_vec[w_rank];
 
         auto new_desc = std::make_shared<CpuBlockedMemoryDesc>(prec, Shape{new_pshape});
-        MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc);
+        MemoryPtr ptr = std::make_shared<Memory>(new_desc);
         return ptr;
     }
     assert(static_cast<int>(dims[dim]) >= w_size);
@@ -738,7 +611,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
     new_dims[dim] = splited_dim_vec[w_rank];
 
     auto new_desc = desc->cloneWithNewDims(new_dims, true);
-    MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc);
+    MemoryPtr ptr = std::make_shared<Memory>(new_desc);
     if (!need_fill) {
         return ptr;
     }

@@ -11,6 +11,7 @@
 
 #include "cpu_memory.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "onednn/iml_type_mapper.h"
 #include "utils/general_utils.h"
 
@@ -290,6 +291,18 @@ std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<c
                                                          const std::shared_ptr<DnnlMemoryDesc>& dstDesc) {
     const auto desc_hash = dnnl::impl::primitive_hashing::get_md_hash(*dstDesc->getDnnlDesc().get());
     return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
+}
+
+dnnl::memory DnnlExtensionUtils::createMemoryPrimitive(const IMemory& mem, const dnnl::engine& eng) {
+    const auto& dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(mem.getDescPtr());
+    if (dnnl_desc->isDefined()) {
+        return {dnnl_desc->getDnnlDesc(), eng, mem.getData()};
+    }
+    return {dnnl_desc->getDnnlDesc(), eng, DNNL_MEMORY_NONE};
+}
+
+dnnl::memory DnnlExtensionUtils::createMemoryPrimitive(const MemoryPtr& mem, const dnnl::engine& eng) {
+    return createMemoryPrimitive(*mem, eng);
 }
 
 }  // namespace ov::intel_cpu

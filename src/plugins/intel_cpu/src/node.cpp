@@ -1168,8 +1168,8 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     }
 
     auto create = [&]() {
-        Memory srcMemory{getEngine(), srcWeightDesc, edgeMem->getData()};
-        MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
+        Memory srcMemory{srcWeightDesc, edgeMem->getData()};
+        MemoryPtr _ptr = std::make_shared<Memory>(dstWeightDesc);
         node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
 
         return _ptr;
@@ -1214,7 +1214,7 @@ void Node::toNumaNodeImpl(int numaNodeID) {
     // create scratch pad from specified numa node
     if (scratchpadMem) {
         scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMem->getDescPtr());
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+        primArgs[DNNL_ARG_SCRATCHPAD] = DnnlExtensionUtils::createMemoryPrimitive(scratchpadMem, getEngine());
     }
 
     // mbind constant prim args to numa nodes
@@ -1499,9 +1499,10 @@ MemoryDescPtr Node::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t 
 
 void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
                             std::unordered_map<int, dnnl::memory>& primArgs,
-                            const std::unordered_map<int, MemoryPtr>& postOpsArgs) {
+                            const std::unordered_map<int, MemoryPtr>& postOpsArgs,
+                            const dnnl::engine& eng) {
     for (auto& entry : postOpsArgs) {
-        primArgs[entry.first] = entry.second->getPrimitive();
+        primArgs[entry.first] = DnnlExtensionUtils::createMemoryPrimitive(entry.second, eng);
     }
 }
 

@@ -103,10 +103,10 @@ public:
         // make chunk view
         auto chunk_desc = full_blob->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         chunk_desc.get()->dims[axis] = abs_stride;
-        chunk_desc.get()->padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
+        chunk_desc.get()->padded_dims[axis] = abs_stride;  // TODO: assumption that plain tensor
 
-        full_mem = full_blob->getPrimitive();
-        const auto full_mem_handler = full_mem.get_data_handle();
+        full_mem = full_blob;
+        const auto full_mem_handler = full_mem->getData();
         dnnl::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
 
         auto elem_size = DnnlExtensionUtils::sizeOfDataType(chunk_desc.get_data_type());
@@ -117,9 +117,11 @@ public:
 
         if (sliced_src) {
             mem_holder_src = chunk_mem;
-            mem_holder_dst = to->getPrimitive();
+            dst = to;
+            mem_holder_dst = DnnlExtensionUtils::createMemoryPrimitive(dst, eng);
         } else {
-            mem_holder_src = from->getPrimitive();
+            src = from;
+            mem_holder_src = DnnlExtensionUtils::createMemoryPrimitive(src, eng);
             mem_holder_dst = chunk_mem;
         }
         reorder =
@@ -130,8 +132,16 @@ public:
         OPENVINO_ASSERT(iter >= 0 && iter < iter_count);
 
         auto& chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
-        chunk_mem.set_data_handle(static_cast<uint8_t*>(full_mem.get_data_handle()) + chunk_offset_in_byte +
+        chunk_mem.set_data_handle(static_cast<uint8_t*>(full_mem->getData()) + chunk_offset_in_byte +
                                   chunk_stride_in_byte * iter);
+
+        if (src) {
+            mem_holder_src.set_data_handle(src->getData());
+        }
+
+        if (dst) {
+            mem_holder_dst.set_data_handle(dst->getData());
+        }
 
         reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
     }
@@ -141,22 +151,27 @@ private:
     ptrdiff_t chunk_offset_in_byte = 0;
 
     bool sliced_src;
-    dnnl::memory full_mem;
+    MemoryPtr full_mem;
 
     int iter_count;
 };
 
 class BackEdgePortHelper : public PortMapHelper {
 public:
-    BackEdgePortHelper(const MultiCachePtr& cache, const MemoryPtr& from, const MemoryPtr& to) {
-        mem_holder_src = from->getPrimitive();
-        mem_holder_dst = to->getPrimitive();
+    BackEdgePortHelper(const MultiCachePtr& cache, const MemoryPtr& from, const MemoryPtr& to, const dnnl::engine& eng) {
+        src = from;
+        mem_holder_src = DnnlExtensionUtils::createMemoryPrimitive(src, eng);
+
+        dst = to;
+        mem_holder_dst = DnnlExtensionUtils::createMemoryPrimitive(dst, eng);
         reorder =
             getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
     }
 
     void execute(const dnnl::stream& strm, int iter) override {
         if (iter != 0) {
+            mem_holder_src.set_data_handle(src->getData());
+            mem_holder_dst.set_data_handle(dst->getData());
             reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
         }
     }
@@ -164,16 +179,15 @@ public:
 
 class IterCountPortHelper : public PortMapHelper {
 public:
-    IterCountPortHelper(const MemoryPtr& to, const dnnl::engine& eng) {
+    IterCountPortHelper(const MemoryPtr& to) {
         // Only scalar I32 tensor is supported
-        OPENVINO_ASSERT(to->getDataType() == memory::data_type::s32);
+        OPENVINO_ASSERT(to->getPrecision() == element::i32);
         OPENVINO_ASSERT(to->getShape() == Shape(VectorDims{1}));
-        mem_holder_dst = to->getPrimitive();
+        dst = to;
     }
 
     void execute(const dnnl::stream& strm, int n_iter) override {
-        auto mem = mem_holder_dst;
-        auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
+        auto data_ptr = dst->getDataAs<int32_t>();
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for IterCountPortHelper");
         }
@@ -184,13 +198,13 @@ public:
 class asBoolCheck : public PortChecker {
 public:
     asBoolCheck(const MemoryPtr& mem) {
-        OPENVINO_ASSERT(mem->getDataType() == memory::data_type::u8);
+        OPENVINO_ASSERT(mem->getPrecision() == element::boolean);
         OPENVINO_ASSERT(mem->getShape() == Shape(VectorDims{1}));
-        mem_holder = mem->getPrimitive();
+        mem_holder = mem;
     }
 
     int getStatus() override {
-        auto data_ptr = static_cast<uint8_t*>(mem_holder.get_data_handle());
+        auto data_ptr = mem_holder->getDataAs<uint8_t>();
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for asBoolCheck");
         }
@@ -201,13 +215,13 @@ public:
 class asIntCheck : public PortChecker {
 public:
     asIntCheck(const MemoryPtr& mem) {
-        OPENVINO_ASSERT(mem->getDataType() == memory::data_type::s32);
+        OPENVINO_ASSERT(mem->getPrecision() == element::i32);
         OPENVINO_ASSERT(mem->getShape() == Shape(VectorDims{1}));
-        mem_holder = mem->getPrimitive();
+        mem_holder = mem;
     }
 
     int getStatus() override {
-        auto data_ptr = static_cast<uint32_t*>(mem_holder.get_data_handle());
+        auto data_ptr = mem_holder->getDataAs<int32_t>();
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for asIntCheck");
         }
@@ -231,7 +245,7 @@ DynamicBuffer::DynamicBuffer(MemoryPtr from_, std::vector<MemoryPtr> to_, const 
     : from(std::move(from_)),
       to(std::move(to_)),
       map_rule(map_rule_),
-      elem_size(DnnlExtensionUtils::sizeOfDataType(from->getDataType())) {}
+      elem_size(from->getPrecision().size()) {}
 
 void DynamicBuffer::execute(const dnnl::engine& eng, const int iter) {
     if (from->getStaticDims()[map_rule.axis] != static_cast<size_t>(std::abs(map_rule.stride))) {
@@ -242,12 +256,12 @@ void DynamicBuffer::execute(const dnnl::engine& eng, const int iter) {
     }
 
     if (iter == 0) {
-        init(eng);
+        init();
     }
 
     // if chunk_offset_in_byte out of range of buffer holder, reallocate a larger chunk
     if (check_buffer()) {
-        auto new_buffer = create_buffer(eng);
+        auto new_buffer = create_buffer();
         move_buffer(new_buffer);
     }
 
@@ -258,21 +272,19 @@ void DynamicBuffer::reset(int max_iter_count_) {
     max_iter_count = max_iter_count_;
 }
 
-void DynamicBuffer::init(const dnnl::engine& eng) {
+void DynamicBuffer::init() {
     const auto stride = map_rule.stride;
     const auto abs_stride = std::abs(stride);
 
     // We have no idea of "from" node memory dims until the sub_graph has been executed.
-    const auto& src_mem = from->getPrimitive();
-    const auto& src_desc = src_mem.get_desc();
-    const auto& dims = src_desc.get_dims();
+    const auto& dims = from->getStaticDims();
     count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, static_cast<size_t>(1), std::multiplies<>());
     len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<>());
     chunk_unit_in_byte = abs_stride * len;
 
     if (!mem_holder_buffer) {  // else reuse buffer holder of last inference
-        // preallocate a large chunk of memory to hold intermediate concated outputs of all iterations.
-        mem_holder_buffer = create_buffer(eng);
+        // preallocate a large chunk of memory to hold intermediate concatenated outputs of all iterations.
+        mem_holder_buffer = create_buffer();
     }
 
     // reset chunk_offset_in_byte since the first execution
@@ -294,7 +306,7 @@ bool DynamicBuffer::check_buffer() {
     return false;
 }
 
-MemoryPtr DynamicBuffer::create_buffer(const dnnl::engine& eng) {
+MemoryPtr DynamicBuffer::create_buffer() {
     const auto abs_stride = std::abs(map_rule.stride);
 
     const auto estimate_iters = [&]() {
@@ -310,7 +322,7 @@ MemoryPtr DynamicBuffer::create_buffer(const dnnl::engine& eng) {
     auto _descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
     auto new_buffer_desc = _descCreator->createSharedDesc(from->getDesc().getPrecision(), _shape);
 
-    auto _ptr = std::make_shared<Memory>(eng, new_buffer_desc);
+    auto _ptr = std::make_shared<Memory>(new_buffer_desc);
     return _ptr;
 }
 
@@ -370,12 +382,10 @@ void DynamicBuffer::transfer(const Node* node) {
         const auto stride = map_rule.stride;
         const auto abs_stride = std::abs(stride);
 
-        const auto& src_mem = from->getPrimitive();
-        const auto& src_desc = src_mem.get_desc();
-        auto dims = src_desc.get_dims();
+        auto dims = from->getStaticDims();
         dims[axis] = abs_stride * num_execs;
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)
-                              ->cloneWithNewDims(DnnlExtensionUtils::convertToVectorDims(dims));
+                              ->cloneWithNewDims(dims);
 
         redefineToMemories(to, desc);
 
@@ -865,7 +875,7 @@ void TensorIterator::reshapeAndFillOutput(const dnnl::stream& strm) {
             redefineToMemories(to_mems, desc);
 
             if (!newShape.isDynamic()) {
-                BackEdgePortHelper mapper(context->getParamsCache(), from_mem, to_mems.front());
+                BackEdgePortHelper mapper(context->getParamsCache(), from_mem, to_mems.front(), getEngine());
                 mapper.execute(strm, -1);
             }
         }

@@ -88,8 +88,7 @@ std::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr
                 weightPrecision,
                 input->getSize() / input->getDesc().getPrecision().size());
 
-    return std::optional<MemoryPtr>(std::make_shared<Memory>(output->getPrimitive().get_engine(),
-                                                             output->getDesc().cloneWithNewPrecision(weightPrecision),
+    return std::optional<MemoryPtr>(std::make_shared<Memory>(output->getDesc().cloneWithNewPrecision(weightPrecision),
                                                              tmpBuff.data()));
 }
 
@@ -103,8 +102,8 @@ std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& i
     auto convertedDstMemoryDesc = output->getDesc().cloneWithNewPrecision(inPrc);
     dnnl::reorder reorderWithoutConvert =
         getReorderPrim(context->getRuntimeCache(),
-                       output->getPrimitive().get_engine(),
-                       input->getPrimitive().get_desc(),
+                       context->getEngine(),
+                       input->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
                        MemoryDescUtils::convertToDnnlMemoryDesc(convertedDstMemoryDesc)->getDnnlDesc());
 
     if (reorderWithoutConvert &&
@@ -116,10 +115,12 @@ std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& i
         auto convertOutput = *convertOutputOpt;
 
         if (reorderWithoutConvert) {
-            dnnl::stream loc_stream(output->getPrimitive().get_engine(), dnnl::stream::flags::in_order);
+            dnnl::stream loc_stream(context->getEngine(), dnnl::stream::flags::in_order);
+            auto src = DnnlExtensionUtils::createMemoryPrimitive(convertOutput, context->getEngine());
+            auto dst = DnnlExtensionUtils::createMemoryPrimitive(output, context->getEngine());
             reorderWithoutConvert.execute(
                 loc_stream,
-                {{DNNL_ARG_FROM, convertOutput->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
+                {{DNNL_ARG_FROM, src}, {DNNL_ARG_TO, dst}});
             return std::optional<MemoryPtr>(output);
         }
     }
@@ -149,11 +150,11 @@ MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
     }
 
     // try directly reorder
-    auto engine = output->getPrimitive().get_engine();
+    const auto& engine = context->getEngine();
     dnnl::reorder directReorder = getReorderPrim(context->getRuntimeCache(),
                                                  engine,
-                                                 input->getPrimitive().get_desc(),
-                                                 output->getPrimitive().get_desc());
+                                                 input->getMemoryDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
+                                                 output->getMemoryDescWithType<DnnlMemoryDesc>()->getDnnlDesc());
 
     if (!directReorder || parse_impl_name(directReorder.get_primitive_desc()->impl()->name()) == ref_any) {
         // try precision conversion then do the reorder
@@ -165,8 +166,10 @@ MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
     // if precision conversion does not work then do direct reference reorder
     if (directReorder) {
         dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+        auto src = DnnlExtensionUtils::createMemoryPrimitive(input, context->getEngine());
+        auto dst = DnnlExtensionUtils::createMemoryPrimitive(output, context->getEngine());
         directReorder.execute(loc_stream,
-                              {{DNNL_ARG_FROM, input->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
+                              {{DNNL_ARG_FROM, src}, {DNNL_ARG_TO, dst}});
     } else {
         OPENVINO_THROW("Could not make onednn reorder.");
     }

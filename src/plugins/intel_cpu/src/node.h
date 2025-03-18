@@ -352,7 +352,8 @@ public:
 
     static void appendPostOpArgs(const dnnl::primitive_attr& attr,
                                  std::unordered_map<int, dnnl::memory>& primArgs,
-                                 const std::unordered_map<int, MemoryPtr>& postOpsArgs);
+                                 const std::unordered_map<int, MemoryPtr>& postOpsArgs,
+                                 const dnnl::engine& eng);
 
     bool isFusedWith(Type type) const;
 

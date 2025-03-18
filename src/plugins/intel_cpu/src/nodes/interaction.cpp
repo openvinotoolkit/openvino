@@ -248,9 +248,10 @@ void Interaction::execRef(const dnnl::stream& strm) {
         auto inPtr = getSrcDataAtPortAs<const uint8_t>(n);
         inputPtrs[n] = inPtr;
     }
-    std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->getPrimitive()},
-                                            {DNNL_ARG_WEIGHTS, inputMemPtr->getPrimitive()},
-                                            {DNNL_ARG_DST, outputMemPtr->getPrimitive()}};
+    std::unordered_map<int, memory> mem_ags{
+        {DNNL_ARG_SRC, DnnlExtensionUtils::createMemoryPrimitive(inputMemPtr, getEngine())},
+        {DNNL_ARG_WEIGHTS, DnnlExtensionUtils::createMemoryPrimitive(inputMemPtr, getEngine())},
+        {DNNL_ARG_DST, DnnlExtensionUtils::createMemoryPrimitive(outputMemPtr, getEngine())}};
     float* scales = fqScales.empty() ? nullptr : fqScales.data();
     for (int64_t start = 0; start < static_cast<int64_t>(batchSize); start++) {
         cat(inputMemPtr->getDataAs<uint8_t>(), inputPtrs, featureSizes, start, dataPrecision.size());

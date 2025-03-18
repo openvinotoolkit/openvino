@@ -33,9 +33,6 @@ public:
     ov::element::Type getRuntimePrecision() const override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
 
-    dnnl::memory getWeights() const;
-    dnnl::memory getBias() const;
-
     size_t descInputNumbers() override {
         return getOriginalInputsNumber();
     }
@@ -141,6 +138,7 @@ private:
     bool withSumBroadcast = false;
     bool preferLegacyPostOps = false;
     bool preferLegacyZeroPoint = false;
+    bool constWeights = false;
     zpType inputZeroPointType = zpType::None;
     // maps each supportedPrimitiveDescriptor to corresponding desc from descs
     std::vector<size_t> descIdx;

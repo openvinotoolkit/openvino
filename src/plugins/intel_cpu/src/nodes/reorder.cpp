@@ -329,8 +329,8 @@ void Reorder::createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const Dnn
     selectedPD->setImplementationType(
         parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));
 
-    auto src = getSrcMemoryAtPort(0)->getPrimitive();
-    auto dst = getDstMemoryAtPort(0)->getPrimitive();
+    auto src = DnnlExtensionUtils::createMemoryPrimitive(getSrcMemoryAtPort(0), getEngine());
+    auto dst = DnnlExtensionUtils::createMemoryPrimitive(getDstMemoryAtPort(0), getEngine());
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 
 #ifdef CPU_DEBUG_CAPS
@@ -443,6 +443,8 @@ void Reorder::execute(const dnnl::stream& strm) {
         optimizedNcsp2Nspc();
     } else {
         if (prim) {
+            primArgs[DNNL_ARG_SRC].set_data_handle(getDstMemoryAtPort(0)->getData());
+            primArgs[DNNL_ARG_DST].set_data_handle(getSrcMemoryAtPort(0)->getData());
             prim.execute(strm, primArgs);
         } else {
             THROW_CPU_NODE_ERR("doesn't have an initialized primitive.");
@@ -487,16 +489,16 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
             cpu_memcpy(dstPtr, srcPtr, copySize);
         }
     } else {
+        auto engine = dnnl::engine(dnnl::engine::kind::cpu, 0);
+
         dnnl::reorder reorder;
         std::vector<uint8_t> tmpBuff;
 
-        auto srcMemory = input.getPrimitive();
-        auto dstMemory = output.getPrimitive();
+        auto srcMemory = DnnlExtensionUtils::createMemoryPrimitive(input, engine);
+        auto dstMemory = DnnlExtensionUtils::createMemoryPrimitive(output, engine);
 
         auto srcMemoryDesc = srcMemory.get_desc();
         auto dstMemoryDesc = dstMemory.get_desc();
-
-        auto engine = dstMemory.get_engine();
 
         if (srcMemoryDesc.get_ndims() != dstMemoryDesc.get_ndims()) {
             // rank mismatch, try to reshape source mem descriptor
@@ -512,24 +514,24 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
         reorder = getReorderPrim(cache, engine, srcMemoryDesc, dstMemoryDesc);
         if (!reorder) {
             // try precision conversion then do the reorder
-            if (output.getDataType() != input.getDataType() && Convert::isSupportedDesc(input.getDesc()) &&
+            if (output.getPrecision() != input.getPrecision() && Convert::isSupportedDesc(input.getDesc()) &&
                 Convert::isSupportedDesc(output.getDesc())) {
                 // we probably could not make the reorder because there is no one supporting this precision conversion
                 // lets try to convert data first using cpu_convert
                 auto data = static_cast<const uint8_t*>(input.getData());
                 tmpBuff.resize(output.getSize());
 
-                const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output.getDataType());
+                const auto outPrc = output.getPrecision();
                 cpu_convert(data,
                             tmpBuff.data(),
-                            DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
+                            input.getPrecision(),
                             outPrc,
-                            input.getSize() / input.getDesc().getPrecision().size());
+                            input.getSize() / input.getPrecision().size());
 
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
-                Memory tmpMem(engine, tmpDesc, tmpBuff.data());
+                Memory tmpMem(tmpDesc, tmpBuff.data());
 
-                srcMemory = tmpMem.getPrimitive();
+                srcMemory = DnnlExtensionUtils::createMemoryPrimitive(tmpMem, engine);
                 reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
             }
             if (!reorder) {

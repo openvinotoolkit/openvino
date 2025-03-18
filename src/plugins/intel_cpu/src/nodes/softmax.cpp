@@ -221,9 +221,9 @@ void SoftMax::prepareParams() {
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
-    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
-    primArgs[DNNL_ARG_SRC] = getSrcMemoryAtPort(0)->getPrimitive();
-    primArgs[DNNL_ARG_DST] = getDstMemoryAtPort(0)->getPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = DnnlExtensionUtils::createMemoryPrimitive(scratchpadMem, getEngine());
+    primArgs[DNNL_ARG_SRC] = DnnlExtensionUtils::createMemoryPrimitive(getSrcMemoryAtPort(0), getEngine());
+    primArgs[DNNL_ARG_DST] = DnnlExtensionUtils::createMemoryPrimitive(getDstMemoryAtPort(0), getEngine());
 #ifdef CPU_DEBUG_CAPS
     auto pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
@@ -232,6 +232,8 @@ void SoftMax::prepareParams() {
 
 void SoftMax::execute(const dnnl::stream& strm) {
     if (execPtr) {
+        primArgs[DNNL_ARG_SRC].set_data_handle(getSrcMemoryAtPort(0)->getData());
+        primArgs[DNNL_ARG_DST].set_data_handle(getDstMemoryAtPort(0)->getData());
         execPtr->exec(primArgs, strm);
     } else {
         THROW_CPU_NODE_ERR("doesn't have an initialized executor");
