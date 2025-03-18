@@ -853,7 +853,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
         }
     }
 
-    // update layout to ensure that it repsects paddings for correct allocation size
+    // update layout to ensure that it respects paddings for correct allocation size
     if (_node_output_layout.data_padding.is_dynamic()) {
         auto update_padding = [](layout& orig_layout) {
             auto current_dims = orig_layout.get_padded_dims();
@@ -1376,7 +1376,8 @@ void primitive_inst::do_runtime_skip_reorder() {
 
 void primitive_inst::do_runtime_skip_dynamic_quantize() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_dynamic_quantize: " + id()));
-    if (!_node->is_type<dynamic_quantize>())
+    if (!_node->is_type<dynamic_quantize>()
+        || !get_node().is_runtime_skippable())
         return;
 
     if (get_config().get_dynamic_quantization_all())

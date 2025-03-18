@@ -17,6 +17,7 @@
 #include "scatter_elements_update_inst.h"
 #include "scatter_update_inst.h"
 #include "scatter_nd_update_inst.h"
+#include "dynamic_quantize_inst.h"
 #include "program_helpers.h"
 
 using namespace cldnn;
@@ -246,6 +247,22 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 || node.has_fused_primitives()
                 || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
                 || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                return;
+
+            if (node.is_dynamic()) {
+                node.can_be_optimized(true);
+                // Set runtime skippable only when the node is set as can_be_optimized finally.
+                node.set_runtime_skippable(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            }
+        });
+        
+        program_helpers::do_for_types<dynamic_quantize>(*node, [](dynamic_quantize_node & node){
+            auto impl_params = node.get_kernel_impl_params();
+
+            if ((node.is_output() && node.get_dependency(0).is_input())
+                || node.has_fused_primitives()
+                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format))
                 return;
 
             if (node.is_dynamic()) {
