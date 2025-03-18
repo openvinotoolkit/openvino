@@ -21,9 +21,6 @@ public:
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,
              snippets::lowered::LinearIR::constExprIt end) override;
-
-private:
-    std::unordered_set<snippets::lowered::UnifiedLoopInfoPtr> m_affected_loops;
 };
 
 }  // namespace ov::intel_cpu::pass

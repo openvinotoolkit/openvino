@@ -60,7 +60,7 @@ std::tuple<size_t, size_t, size_t> GemmCPUBlocking::get_blocking_params(
     const auto precision = brgemm_expr->get_node()->get_input_element_type(1);
     if (with_repacking(brgemm->get_type()) && precision != element::f32) {
         n_blk = get_full_dim_value();
-        k_blk = get_full_dim_value();
+        // k_blk = get_full_dim_value();
     }
     return std::make_tuple(m_blk, n_blk, k_blk);
 }
