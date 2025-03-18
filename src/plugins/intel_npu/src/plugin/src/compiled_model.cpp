@@ -130,7 +130,9 @@ void CompiledModel::export_model(std::ostream& stream) const {
     }
 
     size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
-    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, CURRENT_OPENVINO_VERSION);
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning,
+                                                   CURRENT_OPENVINO_VERSION,
+                                                   {_initGraph->get_blob_size()});
     meta.write(stream);
 }
 
