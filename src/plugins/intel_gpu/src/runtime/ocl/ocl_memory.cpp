@@ -17,6 +17,23 @@
 #include <oneapi/dnnl/dnnl_ocl.hpp>
 #endif
 
+#define BOUNDARIES_CHECK(copy_type, src_size, src_offset, dst_size, dst_offset, copy_size)    \
+    OPENVINO_ASSERT(src_offset + copy_size <= src_size && dst_offset + copy_size <= dst_size, \
+                    "[GPU] Incorrect buffer sizes for ",                                      \
+                    copy_type,                                                                \
+                    " call. Parameters provided are"                                          \
+                    ": src_size=",                                                            \
+                    src_size,                                                                 \
+                    ", src_offset=",                                                          \
+                    src_offset,                                                               \
+                    ", dst_size=",                                                            \
+                    dst_size,                                                                 \
+                    ", dst_offset=",                                                          \
+                    dst_offset,                                                               \
+                    ", copy_size=",                                                           \
+                    copy_size,                                                                \
+                    ".");
+
 #define TRY_CATCH_CL_ERROR(...)               \
     try {                                     \
         __VA_ARGS__;                          \
@@ -132,6 +149,8 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t sr
     if (size == 0)
         return result_event;
 
+    BOUNDARIES_CHECK("gpu_buffer::copy_from(void*)", SIZE_MAX, src_offset, _bytes_count, dst_offset, size);
+
     auto cl_stream = downcast<ocl_stream>(&stream);
     auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
     auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
@@ -145,6 +164,8 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
     auto result_event = create_event(stream, size, false);
     if (size == 0)
         return result_event;
+
+    BOUNDARIES_CHECK("gpu_buffer::copy_from(memory&)", src_mem.size(), src_offset, _bytes_count, dst_offset, size);
 
     switch (src_mem.get_allocation_type()) {
         case allocation_type::usm_host:
@@ -179,6 +200,8 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
     auto result_event = create_event(stream, size, blocking);
     if (size == 0)
         return result_event;
+
+    BOUNDARIES_CHECK("gpu_buffer::copy_to(void*)", _bytes_count, src_offset, SIZE_MAX, dst_offset, size);
 
     auto cl_stream = downcast<ocl_stream>(&stream);
     auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
@@ -540,6 +563,8 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_o
     if (size == 0)
         return result_event;
 
+    BOUNDARIES_CHECK("gpu_usm::copy_from(void*)", SIZE_MAX, src_offset, _bytes_count, dst_offset, size);
+
     auto cl_stream = downcast<ocl_stream>(&stream);
     auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
     auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
@@ -554,6 +579,8 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
     auto result_event = create_event(stream, size, blocking);
     if (size == 0)
         return result_event;
+
+    BOUNDARIES_CHECK("gpu_usm::copy_from(memory&)", src_mem.size(), src_offset, _bytes_count, dst_offset, size);
 
     auto cl_stream = downcast<ocl_stream>(&stream);
     auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
@@ -585,6 +612,8 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
     auto result_event = create_event(stream, size, blocking);
     if (size == 0)
         return result_event;
+
+    BOUNDARIES_CHECK("gpu_usm::copy_to(void*)", _bytes_count, src_offset, SIZE_MAX, dst_offset, size);
 
     auto cl_stream = downcast<ocl_stream>(&stream);
     auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
@@ -672,3 +701,5 @@ ocl_surfaces_lock::ocl_surfaces_lock(std::vector<memory::ptr> mem, const stream&
 
 }  // namespace ocl
 }  // namespace cldnn
+
+#undef BOUNDARIES_CHECK
