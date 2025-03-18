@@ -57,6 +57,10 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
         m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
                         utils::get_buffer_cluster_id(expr->get_input_port(1)),
                         utils::get_buffer_cluster_id(expr->get_output_port(0))};
+        if (with_scratchpad(brgemm_type)) {
+            m_memory_offsets.push_back(gemm_node->get_offset_scratch());
+            m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
+        }
     } else if (is_type<ov::intel_cpu::GemmCPU>(expr->get_node())) {
         const auto& brgemm_node = as_type_ptr<ov::intel_cpu::GemmCPU>(expr->get_node());
         const auto& brg0Prc = brgemm_node->get_input_element_type(0);
@@ -140,12 +144,12 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 
     if (std::dynamic_pointer_cast<BrgemmAMXKernelExecutor>(m_kernel_executor)) {
         emit_call<BrgemmAMXKernelExecutor>(mem_ptrs_idxs);
-    } else if (std::dynamic_pointer_cast<BrgemmAMXKernelExecutor>(m_kernel_executor)) {
-        emit_call<BrgemmAMXBatchedKernelExecutor>(mem_ptrs_idxs);
     } else if (std::dynamic_pointer_cast<BrgemmKernelExecutor>(m_kernel_executor)) {
         emit_call<BrgemmKernelExecutor>(mem_ptrs_idxs);
     } else if (std::dynamic_pointer_cast<BrgemmBatchedKernelExecutor>(m_kernel_executor)) {
         emit_call<BrgemmBatchedKernelExecutor>(mem_ptrs_idxs);
+    } else if (std::dynamic_pointer_cast<BrgemmAMXBatchedKernelExecutor>(m_kernel_executor)) {
+        emit_call<BrgemmAMXBatchedKernelExecutor>(mem_ptrs_idxs);
     } else {
         OV_CPU_JIT_EMITTER_THROW("uknown execuor type");
     }
@@ -189,7 +193,7 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
     }
 
     // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
-    if (std::is_same<T, BrgemmAMXKernelExecutor>()) {
+    if (std::is_same<T, BrgemmAMXKernelExecutor>() || std::is_same<T, BrgemmAMXBatchedKernelExecutor>()) {
         h->lea(aux_reg, h->ptr[abi_param1 + GET_OFF(amx_tile_config)]);
         h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_AMX_ARGS(amx_tile_config)], aux_reg);
     }

@@ -58,7 +58,7 @@ std::tuple<size_t, size_t, size_t> GemmCPUBlocking::get_blocking_params(
     // the low precision cases (ticket: 156014)
     if (with_repacking(brgemm->get_type())) {
         n_blk = get_full_dim_value();
-        k_blk = get_full_dim_value();
+        // k_blk = get_full_dim_value();
     }
     return std::make_tuple(m_blk, n_blk, k_blk);
 }
