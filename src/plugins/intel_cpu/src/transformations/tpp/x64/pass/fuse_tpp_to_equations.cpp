@@ -84,15 +84,18 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
     for (const auto& in : equation->inputs()) {
         auto subtensor = root_subtensor;
         if (in.get_partial_shape().size() < root_subtensor.size()) {
-            subtensor.resize(in.get_partial_shape().size());
+            subtensor.erase(subtensor.begin(),
+                            subtensor.begin() + (root_subtensor.size() - in.get_partial_shape().size()));
         }
         ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(in, subtensor);
     }
     auto subtensor = root_subtensor;
-    if (equation->output(0).get_partial_shape().size() < 2) {
-        subtensor = {root_subtensor.back()};
+    const auto& out = equation->output(0);
+    if (out.get_partial_shape().size() < root_subtensor.size()) {
+        subtensor.erase(subtensor.begin(),
+                        subtensor.begin() + (root_subtensor.size() - out.get_partial_shape().size()));
     }
-    ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(equation->output(0), root_subtensor);
+    ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(equation->output(0), subtensor);
     return true;
 }
 
