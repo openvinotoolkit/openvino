@@ -170,10 +170,6 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
         return py::cast(any.as<std::tuple<unsigned int, unsigned int, unsigned int>>());
     }
-    // Check for py::tuple
-    else if (any.is<py::tuple>()) {
-        return py::cast<py::tuple>(any.as<py::tuple>());
-    }
     // Check for std::map<std::string, std::string>
     else if (any.is<std::map<std::string, std::string>>()) {
         return py::cast(any.as<std::map<std::string, std::string>>());
@@ -408,6 +404,20 @@ ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
     return return_value;
 }
 
+template <typename... Args, std::size_t... I>
+std::tuple<Args...> tuple_from_py_tuple_impl(const py::tuple& py_tuple, std::index_sequence<I...>) {
+    return std::make_tuple(py_tuple[I].cast<Args>()...);
+}
+
+template <typename... Args>
+std::tuple<Args...> tuple_from_py_tuple(const py::tuple& py_tuple) {
+    if (py_tuple.size() != sizeof...(Args)) {
+        OPENVINO_THROW(false, "Size of py::tuple does not match size of std::tuple");
+    }
+
+    return tuple_from_py_tuple_impl<Args...>(py_tuple, std::index_sequence_for<Args...>{});
+}
+
 ov::Any py_object_to_any(const py::object& py_obj) {
     // Python types
     py::object float_32_type = py::module_::import("numpy").attr("float32");
@@ -446,6 +456,15 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             return _list.cast<std::vector<ov::PartialShape>>();
         default:
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
+        }
+    } else if (py::isinstance<py::tuple>(py_obj)) {
+        auto _tuple = py::cast<py::tuple>(py_obj);
+        if (_tuple.size() == 2) {
+            return tuple_from_py_tuple<unsigned int, unsigned int>(_tuple);
+        } else if (_tuple.size() == 3) {
+            return tuple_from_py_tuple<unsigned int, unsigned int, unsigned int>(_tuple);
+        } else {
+            OPENVINO_ASSERT(false, "Unsupported tuple size");
         }
         // OV types
     } else if (py_object_is_any_map(py_obj)) {
@@ -497,8 +516,6 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::frontend::type::PyNone>(py_obj);
     } else if (py::isinstance<ov::frontend::type::PyScalar>(py_obj)) {
         return py::cast<ov::frontend::type::PyScalar>(py_obj);
-    } else if (py::isinstance<py::tuple>(py_obj)) {
-        return py::cast<py::tuple>(py_obj);
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
         return std::shared_ptr<py::object>(new py::object(py_obj), [](py::object* py_obj_reference) {
