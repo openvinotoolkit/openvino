@@ -6,7 +6,7 @@ REM SPDX-License-Identifier: Apache-2.0
 setlocal EnableDelayedExpansion
 
 REM Invalid expressions
-set "invalid_expressions=ov::op::v1::Add ov::op::v1::Divide ov::op::v1::Multiply ov::op::v1::Subtract ov::op::v1::Divide ov::Node ov::Input<ov::Node> ov::descriptor::Tensor <Type: 'undefined'> ov::Output<ov::Node const> ov::float16 ov::EncryptionCallbacks ov::streams::Num <Dimension: dynamic ov::pass::pattern::PatternSymbolValue"
+set "invalid_expressions=ov::op::v1::Add ov::op::v1::Divide ov::op::v1::Multiply ov::op::v1::Subtract ov::op::v1::Divide ov::Node ov::Input<ov::Node> ov::descriptor::Tensor <Type: 'undefined'> ov::Output<ov::Node const> ov::float16 ov::EncryptionCallbacks ov::streams::Num <Dimension: dynamic ov::pass::pattern::PatternSymbolValue <RTMap>"
 
 REM Invalid identifiers
 set "invalid_identifiers=<locals>"

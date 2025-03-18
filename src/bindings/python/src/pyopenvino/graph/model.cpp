@@ -29,6 +29,8 @@ namespace py = pybind11;
 
 using PyRTMap = ov::RTMap;
 
+PYBIND11_MAKE_OPAQUE(PyRTMap);
+
 namespace {
 template <class... Args>
 std::shared_ptr<ov::Model> make_model_with_tensor_names(Args&&... args) {

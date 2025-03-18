@@ -1,4 +1,3 @@
-# mypy: ignore-errors
 from __future__ import annotations
 from . import ops
 from openvino.opset1.ops import absolute

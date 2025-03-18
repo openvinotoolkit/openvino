@@ -1,4 +1,3 @@
-# mypy: ignore-errors
 """
 Functions related to converting between Python and numpy types and openvino types.
 """

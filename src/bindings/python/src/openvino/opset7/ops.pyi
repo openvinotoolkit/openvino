@@ -1,4 +1,3 @@
-# mypy: ignore-errors
 """
 Factory functions for all openvino ops.
 """
