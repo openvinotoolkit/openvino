@@ -489,7 +489,7 @@ INSTANTIATE_TEST_SUITE_P(mem_test,
                                                               mem_test_params{100, 79, 381}),
                                             ::testing::Values(false, true)));
 
-TEST(mem_test, copy_to_small_to_large) {
+TEST(mem_test, copy_small_buf_to_large_with_out_of_bound_access) {
     auto& ocl_engine = dynamic_cast<ocl::ocl_engine&>(get_test_engine());
     auto& stream = get_test_stream();
     auto small_buffer_size = 2048;
