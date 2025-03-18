@@ -21,7 +21,6 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const MemoryCPtr weightsMem,
                                const ExecutorContext::CPtr context,
                                const bool needShiftSignedToUnsigned) {
-    const auto& eng = context->getEngine();
     const auto& format = dstWeightDesc->serializeFormat();
 
     const auto privateWeightCache = context->getPrivateWeighCache();
