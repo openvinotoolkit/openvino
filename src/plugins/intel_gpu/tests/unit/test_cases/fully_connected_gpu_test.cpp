@@ -1997,8 +1997,6 @@ public:
         if (engine.get_device_info().dev_type == device_type::discrete_gpu || supports_immad)
             GTEST_SKIP();
 
-        // long int ifm_num = 18944;
-        // long int ofm_num = 3584;
         long int ifm_num = 1024;
         long int ofm_num = 14336;
 
@@ -2187,8 +2185,6 @@ public:
         if (engine.get_device_info().dev_type == device_type::discrete_gpu || supports_immad)
             GTEST_SKIP();
 
-        // long int ifm_num = 4096;
-        // long int ofm_num = 6144;
         long int ifm_num = 256;
         long int ofm_num = 512;
 
@@ -2555,10 +2551,8 @@ public:
         if (GROUP_SIZE)
             scales_group_size = atoi(GROUP_SIZE);
 
-        std::cout << "IFM_NUM = " << ifm_num << std::endl;
-        std::cout << "OFM_NUM = " << ofm_num << std::endl;
-        std::cout << "batch_num = " << batch_num << std::endl;
-        std::cout << "GROUP_SIZE = " << scales_group_size << std::endl;
+        std::cout << " weight_shape = " << ifm_num << " x " << ofm_num << std::endl;
+        std::cout << " batch_num = " << batch_num << std::endl;
 
         auto input_mem = engine.allocate_memory({{batch_num, 1, ifm_num}, data_types::f16, format::bfyx});
         auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::i4, format::bfyx});
@@ -2707,7 +2701,7 @@ public:
         if (engine.get_device_info().dev_type == device_type::discrete_gpu || supports_immad)
             GTEST_SKIP();
 
-        long int ifm_num = 256;
+        long int ifm_num = 1024;
         long int ofm_num = 256;
 
         auto input_mem = engine.allocate_memory({{batch_num, ifm_num}, data_types::f16, format::bfyx});

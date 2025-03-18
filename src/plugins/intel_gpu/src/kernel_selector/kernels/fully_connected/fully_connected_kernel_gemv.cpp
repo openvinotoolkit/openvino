@@ -219,13 +219,10 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
 
     if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
         jit.AddConstant(MakeJitConstant("FILTER_LAYOUT_OS_IS_YX_TYPE", 0));
-        // std::cout << " FILTER_LAYOUT_OS_IS_YX_TYPE = WeightsLayout::os_iyx_osv16" << std::endl;
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
         jit.AddConstant(MakeJitConstant("FILTER_LAYOUT_OS_IS_YX_TYPE", 1));
-        // std::cout << " FILTER_LAYOUT_OS_IS_YX_TYPE = WeightsLayout::os_is_yx_osv32_isv2" << std::endl;
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
         jit.AddConstant(MakeJitConstant("FILTER_LAYOUT_OS_IS_YX_TYPE", 2));
-        // std::cout << " FILTER_LAYOUT_OS_IS_YX_TYPE = WeightsLayout::os_is_yx_osv64_isv2" << std::endl;
     } else {
         OPENVINO_ASSERT("GEMV doesn't support this weights layout: ", params.weights.GetLayout());
     }
@@ -270,7 +267,7 @@ KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params
                (fc_params.weights.GetDType() == WeightsType::INT4 ||
                 fc_params.weights.GetDType() == WeightsType::UINT4) &&
                is_weight_horizontal(fc_params, output_f)) {
-        // Large N + small K case (horizontal weight) to use [osv64_isv2] + TILE_OFM 4 for batch 1
+        // Large N + small K case (horizontal weight) to use osv64_isv2
         weights_layout = WeightsLayout::os_is_yx_osv64_isv2;
     } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16 &&
                (fc_params.weights.GetDType() == WeightsType::INT4 ||
@@ -278,7 +275,7 @@ KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params
                (fc_params.weights.GetLayout() == WeightsLayout::oiyx ||
                 fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) &&
                is_weight_vertical(fc_params, output_f)) {
-        // Large K + Small N case (vertical weight)  to use [osv16 + TILE_K 4] + TILE_OFM 1 for batch 1
+        // Large K + Small N case (vertical weight)  to use osv16
         weights_layout = WeightsLayout::os_iyx_osv16;
     } else if (fc_params.compressed &&
                fc_params.inputs[0].GetDType() == Datatype::F16
@@ -296,8 +293,6 @@ KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params
         weights_layout = fc_params.weights.GetLayout();
     }
 
-    // weights_layout = WeightsLayout::os_is_yx_osv32_isv2; // Only for test
-    // std::cout << "weights_layout = " << weights_layout << std::endl;
     KernelsData kernels_data;
     kernels_data = GetCommonKernelsData(params,
                                         fc_params.inputs[0].GetLayout(),
@@ -309,7 +304,6 @@ KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params
 }
 
 KernelsData FullyConnected_GEMV::GetKernelsData(const Params& params) const {
-    // auto& fc_params = static_cast<const fully_connected_params&>(params);
     KernelsData res = {};
     KernelsData kds = GetTunedKernelsDataByIndex(params, -1);
     if (!kds.empty()) {

@@ -281,8 +281,7 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     auto& output = fc_params.outputs[0];
     auto& weights = fc_params.weights;
 
-    if (fc_params.single_batch && !is_swiglu_fused(fc_params) &&
-        (weights.GetDType() == WeightsType::INT4 || weights.GetDType() == WeightsType::UINT4)) {
+    if (fc_params._single_batch_optimized) {
         return false;
     }
 

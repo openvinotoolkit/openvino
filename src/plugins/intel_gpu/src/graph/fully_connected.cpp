@@ -214,7 +214,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 }
 
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
-    if (orig_impl_param.is_single_batch()) {
+    if (can_apply_single_batch_optimization(orig_impl_param)) {
         return std::move(orig_impl_param);
     }
 
@@ -328,6 +328,32 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     node_info->dump(primitive_description);
 
     return primitive_description.str();
+}
+
+bool fully_connected_inst::can_apply_single_batch_optimization(const kernel_impl_params& impl_param) {
+    if ((impl_param.output_layouts.size() == 0) || impl_param.output_layouts[0].is_dynamic())
+        return false;
+
+    // Only support i4/u4 weight so far
+    if (impl_param.weights_layout) {
+        auto weights_layout_dt = impl_param.weights_layout.value().data_type;
+        if (weights_layout_dt != data_types::i4 && weights_layout_dt != data_types::u4) {
+            return false;
+        }
+    }
+
+    // Don't support swiglu fused
+    if (impl_param.fused_desc.size() > 0) {
+        for (const auto& f : impl_param.fused_desc) {
+            if (f.is_type<swiglu>())
+                return false;
+        }
+    }
+
+    // Single batch
+    auto shape = impl_param.output_layouts[0].get_partial_shape().to_shape();
+    auto shape_size = ov::shape_size(shape);
+    return one_of(shape_size, shape) && (shape_size % 16 == 0);
 }
 
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)
