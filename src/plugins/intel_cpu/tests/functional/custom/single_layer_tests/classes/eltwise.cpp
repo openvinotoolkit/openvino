@@ -158,6 +158,15 @@ void EltwiseLayerCPUTest::SetUp() {
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
+    // issue 163147
+    if (ElementType::f16 == netType && enforceSnippets) {
+        auto fusedOpsNames = postOpMgrPtr ? postOpMgrPtr->getFusedOpsNames() : "";
+        if (fusedOpsNames.find("PerChannel") != std::string::npos) {
+            rel_threshold = 0.01f;
+            abs_threshold = 0.0078125f;
+        }
+    }
+
     shapes.resize(2);
     switch (opType) {
     case ov::test::utils::OpType::SCALAR: {

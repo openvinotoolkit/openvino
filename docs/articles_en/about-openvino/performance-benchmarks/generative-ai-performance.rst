@@ -3,7 +3,8 @@ Most Efficient Large Language Models for AI PC
 
 This page is regularly updated to help you identify the best-performing LLMs on the
 Intel® Core™ Ultra processor family and AI PCs.
-The current data is as of OpenVINO 2024.6, 13 Dec. 2024.
+The current data is as of OpenVINO 2025.0, 06 March 2025 (7-155H and 7-268V)
+and OpenVINO 2024.6, 13 Dec. 2024 (9-288V).
 
 The tables below list the key performance indicators for inference on built-in GPUs.
 
