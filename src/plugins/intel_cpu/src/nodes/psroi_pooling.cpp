@@ -636,6 +636,10 @@ void PSROIPooling::execute(const dnnl::stream& strm) {
               OV_CASE2(ov::element::bf16, ov::element::bf16, bfloat16_t, bfloat16_t))
 }
 
+void PSROIPooling::executeDynamicImpl(const dnnl::stream& strm) {
+    THROW_CPU_NODE_ERR("doesn't support dynamic shapes");
+}
+
 bool PSROIPooling::created() const {
     return getType() == Type::PSROIPooling;
 }
