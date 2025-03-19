@@ -434,29 +434,7 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
         v1_i32 = _mm256_max_epi32(v1_i32, v256_zero);
         v0_i32 = _mm256_min_epi32(v0_i32, v256_upper);
         v1_i32 = _mm256_min_epi32(v1_i32, v256_upper);
-        auto idx1 = _mm256_set_epi32(7, 5, 3, 1, 6, 4, 2, 0);
-        v0_i32 = _mm256_permutevar8x32_epi32(v0_i32, idx1);
-        v1_i32 = _mm256_permutevar8x32_epi32(v1_i32, idx1);
-        //    0,1,2,3,4,5,6,7 | 8,9,10,11,12,13,14,15
-        //       _mm256_permutevar8x32_epi32
-        //    0,2,4,6,1,3,5,7 | 8,10,12,14,9,11,13,15
-        //       _mm256_permute2x128_si256
-        // 0,2,4,6,8,10,12,14 | 1,3,5,7,9,11,13,15
-        //          shift + mask + or
-        //     [0,1],[2,3], ..., [12,13], [14,15]
-        auto first_half = _mm256_permute2x128_si256(v0_i32, v1_i32, 0x20);
-        auto second_half = _mm256_permute2x128_si256(v0_i32, v1_i32, 0x31);
-        first_half = _mm256_slli_epi32(first_half, 4);
-        auto mask = _mm256_set1_epi32(0x0F);
-        second_half = _mm256_and_si256(second_half, mask);
-        auto combined = _mm256_or_si256(first_half, second_half);
-
-        auto high4 = _mm256_extractf128_si256(combined, 1);
-        auto low4 = _mm256_castsi256_si128(combined);
-        // ignore sign bit for u4 case
-        auto packed = _mm_packus_epi32(low4, high4);
-        packed = _mm_packus_epi16(packed, packed);
-        _mm_storel_epi64(reinterpret_cast<__m128i*>(dst_ptr + i / 2), packed);
+        mm256_storeu_u4(dst_ptr + i / 2, v0_i32, v1_i32);
     }
 #endif
     for (; i < n; i++) {
