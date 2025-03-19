@@ -2329,11 +2329,11 @@ size_t jit_relu_emitter::get_inputs_count() const {
 }
 
 size_t jit_relu_emitter::get_aux_vecs_count() const {
-    return (alpha != 0.0f) ? 3 : 1;
+    return (alpha != 0.0f) ? 2 : 1;
 }
 
 size_t jit_relu_emitter::get_aux_gprs_count() const {
-    return 1;
+    return (alpha != 0.0f) ? 1 : 0;
 }
 
 std::set<std::vector<element::Type>> jit_relu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
@@ -2356,30 +2356,30 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg vsrc(in_vec_idxs[0]);
     const TReg vdst(out_vec_idxs[0]);
-    const TReg vzero(aux_vec_idxs[0]);
-
-    h->eor(vzero.b16, vzero.b16, vzero.b16);  // vzero = 0
 
     if (alpha == 0.0f) {
         // ReLU case: dst = max(src, 0)
+        const TReg vzero(aux_vec_idxs[0]);
+
+        h->eor(vzero.b16, vzero.b16, vzero.b16);  // vzero = 0
         h->fmaxnm(vdst.s, vsrc.s, vzero.s);
     } else {
         // Leaky ReLU case: dst = (x > 0) ? x : alpha * x
-        const TReg valpha(aux_vec_idxs[1]);
-        const TReg vmask(aux_vec_idxs[2]);
+        const TReg vtemp1(aux_vec_idxs[0]);
+        const TReg vtemp2(aux_vec_idxs[1]);
 
-        h->ld1r(valpha.s, table_val2("alpha"));  // load alpha
-
-        h->fmul(vdst.s, vsrc.s, valpha.s);  // dst = alpha * src
-
-        h->fcmle(vmask.s, vsrc.s, 0.0f);  // vmask = (src <= 0.0f) ? 1 : 0
-
-        h->bif(vdst.b16, vsrc.b16, vmask.b16);  // dst = (src > 0.0f) ? src : dst
+        h->ld1r(vtemp1.s, table_val2("alpha"));  // load alpha
+        h->fmul(vtemp2.s, vsrc.s, vtemp1.s);  // vtemp = alpha * x
+        h->fcmle(vtemp1.s, vsrc.s, 0.0f);  // vmask = (x > 0) ? 1 : 0
+        h->bif(vtemp2.b16, vsrc.b16, vtemp1.b16);  // vtemp2 = (x > 0) ? x : alpha * x
+        h->mov(vdst.b16, vtemp2.b16);  // dst = (x > 0) ? x : alpha * x
     }
 }
 
 void jit_relu_emitter::register_table_entries() {
-    push_arg_entry_of("alpha", dnnl::impl::float2int(alpha), true);
+    if (alpha != 0.0f) {
+        push_arg_entry_of("alpha", dnnl::impl::float2int(alpha), true);
+    }
 }
 
 /// ROUND_HALF_AWAY_FROM_ZERO ///
