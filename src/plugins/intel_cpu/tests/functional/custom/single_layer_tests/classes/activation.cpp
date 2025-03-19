@@ -206,7 +206,6 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::RoundHalfToEven) ||
         (activation_type == utils::ActivationTypes::LeakyRelu) ||
         (activation_type == utils::ActivationTypes::SoftPlus))) {
-        std::cout << "jit" << std::endl;
         return "jit";
     }
 
@@ -274,7 +273,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},
-        {LeakyRelu,   {{0.01f}}},
+        {LeakyRelu,   {{-0.01f}}},
         {GeluErf,     {{}}},
         {GeluTanh,    {{}}},
         {SoftSign,    {{}}},

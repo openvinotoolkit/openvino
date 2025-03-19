@@ -9,8 +9,8 @@
 #include "common/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
+#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -2305,29 +2305,31 @@ jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
-        if(const auto leaky_relu = ov::as_type_ptr<LeakyReluNode>(node)) {
-            alpha = leaky_relu->get_slope();
-        } else if (ov::is_type<ov::op::v0::Relu>(node)) {
-            alpha = 0.f;
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Can't cast to LeakyReluNode or ReluNode");
-        }
-        prepare_table();
+    if (const auto leaky_relu = ov::as_type_ptr<LeakyReluNode>(node)) {
+        alpha = leaky_relu->get_slope();
+    } else if (ov::is_type<ov::op::v0::Relu>(node)) {
+        alpha = 0.f;
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't cast to LeakyReluNode or ReluNode");
     }
+    prepare_table();
+}
 
 jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                   float alpha, const ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc), alpha(alpha) {
-        prepare_table();
-    }
+                                   float alpha,
+                                   const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc),
+      alpha(alpha) {
+    prepare_table();
+}
 
 size_t jit_relu_emitter::get_inputs_count() const {
     return 1;
 }
 
 size_t jit_relu_emitter::get_aux_vecs_count() const {
-    return (alpha != 0.0f) ? 4 : 1;
+    return (alpha != 0.0f) ? 3 : 1;
 }
 
 size_t jit_relu_emitter::get_aux_gprs_count() const {
@@ -2366,13 +2368,13 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
         const TReg valpha(aux_vec_idxs[1]);
         const TReg vmask(aux_vec_idxs[2]);
 
-        h->ld1r(valpha.s, table_val2("alpha")); // load alpha
+        h->ld1r(valpha.s, table_val2("alpha"));  // load alpha
 
-        h->fmul(vdst.s, vsrc.s, valpha.s); // dst = alpha * src
+        h->fmul(vdst.s, vsrc.s, valpha.s);  // dst = alpha * src
 
-        h->fcmle(vmask.s, vsrc.s, 0.0f); // vmask = (src <= 0.0f) ? 1 : 0
+        h->fcmle(vmask.s, vsrc.s, 0.0f);  // vmask = (src <= 0.0f) ? 1 : 0
 
-        h->bif(vdst.b16, vsrc.b16, vmask.b16); // dst = (src > 0.0f) ? src : dst
+        h->bif(vdst.b16, vsrc.b16, vmask.b16);  // dst = (src > 0.0f) ? src : dst
     }
 }
 
