@@ -10,6 +10,7 @@
 #include "emitters/utils.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -2303,18 +2304,33 @@ void jit_prelu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+        if(const auto leaky_relu = ov::as_type_ptr<LeakyReluNode>(node)) {
+            alpha = leaky_relu->get_slope();
+        } else if (ov::is_type<ov::op::v0::Relu>(node)) {
+            alpha = 0.f;
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("Can't cast to LeakyReluNode or ReluNode");
+        }
+        prepare_table();
+    }
 
 jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                   const ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+                                   float alpha, const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc), alpha(alpha) {
+        prepare_table();
+    }
 
 size_t jit_relu_emitter::get_inputs_count() const {
     return 1;
 }
 
 size_t jit_relu_emitter::get_aux_vecs_count() const {
+    return (alpha != 0.0f) ? 4 : 1;
+}
+
+size_t jit_relu_emitter::get_aux_gprs_count() const {
     return 1;
 }
 
@@ -2336,13 +2352,32 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    const TReg vsrc(in_vec_idxs[0]);
+    const TReg vdst(out_vec_idxs[0]);
+    const TReg vzero(aux_vec_idxs[0]);
 
-    auto tmp = TReg(aux_vec_idxs[0]);
-    auto src = TReg(in_vec_idxs[0]);
-    auto dst = TReg(out_vec_idxs[0]);
+    h->eor(vzero.b16, vzero.b16, vzero.b16);  // vzero = 0
 
-    h->movi(tmp.s, 0);
-    h->fmaxnm(dst.s, src.s, tmp.s);
+    if (alpha == 0.0f) {
+        // ReLU case: dst = max(src, 0)
+        h->fmaxnm(vdst.s, vsrc.s, vzero.s);
+    } else {
+        // Leaky ReLU case: dst = (x > 0) ? x : alpha * x
+        const TReg valpha(aux_vec_idxs[1]);
+        const TReg vmask(aux_vec_idxs[2]);
+
+        h->ld1r(valpha.s, table_val2("alpha")); // load alpha
+
+        h->fmul(vdst.s, vsrc.s, valpha.s); // dst = alpha * src
+
+        h->fcmle(vmask.s, vsrc.s, 0.0f); // vmask = (src <= 0.0f) ? 1 : 0
+
+        h->bif(vdst.b16, vsrc.b16, vmask.b16); // dst = (src > 0.0f) ? src : dst
+    }
+}
+
+void jit_relu_emitter::register_table_entries() {
+    push_arg_entry_of("alpha", dnnl::impl::float2int(alpha), true);
 }
 
 /// ROUND_HALF_AWAY_FROM_ZERO ///

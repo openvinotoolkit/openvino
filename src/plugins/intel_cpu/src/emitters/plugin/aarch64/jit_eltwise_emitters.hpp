@@ -934,6 +934,7 @@ class jit_relu_emitter : public jit_emitter {
 public:
     jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                     const float alpha, 
                      const ov::element::Type exec_prc = ov::element::f32);
 
     jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
@@ -944,10 +945,15 @@ public:
 
     size_t get_aux_vecs_count() const override;
 
+    size_t get_aux_gprs_count() const override;
+
+    void register_table_entries() override;
+
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
+    float alpha;
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
