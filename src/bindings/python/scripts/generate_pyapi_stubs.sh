@@ -131,7 +131,7 @@ for file in $changed_files; do
     END {
         if (in_imports > 0) {
             for (i = 1; i <= in_imports; i++) {
-                print imports[i] | "sort";
+                print imports[i] | "sort"; 
             }
             close("sort");
         }
