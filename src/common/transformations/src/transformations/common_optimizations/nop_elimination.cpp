@@ -558,17 +558,17 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 // check that concatenated and split axis is the same
                 auto check_axis = [concat_axis](const std::vector<int64_t>& masks) {
                     for (size_t axis = 0; axis < masks.size(); ++axis) {
-                        if (masks[axis] != 1 && axis != (size_t)concat_axis) {
+                        if (masks[axis] != 1 && axis != static_cast<size_t>(concat_axis)) {
                             return false;
                         }
-                        if (masks[axis] != 0 && axis == (size_t)concat_axis) {
+                        if (masks[axis] != 0 && axis == static_cast<size_t>(concat_axis)) {
                             return false;
                         }
                     }
                     return true;
                 };
                 auto begin_mask = strided_slice_node->get_begin_mask();
-                auto end_mask = strided_slice_node->get_begin_mask();
+                auto end_mask = strided_slice_node->get_end_mask();
                 if (!check_axis(begin_mask) || !check_axis(end_mask)) {
                     return false;
                 }
