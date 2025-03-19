@@ -1,11 +1,13 @@
-# type: ignore
 """
 Factory functions for ops added to openvino opset13.
 """
+from __future__ import annotations
+import functools
 from functools import partial
 from functools import singledispatch
-from __future__ import annotations
-from openvino.opset1.ops import convert_like
+import logging as logging
+import numpy as np
+import openvino._pyopenvino
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Output
 from openvino._pyopenvino import Shape
@@ -13,6 +15,8 @@ from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
 from openvino._pyopenvino.op import Constant
 from openvino._pyopenvino.op import Result
+from openvino.opset1.ops import convert_like
+import openvino.utils.decorators
 from openvino.utils.decorators import binary_op
 from openvino.utils.decorators import nameable_op
 from openvino.utils.decorators import overloading
@@ -20,11 +24,6 @@ from openvino.utils.decorators import unary_op
 from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
-import functools
-import logging as logging
-import numpy as np
-import openvino._pyopenvino
-import openvino.utils.decorators
 import typing
 __all__ = ['Constant', 'Node', 'NodeInput', 'NumericData', 'NumericType', 'Output', 'Result', 'Shape', 'Tensor', 'Type', 'as_node', 'as_nodes', 'binary_op', 'bitwise_and', 'bitwise_not', 'bitwise_or', 'bitwise_xor', 'constant', 'convert_like', 'fake_convert', 'fake_quantize', 'log', 'logging', 'multinomial', 'nameable_op', 'nms_rotated', 'np', 'overloading', 'partial', 'result', 'scaled_dot_product_attention', 'singledispatch', 'unary_op']
 def bitwise_and(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
@@ -191,6 +190,6 @@ def scaled_dot_product_attention(*args, **kwargs) -> openvino._pyopenvino.Node:
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
 NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
-_get_node_factory_opset13: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset13')
+_get_node_factory_opset13: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f7ac6e11d00>, 'opset13')
 constant: openvino.utils.decorators.MultiMethod  # value = <openvino.utils.decorators.MultiMethod object>
 log: logging.Logger  # value = <Logger openvino.opset13.ops (INFO)>

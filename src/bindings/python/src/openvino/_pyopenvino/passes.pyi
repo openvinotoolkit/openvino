@@ -1,4 +1,3 @@
-# type: ignore
 """
 Package openvino.passes wraps ov::passes
 """
@@ -42,14 +41,14 @@ class BackwardGraphRewrite(GraphRewrite, ModelPass, PassBase):
     def __init__(self) -> None:
         ...
     @typing.overload
-    def __init__(self, matcher_pass: MatcherPass) -> None:
+    def __init__(self, pass: MatcherPass) -> None:
         """
                                    :param pass: openvino.passes.MatcherPass instance
                                    :type pass: openvino.passes.MatcherPass
         """
     def __repr__(self) -> str:
         ...
-    def add_matcher(self, matcher_pass: MatcherPass) -> MatcherPass:
+    def add_matcher(self, pass: MatcherPass) -> MatcherPass:
         """
                 Register single MatcherPass pass inside BackwardGraphRewrite.
         
@@ -80,14 +79,14 @@ class GraphRewrite(ModelPass, PassBase):
     def __init__(self) -> None:
         ...
     @typing.overload
-    def __init__(self, matcher_pass: MatcherPass) -> None:
+    def __init__(self, pass: MatcherPass) -> None:
         """
                               Register single MatcherPass pass inside GraphRewrite.
         
                               :param pass: openvino.passes.MatcherPass instance
                               :type pass: openvino.passes.MatcherPass
         """
-    def add_matcher(self, matcher_pass: MatcherPass) -> MatcherPass:
+    def add_matcher(self, pass: MatcherPass) -> MatcherPass:
         """
                               Register single MatcherPass pass inside GraphRewrite.
         

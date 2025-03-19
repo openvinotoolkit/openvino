@@ -1,7 +1,9 @@
-# type: ignore
-from builtins import traceback as TracebackType
 from __future__ import annotations
-from openvino.package_utils import deprecatedclassproperty
+import pathlib
+import typing
+from builtins import traceback as TracebackType
+import io as io
+import openvino._pyopenvino
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import Core as CoreBase
@@ -9,19 +11,16 @@ from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
+from openvino.package_utils import deprecatedclassproperty
 from openvino.utils.data_helpers.data_dispatcher import _data_dispatch
-from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
+import openvino.utils.data_helpers.wrappers
 from openvino.utils.data_helpers.wrappers import OVDict
+from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
 from openvino.utils.data_helpers.wrappers import tensor_from_file
 from pathlib import Path
-from typing import Any
-import io as io
-import openvino._pyopenvino
-import openvino.utils.data_helpers.wrappers
-import pathlib
 import traceback as traceback
 import typing
-import typing
+from typing import Any
 __all__ = ['Any', 'AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Path', 'Tensor', 'TracebackType', 'Type', 'TypingType', 'compile_model', 'deprecatedclassproperty', 'io', 'tensor_from_file', 'traceback']
 class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
     """

@@ -1,9 +1,11 @@
-# type: ignore
 """
 Factory functions for all openvino ops.
 """
-from functools import partial
 from __future__ import annotations
+import functools
+from functools import partial
+import numpy as np
+import openvino._pyopenvino
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino.op import Constant
@@ -15,17 +17,14 @@ from openvino.utils.input_validation import assert_list_of_ints
 from openvino.utils.input_validation import check_valid_attributes
 from openvino.utils.input_validation import is_non_negative_value
 from openvino.utils.input_validation import is_positive_value
-from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.node_factory import NodeFactory
+from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
 from openvino.utils.types import get_dtype
 from openvino.utils.types import get_element_type
 from openvino.utils.types import get_element_type_str
 from openvino.utils.types import make_constant_node
-import functools
-import numpy as np
-import openvino._pyopenvino
 import typing
 __all__ = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'acosh', 'as_node', 'as_nodes', 'asinh', 'assert_list_of_ints', 'atanh', 'binary_op', 'check_valid_attributes', 'ctc_loss', 'get_dtype', 'get_element_type', 'get_element_type_str', 'hswish', 'is_non_negative_value', 'is_positive_value', 'lstm_cell', 'make_constant_node', 'mish', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'proposal', 'range', 'reduce_l1', 'reduce_l2', 'scatter_nd_update', 'softplus', 'swish', 'unary_op']
 def acosh(*args, **kwargs) -> openvino._pyopenvino.Node:
@@ -283,4 +282,4 @@ NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]
 TensorShape: typing._GenericAlias  # value = typing.List[int]
-_get_node_factory_opset4: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset4')
+_get_node_factory_opset4: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f7ac6e11d00>, 'opset4')

@@ -1,20 +1,19 @@
-# type: ignore
 """
 Package openvino._pyopenvino which wraps openvino C++ APIs
 """
 from __future__ import annotations
+import datetime
+import numpy
+import typing
+from . import _offline_transformations
 from . import experimental
 from . import frontend
 from . import layout_helpers
-from . import _offline_transformations
 from . import op
 from . import passes
 from . import preprocess
 from . import properties
 from . import util
-import datetime
-import numpy
-import typing
 __all__ = ['AsyncInferQueue', 'AttributeVisitor', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'ConversionExtension', 'ConversionExtensionBase', 'Coordinate', 'CoordinateDiff', 'Core', 'DecoderTransformationExtension', 'DescriptorTensor', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InferRequest', 'InitializationFailure', 'Input', 'InputModel', 'Iterator', 'Layout', 'Model', 'Node', 'NodeContext', 'NodeFactory', 'NotImplementedFailure', 'OVAny', 'Op', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Output', 'PartialShape', 'Place', 'ProfilingInfo', 'ProgressReporterExtension', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'TelemetryExtension', 'Tensor', 'Type', 'VAContext', 'VASurfaceTensor', 'VariableState', 'Version', 'experimental', 'frontend', 'get_batch', 'get_version', 'layout_helpers', 'op', 'passes', 'preprocess', 'properties', 'save_model', 'serialize', 'set_batch', 'shutdown', 'util']
 class AsyncInferQueue:
     """
@@ -3629,7 +3628,7 @@ class Output:
         ...
     def __repr__(self) -> str:
         ...
-    def _from_node(self: typing.Any) -> Output:
+    def _from_node(self: ...) -> Output:
         ...
     def add_names(self, names: set[str]) -> None:
         """
@@ -3710,7 +3709,7 @@ class Output:
                         :return: Tensor of the output.
                         :rtype: openvino._pyopenvino.DescriptorTensor
         """
-    def remove_target_input(self, target_input: typing.Any) -> None:
+    def remove_target_input(self, target_input: ...) -> None:
         """
                         Removes a target input from the output referenced by this output handle.
         
@@ -4561,7 +4560,7 @@ class Tensor:
                         :type array: numpy.array
         """
     @typing.overload
-    def __init__(self, port: typing.Any) -> None:
+    def __init__(self, port: ...) -> None:
         """
                     Constructs Tensor using port from node.
                     Type and shape will be taken from the port.
@@ -4570,7 +4569,7 @@ class Tensor:
                     :type param: openvino.ConstOutput
         """
     @typing.overload
-    def __init__(self, port: typing.Any, array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> None:
+    def __init__(self, port: ..., array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> None:
         """
                         Constructs Tensor using port from node.
                         Type and shape will be taken from the port.

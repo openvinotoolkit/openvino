@@ -1,36 +1,35 @@
-# type: ignore
 """
 Factory functions for all openvino ops.
 """
-from functools import partial
 from __future__ import annotations
-from openvino.package_utils import deprecated
+import functools
+from functools import partial
+import numpy as np
+import openvino._pyopenvino
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Type
+import openvino._pyopenvino.op
 from openvino._pyopenvino.op import Constant
 from openvino._pyopenvino.op import Parameter
 from openvino._pyopenvino.op import tensor_iterator
+from openvino.package_utils import deprecated
 from openvino.utils.decorators import binary_op
 from openvino.utils.decorators import nameable_op
 from openvino.utils.decorators import unary_op
 from openvino.utils.input_validation import check_valid_attributes
 from openvino.utils.input_validation import is_non_negative_value
 from openvino.utils.input_validation import is_positive_value
-from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.node_factory import NodeFactory
+from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
 from openvino.utils.types import get_dtype
 from openvino.utils.types import get_element_type
 from openvino.utils.types import get_element_type_str
 from openvino.utils.types import make_constant_node
-from typing import get_args
-import functools
-import numpy as np
-import openvino._pyopenvino
-import openvino._pyopenvino.op
 import typing
+from typing import get_args
 __all__ = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'PartialShape', 'ScalarData', 'TensorShape', 'Type', 'absolute', 'acos', 'add', 'as_node', 'as_nodes', 'asin', 'atan', 'avg_pool', 'batch_norm_inference', 'binary_convolution', 'binary_op', 'broadcast', 'ceiling', 'check_valid_attributes', 'clamp', 'concat', 'constant', 'convert', 'convert_like', 'convolution', 'convolution_backprop_data', 'cos', 'cosh', 'ctc_greedy_decoder', 'deformable_convolution', 'deformable_psroi_pooling', 'deprecated', 'depth_to_space', 'detection_output', 'divide', 'elu', 'equal', 'erf', 'exp', 'fake_quantize', 'floor', 'floor_mod', 'gather', 'gather_tree', 'get_args', 'get_dtype', 'get_element_type', 'get_element_type_str', 'greater', 'greater_equal', 'grn', 'group_convolution', 'group_convolution_backprop_data', 'hard_sigmoid', 'interpolate', 'is_non_negative_value', 'is_positive_value', 'less', 'less_equal', 'log', 'logical_and', 'logical_not', 'logical_or', 'logical_xor', 'lrn', 'lstm_cell', 'make_constant_node', 'matmul', 'max_pool', 'maximum', 'minimum', 'mod', 'multiply', 'nameable_op', 'negative', 'non_max_suppression', 'normalize_l2', 'not_equal', 'np', 'one_hot', 'pad', 'parameter', 'partial', 'power', 'prelu', 'prior_box', 'prior_box_clustered', 'proposal', 'psroi_pooling', 'range', 'reduce_logical_and', 'reduce_logical_or', 'reduce_max', 'reduce_mean', 'reduce_min', 'reduce_prod', 'reduce_sum', 'region_yolo', 'relu', 'reshape', 'result', 'reverse_sequence', 'select', 'selu', 'shape_of', 'sigmoid', 'sign', 'sin', 'sinh', 'softmax', 'space_to_depth', 'split', 'sqrt', 'squared_difference', 'squeeze', 'strided_slice', 'subtract', 'tan', 'tanh', 'tensor_iterator', 'tile', 'topk', 'transpose', 'unary_op', 'unsqueeze', 'variadic_split']
 def absolute(input_value, *args, **kwargs) -> openvino._pyopenvino.Node:
     """
@@ -1802,4 +1801,4 @@ NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]
 TensorShape: typing._GenericAlias  # value = typing.List[int]
-_get_node_factory_opset1: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset1')
+_get_node_factory_opset1: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f7ac6e11d00>, 'opset1')

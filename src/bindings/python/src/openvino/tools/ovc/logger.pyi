@@ -1,9 +1,8 @@
-# type: ignore
-from copy import copy
 from __future__ import annotations
+from copy import copy
 import importlib as importlib
-import logging
 import logging as log
+import logging
 import os as os
 import re as re
 import typing
