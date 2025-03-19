@@ -133,38 +133,18 @@ SDPAFusion::SDPAFusion() {
         if (k_node_ps[-1].is_dynamic() || k_node_ps[-3].is_dynamic())
             return false;
 
-        // get all important dims from shapes:
-        auto N = q_node_ps[0];  // batch size - can be dynamic
-        // auto Hq = q_node_ps[-3];   // number of heads of query
-        auto H = k_node_ps[-3];    // number of heads of key and value
-        auto S = k_node_ps[-2];   // source sequence length - can be dynamic
-        auto L = q_node_ps[-2];   // target sequence length - can be dynamic
-        auto E = q_node_ps[-1];   // embedding dimension of query and key
-        auto Ev = k_node_ps[-1];  // embedding dimension of value
-    
         auto T = q_node.get_element_type();
-
+        auto N = q_node_ps[0]; 
+        
         // make sure that all inputs to SDPA (query, key and value) have the same batch
-        if (k_node_ps[0] != N)
+        if (k_node_ps[0] != q_node_ps[0])
             return false;
-        if (v_node_ps[0] != N)
-            return false;
-        
-        // make sure that number of heads of value is the same as for key
-        if (v_node_ps[-3] != H)
+        if (v_node_ps[0] != q_node_ps[0])
             return false;
 
-        // make sure that source sequence length of value is the same as for key
-        if (v_node_ps[-2] != S)
+        // make sure there is only one scaling
+        if (pattern_map.count(k_opt_transposed_scaled) > 0 && pattern_map.count(qk_scaled) > 0)
             return false;
-
-        // make sure that embedding dimension of key is the same as for query
-        if (v_node_ps[-1] != E)
-            return false;
-    
-        if (v_node_ps[-1] != Ev)
-            return false;
-        
         // make sure that if inputs are reshaped the output is reshaped back
         bool inputs_reshaped = pattern_map.count(q_reshaped) > 0 && pattern_map.count(k_reshaped) > 0 && pattern_map.count(v_reshaped) > 0;
         bool output_reshaped = pattern_map.count(qkv_reshaped) > 0;
@@ -248,26 +228,6 @@ SDPAFusion::SDPAFusion() {
         } else {
             mask_input = ov::op::v0::Constant::create(T, ov::Shape{}, {0});
         }
-
-
-        // if (pattern_map.count(attn_scale) > 0) {
-        //     attn_scale_out = pattern_map.at(attn_scale);
-        //     auto attn_scale_out_ps = attn_scale_out.get_partial_shape();
-        //     if (attn_scale_out_ps.is_dynamic())
-        //         return false;
-        //     // attn_scale layer should have only single output scalar value
-        //     if (ov::shape_size(attn_scale_out_ps.get_shape()) != 1)
-        //         return false;
-        //     // we need to be able to cast attn_scale layer to Constant layer
-        //     // in order to read actual scale value
-        //     auto attn_scale_const_m = ov::as_type_ptr<ov::op::v0::Constant>(attn_scale_out.get_node_shared_ptr());
-        //     if (!attn_scale_const_m)
-        //         return false;
-        //     auto attn_scale_val_ptr = static_cast<const void*>(attn_scale_const_m->get_data_ptr());
-        //     attn_scale_out = ov::op::v0::Constant::create(T, ov::Shape{}, attn_scale_val_ptr);
-        // } else {
-        //     attn_scale_out = ov::op::v0::Constant::create(T, ov::Shape{}, {1.0});
-        // }
 
         std::shared_ptr<ov::Node> sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_node,
                                                                                                   k_node,
