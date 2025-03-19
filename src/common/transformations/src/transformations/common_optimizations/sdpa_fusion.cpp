@@ -65,17 +65,17 @@ SDPAFusion::SDPAFusion() {
     // optional mask add, there are patterns where before or/and after mask add buffer is reshaped
     auto mask = makePattern();
     // Optional reshape befor adding mask
-    auto qk_opt_scaled_pre_bias_shape = ov::pass::pattern::any_input();
-    auto qk_opt_scaled_pre_bias_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk_opt_scaled, qk_opt_scaled_pre_bias_shape});
-    auto qk_opt_scaled_pre_bias_opt_reshaped = qk_opt_scaled_pre_bias_reshaped | qk_opt_scaled;
+    auto qk_opt_scaled_pre_mask_shape = ov::pass::pattern::any_input();
+    auto qk_opt_scaled_pre_mask_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk_opt_scaled, qk_opt_scaled_pre_mask_shape});
+    auto qk_opt_scaled_pre_mask_opt_reshaped = qk_opt_scaled_pre_mask_reshaped | qk_opt_scaled;
     // Optional mask add
-    auto qk_opt_scaled_biased = makePattern<ov::op::v1::Add>({qk_opt_scaled_pre_bias_opt_reshaped, mask});
-    auto qk_opt_scaled_opt_biased = qk_opt_scaled_biased | qk_opt_scaled_pre_bias_opt_reshaped;
+    auto qk_opt_scaled_mask_added = makePattern<ov::op::v1::Add>({qk_opt_scaled_pre_mask_opt_reshaped, mask});
+    auto qk_opt_scaled_opt_mask_added = qk_opt_scaled_mask_added | qk_opt_scaled_pre_mask_opt_reshaped;
     // Optional reshape after adding mask
-    auto qk_post_bias_shape = ov::pass::pattern::any_input();
-    auto qk_post_bias_opt_reshaped = optional<ov::op::v1::Reshape>({qk_opt_scaled_opt_biased, qk_post_bias_shape});
+    auto qk_post_mask_shape = ov::pass::pattern::any_input();
+    auto qk_post_mask_opt_reshaped = optional<ov::op::v1::Reshape>({qk_opt_scaled_opt_mask_added, qk_post_mask_shape});
 
-    auto softmax = makePattern<ov::op::v8::Softmax>({qk_post_bias_opt_reshaped}, {{"axis", "-1"}});
+    auto softmax = makePattern<ov::op::v8::Softmax>({qk_post_mask_opt_reshaped}, {{"axis", "-1"}});
     auto softmax_shape = ov::pass::pattern::any_input();
     auto softmax_opt_reshaped = optional<ov::op::v1::Reshape>({softmax, softmax_shape});
 
@@ -159,7 +159,7 @@ SDPAFusion::SDPAFusion() {
             pattern_map.at(softmax).get_target_inputs().size() > 1) {
             return false;
         }
-         if (pattern_map.count(qk_opt_scaled_biased) && (pattern_map.at(qk_opt_scaled_biased).get_target_inputs().size() > 1 ||
+         if (pattern_map.count(qk_opt_scaled_mask_added) && (pattern_map.at(qk_opt_scaled_mask_added).get_target_inputs().size() > 1 ||
                                                      pattern_map.at(mask).get_partial_shape().size() > 4)) {
             return false;
         }
@@ -187,35 +187,35 @@ SDPAFusion::SDPAFusion() {
         Output<ov::Node> mask_input;
         if (pattern_map.count(mask) > 0) {
             // for some reason line below doesn't work for all cases,
-            // so need to explicitly point to correct attn_weight layer
-            // auto attn_weight_out = pattern_map.at(qk_opt_scaled_pre_bias_opt_reshaped);
-            ov::Output<ov::Node> attn_weight_out;
-            if (pattern_map.count(qk_opt_scaled_pre_bias_reshaped) > 0)
-                attn_weight_out = pattern_map.at(qk_opt_scaled_pre_bias_reshaped);
+            // so need to explicitly point to correct qk layer
+            // auto qk_out = pattern_map.at(qk_opt_scaled_pre_mask_opt_reshaped);
+            ov::Output<ov::Node> qk_out;
+            if (pattern_map.count(qk_opt_scaled_pre_mask_reshaped) > 0)
+                qk_out = pattern_map.at(qk_opt_scaled_pre_mask_reshaped);
             else if (pattern_map.count(qk_unsqueeze) > 0)
-                attn_weight_out = pattern_map.at(qk_unsqueeze);
+                qk_out = pattern_map.at(qk_unsqueeze);
             else if (pattern_map.count(qk) > 0)
-                attn_weight_out = pattern_map.at(qk);
+                qk_out = pattern_map.at(qk);
             else
                 return false;
 
-            auto attn_weight_out_ps = attn_weight_out.get_partial_shape();
+            auto qk_out_ps = qk_out.get_partial_shape();
             mask_input = pattern_map.at(mask);
             auto mask_input_ps = mask_input.get_partial_shape();
             
-            if (attn_weight_out_ps.size() > 4) {
+            if (qk_out_ps.size() > 4) {
                 return false;
             }
 
-              std::shared_ptr<ov::op::v0::Unsqueeze> mask_unsqueeze;
-            // attn_bias should be broadcastable to attn_weight shape
-            if (!ov::PartialShape::broadcast_merge_into(attn_weight_out_ps,
+            std::shared_ptr<ov::op::v0::Unsqueeze> mask_unsqueeze;
+            // mask should be broadcastable to qk shape
+            if (!ov::PartialShape::broadcast_merge_into(qk_out_ps,
                                                             mask_input_ps,
                                                             ov::op::AutoBroadcastType::NUMPY))
                     return false;
                     
-            if (mask_input_ps.rank() != attn_weight_out_ps.rank()) {
-                size_t rank_diff = attn_weight_out_ps.size() - mask_input_ps.size();
+            if (mask_input_ps.rank() != qk_out_ps.rank()) {
+                size_t rank_diff = qk_out_ps.size() - mask_input_ps.size();
                 std::vector<int64_t> axes(rank_diff);
                 std::iota(axes.begin(), axes.end(), 0);
                 mask_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(
