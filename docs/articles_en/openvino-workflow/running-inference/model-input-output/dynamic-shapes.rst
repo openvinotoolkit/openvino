@@ -190,14 +190,14 @@ For the same reason, it is not recommended to leave dimensions as undefined, wit
 
 When specifying bounds, the lower bound is not as important as the upper one. The upper bound allows inference devices to allocate memory for intermediate tensors more precisely. It also allows using a fewer number of tuned kernels for different sizes.
 More precisely, benefits of specifying the lower or upper bound is device dependent.
-Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the :doc:`feature support table <../../documentation/compatibility-and-support/supported-devices>`.
+Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the :doc:`feature support table <../../../documentation/compatibility-and-support/supported-devices>`.
 
 If the lower and upper bounds for a dimension are known, it is recommended to specify them, even if a plugin can execute a model without the bounds.
 
 Preparing and Inferencing Dynamic Data
 ++++++++++++++++++++++++++++++++++++++
 
-After configuring a model with the ``reshape`` method, the next steps are to create tensors with the appropriate data shape and pass them to the model as an inference request. This is similar to the regular steps described in :doc:`Integrate OpenVINO™ with Your Application <integrate-openvino-with-your-application>`. However, tensors can now be passed into the model with different shapes.
+After configuring a model with the ``reshape`` method, the next steps are to create tensors with the appropriate data shape and pass them to the model as an inference request. This is similar to the regular steps described in :doc:`Integrate OpenVINO™ with Your Application <../../running-inference>`. However, tensors can now be passed into the model with different shapes.
 
 The sample below shows how a model can accept different input shapes. In the first case, the model runs inference on a 1x128 input shape and returns a result. In the second case, a 1x200 input shape is used, which the model can still handle because it is dynamically shaped.
 
@@ -225,7 +225,7 @@ The sample below shows how a model can accept different input shapes. In the fir
            :fragment: ov_dynamic_shapes:set_input_tensor
 
 
-For more information on how to apply input data to a model and run inference, see :doc:`OpenVINO™ Inference Request <integrate-openvino-with-your-application/inference-request>`.
+For more information on how to apply input data to a model and run inference, see :doc:`OpenVINO™ Inference Request <../inference-request>`.
 
 
 Dynamic Shapes in Outputs
