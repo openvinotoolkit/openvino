@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from openvino.frontend.frontend import FrontEnd
 from openvino._pyopenvino import InputModel

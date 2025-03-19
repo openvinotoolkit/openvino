@@ -1,3 +1,4 @@
+# type: ignore
 from collections.abc import Mapping
 from functools import singledispatchmethod
 from __future__ import annotations

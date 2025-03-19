@@ -1,3 +1,4 @@
+# type: ignore
 """
 Package openvino._pyopenvino which wraps openvino C++ APIs
 """

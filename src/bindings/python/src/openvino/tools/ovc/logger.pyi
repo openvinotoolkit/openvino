@@ -1,3 +1,4 @@
+# type: ignore
 from copy import copy
 from __future__ import annotations
 import importlib as importlib

@@ -1,3 +1,4 @@
+# type: ignore
 from builtins import traceback as TracebackType
 from __future__ import annotations
 from openvino.package_utils import deprecatedclassproperty

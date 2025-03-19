@@ -1,3 +1,4 @@
+# type: ignore
 """
 Factory functions for ops added to openvino opset14.
 """

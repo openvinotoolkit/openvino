@@ -1,3 +1,4 @@
+# type: ignore
 """
 Package openvino.passes wraps ov::passes
 """

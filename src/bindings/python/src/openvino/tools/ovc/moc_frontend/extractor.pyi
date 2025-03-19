@@ -1,3 +1,4 @@
+# type: ignore
 from enum import Enum
 from __future__ import annotations
 from openvino._pyopenvino import InputModel

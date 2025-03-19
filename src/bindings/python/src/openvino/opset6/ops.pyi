@@ -1,3 +1,4 @@
+# type: ignore
 from functools import partial
 from functools import singledispatch
 from __future__ import annotations

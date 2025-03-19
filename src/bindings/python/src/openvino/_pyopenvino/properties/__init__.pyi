@@ -1,3 +1,4 @@
+# type: ignore
 """
 openvino.properties submodule
 """

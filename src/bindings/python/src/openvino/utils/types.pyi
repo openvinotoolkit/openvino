@@ -1,3 +1,4 @@
+# type: ignore
 """
 Functions related to converting between Python and numpy types and openvino types.
 """

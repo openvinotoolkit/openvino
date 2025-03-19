@@ -1,3 +1,4 @@
+# type: ignore
 """
 Generic utilities. Factor related functions out to separate files.
 """

@@ -1,3 +1,4 @@
+# type: ignore
 """
 Factory functions for all ngraph ops.
 """

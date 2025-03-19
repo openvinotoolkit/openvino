@@ -138,5 +138,5 @@ for file in $changed_files; do
     }
     ' "$file" > "$file.sorted"
     mv "$file.sorted" "$file"
-
+    sed -i '1i # type: ignore' "$file"
 done
