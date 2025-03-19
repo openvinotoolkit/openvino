@@ -2224,7 +2224,6 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         auto pow_f32_addr = reinterpret_cast<uintptr_t>(::powf);
 
         Xbyak_aarch64::XReg func_reg(aux_gpr_idxs[0]);
-        h->mov(func_reg, pow_f32_addr);
 
         Xbyak_aarch64::SReg s0(0);
         Xbyak_aarch64::SReg s1(1);
@@ -2232,14 +2231,13 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         const std::unordered_set<size_t> exclude = {src().getIdx(), dst.getIdx()};
         store_context(exclude);
         h->ldr(s1, table_val("power"));
-        h->str(s1, pre_ptr(h->sp, -8));
-        h->str(func_reg, pre_ptr(h->sp, -8));
+        h->str(s1, pre_ptr(h->sp, -16));
         h->str(Xbyak_aarch64::QReg(src().getIdx()), pre_ptr(h->sp, -32));
         for (auto i = 0; i < 4; i++) {
             const int offset = i * sizeof(float);
-            h->ldr(s1, ptr(h->sp, 40));
+            h->ldr(s1, ptr(h->sp, 32));
             h->ldr(s0, ptr(h->sp, offset));
-            h->ldr(func_reg, ptr(h->sp, 32));
+            h->mov(func_reg, pow_f32_addr);
             h->blr(func_reg);
             h->str(s0, ptr(h->sp, 16 + offset));
         }
@@ -2297,27 +2295,25 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto pow_f32_addr = reinterpret_cast<uintptr_t>(::powf);
 
     Xbyak_aarch64::XReg func_reg(aux_gpr_idxs[0]);
-    h->mov(func_reg, pow_f32_addr);
 
     Xbyak_aarch64::SReg s0(0);
     Xbyak_aarch64::SReg s1(1);
 
     const std::unordered_set<size_t> exclude = {src0.getIdx(), src1.getIdx(), dst.getIdx()};
     store_context(exclude);
-    h->str(func_reg, pre_ptr(h->sp, -16));
     h->str(Xbyak_aarch64::QReg(src0.getIdx()), pre_ptr(h->sp, -32));
     h->str(Xbyak_aarch64::QReg(src1.getIdx()), pre_ptr(h->sp, -16));
     for (auto i = 0; i < 4; i++) {
         const int offset = i * sizeof(float);
         h->ldr(s1, ptr(h->sp, offset));
         h->ldr(s0, ptr(h->sp, 16 + offset));
-        h->ldr(func_reg, ptr(h->sp, 48));
+        h->mov(func_reg, pow_f32_addr);
         h->blr(func_reg);
         h->str(s0, ptr(h->sp, 32 + offset));
     }
     h->ldr(Xbyak_aarch64::QReg(src1.getIdx()), post_ptr(h->sp, 16));
     h->ldr(Xbyak_aarch64::QReg(src0.getIdx()), post_ptr(h->sp, 16));
-    h->ldr(Xbyak_aarch64::QReg(dst.getIdx()), post_ptr(h->sp, 32));
+    h->ldr(Xbyak_aarch64::QReg(dst.getIdx()), post_ptr(h->sp, 16));
     restore_context(exclude);
 }
 
