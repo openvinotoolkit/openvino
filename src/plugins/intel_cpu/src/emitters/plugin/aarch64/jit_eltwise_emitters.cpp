@@ -2235,11 +2235,15 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             h->mov(s0, src().s[i]);
             h->ldr(s1, table_val("power"));
 
+            h->str(func_reg, pre_ptr(h->sp, -8));
+            h->str(p_table, pre_ptr(h->sp, -8));
             h->str(Xbyak_aarch64::QReg(dst.getIdx()), pre_ptr(h->sp, -16));
             h->str(Xbyak_aarch64::QReg(src().getIdx()), pre_ptr(h->sp, -16));
             h->blr(func_reg);
             h->ldr(Xbyak_aarch64::QReg(src().getIdx()), post_ptr(h->sp, 16));
             h->ldr(Xbyak_aarch64::QReg(dst.getIdx()), post_ptr(h->sp, 16));
+            h->ldr(p_table, post_ptr(h->sp, 8));
+            h->ldr(func_reg, post_ptr(h->sp, 8));
 
             Xbyak_aarch64::WReg w0(0);
             h->fmov(w0, s0);
