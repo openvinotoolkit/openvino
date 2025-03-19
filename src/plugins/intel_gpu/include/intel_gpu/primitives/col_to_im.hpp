@@ -23,6 +23,8 @@ struct col_to_im : public primitive_base<col_to_im> {
     /// @param dilation Defines gaps in the input
     /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
+    /// @param output_shape Defines the output tensor the output image
+    /// @param kernel_shape Defines size of the sliding blocks
     col_to_im(const primitive_id& id,
                    const input_info& input,
                    const input_info& output_size,
@@ -58,6 +60,8 @@ struct col_to_im : public primitive_base<col_to_im> {
         seed = hash_range(seed, padding_begin.begin(), padding_begin.end());
         seed = hash_range(seed, dilation.begin(), dilation.end());
         seed = hash_range(seed, stride.begin(), stride.end());
+        seed = hash_range(seed, output_shape.begin(), output_shape.end());
+        seed = hash_range(seed, kernel_shape.begin(), kernel_shape.end());
         return seed;
     }
 
@@ -71,7 +75,9 @@ struct col_to_im : public primitive_base<col_to_im> {
         return cmp_fields(stride) &&
                cmp_fields(dilation) &&
                cmp_fields(padding_begin) &&
-               cmp_fields(padding_end);
+               cmp_fields(padding_end) &&
+               cmp_fields(output_shape) &&
+               cmp_fields(kernel_shape);
         #undef cmp_fields
     }
 
@@ -81,6 +87,8 @@ struct col_to_im : public primitive_base<col_to_im> {
         ob << dilation;
         ob << padding_begin;
         ob << padding_end;
+        ob << output_shape;
+        ob << kernel_shape;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -89,6 +97,8 @@ struct col_to_im : public primitive_base<col_to_im> {
         ib >> dilation;
         ib >> padding_begin;
         ib >> padding_end;
+        ib >> output_shape;
+        ib >> kernel_shape;
     }
 };
 }  // namespace cldnn

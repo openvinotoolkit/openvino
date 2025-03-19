@@ -31,29 +31,8 @@ ParamsKey ColToImKernelRef::GetSupportedKey() const {
 CommonDispatchData ColToImKernelRef::SetDefault(const col_to_im_params& params) const {
     CommonDispatchData dispatchData;
 
-    // TODO : implement for col_to_im_gpu_ref
-    // auto in_layout = params.inputs[0].GetLayout();
-    // auto out_layout = params.outputs[0].GetLayout();
-    {
-        // std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-        //                                                                  { Tensor::DataChannelName::FEATURE },
-        //                                                                  { Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z }};
-
-        // dispatchData.gws = { params.outputs[0].Batch().v,
-        //                      params.outputs[0].Feature().v,
-        //                      params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
-
-        // // The reason why reverse input/output of GetOptimalLocalWorkGroupSizes():
-        // // Large X*Y*Z lws size is better than large batch lws, but current GetOptimalLocalWorkGroupSizes not work like that.
-        // reverse(dims_by_gws.begin(), dims_by_gws.end());
-        // reverse(dispatchData.gws.begin(), dispatchData.gws.end());
-        // dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
-        // reverse(dispatchData.lws.begin(), dispatchData.lws.end());
-        // reverse(dispatchData.gws.begin(), dispatchData.gws.end());
-
-        dispatchData.gws = {1, 1, 1};
-        dispatchData.lws = {1, 1, 1};
-    }
+    dispatchData.gws = {1, 1, 1};
+    dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
 }

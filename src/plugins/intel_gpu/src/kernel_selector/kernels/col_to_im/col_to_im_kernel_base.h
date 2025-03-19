@@ -14,6 +14,10 @@ namespace kernel_selector {
 struct col_to_im_params : public base_params {
     col_to_im_params()
     : base_params(KernelType::COL_TO_IM) {}
+    // Required
+    uSize output_size;
+    uSize kernel_size;
+    // Optional
     uSize stride;
     uSize dilation;
     uSize padding_begin;
