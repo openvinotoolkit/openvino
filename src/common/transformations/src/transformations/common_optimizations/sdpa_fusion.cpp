@@ -100,8 +100,6 @@ SDPAFusion::SDPAFusion() {
     };
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        std::cout<<std::endl;
-        std::cout<<"PATTERN DETECTED"<<std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;
@@ -239,7 +237,6 @@ SDPAFusion::SDPAFusion() {
         sdpa->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa);
         ov::replace_node(m.get_match_root(), sdpa);
-        std::cout<<"PATTERN ACCEPTED"<<std::endl;
         return true;
     };
 

@@ -21,7 +21,6 @@
 #include "openvino/pass/manager.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include  <iostream>
 namespace {
 // validate the batch axis padding for sdpa_micro kernel.
 class SDPA : virtual public ov::test::SubgraphBaseStaticTest {
@@ -195,12 +194,10 @@ protected:
 };
 
 TEST_F(SDPA, Inference) {
-    std::cout<<"TEST SDPA"<<std::endl;
     run();
 }
 
 TEST_P(SDPAFusion, Inference) {
-    std::cout<<"TEST SDPAFusion"<<std::endl;
     create_model();
     run();
 
