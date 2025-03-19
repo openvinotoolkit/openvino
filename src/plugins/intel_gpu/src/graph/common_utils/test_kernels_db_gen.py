@@ -161,7 +161,7 @@ int e=USED_REGULAR_HEADER_MACRO;
         write_to_file(self.header_path, self.regular_header)
         write_to_file(self.no_opt_header_path, self.no_opt_header)
 
-        processor = Code2CHeaders(self.kernels_folder, "ocl")
+        processor = Code2CHeaders(self.kernels_folder, self.headers_folder, "ocl")
         ocl_sources, ocl_headers = processor.generate()
 
         self.assertEqual(ocl_sources[0], self.expected_source)

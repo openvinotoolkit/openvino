@@ -9,8 +9,9 @@ import ntpath
 import re
 
 class Code2CHeaders(object):
-    def __init__(self, kernels_folder, lang):
+    def __init__(self, kernels_folder, headers_folder, lang):
         self.kernels_folder = os.path.abspath(kernels_folder)
+        self.headers_folder = os.path.abspath(headers_folder)
         self.language = lang
         assert(self.language == "ocl" or self.language == "cm")
 
@@ -182,7 +183,6 @@ class Code2CHeaders(object):
             "cm" : (".h")
         }
 
-
         # Process kernel files
         for filename in sorted(os.listdir(self.kernels_folder)):
             if filename.endswith(source_ext[self.language]):
@@ -190,13 +190,13 @@ class Code2CHeaders(object):
                 print('processing {}'.format(filename))
                 include_dirs = []
                 include_dirs.append(self.kernels_folder)
-                include_dirs.append(os.path.join(self.kernels_folder, "include"))
-                include_dirs.append(os.path.join(self.kernels_folder, "include/batch_headers"))
+                include_dirs.append(self.headers_folder)
+                include_dirs.append(os.path.join(self.headers_folder, "batch_headers"))
                 map_entry = self.process_file(filepath, include_dirs, is_batch_header=False)
                 sources.append(map_entry)
 
         # Process batch header files in include directory
-        include_dir = os.path.join(self.kernels_folder, 'include/batch_headers')
+        include_dir = os.path.join(self.headers_folder, 'batch_headers')
         if os.path.exists(include_dir):
             for filename in sorted(os.listdir(include_dir)):
                 if filename.endswith(headers_ext[self.language]):
@@ -208,13 +208,14 @@ class Code2CHeaders(object):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('-in_dir', required=True, metavar='PATH', help='The absolute path to kernels folder')
+    ap.add_argument('-in_kernels_dir', required=True, metavar='PATH', help='The absolute path to kernels folder')
+    ap.add_argument('-in_headers_dir', required=True, metavar='PATH', help='The absolute path to headers root folder')
     ap.add_argument('-out_sources', required=True, metavar='PATH', help='The absolute path to output header with sources')
     ap.add_argument('-out_headers', required=True, metavar='PATH', help='The absolute path to output header with headers')
     ap.add_argument('-lang', required=True, help='Language of the source files. Supports `cm` and `ocl` for now')
     args = ap.parse_args()
 
-    converter = Code2CHeaders(args.in_dir, args.lang)
+    converter = Code2CHeaders(args.in_kernels_dir, args.in_headers_dir, args.lang)
     kernel_entries, header_entries = converter.generate()
 
     def write_to_file(file_path, content : list):
