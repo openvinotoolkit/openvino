@@ -222,6 +222,9 @@ private:
     // Matches a pair of {func_name, layer_name} to it's counter.
     std::map<std::pair<std::string, std::string>, size_t> dup_scalars;
 
+    // Cache Constants name. FIXME: used to handle duplicate Constants names
+    std::unordered_map<const void*, std::string> m_const_to_unique_name;
+
     using Match = std::function<bool(const std::shared_ptr<ov::Node>& node)>;
     void propagate(const std::string& func_name, const Match& test, ov::npuw::RepeatedBlock::MatchedBank& bank);
 
@@ -277,7 +280,20 @@ public:
           ens(_ens),
           P(_P),
           func_pipeline_type(FunctionPipelineType::FOLD),
-          cfg(_cfg) {}
+          cfg(_cfg) {
+        for (auto&& node_ptr : model->get_ordered_ops()) {
+            if (ov::op::util::is_constant(node_ptr)) {
+                const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
+                auto data_ptr = c->get_data_ptr();
+                auto name = ov::npuw::util::get_unique_const_name(c);
+                auto inserted = m_const_to_unique_name.insert({data_ptr, name});
+                if (!inserted.second) {
+                    std::cout << inserted.first->second << " VS " << name << std::endl;
+                    NPUW_ASSERT(inserted.first->second == name && "Couldn't resolve duplicate Constant name");
+                }
+            }
+        }
+    }
 
     ////////////////////////////////////////////////////////
     // Partitioning execution pipeline
@@ -1575,8 +1591,9 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 new_param_idx++;
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
+                auto constant = std::static_pointer_cast<ov::op::v0::Constant>(input_node);
                 funcall._lazy_closure.push_back(
-                    LazyTensor(std::static_pointer_cast<ov::op::v0::Constant>(input_node)));  // (n)/1/i/c
+                    LazyTensor(constant, m_const_to_unique_name.at(constant->get_data_ptr())));  // (n)/1/i/c
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();
@@ -1746,8 +1763,9 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                         std::make_pair(proto_layer_name, input_desc.get_index()));  // (t)/1/b
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
+                    auto constant = std::static_pointer_cast<ov::op::v0::Constant>(input_node);
                     funcall._lazy_closure[param_idx - function._param_offset] =
-                        LazyTensor(std::static_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
+                        LazyTensor(constant, m_const_to_unique_name.at(constant->get_data_ptr()));  // (t)/1/c
                 }
             }  // for (inputs)
         }      // for(nodes)
