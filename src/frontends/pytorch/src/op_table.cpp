@@ -19,7 +19,6 @@ namespace op {
 using namespace ov::frontend;
 
 // TorchScript translations
-OP_CONVERTER(translate_rad2deg);
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_avg_pool2d);
 OP_CONVERTER(translate_adaptive_avg_pool1d);
@@ -197,6 +196,7 @@ OP_CONVERTER(translate_quantized_add_relu);
 OP_CONVERTER(translate_quantized_hardswish);
 OP_CONVERTER(translate_quantized_mul);
 OP_CONVERTER(translate_range_length);
+OP_CONVERTER(translate_rad2deg);
 OP_CONVERTER(translate_rand);
 OP_CONVERTER(translate_randn);
 OP_CONVERTER(translate_randint);
@@ -347,7 +347,6 @@ OP_CONVERTER(translate_linear_awq);
 // Supported ops for TorchScript
 const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
-        {"aten::rad2deg", op::translate_rad2deg},
         {"aten::__and__", op::translate_bitwise_and},
         {"aten::__iand__", op::inplace_op<op::translate_bitwise_and>},
         {"aten::__derive_index", op::translate_derive_index},
@@ -620,6 +619,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::prod", op::translate_prod},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
+        {"aten::rad2deg", op::translate_rad2deg},
         {"aten::rand", op::translate_rand},
         {"aten::rand_like", op::translate_rand_like},
         {"aten::randint", op::translate_randint},
