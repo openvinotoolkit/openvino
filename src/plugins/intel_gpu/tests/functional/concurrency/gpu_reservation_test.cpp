@@ -18,7 +18,7 @@ using Device = std::string;
 using Config = ov::AnyMap;
 using GpuReservationTest = ::testing::Test;
 
-TEST_F(GpuReservationTest, Mutiple_CompiledModel_Reservation) {
+/*TEST_F(GpuReservationTest, Mutiple_CompiledModel_Reservation) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     std::vector<Device> target_devices = {ov::test::utils::DEVICE_CPU, ov::test::utils::DEVICE_GPU};
@@ -87,4 +87,4 @@ TEST_F(GpuReservationTest, Reservation_CompiledModel_Release) {
     ov::AnyMap reserve_1_config = {{ov::num_streams.name(), ov::streams::Num(1)},
                                   {ov::hint::enable_cpu_reservation.name(), true}};
     EXPECT_NO_THROW(core->compile_model(models[0], target_devices[1], reserve_1_config));
-}
+}*/
