@@ -28,13 +28,10 @@ struct Const {
     std::size_t m_offset = 0;
     std::size_t m_byte_size = 0;
     ov::Tensor m_read_from_bin;
-    std::string m_cached_name;
 
     Const() = default;
 
-    explicit Const(std::shared_ptr<ov::op::v0::Constant> n, const std::string& unique_name)
-        : m_node(n),
-          m_cached_name(unique_name) {
+    explicit Const(std::shared_ptr<ov::op::v0::Constant> n) : m_node(n) {
         m_cached_type = m_node->get_element_type();
         m_cached_shape = m_node->get_shape();
         m_cached_ptr = m_node->get_data_ptr();
@@ -74,7 +71,7 @@ struct Const {
         if (ctx.weights) {
             std::memcpy(m_read_from_bin.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
         } else {
-            auto it = ctx.consts_cache.find(m_cached_name);
+            auto it = ctx.consts_cache.find({m_offset, m_byte_size});
             NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
             auto tensor = ov::npuw::util::tensor_from_const(it->second);
             NPUW_ASSERT(tensor.get_byte_size() == m_byte_size && tensor.get_shape() == m_cached_shape &&
@@ -92,7 +89,6 @@ struct Const {
         write(stream, m_cached_shape);
         write(stream, m_offset);
         write(stream, m_byte_size);
-        write(stream, m_cached_name);
     }
     static Const deserialize(std::istream& stream) {
         using namespace ov::npuw::s11n;
@@ -103,7 +99,6 @@ struct Const {
         read(stream, c.m_cached_shape);
         read(stream, c.m_offset);
         read(stream, c.m_byte_size);
-        read(stream, c.m_cached_name);
         return c;
     }
 };
@@ -441,8 +436,8 @@ std::shared_ptr<LazyTensorImpl> LazyTensorImpl::deserialize(std::istream& stream
     return lt_impl;
 }
 
-LazyTensor::LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr, const std::string& unique_name)
-    : m_impl(std::make_shared<LazyTensorImpl>(op::Const(const_ptr, unique_name))) {}
+LazyTensor::LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr)
+    : m_impl(std::make_shared<LazyTensorImpl>(op::Const(const_ptr))) {}
 LazyTensor::LazyTensor(const std::vector<LazyTensor>& to_concat, const std::size_t axis)
     : m_impl(std::make_shared<LazyTensorImpl>(op::Concat{to_concat, axis})) {}
 LazyTensor::LazyTensor(const LazyTensor& cw,

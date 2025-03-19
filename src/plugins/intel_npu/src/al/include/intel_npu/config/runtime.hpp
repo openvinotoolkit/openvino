@@ -222,16 +222,23 @@ struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
 //
 // MODEL_PTR
 //
-struct MODEL_PTR final : OptionBase<MODEL_PTR, std::string> {
+struct MODEL_PTR final : OptionBase<MODEL_PTR, std::shared_ptr<ov::Model>> {
     static std::string_view key() {
         return ov::hint::model.name();
     }
 
     static constexpr std::string_view getTypeName() {
-        return "std::string";
+        return "std::shared_ptr<ov::Model>";
     }
 
-    static std::string defaultValue() {
+    static std::shared_ptr<ov::Model> defaultValue() {
+        return nullptr;
+    }
+
+    static std::shared_ptr<ov::Model> parse(std::string_view) {
+        return nullptr;
+    }
+    static std::string toString(const std::shared_ptr<ov::Model>& m) {
         return "";
     }
 

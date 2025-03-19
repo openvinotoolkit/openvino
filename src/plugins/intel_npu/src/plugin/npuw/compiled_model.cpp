@@ -702,7 +702,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     write(stream, is_weightless);
 
     // Create weightless context
-    CompiledDescSerializeContext ctx(is_weightless, m_const_to_offset_name);
+    CompiledDescSerializeContext ctx(is_weightless, m_const_to_offset);
 
     // Serialize compiled submodels
     write(stream, m_compiled_submodels.size());
@@ -790,18 +790,31 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
     // Initialize weights stream if weightless flow
     std::string weights_path;
-    std::shared_ptr<const ov::Model> model_ptr;
+    std::shared_ptr<ov::Model> model_ptr;
     // Cache model's constants
-    std::unordered_map<std::string, std::shared_ptr<ov::Node>> consts_cache;
+    CompiledDescDeserializeContext::ConstsCache consts_cache;
     if (is_weightless) {
         if (properties.find(ov::weights_path.name()) != properties.end()) {
             weights_path = properties.at(ov::weights_path.name()).as<std::string>();
+            NPUW_ASSERT(!weights_path.empty() &&
+                        "Empty weights_path. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
         } else if (properties.find(ov::hint::model.name()) != properties.end()) {
-            model_ptr = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+            model_ptr = properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>();
+            NPUW_ASSERT(
+                model_ptr &&
+                "Empty model passed in MODEL_PTR. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
             // Fill the cache
             for (const auto& node : model_ptr->get_ordered_ops()) {
                 if (ov::op::util::is_constant(node)) {
-                    consts_cache[ov::npuw::util::get_unique_const_name(node)] = node;
+                    const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
+                    auto rt_info = c->get_rt_info();
+                    auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+                    if (weightless_cache_attr == rt_info.end()) {
+                        continue;
+                    }
+                    std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+                    std::size_t size = c->get_byte_size();
+                    consts_cache[{offset, size}] = node;
                 }
             }
         } else {
@@ -945,10 +958,9 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
             }
             std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
             auto data_ptr = c->get_data_ptr();
-            auto inserted =
-                m_const_to_offset_name.insert({data_ptr, {offset, ov::npuw::util::get_unique_const_name(c)}});
+            auto inserted = m_const_to_offset.insert({data_ptr, offset});
             if (!inserted.second) {
-                NPUW_ASSERT(inserted.first->second.first == offset &&
+                NPUW_ASSERT(inserted.first->second == offset &&
                             "Model contains two constants with same pointer and different offset!");
             }
         }

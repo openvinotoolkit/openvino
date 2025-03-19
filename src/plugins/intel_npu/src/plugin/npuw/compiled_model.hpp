@@ -184,7 +184,7 @@ private:
 
     std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
 
-    std::unordered_map<const void*, std::pair<std::size_t, std::string>> m_const_to_offset_name;
+    std::unordered_map<const void*, std::size_t> m_const_to_offset;
 };
 }  // namespace npuw
 }  // namespace ov

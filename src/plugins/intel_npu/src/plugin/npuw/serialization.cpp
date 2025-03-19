@@ -329,8 +329,8 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream,
         }
         write(stream, true);
         auto data = t.data();
-        auto iter = ctx.const_to_offset_name.find(data);
-        if (iter == ctx.const_to_offset_name.end()) {
+        auto iter = ctx.const_to_offset.find(data);
+        if (iter == ctx.const_to_offset.end()) {
             write(stream, false);
             write(stream, t);
         } else {
@@ -338,8 +338,7 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream,
             write(stream, t.get_element_type().to_string());
             write(stream, t.get_shape());
             write(stream, t.get_byte_size());
-            write(stream, iter->second.first);   // offset in weights file
-            write(stream, iter->second.second);  // name of the Constant in original model
+            write(stream, iter->second);  // offset in weights file
         }
     }
 }
@@ -369,14 +368,12 @@ void ov::npuw::s11n::read_weightless(std::istream& stream,
             read(stream, byte_size);
             std::size_t offset = 0;
             read(stream, offset);
-            std::string name;
-            read(stream, name);
             ov::Tensor t(type, shape);
 
             if (ctx.weights) {
                 std::memcpy(t.data(), ctx.weights->get_ptr(offset), byte_size);
             } else {
-                auto it = ctx.consts_cache.find(name);
+                auto it = ctx.consts_cache.find({offset, byte_size});
                 NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
                 auto tensor = ov::npuw::util::tensor_from_const(it->second);
                 NPUW_ASSERT(tensor.get_byte_size() == byte_size && tensor.get_shape() == shape &&

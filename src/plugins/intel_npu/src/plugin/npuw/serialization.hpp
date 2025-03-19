@@ -89,23 +89,26 @@ struct LLMDeserializeContext {
 };
 
 struct CompiledDescSerializeContext {
-    explicit CompiledDescSerializeContext(
-        bool _is_weightless,
-        const std::unordered_map<const void*, std::pair<std::size_t, std::string>>& _const_to_offset_name)
+    explicit CompiledDescSerializeContext(bool _is_weightless,
+                                          const std::unordered_map<const void*, std::size_t>& _const_to_offset)
         : is_weightless(_is_weightless),
-          const_to_offset_name(_const_to_offset_name) {}
+          const_to_offset(_const_to_offset) {}
     bool is_weightless;
-    const std::unordered_map<const void*, std::pair<std::size_t, std::string>>& const_to_offset_name;
+    const std::unordered_map<const void*, std::size_t>& const_to_offset;
 };
 
 struct CompiledDescDeserializeContext {
-    explicit CompiledDescDeserializeContext(
-        const ov::npuw::s11n::Weights& _weights,
-        const std::unordered_map<std::string, std::shared_ptr<ov::Node>>& _consts_cache)
+    struct CtxHash {
+        inline size_t operator()(const std::pair<std::size_t, std::size_t>& p) const {
+            return (std::hash<std::size_t>()(p.first) + 0x9e3779b9) ^ (std::hash<std::size_t>()(p.second) + 0x9e3779b9);
+        }
+    };
+    using ConstsCache = std::unordered_map<std::pair<std::size_t, std::size_t>, std::shared_ptr<ov::Node>, CtxHash>;
+    explicit CompiledDescDeserializeContext(const ov::npuw::s11n::Weights& _weights, const ConstsCache& _consts_cache)
         : weights(_weights),
           consts_cache(_consts_cache) {}
     ov::npuw::s11n::Weights weights = nullptr;
-    const std::unordered_map<std::string, std::shared_ptr<ov::Node>>& consts_cache;
+    const ConstsCache& consts_cache;
 };
 
 // Specific type overloads

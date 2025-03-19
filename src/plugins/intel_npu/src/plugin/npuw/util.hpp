@@ -10,7 +10,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "partitioning/online/utils/utils.hpp"
 
 namespace ov {
 namespace npuw {
@@ -152,9 +151,6 @@ void non_parallel_for(std::size_t count, F&& f) {
         f(idx);
     }
 }
-
-// FIXME: a fix to overcome the model with duplicate friendly names in constants
-std::string get_unique_const_name(const std::shared_ptr<ov::Node> node_ptr);
 
 }  // namespace util
 }  // namespace npuw
