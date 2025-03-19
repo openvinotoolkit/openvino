@@ -263,7 +263,7 @@ jobs:
   CC_Build:
     name: Conditional Compilation
     needs: [Build, Docker]
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
