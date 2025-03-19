@@ -3,14 +3,14 @@ Obtaining a Stateful OpenVINO Model
 
 If the original framework does not offer a dedicated API for working with states, the
 resulting OpenVINO IR model will not be stateful by default. This means it will not contain
-either a state or the :doc:`Assign <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/assign-6>` and
-:doc:`ReadValue <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/read-value-6>` operations. You can still
+either a state or the :doc:`Assign <../../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/assign-6>` and
+:doc:`ReadValue <../../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/read-value-6>` operations. You can still
 make such models stateful (:doc:`see benefits <../stateful-models>`),
 and you have three ways to do it:
 
 * `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__ - an automated solution
   applicable to a selection of models (not covered by this article, for a usage guide
-  refer to the :doc:`LLM Inference with Hugging Face and Optimum Intel <../../../openvino-workflow-generative>` article).
+  refer to the :doc:`LLM Inference with Hugging Face and Optimum Intel <../../../../openvino-workflow-generative>` article).
 * :ref:`MakeStateful transformation <ov_ug_make_stateful>` - to choose which pairs of
   Parameter and Result to replace.
 * :ref:`LowLatency2 transformation <ov_ug_low_latency>` - to detect and replace Parameter
@@ -26,7 +26,7 @@ MakeStateful Transformation
 The MakeStateful transformation changes the structure of the model by replacing the
 user-defined pairs of Parameter and Results with the Assign and ReadValue operations:
 
-.. image:: ../../../assets/images/make_stateful_simple.svg
+.. image:: ../../../../assets/images/make_stateful_simple.svg
    :alt: diagram of MakeStateful Transformation
    :scale: 90 %
    :align: center
@@ -37,12 +37,12 @@ without spaces 'tensor_name_1'.
 
 **State naming rule**: in most cases, the name of a state is a concatenation of the
 Parameter/Result tensor names. If there are no tensor names,
-:doc:`friendly names <../../../documentation/openvino-extensibility/transformation-api>` are used.
+:doc:`friendly names <../../../../documentation/openvino-extensibility/transformation-api>` are used.
 
 
 **Examples:**
 
-.. image:: ../../../assets/images/make_stateful_detailed.png
+.. image:: ../../../../assets/images/make_stateful_detailed.png
    :alt: detailed diagram of MakeStateful Transformation
    :align: center
 
@@ -106,12 +106,12 @@ LowLatency2 Transformation
 ###############################
 
 The LowLatency2 transformation changes the structure of a model containing
-:doc:`TensorIterator <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/tensor-iterator-1>`
-and :doc:`Loop <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/loop-5>` by automatically detecting
+:doc:`TensorIterator <../../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/tensor-iterator-1>`
+and :doc:`Loop <../../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/loop-5>` by automatically detecting
 and replacing pairs of Parameter and Results with the Assign and ReadValue operations,
 as illustrated by the following example:
 
-.. image:: ../../../assets/images/applying_low_latency_2.svg
+.. image:: ../../../../assets/images/applying_low_latency_2.svg
    :alt: diagram of LowLatency Transformation
    :align: center
 
@@ -124,7 +124,7 @@ for the ReadValue operations are set to zeros unless the user specifies otherwis
 
 To apply LowLatency2 Transformation, follow the instruction below:
 
-1. Get :doc:`ov::Model <../integrate-openvino-with-your-application/model-representation>`,
+1. Get :doc:`ov::Model <../../model-representation>`,
    for example:
 
    .. tab-set::
@@ -145,7 +145,7 @@ To apply LowLatency2 Transformation, follow the instruction below:
 
 
 2. Change the number of iterations inside TensorIterator/Loop nodes in the model using the
-   :doc:`Reshape <../changing-input-shape>` feature.
+   :doc:`Reshape <../../model-input-output/changing-input-shape>` feature.
 
    For example, the *sequence_lengths* dimension of the model input > 1, it means the
    TensorIterator layer has the number_of_iterations > 1. You can reshape the model
@@ -215,7 +215,7 @@ To apply LowLatency2 Transformation, follow the instruction below:
             :fragment: [ov:low_latency_2_use_parameters]
 
 
-   .. image:: ../../../assets/images/llt2_use_const_initializer.svg
+   .. image:: ../../../../assets/images/llt2_use_const_initializer.svg
       :alt: diagram of constant subgraph initialization
       :align: center
 
@@ -245,18 +245,18 @@ To apply LowLatency2 Transformation, follow the instruction below:
 4. Use state API. See sections :doc:`OpenVINO State API <../stateful-models>`,
    :ref:`Stateful Model Inference <ov_ug_stateful_model_inference>`.
 
-   .. image:: ../../../assets/images/low_latency_limitation_2.svg
+   .. image:: ../../../../assets/images/low_latency_limitation_2.svg
       :alt: diagram showing low latency limitation
       :scale: 70 %
       :align: center
 
    The only way to change the number iterations of TensorIterator/Loop layer is to use the
-   :doc:`Reshape <../changing-input-shape>` feature. However, some models may be
+   :doc:`Reshape <../../model-input-output/changing-input-shape>` feature. However, some models may be
    non-reshapable, typically because the value of shapes is hardcoded in a constant
    somewhere in the model.
 
    In such a case, trim non-reshapable layers via
-   :doc:`Conversion Parameters <../../model-preparation/conversion-parameters>`:
+   :doc:`Conversion Parameters <../../../model-preparation/conversion-parameters>`:
    ``--input`` and ``--output``. For example, check the `OpenVINO Model Conversion Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/convert-to-openvino>`__.
 
    As for the parameter and the problematic constant in the picture above, it can be
@@ -285,7 +285,7 @@ Stateful Model from Scratch
 
 The main approach to obtaining stateful OpenVINO IR models is converting from other
 frameworks. Nonetheless, it is possible to create a model from scratch. Check how to
-do so in the :doc:`Build OpenVINO Model section <../integrate-openvino-with-your-application/model-representation>`.
+do so in the :doc:`Build OpenVINO Model section <../../model-representation>`.
 
 Here is also an example of how ``ov::SinkVector`` is used to create ``ov::Model``. For a
 model with states, except inputs and outputs, ``Assign`` nodes should also point to ``Model``
