@@ -146,6 +146,8 @@ def getBlobDiff(file1, file2):
             break
         line = content[i]
         if "nan" in sampleLine.lower() or "nan" in line.lower():
+            # todo: test value
+            return 1000
             import sys
             return sys.float_info.max
         sampleVal = 0
