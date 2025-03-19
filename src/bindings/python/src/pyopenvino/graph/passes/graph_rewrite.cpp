@@ -56,6 +56,7 @@ void regclass_passes_GraphRewrite(py::module m) {
                            }),
                            py::arg("pass"),
                            R"(
+                           Register single MatcherPass pass inside BackwardGraphRewrite.
 
                            :param pass: openvino.passes.MatcherPass instance
                            :type pass: openvino.passes.MatcherPass

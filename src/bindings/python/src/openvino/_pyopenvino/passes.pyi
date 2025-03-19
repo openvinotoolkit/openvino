@@ -44,6 +44,8 @@ class BackwardGraphRewrite(GraphRewrite, ModelPass, PassBase):
     @typing.overload
     def __init__(self, matcher_pass: MatcherPass) -> None:
         """
+                                   Register single MatcherPass pass inside BackwardGraphRewrite.
+        
                                    :param pass: openvino.passes.MatcherPass instance
                                    :type pass: openvino.passes.MatcherPass
         """

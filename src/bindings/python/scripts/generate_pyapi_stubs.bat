@@ -87,6 +87,9 @@ for /f "tokens=*" %%f in ('git diff --name-only ^| findstr /r "\.pyi$"') do (
     REM Process each changed .pyi file
     powershell -Command "(gc '%%f') -replace '<function _get_node_factory at 0x[0-9a-fA-F]+>', '<function _get_node_factory at memory_address>' | Out-File -encoding ASCII '%%f'"
     powershell -Command "(gc '%%f') -replace '__version__: str = ''[^'']*''', '__version__: str = ''version_string''' | Out-File -encoding ASCII '%%f'"
+    powershell -Command "(gc '%%f') -replace '<function <lambda> at 0x[0-9a-fA-F]+>', '<function <lambda> at memory_address>' | Out-File -encoding ASCII '%%f'"
+    powershell -Command "(gc '%%f') -replace ': \.\.\.', ': typing.Any' | Out-File -encoding ASCII '%%f'"
+    powershell -Command "(gc '%%f') -replace 'pass: MatcherPass', 'matcher_pass: MatcherPass' | Out-File -encoding ASCII '%%f'"
     REM Sort consecutive import statements at the beginning of the file
     powershell -Command @"
     \$content = Get-Content '%%f'
@@ -116,6 +119,7 @@ for /f "tokens=*" %%f in ('git diff --name-only ^| findstr /r "\.pyi$"') do (
         \$imports = \$imports | Sort-Object
         \$imports | Out-File -Append -Encoding ASCII '%%f'
     }
+    Add-Content -Path '%%f' -Value '# type: ignore'
 "@
 )
 
