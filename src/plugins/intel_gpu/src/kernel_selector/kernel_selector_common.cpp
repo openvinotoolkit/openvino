@@ -628,4 +628,14 @@ void clKernelData::load(cldnn::BinaryInputBuffer& ib) {
 #endif
 }
 
+void InternalBuffer::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob << lockable;
+    ob << byte_count;
+}
+
+void InternalBuffer::load(cldnn::BinaryInputBuffer& ib) {
+    ib >> lockable;
+    ib >> byte_count;
+}
+
 }  // namespace kernel_selector

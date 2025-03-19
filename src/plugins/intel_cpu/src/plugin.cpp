@@ -23,9 +23,10 @@
 #include "weights_cache.hpp"
 
 #if defined(__linux__)
-#    include <signal.h>
 #    include <sys/auxv.h>
 #    include <sys/mman.h>
+
+#    include <csignal>
 #endif
 
 #include "cpu/x64/cpu_isa_traits.hpp"
@@ -54,7 +55,7 @@ static std::string getDeviceFullName() {
 #    else
         __cpuid(regs[0], regs[0], regs[1], regs[2], regs[3]);
 #    endif
-        char* ch = reinterpret_cast<char*>(&regs[0]);
+        auto* ch = reinterpret_cast<char*>(&regs[0]);
         for (size_t j = 0; j < sizeof(regs); j++) {
             if (ch[j] != '\0') {
                 brand_string += ch[j];
@@ -74,8 +75,8 @@ static std::string getDeviceFullName() {
 #    endif
 
 class SigAltStackSetup {
-    stack_t new_stack{0};
-    stack_t old_stack{0};
+    stack_t new_stack{nullptr};
+    stack_t old_stack{nullptr};
 
 public:
     SigAltStackSetup() {
@@ -84,7 +85,8 @@ public:
 
         auto minsigstksz = getauxval(AT_MINSIGSTKSZ);
         auto new_size = minsigstksz + SIGSTKSZ;
-        void* altstack = mmap(NULL, new_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+        void* altstack =
+            mmap(nullptr, new_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
         if (altstack == MAP_FAILED) {
             return;
         }
@@ -103,9 +105,9 @@ public:
         stack_t current_stack;
         if (new_stack.ss_sp) {
             // restore old stack if new_stack is still the current one
-            if (sigaltstack(NULL, &current_stack) == 0) {
+            if (sigaltstack(nullptr, &current_stack) == 0) {
                 if (current_stack.ss_sp == new_stack.ss_sp) {
-                    sigaltstack(&old_stack, NULL);
+                    sigaltstack(&old_stack, nullptr);
                 }
             }
             munmap(new_stack.ss_sp, new_stack.ss_size);
@@ -397,7 +399,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::key_cache_group_size) {
         return static_cast<decltype(ov::key_cache_group_size)::value_type>(engConfig.keyCacheGroupSize);
     } else if (name == ov::value_cache_group_size) {
-        return static_cast<decltype(ov::value_cache_group_size)::value_type>(engConfig.valueCacheGroupSize);
+        return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
     }
     return get_ro_property(name, options);
 }
@@ -478,18 +480,18 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         std::vector<std::string> capabilities;
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
-            capabilities.push_back(ov::device::capability::BF16);
+            capabilities.emplace_back(ov::device::capability::BF16);
         }
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-            capabilities.push_back(ov::device::capability::WINOGRAD);
+            capabilities.emplace_back(ov::device::capability::WINOGRAD);
         }
-        capabilities.push_back(ov::device::capability::FP32);
+        capabilities.emplace_back(ov::device::capability::FP32);
         if (hasHardwareSupport(ov::element::f16)) {
-            capabilities.push_back(ov::device::capability::FP16);
+            capabilities.emplace_back(ov::device::capability::FP16);
         }
-        capabilities.push_back(ov::device::capability::INT8);
-        capabilities.push_back(ov::device::capability::BIN);
-        capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+        capabilities.emplace_back(ov::device::capability::INT8);
+        capabilities.emplace_back(ov::device::capability::BIN);
+        capabilities.emplace_back(ov::device::capability::EXPORT_IMPORT);
         return decltype(ov::device::capabilities)::value_type(std::move(capabilities));
     } else if (name == ov::range_for_async_infer_requests) {
         const std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);

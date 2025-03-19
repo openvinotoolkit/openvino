@@ -33,8 +33,7 @@ KernelsData LSTMSeqKernel_CM::GetKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<lstm_params>(params, 2);
     auto options = std::string(" -Qxcm_jit_option=-DPASTokenReduction "
               " -mllvm --vc-disable-indvars-opt=true "
-              " /Qxcm_jit_option=-enableBCR "
-              " -fcm-pointer /Qxcm_doubleGRF "
+              " /Qxcm_jit_option=-enableBCR /Qxcm_doubleGRF "
               " -DXETLA_CODE_BASE=__CM__ ");
     auto shape_key = std::string {"is"} + std::to_string(shape.input_size);
     auto gemm_entry_point = std::string {"xetla_lstm_gemm_"} + shape_key;
@@ -54,7 +53,7 @@ KernelsData LSTMSeqKernel_CM::GetKernelsData(const Params& params) const {
     // Request temporary buffers
     kd.internalBufferDataType = Datatype::F32;
     auto temp_buffer_size = shape.num_dir * shape.seq_len * shape.batch_size * shape.hidden_size * shape.num_gates * sizeof(float);
-    kd.internalBufferSizes.push_back(temp_buffer_size);
+    kd.internalBuffers.push_back(temp_buffer_size);
 
     auto& gemm_part = kd.kernels[0];
     gemm_part.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});

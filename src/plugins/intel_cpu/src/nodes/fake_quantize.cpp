@@ -4,12 +4,12 @@
 
 #include "fake_quantize.h"
 
-#include <math.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 
 #include <algorithm>
 #include <cmath>
 #include <common/dnnl_thread.hpp>
+#include <memory>
 #include <set>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
@@ -913,7 +913,7 @@ private:
     }
 
     inline void store_vector(const Xbyak::Address& op, Ymm ymm_dst, ov::element::Type dst_prc) {
-        Xmm xmm_dst = Xmm(ymm_dst.getIdx());
+        auto xmm_dst = Xmm(ymm_dst.getIdx());
 
         if (dst_prc != ov::element::f32) {
             uni_vcvtps2dq(ymm_dst, ymm_dst);
@@ -1065,7 +1065,7 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
 namespace {
 struct FakeQuantKey {
     jit_quantize_params jqp;
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
         seed = hash_combine(seed, jqp.is_planar);
@@ -1527,7 +1527,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         dataConfig.setMemDesc(descCreator->createSharedDesc(getOutputPrecision(), getOutputShapeAtPort(0)));
         config.outConfs.push_back(dataConfig);
 
-        supportedPrimitiveDescriptors.push_back({config, impl_type});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     }
 }
 
@@ -2372,21 +2372,21 @@ FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantiz
     bool isBinarization = _jqp.op_type == Algorithm::FQBinarization;
     if (mayiuse(cpu::x64::avx512_core)) {
         if (isBinarization) {
-            pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx512_core>(_jqp));
+            pKernel = std::make_unique<jit_uni_binarization_kernel<cpu::x64::avx512_core>>(_jqp);
         } else {
-            pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::avx512_core>(_jqp));
+            pKernel = std::make_unique<jit_uni_quantization_kernel<cpu::x64::avx512_core>>(_jqp);
         }
     } else if (mayiuse(cpu::x64::avx2)) {
         if (isBinarization) {
-            pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx2>(_jqp));
+            pKernel = std::make_unique<jit_uni_binarization_kernel<cpu::x64::avx2>>(_jqp);
         } else {
-            pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::avx2>(_jqp));
+            pKernel = std::make_unique<jit_uni_quantization_kernel<cpu::x64::avx2>>(_jqp);
         }
     } else if (mayiuse(cpu::x64::sse41)) {
         if (isBinarization) {
-            pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::sse41>(_jqp));
+            pKernel = std::make_unique<jit_uni_binarization_kernel<cpu::x64::sse41>>(_jqp);
         } else {
-            pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::sse41>(_jqp));
+            pKernel = std::make_unique<jit_uni_quantization_kernel<cpu::x64::sse41>>(_jqp);
         }
     } else {
         OPENVINO_THROW("Can't create jit fake quantize kernel");

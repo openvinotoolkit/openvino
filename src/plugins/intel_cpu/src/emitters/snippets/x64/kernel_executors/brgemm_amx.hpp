@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <memory>
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
@@ -19,18 +20,18 @@ public:
                           dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
     BrgemmAMXKernelConfig() = delete;
 
-    std::unique_ptr<GenericConfig> get_clone_ptr() const override {
-        return std::unique_ptr<BrgemmAMXKernelConfig>(new BrgemmAMXKernelConfig(*this));
+    [[nodiscard]] std::unique_ptr<GenericConfig> get_clone_ptr() const override {
+        return std::make_unique<BrgemmAMXKernelConfig>(*this);
     }
 
-    dnnl_dim_t get_inner_K_blk() const {
+    [[nodiscard]] dnnl_dim_t get_inner_K_blk() const {
         return m_static_params->inner_k_blk;
     }
-    dnnl_dim_t get_vnni_factor() const {
+    [[nodiscard]] dnnl_dim_t get_vnni_factor() const {
         return m_static_params->vnni_factor;
     }
 
-    bool need_copy_a(dnnl_dim_t K) const;
+    [[nodiscard]] bool need_copy_a(dnnl_dim_t K) const;
 
 private:
     struct StaticParams : StaticBaseParams {
@@ -46,13 +47,13 @@ private:
             return !(*this == rhs);
         }
 #ifdef SNIPPETS_DEBUG_CAPS
-        std::string to_string() const;
+        [[nodiscard]] std::string to_string() const;
 #endif
     private:
         static size_t compute_hash(dnnl_dim_t inner_k_blk, dnnl_dim_t vnni_factor);
     };
 
-    std::shared_ptr<StaticBaseParams> get_static_params() const override {
+    [[nodiscard]] std::shared_ptr<StaticBaseParams> get_static_params() const override {
         return m_static_params;
     }
 
@@ -88,7 +89,8 @@ public:
     static void execute(const BrgemmAMXKernelExecutor* executor, call_args* args);
 
 protected:
-    std::shared_ptr<BrgemmAMXCompiledKernel> compile_kernel(const BrgemmAMXKernelConfig& c) const override;
+    [[nodiscard]] std::shared_ptr<BrgemmAMXCompiledKernel> compile_kernel(
+        const BrgemmAMXKernelConfig& c) const override;
 
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,

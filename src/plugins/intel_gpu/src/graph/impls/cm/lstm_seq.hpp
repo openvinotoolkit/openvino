@@ -4,7 +4,7 @@
 
 #include <memory>
 
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "lstm_seq_inst.h"
 namespace cldnn {
@@ -23,7 +23,7 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
             in_fmts[idx] = format::bfyx;
         }
-        out_fmts[0] = format::byfx;
+        out_fmts[0] = format::ybfx;
         for (size_t idx = 1; idx < node.get_outputs_count(); idx++) {
             out_fmts[idx] = format::bfyx;
         }

@@ -22,26 +22,38 @@
 ### Checks that are turned off but better be enabled later:
 # -bugprone-narrowing-conversions
 # -bugprone-easily-swappable-parameters
+# -bugprone-exception-escape. There are a lot of legacy code which does not handle exceptions properly and just catches them all. Major refactoring is required to correct this.
 # -bugprone-implicit-widening-of-multiplication-result
+# -bugprone-incorrect-roundings. There are explicit ways to perform rounding (i.e. std::floor(), std::round(), etc). Requires careful updates case by case
+# -bugprone-lambda-function-name. Used by generic debug caps macro
+# -bugprone-signed-char-misuse. The source code contains valid logic when pointer to the data is interpreted as int8_t (i.e. weights tensor)
 # -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
 # -google-explicit-constructor,
 # -google-readability-casting,
+# -modernize-avoid-c-arrays,
 # -readability-implicit-bool-conversion,
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
+# Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
+# -modernize-use-constraints,
+# -modernize-use-std-numbers
 
 Checks: >
   -*,
+  bugprone-*,
   performance-*,
   google-*,
-  modernize-loop-convert,
-  modernize-pass-by-value,
+  modernize-*,
   cppcoreguidelines-prefer-member-initializer,
   readability-else-after-return,
   -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
   -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-incorrect-roundings,
+  -bugprone-lambda-function-name,
   -bugprone-narrowing-conversions,
+  -bugprone-signed-char-misuse,
   -cppcoreguidelines-narrowing-conversions,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -google-build-using-namespace,
@@ -49,6 +61,9 @@ Checks: >
   -google-readability-casting,
   -google-readability-todo,
   -readability-braces-around-statements,
+  -modernize-avoid-c-arrays,
+  -modernize-use-constraints,
+  -modernize-use-std-numbers,
   -modernize-use-trailing-return-type,
   -readability-identifier-length,
   -readability-implicit-bool-conversion,
@@ -74,6 +89,10 @@ CheckOptions:
     value: reasonable
   - key: modernize-pass-by-value.IncludeStyle
     value: google
+  - key: modernize-use-auto.MinTypeNameLength
+    value: "3"
+  - key: modernize-use-override.AllowOverrideAndFinal
+    value: true
 ### To be considered to enable:
 #  # Unifies the usage of the statements
 #  - key: readability-braces-around-statements.ShortStatementLines

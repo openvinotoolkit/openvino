@@ -615,7 +615,7 @@ size_t DnnlBlockedMemoryDesc::getPaddedElementsCount() const {
     return std::accumulate(std::begin(padded_dims),
                            std::begin(padded_dims) + desc.get_ndims(),
                            size_t{1},
-                           std::multiplies<int64_t>());
+                           std::multiplies<>());
 }
 
 bool DnnlBlockedMemoryDesc::blocksExtended() const {

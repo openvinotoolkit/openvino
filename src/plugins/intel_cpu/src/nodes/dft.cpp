@@ -5,6 +5,7 @@
 #include "dft.h"
 
 #include <cmath>
+#include <memory>
 #include <openvino/opsets/opset7.hpp>
 #include <string>
 #include <vector>
@@ -100,7 +101,7 @@ void DFT::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConfigurators(
         {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
-        inDataConfigurators.push_back({LayoutType::ncsp, ov::element::i32});
+        inDataConfigurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
@@ -205,9 +206,9 @@ void copyDataToOutputWithSignalSize(const float* input,
                                     const std::vector<size_t>& outputShape,
                                     const std::vector<size_t>& outputStrides) {
     auto totalInput =
-        std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+        std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<>());
     auto totalOutput =
-        std::accumulate(outputShape.begin(), outputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+        std::accumulate(outputShape.begin(), outputShape.end(), static_cast<size_t>(1), std::multiplies<>());
     std::fill_n(output, totalOutput, 0.f);
     size_t lastChangedDim = 0;
     for (size_t index = inputShape.size() - 1; index > 0; --index) {
@@ -232,7 +233,7 @@ void copyDataToOutputWithSignalSize(const float* input,
     const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1,
                                              inputShape.end(),
                                              static_cast<size_t>(1),
-                                             std::multiplies<size_t>());
+                                             std::multiplies<>());
     const size_t blockSizeBytes = blockSize * sizeof(float);
     std::vector<size_t> iterationCounter(iterationRange.size(), 0);
     do {
@@ -281,7 +282,7 @@ void DFT::execute(const dnnl::stream& strm) {
         copyDataToOutputWithSignalSize(src, inputShape, inputStrides, dst, outputShape, outputStrides);
     } else {
         auto totalElements =
-            std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+            std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<>());
         cpu_memcpy(dst, src, totalElements * sizeof(float));
     }
 
@@ -419,7 +420,7 @@ void DFT::fft(float* inBuffer,
     for (size_t numBlocks = 1; numBlocks < nComplex; numBlocks *= 2) {
         blockSize = nextIterationBlockSize;
         nextIterationBlockSize /= 2;
-        if (parallelize && blockSize >= static_cast<size_t>(4 * elementsPerCacheLine)) {
+        if (parallelize && blockSize >= 4 * static_cast<size_t>(elementsPerCacheLine)) {
             parallel_for(numBlocks, [&](const size_t block) {
                 blockIteration(block, 1, nextIterationBlockSize);
             });
@@ -582,11 +583,11 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (hasDFT && dftKernel == nullptr) {
         if (mayiuse(cpu::x64::avx512_core)) {
-            dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx512_core>());
+            dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::avx512_core>>();
         } else if (mayiuse(cpu::x64::avx2)) {
-            dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx2>());
+            dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::avx2>>();
         } else if (mayiuse(cpu::x64::sse41)) {
-            dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::sse41>());
+            dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::sse41>>();
         } else {
             THROW_CPU_NODE_ERR("Can't create jit DFT kernel");
         }
@@ -598,11 +599,11 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
 
     if (hasFFT && fftKernel == nullptr) {
         if (mayiuse(cpu::x64::avx512_core)) {
-            fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx512_core>());
+            fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::avx512_core>>();
         } else if (mayiuse(cpu::x64::avx2)) {
-            fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx2>());
+            fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::avx2>>();
         } else if (mayiuse(cpu::x64::sse41)) {
-            fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::sse41>());
+            fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::sse41>>();
         } else {
             THROW_CPU_NODE_ERR("Can't create jit FFT kernel");
         }

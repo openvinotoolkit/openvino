@@ -24,8 +24,8 @@
 using namespace ov;
 using namespace ov::threading;
 
-#define INIT_VAL     -100
-#define TP_CPU_LIMIT 32
+constexpr int INIT_VAL = -100;
+constexpr int TP_CPU_LIMIT = 32;
 
 namespace ov::intel_cpu {
 
@@ -165,7 +165,7 @@ std::vector<std::vector<int>> get_streams_info_table(
 
     auto check_threads_per_stream = [&]() {
         int count = 0;
-        while (1) {
+        while (true) {
             for (int n_type = MAIN_CORE_PROC; n_type <= HYPER_THREADING_PROC; n_type++) {
                 count += static_cast<int>(proc_type_table[0][n_type] / n_threads_per_stream);
             }
@@ -729,18 +729,17 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
             get_streams_rank_table(streams_info_table, config.streamsRankLevel, config.numSubStreams);
     }
 
-    auto cpu_pinning = get_cpu_pinning(config.enableCpuPinning,
-                                       config.changedCpuPinning,
-                                       config.enableCpuReservation,
-                                       proc_type_table,
-                                       streams_info_table);
+    config.enableCpuPinning = check_cpu_pinning(config.enableCpuPinning,
+                                                config.changedCpuPinning,
+                                                config.enableCpuReservation,
+                                                streams_info_table);
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,
                                                            config.threadsPerStream,
                                                            ov::hint::SchedulingCoreType::ANY_CORE,
                                                            config.enableCpuReservation,
-                                                           cpu_pinning,
+                                                           config.enableCpuPinning,
                                                            true,
                                                            std::move(streams_info_table),
                                                            {},

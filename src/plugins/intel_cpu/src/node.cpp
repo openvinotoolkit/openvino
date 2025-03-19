@@ -49,10 +49,8 @@ Node::NodesFactory& Node::factory() {
 }
 
 Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory)
-    : selectedPrimitiveDescriptorIndex(-1),
-      constant(ConstantType::NoConst),
-      context(std::move(ctx)),
-      algorithm(Algorithm::Default),
+    : context(std::move(ctx)),
+
       fusingPort(-1),
       engine(context->getEngine()),
       name(op->get_friendly_name()),
@@ -183,8 +181,7 @@ Node::Node(const std::string& type,
            const GraphContext::CPtr& ctx)
     : inputShapes(std::move(inShapes)),
       outputShapes(std::move(outShapes)),
-      selectedPrimitiveDescriptorIndex(-1),
-      constant(ConstantType::NoConst),
+
       context(ctx),
       originalInputPrecisions(std::move(inputPrecisions)),
       originalOutputPrecisions(std::move(outputPrecisions)),
@@ -341,7 +338,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
 bool Node::isOneDimShape(const ov::PartialShape& pshape) {
     int value_1_num = 0;
-    int sz = static_cast<int>(pshape.size());
+    auto sz = static_cast<int>(pshape.size());
     for (const auto& s : pshape) {
         if (s.is_static() && s.get_length() == 1) {
             value_1_num++;
@@ -1328,6 +1325,8 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
             impl_desc_type::jit_sse42_dw, impl_desc_type::jit_sse42_1x1, impl_desc_type::jit_sse42,
 #if defined(OPENVINO_ARCH_ARM64)
             impl_desc_type::jit_asimd,
+#elif defined(OPENVINO_ARCH_RISCV64)
+            impl_desc_type::jit_gv,
 #endif
             impl_desc_type::gemm_any, impl_desc_type::gemm_blas, impl_desc_type::gemm_avx512, impl_desc_type::gemm_avx2,
             impl_desc_type::gemm_avx, impl_desc_type::gemm_sse42, impl_desc_type::gemm_acl, impl_desc_type::acl,

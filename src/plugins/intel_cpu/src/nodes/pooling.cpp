@@ -53,7 +53,7 @@ struct PoolingKey {
     dnnl::algorithm alg;
     impl_desc_type implType;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;

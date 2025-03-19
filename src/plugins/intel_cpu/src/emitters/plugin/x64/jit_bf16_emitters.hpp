@@ -49,9 +49,9 @@ private:
         using Vmm = typename dnnl::impl::utils::
             conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
-        Vmm in = Vmm(in_vec_idxs[0]);
+        auto in = Vmm(in_vec_idxs[0]);
         if (mode_ == conversion_mode::saturation_mode) {
-            Vmm vmm_temp = Vmm(out_vec_idxs[0]);
+            auto vmm_temp = Vmm(out_vec_idxs[0]);
 
             h->uni_vmaxps(vmm_temp, in, table_val("bf16_min"));
             h->uni_vminps(vmm_temp, vmm_temp, table_val("bf16_max"));
@@ -59,7 +59,7 @@ private:
             if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                 h->vfixupimmps(vmm_temp, in, table_val("selector"), 0);
             } else {
-                Vmm mask = Vmm(aux_vec_idxs[0]);
+                auto mask = Vmm(aux_vec_idxs[0]);
                 h->uni_vcmpps(mask, in, in, 0x03);  // _CMP_UNORD_Q
                 h->uni_vblendvps(vmm_temp, vmm_temp, table_val("nan"), mask);
                 h->uni_vcmpps(mask, in, table_val("inf"), 0x00);  // _CMP_EQ_OQ
@@ -71,12 +71,12 @@ private:
         }
 
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
-            Ymm out = Ymm(out_vec_idxs[0]);
+            auto out = Ymm(out_vec_idxs[0]);
             h->vcvtneps2bf16(out, in);
         } else if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
-            Zmm aux = Zmm(aux_vec_idxs[0]);
-            Zmm aux1 = Zmm(aux_vec_idxs[1]);
-            Ymm out = Ymm(out_vec_idxs[0]);
+            auto aux = Zmm(aux_vec_idxs[0]);
+            auto aux1 = Zmm(aux_vec_idxs[1]);
+            auto out = Ymm(out_vec_idxs[0]);
 
             h->uni_vpsrld(aux, in, 16);
             h->vpandd(aux, aux, table_val("one"));
@@ -87,11 +87,11 @@ private:
             h->vpsrad(aux, aux, 16);
             h->vpmovdw(out, aux);
         } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2)) {
-            Xmm out = Xmm(out_vec_idxs[0]);
+            auto out = Xmm(out_vec_idxs[0]);
             h->vcvtneps2bf16(out, in, PreferredEncoding::VexEncoding);
         } else {  // round_to_nearest_even emulation
-            Vmm aux = Vmm(aux_vec_idxs[0]);
-            Xmm out = Xmm(out_vec_idxs[0]);
+            auto aux = Vmm(aux_vec_idxs[0]);
+            auto out = Xmm(out_vec_idxs[0]);
 
             if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
                 h->uni_vandps(aux, in, table_val("rounding"));

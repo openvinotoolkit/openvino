@@ -253,7 +253,7 @@ jobs:
       # Upload build artifacts
       #
 
-      - name: Upload openvino package
+      - name: Upload OpenVINO package
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
@@ -261,14 +261,14 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
           
-      - name: Upload openvino wheels
+      - name: Upload OpenVINO wheels
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
 
-      - name: Upload openvino tests package
+      - name: Upload OpenVINO tests package
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
@@ -276,7 +276,7 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-      - name: Upload openvino js package
+      - name: Upload OpenVINO js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:

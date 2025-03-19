@@ -50,7 +50,7 @@ function(ov_add_onednn)
     set(DNNL_CPU_RUNTIME "${THREADING}" CACHE STRING "" FORCE)
     set(DNNL_GPU_RUNTIME "NONE" CACHE STRING "" FORCE)
     set(DNNL_BLAS_VENDOR "NONE" CACHE STRING "" FORCE)
-    set(ONEDNN_ENABLE_GEMM_KERNELS_ISA "AVX2" CACHE STRING "" FORCE)
+    set(ONEDNN_ENABLE_GEMM_KERNELS_ISA "SSE41" CACHE STRING "" FORCE)
     # plugin does not use onednn graph
     set(ONEDNN_BUILD_GRAPH OFF CACHE BOOL "" FORCE)
     # select needed primitives
@@ -182,6 +182,12 @@ endif()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     ov_build_kleidiai_static()
     ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
+endif()
+
+if(RISCV64)
+    set(XBYAK_RISCV_V ON)
+    add_subdirectory(xbyak_riscv)
+    ov_install_static_lib(xbyak_riscv ${OV_CPACK_COMP_CORE})
 endif()
 
 ov_add_onednn()

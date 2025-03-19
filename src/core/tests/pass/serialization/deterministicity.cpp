@@ -144,6 +144,19 @@ TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
     ASSERT_TRUE(files_equal(bin_1, bin_2));
 }
 
+TEST_F(SerializationDeterministicityTest, ModelWithVariable) {
+    const auto model = ov::test::utils::getModelFromTestModelZoo(
+        ov::util::path_join({SERIALIZED_ZOO, "ir/dynamic_variable.xml"}).string());
+
+    auto expected = ov::test::readModel(model, "");
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
+
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::in);
+    std::ifstream xml_2(model, std::ios::in);
+
+    ASSERT_TRUE(files_equal(xml_1, xml_2));
+}
+
 class SerializationDeterministicityInputOutputTest : public testing::TestWithParam<ov::pass::Serialize::Version>,
                                                      public DeterministicityCommon {
 protected:

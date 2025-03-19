@@ -56,7 +56,7 @@ using namespace ov::intel_cpu::node;
 
 namespace ov::intel_cpu {
 
-GraphOptimizer::GraphOptimizer() {}
+GraphOptimizer::GraphOptimizer() = default;
 
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     // For conv with input zp, canBeExecutedInInt8() check has dependency on input zero point check.
@@ -82,8 +82,8 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     FuseMultiplyAndAdd(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeConvertAndScaleShift");
-    MergeConvertAndScaleShift(graph);
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeConvertAndEltwise");
+    MergeConvertAndEltwise(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndConvertOnWeights");
@@ -164,6 +164,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndSimple");
     FuseEltwiseAndSimple(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeEltwiseAndConvert");
+    MergeEltwiseAndConvert(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "reshapeRnnSeq");
@@ -278,7 +282,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         }
         auto scalesDims = getNormalizedDimsBySize(scales->getOutputShapeAtPort(0).getDims(),
                                                   node->getOutputShapeAtPort(0).getDims().size());
-        auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), 1, std::multiplies<size_t>());
+        auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), 1, std::multiplies<>());
         node->fuseDQScales(scalesData, scaleSize);
         return true;
     };
@@ -680,12 +684,61 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
     }
 }
 
-void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
+void GraphOptimizer::MergeEltwiseAndConvert(Graph& graph) {
+// The pass is enabled on arm platforms only, however it might be usefull for other platforms as well
+// It requires additional perf validation. Ticket: 163388
+#if !defined(OPENVINO_ARCH_ARM64)
+    return;
+#endif
     auto& graphNodes = graph.GetNodes();
 
     auto parent = graphNodes.begin();
     while (parent != graphNodes.end()) {
-        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift);
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeEltwiseAndConvert);
+        auto parentNode = *parent;
+        if (parentNode->getType() != Type::Eltwise) {
+            parent++;
+            continue;
+        }
+
+        const auto& childEdges = parentNode->getChildEdges();
+        if (childEdges.size() != 1) {
+            parent++;
+            continue;
+        }
+
+        const auto edge = childEdges[0].lock();
+        auto childNode = edge->getChild();
+        if (childNode->getType() != Type::Convert) {
+            parent++;
+            continue;
+        }
+
+        const auto eltwise = dynamic_cast<ov::intel_cpu::node::Eltwise*>(parentNode.get());
+        if (!eltwise->canFuseConvert(childNode)) {
+            parent++;
+            continue;
+        }
+
+        // WA: Eltwise node uses precision of last fused node as output precision
+        auto fusedOps = parentNode->getFusedWith();
+        if (!fusedOps.empty()) {
+            fusedOps[fusedOps.size() - 1]->setOriginalOutputPrecisionAtPort(
+                0,
+                childNode->getOriginalOutputPrecisionAtPort(0));
+        }
+        parentNode->setOriginalOutputPrecisionAtPort(0, childNode->getOriginalOutputPrecisionAtPort(0));
+        parentNode->addOriginalLayer(childNode->getOriginalLayers());
+        graph.DropNode(childNode);
+    }
+}
+
+void GraphOptimizer::MergeConvertAndEltwise(Graph& graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndEltwise);
         auto parentNode = *parent;
         if (parentNode->getType() != Type::Convert) {
             parent++;
@@ -2081,7 +2134,7 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
                         graph.RemoveEdge(remEdge);
                     }
 
-                    if (parentNode->inputShapes.size() < static_cast<size_t>(outNum + 1)) {
+                    if (parentNode->inputShapes.size() < static_cast<size_t>(outNum) + 1) {
                         parentNode->inputShapes.resize(outNum + 1);
                     }
                     parentNode->inputShapes[outNum] = parent->getOutputShapeAtPort(inNum);
@@ -2102,7 +2155,7 @@ void GraphOptimizer::ShareReorders(Graph& graph) {
         if (node->getType() != Type::Reorder) {
             return nullptr;
         }
-        Reorder* reorder = dynamic_cast<Reorder*>(node.get());
+        auto* reorder = dynamic_cast<Reorder*>(node.get());
         if (reorder == nullptr) {
             OPENVINO_THROW("Cannot get reorder layer ", node->getName());
         }
@@ -2178,11 +2231,11 @@ void GraphOptimizer::DropDoubleReorders(Graph& graph) {
         if (processed.find(node) == processed.end() && node->getType() == Type::Reorder &&
             node->getChildEdges().size() == 1 && node->getChildEdgeAt(0)->getChild()->getType() == Type::Reorder) {
             auto nextNode = node->getChildEdgeAt(0)->getChild();
-            Reorder* n = dynamic_cast<Reorder*>(node.get());
+            auto* n = dynamic_cast<Reorder*>(node.get());
             if (n == nullptr) {
                 OPENVINO_THROW("Cannot get reorder layer ", node->getName());
             }
-            Reorder* nn = dynamic_cast<Reorder*>(nextNode.get());
+            auto* nn = dynamic_cast<Reorder*>(nextNode.get());
             if (nn == nullptr) {
                 OPENVINO_THROW("Cannot get reorder layer ", nextNode->getName());
             }
@@ -2397,7 +2450,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
         std::vector<float> zeroShift(newInputScale.size(), 0.f);
 
         const auto isSubnormal = [](const float value) {
-            const uint32_t* u32data = reinterpret_cast<const uint32_t*>(&value);
+            const auto* u32data = reinterpret_cast<const uint32_t*>(&value);
             return (*u32data) && (((*u32data) & (0xFF << 23)) == 0);
         };
 
