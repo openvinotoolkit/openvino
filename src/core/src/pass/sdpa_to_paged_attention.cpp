@@ -61,8 +61,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
             setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}), "rotation_trig_lut");
     }
 
-    auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
-
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
                              const std::string& name) -> std::shared_ptr<v0::Parameter> {
         for (const auto& param : model->inputs()) {
@@ -134,7 +132,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.set_per_pass_validation(false);
     manager.register_pass<StateManagementPattern>(kv_parameters,
                                                   model_remaining_params,
-                                                  sliding_window,
                                                   parameters_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0),
