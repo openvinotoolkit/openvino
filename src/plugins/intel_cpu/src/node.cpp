@@ -820,6 +820,13 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
+    if (!primArgs.empty()) {
+        // we have to process the scratchpad ptr
+        auto itr = primArgs.find(DNNL_ARG_SCRATCHPAD);
+        if (itr != primArgs.end()) {
+            itr->second.set_data_handle(scratchpadMem->getData());
+        }
+    }
     if (isDynamicNode()) {
         return executeDynamic(strm, numaId);
     }
