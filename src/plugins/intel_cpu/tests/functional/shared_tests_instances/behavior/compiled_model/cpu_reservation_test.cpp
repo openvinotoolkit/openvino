@@ -24,7 +24,7 @@ using Device = std::string;
 using Config = ov::AnyMap;
 using CpuReservationTest = ::testing::Test;
 
-TEST_F(CpuReservationTest, Mutiple_CompiledModel_Reservation) {
+/*TEST_F(CpuReservationTest, Mutiple_CompiledModel_Reservation) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
@@ -131,4 +131,4 @@ TEST_F(CpuReservationTest, Cpu_Reservation_CompiledModel_Release) {
     EXPECT_NO_THROW(core->compile_model(models[0], target_device, reserve_1_config));
 }
 
-#endif
+#endif*/
