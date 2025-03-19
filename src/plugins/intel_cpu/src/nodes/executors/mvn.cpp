@@ -6,8 +6,7 @@
 
 #include <utility>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 MVNExecutor::MVNExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
 
@@ -42,5 +41,4 @@ VectorDims MVNExecutor::transformTo5DCase(const VectorDims& shape, bool initAcro
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

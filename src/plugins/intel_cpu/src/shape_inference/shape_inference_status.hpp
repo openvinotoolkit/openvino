@@ -4,8 +4,7 @@
 
 #pragma once
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum class ShapeInferStatus {
     success,  ///< shapes were successfully calculated
@@ -14,5 +13,4 @@ enum class ShapeInferStatus {
     ///< e.g. in the case of internal dynamism.
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

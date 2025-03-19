@@ -140,7 +140,6 @@ jobs:
             -DENABLE_LTO=ON \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=ON \
-            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 

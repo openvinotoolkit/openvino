@@ -311,7 +311,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetEnableProfilingNoThrow) {
 
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetInferencePrecisionNoThrow) {
     ov::Core ie;
-    auto value = ov::element::undefined;
+    auto value = ov::element::dynamic;
     const auto expected_default_precision = ov::element::f16;
 
     OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));

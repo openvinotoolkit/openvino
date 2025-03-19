@@ -14,9 +14,7 @@
 #include "shape_inference/custom/transpose.hpp"
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -79,20 +77,24 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].constant(false);
     transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
 
-    auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config, const TransposeParams& transposeParams) {
+    auto supportedPrimitiveDescriptorsBuilder = [this](const NodeConfig& config,
+                                                       const TransposeParams& transposeParams) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+        srcMemoryDescs.reserve(config.inConfs.size());
+        for (const auto& inConf : config.inConfs) {
+            srcMemoryDescs.emplace_back(inConf.getMemDesc());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+        srcMemoryDescs.reserve(config.outConfs.size());
+        dstMemoryDescs.reserve(config.outConfs.size());
+        for (const auto& outConf : config.outConfs) {
+            dstMemoryDescs.emplace_back(outConf.getMemDesc());
         }
         auto factory = std::make_shared<TransposeExecutorFactory>(transposeParams,
                                                                   srcMemoryDescs,
                                                                   dstMemoryDescs,
                                                                   transpose_context);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, factory});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, factory);
     };
 
     const auto& inputDataShape = getInputShapeAtPort(INPUT_DATA_IDX);
@@ -274,6 +276,4 @@ bool Transpose::created() const {
     return getType() == Type::Transpose;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

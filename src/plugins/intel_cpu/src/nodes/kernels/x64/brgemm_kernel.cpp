@@ -15,8 +15,8 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64::matmul;
 
 #define THROW_ERROR(...) OPENVINO_THROW("brgemm executor Init Failure '", __VA_ARGS__)
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 
 BrgemmKernel::BrgemmKernel(size_t M,
                            size_t N,
@@ -273,6 +273,7 @@ void BrgemmKernel::init_brgemm_copy_a(
                         : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = transpose;
     brgCopyKernelConf.isa = is_avx_f16_only ? avx512_core_fp16 : avx512_core_amx;
+    brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
 
     create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
 }
@@ -452,5 +453,4 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

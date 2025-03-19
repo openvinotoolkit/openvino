@@ -371,7 +371,9 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     // Check if a tensor view can be faked as "continuous"
     // FIXME: This trick should be removed after strided tensor
     // checks are relaxed
-    if (std::all_of(shape.begin(), shape.begin() + dim, [](std::size_t d) { return d == 1u; })) {
+    if (std::all_of(shape.begin(), shape.begin() + dim, [](std::size_t d) {
+            return d == 1u;
+        })) {
         // If all dimensions up to the sub-ranged dimension are 1s,
         // This tensor can be faked as continuous
         const auto type = src->get_element_type();

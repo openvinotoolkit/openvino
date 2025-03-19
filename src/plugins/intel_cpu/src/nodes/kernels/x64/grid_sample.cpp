@@ -6,9 +6,7 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 #define GET_OFF(field) offsetof(GridSamplesKernelExecArgs, field)
 
@@ -1853,8 +1851,8 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
             borderPadding(vH, vHTop, coord::h);
             uni_vmulps(vH, vH, vSrcWidthF);
             auto vShift = getVmm();
-            for (int w = 0; w < 4; w++) {
-                uni_vaddps(vShift, vH, vW[w]);
+            for (auto& w : vW) {
+                uni_vaddps(vShift, vH, w);
                 dataTypeShiftPs2Dq(vShift, vShift);
                 uni_vmovups(ptr[rBuff + bufShift], vShift);
                 bufShift += vlen;
@@ -1907,8 +1905,8 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
             reflectionPadding(vH, vHTop, coord::h);
             uni_vmulps(vH, vH, vSrcWidthF);
             auto vShift = getVmm();
-            for (int w = 0; w < 4; w++) {
-                uni_vaddps(vShift, vH, vW[w]);
+            for (auto& w : vW) {
+                uni_vaddps(vShift, vH, w);
                 dataTypeShiftPs2Dq(vShift, vShift);
                 uni_vmovups(ptr[rBuff + bufShift], vShift);
                 bufShift += vlen;
@@ -2129,6 +2127,4 @@ template class GridSampleKernel<x64::avx512_core>;
 template class GridSampleKernel<x64::avx2>;
 template class GridSampleKernel<x64::sse41>;
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

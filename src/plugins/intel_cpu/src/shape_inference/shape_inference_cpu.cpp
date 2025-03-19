@@ -6,8 +6,7 @@
 
 #include "shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 NgraphShapeInferFactory::NgraphShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
 
 ShapeInferPtr NgraphShapeInferFactory::makeShapeInfer() const {
@@ -16,5 +15,4 @@ ShapeInferPtr NgraphShapeInferFactory::makeShapeInfer() const {
 
 const ov::CoordinateDiff ShapeInferEmptyPads::m_emptyVec = {};
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

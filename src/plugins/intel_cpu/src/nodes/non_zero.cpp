@@ -12,9 +12,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
 static constexpr int elementsStride = blockSize / sizeof(int);
@@ -87,7 +85,7 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     }
     default: {
         threadsCount = parallel_get_max_threads();
-        if (inSize < static_cast<size_t>(blockSize * threadsCount)) {
+        if (inSize < static_cast<size_t>(blockSize) * threadsCount) {
             threadsCount = 1;
         }
 
@@ -158,7 +156,7 @@ void NonZero::executeSpecified() {
         VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
-    int* dst = dstMemPtr->getDataAs<int>();
+    auto* dst = dstMemPtr->getDataAs<int>();
     if (totalNonZeroCount == 0) {
         return;
     }
@@ -175,7 +173,7 @@ void NonZero::executeSpecified() {
     case 1: {
         // if nonZeroCounts.size() > 1, then the 2nd round scan could run in parallel.
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
-            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, 0);
+            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, size_t{0});
             for_1d(ithr, nthr, inShape.getElementsCount(), [&](size_t i) {
                 if (src[i] != zero) {
                     dst[outputIndex] = i;
@@ -404,6 +402,4 @@ bool NonZero::created() const {
     return getType() == Type::NonZero;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

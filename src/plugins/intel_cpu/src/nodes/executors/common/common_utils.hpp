@@ -13,8 +13,7 @@
 #include "utils/cpp/maybe_unused.hpp"
 #include "utils/cpu_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 OV_CPU_MAYBE_UNUSED_FUNCTION static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
     if (!memory.count(ARG_DST_DEQ_SCALE)) {
@@ -35,7 +34,7 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static std::vector<float> getDeQuantizedScales(cons
     auto scalesDims = getNormalizedDimsBySize(dqScalesShape.getDims(), dstShape.getDims().size());
 
     auto scaleSize =
-        std::accumulate(scalesDims.begin(), scalesDims.end(), static_cast<std::size_t>(1), std::multiplies<size_t>());
+        std::accumulate(scalesDims.begin(), scalesDims.end(), static_cast<std::size_t>(1), std::multiplies<>());
 
     std::vector<float> DQScales(scaleSize, 1.0);
 
@@ -67,5 +66,4 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static std::vector<float> getDeQuantizedScales(cons
     return DQScales;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

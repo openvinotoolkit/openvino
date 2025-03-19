@@ -10,8 +10,7 @@
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 DnnlMemoryDesc::DnnlMemoryDesc(const dnnl::memory::desc& desc) : DnnlMemoryDesc(desc.get()) {}
 
@@ -41,9 +40,8 @@ bool DnnlMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     if (MemoryDescType::Dnnl & rhs.getType()) {
         auto* dnnMemDesc = rhs.as<DnnlMemoryDesc>();
         return isCompatible(*dnnMemDesc);
-    } else {
-        return false;
     }
+    return false;
 }
 
 bool DnnlMemoryDesc::isCompatible(const DnnlMemoryDesc& rhs) const {
@@ -136,5 +134,4 @@ size_t DnnlMemoryDesc::getOffsetPadding() const {
     return DnnlExtensionUtils::convertToDim(wrap.offset0());
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

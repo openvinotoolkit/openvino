@@ -22,15 +22,12 @@
 #    include "openvino/op/util/multi_subgraph_base.hpp"
 #    include "transformations/rt_info/disable_fp16_compression.hpp"
 
-namespace dnnl {
-namespace impl {
+namespace dnnl::impl {
 std::ostream& operator<<(std::ostream& ss, const primitive_attr_t* attr);
 std::ostream& operator<<(std::ostream& ss, alg_kind_t alg);
-}  // namespace impl
-}  // namespace dnnl
+}  // namespace dnnl::impl
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 size_t replace_all(std::string& inout, const std::string& what, const std::string& with) {
@@ -160,7 +157,7 @@ std::ostream& operator<<(std::ostream& os, const NodeDesc& desc) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Node& c_node) {
-    Node& node = const_cast<Node&>(c_node);
+    auto& node = const_cast<Node&>(c_node);
     const int align_col = 50;
     const char* comma = "";
     auto node_id = [](Node& node) {
@@ -331,9 +328,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             auto pmem = input_node->getMemoryPtr();
             void* data = pmem->getData();
             auto shape = pmem->getDesc().getShape().getDims();
-
-            if (shape_size(shape) <= 8 && pmem->getDesc().getPrecision() != ov::element::undefined) {
-                auto type = pmem->getDesc().getPrecision();
+            if (auto type = pmem->getDesc().getPrecision(); shape_size(shape) <= 8 && type.is_static()) {
                 auto tensor = ov::Tensor(type, shape, data);
                 auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
                 comma = "";
@@ -667,7 +662,7 @@ std::string to_string(const T* values, size_t N, size_t maxsize) {
             ss << "..." << N << "in total";
             break;
         }
-        if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value) {
+        if (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>) {
             ss << static_cast<int>(values[i]);
         } else {
             ss << values[i];
@@ -695,6 +690,16 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
     return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record) {
+    os << "Memory profile record: " << record.id << "\n";
+    os << "Total regions: " << record.total_regions << "\n";
+    os << "Total unique blocks: " << record.total_unique_blocks << "\n";
+    os << "Total size: " << record.total_size << " bytes\n";
+    os << "Optimal total size: " << record.optimal_total_size << " bytes\n";
+    os << "Max region size: " << record.max_region_size << " bytes\n";
+    return os;
+}
+
 void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message) {
     const size_t s = memory.get_desc().get_size() / sizeof(float);
     std::cout << message << " " << id << " size: " << s << ", values: ";
@@ -706,8 +711,7 @@ void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int 
     std::cout << "\n";
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 bool getEnvBool(const char* name) {
     static const bool env = ov::util::getenv_bool(name);

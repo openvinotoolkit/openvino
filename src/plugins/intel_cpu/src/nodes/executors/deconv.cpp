@@ -3,7 +3,3 @@
 //
 
 #include "deconv.hpp"
-
-namespace ov {
-namespace intel_cpu {}  // namespace intel_cpu
-}  // namespace ov

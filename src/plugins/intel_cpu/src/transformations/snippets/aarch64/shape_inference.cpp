@@ -7,9 +7,9 @@
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "transformations/tpp/common/op/brgemm.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 using ShapeInferPtr = IShapeInferSnippetsFactory::ShapeInferPtr;
 
 ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key,
@@ -43,9 +43,9 @@ ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov
 const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::specific_ops_registry{
     SHAPE_INFER_PREDEFINED(ov::intel_cpu::FusedMulAdd, NumpyBroadcastShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::intel_cpu::SwishNode, PassThroughShapeInfer),
+    SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::BrgemmTPP, BrgemmShapeInfer),
 };
 #undef SHAPE_INFER_OP_SPECIFIC
 #undef SHAPE_INFER_PREDEFINED
 
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets

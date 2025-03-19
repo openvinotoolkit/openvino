@@ -33,12 +33,16 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
+  MANIFEST_FILE: manifest.yml
+  PRODUCT_TYPE: public_macos_x86_64_release
 
 jobs:
+
   Smart_CI:
     runs-on: ubuntu-latest
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
@@ -78,6 +82,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
       INSTALL_DIR_JS: ${{ github.workspace }}/openvino_install/js
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
+      DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/developer_package_install
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       BUILD_DIR: ${{ github.workspace }}/build
     if: "!needs.smart_ci.outputs.skip_workflow"
@@ -136,7 +141,7 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@53911442209d5c18de8a31615e0923161e435875 # v1.2.16
+        uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
@@ -146,6 +151,18 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-main
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-main
+
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: ${{ runner.arch }}
+          build_type: 'release'
+          save_to: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}
 
       - name: CMake configure
         run: |
@@ -171,17 +188,22 @@ jobs:
 
       - name: Cmake install - OpenVINO
         run: |
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.DEVELOPER_PACKAGE_DIR }} --component developer_package
+        working-directory: ${{ env.BUILD_DIR }}
 
-      - name: Pack Artifacts
-        run: |
-          pushd ${{ env.INSTALL_DIR }}
-            tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-          popd
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz 
-          popd
+      - name: Pack openvino_package
+        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Pack openvino_developer_package
+        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+        working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}
+
+      - name: Pack openvino_tests
+        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+        working-directory: ${{ env.INSTALL_TEST_DIR }}
 
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.9
@@ -208,10 +230,10 @@ jobs:
       - name: Build additional Python wheels
         run: |
           for py_version in "3.9" "3.10" "3.11" "3.12"
-          do            
+          do
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
             $python_exec_path -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-            
+
             cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
             cmake --build ${{ github.workspace }}/py$py_version --parallel
             cmake --install ${{ github.workspace }}/py$py_version --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
@@ -253,7 +275,7 @@ jobs:
       # Upload build artifacts
       #
 
-      - name: Upload openvino package
+      - name: Upload OpenVINO package
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
@@ -261,26 +283,43 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
-      - name: Upload openvino wheels
+      - name: Upload OpenVINO wheels
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
 
-      - name: Upload openvino tests package
+      - name: Upload OpenVINO tests package
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
-      - name: Upload openvino js package
+
+      - name: Upload OpenVINO developer package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: openvino_developer_package
+          path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload OpenVINO js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_js_package
           path: ${{ env.BUILD_DIR }}/openvino_js_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload product manifest
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: openvino_package_manifest
+          path: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}
           if-no-files-found: 'error'
 
   Samples:
@@ -377,3 +416,61 @@ jobs:
     with:
       runner: 'macos-13'
       python-version: '3.11'
+
+  upload_artifacts:
+    name: Upload OpenVINO artifacts
+    timeout-minutes: 10
+    needs: [Build, Smart_CI]
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-medium
+    container:
+      image: 'openvinogithubactions.azurecr.io/library/python:3.12-slim'
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }}
+    env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
+      ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+      WHEELS_DIR: ${{ github.workspace }}/wheels
+      ARTIFACTS_SHARE: "/mount/build-artifacts"
+
+    steps:
+      - name: Checkout OpenVINO actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions/common
+            .github/actions/store_artifacts
+          path: ${{ env.OPENVINO_REPO }}
+
+      - name: Download OpenVINO artifacts
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          pattern: "{openvino_package,openvino_developer_package,openvino_js_package,openvino_package_manifest}"
+          path: ${{ env.ARTIFACTS_DIR }}
+          merge-multiple: true
+
+      - name: Download OpenVINO wheels
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: openvino_wheels
+          path: ${{ env.WHEELS_DIR }}
+          merge-multiple: true
+
+      - name: Store artifacts to a shared drive
+        id: store_artifacts
+        if: ${{ always() }}
+        uses: ./openvino/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.ARTIFACTS_DIR }}/${{ env.MANIFEST_FILE }}
+            ${{ env.ARTIFACTS_DIR }}/openvino_package.tar.gz
+            ${{ env.ARTIFACTS_DIR }}/openvino_developer_package.tar.gz
+            ${{ env.WHEELS_DIR }}
+            ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/openvino_js_package.tar.gz', env.ARTIFACTS_DIR) || '' }}
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}

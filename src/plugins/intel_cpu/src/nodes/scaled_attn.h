@@ -54,10 +54,13 @@ public:
         return real_order;
     }
     struct SDPAQuantParam {
-        ov::element::Type precision = ov::element::undefined;
+        ov::element::Type precision = ov::element::dynamic;
         size_t groupSize = 0;
+        bool isByChannel = false;
     };
     ov::element::Type getKVCachePrecision();
+    const SDPAQuantParam& getKeyQuantParam();
+    const SDPAQuantParam& getValueQuantParam();
 
 private:
     void gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);

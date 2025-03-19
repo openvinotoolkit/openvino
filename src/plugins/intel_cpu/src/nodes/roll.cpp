@@ -17,9 +17,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Roll::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -173,7 +171,7 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims,
                                  const VectorDims& dstDims)
     : numOfDims{dataDims.size()},
       blockSize{dataDims.back()},
-      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1ul, std::multiplies<size_t>()) / blockSize},
+      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1ul, std::multiplies<>()) / blockSize},
       axesLength{axesDims[0]} {
     for (size_t i = 0; i < dataDims.size(); ++i) {
         if (dataDims[i] != dstDims[i]) {
@@ -246,6 +244,4 @@ bool Roll::created() const {
 
 constexpr std::array<size_t, 3> Roll::supportedPrecisionSizes;
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -15,6 +15,7 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
+#include "spatial.hpp"
 
 namespace ov {
 namespace npuw {
@@ -117,6 +118,11 @@ protected:
         std::vector<ov::SoPtr<ov::ITensor>> output_tails;  // temporary buffers for output tails
     };
     std::vector<SpatialIO> m_spatial_io;
+
+    // FIXME: Currently is initialized/managed by subclass as well.
+    // Moved here dumping purposes only
+    // Represents spatial run-time info
+    runtime::spatial::Selector::Ptr m_spatial_selector;
 
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters

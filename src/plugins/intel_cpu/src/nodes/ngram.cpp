@@ -12,9 +12,7 @@
 #include "shape_inference/custom/ngram.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Ngram::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -72,8 +70,8 @@ void Ngram::prepareParams() {
     const auto& outDims = getDstMemoryAtPort(0)->getStaticDims();
     ;
 
-    idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<size_t>());
-    numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<size_t>());
+    idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<>());
+    numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<>());
     idcesStride = getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
     numIdces = srcIndicesDims[0];
 
@@ -150,6 +148,4 @@ bool Ngram::created() const {
     return getType() == Type::Ngram;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

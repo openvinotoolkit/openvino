@@ -148,7 +148,7 @@ inline ov::element::Type getMaxPrecision(std::vector<ov::element::Type> precisio
                                  });
     }
 
-    return ov::element::undefined;
+    return ov::element::dynamic;
 }
 
 inline std::vector<std::string> split(const std::string& str, char delim) {

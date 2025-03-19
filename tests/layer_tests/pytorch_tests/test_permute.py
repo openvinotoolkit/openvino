@@ -38,8 +38,34 @@ class TestPermute(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_permute(self, order, complex_type, ie_device, precision, ir_version):
         self._test(*self.create_model(order, complex_type), ie_device, precision, ir_version)
+
+class TestPermuteCopy(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
+
+    def create_model(self, order):
+        import torch
+
+        class aten_permute_copy(torch.nn.Module):
+            def __init__(self, order):
+                super(aten_permute_copy, self).__init__()
+                self.order = order
+
+            def forward(self, x):
+                return torch.permute_copy(x, self.order)
+
+        ref_net = None
+
+        return aten_permute_copy(order), ref_net, "aten::permute_copy"
+
+    @pytest.mark.parametrize("order", [[0, 2, 3, 1], [0, 3, 1, 2], [0, -1, 1, -2]])
+    @pytest.mark.precommit_fx_backend
+    def test_permute_copy(self, order, ie_device, precision, ir_version):
+        self._test(*self.create_model(order), ie_device, precision, ir_version)
 
 
 class TestPermuteList(PytorchLayerTest):

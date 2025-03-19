@@ -18,8 +18,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace ov::intel_cpu::brgemm_utils;
 using namespace ov::snippets::utils;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
                                                      cpu_isa_t isa,
@@ -117,5 +116,4 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     spill.postamble();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

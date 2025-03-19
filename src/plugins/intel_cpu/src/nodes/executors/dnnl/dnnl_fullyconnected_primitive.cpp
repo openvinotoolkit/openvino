@@ -31,8 +31,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace dnnl;
 using namespace ov::element;
@@ -172,14 +171,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         !((one_of(weightsDesc->getPrecision(), ov::element::i8, ov::element::i4) && !zpPtr))) {
         return false;
     }
-
-    if (zpPtr && !one_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::undefined)) {
-        return false;
-    }
-
-    // TODO: heuristic: disable avx2 asymmetric
-    bool is_asymmetric_weights = one_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4);
-    if (is_asymmetric_weights && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni)) {
+    if (zpPtr && !one_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::dynamic)) {
         return false;
     }
 
@@ -188,26 +180,22 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         return false;
     }
 
-    if (weightsDesc->getPrecision() == ov::element::u4) {
-        int ic = weightsDesc->getShape().getStaticDims()[1];
-        int minGroupSize = INT_MAX;
-
-        MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
-
-        if (scalesPtr && scalesPtr->getShape().getRank() == 3) {
-            auto scalesDims = scalesPtr->getShape().getStaticDims();
-            auto groupsNum = needTranspose ? scalesDims[1] : scalesDims[0];
-            minGroupSize = ic / groupsNum;
+    MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
+    int ic = weightsDesc->getShape().getStaticDims()[1];
+    if (scalesPtr && scalesPtr->getShape().getRank() != 1) {
+        auto scalesDims = scalesPtr->getShape().getStaticDims();
+        auto groupsNum = scalesDims[1];
+        size_t groupSize = ic / groupsNum;
+        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
+            return false;
         }
+    }
 
-        if (zpPtr && zpPtr->getShape().getRank() == 3) {
-            auto zpDims = zpPtr->getShape().getStaticDims();
-            int groupsNum = needTranspose ? zpDims[1] : zpDims[0];
-            minGroupSize = std::min(minGroupSize, ic / groupsNum);
-        }
-
-        const size_t minLoopSize = 8;
-        if (minGroupSize != INT_MAX && minGroupSize % minLoopSize) {
+    if (zpPtr && zpPtr->getShape().getRank() != 1) {
+        auto zpDims = zpPtr->getShape().getStaticDims();
+        int groupsNum = zpDims[1];
+        size_t groupSize = ic / groupsNum;
+        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
             return false;
         }
     }
@@ -318,13 +306,13 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
         useSparseWeights ? dnnl::memory::desc().sparse_desc(normalizedWeightDesc.get_dims(), wdt)
                          : dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
 
-    return dnnl::inner_product_forward::primitive_desc(engine,
-                                                       dnnl::prop_kind::forward_inference,
-                                                       normalizedInputDesc,
-                                                       weightsDesc,
-                                                       biasDesc,
-                                                       normalizedOutputDesc,
-                                                       attr);
+    return {engine,
+            dnnl::prop_kind::forward_inference,
+            normalizedInputDesc,
+            weightsDesc,
+            biasDesc,
+            normalizedOutputDesc,
+            attr};
 }
 
 static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
@@ -491,5 +479,4 @@ void DnnlFCPrimitive::execute(const dnnl_primitive_args& primArgs) const {
     m_prim.execute(m_stream, primArgs);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

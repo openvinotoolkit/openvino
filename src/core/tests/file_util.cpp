@@ -22,66 +22,66 @@ TEST(file_util, path_join) {
         string s1 = "";
         string s2 = "";
 
-        EXPECT_STREQ("", ov::util::path_join({s1, s2}).c_str());
+        EXPECT_EQ("", ov::util::path_join({s1, s2}));
     }
     {
         string s1 = "";
         string s2 = "/test1/test2";
 
-        EXPECT_STREQ("/test1/test2", ov::util::path_join({s1, s2}).c_str());
+        EXPECT_EQ("/test1/test2", ov::util::path_join({s1, s2}));
     }
     {
         string s1 = "";
         string s2 = "/test1/test2/";
 
-        EXPECT_STREQ("/test1/test2/", ov::util::path_join({s1, s2}).c_str());
+        EXPECT_EQ("/test1/test2/", ov::util::path_join({s1, s2}));
     }
     {
         string s1 = "";
         string s2 = "test1/test2";
 
-        EXPECT_STREQ("test1/test2", ov::util::path_join({s1, s2}).c_str());
+        EXPECT_EQ("test1/test2", ov::util::path_join({s1, s2}));
     }
 
     {
         string s1 = "/x1/x2";
         string s2 = "";
 
-        EXPECT_STREQ("/x1/x2", ov::util::path_join({s1, s2}).c_str());
+        EXPECT_EQ("/x1/x2", ov::util::path_join({s1, s2}));
     }
     {
         string s1 = "/x1/x2/";
         string s2 = "/";
 
-        EXPECT_STREQ("/", ov::util::path_join({s1, s2}).c_str());
+        EXPECT_EQ("/", ov::util::path_join({s1, s2}));
     }
     {
         string s1 = "/x1/x2";
         string s2 = "/test1/test2";
 
-        EXPECT_STREQ("/test1/test2", ov::util::path_join({s1, s2}).c_str());
+        EXPECT_EQ("/test1/test2", ov::util::path_join({s1, s2}));
     }
     {
         string s1 = "/x1/x2/";
         string s2 = "test1/test2";
 
-        EXPECT_STREQ("/x1/x2/test1/test2", ov::util::path_join({s1, s2}).c_str());
+        EXPECT_EQ("/x1/x2/test1/test2", ov::util::path_join({s1, s2}));
     }
     {
         string s1 = "/x1/x2";
         string s2 = "test1/test2";
 
 #ifndef _WIN32
-        EXPECT_STREQ("/x1/x2/test1/test2", ov::util::path_join({s1, s2}).c_str());
+        EXPECT_EQ("/x1/x2/test1/test2", ov::util::path_join({s1, s2}));
 #else
-        EXPECT_STREQ("/x1/x2\\test1/test2", ov::util::path_join({s1, s2}).c_str());
+        EXPECT_EQ("/x1/x2\\test1/test2", ov::util::path_join({s1, s2}));
 #endif
     }
     {
         string s1 = "/";
         string s2 = "test1/test2";
 
-        EXPECT_STREQ("/test1/test2", ov::util::path_join({s1, s2}).c_str());
+        EXPECT_EQ("/test1/test2", ov::util::path_join({s1, s2}));
     }
 }
 
@@ -124,32 +124,32 @@ protected:
 };
 
 TEST_F(TrimFileTest, relative_path_to_source) {
-    const auto exp_path = ov::util::path_join({"src", "test_src.cpp"});
+    const auto exp_path = ov::util::path_join({"src", "test_src.cpp"}).string();
 
-    const auto file_path = ov::util::path_join({"..", "..", "..", project_dir_name, "src", "test_src.cpp"});
+    const auto file_path = ov::util::path_join({"..", "..", "..", project_dir_name, "src", "test_src.cpp"}).string();
 
     auto str_ptr = ov::util::trim_file_name(file_path.c_str());
     EXPECT_EQ(exp_path, str_ptr);
 }
 
 TEST_F(TrimFileTest, relative_path_to_source_but_no_project_dir) {
-    const auto file_path = ov::util::path_join({"..", "..", "..", "src", "test_src.cpp"});
+    const auto file_path = ov::util::path_join({"..", "..", "..", "src", "test_src.cpp"}).string();
 
     auto str_ptr = ov::util::trim_file_name(file_path.c_str());
     EXPECT_EQ(file_path, str_ptr);
 }
 
 TEST_F(TrimFileTest, absolute_path_to_source) {
-    const auto exp_path = ov::util::path_join({"src", "test_src.cpp"});
+    const auto exp_path = ov::util::path_join({"src", "test_src.cpp"}).string();
 
-    const auto file_path = ov::util::path_join({"home", "user", project_dir_name, "src", "test_src.cpp"});
+    const auto file_path = ov::util::path_join({"home", "user", project_dir_name, "src", "test_src.cpp"}).string();
 
     auto str_ptr = ov::util::trim_file_name(file_path.c_str());
     EXPECT_EQ(exp_path, str_ptr);
 }
 
 TEST_F(TrimFileTest, absolute_path_to_source_but_no_project_dir) {
-    const auto file_path = ov::util::path_join({"home", "user", "src", "test_src.cpp"});
+    const auto file_path = ov::util::path_join({"home", "user", "src", "test_src.cpp"}).string();
 
     auto str_ptr = ov::util::trim_file_name(file_path.c_str());
     EXPECT_EQ(file_path, str_ptr);
@@ -281,7 +281,7 @@ TEST(file_util, path_cast_unicode) {
                 ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗11.txt").generic_u8string());
     EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗12.txt") ==
                 ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗12.txt").generic_u8string());
-#elif defined(OPENVINO_CPP_VER_AT_LEAST_17)
+#else
     EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗14.txt"),
               ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗14.txt").generic_u8string());
     EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗15.txt"),

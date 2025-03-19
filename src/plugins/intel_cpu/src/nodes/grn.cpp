@@ -9,9 +9,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool GRN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -103,8 +101,8 @@ void GRN::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void GRN::execute(const dnnl::stream& strm) {
-    const float* src_data = getSrcDataAtPortAs<const float>(0);
-    float* dst_data = getDstDataAtPortAs<float>(0);
+    const auto* src_data = getSrcDataAtPortAs<const float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
 
     parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;
@@ -123,6 +121,4 @@ bool GRN::created() const {
     return getType() == Type::GRN;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <chrono>
+
 #include "openvino/op/op.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
 

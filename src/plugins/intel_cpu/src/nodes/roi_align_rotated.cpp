@@ -9,9 +9,7 @@
 #include "common/cpu_convert.h"
 #include "openvino/reference/roi_align.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
@@ -104,6 +102,4 @@ void ROIAlignRotated::execute(const dnnl::stream&) {
 #undef CASE
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

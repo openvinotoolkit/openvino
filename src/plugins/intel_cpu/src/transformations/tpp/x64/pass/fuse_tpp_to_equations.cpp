@@ -9,10 +9,7 @@
 #include "transformations/tpp/x64/op/eltwise.hpp"
 #include "transformations/tpp/x64/op/equation.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace pass {
+namespace ov::intel_cpu::tpp::pass {
 using snippets::lowered::ExpressionPort;
 using snippets::lowered::ExpressionPtr;
 using NodePtr = std::shared_ptr<Node>;
@@ -30,10 +27,8 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
     auto get_tpp_op = [](const NodePtr& n) {
         auto tpp = std::dynamic_pointer_cast<op::EltwiseTPP>(n);
         bool not_supported_op =
-            // ticket: 152532
-            ov::is_type<ov::snippets::op::ReduceBase>(n) ||
-            // ticket: 152510
-            ov::is_type<ov::op::v0::Relu>(n);
+            // tickets: 152532, 152510
+            ov::is_type_any_of<ov::snippets::op::ReduceBase, ov::op::v0::Relu>(n);
         return not_supported_op ? nullptr : tpp;
     };
 
@@ -112,7 +107,4 @@ bool FuseTPPToEquations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return modified;
 }
 
-}  // namespace pass
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::pass

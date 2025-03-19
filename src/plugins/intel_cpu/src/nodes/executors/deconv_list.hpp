@@ -13,8 +13,7 @@
 #include "common/primitive_cache.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct DeconvExecutorDesc {
     ExecutorType executorType;
@@ -37,7 +36,7 @@ public:
         }
     }
 
-    ~DeconvExecutorFactory() = default;
+    ~DeconvExecutorFactory() override = default;
     virtual DeconvExecutorPtr makeExecutor(const DeconvAttrs& deconvAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs,
@@ -75,5 +74,4 @@ private:
 using DeconvExecutorFactoryPtr = std::shared_ptr<DeconvExecutorFactory>;
 using DeconvExecutorFactoryCPtr = std::shared_ptr<const DeconvExecutorFactory>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

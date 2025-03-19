@@ -46,6 +46,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 
 CompiledModel::~CompiledModel() {
     _logger.debug("~CompiledModel()");
+    std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor())->cpu_reset();
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
@@ -75,7 +76,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
     size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
 
-    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, ov::get_openvino_version().buildNumber);
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, CURRENT_OPENVINO_VERSION);
     meta.write(stream);
 }
 
@@ -128,11 +129,11 @@ void CompiledModel::configure_stream_executors() {
         task_executor = ov::threading::executor_manager()->get_executor("NPU");
     } else if (get_property(ov::hint::enable_cpu_pinning.name()).as<bool>()) {
         auto executor_config = ov::threading::IStreamsExecutor::Config{
-            "Intel NPU plugin executor",
-            get_plugin()->get_property(ov::num_streams.name(), {}).as<ov::streams::Num>(),
-            1,
-            ov::hint::SchedulingCoreType::PCORE_ONLY,
-            true};
+            /* name = */ "Intel NPU plugin executor",
+            /* streams = */ get_plugin()->get_property(ov::num_streams.name(), {}).as<ov::streams::Num>(),
+            /* threads_per_stream = */ 1,
+            /* thread_preferred_core_type = */ ov::hint::SchedulingCoreType::PCORE_ONLY,
+            /* cpu_reservation = */ true};
         task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(executor_config);
     } else {
         task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(
@@ -269,6 +270,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
+          }}},
+        {ov::intel_npu::qdq_optimization.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<QDQ_OPTIMIZATION>();
           }}},
         {ov::intel_npu::turbo.name(),
          {isPropertySupported(ov::intel_npu::turbo.name()),

@@ -4,9 +4,9 @@
 
 #include "def_conv.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <common/dnnl_thread.hpp>
+#include <memory>
 #include <openvino/op/deformable_convolution.hpp>
 #include <string>
 #include <vector>
@@ -25,9 +25,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_def_conv_call_args, field)
 
@@ -338,31 +336,31 @@ private:
                         mov(aux3_reg_input_buffer, aux2_reg_input_buffer);
                         add(aux3_reg_input_buffer, (ow * jcp_.kh * jcp_.kw * jcp_.ic) * jcp_.typesize_in);
 
-                        Xmm xmm_v1_off = Xmm(9);
-                        Xmm xmm_v2_off = Xmm(10);
-                        Xmm xmm_v3_off = Xmm(11);
-                        Xmm xmm_v4_off = Xmm(12);
+                        auto xmm_v1_off = Xmm(9);
+                        auto xmm_v2_off = Xmm(10);
+                        auto xmm_v3_off = Xmm(11);
+                        auto xmm_v4_off = Xmm(12);
 
-                        Xmm xmm_w1 = Xmm(4);
-                        Xmm xmm_w2 = Xmm(1);
-                        Xmm xmm_w3 = Xmm(8);
-                        Xmm xmm_w4 = Xmm(5);
+                        auto xmm_w1 = Xmm(4);
+                        auto xmm_w2 = Xmm(1);
+                        auto xmm_w3 = Xmm(8);
+                        auto xmm_w4 = Xmm(5);
 
-                        Xmm xmm_v1 = Xmm(2);
-                        Xmm xmm_v2 = Xmm(3);
+                        auto xmm_v1 = Xmm(2);
+                        auto xmm_v2 = Xmm(3);
                         ;
-                        Xmm xmm_v3 = Xmm(6);
-                        Xmm xmm_v4 = Xmm(7);
+                        auto xmm_v3 = Xmm(6);
+                        auto xmm_v4 = Xmm(7);
 
-                        Vmm vmm_w1 = Vmm(xmm_w1.getIdx());
-                        Vmm vmm_w2 = Vmm(xmm_w2.getIdx());
-                        Vmm vmm_w3 = Vmm(xmm_w3.getIdx());
-                        Vmm vmm_w4 = Vmm(xmm_w4.getIdx());
+                        auto vmm_w1 = Vmm(xmm_w1.getIdx());
+                        auto vmm_w2 = Vmm(xmm_w2.getIdx());
+                        auto vmm_w3 = Vmm(xmm_w3.getIdx());
+                        auto vmm_w4 = Vmm(xmm_w4.getIdx());
 
-                        Vmm vmm_v1 = Vmm(xmm_v1.getIdx());
-                        Vmm vmm_v2 = Vmm(xmm_v2.getIdx());
-                        Vmm vmm_v3 = Vmm(xmm_v3.getIdx());
-                        Vmm vmm_v4 = Vmm(xmm_v4.getIdx());
+                        auto vmm_v1 = Vmm(xmm_v1.getIdx());
+                        auto vmm_v2 = Vmm(xmm_v2.getIdx());
+                        auto vmm_v3 = Vmm(xmm_v3.getIdx());
+                        auto vmm_v4 = Vmm(xmm_v4.getIdx());
 
                         // offsets computation
                         size_t ind_off_hh = sampledPointsPerPixel *
@@ -600,8 +598,8 @@ private:
                                 psrldq(vmm_dst, jcp_.typesize_out);
                             } else {
                                 Ymm ymm_dst = get_ymm_acc(ow);
-                                Vmm vmm_tmp = Vmm(0);
-                                Ymm ymm_tmp = Ymm(0);
+                                auto vmm_tmp = Vmm(0);
+                                auto ymm_tmp = Ymm(0);
 
                                 vperm2i128(ymm_tmp, ymm_dst, ymm_dst, 0x01);
                                 vpalignr(ymm_dst, vmm_tmp, ymm_dst, jcp_.typesize_out);
@@ -720,7 +718,7 @@ struct DefConvKey {
     DeformableConvolution::DefConvAttr defConvAttr;
     impl_desc_type implType;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const DefConvKey& rhs) const;
 };
 
@@ -785,13 +783,13 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
     defConvAttr.group = defConvNodeBase->get_group();
     defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
     auto& strides = defConvNodeBase->get_strides();
-    for (size_t i = 0; i < strides.size(); i++) {
-        defConvAttr.stride.push_back(strides[i]);
+    for (uint64_t stride : strides) {
+        defConvAttr.stride.push_back(stride);
     }
 
     auto& dilations = defConvNodeBase->get_dilations();
-    for (size_t i = 0; i < dilations.size(); i++) {
-        defConvAttr.dilation.push_back(dilations[i] - 1);
+    for (uint64_t dilation : dilations) {
+        defConvAttr.dilation.push_back(dilation - 1);
     }
 
     defConvAttr.padL = defConvNodeBase->get_pads_begin();
@@ -853,7 +851,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].constant(false);
     config.outConfs[0].inPlace(-1);
 
-    impl_desc_type impl_type;
+    impl_desc_type impl_type = impl_desc_type::ref;
     const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
     auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
@@ -877,8 +875,6 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::jit_avx2;
     } else if (mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
     }
 
     if (!enforceRef && mayiuse(cpu::x64::sse41)) {
@@ -901,7 +897,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
         }
         config.outConfs[0].setMemDesc(
             std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID), memory::data_type::f32, dataFormat));
-        supportedPrimitiveDescriptors.push_back({config, impl_type});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     } else {
         // reference implementation
         config.inConfs[DATA_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID),
@@ -921,7 +917,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID),
                                                                               memory::data_type::f32,
                                                                               memory::format_tag::nchw));
-        supportedPrimitiveDescriptors.push_back({config, impl_type});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     }
 }
 
@@ -1131,11 +1127,11 @@ DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
     : DefConvExecutor(defConvAttr, descVector) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_core>(jcp));
+        def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::avx512_core>>(jcp);
     } else if (mayiuse(cpu::x64::avx2)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx2>(jcp));
+        def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::avx2>>(jcp);
     } else if (mayiuse(cpu::x64::sse41)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::sse41>(jcp));
+        def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::sse41>>(jcp);
     } else {
         OPENVINO_THROW("Can't create DefConvJitExecutor");
     }
@@ -1359,7 +1355,7 @@ void DeformableConvolution::execute(const dnnl::stream& strm) {
         modulation = getSrcDataAtPortAs<float>(3);
     }
 
-    float* dst = dstMemory.getDataAs<float>();
+    auto* dst = dstMemory.getDataAs<float>();
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
@@ -1388,6 +1384,4 @@ ov::element::Type DeformableConvolution::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

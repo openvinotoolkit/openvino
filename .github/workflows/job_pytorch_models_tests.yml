@@ -22,7 +22,7 @@ permissions: read-all
 jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
-    timeout-minutes: ${{ inputs.model_scope == 'precommit' && 45 || 400 }}
+    timeout-minutes: ${{ inputs.model_scope == 'precommit' && 60 || 400 }}
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -35,29 +35,17 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+      USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
     steps:
-      - name: Check sudo
-        if: ${{ runner.os == 'Linux' }}
-        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
-
-      - name: Set apt retries
-        if: runner.os == 'Linux'
-        run: |
-          if [ "$(id -u)" -eq 0 ]; then
-            echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-          else
-            sudo sh -c "echo 'Acquire::Retries \"10\";' >> /etc/apt/apt.conf.d/80-retries"
-          fi
-
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[tests]*
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
           
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[wheels|tokenizers_wheel]*
           path: ${{ env.INSTALL_WHEELS_DIR }}
@@ -65,11 +53,17 @@ jobs:
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
+        if: ${{ contains(inputs.runner, 'aks') }} # Do not setup variables for GitHub-hosted runners
         run: |
           echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "MODEL_HUB_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/model_hub_tests" >> "$GITHUB_ENV"
+          echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV"
+
+      - name: Setup HuggingFace Cache Directory (Windows)
+        if: runner.os == 'Windows'
+        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
 
       - name: Extract OpenVINO artifacts
         run: |
@@ -84,13 +78,6 @@ jobs:
             .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
-
-      - name: Install dependencies
-        if: ${{ runner.os == 'Linux' }}
-        run: |
-          # install git (required to build pip deps from the sources)
-          # install 'g++' to build 'detectron2' and 'natten' wheels
-          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
 
       - name: Setup Python 3.11
         uses: ./openvino/.github/actions/setup_python
@@ -130,7 +117,6 @@ jobs:
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
-          USE_SYSTEM_CACHE: False
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
       - name: PagedAttention Test
@@ -140,7 +126,6 @@ jobs:
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -vvv -s --tb=short -n 2
         env:
           TEST_DEVICE: CPU
-          USE_SYSTEM_CACHE: False
 
       - name: RoPE Test
         if: ${{ inputs.model_scope == 'precommit' }}
@@ -149,7 +134,6 @@ jobs:
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
         env:
           TEST_DEVICE: CPU
-          USE_SYSTEM_CACHE: False
 
       - name: StatefulToStateless Test
         if: ${{ inputs.model_scope == 'precommit' }}
@@ -158,7 +142,6 @@ jobs:
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_stateful_to_stateless_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_stateful_to_stateless_tests.html --self-contained-html -v --tb=short
         env:
           TEST_DEVICE: CPU
-          USE_SYSTEM_CACHE: False
 
       - name: TorchFX GPTQ Pattern Test
         if: ${{ inputs.model_scope == 'precommit' }}
@@ -169,7 +152,6 @@ jobs:
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gptq_torchfx_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gptqpattern_tests.html --self-contained-html -v --tb=short
         env:
           TEST_DEVICE: CPU
-          USE_SYSTEM_CACHE: False
 
       - name: Reformat unsupported ops file
         if: ${{ inputs.model_scope != 'precommit' && !cancelled()}}

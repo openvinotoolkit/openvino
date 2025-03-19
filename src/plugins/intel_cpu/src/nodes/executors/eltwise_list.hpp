@@ -7,7 +7,6 @@
 #include "eltwise.hpp"
 #include "executor.hpp"
 #if defined(OV_CPU_WITH_ACL)
-#    include "aarch64/jit_eltwise.hpp"
 #    include "acl/acl_eltwise.hpp"
 #endif
 #if defined(OV_CPU_WITH_SHL)
@@ -17,8 +16,7 @@
 #include "common/primitive_cache.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct EltwiseExecutorDesc {
     ExecutorType executorType;
@@ -41,7 +39,7 @@ public:
         }
     }
 
-    ~EltwiseExecutorFactory() = default;
+    ~EltwiseExecutorFactory() override = default;
     virtual EltwiseExecutorPtr makeExecutor(const EltwiseAttrs& eltwiseAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs,
@@ -84,5 +82,4 @@ private:
 using EltwiseExecutorFactoryPtr = std::shared_ptr<EltwiseExecutorFactory>;
 using EltwiseExecutorFactoryCPtr = std::shared_ptr<const EltwiseExecutorFactory>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

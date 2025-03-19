@@ -7,15 +7,14 @@
 #include <string>
 #include <utility>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void codec_xor(char* dst_str, const char* src_str, size_t len);
 
 std::string codec_xor_str(const std::string& source_str);
 
-typedef std::function<std::string(const std::string&)> CacheDecryptStr;
-typedef std::function<void(char* dst, const char* src, size_t size)> CacheDecryptChar;
+using CacheDecryptStr = std::function<std::string(const std::string&)>;
+using CacheDecryptChar = std::function<void(char*, const char*, size_t)>;
 
 union CacheDecrypt {
     CacheDecryptChar m_decrypt_char = nullptr;
@@ -34,5 +33,4 @@ union CacheDecrypt {
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

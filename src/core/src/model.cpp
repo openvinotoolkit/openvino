@@ -1184,3 +1184,5 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         OPENVINO_ASSERT(false, stream.str());
     }
 }
+
+ov::AttributeAdapter<std::shared_ptr<ov::Model>>::~AttributeAdapter() = default;

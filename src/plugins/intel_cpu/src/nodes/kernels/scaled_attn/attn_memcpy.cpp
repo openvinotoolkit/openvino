@@ -1,8 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <float.h>
-
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -18,10 +17,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 using namespace ov;
 
@@ -196,7 +192,4 @@ void attn_memcpy2d_kernel(void* src,
     }
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

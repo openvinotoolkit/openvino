@@ -36,17 +36,18 @@ jobs:
       # depending on GITHUB_RUN_NUMBER variable
       NUMBER_OF_REPLICAS: 2
       ONNX_MODEL_ZOO_SHA: "5faef4c33eba0395177850e1e31c4a6a9e634c82"
+      USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
     if: ${{ github.event_name != 'merge_group' }}
     steps:
       - name: Download OpenVINO artifacts (tests)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[tests]*
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
           
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[wheels]*
           path: ${{ env.INSTALL_WHEELS_DIR }}
@@ -59,8 +60,12 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "MODELS_SHARE_PATH=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))" >> "$GITHUB_ENV"
-          echo $MODELS_SHARE_PATH
           echo "LOGS_FOLDER=$GITHUB_WORKSPACE/onnx_models_tests_logs" >> "$GITHUB_ENV"
+          echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV"
+
+      - name: Setup HuggingFace Cache Directory (Windows)
+        if: runner.os == 'Windows'
+        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
 
       - name: Extract OpenVINO packages and tests
         run: |

@@ -61,7 +61,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
             setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}), "rotation_trig_lut");
     }
 
-    auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
+    auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
 
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
                              const std::string& name) -> std::shared_ptr<v0::Parameter> {
@@ -90,23 +90,17 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     OPENVINO_ASSERT(input_ids_node, "The model doesn't contain input_ids or input_embeds input. Aborting.");
 
-    std::shared_ptr<ov::Node> processed_input_ids;
     if (input_ids_node->get_friendly_name() == "input_ids") {
-        auto input_ids_target_inputs = input_ids_node->get_output_target_inputs(0);
         input_ids_node->set_partial_shape(PartialShape{-1});
-        processed_input_ids =
-            std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
-        for (const auto& target : input_ids_target_inputs) {
-            target.replace_source_output(processed_input_ids);
-        }
     } else if (input_ids_node->get_friendly_name() == "inputs_embeds") {
-        // VLMs have the input_ids part + embeddings calculation
-        // served as "inputs_embeds" input, so there's no need
-        // for additional work on the input here as this is done
-        // for "input_ids"
-        processed_input_ids = input_ids_node;
-    } else {
-        OPENVINO_ASSERT(processed_input_ids, "Couldn't process neither input_ids, nor inputs_embeds.");
+        input_ids_node->set_partial_shape(PartialShape{-1, -1});
+    }
+
+    auto input_ids_target_inputs = input_ids_node->get_output_target_inputs(0);
+    auto processed_input_ids =
+        std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
+    for (const auto& target : input_ids_target_inputs) {
+        target.replace_source_output(processed_input_ids);
     }
 
     ParameterVector kv_parameters;

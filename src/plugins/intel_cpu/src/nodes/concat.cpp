@@ -22,9 +22,7 @@
 #include "openvino/op/concat.hpp"
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 constexpr size_t channelAxis = 1lu;
 }
@@ -206,8 +204,8 @@ void Concat::initSupportedPrimitiveDescriptors() {
     for (auto refPdIndex : pdIndexesToReuse) {
         auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
         ;
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].inPlace(0);
+        for (auto& inConf : config.inConfs) {
+            inConf.inPlace(0);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -282,9 +280,8 @@ void Concat::selectOptimalPrimitiveDescriptor() {
             maxCount = it.second;
             convertTo = it.first;
         } else if (it.second == maxCount) {
-            if (context->isGraphQuantized() && it.first == LayoutType::nspc) {
-                convertTo = it.first;
-            } else if (it.first == LayoutType::nCsp8c || it.first == LayoutType::nCsp16c) {
+            if ((context->isGraphQuantized() && it.first == LayoutType::nspc) || it.first == LayoutType::nCsp8c ||
+                it.first == LayoutType::nCsp16c) {
                 convertTo = it.first;
             }
         }
@@ -567,7 +564,7 @@ void Concat::exec1DCase() {
 void Concat::execNspcSpecCase() {
     const auto& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
-    uint8_t* dst_ptr = dst_memory.getDataAs<uint8_t>();
+    auto* dst_ptr = dst_memory.getDataAs<uint8_t>();
     const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.getDataType());
 
     std::vector<size_t> channelsDataSize;
@@ -609,7 +606,7 @@ void Concat::execNspcSpecCase() {
 void Concat::execRef() {
     const size_t numSrc = getParentEdges().size();
     const auto& dstMemory = getChildEdgeAt(0)->getMemory();
-    uint8_t* dstPtr = dstMemory.getDataAs<uint8_t>();
+    auto* dstPtr = dstMemory.getDataAs<uint8_t>();
     for (size_t i = 0; i < numSrc; i++) {
         const auto& srcMem = getParentEdgeAt(i)->getMemory();
         srcPtrs[i] = srcMem.getDataAs<const uint8_t>();
@@ -725,32 +722,28 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     size_t numberOfInputs = config.inConfs.size();
     size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
     auto baseDim = outputShapes.front().getDims()[axis];
-    OPENVINO_ASSERT(baseDim != Shape::UNDEFINED_DIM,
-                    " Concat node: ",
-                    getName(),
-                    " can't use inPlace memory with concatenation on dynamic dimension");
+    CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
+                    "can't use inPlace memory with concatenation on dynamic dimension");
 
     auto edges = getChildEdgesAtPort(inplaceOutIndx);
     auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) {
         return edge->getStatus() == Edge::Status::Allocated;
     });
-    OPENVINO_ASSERT(itr != edges.end(), " Could not find allocated child edge for concat node: ", getName());
+    CPU_NODE_ASSERT(itr != edges.end(), "Could not find allocated child edge");
 
     auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
-    OPENVINO_ASSERT(baseMemBlock != nullptr, " NULL base memory block in concat node: ", getName());
+    CPU_NODE_ASSERT(baseMemBlock != nullptr, "NULL base memory block");
 
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfInputs; ++i) {
         auto partDim = inputShapes[i].getDims()[axis];
-        OPENVINO_ASSERT(partDim != Shape::UNDEFINED_DIM,
-                        " Concat node: ",
-                        getName(),
-                        " can't use inPlace memory with concatenation on dynamic dimension");
+        CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
+                        "can't use inPlace memory with concatenation on dynamic dimension");
 
         auto parentEdge = getParentEdgeAt(i);
 
-        OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
-                        " Unexpected inplace resolve call to an allocated edge: ",
+        CPU_NODE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
+                        "Unexpected inplace resolve call to an allocated edge: ",
                         *parentEdge);
 
         auto memDesc = selected_pd->getConfig().inConfs[i].getMemDesc();
@@ -768,6 +761,4 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -4,7 +4,7 @@
 
 #include "concatenation_inst.h"
 #include "impls/onednn/utils.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 namespace cldnn {
@@ -18,8 +18,9 @@ struct ConcatenationImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<concatenation>());
+        const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown)
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
         static const std::vector<ov::element::Type_t> supported_types = { ov::element::f16, ov::element::u8, ov::element::i8 };
@@ -53,9 +54,14 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         if (out_layout.data_padding)
             return false;
 
+        std::vector<format::type> all_dep_types;
+
         bool any_dep_is_onednn = false;
         for (const auto& dep : node.get_dependencies()) {
             const auto& in_layout = dep.first->get_output_layout(false, dep.second);
+
+            all_dep_types.push_back(in_layout.format.value);
+
             if (!one_of(in_layout.data_type, supported_types))
                 return false;
 
@@ -68,6 +74,9 @@ struct ConcatenationImplementationManager : public ImplementationManager {
             if (dep.first->get_preferred_impl_type() == impl_types::onednn)
                 any_dep_is_onednn = true;
         }
+
+        if (std::adjacent_find(all_dep_types.begin(), all_dep_types.end(), std::not_equal_to<>() ) != all_dep_types.end())
+            return false;
 
         if (!any_dep_is_onednn && format::is_simple_data_format(out_layout.format))
             return false;

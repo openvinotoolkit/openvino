@@ -93,6 +93,134 @@ public:
     }
 };
 
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensorScalar) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor1Dimension) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor2Dimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{32, 128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor3Dimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{5, 32, 128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 64}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor4Dimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{3, 5, 32, 128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 5, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 2, 5, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{3, 5, 32, 64}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 1, 32}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -114,6 +242,88 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
 
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
     OV_ASSERT_NO_THROW(inference_request.infer());
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
+                         {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, params);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    auto tensor = inference_request.get_input_tensor();
+    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape());
+    tensor = {};
+
+    ov::Tensor check_remote_tensor;
+    OV_ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+    ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorSetOnlyTensorType) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap params = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, params);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    auto tensor = inference_request.get_input_tensor();
+    ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape()), ov::Exception);
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensor) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap paramsContext = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
+                                {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, paramsContext);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    ov::AnyMap paramsTensor = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::BINDED}}};
+
+    auto tensor = inference_request.get_input_tensor();
+    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), paramsTensor);
+    tensor = {};
+
+    ov::Tensor check_remote_tensor;
+    OV_ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensorExpectToFail) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap paramsContext = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, paramsContext);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    ov::AnyMap paramsTensor = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::BINDED}}};
+
+    auto tensor = inference_request.get_input_tensor();
+    ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), paramsTensor),
+                 ov::Exception);
 }
 
 TEST_P(RemoteRunTests, CheckImportModelPath) {

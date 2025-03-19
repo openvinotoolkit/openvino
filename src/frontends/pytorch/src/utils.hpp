@@ -64,6 +64,7 @@ std::shared_ptr<Node> numel(const NodeContext& context,
                             element::Type output_type = element::i32);
 
 element::Type convert_dtype(int64_t dtype_value);
+bool is_complex_dtype(int64_t pt_type);
 
 Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
 
@@ -161,7 +162,7 @@ OutputVector optional_out(const NodeContext& context) {
 
 template <typename T>
 OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
+    num_inputs_check(context, 1, context.get_input_size());
     auto res = context.mark_node(std::make_shared<T>(context.get_input(0)));
     auto out_type = context.get_output_type(0);
     if (out_type.is<element::Type>()) {
@@ -175,7 +176,7 @@ OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
 
 template <typename T>
 OutputVector translate_1to1_match_1_inputs_with_fp32_type_alignment(const NodeContext& context) {
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
+    num_inputs_check(context, 1, context.get_input_size());
     auto x = get_input_with_floating_type(context, 0);
     return {context.mark_node(std::make_shared<T>(x))};
 }

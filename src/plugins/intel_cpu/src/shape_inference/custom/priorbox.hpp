@@ -9,9 +9,8 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
-namespace ov {
-namespace intel_cpu {
-namespace node {
+
+namespace ov::intel_cpu::node {
 using Result = IShapeInfer::Result;
 
 class PriorBoxShapeInfer : public ShapeInferEmptyPads {
@@ -26,7 +25,7 @@ public:
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return PortMask(0);
     }
 
@@ -37,11 +36,9 @@ private:
 class PriorBoxShapeInferFactory : public ShapeInferFactory {
 public:
     explicit PriorBoxShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
-    ShapeInferPtr makeShapeInfer() const override;
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:
     std::shared_ptr<ov::Node> m_op;
 };
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
