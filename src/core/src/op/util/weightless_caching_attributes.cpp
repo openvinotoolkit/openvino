@@ -8,6 +8,13 @@ bool ov::WeightlessCacheAttribute::is_copyable() const {
     return false;
 }
 
+bool ov::WeightlessCacheAttribute::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("original_size", original_size);
+    visitor.on_attribute("bin_offset", bin_offset);
+    visitor.on_attribute("original_dtype", original_dtype);
+    return true;
+}
+
 OPENVINO_API void ov::copy_weightless_cache_attr(const std::shared_ptr<ov::Node>& from,
                                                  const std::shared_ptr<ov::Node>& to) {
     const auto& rt_info = from->get_rt_info();
