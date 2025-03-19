@@ -4,35 +4,34 @@
 
 #pragma once
 
-#include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <memory>
 
-#include "brgemm_base.hpp"
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::x64 {
 
-struct BrgemmAMXKernelConfig : public BrgemmBaseKernelConfig {
+struct BrgemmAMXKernelConfig : public x64::BrgemmBaseKernelConfig {
 public:
     BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                           const element::Type& in1_dtype,
                           dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
     BrgemmAMXKernelConfig() = delete;
 
-    std::unique_ptr<GenericConfig> get_clone_ptr() const override {
-        return std::unique_ptr<BrgemmAMXKernelConfig>(new BrgemmAMXKernelConfig(*this));
+    [[nodiscard]] std::unique_ptr<GenericConfig> get_clone_ptr() const override {
+        return std::make_unique<BrgemmAMXKernelConfig>(*this);
     }
 
-    dnnl_dim_t get_inner_K_blk() const {
+    [[nodiscard]] dnnl_dim_t get_inner_K_blk() const {
         return m_static_params->inner_k_blk;
     }
-    dnnl_dim_t get_vnni_factor() const {
+    [[nodiscard]] dnnl_dim_t get_vnni_factor() const {
         return m_static_params->vnni_factor;
     }
 
-    bool need_copy_a(dnnl_dim_t K) const;
+    [[nodiscard]] bool need_copy_a(dnnl_dim_t K) const;
 
 private:
     struct StaticParams : StaticBaseParams {
@@ -48,13 +47,13 @@ private:
             return !(*this == rhs);
         }
 #ifdef SNIPPETS_DEBUG_CAPS
-        std::string to_string() const;
+        [[nodiscard]] std::string to_string() const;
 #endif
     private:
         static size_t compute_hash(dnnl_dim_t inner_k_blk, dnnl_dim_t vnni_factor);
     };
 
-    std::shared_ptr<StaticBaseParams> get_static_params() const override {
+    [[nodiscard]] std::shared_ptr<StaticBaseParams> get_static_params() const override {
         return m_static_params;
     }
 
@@ -90,7 +89,8 @@ public:
     static void execute(const BrgemmAMXKernelExecutor* executor, call_args* args);
 
 protected:
-    std::shared_ptr<BrgemmAMXCompiledKernel> compile_kernel(const BrgemmAMXKernelConfig& c) const override;
+    [[nodiscard]] std::shared_ptr<BrgemmAMXCompiledKernel> compile_kernel(
+        const BrgemmAMXKernelConfig& c) const override;
 
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,
@@ -121,4 +121,4 @@ protected:
 };
 #define GET_OFF_BRGEMM_AMX_ARGS(field) offsetof(BrgemmAMXKernelExecutor::call_args, field)
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::x64

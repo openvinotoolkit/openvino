@@ -81,7 +81,19 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Output<const ov::Node
     write(stream, var.get_names());
 }
 
-enum class AnyType : int { STRING = 0, CHARS, INT, UINT32, INT64, UINT64, SIZET, FLOAT, BOOL, ELEMENT_TYPE };
+enum class AnyType : int {
+    STRING = 0,
+    CHARS,
+    INT,
+    UINT32,
+    INT64,
+    UINT64,
+    SIZET,
+    FLOAT,
+    BOOL,
+    CACHE_MODE,
+    ELEMENT_TYPE
+};
 
 void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     // FIXME: figure out a proper way to serialize Any (for config)
@@ -113,6 +125,9 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     } else if (var.is<bool>()) {
         write(stream, static_cast<int>(AnyType::BOOL));
         write(stream, var.as<bool>());
+    } else if (var.is<ov::CacheMode>()) {
+        write(stream, static_cast<int>(AnyType::CACHE_MODE));
+        write(stream, var.as<ov::CacheMode>());
     } else if (var.is<ov::element::Type>()) {
         write(stream, static_cast<int>(AnyType::ELEMENT_TYPE));
         write(stream, var.as<ov::element::Type>());
@@ -123,6 +138,10 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var) {
     var.serialize(stream);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::CacheMode& var) {
+    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::element::Type& var) {
@@ -151,20 +170,19 @@ void ov::npuw::s11n::read(std::istream& stream, float& var) {
 void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::Spatial& var) {
     using ov::npuw::s11n::read;
 
-    ov::npuw::compiled::Spatial spat;
     std::size_t params_size = 0;
     read(stream, params_size);
     for (std::size_t i = 0; i < params_size; ++i) {
         ov::npuw::compiled::Spatial::Param p;
         read(stream, p.idx);
         read(stream, p.dim);
-        spat.params.push_back(p);
+        var.params.push_back(p);
     }
-    read(stream, spat.range);
-    read(stream, spat.nway);
-    read(stream, spat.out_dim);
-    read(stream, spat.nway_iters);
-    read(stream, spat.tail_size);
+    read(stream, var.range);
+    read(stream, var.nway);
+    read(stream, var.out_dim);
+    read(stream, var.nway_iters);
+    read(stream, var.tail_size);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
@@ -271,6 +289,10 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
         bool val;
         read(stream, val);
         var = val;
+    } else if (type == AnyType::CACHE_MODE) {
+        ov::CacheMode val;
+        read(stream, val);
+        var = val;
     } else if (type == AnyType::ELEMENT_TYPE) {
         ov::element::Type val;
         read(stream, val);
@@ -282,6 +304,10 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
 
 void ov::npuw::s11n::read(std::istream& stream, ov::npuw::weights::LazyTensor& var) {
     var = ov::npuw::weights::LazyTensor::deserialize(stream);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::CacheMode& var) {
+    stream.read(reinterpret_cast<char*>(&var), sizeof var);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::element::Type& var) {

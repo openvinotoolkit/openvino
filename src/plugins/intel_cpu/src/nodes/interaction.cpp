@@ -5,6 +5,7 @@
 #include "interaction.h"
 
 #include <chrono>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -41,7 +42,7 @@ struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_gene
         }
         vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / runtime_prc.size();
     }
-    virtual ~jit_move_scale_kernel() {}
+    ~jit_move_scale_kernel() override = default;
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -130,8 +131,8 @@ private:
                      bool fill) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(
-                new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, src_prc, fill, "float_min"));
+            emitters[seed] =
+                std::make_unique<jit_load_emitter>(this, isa, src_prc, dst_prc, elt_num, src_prc, fill, "float_min");
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0},
@@ -146,7 +147,7 @@ private:
                       const int& elt_num) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, src_prc, dst_prc, elt_num);
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
@@ -241,7 +242,7 @@ static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, s
 
 void Interaction::execRef(const dnnl::stream& strm) {
     using namespace dnnl;
-    uint8_t* outFeaturesPtr = getDstDataAtPortAs<uint8_t>(0);
+    auto* outFeaturesPtr = getDstDataAtPortAs<uint8_t>(0);
     std::vector<const uint8_t*> inputPtrs(inputSizes);
     for (uint32_t n = 0; n < inputSizes; n++) {
         auto inPtr = getSrcDataAtPortAs<const uint8_t>(n);
@@ -330,14 +331,14 @@ void Interaction::prepareParams() {
 
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu_isa_t::avx512_core)) {
-        moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(jcp));
-        moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(interJcp));
+        moveFeatureKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx512_core>>(jcp);
+        moveInteractKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx512_core>>(interJcp);
     } else if (mayiuse(cpu_isa_t::avx2)) {
-        moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx2>(jcp));
-        moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx2>(interJcp));
+        moveFeatureKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx2>>(jcp);
+        moveInteractKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx2>>(interJcp);
     } else if (mayiuse(cpu_isa_t::sse41)) {
-        moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(jcp));
-        moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(interJcp));
+        moveFeatureKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::sse41>>(jcp);
+        moveInteractKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::sse41>>(interJcp);
     }
 #endif  // OPENVINO_ARCH_X86_64
 

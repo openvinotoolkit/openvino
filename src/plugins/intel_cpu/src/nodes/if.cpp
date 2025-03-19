@@ -240,7 +240,7 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) con
 }
 
 void If::execute(const dnnl::stream& strm) {
-    const bool condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
+    const auto condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;

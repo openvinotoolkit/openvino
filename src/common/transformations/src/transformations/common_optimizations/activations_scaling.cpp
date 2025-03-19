@@ -64,8 +64,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
                         "Not found any Convolution or MatMul layer");
 
         auto insert_scale_down_layer = [&scale_factor, &scaled_prec](std::shared_ptr<ov::Node>& node,
-                                                                     const size_t input_idx,
-                                                                     const bool keep_precision) {
+                                                                     const size_t input_idx) {
             const std::vector<float> scale_down_value = {1.f / scale_factor};
 
             auto scale_down_layer = std::make_shared<ov::op::v1::Multiply>(
@@ -76,7 +75,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
             scale_down_layer->set_friendly_name(node->get_friendly_name() + "_scale_down");
             ov::copy_runtime_info(node, scale_down_layer);
 
-            if (scale_down_layer->output(0).get_element_type() != scaled_prec && !keep_precision) {
+            if (scale_down_layer->output(0).get_element_type() != scaled_prec) {
                 auto convert_prec = std::make_shared<ov::op::v0::Convert>(scale_down_layer->output(0), scaled_prec);
                 node->input(input_idx).replace_source_output(convert_prec->output(0));
             } else {
@@ -96,24 +95,21 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         if (transformation_callback(scaled_op))
             return false;
 
-        // in the case of decompressed_to_f32 nodes, scale_up layer will be added after Convert node.
-        bool keep_precision = false;
+        // in the case of decompressed_to_f32 nodes, no need to apply activations scaling
         std::shared_ptr<ov::Node> output_of_scaled_op = scaled_op;
         auto child_node = scaled_op->get_output_target_inputs(0).begin()->get_node();
         if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v0::Convert>(child_node) &&
             ov::fp16_compression_is_disabled(child_node->shared_from_this()) &&
             ov::pass::constant_folding_is_disabled(child_node->shared_from_this())) {
-            output_of_scaled_op = child_node->shared_from_this();
-            child_node = output_of_scaled_op->get_output_target_inputs(0).begin()->get_node();
-            keep_precision = true;
+            return false;
         }
 
         const std::vector<float> scale_up_value = {scale_factor};
         auto output_prec = output_of_scaled_op->output(0).get_element_type();
 
         // adding a scale_down layer before the target node
-        insert_scale_down_layer(scaled_op, 0, keep_precision);
-        if (scaled_op->input(1).get_element_type() != scaled_prec && !keep_precision) {
+        insert_scale_down_layer(scaled_op, 0);
+        if (scaled_op->input(1).get_element_type() != scaled_prec) {
             auto convert_prec1 =
                 std::make_shared<ov::op::v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
             scaled_op->input(1).replace_source_output(convert_prec1->output(0));
@@ -146,16 +142,16 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         if (has_bias) {
             auto add = child_node->shared_from_this();
             target_inputs = add->get_output_target_inputs(0);
-            insert_scale_down_layer(add, bias_index, keep_precision);
+            insert_scale_down_layer(add, bias_index);
             add->revalidate_and_infer_types();
-            if (add->output(0).get_element_type() != output_prec && !keep_precision) {
+            if (add->output(0).get_element_type() != output_prec) {
                 output_of_scaled_op = std::make_shared<ov::op::v0::Convert>(add->output(0), output_prec);
             } else {
                 output_of_scaled_op = add;
             }
         } else {
             target_inputs = output_of_scaled_op->get_output_target_inputs(0);
-            if (output_of_scaled_op->output(0).get_element_type() != output_prec && !keep_precision) {
+            if (output_of_scaled_op->output(0).get_element_type() != output_prec) {
                 output_of_scaled_op =
                     std::make_shared<ov::op::v0::Convert>(output_of_scaled_op->output(0), output_prec);
             }
@@ -204,6 +200,31 @@ ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
 
         norm->input(0).replace_source_output(activation);
 
+        auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(scale_const_m).get_node_shared_ptr());
+
+        if (pattern_map.count(rms_m)) {
+            auto rms = ov::as_type_ptr<ov::op::internal::RMS>(pattern_map.at(rms_m).get_node_shared_ptr());
+            auto eps = rms->get_epsilon();
+            double scale_const_val = scale_const->cast_vector<double>()[0];
+            rms->set_epsilon(eps / scale_const_val / scale_const_val);
+        } else if (pattern_map.count(group_norm_m)) {
+            auto group_norm =
+                ov::as_type_ptr<ov::op::v12::GroupNormalization>(pattern_map.at(group_norm_m).get_node_shared_ptr());
+            auto eps = group_norm->get_epsilon();
+            double scale_const_val = scale_const->cast_vector<double>()[0];
+            group_norm->set_epsilon(eps / scale_const_val / scale_const_val);
+        } else if (pattern_map.count(mvn_m)) {
+            auto mvn = ov::as_type_ptr<ov::op::v6::MVN>(pattern_map.at(mvn_m).get_node_shared_ptr());
+            auto eps_mode = mvn->get_eps_mode();
+            auto eps = mvn->get_eps();
+            float scale_const_val = scale_const->cast_vector<float>()[0];
+            if (eps_mode == ov::op::MVNEpsMode::INSIDE_SQRT) {
+                mvn->set_eps(eps / scale_const_val / scale_const_val);
+            } else {
+                mvn->set_eps(eps / scale_const_val);
+            }
+        }
+
         return true;
     };
 
@@ -247,6 +268,32 @@ ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() 
 
                 if (is_scalar_node(const_input) && !is_non_const_node(const_input)) {
                     norm->input(0).replace_source_output(child.get_node()->output(0));
+
+                    auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(const_input.get_node_shared_ptr());
+
+                    if (pattern_map.count(rms_m)) {
+                        auto rms = ov::as_type_ptr<ov::op::internal::RMS>(pattern_map.at(rms_m).get_node_shared_ptr());
+                        auto eps = rms->get_epsilon();
+                        double scale_const_val = scale_const->cast_vector<double>()[0];
+                        rms->set_epsilon(eps * scale_const_val * scale_const_val);
+                    } else if (pattern_map.count(group_norm_m)) {
+                        auto group_norm = ov::as_type_ptr<ov::op::v12::GroupNormalization>(
+                            pattern_map.at(group_norm_m).get_node_shared_ptr());
+                        auto eps = group_norm->get_epsilon();
+                        double scale_const_val = scale_const->cast_vector<double>()[0];
+                        group_norm->set_epsilon(eps * scale_const_val * scale_const_val);
+                    } else if (pattern_map.count(mvn_m)) {
+                        auto mvn = ov::as_type_ptr<ov::op::v6::MVN>(pattern_map.at(mvn_m).get_node_shared_ptr());
+                        auto eps_mode = mvn->get_eps_mode();
+                        auto eps = mvn->get_eps();
+                        float scale_const_val = scale_const->cast_vector<float>()[0];
+                        if (eps_mode == ov::op::MVNEpsMode::INSIDE_SQRT) {
+                            mvn->set_eps(eps * scale_const_val * scale_const_val);
+                        } else {
+                            mvn->set_eps(eps * scale_const_val);
+                        }
+                    }
+
                     return true;
                 }
             }

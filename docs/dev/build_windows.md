@@ -38,37 +38,46 @@ Supported configurations:
     cmake -G "Visual Studio 17 2022" <path/to/openvino>
     ```
 
-   > **HINT**: **Generating PDB Files and Debugging Your Build** <br>
-   > If you intend to generate PDB files and debug your build, it is essential to set the CMake build type appropriately.
-   > You should utilize one of the following CMake build type options: <br>
-   >* `-DCMAKE_BUILD_TYPE=RelWithDebInfo`: This option generates PDB files with release information, making it suitable for debugging optimized builds. <br>
-   >* `-DCMAKE_BUILD_TYPE=Debug`: This option generates PDB files optimized for debugging, providing comprehensive debugging information.
-
 4. Build generated solution in Visual Studio or run `cmake --build . --config Release --verbose -j<number_of_jobs>` to build from the command line. View the number of available processing units with `WMIC cpu get numberofLogicalProcessors`. Be aware that this process may take some time.
 
 5. Before running the samples, add paths to the Threading Building Blocks (TBB) binaries used for the build to the `%PATH%` environment variable. By default, TBB binaries are downloaded by the CMake-based script to the `<path/to/openvino>/temp/tbb/bin` folder.
 
-### Additional Build Options
+### Building with PDB files support
 
-- To build the OpenVINO Runtime Python API:
-  1. Enable the `-DENABLE_PYTHON=ON` in the CMake (Step #3) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
-     ```sh
-     -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
-     ```
-  2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
-     ```sh
-     pip install -r <openvino source tree>\src\bindings\python\wheel\requirements-dev.txt
-     ```
-  3. After the build process finishes, export the newly built Python libraries to the user environment variables:
-     ```
-     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;<openvino_repo>/tools/ovc;%PYTHONPATH%
-     set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<openvino_repo>/temp/tbb/bin
-     set PATH=<openvino_repo>/tools/ovc/openvino/tools/ovc:%PATH%
-     ```
-     or install the wheel with pip:
-     ```
-     pip install build/wheel/openvino-2023.0.0-9612-cp11-cp11-win_arm64.whl
-     ```
+If you intend to generate PDB files and debug your build or run some tools, which require PDB files, it is essential to set the CMake build type appropriately.
+You should utilize one of the following CMake build type options:
+  * `-DCMAKE_BUILD_TYPE=RelWithDebInfo`: This option generates PDB files with release information, making it suitable for debugging optimized builds.
+  * `-DCMAKE_BUILD_TYPE=Debug`: This option generates PDB files optimized for debugging, providing comprehensive debugging information.
+  * `-DCMAKE_BUILD_TYPE=Release -DENABLE_PDB_IN_RELEASE=ON` to build in Release mode, but with debug symbols generated.
+
+Note, that PDB symbols files are supported for both dynamic and static builds.
+
+To pack PDB files, it's essential to run cmake command to create a dedicated archive:
+
+  ```sh
+  cmake --install <build folder> --config <Release | Debug | RelWithDebInfo> --prefix <installation path> --component pdb
+  ```
+
+### Building with Python API support
+
+1. Enable the `-DENABLE_PYTHON=ON` in the CMake (Step #3) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
+    ```sh
+    -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
+    ```
+2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 3), and install requirements:
+    ```sh
+    pip install -r <openvino source tree>\src\bindings\python\wheel\requirements-dev.txt
+    ```
+3. After the build process finishes, export the newly built Python libraries to the user environment variables:
+    ```
+    set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;<openvino_repo>/tools/ovc;%PYTHONPATH%
+    set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<openvino_repo>/temp/tbb/bin
+    set PATH=<openvino_repo>/tools/ovc/openvino/tools/ovc:%PATH%
+    ```
+    or install the wheel with pip:
+    ```
+    pip install build/wheel/openvino-2023.0.0-9612-cp11-cp11-win_arm64.whl
+    ```
 
 ### Building OpenVINO with Ninja* Build System
 

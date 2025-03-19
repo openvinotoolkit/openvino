@@ -101,8 +101,8 @@ void GRN::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void GRN::execute(const dnnl::stream& strm) {
-    const float* src_data = getSrcDataAtPortAs<const float>(0);
-    float* dst_data = getDstDataAtPortAs<float>(0);
+    const auto* src_data = getSrcDataAtPortAs<const float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
 
     parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;

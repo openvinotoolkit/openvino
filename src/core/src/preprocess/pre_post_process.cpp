@@ -16,8 +16,10 @@
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
 #include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
+#include "transformations/common_optimizations/gelu_fusion.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -74,6 +76,9 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     Manager manager("pre_post_processing");
     manager.set_per_pass_validation(false);
 
+    // prerequisite: the model structure optimization before applying of the markup
+    REGISTER_PASS(manager, SharedOpOptimization)
+
     // 1. Set "disable_const_folding" attribute
     REGISTER_PASS(manager, MarkDequantization, TypeVector{i8, u8, i4, u4, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
     REGISTER_PASS(manager, DisableShapeOfConstantFolding, false);
@@ -85,12 +90,14 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
 
     // 2. Fusion transformations:
     REGISTER_PASS(manager, ConvertDivideWithConstant)
-    auto multiply_fusions = manager.register_pass<GraphRewrite>();
-    ADD_MATCHER(multiply_fusions, MultiplyConvolutionFusion)
-    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionFusion)
-    ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
-    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
-    multiply_fusions->set_name("ov::pass::MultiplyFusions");
+    auto fusions = manager.register_pass<GraphRewrite>();
+    // Gelu fusion have to be executed before MulConv fusion because Mul(X, 0.5) might be fused to Conv weights
+    ADD_MATCHER(fusions, GeluFusion)
+    ADD_MATCHER(fusions, MultiplyConvolutionFusion)
+    ADD_MATCHER(fusions, MultiplyGroupConvolutionFusion)
+    ADD_MATCHER(fusions, MultiplyConvolutionBackpropDataFusion)
+    ADD_MATCHER(fusions, MultiplyGroupConvolutionBackpropDataFusion)
+    fusions->set_name("ov::pass::MultiplyFusions");
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
 
     // 3. CF call due to detected perf degradations

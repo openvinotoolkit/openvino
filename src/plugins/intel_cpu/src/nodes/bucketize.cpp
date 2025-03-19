@@ -216,7 +216,7 @@ void Bucketize::prepareParams() {
     num_values = std::accumulate(input_tensor_dims.begin(),
                                  input_tensor_dims.end(),
                                  static_cast<size_t>(1),
-                                 std::multiplies<size_t>());
+                                 std::multiplies<>());
 }
 
 bool Bucketize::neverExecute() const {

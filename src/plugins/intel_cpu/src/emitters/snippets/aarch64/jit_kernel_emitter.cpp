@@ -222,8 +222,8 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& arg_
     XReg reg_runtime_params = arg_regs[0];
     XReg reg_indexes = arg_regs[1];
 
-    XReg reg_tmp = XReg(h->X_TMP_0);
-    XReg reg_aux = XReg(h->X_TMP_1);
+    auto reg_tmp = XReg(h->X_TMP_0);
+    auto reg_aux = XReg(h->X_TMP_1);
 
     const auto num_params = num_inputs + num_outputs;
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter

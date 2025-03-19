@@ -1066,15 +1066,6 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     if (fc_layout.is_dynamic() || data_layout.is_dynamic())
                         continue;
 
-                    auto same_spatial = [](layout a, layout b) {
-                        if (a.get_spatial_rank() != b.get_spatial_rank())
-                            return false;
-                        for (size_t i = 0; i < a.get_spatial_rank(); i++) {
-                            if (a.spatial(i) != b.spatial(i))
-                                return false;
-                        }
-                        return true;
-                    };
                     // fc_b     | fc_f      | data_b    | data_f    | broadcast condition
                     // ---------+-----------+-----------+-----------+--------------------
                     // 1        | 1         | 1         | 1         | no broadcast
@@ -1090,12 +1081,11 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     // N        | 1         | N         | 1         | no broadcast
                     // N        | 1         | N         | N         | N/A
                     // N        | N         | 1         | 1         | implicit broadcast
-                    // N        | N         | 1         | N         | explicit broadcast when spatial different
-                    // N        | N         | N         | 1         | explicit broadcast when spatial different
+                    // N        | N         | 1         | N         | explicit broadcast
+                    // N        | N         | N         | 1         | explicit broadcast
                     // N        | N         | N         | N         | no broadcast
                     if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
                         (data_layout.batch() == 1 && data_layout.feature() == 1) ||
-                        ((data_layout.batch() == 1 || data_layout.feature() == 1) && same_spatial(fc_layout, data_layout)) ||
                         (fc_layout.count() == data_layout.count())) {
                         continue;
                     }

@@ -10,9 +10,9 @@ For more detailed information on how this sample works, check the dedicated [art
 
 | Options                     | Values                                                                                                               |
 | ----------------------------| ---------------------------------------------------------------------------------------------------------------------|
-| Model Format                | OpenVINO Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                       |
+| Model Format                | OpenVINO Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                               |
 | Validated images            | An uncompressed image in the NV12 color format - \*.yuv                                                              |
-| Supported devices           | [All](https://docs.openvino.ai/2025/about-openvino/compatibility-and-support/supported-devices.html)                  |
+| Supported devices           | [All](https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-devices.html)                  |
 | Other language realization  | [C++](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/hello-nv12-input-classification.html)                          |
 
 The following C++ API is used in the application:

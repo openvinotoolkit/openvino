@@ -78,5 +78,17 @@ bool Predicate::operator()(pass::pattern::PatternSymbolMap& m, const Output<Node
     OPENVINO_DEBUG("Predicate `", m_name, "` has ", (result ? "passed" : "failed"), ". Applied to ", output);
     return result;
 }
+
+bool Predicate::operator()(const std::shared_ptr<Node>& node) const {
+    OPENVINO_ASSERT(!m_requires_map, "Predicate " + m_name + " called with unexpected argument: std::shared_ptr<Node>");
+    PatternSymbolMap dummy_map;
+    return m_pred(dummy_map, node);
+}
+
+bool Predicate::operator()(const Output<Node>& output) const {
+    OPENVINO_ASSERT(!m_requires_map, "Predicate " + m_name + " called with unexpected argument: Output<Node>");
+    PatternSymbolMap dummy_map;
+    return m_pred(dummy_map, output);
+}
 }  // namespace op
 }  // namespace ov::pass::pattern

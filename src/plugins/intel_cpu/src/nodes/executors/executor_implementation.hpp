@@ -59,7 +59,7 @@ public:
         return {};
     }
 
-    bool acceptsShapes(const MemoryArgs& memory) const {
+    [[nodiscard]] bool acceptsShapes(const MemoryArgs& memory) const {
         if (m_acceptsShape) {
             return m_acceptsShape(memory);
         }
@@ -79,19 +79,19 @@ public:
         return nullptr;
     }
 
-    bool shapeAgnostic() const {
+    [[nodiscard]] bool shapeAgnostic() const {
         return m_shapeRelation == ShapeTolerance::Agnostic;
     }
 
-    const char* name() const {
+    [[nodiscard]] const char* name() const {
         return m_name;
     }
 
-    const ExecutorType type() const {
+    [[nodiscard]] const ExecutorType type() const {
         return m_type;
     }
 
-    const OperationType operationType() const {
+    [[nodiscard]] const OperationType operationType() const {
         return m_operationType;
     }
 

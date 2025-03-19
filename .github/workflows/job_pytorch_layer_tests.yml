@@ -30,7 +30,7 @@ env:
 jobs:
   PyTorch_Layer_Tests:
     name: PyTorch Layer Tests
-    timeout-minutes: 40
+    timeout-minutes: 50
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
