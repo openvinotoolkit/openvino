@@ -1,3 +1,4 @@
+# type: ignore
 """
 openvino.properties.hint submodule that simulates ov::hint
 """

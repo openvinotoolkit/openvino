@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from openvino._pyopenvino.properties import device as __device
 from openvino._pyopenvino.properties.device import Capability

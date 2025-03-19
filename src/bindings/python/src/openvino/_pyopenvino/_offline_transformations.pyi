@@ -1,3 +1,4 @@
+# type: ignore
 """
 openvino._offline_transformations is a private module contains different offline passes.
 """

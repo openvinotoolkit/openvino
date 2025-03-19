@@ -1,3 +1,4 @@
+# type: ignore
 """
 openvino.properties.streams submodule that simulates ov::streams
 """

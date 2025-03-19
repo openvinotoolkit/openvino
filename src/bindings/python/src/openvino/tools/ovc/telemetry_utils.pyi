@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 import argparse as argparse
 import numbers as numbers

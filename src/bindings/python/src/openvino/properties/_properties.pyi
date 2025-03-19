@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from builtins import builtin_function_or_method as BuiltinFunctionType
 from builtins import module as ModuleType

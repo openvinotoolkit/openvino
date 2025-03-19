@@ -1,3 +1,4 @@
+# type: ignore
 """
 module openvino.op.util
 """

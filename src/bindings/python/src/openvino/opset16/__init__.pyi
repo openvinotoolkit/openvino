@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from openvino.opset16.ops import identity
 from openvino.opset16.ops import istft

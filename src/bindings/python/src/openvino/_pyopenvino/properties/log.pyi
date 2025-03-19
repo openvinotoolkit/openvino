@@ -1,3 +1,4 @@
+# type: ignore
 """
 openvino.properties.log submodule that simulates ov::log
 """

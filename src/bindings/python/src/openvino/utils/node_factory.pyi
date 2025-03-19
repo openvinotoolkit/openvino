@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from functools import singledispatchmethod
 import openvino._pyopenvino

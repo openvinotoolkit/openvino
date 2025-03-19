@@ -1,3 +1,4 @@
+# type: ignore
 """
 Package openvino.preprocess that wraps ov::preprocess
 """

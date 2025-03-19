@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 import openvino._op_base
 from openvino._op_base import Op

@@ -1,3 +1,4 @@
+# type: ignore
 """
 openvino exceptions hierarchy. All exceptions are descendants of OVError.
 """

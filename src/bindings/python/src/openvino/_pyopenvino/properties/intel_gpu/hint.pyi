@@ -1,3 +1,4 @@
+# type: ignore
 """
 openvino.properties.intel_gpu.hint submodule that simulates ov::intel_gpu::hint
 """

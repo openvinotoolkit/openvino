@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from openvino._pyopenvino.properties import hint as __hint
 from openvino._pyopenvino.properties.hint import ExecutionMode

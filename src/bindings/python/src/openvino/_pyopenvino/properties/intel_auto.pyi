@@ -1,3 +1,4 @@
+# type: ignore
 """
 openvino.properties.intel_auto submodule that simulates ov::intel_auto
 """

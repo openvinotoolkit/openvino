@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from importlib import metadata as importlib_metadata
 from openvino._pyopenvino import get_version as get_rt_version

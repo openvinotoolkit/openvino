@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from openvino._pyopenvino import get_version as get_ie_version
 import re as re

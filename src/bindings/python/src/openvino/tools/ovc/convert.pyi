@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 import openvino._ov_api
 from openvino._ov_api import Model

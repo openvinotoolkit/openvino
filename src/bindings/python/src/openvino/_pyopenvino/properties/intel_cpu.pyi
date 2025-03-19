@@ -1,3 +1,4 @@
+# type: ignore
 """
 openvino.properties.intel_cpu submodule that simulates ov::intel_cpu
 """

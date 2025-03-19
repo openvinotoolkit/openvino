@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from openvino._pyopenvino import properties as __properties
 from openvino._pyopenvino.properties import CacheMode

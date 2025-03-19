@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 import openvino._pyopenvino
 from openvino._pyopenvino import PartialShape

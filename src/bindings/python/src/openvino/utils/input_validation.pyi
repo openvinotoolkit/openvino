@@ -1,3 +1,4 @@
+# type: ignore
 """
 Helper functions for validating user input.
 """

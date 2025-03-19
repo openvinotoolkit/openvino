@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 import datetime as datetime
 __all__ = ['datetime', 'get_compression_message', 'msg_fmt']

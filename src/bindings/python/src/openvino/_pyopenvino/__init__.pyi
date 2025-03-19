@@ -1,3 +1,4 @@
+# type: ignore
 """
 Package openvino._pyopenvino which wraps openvino C++ APIs
 """
@@ -3709,7 +3710,7 @@ class Output:
                         :return: Tensor of the output.
                         :rtype: openvino._pyopenvino.DescriptorTensor
         """
-    def remove_target_input(self, target_input: ...) -> None:
+    def remove_target_input(self, target_input: typing.Any) -> None:
         """
                         Removes a target input from the output referenced by this output handle.
         
@@ -4560,7 +4561,7 @@ class Tensor:
                         :type array: numpy.array
         """
     @typing.overload
-    def __init__(self, port: ...) -> None:
+    def __init__(self, port: typing.Any) -> None:
         """
                     Constructs Tensor using port from node.
                     Type and shape will be taken from the port.
@@ -4569,7 +4570,7 @@ class Tensor:
                     :type param: openvino.ConstOutput
         """
     @typing.overload
-    def __init__(self, port: ..., array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> None:
+    def __init__(self, port: typing.Any, array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> None:
         """
                         Constructs Tensor using port from node.
                         Type and shape will be taken from the port.

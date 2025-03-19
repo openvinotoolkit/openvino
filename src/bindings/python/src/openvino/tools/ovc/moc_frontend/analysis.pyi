@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 import json as json
 import openvino._ov_api

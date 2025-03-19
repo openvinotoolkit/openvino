@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 import argparse as argparse
 from openvino.tools.ovc.error import Error

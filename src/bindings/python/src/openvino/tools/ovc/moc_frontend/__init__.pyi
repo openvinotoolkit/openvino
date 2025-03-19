@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from . import analysis
 from . import check_config

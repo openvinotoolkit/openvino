@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from openvino._op_base import Op
 from openvino._ov_api import AsyncInferQueue
