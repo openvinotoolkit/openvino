@@ -3,10 +3,10 @@
 Package ngraph.impl.op that wraps ov::op
 """
 from __future__ import annotations
+from . import util
 import numpy
 import openvino._pyopenvino
 import typing
-from . import util
 __all__ = ['Constant', 'Parameter', 'Result', 'assign', 'if_op', 'loop', 'read_value', 'tensor_iterator', 'util']
 class Constant(openvino._pyopenvino.Node):
     """

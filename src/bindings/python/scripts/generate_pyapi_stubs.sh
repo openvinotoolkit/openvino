@@ -115,7 +115,7 @@ for file in $changed_files; do
             start = NR;
         }
         in_imports++;
-        imports[in_imports] = $0; 
+        imports[in_imports] = $0;
         next;
     }
     {

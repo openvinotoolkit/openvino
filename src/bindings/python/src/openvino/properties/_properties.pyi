@@ -1,10 +1,10 @@
 # type: ignore
-from __future__ import annotations
 from builtins import builtin_function_or_method as BuiltinFunctionType
 from builtins import module as ModuleType
+from __future__ import annotations
+from typing import Any
 import sys as sys
 import typing
-from typing import Any
 __all__ = ['Any', 'BuiltinFunctionType', 'ModuleType', 'Property', 'sys']
 class Property(str):
     """

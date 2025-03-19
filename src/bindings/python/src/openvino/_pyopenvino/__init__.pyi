@@ -3,18 +3,18 @@
 Package openvino._pyopenvino which wraps openvino C++ APIs
 """
 from __future__ import annotations
-import datetime
-import numpy
-import typing
-from . import _offline_transformations
 from . import experimental
 from . import frontend
 from . import layout_helpers
+from . import _offline_transformations
 from . import op
 from . import passes
 from . import preprocess
 from . import properties
 from . import util
+import datetime
+import numpy
+import typing
 __all__ = ['AsyncInferQueue', 'AttributeVisitor', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'ConversionExtension', 'ConversionExtensionBase', 'Coordinate', 'CoordinateDiff', 'Core', 'DecoderTransformationExtension', 'DescriptorTensor', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InferRequest', 'InitializationFailure', 'Input', 'InputModel', 'Iterator', 'Layout', 'Model', 'Node', 'NodeContext', 'NodeFactory', 'NotImplementedFailure', 'OVAny', 'Op', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Output', 'PartialShape', 'Place', 'ProfilingInfo', 'ProgressReporterExtension', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'TelemetryExtension', 'Tensor', 'Type', 'VAContext', 'VASurfaceTensor', 'VariableState', 'Version', 'experimental', 'frontend', 'get_batch', 'get_version', 'layout_helpers', 'op', 'passes', 'preprocess', 'properties', 'save_model', 'serialize', 'set_batch', 'shutdown', 'util']
 class AsyncInferQueue:
     """
@@ -3629,7 +3629,7 @@ class Output:
         ...
     def __repr__(self) -> str:
         ...
-    def _from_node(self: ...) -> Output:
+    def _from_node(self: typing.Any) -> Output:
         ...
     def add_names(self, names: set[str]) -> None:
         """

@@ -1,12 +1,12 @@
 # type: ignore
 from __future__ import annotations
-import openvino._op_base
 from openvino._op_base import Op
-import openvino._pyopenvino
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
+import openvino._op_base
+import openvino._pyopenvino
 __all__ = ['Op', 'PartialShape', 'PostponedConstant', 'Shape', 'Tensor', 'Type', 'make_postponed_constant']
 class PostponedConstant(openvino._op_base.Op):
     """

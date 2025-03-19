@@ -5,9 +5,14 @@ Package: openvino
 Low level wrappers for the FrontEnd C++ API.
 """
 from __future__ import annotations
+from . import frontend
+from openvino.frontend.frontend import FrontEnd
+from openvino.frontend.frontend import FrontEndManager
+from openvino._pyopenvino.frontend import OpExtension
 from openvino._pyopenvino import ConversionExtension
 from openvino._pyopenvino import DecoderTransformationExtension
 from openvino._pyopenvino import GeneralFailure
+from openvino._pyopenvino import get_version
 from openvino._pyopenvino import InitializationFailure
 from openvino._pyopenvino import InputModel
 from openvino._pyopenvino import NodeContext
@@ -17,10 +22,5 @@ from openvino._pyopenvino import OpValidationFailure
 from openvino._pyopenvino import Place
 from openvino._pyopenvino import ProgressReporterExtension
 from openvino._pyopenvino import TelemetryExtension
-from openvino._pyopenvino.frontend import OpExtension
-from openvino._pyopenvino import get_version
-from openvino.frontend.frontend import FrontEnd
-from openvino.frontend.frontend import FrontEndManager
-from . import frontend
 __all__ = ['ConversionExtension', 'DecoderTransformationExtension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InitializationFailure', 'InputModel', 'NodeContext', 'NotImplementedFailure', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Place', 'ProgressReporterExtension', 'TelemetryExtension', 'frontend', 'get_version']
-__version__: str = '2025.1.0-18228-ec22ccba436-pyi_files'
+__version__: str = 'version_string'

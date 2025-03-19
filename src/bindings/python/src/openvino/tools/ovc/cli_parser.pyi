@@ -1,10 +1,7 @@
 # type: ignore
-from __future__ import annotations
-import argparse as argparse
-from collections import OrderedDict
 from collections import namedtuple
-import inspect as inspect
-import openvino as openvino
+from collections import OrderedDict
+from __future__ import annotations
 from openvino._pyopenvino import Dimension
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Type
@@ -15,6 +12,9 @@ from openvino.tools.ovc.moc_frontend.shape_utils import to_partial_shape
 from openvino.tools.ovc.moc_frontend.type_utils import is_type
 from openvino.tools.ovc.moc_frontend.type_utils import to_ov_type
 from openvino.tools.ovc.utils import get_mo_root_dir
+import argparse as argparse
+import inspect as inspect
+import openvino as openvino
 import os as os
 import pathlib as pathlib
 import re as re

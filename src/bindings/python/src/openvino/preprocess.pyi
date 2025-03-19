@@ -19,4 +19,4 @@ from openvino._pyopenvino.preprocess import PrePostProcessor
 from openvino._pyopenvino.preprocess import PreProcessSteps
 from openvino._pyopenvino.preprocess import ResizeAlgorithm
 __all__ = ['ColorFormat', 'InputInfo', 'InputModelInfo', 'InputTensorInfo', 'OutputInfo', 'OutputModelInfo', 'OutputTensorInfo', 'PaddingMode', 'PostProcessSteps', 'PrePostProcessor', 'PreProcessSteps', 'ResizeAlgorithm', 'get_version']
-__version__: str = '2025.1.0-18228-ec22ccba436-pyi_files'
+__version__: str = 'version_string'

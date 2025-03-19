@@ -1,17 +1,17 @@
 # type: ignore
-from __future__ import annotations
 from functools import singledispatch
-import numpy as np
-import openvino._pyopenvino
+from __future__ import annotations
 from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import RemoteTensor
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
-import openvino.utils.data_helpers.wrappers
-from openvino.utils.data_helpers.wrappers import OVDict
 from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
-import typing
+from openvino.utils.data_helpers.wrappers import OVDict
 from typing import Any
+import numpy as np
+import openvino._pyopenvino
+import openvino.utils.data_helpers.wrappers
+import typing
 __all__ = ['Any', 'ConstOutput', 'ContainerTypes', 'OVDict', 'RemoteTensor', 'ScalarTypes', 'Tensor', 'Type', 'ValidKeys', 'create_copied', 'create_shared', 'get_request_tensor', 'is_list_simple_type', 'normalize_arrays', 'np', 'set_request_tensor', 'singledispatch', 'to_c_style', 'update_inputs', 'update_tensor', 'value_to_tensor']
 def _(inputs: typing.Union[openvino._pyopenvino.Tensor, numpy.number, int, float, str, bytes], request: openvino.utils.data_helpers.wrappers._InferRequestWrapper) -> openvino._pyopenvino.Tensor:
     ...

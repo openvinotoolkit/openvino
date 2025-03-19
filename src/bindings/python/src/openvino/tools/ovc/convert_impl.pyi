@@ -1,14 +1,12 @@
 # type: ignore
-from __future__ import annotations
-import argparse as argparse
 from collections import OrderedDict
-import datetime as datetime
-import logging as log
+from __future__ import annotations
+from openvino.frontend.frontend import FrontEndManager
+from openvino._pyopenvino import get_version as get_rt_version
 from openvino._pyopenvino import OpConversionFailure
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import TelemetryExtension
-from openvino._pyopenvino import get_version as get_rt_version
-from openvino.frontend.frontend import FrontEndManager
+from openvino_telemetry.backend import backend_ga4
 from openvino.tools.ovc.cli_parser import depersonalize
 from openvino.tools.ovc.cli_parser import get_available_front_ends
 from openvino.tools.ovc.cli_parser import get_common_cli_options
@@ -34,10 +32,12 @@ from openvino.tools.ovc.telemetry_utils import send_conversion_result
 from openvino.tools.ovc.telemetry_utils import send_params_info
 from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.version import VersionChecker
-import openvino_telemetry as tm
-from openvino_telemetry.backend import backend_ga4
-import os as os
 from pathlib import Path
+import argparse as argparse
+import datetime as datetime
+import logging as log
+import openvino_telemetry as tm
+import os as os
 import sys as sys
 import traceback as traceback
 import tracemalloc as tracemalloc

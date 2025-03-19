@@ -1,9 +1,9 @@
 # type: ignore
 from __future__ import annotations
-import openvino._pyopenvino
 from openvino._pyopenvino import PartialShape
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.utils import refer_to_faq_msg
+import openvino._pyopenvino
 __all__ = ['Error', 'PartialShape', 'get_dimension_index_by_label', 'refer_to_faq_msg', 'update_layout_to_dict']
 def get_dimension_index_by_label(input_shape: openvino._pyopenvino.PartialShape, input_names: list, layout_dict: [dict], dimension_label: str, default_dim: int):
     """

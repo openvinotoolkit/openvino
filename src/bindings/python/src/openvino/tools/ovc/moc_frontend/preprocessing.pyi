@@ -1,16 +1,16 @@
 # type: ignore
 from __future__ import annotations
-import argparse as argparse
-import logging as log
-import openvino._ov_api
 from openvino._ov_api import Model
-import openvino._pyopenvino
 from openvino._pyopenvino import Layout
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino.preprocess import PrePostProcessor
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.moc_frontend.layout_utils import update_layout_to_dict
 from openvino.tools.ovc.utils import refer_to_faq_msg
+import argparse as argparse
+import logging as log
+import openvino._ov_api
+import openvino._pyopenvino
 __all__ = ['Error', 'Layout', 'Model', 'PartialShape', 'PrePostProcessor', 'apply_preprocessing', 'argparse', 'check_keys_valid', 'find_channels_dimension', 'log', 'refer_to_faq_msg', 'update_layout_is_input_flag', 'update_layout_to_dict', 'update_tensor_names_to_first_in_sorted_list']
 def apply_preprocessing(ov_function: openvino._ov_api.Model, argv: argparse.Namespace):
     """

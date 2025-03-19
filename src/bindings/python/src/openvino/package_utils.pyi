@@ -1,13 +1,13 @@
 # type: ignore
-from __future__ import annotations
 from builtins import module as ModuleType
 from functools import wraps
+from __future__ import annotations
+from pathlib import Path
+from typing import Any
 import importlib as importlib
 import os as os
-from pathlib import Path
 import sys as sys
 import typing
-from typing import Any
 __all__ = ['Any', 'LazyLoader', 'ModuleType', 'Path', 'classproperty', 'deprecated', 'deprecatedclassproperty', 'get_cmake_path', 'importlib', 'os', 'sys', 'wraps']
 class LazyLoader:
     """

@@ -1,11 +1,11 @@
 # type: ignore
 from __future__ import annotations
-import openvino._ov_api
 from openvino._ov_api import Model
-import openvino._pyopenvino
 from openvino._pyopenvino import FrontEnd as FrontEndBase
 from openvino._pyopenvino import FrontEndManager as FrontEndManagerBase
 from openvino._pyopenvino import InputModel
+import openvino._ov_api
+import openvino._pyopenvino
 __all__ = ['FrontEnd', 'FrontEndBase', 'FrontEndManager', 'FrontEndManagerBase', 'InputModel', 'Model']
 class FrontEnd(openvino._pyopenvino.FrontEnd):
     def __init__(self, fe: openvino._pyopenvino.FrontEnd) -> None:
