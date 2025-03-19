@@ -538,6 +538,14 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 if (!strided_slice_node) {
                     return false;
                 }
+                const auto& strided_slice_begin_mask = strided_slice_node->get_begin_mask();
+                auto strided_slice_axis_it = find_if(strided_slice_begin_mask.begin(), strided_slice_begin_mask.end(), [](const auto& el){return el == 0;});
+                if (strided_slice_axis_it != strided_slice_begin_mask.end()) {
+                    //check that strided slice node operate on same axis as concat
+                    if (std::distance(strided_slice_begin_mask.begin(), strided_slice_axis_it) != concat_axis) {
+                        return false;
+                    }
+                }
                 // check that all values of the mask is equal 0
                 auto check_mask = [](const std::vector<int64_t>& mask_to_check) {
                     auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) {
