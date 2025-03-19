@@ -10,14 +10,13 @@
 #include "snippets/op/subgraph.hpp"
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
-#    include <signal.h>
+#    include <csignal>
 
 #    include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
 std::mutex err_print_lock;
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 inline void parallel4d_repacking(const BrgemmCopyBKernel* ker,
@@ -39,7 +38,7 @@ inline void parallelNd_repacking(const BrgemmCopyBKernel* ker,
                                  const VectorDims& out_str,
                                  const uint8_t* src,
                                  uint8_t* dst) {
-    const size_t batch = std::accumulate(dom.rbegin() + 2, dom.rend(), 1lu, std::multiplies<size_t>());
+    const size_t batch = std::accumulate(dom.rbegin() + 2, dom.rend(), 1lu, std::multiplies<>());
     parallel_nt_static(0, [&](const int ithr, const int nthr) {
         BrgemmCopyBKernel::call_args args;
         size_t start = 0, end = 0;
@@ -331,5 +330,4 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

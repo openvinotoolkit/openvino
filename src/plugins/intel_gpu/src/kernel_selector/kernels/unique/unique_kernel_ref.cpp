@@ -133,7 +133,7 @@ void UniqueCountKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
         // Need to adjust buffer size according to input size
-        kd.internalBufferSizes.front() = prim_params.inputs.front().PhysicalSizeInBytes();
+        kd.internalBuffers.front() = prim_params.inputs.front().PhysicalSizeInBytes();
         kd.internalBufferDataType = prim_params.inputs.front().GetDType();
     };
 }
@@ -169,7 +169,7 @@ KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params) const {
 
     // Additional buffer to save intermediate algorithm results
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-    kernel_data.internalBufferSizes.push_back(kernel_params.inputs.front().PhysicalSizeInBytes());
+    kernel_data.internalBuffers.push_back(kernel_params.inputs.front().PhysicalSizeInBytes());
     kernel_data.internalBufferDataType = kernel_params.inputs.front().GetDType();
 
     return {kernel_data};

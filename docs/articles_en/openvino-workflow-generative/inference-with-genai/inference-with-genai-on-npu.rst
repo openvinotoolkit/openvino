@@ -1,25 +1,52 @@
-Inference with OpenVINO GenAI
-==========================================
+NPU with OpenVINO GenAI
+===============================================================================================
 
 .. meta::
    :description: Learn how to use OpenVINO GenAI to execute LLM models on NPU.
 
 
-This guide will give you extra details on how to utilize NPU with OpenVINO GenAI.
+This guide will give you extra details on how to use NPU with OpenVINO GenAI.
 :doc:`See the installation guide <../../get-started/install-openvino/install-openvino-genai>`
 for information on how to start.
 
 Prerequisites
-#####################
+###############################################################################################
 
 Install required dependencies:
 
-.. code-block:: console
+.. tab-set::
 
-   python -m venv npu-env
-   npu-env\Scripts\activate
-   pip install nncf==2.12 onnx==1.16.1 optimum-intel==1.19.0
-   pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+   .. tab-item:: Linux
+
+      .. code-block:: console
+
+         python3 -m venv npu-env
+         npu-env/bin/activate
+         pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.21.0
+         pip install openvino==2025.0 openvino-tokenizers==2025.0 openvino-genai==2025.0
+
+      For the pre-production version, use the following line, instead:
+
+      .. code-block:: console
+
+         pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+
+
+   .. tab-item:: Windows
+
+      .. code-block:: console
+
+         python -m venv npu-env
+         npu-env\Scripts\activate
+         pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.21.0
+         pip install openvino==2025.0 openvino-tokenizers==2025.0 openvino-genai==2025.0
+
+      For the pre-production version, use the following line, instead:
+
+      .. code-block:: console
+
+         pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+
 
 Note that for systems based on Intel® Core™ Ultra Processors Series 2, more than 16GB of RAM
 may be required to run prompts over 1024 tokens on models exceeding 7B parameters,
@@ -28,11 +55,24 @@ such as Llama-2-7B, Mistral-0.2-7B, and Qwen-2-7B.
 Make sure your model works with NPU. Some models may not be supported, for example,
 **the FLUX.1 pipeline is currently not supported by the device**.
 
+Currently, the Whisper pipeline (using:
+`whisper-tiny <https://huggingface.co/openai/whisper-tiny>`__,
+`whisper-base <https://huggingface.co/openai/whisper-base>`__,
+`whisper-small <https://huggingface.co/openai/whisper-small>`__, or
+`whisper-large <https://huggingface.co/openai/whisper-large>`__)
+only accepts models generated with the ``--disable-stateful`` flag.
+Here is a conversion example:
+
+.. code:: console
+
+   optimum-cli export openvino --trust-remote-code --model openai/whisper-tiny whisper-tiny --disable-stateful
+
+
 
 Export an LLM model via Hugging Face Optimum-Intel
-##################################################
+###############################################################################################
 
-Since **symmetrically-quantized 4-bit (INT4) models are preffered for inference on NPU**, make
+Since **symmetrically-quantized 4-bit (INT4) models are preferred for inference on NPU**, make
 sure to export the model with the proper conversion and optimization settings.
 
 | You may export LLMs via Optimum-Intel, using one of two compression methods:
@@ -43,13 +83,6 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
 ``-1``, respectively. See the following examples:
 
 .. tab-set::
-
-   .. tab-item:: Group quantization
-
-      .. code-block:: console
-         :name: group-quant
-
-         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group-size 128 TinyLlama-1.1B-Chat-v1.0
 
    .. tab-item:: Channel-wise quantization
 
@@ -80,6 +113,13 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
 
          Remember that the negative value of ``-1`` is required here, not ``1``.
 
+   .. tab-item:: Group quantization
+
+      .. code-block:: console
+         :name: group-quant
+
+         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group-size 128 TinyLlama-1.1B-Chat-v1.0
+
 
 
 You can also try using 4-bit (INT4)
@@ -106,14 +146,13 @@ which do not require specifying quantization parameters:
 
 
 Run generation using OpenVINO GenAI
-###################################
+###############################################################################################
 
 It is typically recommended to install the latest available
 `driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
 
 Use the following code snippet to perform generation with OpenVINO GenAI API.
-Note that **currently, the NPU pipeline supports greedy decoding only**. This means that
-you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
+
 
 .. tab-set::
 
@@ -126,7 +165,7 @@ you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
          import openvino_genai as ov_genai
          model_path = "TinyLlama"
          pipe = ov_genai.LLMPipeline(model_path, "NPU")
-         print(pipe.generate("The Sun is yellow because", max_new_tokens=100, do_sample=False))
+         print(pipe.generate("The Sun is yellow because", max_new_tokens=100))
 
    .. tab-item:: C++
       :sync: cpp
@@ -141,17 +180,16 @@ you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
             std::string model_path = "TinyLlama";
             ov::genai::LLMPipeline pipe(models_path, "NPU");
             ov::genai::GenerationConfig config;
-            config.do_sample=false;
             config.max_new_tokens=100;
             std::cout << pipe.generate("The Sun is yellow because", config);
          }
 
 
 Additional configuration options
-################################
+###############################################################################################
 
 Prompt and response length options
-++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The LLM pipeline for NPUs leverages the static shape approach, optimizing execution performance,
 while potentially introducing certain usage limitations. By default, the LLM pipeline supports
@@ -187,34 +225,103 @@ Use the following code snippet to change the default settings:
          ov::AnyMap pipeline_config = { { "MAX_PROMPT_LEN",  1024 }, { "MIN_RESPONSE_LEN", 512 } };
          ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
-Cache compiled models
-+++++++++++++++++++++
 
-Specify the ``NPUW_CACHE_DIR`` option in ``pipeline_config`` for NPU pipeline to
-cache the compiled models. Using the code snippet below shortens the initialization time
-of the pipeline runs coming next:
+Cache compiled models
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+By caching compiled models, you may shorten the initialization time of the future pipeline
+runs. To do so, specify one of the following options in ``pipeline_config`` for NPU pipeline.
+
+NPUW_CACHE_DIR
+-----------------------------------------------------------------------------------------------
+
+``NPUW_CACHE_DIR`` is the most basic option of caching compiled subgraphs without weights and
+reusing them for future pipeline runs.
+
+
+CACHE_DIR
+-----------------------------------------------------------------------------------------------
+
+``CACHE_DIR`` operates similarly to the older ``NPUW_CACHE_DIR``, except for two differences:
+
+* It creates a single ".blob" file and loads it faster.
+* It stores all model weights inside the blob, making it much bigger than individual compiled
+  schedules for model's subgraphs stored by ``NPUW_CACHE_DIR``.
 
 .. tab-set::
 
-   .. tab-item:: Python
+   .. tab-item:: Python example
       :sync: py
 
       .. code-block:: python
 
-         pipeline_config = { "NPUW_CACHE_DIR": ".npucache" }
+         pipeline_config = { "CACHE_DIR": ".npucache" }
          pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
 
-   .. tab-item:: C++
+   .. tab-item:: C++ example
       :sync: cpp
 
       .. code-block:: cpp
 
-         ov::AnyMap pipeline_config = { { "NPUW_CACHE_DIR",  ".npucache" } };
+         ov::AnyMap pipeline_config = { { "CACHE_DIR",  ".npucache" } };
          ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
 
+'Ahead of time' compilation
+-----------------------------------------------------------------------------------------------
+
+Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CACHE_DIR`` but:
+
+* It allows to explicitly specify where to **store** the compiled model.
+* For subsequent runs, it requires the same ``BLOB_PATH`` to **import** the compiled model.
+
+.. tab-set::
+
+   .. tab-item:: Export example
+
+      .. tab-set::
+
+         .. tab-item:: Python
+            :sync: py
+
+            .. code-block:: python
+
+               pipeline_config = { "EXPORT_BLOB": "YES", "BLOB_PATH": ".npucache\\compiled_model.blob" }
+               pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
+
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. code-block:: cpp
+
+               ov::AnyMap pipeline_config = { { "EXPORT_BLOB",  "YES" }, { "BLOB_PATH",  ".npucache\\compiled_model.blob" } };
+               ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
+
+   .. tab-item:: Import example
+
+      .. tab-set::
+
+         .. tab-item:: Python
+            :sync: py
+
+            .. code-block:: python
+
+               pipeline_config = { "BLOB_PATH": ".npucache\\compiled_model.blob" }
+               pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
+
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. code-block:: cpp
+
+               ov::AnyMap pipeline_config = { { "BLOB_PATH",  ".npucache\\compiled_model.blob" } };
+               ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
+
+
 Disable memory allocation
-+++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 In case of execution failures, either silent or with errors, try to update the NPU driver to
 `32.0.100.3104 or newer <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
@@ -242,7 +349,7 @@ Set the environment variable in a terminal:
 
 
 Performance modes
-+++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 You can configure the NPU pipeline with the ``GENERATE_HINT`` option to switch
 between two different performance modes:
@@ -271,8 +378,13 @@ Use the following code snippet:
          ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
 
+
+
+
+
+
 Additional Resources
-####################
+###############################################################################################
 
 * :doc:`NPU Device <../../openvino-workflow/running-inference/inference-devices-and-modes/npu-device>`
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__

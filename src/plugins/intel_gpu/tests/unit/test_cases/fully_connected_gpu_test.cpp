@@ -3078,6 +3078,10 @@ public:
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
         auto output_mem = outputs.begin()->second.get_memory();
+        const int batch_alignment = 64;
+        if ((batch > batch_alignment) && (batch % batch_alignment != 0)) {
+            ASSERT_EQ(output_mem->get_layout().batch(), align_to(batch, batch_alignment));
+        }
         cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
 
         auto ref_output_mem = get_ref_results();
@@ -4195,7 +4199,11 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_wzp_sta
     this->test_compressed_int4_scale_dyn_quan_weight_i4(false, 320, 1024, 1024, 32, 32, true);
 }
 
-// Test weight zp for INT8 ASYM 
+// Test weight zp for INT8 ASYM
+TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large_input_1025) {
+    this->test_compressed_int8_scale_dyn_quan_weight_u8(true, 1025, 3584, 4608, 128, 128, true);
+}
+
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large) {
     this->test_compressed_int8_scale_dyn_quan_weight_u8(true, 320, 4096, 4096, 128, 128, true);
 }

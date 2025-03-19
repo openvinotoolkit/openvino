@@ -6,8 +6,7 @@
 
 #include "shape_inference_cpu.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * Specific shape inference implementation designed to cover cases where there are no actual output shape calculation
@@ -22,17 +21,16 @@ public:
         OPENVINO_ASSERT(!input_shapes.empty());
         return {{input_shapes.front()}, ShapeInferStatus::success};
     }
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
 };
 
 class PassThroughShapeInferFactory final : public ShapeInferFactory {
 public:
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<ShapeInferPassThrough>();
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

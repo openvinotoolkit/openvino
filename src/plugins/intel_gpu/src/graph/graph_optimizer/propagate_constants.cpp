@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "pass_manager.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
@@ -77,11 +78,13 @@ void propagate_constants::run(program& p) {
         auto& id_to_replace = std::get<0>(cout);
         auto mem_impl = std::get<1>(cout);
         auto cache_info = std::get<2>(cout);
-        auto in_layout = std::get<3>(cout);
+        auto cache_manager = std::get<0>(cache_info);
+        auto in_layout = std::get<1>(cache_info);
+        auto reorder = std::get<2>(cache_info);
 
         auto const_data = std::make_shared<data>("_cldnn_const_prop_" + id_to_replace,
                                                  mem_impl, /* <<< REMOVE ME WHEN POSSIBLE */
-                                                 cache_info);
+                                                 cache_manager);
         auto& new_node = p.get_or_create(const_data);
         auto& curr_node = p.get_node(id_to_replace);
 
@@ -95,23 +98,8 @@ void propagate_constants::run(program& p) {
             }
         }
 
-        auto is_reorder_with_only_dtype_change = [&](program_node& dst) {
-            if (!in_layout) {
-                return false;
-            }
-            auto& dst_layout = dst.get_output_layout();
-            if (in_layout->data_type == dst_layout.data_type) {
-                return false;
-            }
-
-            auto aux_layout = dst_layout;
-            aux_layout.data_type = in_layout->data_type;
-            return aux_layout == *in_layout.get();
-        };
-        if (is_reorder_with_only_dtype_change(new_node)) {
-            new_node.as<data>().get_primitive()->cache_info->set_new_dtype(new_node.get_output_layout().data_type);
-        } else {
-            new_node.as<data>().get_primitive()->cache_info->invalidate();
+        if (in_layout && reorder) {
+            new_node.as<data>().get_primitive()->cache_info->apply_reorder(in_layout, reorder);
         }
 
         curr_node.dependencies.clear();
@@ -122,6 +110,7 @@ void propagate_constants::run(program& p) {
                                              [](program_node* node) { return node->is_constant(); }),
                               curr_node.users.end());
         p.replace(curr_node, new_node);
+        new_node.recalc_output_layout(false);
     }
 }
 
@@ -135,29 +124,33 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
     return false;
 }
 
-std::list<std::tuple<primitive_id, memory::ptr, std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>>>
+using cache_tuple =
+    std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>;
+
+std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>>
 propagate_constants::calculate(engine& engine,
                                const ExecutionConfig& config,
                                std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
     if (!has_non_trivial_constants)
         return {};
 
-    ExecutionConfig cf_config = config;
+    ExecutionConfig cf_config = config.clone();
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
     cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
+    cf_config.finalize(engine);
     network::ptr net = network::build_network(engine, nodes, cf_config, task_executor, true);
-    std::map<primitive_id, std::pair<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>>>
-        weightless_cache_map;
+    std::map<primitive_id, cache_tuple> weightless_cache_map;
     for (auto& cin : const_inputs) {
         net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
 
         auto users = cin->get_users();
         if (users.size() == 1 && users.front()->is_type<reorder>()) {
             auto rprim = users.front()->as<reorder>().get_primitive();
+            auto copy = std::shared_ptr<reorder>(new reorder(*rprim));
             auto id = rprim->id;
             auto cache_ptr = cin->as<data>().get_primitive()->cache_info;
             auto layout_ptr = std::make_shared<layout>(cin->get_output_layout());
-            weightless_cache_map.emplace(id, std::make_pair(cache_ptr, layout_ptr));
+            weightless_cache_map.emplace(id, std::make_tuple(cache_ptr, layout_ptr, copy));
         }
     }
 
@@ -165,17 +158,15 @@ propagate_constants::calculate(engine& engine,
     net->reset_execution(true);  // wait for computations to complete
     auto outputs = net->get_outputs();
 
-    std::list<std::tuple<primitive_id, memory::ptr, std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>>>
+    std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>>
         ret;
     for (auto& out : outputs) {
-        std::shared_ptr<weightless_cache_manager> cache_ptr = nullptr;
-        std::shared_ptr<layout> layout_ptr = nullptr;
+        cache_tuple cache_info{};
         auto it = weightless_cache_map.find(out->id());
         if (it != weightless_cache_map.end()) {
-            cache_ptr = it->second.first;
-            layout_ptr = it->second.second;
+            cache_info = it->second;
         }
-        ret.push_back({out->id(), out->output_memory_ptr(), cache_ptr, layout_ptr});
+        ret.push_back({out->id(), out->output_memory_ptr(), cache_info});
     }
 
     return ret;

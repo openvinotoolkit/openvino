@@ -4,27 +4,25 @@
 
 #include "jit_eltwise_common.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 static void set_intersection(const std::set<std::vector<element::Type>>& precisions1,
                              const std::set<std::vector<element::Type>>& precisions2,
                              std::set<std::vector<element::Type>>& intersection) {
     std::map<element::Type, size_t> intersection_types;
 
-    for (auto it1 = precisions1.begin(); it1 != precisions1.end(); ++it1) {
-        for (auto it2 = precisions2.begin(); it2 != precisions2.end(); ++it2) {
-            const auto& it1_precisions = *it1;
+    for (const auto& it1_precisions : precisions1) {
+        for (const auto& it2 : precisions2) {
             // all element types are equal
-            if (it1_precisions[0] == (*it2)[0]) {
+            if (it1_precisions[0] == it2[0]) {
                 // first precisions size is used
                 intersection_types.emplace(it1_precisions[0], it1_precisions.size());
             }
         }
     }
 
-    for (auto it = intersection_types.begin(); it != intersection_types.end(); ++it) {
-        intersection.insert(std::vector<element::Type>(it->second, it->first));
+    for (auto& intersection_type : intersection_types) {
+        intersection.insert(std::vector<element::Type>(intersection_type.second, intersection_type.first));
     }
 }
 
@@ -32,7 +30,7 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
                                                           const ov::element::Type (&src_prc)[MAX_ELTWISE_INPUTS],
                                                           const std::vector<EltwiseData>& eltwise_data,
                                                           const std::vector<element::Type>& exec_precisions_priority) {
-    ov::element::Type exec_prc = ov::element::undefined;
+    ov::element::Type exec_prc = ov::element::dynamic;
 
     std::set<std::vector<element::Type>> supported_precision_intersection =
         get_supported_precisions(eltwise_data.front().algo);
@@ -79,12 +77,11 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
         }
     }
 
-    if (exec_prc == ov::element::undefined) {
+    if (exec_prc == ov::element::dynamic) {
         OPENVINO_THROW("Eltwise jitter failed to specify execution precision for Eltwise node");
     }
 
     return exec_prc;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

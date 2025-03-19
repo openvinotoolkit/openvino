@@ -52,7 +52,7 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
             ov::as_type_ptr<ov::op::internal::FullyConnected>(pattern_map.at(fully_connected_m).get_node_shared_ptr());
 
         ov::NodeVector new_ops;
-        auto zp = std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});
+        auto zp = std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
         new_ops.push_back(zp);
 
         auto fc_quantized =

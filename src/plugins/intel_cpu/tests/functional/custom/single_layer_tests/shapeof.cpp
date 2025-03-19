@@ -55,7 +55,7 @@ protected:
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        auto netPrecision = ElementType::undefined;
+        auto netPrecision = ElementType::dynamic;
         InputShape inputShape;
         std::tie(inputShape, netPrecision) = basicParamsSet;
         init_input_shapes({inputShape});

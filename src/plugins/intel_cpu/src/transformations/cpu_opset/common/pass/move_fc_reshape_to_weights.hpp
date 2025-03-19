@@ -6,8 +6,7 @@
 
 #include <openvino/pass/graph_rewrite.hpp>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * This transformation is applied to the FC with compressed 3D u8 weights. It moves Reshape at the weights path to the
@@ -29,5 +28,4 @@ public:
     MoveFCReshapeToWeights();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -175,13 +175,6 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_fp16();
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
 
 /**
- * @brief      Checks whether cpu_mapping Available
- * @ingroup    ov_dev_api_system_conf
- * @return     `True` is CPU mapping is available, `false` otherwise
- */
-OPENVINO_RUNTIME_API bool is_cpu_map_available();
-
-/**
  * @brief      Get number of numa nodes
  * @ingroup    ov_dev_api_system_conf
  * @return     Number of numa nodes
@@ -194,6 +187,13 @@ OPENVINO_RUNTIME_API int get_num_numa_nodes();
  * @return     Number of sockets
  */
 OPENVINO_RUNTIME_API int get_num_sockets();
+
+/**
+ * @brief      Get numa node id of cpu_id
+ * @ingroup    ov_dev_api_system_conf
+ * @return     Numa node id
+ */
+OPENVINO_RUNTIME_API int get_numa_node_id(int cpu_id);
 
 /**
  * @brief      Returns a table of number of processor types on Linux/Windows
@@ -294,14 +294,6 @@ OPENVINO_RUNTIME_API void reserve_available_cpus(const std::vector<std::vector<i
  * @param[in]  used update CPU_MAP_USED_FLAG of cpu_mapping with this flag bit
  */
 OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const int used);
-
-/**
- * @brief      Get socket id by current numa node id
- * @ingroup    ov_dev_api_system_conf
- * @param[in]  numa_node_id numa node id
- * @return     socket id
- */
-OPENVINO_RUNTIME_API int get_socket_by_numa_node(int numa_node_id);
 
 /**
  * @brief      Get original socket id by current socket id, the input socket id is recalculated after filtering (like

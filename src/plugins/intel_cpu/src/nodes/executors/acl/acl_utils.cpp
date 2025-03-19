@@ -7,8 +7,7 @@
 #include "support/Mutex.h"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void configureThreadSafe(const std::function<void(void)>& config) {
     // Issue: CVS-123514
@@ -69,5 +68,4 @@ bool checkActivationLayerInfo(Algorithm algorithm) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

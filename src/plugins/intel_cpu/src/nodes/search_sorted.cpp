@@ -7,9 +7,7 @@
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/reference/search_sorted.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 SearchSorted::SearchSorted(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
@@ -123,6 +121,4 @@ void SearchSorted::execute(const dnnl::stream& strm) {
 
 #undef CASE
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

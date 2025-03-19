@@ -15,10 +15,7 @@
 
 using namespace ov;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace detail {
+namespace ov::frontend::onnx::detail {
 namespace {
 void remove_dangling_parameters(std::shared_ptr<ov::Model>& model) {
     const auto parameters = model->get_parameters();
@@ -94,7 +91,7 @@ std::shared_ptr<ov::Model> import_onnx_model(std::shared_ptr<ModelProto> model_p
                                              detail::MappedMemoryHandles mmap_cache,
                                              ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto);
-    Graph graph{ov::util::get_directory(model_path), model_proto, mmap_cache, std::move(extensions)};
+    Graph graph{ov::util::get_directory(model_path).string(), model_proto, mmap_cache, std::move(extensions)};
     return graph.convert();
 }
 
@@ -103,10 +100,8 @@ std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ModelProto>
                                                      detail::MappedMemoryHandles mmap_cache,
                                                      ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto);
-    auto graph = std::make_shared<Graph>(ov::util::get_directory(model_path), model_proto, mmap_cache, extensions);
+    auto graph =
+        std::make_shared<Graph>(ov::util::get_directory(model_path).string(), model_proto, mmap_cache, extensions);
     return graph->decode();
 }
-}  // namespace detail
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::detail

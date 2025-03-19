@@ -68,6 +68,8 @@ void op::v0::Parameter::set_partial_shape(const PartialShape& partial_shape) {
 
 AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
 
+AttributeAdapter<ParameterVector>::~AttributeAdapter() = default;
+
 bool AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visitor) {
     size_t size = m_ref.size();
     visitor.on_attribute("size", size);

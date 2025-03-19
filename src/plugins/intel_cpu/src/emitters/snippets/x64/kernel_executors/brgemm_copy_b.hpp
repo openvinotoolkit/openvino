@@ -6,14 +6,14 @@
 
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <memory>
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/repacked_input.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct BrgemmCopyBKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
@@ -30,12 +30,12 @@ public:
         return !(*this == rhs);
     }
 
-    std::unique_ptr<GenericConfig> get_clone_ptr() const override {
-        return std::unique_ptr<BrgemmCopyBKernelConfig>(new BrgemmCopyBKernelConfig(*this));
+    [[nodiscard]] std::unique_ptr<GenericConfig> get_clone_ptr() const override {
+        return std::make_unique<BrgemmCopyBKernelConfig>(*this);
     }
 
-    bool is_empty() const;
-    bool is_completed() const override;
+    [[nodiscard]] bool is_empty() const;
+    [[nodiscard]] bool is_completed() const override;
 
     void update(dnnl_dim_t N,
                 dnnl_dim_t N_blk,
@@ -44,57 +44,57 @@ public:
                 dnnl_dim_t copy_B_wei_stride,
                 dnnl_dim_t LDB);
 
-    size_t hash() const override {
+    [[nodiscard]] size_t hash() const override {
         return m_hash;
     }
 
-    dnnl_data_type_t get_src_dt() const {
+    [[nodiscard]] dnnl_data_type_t get_src_dt() const {
         return m_static_params->src_dt;
     }
-    dnnl_data_type_t get_wei_dt() const {
+    [[nodiscard]] dnnl_data_type_t get_wei_dt() const {
         return m_static_params->wei_dt;
     }
 
-    dnnl::impl::cpu::x64::cpu_isa_t get_isa() const {
+    [[nodiscard]] dnnl::impl::cpu::x64::cpu_isa_t get_isa() const {
         return m_static_params->isa;
     }
-    bool is_with_comp() const {
+    [[nodiscard]] bool is_with_comp() const {
         return m_static_params->is_with_comp;
     }
-    bool is_transposed_B() const {
+    [[nodiscard]] bool is_transposed_B() const {
         return m_static_params->is_transposed_B;
     }
 
-    dnnl_dim_t get_N() const {
+    [[nodiscard]] dnnl_dim_t get_N() const {
         return m_N;
     }
-    dnnl_dim_t get_N_blk() const {
+    [[nodiscard]] dnnl_dim_t get_N_blk() const {
         return m_N_blk;
     }
-    dnnl_dim_t get_N_tail() const {
+    [[nodiscard]] dnnl_dim_t get_N_tail() const {
         return m_N % m_N_blk;
     }
-    dnnl_dim_t get_wei_N_blk() const {
+    [[nodiscard]] dnnl_dim_t get_wei_N_blk() const {
         return m_static_params->wei_N_blk;
     }
-    dnnl_dim_t get_wei_N_tail() const {
+    [[nodiscard]] dnnl_dim_t get_wei_N_tail() const {
         return m_N_blk % m_static_params->wei_N_blk;
     }
-    dnnl_dim_t get_K() const {
+    [[nodiscard]] dnnl_dim_t get_K() const {
         return m_K;
     }
-    dnnl_dim_t get_K_blk() const {
+    [[nodiscard]] dnnl_dim_t get_K_blk() const {
         return m_K_blk;
     }
-    dnnl_dim_t get_copy_B_wei_stride() const {
+    [[nodiscard]] dnnl_dim_t get_copy_B_wei_stride() const {
         return m_copy_B_wei_stride;
     }
-    dnnl_dim_t get_LDB() const {
+    [[nodiscard]] dnnl_dim_t get_LDB() const {
         return m_LDB;
     }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    std::string to_string() const override;
+    [[nodiscard]] std::string to_string() const override;
 #endif
 
 private:
@@ -119,7 +119,7 @@ private:
         }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-        std::string to_string() const;
+        [[nodiscard]] std::string to_string() const;
 #endif
 
     private:
@@ -131,7 +131,7 @@ private:
                                 dnnl_dim_t wei_N_blk);
     };
 
-    size_t compute_hash() const;
+    [[nodiscard]] size_t compute_hash() const;
 
     std::shared_ptr<StaticParams> m_static_params;
     dnnl_dim_t m_N{0}, m_N_blk{0};
@@ -200,7 +200,7 @@ public:
     static void execute(const BrgemmCopyBKernelExecutor* executor, BrgemmCopyBKernel::call_args* args);
 
 protected:
-    std::shared_ptr<BrgemmCopyBKernel> compile_kernel(const BrgemmCopyBKernelConfig& c) const override;
+    [[nodiscard]] std::shared_ptr<BrgemmCopyBKernel> compile_kernel(const BrgemmCopyBKernelConfig& c) const override;
 
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,
@@ -208,5 +208,4 @@ protected:
 };
 #define GET_OFF_BRGEMM_COPY_B_ARGS(field) offsetof(BrgemmCopyBKernel::call_args, field)
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

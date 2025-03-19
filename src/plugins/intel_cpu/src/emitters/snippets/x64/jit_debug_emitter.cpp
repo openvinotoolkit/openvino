@@ -14,8 +14,7 @@ using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 size_t jit_debug_emitter::get_inputs_num() const {
     return m_target_emitter->get_inputs_num();
@@ -60,10 +59,10 @@ void jit_debug_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std:
     m_target_emitter->emit_impl(in_idxs, out_idxs);
 }
 
-void jit_debug_emitter::emit_code(const std::vector<size_t>& in_idxs,
-                                  const std::vector<size_t>& out_idxs,
-                                  const std::vector<size_t>& pool_vec_idxs,
-                                  const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_debug_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
+                                       const std::vector<size_t>& out_idxs,
+                                       const std::vector<size_t>& pool_vec_idxs,
+                                       const std::vector<size_t>& pool_gpr_idxs) const {
     if (m_decorator_emit_loc == EmissionLocation::preamble || m_decorator_emit_loc == EmissionLocation::both) {
         m_decorator_emitter->emit_code(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
     }
@@ -75,7 +74,6 @@ void jit_debug_emitter::emit_code(const std::vector<size_t>& in_idxs,
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif

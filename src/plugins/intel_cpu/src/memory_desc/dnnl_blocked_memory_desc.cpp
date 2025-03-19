@@ -14,8 +14,7 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& strides)
     : MemoryDesc(shape, DnnlBlocked) {
@@ -267,21 +266,21 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
 bool DnnlBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc);
-    } else if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
-        return isCompatible(*desc);
-    } else {
-        return false;
     }
+    if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+        return isCompatible(*desc);
+    }
+    return false;
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc, cmpMask);
-    } else if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
-        return isCompatible(*desc, cmpMask);
-    } else {
-        return false;
     }
+    if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+        return isCompatible(*desc, cmpMask);
+    }
+    return false;
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
@@ -616,7 +615,7 @@ size_t DnnlBlockedMemoryDesc::getPaddedElementsCount() const {
     return std::accumulate(std::begin(padded_dims),
                            std::begin(padded_dims) + desc.get_ndims(),
                            size_t{1},
-                           std::multiplies<int64_t>());
+                           std::multiplies<>());
 }
 
 bool DnnlBlockedMemoryDesc::blocksExtended() const {
@@ -769,5 +768,4 @@ std::string DnnlBlockedMemoryDesc::serializeFormat() const {
     return BlockedMemoryDesc::serializeFormat();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

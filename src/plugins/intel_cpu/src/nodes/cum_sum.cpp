@@ -13,9 +13,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -157,10 +155,8 @@ void CumSum::cumSum(const dataType* input, dataType* output, const VectorDims& s
         }
         iterationRange[j++] = shape[i];
     }
-    size_t work_amount_dst = std::accumulate(iterationRange.begin(),
-                                             iterationRange.end(),
-                                             static_cast<size_t>(1),
-                                             std::multiplies<size_t>());
+    size_t work_amount_dst =
+        std::accumulate(iterationRange.begin(), iterationRange.end(), static_cast<size_t>(1), std::multiplies<>());
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         VectorDims counters(numOfDims - 1, 0);
@@ -251,7 +247,7 @@ inline size_t CumSum::getStartOffset(const std::vector<size_t>& forStartOffset,
 
 size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
     const auto& axisPrecision = _axis.getDesc().getPrecision();
-    const int64_t dataShapeSize = static_cast<int64_t>(_data.getShape().getRank());
+    const auto dataShapeSize = static_cast<int64_t>(_data.getShape().getRank());
     int64_t axisValueFromBlob = 0;
     switch (axisPrecision) {
     case ov::element::i32: {
@@ -286,6 +282,4 @@ void CumSum::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

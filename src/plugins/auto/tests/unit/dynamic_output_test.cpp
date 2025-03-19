@@ -75,6 +75,9 @@ void DynamicOutputInferenceTest::SetUp() {
     std::tie(priorityList, targetList) = GetParam();
     auto targets = targetList.as<std::vector<std::string>>();
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(targets));
+        std::vector<std::string> deviceIDs = {};
+        ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
     for (auto device : targets) {
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),

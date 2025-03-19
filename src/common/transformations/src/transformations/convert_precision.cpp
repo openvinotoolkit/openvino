@@ -1417,13 +1417,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
         new_const->validate_and_infer_types();
         new_const->set_friendly_name(constant->get_friendly_name());
         ov::copy_runtime_info(constant, new_const);
-
-        const auto& rt_info = node->get_rt_info();
-        auto weightless_caching_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-        if (weightless_caching_attr != rt_info.end()) {
-            new_const->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
-                weightless_caching_attr->second;
-        }
+        ov::copy_weightless_cache_attr(constant, new_const);
         return true;
     }
     return false;

@@ -20,6 +20,8 @@ public:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
+    static size_t GetTileQSize(const KernelData& kernel_data);
+
 protected:
     bool Validate(const Params& p) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;

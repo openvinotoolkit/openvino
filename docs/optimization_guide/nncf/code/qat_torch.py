@@ -3,7 +3,7 @@
 
 #! [quantize]
 model = TorchModel() # instance of torch.nn.Module
-model = nncf.quantize(model, ...)
+quantized_model = nncf.quantize(model, ...)
 #! [quantize]
 
 #! [tune_model]

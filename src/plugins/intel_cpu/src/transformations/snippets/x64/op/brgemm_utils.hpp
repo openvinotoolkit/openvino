@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -11,8 +13,8 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
-namespace intel_cpu {
-namespace brgemm_utils {
+
+namespace intel_cpu::brgemm_utils {
 
 enum class BRGEMM_TYPE {
     STAND_ALONE,  // No extra requirements, used for f32|f32
@@ -62,12 +64,18 @@ size_t compute_inner_n_block(const ov::element::Type& precision);
 size_t compute_inner_k_block(const ov::element::Type& precision);
 
 /// \brief  Computes N dim in output blocked shape of BrgemmCopyB. Depends on tensor precision
-template <
-    typename T,
-    typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+template <typename T,
+          typename = typename std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 inline T compute_repacked_n_dim(T n, const ov::element::Type& precision) {
     return ov::snippets::utils::rnd_up(n, static_cast<T>(compute_inner_n_block(precision)));
 }
+
+/// \brief  Computes allocation shape for Buffer between BrgemmCopyB and Brgemm
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K,
+                                                           size_t N,
+                                                           const ov::element::Type& prc,
+                                                           bool is_transposed);
+
 /**
  * @brief Retrieves the expression pointer for the brgemm_copy_b expression corresponding to the given BrgemmCPU
  * expression.
@@ -76,8 +84,8 @@ inline T compute_repacked_n_dim(T n, const ov::element::Type& precision) {
  */
 snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::ExpressionPtr& brgemm_expr);
 }  // namespace repacking
-}  // namespace brgemm_utils
-}  // namespace intel_cpu
+}  // namespace intel_cpu::brgemm_utils
+
 template <>
 class AttributeAdapter<intel_cpu::brgemm_utils::BRGEMM_TYPE>
     : public EnumAttributeAdapterBase<intel_cpu::brgemm_utils::BRGEMM_TYPE> {

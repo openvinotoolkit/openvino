@@ -28,9 +28,7 @@ using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_roi_pooling_call_args, field)
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
@@ -47,9 +45,9 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
     };
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa, jpp_.src_prc, ov::element::f32, step));
-        store_emitter.reset(new jit_store_emitter(this, isa, ov::element::f32, jpp_.dst_prc, step));
-        store_empty_roi_emitter.reset(new jit_store_emitter(this, isa, jpp_.src_prc, jpp_.dst_prc, step));
+        load_emitter = std::make_unique<jit_load_emitter>(this, isa, jpp_.src_prc, ov::element::f32, step);
+        store_emitter = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, jpp_.dst_prc, step);
+        store_empty_roi_emitter = std::make_unique<jit_store_emitter>(this, isa, jpp_.src_prc, jpp_.dst_prc, step);
 
         this->preamble();
 
@@ -344,7 +342,7 @@ namespace {
 struct RoiPoolingKey {
     jit_roi_pooling_params refParams;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const RoiPoolingKey& rhs) const;
 };
 
@@ -563,11 +561,11 @@ public:
     ROIPoolingJitExecutor(const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
-            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>(jpp));
+            roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>>(jpp);
         } else if (mayiuse(cpu::x64::avx2)) {
-            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>(jpp));
+            roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>>(jpp);
         } else if (mayiuse(cpu::x64::sse41)) {
-            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>(jpp));
+            roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>>(jpp);
         } else {
             OPENVINO_THROW("Can't create jit RoiPooling kernel");
         }
@@ -608,7 +606,7 @@ private:
             size_t roi_off = real_rois * src_roi_step;
 
             const auto* src_roi_ptr = &src_roi[roi_off];
-            int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+            auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
             if (roi_batch_ind == -1) {
                 break;
             }
@@ -628,13 +626,13 @@ private:
                 size_t roi_off = n * src_roi_step;
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
-                int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+                auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
 
                 if (jpp.alg == Algorithm::ROIPoolingMax) {
-                    int roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
-                    int roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
-                    int roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
-                    int roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
+                    auto roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
+                    auto roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
+                    auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
+                    auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
                     int hstart, hend, wstart, wend;
                     std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
@@ -679,10 +677,10 @@ private:
                         arg.dst =
                             &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
                     } else {
-                        int top_y_index = static_cast<int>(floorf(in_y));
-                        int bottom_y_index = static_cast<int>(ceilf(in_y));
-                        int left_x_index = static_cast<int>(floorf(in_x));
-                        int right_x_index = static_cast<int>(ceilf(in_x));
+                        auto top_y_index = static_cast<int>(floorf(in_y));
+                        auto bottom_y_index = static_cast<int>(ceilf(in_y));
+                        auto left_x_index = static_cast<int>(floorf(in_x));
+                        auto right_x_index = static_cast<int>(ceilf(in_x));
 
                         if (right_x_index > jpp.iw - 1) {
                             right_x_index = jpp.iw - 1;
@@ -744,7 +742,7 @@ public:
             size_t roi_off = real_rois * src_roi_step;
 
             const auto* src_roi_ptr = &src_roi[roi_off];
-            int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+            auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
             if (roi_batch_ind == -1) {
                 break;
             }
@@ -769,13 +767,13 @@ public:
                 size_t roi_off = n * src_roi_step;
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
-                int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+                auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
 
                 if (jpp.alg == Algorithm::ROIPoolingMax) {
-                    int roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
-                    int roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
-                    int roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
-                    int roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
+                    auto roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
+                    auto roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
+                    auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
+                    auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
                     int hstart, hend, wstart, wend;
                     std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
@@ -844,10 +842,10 @@ public:
                             }
                         }
                     } else {
-                        int top_y_index = static_cast<int>(floorf(in_y));
-                        int bottom_y_index = static_cast<int>(ceilf(in_y));
-                        int left_x_index = static_cast<int>(floorf(in_x));
-                        int right_x_index = static_cast<int>(ceilf(in_x));
+                        auto top_y_index = static_cast<int>(floorf(in_y));
+                        auto bottom_y_index = static_cast<int>(ceilf(in_y));
+                        auto left_x_index = static_cast<int>(floorf(in_x));
+                        auto right_x_index = static_cast<int>(ceilf(in_x));
 
                         if (right_x_index > jpp.iw - 1) {
                             right_x_index = jpp.iw - 1;
@@ -996,6 +994,4 @@ bool ROIPooling::created() const {
     return getType() == Type::ROIPooling;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

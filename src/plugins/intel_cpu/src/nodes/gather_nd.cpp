@@ -14,9 +14,7 @@
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool GatherND::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -117,19 +115,19 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
     : batchSize(std::accumulate(attrs.srcDims.begin(),
                                 attrs.srcDims.begin() + attrs.batchDims,
                                 static_cast<size_t>(1),
-                                std::multiplies<size_t>())),
+                                std::multiplies<>())),
       dataSize(attrs.dataSize),
       sliceRank(attrs.sliceRank),
       dataLength(std::accumulate(attrs.srcDims.begin() + sliceRank + attrs.batchDims,
                                  attrs.srcDims.end(),
                                  static_cast<size_t>(1),
-                                 std::multiplies<size_t>())),
+                                 std::multiplies<>())),
       cycles(attrs.dstElementCount / (dataLength * batchSize)),
       workAmount(batchSize * cycles),
       srcBatchStride(std::accumulate(attrs.srcDims.begin() + attrs.batchDims,
                                      attrs.srcDims.end(),
                                      static_cast<size_t>(1),
-                                     std::multiplies<size_t>())),
+                                     std::multiplies<>())),
       idxBatchStride(cycles * sliceRank),
       dstBatchStride(cycles * dataLength) {
     srcShifts.resize(attrs.sliceRank, 0);
@@ -177,9 +175,9 @@ void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr,
 void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
                                               const MemoryPtr& idxMemPtr,
                                               const MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
-    const int32_t* indices = idxMemPtr->getDataAs<const int32_t>();
-    uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
+    const auto* srcData = srcMemPtr->getDataAs<const uint8_t>();
+    const auto* indices = idxMemPtr->getDataAs<const int32_t>();
+    auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
@@ -218,9 +216,9 @@ template <typename dataType>
 void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
                                                    const MemoryPtr& idxMemPtr,
                                                    const MemoryPtr& dstMemPtr) {
-    const dataType* srcData = srcMemPtr->getDataAs<const dataType>();
-    const int32_t* indices = idxMemPtr->getDataAs<const int32_t>();
-    dataType* dstData = dstMemPtr->getDataAs<dataType>();
+    const auto* srcData = srcMemPtr->getDataAs<const dataType>();
+    const auto* indices = idxMemPtr->getDataAs<const int32_t>();
+    auto* dstData = dstMemPtr->getDataAs<dataType>();
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
@@ -263,6 +261,4 @@ bool GatherND::created() const {
     return getType() == Type::GatherND;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

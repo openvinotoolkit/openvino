@@ -8,8 +8,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 jit_fill_emitter::jit_fill_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                                    dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -58,8 +57,8 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
-    Vmm src_vmm = Vmm(in[0]);
-    Vmm dst_vmm = Vmm(out[0]);
+    auto src_vmm = Vmm(in[0]);
+    auto dst_vmm = Vmm(out[0]);
 
     const size_t supported_et_size = 4;
     const auto register_capacity = (src_vmm.getBit() / 8) / supported_et_size;
@@ -109,5 +108,4 @@ void jit_fill_emitter::fill_tail(const Vmm& src_vmm, const Vmm& dst_vmm) const {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

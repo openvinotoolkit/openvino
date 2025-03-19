@@ -11,8 +11,7 @@
 #include "dnnl_types.h"
 #include "openvino/core/visibility.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    define SNIPPETS_MAX_DATA_PTR_COUNT 23
@@ -75,5 +74,4 @@ struct jit_snippets_compile_args {
     std::vector<size_t> exec_domain = {};
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

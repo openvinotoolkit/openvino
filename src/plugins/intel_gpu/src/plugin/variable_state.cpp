@@ -118,7 +118,7 @@ void VariableState::update_device_buffer() {
 }
 
 ov::element::Type VariableState::get_user_specified_type() const {
-    return m_user_specified_type != ov::element::undefined ? m_user_specified_type : ov::element::Type(m_layout.data_type);
+    return m_user_specified_type != ov::element::dynamic ? m_user_specified_type : ov::element::Type(m_layout.data_type);
 }
 
 ov::SoPtr<ov::ITensor> VariableState::get_state() const {

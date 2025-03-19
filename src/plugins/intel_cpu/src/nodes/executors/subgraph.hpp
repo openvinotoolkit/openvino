@@ -10,8 +10,7 @@
 #include "snippets/generator.hpp"
 #include "snippets/op/subgraph.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct SubgraphAttrs {
     // Local copy of subgraph node for canonization & code generation
@@ -30,7 +29,7 @@ public:
     SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
                           const std::shared_ptr<CPURuntimeConfig>& config);
 
-    const std::shared_ptr<snippets::Schedule>& get() const {
+    [[nodiscard]] const std::shared_ptr<snippets::Schedule>& get() const {
         return schedule;
     }
 
@@ -106,7 +105,7 @@ public:
     virtual ~SubgraphStaticBaseExecutor() = default;
 
 protected:
-    typedef void (*kernel)(const void*, const void*);
+    using kernel = void (*)(const void*, const void*);
 
     inline void init_call_args(jit_snippets_call_args& call_args,
                                const std::vector<MemoryPtr>& srcMemPtrs,
@@ -136,7 +135,7 @@ public:
     virtual ~SubgraphDynamicSpecializedBaseExecutor() = default;
 
 protected:
-    typedef void (*dynamic_kernel)(const void*);
+    using dynamic_kernel = void (*)(const void*);
 
     inline void init_call_args(jit_snippets_call_args& call_args, size_t ithr) {
         call_args.register_loops(m_loop_args);
@@ -189,5 +188,4 @@ protected:
     std::function<void()> m_reset_exec_table_state;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

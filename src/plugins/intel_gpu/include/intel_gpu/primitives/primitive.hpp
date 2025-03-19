@@ -181,7 +181,8 @@ public:
             return false;
 
         for (size_t i = 0; i < output_data_types.size(); ++i) {
-            if (output_data_types[i].value_or(data_types::undefined) != rhs.output_data_types[i].value_or(data_types::undefined))
+            if (output_data_types[i].value_or(data_types::dynamic) !=
+                rhs.output_data_types[i].value_or(data_types::dynamic))
                 return false;
         }
 

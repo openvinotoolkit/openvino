@@ -54,4 +54,6 @@ AlignedBuffer& AlignedBuffer::operator=(AlignedBuffer&& other) {
 
 AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>::AttributeAdapter(std::shared_ptr<ov::AlignedBuffer>& value)
     : DirectValueAccessor<std::shared_ptr<ov::AlignedBuffer>>(value) {}
+
+AttributeAdapter<std::shared_ptr<AlignedBuffer>>::~AttributeAdapter() = default;
 }  // namespace ov

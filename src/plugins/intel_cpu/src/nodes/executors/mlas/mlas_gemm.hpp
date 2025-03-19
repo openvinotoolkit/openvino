@@ -10,8 +10,7 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class MlasGemmExecutor : public Executor {
 public:
@@ -22,7 +21,7 @@ public:
 
     void execute(const MemoryArgs& memory) override;
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::gemm_mlas;
     }
 
@@ -43,5 +42,4 @@ private:
 
 using MlasGemmExecutorPtr = std::shared_ptr<MlasGemmExecutor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

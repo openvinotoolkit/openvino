@@ -13,8 +13,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/coordinate_diff.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct DeconvAttrs {
     std::vector<ptrdiff_t> kernel;
@@ -42,7 +41,7 @@ public:
                       const std::vector<MemoryPtr>& dst,
                       const void* post_ops_data_) = 0;
     virtual ~DeconvExecutor() = default;
-    virtual impl_desc_type getImplType() const = 0;
+    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
 
 protected:
     DeconvAttrs deconvAttrs;
@@ -55,14 +54,13 @@ using DeconvExecutorCPtr = std::shared_ptr<const DeconvExecutor>;
 class DeconvExecutorBuilder {
 public:
     ~DeconvExecutorBuilder() = default;
-    virtual bool isSupported(const DeconvAttrs& convAttrs,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual DeconvExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual bool isSupported(const DeconvAttrs& convAttrs,
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+    [[nodiscard]] virtual DeconvExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using DeconvExecutorBuilderPtr = std::shared_ptr<DeconvExecutorBuilder>;
 using DeconvExecutorBuilderCPtr = std::shared_ptr<const DeconvExecutorBuilder>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

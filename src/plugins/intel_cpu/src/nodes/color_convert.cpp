@@ -21,9 +21,7 @@ using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 std::tuple<Algorithm, std::string> getAlgorithmFor(const std::shared_ptr<const ov::Node>& op) {
@@ -48,7 +46,7 @@ class Converter : public ColorConvert::Converter {
 public:
     Converter(Node* node);
 
-    bool singlePlane() const;
+    [[nodiscard]] bool singlePlane() const;
 
     template <typename T>
     std::tuple<T, T, T> yuv_to_rgb(float y, float u, float v);
@@ -73,9 +71,8 @@ std::tuple<T, T, T> Converter::yuv_to_rgb(float y, float u, float v) {
     auto clip = [](float a) -> T {
         if (std::is_integral<T>()) {
             return static_cast<T>(std::min(std::max(std::round(a), 0.f), 255.f));
-        } else {
-            return static_cast<T>(std::min(std::max(a, 0.f), 255.f));
         }
+        return static_cast<T>(std::min(std::max(a, 0.f), 255.f));
     };
     auto r = clip(1.164f * c + 1.596f * e);
     auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);
@@ -96,7 +93,7 @@ struct jit_uni_converter : public jit_kernel {
         uint8_t colorFormat;  // RGB: 0, BGR: !=0
     };
 
-    typedef void (*function_t)(const Params*);
+    using function_t = void (*)(const Params*);
 
     void init();
 
@@ -183,7 +180,7 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
 
         auto genPermutationMask = [&](int offset) {
             std::array<uint8_t, N> mask{};
-            for (uint8_t i = 0; i < mask.size(); ++i) {
+            for (size_t i = 0; i < mask.size(); ++i) {
                 mask[(i * 3 + offset) % mask.size()] = i;
             }
             return mask;
@@ -195,8 +192,8 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
 
         auto blendWithMask = [&](int offset, const variable<float[N]>& result) {
             static const uint32_t blendMasks[2] = {0x92492492, 0x24924924};
-            const uint16_t mask0 = static_cast<const uint16_t>(blendMasks[0] >> ((offset * N) % 3));
-            const uint16_t mask1 = static_cast<const uint16_t>(blendMasks[1] >> ((offset * N) % 3));
+            const auto mask0 = static_cast<const uint16_t>(blendMasks[0] >> ((offset * N) % 3));
+            const auto mask1 = static_cast<const uint16_t>(blendMasks[1] >> ((offset * N) % 3));
 
             result = r;
             result.blend(g, mask0);
@@ -423,7 +420,7 @@ void JitConverter<T[N]>::generate() {
     static const float data[8] = {16.f, 128.f, 1.164f, 1.596f, 0.391f, 2.018f, 0.813f, 255.f};
     _consts = data;
 
-    const size_t reg_capacity_log = static_cast<size_t>(std::logb(N));
+    const auto reg_capacity_log = static_cast<size_t>(std::logb(N));
     const size_t step = N * sizeof(T);
 
     width >>= reg_capacity_log;
@@ -758,7 +755,7 @@ void JitConverter<T[N]>::generate() {
     static const float data[8] = {16.f, 128.f, 1.164f, 1.596f, 0.391f, 2.018f, 0.813f, 255.f};
     _consts = data;
 
-    const size_t reg_capacity_log = static_cast<size_t>(std::logb(N));
+    const auto reg_capacity_log = static_cast<size_t>(std::logb(N));
     const size_t step = N * sizeof(T);
 
     width >>= reg_capacity_log;
@@ -1110,6 +1107,4 @@ void ColorConvert::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

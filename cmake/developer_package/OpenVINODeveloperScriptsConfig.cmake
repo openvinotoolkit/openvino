@@ -181,7 +181,6 @@ add_definitions(-DOV_BUILD_POSTFIX=\"${OV_BUILD_POSTFIX}\")
 
 ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
@@ -205,6 +204,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0026 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
 # CMake 3.1+: Simplify variable reference and escape sequence evaluation.
 set(CMAKE_POLICY_DEFAULT_CMP0053 NEW)
+# CMake 3.3+: Honor visibility properties for all target types
+set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 # CMake 3.9+: `RPATH` settings on macOS do not affect `install_name`.
 set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
 # CMake 3.12+: find_package() uses <PackageName>_ROOT variables.

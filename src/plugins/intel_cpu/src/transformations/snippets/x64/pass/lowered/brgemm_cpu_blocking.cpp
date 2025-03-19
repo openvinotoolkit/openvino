@@ -13,9 +13,7 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace pass {
+namespace ov::intel_cpu::pass {
 using LinearIR = snippets::lowered::LinearIR;
 using LoopPort = snippets::lowered::LoopPort;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
@@ -136,6 +134,4 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     }
     return true;
 }
-}  // namespace pass
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::pass

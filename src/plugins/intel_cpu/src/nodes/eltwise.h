@@ -43,16 +43,17 @@ public:
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
+    bool canFuseConvert(const NodePtr& convertNode) const;
     bool canFuseParent(const NodePtr& parentNode) const;
     bool canFuse(const NodePtr& node) const override;
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::unordered_map<int, MemoryPtr>& postOpsMem,
-                       const int channelAxis = 1) override;
+                       const int channelAxis) override;
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::vector<const void*>& postOpsMem,
-                       const int channelAxis = 1) override;
+                       const int channelAxis) override;
     bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,

@@ -10,9 +10,7 @@
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Composite::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -33,7 +31,7 @@ Composite::Composite(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& subModel = ov::as_type_ptr<SubModel>(op);
-    OPENVINO_ASSERT(subModel, "Attempt to create SubGraph node from an invalid op type: ", op);
+    CPU_NODE_ASSERT(subModel, "Attempt to create SubGraph node from an invalid op type: ", op);
 
     m_body = subModel->get_function();
 }
@@ -78,27 +76,27 @@ void Composite::createPrimitive() {
 }
 
 int Composite::registerToAllocationContext(int offset, AllocationContext& context) {
-    OPENVINO_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
+    CPU_NODE_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
                     "Number of node inputs must be equal the number of inner graph's inputs");
 
     for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         auto inputEdges = m_graph.getInputNodeByIndex(i)->getChildEdgesAtPort(0);
         for (const auto& inputEdge : inputEdges) {
-            OPENVINO_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
+            CPU_NODE_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
                             "Expected Uninitialized state for edge: ",
                             *this);
             inputEdge->sharedMemFrom(parentEdge);
         }
     }
 
-    OPENVINO_ASSERT(getOriginalOutputsNumber() == m_graph.outputsNumber(),
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == m_graph.outputsNumber(),
                     "Number of node outputs must be equal the number of inner graph's outputs");
 
     for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
         auto childEdge = getChildEdgeAt(i);
         auto outputEdge = m_graph.getOutputNodeByIndex(i)->getParentEdgeAt(0);
-        OPENVINO_ASSERT(outputEdge->getStatus() == Edge::Status::Uninitialized,
+        CPU_NODE_ASSERT(outputEdge->getStatus() == Edge::Status::Uninitialized,
                         "Expected Uninitialized state for edge: ",
                         *outputEdge);
         outputEdge->sharedMemFrom(childEdge);
@@ -132,6 +130,4 @@ void Composite::executeDynamicImpl(const dnnl::stream& strm) {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

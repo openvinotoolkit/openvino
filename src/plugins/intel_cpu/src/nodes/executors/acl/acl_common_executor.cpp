@@ -8,8 +8,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 static const std::unordered_map<int, ACLArgs> argConvert = {{ARG_SRC_0, ACL_SRC_0},
                                                             {ARG_SRC_1, ACL_SRC_1},
@@ -130,5 +129,4 @@ ACLCommonExecutor::~ACLCommonExecutor() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

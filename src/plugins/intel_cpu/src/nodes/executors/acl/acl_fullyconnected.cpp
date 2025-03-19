@@ -17,12 +17,10 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "ov_optional.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 static bool checkPostOps(const PostOps& postOps) {
     if (postOps.empty()) {
@@ -128,5 +126,4 @@ ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLTensors& aclMe
     return neFC;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

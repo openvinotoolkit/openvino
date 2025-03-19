@@ -26,7 +26,7 @@ METRIC_OF_INTEREST = "similarity"
 
 REFERENCES = {
     "llama": {"INT8": 0.95, "INT4": 0.95},
-    "qwen2": {"INT8": 0.77, "INT4": 0.77},
+    "qwen2": {"INT8": 0.86, "INT4": 0.82},
 }
 ACCURACY_THRESHOLDS = {
     "INT8": 0.05,
@@ -49,7 +49,7 @@ def init_test_scope():
         tokenizer.save_pretrained(model_path)
 
         ov_model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
-        ov_model_path = model_path = os.path.join(tmp_dir, model_type + "_ov")
+        ov_model_path = os.path.join(tmp_dir, model_type + "_ov")
         ov_model.save_pretrained(ov_model_path)
         tokenizer.save_pretrained(ov_model_path)
         del ov_model
@@ -59,9 +59,7 @@ def init_test_scope():
         quantized_model = OVModelForCausalLM.from_pretrained(
             model_path, quantization_config=quantization_config
         )
-        quantized_model_path = model_path = os.path.join(
-            tmp_dir, model_type + "_ov_int4"
-        )
+        quantized_model_path = os.path.join(tmp_dir, model_type + "_ov_int4")
         quantized_model.save_pretrained(quantized_model_path)
         tokenizer.save_pretrained(quantized_model_path)
         del quantized_model

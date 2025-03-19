@@ -9,7 +9,7 @@ import pytest
 
 from openvino import Dimension, Model, PartialShape, Shape
 
-import openvino.opset8 as ov
+import openvino.opset13 as ov
 
 
 def test_dimension():
@@ -408,6 +408,8 @@ def test_repr_dynamic_shape():
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
     param_sum = parameter_a + parameter_b
+    # set tensor name to have deterministic output name of model (default use unique node name)
+    param_sum.output(0).set_names({"sum"})
     model = Model(param_sum, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
     assert (
@@ -415,7 +417,7 @@ def test_repr_dynamic_shape():
         == "<Model: 'simple_dyn_shapes_graph'\ninputs["
         + "\n<ConstOutput: names[A] shape[?,2] type: f32>,"
         + "\n<ConstOutput: names[B] shape[?,2] type: f32>\n]"
-        + "\noutputs[\n<ConstOutput: names[] shape[?,2] type: f32>\n]>"
+        + "\noutputs[\n<ConstOutput: names[sum] shape[?,2] type: f32>\n]>"
     )
 
     ops = model.get_ordered_ops()

@@ -16,8 +16,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     switch (dataType) {
@@ -80,7 +79,7 @@ std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType
         return memory::data_type::f8_e5m2;
     case ov::element::f4e2m1:
         return memory::data_type::f4_e2m1;
-    case ov::element::undefined:
+    case ov::element::dynamic:
         return memory::data_type::undef;
     default: {
         return {};
@@ -128,7 +127,7 @@ ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::
     case memory::data_type::f4_e2m1:
         return ov::element::f4e2m1;
     case memory::data_type::undef:
-        return ov::element::undefined;
+        return ov::element::dynamic;
     default: {
         OPENVINO_THROW("Unsupported data type.");
     }
@@ -149,7 +148,7 @@ VectorDims DnnlExtensionUtils::convertToVectorDims(const memory::dims& dims) {
 }
 
 VectorDims DnnlExtensionUtils::convertToVectorDims(const dnnl::impl::dims_t dims, const int ndims) {
-    return VectorDims(dims, dims + ndims);
+    return {dims, dims + ndims};
 }
 
 memory::dims DnnlExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
@@ -185,9 +184,8 @@ DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc& d
 DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t desc) {
     if (desc->format_kind == dnnl::impl::format_kind_t::dnnl_blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
-    } else {
-        return std::shared_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
     }
+    return std::shared_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
 }
 
 size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc) {
@@ -206,9 +204,8 @@ std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(con
                                                                              const Shape& shape) {
     if (desc.get_format_kind() == memory::format_kind::blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc, shape));
-    } else {
-        OPENVINO_THROW("Unexpected: Cannot make undefined descriptor. Only dnnl_blocked type is allowed.");
     }
+    OPENVINO_THROW("Unexpected: Cannot make undefined descriptor. Only dnnl_blocked type is allowed.");
 }
 
 DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd,
@@ -226,11 +223,11 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
 
 std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_desc_t& pd) {
     const char* res;
-    dnnl_status_t status = dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, &res);
+    dnnl_status_t status = dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, reinterpret_cast<void*>(&res));
     if (status != dnnl_success) {
         OPENVINO_THROW("query_impl_info_str failed.");
     }
-    return std::string(res);
+    return res;
 }
 
 bool DnnlExtensionUtils::find_implementation(dnnl::primitive_desc& desc, impl_desc_type impl_type) {
@@ -295,5 +292,4 @@ std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<c
     return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

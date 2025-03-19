@@ -9,16 +9,14 @@
 
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, const std::string& paramName) {
     auto it = rtInfo.find(paramName);
     if (it != rtInfo.end()) {
         return it->second.as<std::string>();
-    } else {
-        return {};
     }
+    return {};
 }
 
 inline std::string getImplPriorityValue(const std::shared_ptr<ov::Node>& node) {
@@ -50,5 +48,4 @@ inline bool isDynamicNgraphNode(const std::shared_ptr<const ov::Node>& op) {
     return ret;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

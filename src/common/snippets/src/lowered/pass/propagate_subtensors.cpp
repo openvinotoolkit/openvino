@@ -136,8 +136,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             expr_it = inner_end;
             continue;
         }
-        if ((ov::is_type<snippets::op::BroadcastMove>(expr_it->get()->get_node()) ||
-            ov::is_type<snippets::op::BroadcastLoad>(expr_it->get()->get_node())) &&
+        if ((ov::is_type_any_of<snippets::op::BroadcastMove, snippets::op::BroadcastLoad>(
+                expr_it->get()->get_node())) &&
             loop_by_last_dim) {
             // WA: we have to break subtensor propagation if we try to propagate new last dim through Broadcast nodes
             // which broadcast last dim in original dimension value anyway
