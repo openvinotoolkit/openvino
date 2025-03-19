@@ -117,7 +117,7 @@ def cache_dir() -> str:
 @typing.overload
 def cache_dir(arg0: str) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
-def cache_encryption_callbacks(arg0: typing.Any) -> tuple[str, openvino._pyopenvino.OVAny]:
+def cache_encryption_callbacks(arg0: ...) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def cache_mode() -> str:
@@ -179,7 +179,7 @@ def model_name() -> str:
 def num_streams() -> str:
     ...
 @typing.overload
-def num_streams(arg0: typing.Any) -> tuple[str, openvino._pyopenvino.OVAny]:
+def num_streams(arg0: ...) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 def optimal_batch_size() -> str:
     ...
