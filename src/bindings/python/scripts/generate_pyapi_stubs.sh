@@ -106,7 +106,7 @@ for file in $changed_files; do
     sed -i "s/__version__: str = '[^']*'/__version__: str = 'version_string'/" "$file"
     sed -i 's/<function <lambda> at 0x[0-9a-fA-F]\{1,\}>/<function <lambda> at memory_address>/g' "$file"
     sed -i 's/: \.\.\./: typing.Any/g' "$file"
-    sed -i 's/pass: MatcherPass\b/matcher_pass: MatcherPass/g' "$file"
+    sed -i 's/pass: MatcherPass/matcher_pass: MatcherPass/g' "$file"
     # Sort consecutive import statements
     awk '
     BEGIN { in_imports = 0; }
