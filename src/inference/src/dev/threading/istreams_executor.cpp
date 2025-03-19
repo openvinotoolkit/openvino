@@ -151,7 +151,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
     }
     streamConfig._threads_per_stream = threads_per_stream;
     streamConfig._threads = streamConfig._threads_per_stream * streamConfig._streams;
-    streamConfig.update_executor_config();
+    streamConfig.update_executor_config(true);
     return streamConfig;
 }
 
