@@ -558,7 +558,7 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
                                                 _zeroInitStruct->getGraphDdiTable())
             }
         }
-    } else if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
+    } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE)) {
         return {};
     } else {
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions", result, _zeroInitStruct->getGraphDdiTable())
@@ -580,7 +580,7 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
                                                                                    nullptr);
     if (result == ZE_RESULT_SUCCESS) {
         return true;
-    } else if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
+    } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE)) {
         return false;
     } else {
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerIsOptionSupported", result, _zeroInitStruct->getGraphDdiTable());
