@@ -445,9 +445,49 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_opset15) {
     test_case.run();
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_default) {
     // Simple ReLU test
-    auto model = convert_model("relu.onnx");
+    auto model = convert_model("relu_default.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset1) {
+    // Simple ReLU test
+    auto model = convert_model("relu_opset1.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset6) {
+    // Simple ReLU test
+    auto model = convert_model("relu_opset6.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset13) {
+    // Simple ReLU test
+    auto model = convert_model("relu_opset13.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14) {
+    // Simple ReLU test
+    auto model = convert_model("relu_opset14.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
