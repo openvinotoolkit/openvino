@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ static const char OUTPUT_PRECISIONS[] = "outputPrecisions";
 
 /**
  * @ingroup ov_dev_exec_model
- * @brief Used to get a value of execution time of the executable primitive.
+ * @brief Used to get a value of execution time of the executable primitive, where Mcs = microseconds (1μs=0.000001s).
  */
 static const char PERF_COUNTER[] = "execTimeMcs";
 

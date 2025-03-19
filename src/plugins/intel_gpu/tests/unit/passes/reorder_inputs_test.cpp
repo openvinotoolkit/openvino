@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -68,8 +69,7 @@ TEST(reorder_inputs, propagation) {
     auto& conv1_node = prog_impl->get_node("conv1");
     auto& conv2_node = prog_impl->get_node("conv2");
 
-    layout_optimizer lo;
-    auto conv_pref = lo.get_preferred_format(conv1_node);
+    auto conv_pref = prog->get_layout_optimizer().get_preferred_format(conv1_node);
 
     ASSERT_EQ(conv1_node.get_output_layout().format.value, conv_pref);
     ASSERT_EQ(conv2_node.get_output_layout().format.value, conv_pref);
@@ -97,7 +97,7 @@ TEST(reorder_inputs, mixed_ranks_irdft) {
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     program::ptr prog = nullptr;
-    ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+    OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
     ASSERT_NE(prog, nullptr);
 
     auto prog_impl = prog.get();
@@ -171,10 +171,11 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(pooling("pool", input_info("input"), pooling_mode::max, { 1, 2 }, { 1, 2 }));
 
-    ov::intel_gpu::ImplementationDesc pool_impl = { format::yxfb, "" };
+    ov::intel_gpu::ImplementationDesc pool_impl = { format::yxfb, "", impl_types::ocl };
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);
 
@@ -182,7 +183,7 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
                         7.f, 3.f, -2.f, -1.f });
 
     network.set_input_data("input", input);
-    network.execute();
+    auto outputs = network.execute();
 
     const auto& prog = network.get_program();
     auto& pool_node = prog->get_node("pool");
@@ -190,7 +191,7 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
 
     ASSERT_EQ(pool_layout.format.value, format::yxfb);
 
-    auto out_mem = network.get_output("pool").get_memory();
+    auto out_mem = outputs.at("pool").get_memory();
     cldnn::mem_lock<float> out_mem_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem_ptr.size(), 4u);
@@ -209,10 +210,11 @@ TEST(reorder_inputs, impl_forcing_not_existing) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(pooling("pool", input_info("input"), pooling_mode::max, { 1, 2 }, { 1, 2 }));
 
-    ov::intel_gpu::ImplementationDesc pool_impl = { format::any, "NOT_EXISTING" };
+    ov::intel_gpu::ImplementationDesc pool_impl = { format::any, "NOT_EXISTING", impl_types::ocl };
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     ASSERT_ANY_THROW(network network(engine, topology, config));
 }
@@ -229,6 +231,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"actv", actv_impl} }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);
 
@@ -236,7 +239,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
                         7.f, 3.f, -2.f, -1.f });
 
     network.set_input_data("input", input);
-    network.execute();
+    auto outputs = network.execute();
 
     auto prog = network.get_program();
     auto& node = prog->get_node("actv");
@@ -247,7 +250,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
     ASSERT_EQ(actv_layout.format.value, format::yxfb);
     ASSERT_EQ(kernel_name, actv_impl.kernel_name);
 
-    auto out_mem = network.get_output("actv").get_memory();
+    auto out_mem = outputs.at("actv").get_memory();
     cldnn::mem_lock<float> out_mem_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem_ptr.size(), 8u);
@@ -350,9 +353,8 @@ TEST(reorder_inputs, no_need_of_reorder_for_strided_slice) {
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto program = program::build_program(engine, topology, config, false, true);
-    layout_optimizer lo(true);
     reorder_factory rf;
-    program_wrapper::apply_opt_pass<reorder_inputs>(*program, lo, rf);
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, rf);
 
     ASSERT_NE(program, nullptr);
 
@@ -390,9 +392,8 @@ TEST(reorder_inputs, no_need_of_reorder_to_change_input_rank_for_rdft) {
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto program = program::build_program(engine, topology, config, false, true);
-    layout_optimizer lo(true);
     reorder_factory rf;
-    program_wrapper::apply_opt_pass<reorder_inputs>(*program, lo, rf);
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, rf);
 
     ASSERT_NE(program, nullptr);
 
@@ -434,9 +435,8 @@ TEST(reorder_inputs, add_reorder_between_single_output_type_node_and_multiple_us
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto program = program::build_program(engine, topology, config, false, true);
-    layout_optimizer lo(true);
     reorder_factory rf;
-    program_wrapper::apply_opt_pass<reorder_inputs>(*program, lo, rf);
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, rf);
 
     ASSERT_NE(program, nullptr);
 

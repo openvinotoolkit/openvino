@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ class LP_TRANSFORMATIONS_API LowPrecision;
 
 class ov::pass::low_precision::MarkupOptimizations : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("MarkupOptimizations", "0");
+    OPENVINO_MODEL_PASS_RTTI("low_precision::MarkupOptimizations");
     MarkupOptimizations(
         const std::vector<PrecisionsRestriction>& precisionRestrictions,
         const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
@@ -56,13 +56,13 @@ private:
 
 class ov::pass::low_precision::TypeRelaxedReplacer : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TypeRelaxedReplacer", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("low_precision::TypeRelaxedReplacer");
     TypeRelaxedReplacer();
 };
 
 class LP_TRANSFORMATIONS_API ov::pass::low_precision::LowPrecision : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("LowPrecision", "0");
+    OPENVINO_MODEL_PASS_RTTI("low_precision::LowPrecision");
     LowPrecision(
         const std::vector<PrecisionsRestriction>& precisionRestrictions = {},
         const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions = {},

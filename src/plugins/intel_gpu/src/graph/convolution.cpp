@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -241,12 +241,6 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                                 "Biases isn't 1D vector.");
     }
 
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "Convolution padding mode",
-                            node.get_output_layout().data_padding.filling_value(),
-                            "padding value",
-                            0.0f,
-                            "Unknown padding mode.");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                             "Output feature size",
                             output_size.feature.size(),

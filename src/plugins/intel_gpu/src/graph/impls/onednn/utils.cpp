@@ -1,14 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "utils.hpp"
-#include "onednn_formats_map.hpp"
 #include <oneapi/dnnl/dnnl_debug.h>
 #include <numeric>
 #include <oneapi/dnnl/dnnl_ocl.hpp>
-
-#include "to_string_utils.h"
 
 namespace cldnn {
 namespace onednn {
@@ -33,6 +30,7 @@ cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
 
 template cldnn::memory::ptr convert_zp_data_to_s32<int8_t>(const memory::ptr zp_memory);
 template cldnn::memory::ptr convert_zp_data_to_s32<uint8_t>(const memory::ptr zp_memory);
+template cldnn::memory::ptr convert_zp_data_to_s32<int32_t>(const memory::ptr zp_memory);
 
 cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped) {
     switch (dims) {
@@ -50,6 +48,20 @@ dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims, bool is_grouped)
 
 dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed) {
     auto sizes = t.sizes(default_fmt_for_dims(dims, false));
+    dnnl::memory::dims res(sizes.begin(), sizes.end());
+    if (dims > 4) {
+        for (size_t i = 0; i < dims - 4; i++) {
+            res[i + 1] *= res[i];
+        }
+        res.erase(res.begin(), res.begin() + dims - 4);
+    }
+    if (res.size() == 4 && batched_dims_can_be_removed) {
+        res.erase(res.begin(), res.begin() + 2);
+    }
+    return res;
+}
+
+dnnl::memory::dims convert_gemm_dims(const std::vector<int32_t> &sizes, size_t dims, bool batched_dims_can_be_removed) {
     dnnl::memory::dims res(sizes.begin(), sizes.end());
     if (dims > 4) {
         for (size_t i = 0; i < dims - 4; i++) {
@@ -140,6 +152,7 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::os_is_yx_isv16_osv16,  dnnl::memory::format_tag::OIhw16i16o },
         { cldnn::format::os_is_zyx_isv16_osv16,  dnnl::memory::format_tag::OIdhw16i16o },
         { cldnn::format::is_os_zyx_isv16_osv16,  dnnl::memory::format_tag::IOdhw16i16o },
+        { cldnn::format::is_os_yx_isv16_osv16,  dnnl::memory::format_tag::IOhw16i16o },
 
         { cldnn::format::g_os_is_zyx_isv16_osv16,  dnnl::memory::format_tag::gIOdhw16i16o },
 
@@ -218,11 +231,11 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
 
 int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
-    auto b_padding = l.data_padding.lower_size().batch[0];
-    auto f_padding = l.data_padding.lower_size().feature[0];
+    auto b_padding = l.data_padding._lower_size[0];
+    auto f_padding = l.data_padding._lower_size[1];
     if (b_padding != 0) {
         auto input_pitches = l.get_pitches();
-        offset = b_padding * input_pitches.batch[0];
+        offset = b_padding * input_pitches[0];
     } else if (f_padding != 0) {
         offset = f_padding;
         for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
@@ -257,6 +270,10 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     } else if (target_fmt == dnnl::memory::format_tag::ab) {
         dims.push_back(l.batch());
         dims.push_back(l.get_tensor().count() / l.batch());
+    } else if (target_fmt == dnnl::memory::format_tag::abc) {
+        dims.push_back(l.batch());
+        dims.push_back(l.feature());
+        dims.push_back(l.spatial(1));
     } else if (target_fmt == dnnl::memory::format_tag::ba) {
         dims.push_back(l.feature());
         dims.push_back(l.get_tensor().count() / l.feature());
@@ -435,6 +452,7 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
         case cldnn::activation_func::relu: return dnnl::algorithm::eltwise_relu;
         case cldnn::activation_func::relu_negative_slope: return dnnl::algorithm::eltwise_relu;
         case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu_erf;
+        case cldnn::activation_func::gelu_tanh: return dnnl::algorithm::eltwise_gelu_tanh;
         case cldnn::activation_func::elu: return dnnl::algorithm::eltwise_elu;
         case cldnn::activation_func::mish: return dnnl::algorithm::eltwise_mish;
         case cldnn::activation_func::swish: return dnnl::algorithm::eltwise_swish;
@@ -476,6 +494,7 @@ bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
 
 template bool is_per_tensor<int8_t>(cldnn::data_node& node, int32_t& zp_val);
 template bool is_per_tensor<uint8_t>(cldnn::data_node& node, int32_t& zp_val);
+template bool is_per_tensor<int32_t>(cldnn::data_node& node, int32_t& zp_val);
 
 
 static std::string get_external_order(const std::vector<size_t>& order, bool is_weights, bool is_grouped) {
@@ -516,7 +535,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
 
     std::vector<std::pair<size_t, int>> block_sizes(inner_nblks);
     for (int i = 0; i < inner_nblks; i++) {
-        block_sizes[i] = std::make_pair(inner_idxs[i], inner_blks[i]);
+        block_sizes[i] = std::make_pair(inner_idxs[i] + (is_grouped && inner_idxs[i] == 0 ? 9 : 0) + (is_grouped ? -1 : 0), inner_blks[i]);
     }
 
     // all fmts has at least batch and feature dim for now
@@ -536,6 +555,15 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     }
     std::string outer_order = get_external_order(order, is_weights, is_grouped);
 
+    std::vector<std::pair<size_t, int>> logic_block_sizes(inner_nblks);
+    for (int i = 0; i < inner_nblks; i++) {
+        auto c = internal_order[block_sizes[i].first];
+        auto pos = outer_order.find(c);
+        OPENVINO_ASSERT(pos != std::string::npos, "[GPU] Unknown coord type: ", c);
+
+        logic_block_sizes[i] = std::make_pair(order[pos], inner_blks[i]);
+    }
+
     format_traits traits;
     traits.batch_num = batch_num;
     traits.feature_num = feature_num;
@@ -545,6 +573,8 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     traits.order = outer_order;
     traits.internal_order = internal_order;
     traits.block_sizes = block_sizes;
+    traits.logic_block_sizes = logic_block_sizes;
+    traits.desc_size = desc.get_size();
     traits.str = "custom";
 
     return traits;
@@ -573,10 +603,70 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
     // Check whether they have same values and orders.
     if (filtered_target_dims == filtered_desc_dims) {
         layout.set_partial_shape(desc_dims);
+        if (layout.get_rank() != desc_dims.size()) {
+            if (cldnn::format::is_default_format(layout.format)) {
+                layout.format = cldnn::format::get_default_format(desc_dims.size());
+            } else {
+                // TO-DO: Consider that weight format is not default format
+                return false;
+            }
+        }
         return true;
     } else {
         return false;
     }
+}
+
+size_t get_post_ops_count(const program_node& node) {
+    size_t onednn_post_ops_count = 0;
+    for (auto& fo : node.get_fused_primitives()) {
+       onednn_post_ops_count += fo.f_param->ops_count();
+    }
+
+    return onednn_post_ops_count;
+}
+
+bool is_supported_post_ops(const program_node& node) {
+    if (get_post_ops_count(node) > 32) {
+        return false;
+    }
+
+    for (auto& fo : node.get_fused_primitives()) {
+        if (fo.is_type<activation>()) {
+            // Some activations aren't implemented in oneDNN
+            auto activation_prim = fo.typed_desc<activation>();
+            if (activation_prim->activation_function == activation_func::negative ||
+                activation_prim->activation_function == activation_func::negation ||
+                activation_prim->activation_function == activation_func::sign)
+                return false;
+        }
+    }
+
+    return true;
+}
+
+bool is_supported_pad(const layout& layout) {
+    if (!layout.data_padding)
+        return true;
+
+    const auto& pad = layout.data_padding;
+    // Check spatial padding
+    bool no_spatial_padding = true;
+    auto spatial_rank = layout.get_spatial_rank();
+    for (size_t i = 0; i < spatial_rank; ++i) {
+        no_spatial_padding &= (pad._lower_size[2 + i] == 0);
+        no_spatial_padding &= (pad._upper_size[2 + i] == 0);
+    }
+
+    // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
+    bool no_batch_padding = true;
+    auto fmt = layout.format;
+    if (format::is_multi_blocked(fmt) || fmt.dims_order()[0] != 0 || fmt.dims_order()[0] != 0) {
+        no_batch_padding &= (pad._lower_size[0] == 0);
+        no_batch_padding &= (pad._upper_size[0] == 0);
+    }
+
+    return (no_spatial_padding && no_batch_padding);
 }
 
 }  // namespace onednn

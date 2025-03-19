@@ -1,5 +1,3 @@
-.. {#openvino_docs_performance_int8_vs_fp32}
-
 Model Accuracy
 ==============
 
@@ -7,13 +5,13 @@ Model Accuracy
 
 The following two tables present the absolute accuracy drop calculated as the accuracy difference
 between OV-accuracy and the original frame work accuracy for FP32, and the same for INT8, BF16 and
-FP16 representations of a model on three platform architectures. Please also refer to notes below
+FP16 representations of a model on three platform architectures. The third table presents the GenAI model accuracies as absolute accuracy values. Please also refer to notes below
 the table for more information.
 
-* A - Intel® Core™ i9-9000K (AVX2), INT8 and FP32
+* A - Intel® Core™ Ultra 9-185H (AVX2), INT8 and FP32
 * B - Intel® Xeon® 6338, (VNNI), INT8 and FP32
-* C - Intel(R) Xeon 8490H (VNNI, AMX), INT8, BF16, FP32
-* D - Intel® Flex-170, INT8 and FP16
+* C - Intel® Xeon 6972P (VNNI, AMX), INT8, BF16, FP32
+* D - Intel® Arc-B580, INT8 and FP16
 
 
 .. list-table:: Model Accuracy for INT8
@@ -29,117 +27,46 @@ the table for more information.
    * - bert-base-cased
      - SST-2_bert_cased_padded
      - spearman@cosine
-     - 3.33%
-     - 3.22%
-     - 3.69%
-     - 3.28%
-   * - bert-large-uncased-whole-word-masking-squad-0001
-     - SQUAD_v1_1_bert_msl384_mql64_ds128_lowercase
-     - F1
-     - 0.19%
-     - 0.06%
-     - 0.03%
-     - 0.11%
-   * - efficientdet-d0
-     - COCO2017_detection_91cl
-     - coco_precision
-     - -0.90%
-     - -0.63%
-     - -0.61%
-     - -0.62%
+     - 2.41%
+     - 2.78%
+     - 2.61%
+     - 2.84%
    * - mask_rcnn_resnet50_atrous_coco
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
-     - -0.04%
-     - -0.03%
-     - 0.04%
-     - 0.02%
+     - 
+     - 
+     - 
+     - 
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
-     -
-     - -0.87%
-     - -0.89%
-     - -0.95%
+     - -1.03%
+     - -1.00%
+     - -1.03%
+     - -1.01%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
-     - -0.20%
+     - -0.17%
+     - -0.17%
      - -0.18%
-     - -0.18%
-     - -0.13%
+     - -0.17%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
-     - -0.03%
-     - -0.02%
-     - -0.03%
-     - -0.03%
-   * - ssd-mobilenet-v1-coco
-     - COCO2017_detection_80cl_bkgr
-     - coco-precision
-     - -2.75%
-     - -0.11%
-     - -0.11%
-     - -0.08%
-   * - unet-camvid-onnx-0001
-     - CamVid_12cl
-     - mean_iou @ mean
-     - -6.28%
-     - 6.45%
-     - 6.46%
-     - 6.40%
-   * - yolo_v3_tiny
-     - COCO2017_detection_80cl
-     - map
-     - -0.57%
-     - -0.58%
-     - -0.58%
-     - -0.70%
+     - -0.01%
+     - -0.01%
+     - -0.04%
+     - -0.04%
    * - yolo_v8n
      - COCO2017_detection_80cl
      - map
-     - -0.01%
+     - -0.09%
+     - -0.09%
+     - -0.02%
      - -0.04%
-     - 0.04%
-     - -0.08%
-   * - chatGLM2-6b
-     - Ceval-valid-high_school_history
-     - ppl
-     -
-     - 0.75
-     - 0.75
-     -
-   * - Llama-2-7b-chat
-     - Ceval-valid-high_school_history
-     - ppl
-     -
-     - 0.55
-     - 0.25
-     -
-   * - Stable-Diffusion-V2-1
-     - LIAON-5B
-     - CLIP
-     -
-     -
-     -
-     -
-   * - Mistral-7b
-     - Wikitext
-     - ppl
-     -
-     - 8.10
-     - 8.10
-     -
-   * - Falcon-7b-instruct
-     - Wikitext
-     - ppl
-     -
-     - 14.54
-     - 14.55
-     -
-
-.. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Flex-170 only. BF16: Xeon(R) 8490H only)
+.. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Arc only. BF16: Xeon® 6972P only)
    :header-rows: 1
 
    * - OpenVINO™  Model name
@@ -156,133 +83,160 @@ the table for more information.
      - 0.00%
      - 0.00%
      - 0.00%
-     - -0.03%
-     - 0.01%
-   * - bert-large-uncased-whole-word-masking-squad-0001
-     - SQUAD_v1_1_bert_msl384_mql64_ds128_lowercase
-     - F1
-     - 0.04%
-     - 0.04%
-     - 0.04%
-     - 0.06%
-     - 0.04%
-   * - efficientdet-d0
-     - COCO2017_detection_91cl
-     - coco_precision
-     - -0.02%
-     - -0.02%
-     - -0.02%
-     - -0.02%
-     - -0.03%
+     - -0.01%
+     - 0.02%
    * - mask_rcnn_resnet50_atrous_coco
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
-     - -0.01%
-     - -0.01%
-     - -0.01%
-     - 0.09%
-     - 0.00%
+     - 
+     - 
+     - 
+     - 
+     - 
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
      - 0.00%
      - 0.00%
      - 0.00%
-     - -0.18%
-     - 0.02%
+     - -0.23%
+     - -0.03%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
      - 0.00%
      - 0.00%
      - 0.00%
-     - -0.01%
-     - -0.01%
+     - 0.06%
+     - 0.01%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
-     - 0.00%
-     - 0.00%
-     - 0.00%
-     - -0.02%
-     - 0.00%
-   * - ssd-mobilenet-v1-coco
-     - COCO2017_detection_80cl_bkgr
-     - coco-precision
+     - 0.02%
+     - 0.02%
      - 0.01%
-     - 0.01%
-     - 0.01%
-     - 0.04%
-     - -0.02%
-   * - unet-camvid-onnx-0001
-     - CamVid_12cl
-     - mean_iou @ mean
-     - 0.00%
-     - 0.00%
-     - 0.00%
-     - -0.03%
-     - -0.03%
-   * - yolo_v3_tiny
-     - COCO2017_detection_80cl
-     - map
-     - 0.00%
-     - 0.00%
-     - 0.00%
-     - 0.25%
-     - -0.01%
+     - 0.02%
+     - 0.06%
    * - yolo_v8n
      - COCO2017_detection_80cl
      - map
-     - 0.00%
-     - 0.00%
-     - 0.00%
-     - 0.04%
-     - -0.02%
-   * - chatGLM2-6b
-     - Ceval-valid-high_school_history
-     - ppl
-     -
-     - 0.75
-     - 0.8
-     -
-     -
+     - 0.01%
+     - 0.01%
+     - 0.01%
+     - 
+     - -0.03%
+.. list-table:: Model Accuracy for AMX-FP16, AMX-INT4, Arc-FP16 and Arc-INT4 (Arc™ B-series)
+   :header-rows: 1
+   
+   * - OpenVINO™  Model name
+     - dataset
+     - Metric Name
+     - A, AMX-FP16
+     - B, AMX-INT4
+     - C, Arc-FP16
+     - D, Arc-INT4
+   * - DeepSeek-R1-Distill-Llama-8B
+     - Data Default WWB
+     - Similarity
+     - 10.3%
+     - 21.4%
+     - 0.21%
+     - 23.5%
+   * - DeepSeek-R1-Distill-Qwen-1.5B
+     - Data Default WWB
+     - Similarity
+     - 16.1%
+     - 34.5%
+     - 2.48%
+     - 36.4%
+   * - DeepSeek-R1-Distill-Qwen-7B
+     - Data Default WWB
+     - Similarity
+     - 25.5%
+     - 35.6%
+     - 3.9%
+     - 37.2%
+   * - GLM4-9B-Chat
+     - Data Default WWB
+     - Similarity
+     - 6.9%
+     - 3.8%
+     - 6.3%
+     - 15.1%
+   * - Qwen-2.5-7B-instruct
+     - Data Default WWB
+     - Similarity
+     - 7.97%
+     - 25.12%
+     - 0.09%
+     - 23.87%
+   * - Gemma-2-9B
+     - Data Default WWB
+     - Similarity
+     - 4.81%
+     - 10.25%
+     - 1.73%
+     - 10.24%
    * - Llama-2-7b-chat
-     - Wikitext
-     - ppl
-     -
-     - 0.30
-     - 0.55
-     -
-     -
-   * - Stable-Diffusion-V2-1
-     - LIAON-5B
-     - CLIP
-     -
-     - 31.3
-     - 22.4
-     -
-     -
-   * - Mistral-7b
-     - Wikitext
-     - ppl
-     -
-     - 8.09
-     - 8.09
-     -
-     -
-   * - Falcon-7b-instruct
-     - Wikitext
-     - ppl
-     -
-     - 14.51
-     - 14.51
-     -
-     -
+     - Data Default WWB
+     - Similarity
+     - 1.80%
+     - 22.31%
+     - 0.13%
+     - 21.54%
+   * - Llama-3-8b
+     - Data Default WWB
+     - Similarity
+     - 2.26%
+     - 23.00%
+     - 0.12%
+     - 23.59%
+   * - Llama-3.2-3b-instruct
+     - Data Default WWB
+     - Similarity
+     - 2.40%
+     - 11.25%
+     - 0.00%
+     - 12.32%
+   * - Mistral-7b-instruct-V0.2
+     - Data Default WWB
+     - Similarity
+     - 2.94%
+     - 9.08%
+     - 0.37%
+     - 9.53%
+   * - Phi3-mini-4k-instruct
+     - Data Default WWB
+     - Similarity
+     - 8.08%
+     - 7.93%
+     - 0.00%
+     - 8.30%
+   * - Qwen-2-7B
+     - Data Default WWB
+     - Similarity
+     - 4.97%
+     - 18.97%
+     - 0.00%
+     - 22.38%
+   * - Flux.1-schnell
+     - Data Default WWB
+     - Similarity
+     - 4.60%
+     - 4.20%
+     - 5.00%
+     - 3.30%
+   * - Stable-Diffusion-V1-5
+     - Data Default WWB
+     - Similarity
+     - 2.50%
+     - 1.90%
+     - 2.10%
+     - 0.10%
 
-Notes: For all accuracy metrics except perplexity a "-", (minus sign), indicates an accuracy drop.
-For perplexity (ppl) the values do not indicate a deviation from a reference but are the actual measured
-accuracy for the model.
-
+Notes: For all accuracy metrics a "-", (minus sign), indicates an accuracy drop.
+The Similarity metric is the distance from "perfect" and as such always positive. 
+Similarity is cosine similarity - the dot product of two vectors divided by the product of their lengths.
 
 .. raw:: html
 
@@ -293,4 +247,4 @@ accuracy for the model.
    Results may vary. For more information, see
    :doc:`F.A.Q. <./performance-benchmarks-faq>` and
    :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`.
-   See :doc:`Legal Information <../additional-resources/legal-information>`.
+   See :doc:`Legal Information <../additional-resources/terms-of-use>`.

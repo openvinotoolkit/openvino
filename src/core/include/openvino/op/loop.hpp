@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,6 +87,7 @@ public:
         : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

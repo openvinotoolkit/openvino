@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ OutputVector translate_ones_like_op(const NodeContext& node) {
     auto x = node.get_input(0);
     auto complex_type_mark_x = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
     if (complex_type_mark_x) {
-        x = complex_type_mark_x->input_value(0);
+        x = complex_type_mark_x->get_data();
         auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
         auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
         auto x_real = make_shared<v8::Gather>(x, gather_index_real, minus_one)->output(0);

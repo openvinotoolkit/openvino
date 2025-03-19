@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
-
 Converting a TensorFlow Model
 =============================
 
@@ -21,7 +19,7 @@ or `Hugging Face <https://huggingface.co/models>`__.
    TensorFlow models can be loaded by ``openvino.Core.read_model`` or
    ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing
    OpenVINO IR first. Refer to the
-   :doc:`inference example <../running-inference/integrate-openvino-with-your-application>`
+   :doc:`inference example <../running-inference>`
    for more details. Using ``openvino.convert_model`` is still recommended if model load
    latency matters for the inference application.
 
@@ -38,9 +36,9 @@ or `Hugging Face <https://huggingface.co/models>`__.
 
 .. note::
 
-   Examples below that convert TensorFlow models from a file, do not require any version
-   of TensorFlow to be installed on the system, except in cases when the ``tensorflow``
-   module is imported explicitly.
+   The examples converting TensorFlow models from a file do not require any version
+   of TensorFlow installed on the system, unless the ``tensorflow`` module is imported
+   explicitly.
 
 Converting TensorFlow 2 Models
 ##############################
@@ -163,7 +161,7 @@ There are three ways to store non-frozen TensorFlow models.
 2. **Checkpoint**. In this case, a model consists of two files: ``inference_graph.pb``
    (or ``inference_graph.pbtxt``) and ``checkpoint_file.ckpt``.
    If you do not have an inference graph file, refer to the
-   `Freezing Custom Models in Python <#Freezing-Custom-Models-in-Python>`__ section.
+   `Freezing Custom Models in Python <#freezing-custom-models-in-python>`__ section.
    To convert the model with the inference graph in ``.pb`` format, provide paths to both
    files as an argument for ``ovc`` or ``openvino.convert_model``:
 
@@ -385,15 +383,7 @@ Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################
 
 For the list of supported standard layers, refer to the
-:doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>`
+:doc:`Supported Operations <../../documentation/compatibility-and-support/supported-operations>`
 page.
 
-Summary
-#######
-
-In this document, you learned:
-
-* Basic information about how the model conversion API works with TensorFlow models.
-* Which TensorFlow models are supported.
-* How to freeze a TensorFlow model.
 

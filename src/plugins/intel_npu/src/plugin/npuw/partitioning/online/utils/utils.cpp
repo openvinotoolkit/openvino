@@ -44,33 +44,57 @@ std::string ov::npuw::online::util::repeated_id(const std::shared_ptr<Repeated>&
     return ss.str();
 }
 
-std::optional<ov::npuw::online::Avoid> ov::npuw::online::util::parseAvoid(const std::string& s) {
+std::tuple<ov::npuw::online::PatternType, std::string, std::string> ov::npuw::online::util::parse(
+    const std::string& s) {
     auto pos_col = s.find(':');
     auto pos_sl = s.find('/');
 
     if (pos_col == std::string::npos || pos_sl == std::string::npos) {
-        LOG_WARN("Incorect pattern in OPENVINO_NPUW_AVOID: "
-                 << s << ". Please, separate a device with / and pattern type with :, e.g. Op:Select/NPU,P:RMSNorm/NPU."
-                 << " Avoid rule " << s << " is ommited!");
-        return std::nullopt;
+        LOG_WARN("Incorrect pattern: " << s << ". Please, separate a device or tag with / and pattern type with :."
+                                       << " Rule " << s << " is ommited!");
+        return {};
     }
 
     auto type = s.substr(0, pos_col);
     auto pattern = s.substr(pos_col + 1, pos_sl - pos_col - 1);
-    auto device = s.substr(pos_sl + 1, s.size() - pos_sl - 1);
+    auto device_or_tag = s.substr(pos_sl + 1, s.size() - pos_sl - 1);
 
     if (type != "Op" && type != "P") {
-        LOG_WARN("Incorect pattern type in OPENVINO_NPUW_AVOID: "
-                 << type << ". Please, use either Op for operation or P for pattern."
-                 << " E.g. Op:Select/NPU,P:RMSNorm/NPU."
-                 << " Avoid rule " << s << " is ommited!");
+        LOG_WARN("Incorrect pattern type: " << type << ". Please, use either Op for operation or P for pattern."
+                                            << " Rule " << s << " is ommited!");
+        return {};
+    }
+
+    auto pattern_type = type == "Op" ? PatternType::OP : PatternType::PATTERN;
+    return std::make_tuple(pattern_type, pattern, device_or_tag);
+}
+
+std::optional<ov::npuw::online::Avoid> ov::npuw::online::util::parseAvoid(const std::string& s) {
+    auto parsed = parse(s);
+
+    if (std::get<1>(parsed).empty() || std::get<2>(parsed).empty()) {
         return std::nullopt;
     }
 
     Avoid avoid;
-    avoid.type = type == "Op" ? AvoidType::OP : AvoidType::PATTERN;
-    avoid.pattern = pattern;
-    avoid.device = device;
+    avoid.type = std::get<0>(parsed);
+    avoid.pattern = std::get<1>(parsed);
+    avoid.device = std::get<2>(parsed);
 
     return std::optional<Avoid>{avoid};
+}
+
+std::optional<ov::npuw::online::Isolate> ov::npuw::online::util::parseIsolate(const std::string& s) {
+    auto parsed = parse(s);
+
+    if (std::get<1>(parsed).empty() || std::get<2>(parsed).empty()) {
+        return std::nullopt;
+    }
+
+    Isolate isolate;
+    isolate.type = std::get<0>(parsed);
+    isolate.pattern = std::get<1>(parsed);
+    isolate.tag = std::get<2>(parsed);
+
+    return std::optional<Isolate>{isolate};
 }

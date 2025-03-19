@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,10 +68,10 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
         auto sizes = l.get_tensor();
         auto pitches = l.get_pitches();
 
-        return (idx.batch[0] % sizes.batch[0])*pitches.batch[0]
-                        + (idx.feature[0] % sizes.feature[0])*pitches.feature[0]
-                        + (idx.spatial[1] % sizes.spatial[1])*pitches.spatial[1]
-                        + (idx.spatial[0] % sizes.spatial[0])*pitches.spatial[0];
+        return (idx.batch[0] % sizes.batch[0])*pitches[0]
+                        + (idx.feature[0] % sizes.feature[0])*pitches[1]
+                        + (idx.spatial[1] % sizes.spatial[1])*pitches[2 + 0]   // y
+                        + (idx.spatial[0] % sizes.spatial[0])*pitches[2 + 1];  // x
     };
 
     auto lock_memory = [&stream] (memory::ptr memory, std::function<void(std::size_t, float)>& set_data,
@@ -511,8 +511,9 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     auto need_reorder = [&](size_t dep_id) {
         auto dep_layout = fc_node.get_input_layout(dep_id);
         auto dep_pshape = dep_layout.get_partial_shape();
-
-        auto groups_count = dep_pshape[dep_pshape.size() - 1].get_length();
+        // Group for scale_idx is always 1, whereas zero_point_idx is 0.
+        auto groups_idx = (dep_pshape.size() > 1) ? 1 : 0;
+        auto groups_count = dep_pshape[groups_idx].get_length();
 
         return groups_count > 1;
     };

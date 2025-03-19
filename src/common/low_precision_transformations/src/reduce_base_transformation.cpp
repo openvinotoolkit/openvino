@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,26 +16,26 @@ namespace low_precision {
 
 ReduceBaseTransformation::ReduceBaseTransformation(const Params& params) : LayerTransformation(params) {}
 
-bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+bool ReduceBaseTransformation::transform(ov::pass::pattern::Matcher& m) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
     const auto reduce = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    auto dequantization = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(reduce, defaultPrecisions));
+    auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
 
     // prepare dequantization to propagate
     changeDequantizationValues(reduce, dequantization);
 
     // updatePrecision depends on type and parameters of the reduce
     const bool updatePrecision = getUpdatePrecision(reduce);
-    const auto newOperation = moveDequantizationAfter(context, reduce, dequantization, updatePrecision);
+    const auto newOperation = moveDequantizationAfter(reduce, dequantization, updatePrecision);
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
-bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceBaseTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
     const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
@@ -47,13 +47,11 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
     }
 
     // get reduced axes in normal form (without negative values)
-    const auto constData = axesConstant->cast_vector<int64_t>();
     const auto inputRank = reduce->get_input_partial_shape(0).rank();
     if (inputRank.is_dynamic()) {
         return false;
     }
-
-    const std::vector<size_t> axes = ov::util::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
+    const auto axes = util::try_get_normalized_axis_vector(axesConstant->get_tensor_view(), inputRank, *reduce);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
         const auto constShape = eltwise->get_shape();

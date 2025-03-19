@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from copy import deepcopy, copy
 import os
 import subprocess
 import sys
@@ -9,7 +10,7 @@ import sys
 import numpy as np
 
 import openvino as ov
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino.helpers import pack_data, unpack_data
 
 import pytest
@@ -161,38 +162,59 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
 
 
 def test_init_with_node_output_port():
-    param1 = ops.parameter(ov.Shape([1, 3, 2, 2]), dtype=np.float64)
-    param2 = ops.parameter(ov.Shape([1, 3, 32, 32]), dtype=np.float64)
-    param3 = ops.parameter(ov.PartialShape.dynamic(), dtype=np.float64)
-    ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float64)
-    tensor1 = ov.Tensor(param1.output(0))
-    tensor2 = ov.Tensor(param2.output(0), ones_arr)
-    tensor3 = ov.Tensor(param3.output(0))
-    tensor4 = ov.Tensor(param3.output(0), ones_arr)
-    assert tensor1.shape == param1.shape
-    assert tensor1.element_type == param1.get_element_type()
-    assert tensor2.shape == param2.shape
-    assert tensor2.element_type == param2.get_element_type()
-    assert tensor3.shape == ov.Shape([0])
-    assert tensor3.element_type == param3.get_element_type()
-    assert tensor4.shape == ov.Shape([0])
-    assert tensor4.element_type == param3.get_element_type()
+    def get_tensor():
+        param1 = ops.parameter(ov.Shape([1, 3, 2, 2]), dtype=np.float64)
+        param2 = ops.parameter(ov.Shape([1, 3, 32, 32]), dtype=np.float64)
+        param3 = ops.parameter(ov.PartialShape.dynamic(), dtype=np.float64)
+        ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float64)
+        assert sys.getrefcount(ones_arr) == 2
+        tensor1 = ov.Tensor(param1.output(0))
+        tensor2 = ov.Tensor(param2.output(0), ones_arr)
+        assert sys.getrefcount(ones_arr) == 3
+        tensor3 = ov.Tensor(param3.output(0))
+        tensor4 = ov.Tensor(param3.output(0), ones_arr)
+        assert tensor1.shape == param1.shape
+        assert tensor1.element_type == param1.get_element_type()
+        assert tensor2.shape == param2.shape
+        assert tensor2.element_type == param2.get_element_type()
+        assert tensor3.shape == ov.Shape([0])
+        assert tensor3.element_type == param3.get_element_type()
+        assert tensor4.shape == ov.Shape([0])
+        assert tensor4.element_type == param3.get_element_type()
+        ones_arr[0][0][0][0:2] = 0
+
+        del ones_arr
+        return tensor2
+
+    shared_tensor = get_tensor()
+    assert np.allclose(shared_tensor.data[0][0][0][0:3], [0, 0, 1])
 
 
 def test_init_with_node_constoutput_port(device):
-    compiled_model = generate_relu_compiled_model(device)
-    output = compiled_model.output(0)
-    ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
+    def get_tensor():
+        compiled_model = generate_relu_compiled_model(device)
+        output = compiled_model.output(0)
+        ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
+        assert sys.getrefcount(ones_arr) == 2
 
-    tensor1 = ov.Tensor(output)
-    tensor2 = ov.Tensor(output, ones_arr)
+        tensor1 = ov.Tensor(output)
+        tensor2 = ov.Tensor(output, ones_arr)
+        assert sys.getrefcount(ones_arr) == 3
 
-    output_node = output.get_node()
-    assert tensor1.shape == output_node.shape
-    assert tensor1.element_type == output_node.get_element_type()
-    assert tensor2.shape == output_node.shape
-    assert tensor2.element_type == output_node.get_element_type()
-    assert np.array_equal(tensor2.data, ones_arr)
+        output_node = output.get_node()
+        assert tensor1.shape == output_node.shape
+        assert tensor1.element_type == output_node.get_element_type()
+        assert tensor2.shape == output_node.shape
+        assert tensor2.element_type == output_node.get_element_type()
+        assert np.array_equal(tensor2.data, ones_arr)
+
+        ones_arr[0][0][0][0:2] = 0
+
+        del ones_arr
+        return tensor2
+
+    tensor = get_tensor()
+    assert np.allclose(tensor.data[0][0][0][0:3], [0, 0, 1])
 
 
 def test_init_with_output_port_different_shapes():
@@ -459,7 +481,7 @@ def test_viewed_tensor(dtype, element_type):
     buffer = np.random.normal(size=(2, 16)).astype(dtype)
     fit = (dtype().nbytes * 8) / element_type.bitwidth
     tensor = ov.Tensor(buffer, (buffer.shape[0], int(buffer.shape[1] * fit)), element_type)
-    assert np.array_equal(tensor.data, buffer.view(ov.runtime.utils.types.get_dtype(element_type)))
+    assert np.array_equal(tensor.data, buffer.view(ov.utils.types.get_dtype(element_type)))
 
 
 def test_viewed_tensor_default_type():
@@ -580,3 +602,61 @@ def test_init_from_list(init_value):
     assert tuple(tensor.shape) == _init_value.shape
     assert tensor.element_type.to_dtype() == _init_value.dtype
     assert tensor.byte_size == _init_value.nbytes
+
+
+def test_tensor_keeps_memory():
+    def get_tensor():
+        arr = np.ones((8, 16, 300), dtype=np.float32)
+        assert sys.getrefcount(arr) == 2
+
+        shared_tensor = ov.Tensor(arr, shared_memory=True)
+        arr[0][0][0:2] = 0
+        assert sys.getrefcount(arr) == 3
+
+        del arr
+        return shared_tensor
+
+    tensor = get_tensor()
+    assert np.allclose(tensor.data[0][0][0:3], [0, 0, 1])
+
+
+@pytest.mark.parametrize(
+    ("copy_func", "should_share_data"), [(copy, True), (deepcopy, False)]
+)
+def test_copy_and_deepcopy(copy_func, should_share_data):
+    shape = (3, 4)
+    value, outlier = 7, 100
+    tensor_data = np.full(shape, value)
+    tensor = ov.Tensor(tensor_data)
+    tensor_copy = copy_func(tensor)
+
+    assert np.array_equal(tensor_copy.data, tensor.data)
+    assert tensor_copy is not tensor
+    # Update value of the original tensor
+    tensor.data[0, 0] = outlier
+    assert tensor.data[0, 0] == outlier
+
+    if should_share_data:
+        assert tensor_copy.data[0, 0] == outlier
+    else:
+        assert tensor_copy.data[0, 0] == value
+
+
+# supported dtypes by Pillow
+@pytest.mark.parametrize(("numpy_dtype", "shape"), [
+                         (np.float32, (224, 224)),
+                         (np.int32, (224, 224)),
+                         (np.uint8, (224, 224, 3)),
+                         (np.uint16, (224, 224)),],)
+def test_tensor_from_pillow(numpy_dtype, shape):
+    from PIL import Image
+
+    arr = generate_image(shape, numpy_dtype)
+    img = Image.fromarray(arr)
+
+    tensor = ov.Tensor(img)
+    assert tensor.shape == shape
+    assert tensor.element_type == ov.Type(numpy_dtype)
+    assert isinstance(tensor.data, np.ndarray)
+    assert tensor.data.dtype == numpy_dtype
+    assert tensor.data.shape == shape

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -32,7 +32,7 @@ class TestScatter(PytorchLayerTest):
                     str_forward += "_inplace"
                 else:
                     str_forward += ("_out_of_place" if not has_out else "_with_out")
-                    
+
 
                 if reduce:
                     self.reduce = reduce
@@ -122,7 +122,7 @@ class TestScatter(PytorchLayerTest):
             precision,
             ir_version,
             kwargs_to_prepare_input={"dtype": dtype, "out": has_out},
-            freeze_model=freeze
+            freeze_model=freeze,
         )
 
 
@@ -151,7 +151,7 @@ class TestScatterReduce(PytorchLayerTest):
                     str_forward += "_inplace"
                 else:
                     str_forward += ("_out_of_place" if not has_out else "_with_out")
-                    
+
                 self.reduce = reduce
                 self.include_self = include_self
                 self.forward = getattr(self, str_forward)
@@ -240,7 +240,7 @@ class TestScatterAdd(PytorchLayerTest):
                     self.index = torch.empty([1])
                 else:
                     self.index = index
-                self.src = src                    
+                self.src = src
                 self.inplace = inplace
 
             def forward(self, x: torch.Tensor):

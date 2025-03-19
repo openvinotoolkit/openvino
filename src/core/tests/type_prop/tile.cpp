@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,7 +136,7 @@ TEST_F(TypePropTileTest, preserve_partial_values_and_symbols) {
 
     const auto op = make_op(data, shape_of_repeats);
 
-    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {2, 4}, {-1, 6}, -1, -1}));
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {2, 4}, {-1, 6}, {2, -1}, -1}));
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
                 ElementsAre(nullptr, nullptr, nullptr, symbols[3], symbols[4]));
 }

@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_Exp_1}
-
 Exp
 ===
 
 
 .. meta::
-  :description: Learn about Exp-1 - an element-wise, activation operation, which 
+  :description: Learn about Exp-1 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Exp-1*
@@ -19,7 +17,7 @@ Exp
 *Exp* performs element-wise exponential activation function on a given input tensor. The mathematical formula is as follows:
 
 .. math::
-   
+
    exp(x) = e^{x}
 
 **Attributes**: *Exp* operation has no attributes.
@@ -40,7 +38,7 @@ Exp
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Exp">
        <input>
            <port id="0">

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,33 +7,42 @@
 #include <limits>
 
 #include "common_op_table.hpp"
+#include "common_translators.hpp"
 #include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/atan.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
+#include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sin.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -431,7 +440,7 @@ Output<Node> compute_broadcast_args(const Output<Node>& shape1, const Output<Nod
     return broadcasted_shape->output(0);
 }
 
-shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_hsv(const shared_ptr<Node>& images) {
+shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_hsv(const ov::Output<ov::Node>& images) {
     // image format conversion based on
     // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
     auto const_zero_f_ = create_same_type_const_scalar<float>(images, 0.0f);
@@ -561,6 +570,81 @@ shared_ptr<Node> hsv_to_rgb(const ov::Output<ov::Node>& h,
     // return concatenated RGB
     return rgb_adjust;
 }
+
+ov::Output<ov::Node> create_dense_tensor(const ov::Output<ov::Node>& indices,
+                                         const ov::Output<ov::Node>& shape,
+                                         const ov::Output<ov::Node>& values) {
+    auto zero_const = create_same_type_const_scalar<int32_t>(values, 0);
+    ov::Output<ov::Node> dense_tensor = std::make_shared<v3::Broadcast>(zero_const, shape);
+    dense_tensor = std::make_shared<v15::ScatterNDUpdate>(dense_tensor, indices, values);
+    return dense_tensor;
+}
+
+ov::Output<ov::Node> atan2_op(const ov::Output<ov::Node>& y, const ov::Output<ov::Node>& x) {
+    // handle the first condition : x>0
+    auto div_y_x = std::make_shared<v1::Divide>(y, x);
+    auto atan = std::make_shared<v0::Atan>(div_y_x);
+    auto const_zero = create_same_type_const_scalar<int32_t>(x, 0);
+    auto result = atan->output(0);
+
+    // handle the second condition : x<0 && y>=0
+    auto const_pi = create_same_type_const_scalar<double>(x, std::atan(1.0) * 4);
+    auto is_x_negative = std::make_shared<v1::Less>(x, const_zero);
+    auto y_non_negative = std::make_shared<v1::GreaterEqual>(y, const_zero);
+    auto cond1 = std::make_shared<v1::LogicalAnd>(is_x_negative, y_non_negative);
+    auto atan_y_x_plus_pi = make_shared<v1::Add>(atan, const_pi);
+    result = make_shared<v1::Select>(cond1, atan_y_x_plus_pi, result);
+
+    // handle the third condition : x<0 && y<0
+    auto is_y_negative = std::make_shared<v1::Less>(y, const_zero);
+    auto cond2 = std::make_shared<v1::LogicalAnd>(is_x_negative, is_y_negative);
+    auto atan_y_x_minus_pi = std::make_shared<v1::Subtract>(atan, const_pi);
+    result = std::make_shared<v1::Select>(cond2, atan_y_x_minus_pi, result);
+
+    // handle the fourth condition : x=0 && y>0
+    auto is_x_zero = std::make_shared<v1::Equal>(x, const_zero);
+    auto is_y_positive = std::make_shared<v1::Greater>(y, const_zero);
+    auto cond3 = std::make_shared<v1::LogicalAnd>(is_x_zero, is_y_positive);
+    auto const_two = create_same_type_const_scalar<int32_t>(x, 2);
+    auto pi_div_two = make_shared<v1::Divide>(const_pi, const_two);
+    result = std::make_shared<v1::Select>(cond3, pi_div_two, result);
+
+    // handle the fifth condition : x=0 && y<0
+    auto cond4 = std::make_shared<v1::LogicalAnd>(is_x_zero, is_y_negative);
+    auto const_minus_two = create_same_type_const_scalar<int32_t>(x, -2);
+    auto pi_div_minus_two = make_shared<v1::Divide>(const_pi, const_minus_two);
+    result = std::make_shared<v1::Select>(cond4, pi_div_minus_two, result);
+
+    return result;
+}
+
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_rectangular_to_polar(
+    const ov::frontend::NodeContext& node_context,
+    const ov::Output<ov::Node>& real_part,
+    const ov::Output<ov::Node>& imag_part) {
+    // r = sqrt(a^2 + b^2)
+    auto const_two = create_same_type_const_scalar<float>(real_part, 2.0f);
+    auto sum_sq = std::make_shared<v1::Add>(std::make_shared<v1::Power>(real_part, const_two),
+                                            std::make_shared<v1::Power>(imag_part, const_two));
+    auto r = std::make_shared<v0::Sqrt>(sum_sq);
+
+    // theta = atan2(b, a)
+    auto theta = common_translators::translate_atan2_util(node_context, imag_part, real_part);
+
+    return std::make_pair(r, theta[0]);
+};
+
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_polar_to_rectangular(const ov::Output<ov::Node>& r,
+                                                                                   const ov::Output<ov::Node>& theta) {
+    // z = r * (cos(theta) + sin(theta)*j) = real_part + imag_part*j
+    auto sin = make_shared<v0::Sin>(theta);
+    auto cos = make_shared<v0::Cos>(theta);
+
+    auto real_part = make_shared<v1::Multiply>(r, cos);
+    auto imag_part = make_shared<v1::Multiply>(r, sin);
+
+    return std::make_pair(real_part, imag_part);
+};
 
 }  // namespace tensorflow
 }  // namespace frontend

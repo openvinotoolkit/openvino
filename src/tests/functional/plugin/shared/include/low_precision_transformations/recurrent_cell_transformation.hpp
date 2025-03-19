@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,7 @@ typedef std::tuple<
     std::vector<ov::Shape>,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
+    bool, // use precision transparent operations
     RecurrentCellTransformationParam
 >RecurrentCellTransformationParams;
 

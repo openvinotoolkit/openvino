@@ -1,66 +1,46 @@
-.. {#about_openvino}
-
 About OpenVINO
 ==============
-
 
 .. toctree::
    :maxdepth: 1
    :hidden:
 
+   about-openvino/key-features
    about-openvino/performance-benchmarks
-   about-openvino/compatibility-and-support
+   OpenVINO Ecosystem <about-openvino/openvino-ecosystem>
+   about-openvino/contributing
    Release Notes <about-openvino/release-notes-openvino>
-   Additional Resources <about-openvino/additional-resources>
 
 OpenVINO is a toolkit for simple and efficient deployment of various deep learning models.
 In this section you will find information on the product itself, as well as the software
 and hardware solutions it supports.
 
-OpenVINO (Open Visual Inference and Neural network Optimization) is an open-source software toolkit designed to optimize, accelerate, and deploy deep learning models for user applications. OpenVINO was developed by Intel to work efficiently on a wide range of Intel hardware platforms, including CPUs (x86 and Arm), GPUs, and NPUs.
-
+OpenVINO (Open Visual Inference and Neural network Optimization) is an open-source software
+toolkit designed to optimize, accelerate, and deploy deep learning models for user applications.
+OpenVINO is actively developed by Intel® to work efficiently on a wide range of Intel® hardware platforms,
+including CPUs (x86 and Arm), GPUs, and NPUs.
 
 Features
 ##############################################################
 
-One of the main purposes of OpenVINO is to streamline the deployment of deep learning models in user applications. It optimizes and accelerates model inference, which is crucial for such domains as Generative AI, Large Language models, and use cases like object detection, classification, segmentation, and many others.
+One of the main purposes of the OpenVINO toolkit is to streamline integration and deployment of
+deep learning models. Yet its feature set is much wider, offering various optimization and implementation options.
 
-* :doc:`Model Optimization <openvino-workflow/model-optimization>`
-
-OpenVINO provides multiple optimization methods for both the training and post-training stages, including weight compression for Large Language models and Intel Optimum integration with Hugging Face.
-
-* :doc:`Model Conversion and Framework Compatibility <openvino-workflow/model-preparation>`
-
-Supported models can be loaded directly or converted to the OpenVINO format to achieve better performance. Supported frameworks include ONNX, PyTorch, TensorFlow, TensorFlow Lite, Keras, and PaddlePaddle.
-
-* :doc:`Model Inference <openvino-workflow/running-inference>`
-
-OpenVINO accelerates deep learning models on various hardware platforms, ensuring real-time, efficient inference.
-
-* `Deployment on a server <https://github.com/openvinotoolkit/model_server>`__
-
-A model can be deployed either locally using OpenVINO Runtime or on a model server. Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions. The model server enables quick model inference using external resources.
+To learn about the main properties of OpenVINO, see the :doc:`Key Features <about-openvino/key-features>`.
 
 Architecture
 ##############################################################
 
-To learn more about how OpenVINO works, read the Developer documentation on its `architecture <https://github.com/openvinotoolkit/openvino/blob/master/src/docs/architecture.md>`__ and `core components <https://github.com/openvinotoolkit/openvino/blob/master/src/README.md>`__.
-
-OpenVINO Ecosystem
-##############################################################
-
-Along with the primary components of model optimization and runtime, the toolkit also includes:
-
-* `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__ - a tool for enhanced OpenVINO™ inference to get performance boost with minimal accuracy drop.
-* :doc:`Openvino Notebooks <learn-openvino/interactive-tutorials-python>`- Jupyter Python notebook, which demonstrate key features of the toolkit.
-* `OpenVINO Model Server <https://github.com/openvinotoolkit/model_server>`__ - a server that enables scalability via a serving microservice.
-* :doc:`OpenVINO Training Extensions  <documentation/openvino-ecosystem/openvino-training-extensions>` – a convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
-* :doc:`Dataset Management Framework (Datumaro) <documentation/openvino-ecosystem/datumaro>` - a tool to build, transform, and analyze datasets.
+To learn more about how OpenVINO works, read the Developer documentation on its
+`architecture <https://github.com/openvinotoolkit/openvino/blob/master/src/docs/architecture.md>`__
+and
+`core components <https://github.com/openvinotoolkit/openvino/blob/master/src/README.md>`__.
 
 Community
 ##############################################################
 
-OpenVINO community plays a vital role in the growth and development of the open-sourced toolkit. Users can contribute to OpenVINO and get support using the following channels:
+OpenVINO community plays a vital role in the growth and development of the open-sourced toolkit.
+Users can contribute to OpenVINO and get support using the following channels:
 
 * `OpenVINO GitHub issues, discussions and pull requests <https://github.com/openvinotoolkit/openvino>`__
 * `OpenVINO Blog <https://blog.openvino.ai/>`__
@@ -71,6 +51,7 @@ OpenVINO community plays a vital role in the growth and development of the open-
 Case Studies
 ##############################################################
 
-OpenVINO has been employed in various case studies across a wide range of industries and applications, including healthcare, retail, safety and security, transportation, and more. Read about how OpenVINO enhances efficiency, accuracy, and safety in different sectors on the `success stories page <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html>`__.
-
-
+OpenVINO has been employed in various case studies across a wide range of industries and
+applications, including healthcare, retail, safety and security, transportation, and more.
+Read about how OpenVINO enhances efficiency, accuracy, and safety in different sectors on the
+`success stories page <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html>`__.

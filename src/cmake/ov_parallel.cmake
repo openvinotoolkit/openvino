@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,7 +23,7 @@ function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
         get_target_property(_imported_configs ${target} IMPORTED_CONFIGURATIONS)
         if(NOT _imported_configs)
             # if IMPORTED_CONFIGURATIONS property is not set, then set a common list
-            set(_imported_configs RELEASE NONE)
+            set(_imported_configs RELEASE DEBUG NONE)
             if(NOT OV_GENERATOR_MULTI_CONFIG)
                 string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
                 list(APPEND _imported_configs ${_build_type})
@@ -132,7 +132,7 @@ macro(ov_find_package_tbb)
                                   IMPORTED_TARGET
                                   # we need to set GLOBAL in order to create ALIAS later
                                   # ALIAS creation for non-GLOBAL targets is available since cmake 3.18
-                                  ${OV_PkgConfig_VISILITY}
+                                  ${OV_PkgConfig_VISIBILITY}
                                   tbb)
                 if(tbb_FOUND)
                     # parse version
@@ -249,6 +249,80 @@ macro(ov_find_package_tbb)
     endif()
 endmacro()
 
+macro(ov_find_package_openmp)
+    # check whether the compiler supports OpenMP at all
+    find_package(OpenMP)
+
+    # check if Intel OpenMP is downloaded and override system library
+    if(THREADING STREQUAL "OMP")
+        if(INTEL_OMP)
+            if(WIN32)
+                set(iomp_lib_name libiomp5md)
+            else()
+                set(iomp_lib_name iomp5)
+            endif()
+
+            set(lib_rel_path ${INTEL_OMP}/lib)
+            set(lib_dbg_path ${lib_rel_path})
+
+            find_library(INTEL_OMP_LIBRARIES_RELEASE NAMES ${iomp_lib_name} PATHS ${lib_rel_path} REQUIRED NO_DEFAULT_PATH)
+            list(APPEND iomp_imported_configurations RELEASE)
+
+            # try to find debug libraries as well
+            if(WIN32)
+                set(iomp_link_flags
+                    # avoid linking default OpenMP
+                    # https://learn.microsoft.com/en-us/cpp/parallel/openmp/reference/openmp-library-reference?view=msvc-170
+                    INTERFACE_LINK_OPTIONS -nodefaultlib:vcomp)
+
+                # location of .lib file
+                string(REPLACE ".dll" ".lib" INTEL_OMP_IMPLIB_RELEASE "${INTEL_OMP_LIBRARIES_RELEASE}")
+                set(iomp_implib_location_release
+                    IMPORTED_IMPLIB_RELEASE "${INTEL_OMP_IMPLIB_RELEASE}")
+
+                find_library(INTEL_OMP_LIBRARIES_DEBUG NAMES ${iomp_lib_name} PATHS ${lib_dbg_path} NO_DEFAULT_PATH)
+                if(INTEL_OMP_LIBRARIES_DEBUG)
+                    string(REPLACE ".dll" ".lib" INTEL_OMP_IMPLIB_DEBUG "${INTEL_OMP_LIBRARIES_DEBUG}")
+
+                    list(APPEND iomp_imported_configurations DEBUG)
+                    set(iomp_imported_locations_debug
+                        IMPORTED_LOCATION_DEBUG "${INTEL_OMP_LIBRARIES_DEBUG}"
+                        IMPORTED_IMPLIB_DEBUG "${INTEL_OMP_IMPLIB_DEBUG}")
+                else()
+                    set(iomp_map_imported_debug_configuration MAP_IMPORTED_CONFIG_DEBUG Release)
+                    message(WARNING "OMP Debug binaries are missed.")
+                endif()
+            endif()
+
+            # create imported target
+            if(NOT TARGET IntelOpenMP::OpenMP_CXX)
+                add_library(IntelOpenMP::OpenMP_CXX SHARED IMPORTED)
+                set_property(TARGET IntelOpenMP::OpenMP_CXX APPEND PROPERTY
+                    IMPORTED_CONFIGURATIONS ${iomp_imported_configurations})
+                set_target_properties(IntelOpenMP::OpenMP_CXX PROPERTIES
+                    # reuse standard OpenMP compiler flags
+                    INTERFACE_COMPILE_OPTIONS ${OpenMP_CXX_FLAGS}
+                    # location of release library (both .dll and lib.)
+                    IMPORTED_LOCATION_RELEASE "${INTEL_OMP_LIBRARIES_RELEASE}"
+                    ${iomp_implib_location_release}
+                    # the same for debug libs
+                    ${iomp_imported_locations_debug}
+                    # linker flags to override system OpenMP
+                    ${iomp_link_flags}
+                    # map imported configurations if required
+                    ${iomp_map_imported_debug_configuration}
+                    MAP_IMPORTED_CONFIG_MINSIZEREL Release
+                    MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
+            endif()
+        endif()
+
+        # falling back to system OpenMP then
+        if(NOT TARGET IntelOpenMP::OpenMP_CXX)
+            ov_target_link_libraries_as_system(${TARGET_NAME} ${LINK_TYPE} OpenMP::OpenMP_CXX)
+        endif()
+    endif()
+endmacro()
+
 function(ov_set_threading_interface_for TARGET_NAME)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
         # find TBB
@@ -286,117 +360,48 @@ function(ov_set_threading_interface_for TARGET_NAME)
         message(WARNING "Unknown target type")
     endif()
 
-    function(_ov_target_link_libraries TARGET_NAME LINK_TYPE)
-        target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${ARGN})
+    set(_ov_thread_define "OV_THREAD_SEQ")
 
-        # include directories as SYSTEM
-        foreach(library IN LISTS ARGN)
-            if(TARGET ${library})
-                get_target_property(include_directories ${library} INTERFACE_INCLUDE_DIRECTORIES)
-                if(include_directories)
-                    foreach(include_directory IN LISTS include_directories)
-                        # cannot include /usr/include headers as SYSTEM
-                        if(NOT "${include_directory}" MATCHES ".*/usr/include.*$")
-                            target_include_directories(${TARGET_NAME} SYSTEM
-                                ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
-                        else()
-                            set(_system_library ON)
-                        endif()
-                    endforeach()
-                endif()
-            endif()
-        endforeach()
+    if(NOT TARGET openvino::threading)
+        add_library(openvino_threading INTERFACE)
+        add_library(openvino::threading ALIAS openvino_threading)
+    endif()
 
-        if(_system_library)
-            # if we deal with system library (e.i. having /usr/include as header paths)
-            # we cannot use SYSTEM key word for such library
-            set_target_properties(${TARGET_NAME} PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
-        endif()
-    endfunction()
-
-    set(OV_THREAD_DEFINE "OV_THREAD_SEQ")
-
-    if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-        if (TBB_FOUND)
-            set(OV_THREAD_DEFINE "OV_THREAD_TBB")
-            _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} TBB::tbb)
-            target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
-        else ()
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+        if(TBB_FOUND)
+            set(_ov_thread_define "OV_THREAD_TBB")
+            set(_ov_threading_lib TBB::tbb)
+        else()
             set(THREADING "SEQ" PARENT_SCOPE)
             message(WARNING "TBB was not found by the configured TBB_DIR path.\
                              SEQ method will be used for ${TARGET_NAME}")
-        endif ()
-    elseif (THREADING STREQUAL "OMP")
-        if (WIN32)
-            set(omp_lib_name libiomp5md)
-        else ()
-            set(omp_lib_name iomp5)
-        endif ()
+        endif()
+    elseif(THREADING STREQUAL "OMP")
+        ov_find_package_openmp()
 
-        if (NOT OpenVINO_SOURCE_DIR)
-            # TODO: dead code since ov_parallel.cmake is not used outside of OpenVINO build
-            if (WIN32)
-                set(lib_rel_path ${IE_LIB_REL_DIR})
-                set(lib_dbg_path ${IE_LIB_DBG_DIR})
-            else ()
-                set(lib_rel_path ${IE_EXTERNAL_DIR}/omp/lib)
-                set(lib_dbg_path ${lib_rel_path})
-            endif ()
-        else ()
-            set(lib_rel_path ${OMP}/lib)
-            set(lib_dbg_path ${lib_rel_path})
-        endif ()
+        if(TARGET IntelOpenMP::OpenMP_CXX)
+            set(_ov_thread_define "OV_THREAD_OMP")
+            set(_ov_threading_lib IntelOpenMP::OpenMP_CXX)
+        elseif(TARGET OpenMP::OpenMP_CXX)
+            set(_ov_thread_define "OV_THREAD_OMP")
+            set(_ov_threading_lib OpenMP::OpenMP_CXX)
+        else()
+            message(FATAL_ERROR "Internal error: OpenMP is not supported by compiler. Switch to SEQ should be performed before")
+        endif()
+    endif()
 
-        if (NOT OMP_LIBRARIES_RELEASE)
-            find_library(OMP_LIBRARIES_RELEASE ${omp_lib_name} ${lib_rel_path} NO_DEFAULT_PATH)
-            message(STATUS "OMP Release lib: ${OMP_LIBRARIES_RELEASE}")
-            if (NOT LINUX)
-                find_library(OMP_LIBRARIES_DEBUG ${omp_lib_name} ${lib_dbg_path} NO_DEFAULT_PATH)
-                if (OMP_LIBRARIES_DEBUG)
-                    message(STATUS "OMP Debug lib: ${OMP_LIBRARIES_DEBUG}")
-                else ()
-                    message(WARNING "OMP Debug binaries are missed.")
-                endif ()
-            endif ()
-        endif ()
+    if(_ov_threading_lib)
+        # populate properties of openvino::threading
+        set_target_properties(openvino_threading PROPERTIES INTERFACE_LINK_LIBRARIES ${_ov_threading_lib})
 
-        if (NOT OMP_LIBRARIES_RELEASE)
-            message(WARNING "Intel OpenMP not found. Intel OpenMP support will be disabled. ${OV_THREAD_DEFINE} is defined")
-            set(THREADING "SEQ" PARENT_SCOPE)
-        else ()
-            set(OV_THREAD_DEFINE "OV_THREAD_OMP")
+        # perform linkage with target
+        ov_target_link_libraries_as_system(${TARGET_NAME} ${LINK_TYPE} ${_ov_threading_lib})
+    endif()
 
-            if (WIN32)
-                target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} /openmp)
-                target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} /Qopenmp)
-                _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "-nodefaultlib:vcomp")
-            else()
-                target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} -fopenmp)
-            endif ()
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} OV_THREAD=${_ov_thread_define})
 
-            # Debug binaries are optional.
-            if (OMP_LIBRARIES_DEBUG AND NOT LINUX)
-                if (WIN32)
-                    _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "$<$<CONFIG:DEBUG>:${OMP_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${OMP_LIBRARIES_RELEASE}>")
-                else()
-                    # TODO: handle multi-config generators case
-                    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-                        _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_DEBUG})
-                    else()
-                        _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_RELEASE})
-                    endif ()
-                endif ()
-            else ()
-                # Link Release library to all configurations.
-                _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_RELEASE})
-            endif ()
-        endif ()
-    endif ()
-
-    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DOV_THREAD=${OV_THREAD_DEFINE})
-
-    if (NOT THREADING STREQUAL "SEQ")
+    if(NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)
-        _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} Threads::Threads)
+        ov_target_link_libraries_as_system(${TARGET_NAME} ${LINK_TYPE} Threads::Threads)
     endif()
 endfunction(ov_set_threading_interface_for)

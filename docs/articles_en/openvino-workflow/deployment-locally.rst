@@ -18,7 +18,7 @@ Deploy Locally
 
 .. note::
 
-   Note that :doc:`running inference in OpenVINO Runtime <running-inference>` is the most basic form of deployment. Before moving forward, make sure you know how to create a proper Inference configuration and :doc:`develop your application properly <running-inference/integrate-openvino-with-your-application>`.
+   Note that :doc:`running inference in OpenVINO Runtime <running-inference>` is the most basic form of deployment. Before moving forward, make sure you know how to create a proper Inference configuration and :doc:`develop your application properly <running-inference>`.
 
 Local Deployment Options
 ########################
@@ -43,7 +43,7 @@ The table below shows which distribution type can be used for what target operat
    * - Distribution type
      - Operating systems
    * - Debian packages
-     - Ubuntu 18.04, 20.04, 22.04, 24.04 (64-bit)
+     - 20.04, 22.04, 24.04 (64-bit)
    * - RPM packages
      - Red Hat Enterprise Linux 8, 64-bit
    * - Docker images
@@ -65,7 +65,7 @@ The granularity of OpenVINO packages may vary for different distribution types. 
 
 
 - The main library ``openvino`` is used by users' C++ applications to link against with. For C language applications, ``openvino_c`` is additionally required for distribution. The library includes OpenVINO API 2.0.
-- The "optional" plugin libraries like ``openvino_intel_cpu_plugin`` (matching the ``openvino_.+_plugin`` pattern) are used to provide inference capabilities on specific devices or additional capabilities like :doc:`Hetero Execution <running-inference/inference-devices-and-modes/hetero-execution>` and :doc:`Multi-Device Execution <running-inference/inference-devices-and-modes/multi-device>`.
+- The "optional" plugin libraries like ``openvino_intel_cpu_plugin`` (matching the ``openvino_.+_plugin`` pattern) are used to provide inference capabilities on specific devices or additional capabilities like :doc:`Hetero Execution <running-inference/inference-devices-and-modes/hetero-execution>`.
 - The "optional" plugin libraries like ``openvino_ir_frontend`` (matching ``openvino_.+_frontend``) are used to provide capabilities to read models of different file formats such as OpenVINO IR, TensorFlow, ONNX, and PaddlePaddle.
 
 Here the term "optional" means that if the application does not use the capability enabled by the plugin, the plugin library or a package with the plugin is not needed in the final distribution.
@@ -74,5 +74,5 @@ Building a local distribution will require more detailed information, and you wi
 
 .. note::
 
-   Depending on your target OpenVINO devices, the following configuration might be needed for deployed machines: :doc:`Configurations for GPU <../get-started/configurations/configurations-intel-gpu>`.
+   Depending on your target OpenVINO devices, the following configuration might be needed for deployed machines: :doc:`Configurations for GPU <../get-started/install-openvino/configurations/configurations-intel-gpu>`.
 

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_bitwise_BitwiseNot_13}
-
 BitwiseNot
 ==========
 

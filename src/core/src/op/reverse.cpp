@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <sstream>
 
 #include "itt.hpp"
-#include "openvino/op/util/axes_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/reverse.hpp"
 #include "reverse_shape_inference.hpp"
 
@@ -99,7 +99,7 @@ bool Reverse::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
             }
         }
     } else if (validate_axes_indices_et(axes.get_element_type())) {
-        reversed_axes = util::get_normalized_axes_from_tensor(this, axes, data_shape.size());
+        reversed_axes = ov::util::try_get_normalized_axis_set(axes, data_shape.size(), *this);
     } else {
         return false;
     }
@@ -133,4 +133,6 @@ OPENVINO_API EnumNames<op::v1::Reverse::Mode>& EnumNames<op::v1::Reverse::Mode>:
         {{"index", op::v1::Reverse::Mode::INDEX}, {"mask", op::v1::Reverse::Mode::MASK}});
     return enum_names;
 }
+
+AttributeAdapter<op::v1::Reverse::Mode>::~AttributeAdapter() = default;
 }  // namespace ov

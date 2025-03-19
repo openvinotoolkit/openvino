@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include <openvino/core/strides.hpp>
 #include <openvino/core/type/element_type.hpp>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -391,7 +392,7 @@ TEST_F(OVTensorTest, canSetShape) {
 
     const void* orig_data = t.data();
     ASSERT_EQ(t.get_shape(), origShape);
-    ASSERT_NO_THROW(t.set_shape(newShape));
+    OV_ASSERT_NO_THROW(t.set_shape(newShape));
     ASSERT_EQ(newShape, t.get_shape());
     ASSERT_EQ(byteStrides(ov::row_major_strides(newShape), t.get_element_type()), t.get_strides());
     ASSERT_NE(orig_data, t.data());
@@ -399,7 +400,7 @@ TEST_F(OVTensorTest, canSetShape) {
     // check that set_shape for copy changes original Tensor
     {
         ov::Tensor t2 = t;
-        ASSERT_NO_THROW(t2.set_shape(newShape2));
+        OV_ASSERT_NO_THROW(t2.set_shape(newShape2));
         ASSERT_EQ(newShape2, t.get_shape());
         ASSERT_EQ(t2.get_shape(), t.get_shape());
         ASSERT_EQ(t2.data(), t.data());
@@ -421,7 +422,7 @@ TEST_F(OVTensorTest, canSetShapeStringTensor) {
 
     const void* orig_data = t.data();
     ASSERT_EQ(t.get_shape(), origShape);
-    ASSERT_NO_THROW(t.set_shape(newShape));
+    OV_ASSERT_NO_THROW(t.set_shape(newShape));
     ASSERT_EQ(newShape, t.get_shape());
     ASSERT_EQ(byteStrides(ov::row_major_strides(newShape), t.get_element_type()), t.get_strides());
     ASSERT_NE(orig_data, t.data());
@@ -429,7 +430,7 @@ TEST_F(OVTensorTest, canSetShapeStringTensor) {
     // check that setShape for copy changes original Tensor
     {
         ov::Tensor t2 = t;
-        ASSERT_NO_THROW(t2.set_shape(newShape2));
+        OV_ASSERT_NO_THROW(t2.set_shape(newShape2));
         ASSERT_EQ(newShape2, t2.get_shape());
         ASSERT_EQ(t2.get_shape(), t.get_shape());
         ASSERT_EQ(t2.data(), t.data());
@@ -438,7 +439,7 @@ TEST_F(OVTensorTest, canSetShapeStringTensor) {
 
     // set_shape for smaller memory - does not perform reallocation
     {
-        ASSERT_NO_THROW(t.set_shape(origShape));
+        OV_ASSERT_NO_THROW(t.set_shape(origShape));
         ASSERT_EQ(origShape, t.get_shape());
         ASSERT_EQ(orig_data, t.data());
     }
@@ -465,7 +466,7 @@ TEST_F(OVTensorTest, canSetShapeOfSmallerSizeOnPreallocatedMemory) {
     ov::Tensor t{ov::element::f32, {4, 5, 6}, data};
     const ov::Shape newShape({1, 2, 3});
 
-    ASSERT_NO_THROW(t.set_shape(newShape));
+    OV_ASSERT_NO_THROW(t.set_shape(newShape));
 }
 
 TEST_F(OVTensorTest, canSetShapeOfSmallerSizeOnPreallocatedMemoryStringTensor) {
@@ -473,7 +474,7 @@ TEST_F(OVTensorTest, canSetShapeOfSmallerSizeOnPreallocatedMemoryStringTensor) {
     ov::Tensor t{ov::element::string, {4, 5, 6}, data};
     const ov::Shape newShape({1, 2, 3});
 
-    ASSERT_NO_THROW(t.set_shape(newShape));
+    OV_ASSERT_NO_THROW(t.set_shape(newShape));
 }
 
 TEST_F(OVTensorTest, canSetShapeOfSameSizeOnPreallocatedMemory) {
@@ -481,7 +482,7 @@ TEST_F(OVTensorTest, canSetShapeOfSameSizeOnPreallocatedMemory) {
     ov::Tensor t{ov::element::f32, {4, 5, 6}, data};
     const ov::Shape newShape({4, 5, 6});
 
-    ASSERT_NO_THROW(t.set_shape(newShape));
+    OV_ASSERT_NO_THROW(t.set_shape(newShape));
 }
 
 TEST_F(OVTensorTest, canSetShapeOfSameSizeOnPreallocatedMemoryStringTensor) {
@@ -489,7 +490,7 @@ TEST_F(OVTensorTest, canSetShapeOfSameSizeOnPreallocatedMemoryStringTensor) {
     ov::Tensor t{ov::element::string, {4, 5, 6}, data};
     const ov::Shape newShape({4, 5, 6});
 
-    ASSERT_NO_THROW(t.set_shape(newShape));
+    OV_ASSERT_NO_THROW(t.set_shape(newShape));
 }
 
 TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasingOnPreallocatedMemory) {
@@ -498,8 +499,8 @@ TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasingOnPreallocatedMemor
     const ov::Shape smallerShape({1, 2, 3});
     const ov::Shape originalShape({4, 5, 6});
 
-    ASSERT_NO_THROW(t.set_shape(smallerShape));
-    ASSERT_NO_THROW(t.set_shape(originalShape));
+    OV_ASSERT_NO_THROW(t.set_shape(smallerShape));
+    OV_ASSERT_NO_THROW(t.set_shape(originalShape));
 }
 
 TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasingOnPreallocatedMemoryStringTensor) {
@@ -508,8 +509,8 @@ TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasingOnPreallocatedMemor
     const ov::Shape smallerShape({1, 2, 3});
     const ov::Shape originalShape({4, 5, 6});
 
-    ASSERT_NO_THROW(t.set_shape(smallerShape));
-    ASSERT_NO_THROW(t.set_shape(originalShape));
+    OV_ASSERT_NO_THROW(t.set_shape(smallerShape));
+    OV_ASSERT_NO_THROW(t.set_shape(originalShape));
 }
 
 TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasing) {
@@ -517,9 +518,9 @@ TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasing) {
     ov::Tensor t{ov::element::f32, shape};
     void* data = t.data();
 
-    ASSERT_NO_THROW(t.set_shape(small_shape));
+    OV_ASSERT_NO_THROW(t.set_shape(small_shape));
     EXPECT_EQ(data, t.data());
-    ASSERT_NO_THROW(t.set_shape(shape));
+    OV_ASSERT_NO_THROW(t.set_shape(shape));
     EXPECT_EQ(data, t.data());
 }
 
@@ -528,9 +529,9 @@ TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasingStringTensor) {
     ov::Tensor t{ov::element::string, shape};
     void* data = t.data();
 
-    ASSERT_NO_THROW(t.set_shape(small_shape));
+    OV_ASSERT_NO_THROW(t.set_shape(small_shape));
     EXPECT_EQ(data, t.data());
-    ASSERT_NO_THROW(t.set_shape(shape));
+    OV_ASSERT_NO_THROW(t.set_shape(shape));
     EXPECT_EQ(data, t.data());
 }
 
@@ -541,7 +542,7 @@ TEST_F(OVTensorTest, canChangeShapeOnStridedTensor) {
     const ov::Shape correct_shape({1, 1, 2});
 
     ASSERT_THROW(t.set_shape(incorrect_shape), ov::Exception);
-    ASSERT_NO_THROW(t.set_shape(correct_shape));
+    OV_ASSERT_NO_THROW(t.set_shape(correct_shape));
 }
 
 TEST_F(OVTensorTest, canChangeShapeOnStridedTensorStringTensor) {
@@ -551,7 +552,7 @@ TEST_F(OVTensorTest, canChangeShapeOnStridedTensorStringTensor) {
     const ov::Shape correct_shape({1, 1, 2});
 
     ASSERT_THROW(t.set_shape(incorrect_shape), ov::Exception);
-    ASSERT_NO_THROW(t.set_shape(correct_shape));
+    OV_ASSERT_NO_THROW(t.set_shape(correct_shape));
 }
 
 TEST_F(OVTensorTest, makeRangeRoiTensor) {
@@ -649,7 +650,7 @@ TEST_F(OVTensorTest, tensorInt4DataAccess) {
     ASSERT_THROW((ov::Tensor{t, {0, 1, 2, 0}, {1, 5, 4, 3}}), ov::Exception);
     ASSERT_THROW(t.get_strides(), ov::Exception);
     ASSERT_THROW(t.data<int8_t>(), ov::Exception);
-    ASSERT_NO_THROW(t.data());
+    OV_ASSERT_NO_THROW(t.data());
 }
 
 TEST_F(OVTensorTest, makeRangeRoiBlobWrongSize) {
@@ -706,6 +707,162 @@ TEST_F(OVTensorTest, readRangeRoiBlobStringTensor) {
             ASSERT_EQ(actual_addr, static_cast<uint8_t*>(static_cast<void*>(expected_addr)));
         }
     }
+}
+
+TEST_F(OVTensorTest, createTensorWithZeroDimsCheckStride) {
+    ov::Shape shape = {0, 0, 0, 0};
+    auto tensor = ov::Tensor(ov::element::f32, shape);
+    EXPECT_EQ(!!tensor, true);
+    auto stride = tensor.get_strides();
+    EXPECT_EQ(stride.size(), shape.size());
+    EXPECT_EQ(stride.back(), 0);
+    EXPECT_EQ(tensor.is_continuous(), true);
+}
+
+TEST_F(OVTensorTest, getByteSizeU2LessThanMinStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u2, ov::Shape{3});
+    EXPECT_EQ(tensor.get_byte_size(), 1);
+}
+
+TEST_F(OVTensorTest, getByteSizeU2EvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u2, ov::Shape{16});
+    EXPECT_EQ(tensor.get_byte_size(), 4);
+}
+
+TEST_F(OVTensorTest, getByteSizeU2NotEvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u2, ov::Shape{17});
+    EXPECT_EQ(tensor.get_byte_size(), 5);
+}
+
+TEST_F(OVTensorTest, getByteSizeU3LessThanMinStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{3});
+    EXPECT_EQ(tensor.get_byte_size(), 3);
+}
+
+TEST_F(OVTensorTest, getByteSizeU3EvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{16});
+    EXPECT_EQ(tensor.get_byte_size(), 2 * 3);
+}
+
+TEST_F(OVTensorTest, getByteSizeU3NotEvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{17});
+    EXPECT_EQ(tensor.get_byte_size(), 3 + 2 * 3);
+}
+
+TEST_F(OVTensorTest, getByteSizeU6LessThanMinStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{3});
+    EXPECT_EQ(tensor.get_byte_size(), 3);
+}
+
+TEST_F(OVTensorTest, getByteSizeU6EvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{16});
+    EXPECT_EQ(tensor.get_byte_size(), 4 * 3);
+}
+
+TEST_F(OVTensorTest, getByteSizeU6NotEvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{17});
+    EXPECT_EQ(tensor.get_byte_size(), 3 + 4 * 3);
+}
+
+TEST_F(OVTensorTest, checkIsContinuousTensorScalar) {
+    ov::Tensor tensor(ov::element::f32, ov::Shape{});
+    auto data = tensor.data();
+    auto strides = tensor.get_strides();
+
+    ov::Tensor view_tensor(ov::element::f32, ov::Shape{}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_F(OVTensorTest, checkIsContinuousTensor1Dimension) {
+    ov::Tensor tensor(ov::element::f32, ov::Shape{128});
+    auto data = tensor.data();
+    auto strides = tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_F(OVTensorTest, checkIsContinuousTensor2Dimensions) {
+    ov::Tensor tensor(ov::element::f32, ov::Shape{32, 128});
+    auto data = tensor.data();
+    auto strides = tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+}
+
+TEST_F(OVTensorTest, checkIsContinuousTensor3Dimensions) {
+    ov::Tensor tensor(ov::element::f32, ov::Shape{5, 32, 128});
+    auto data = tensor.data();
+    auto strides = tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 1, 64}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_F(OVTensorTest, checkIsContinuousTensor4Dimensions) {
+    ov::Tensor tensor(ov::element::f32, ov::Shape{3, 5, 32, 128});
+    auto data = tensor.data();
+    auto strides = tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 5, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 2, 5, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{3, 5, 32, 64}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 1, 1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 1, 1, 32}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
 }
 
 struct TestParams {
@@ -935,6 +1092,18 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                                               TestParams {
                                                                   ov::Shape{}, {},
                                                                   {1}, {}
+                                                              },
+                                                              TestParams{
+                                                                  ov::Shape{3,2,2}, {},
+                                                                  ov::Shape{5}, {}
+                                                              },
+                                                              TestParams{
+                                                                  ov::Shape{3,2,2}, ov::Strides{64,16,8},
+                                                                  ov::Shape{5,2}, {}
+                                                              },
+                                                              TestParams{
+                                                                  ov::Shape{3,2,2}, ov::Strides{64,16,8},
+                                                                  ov::Shape{3,4,3}, ov::Strides{128,24,8}
                                                               }
                                            )));
 

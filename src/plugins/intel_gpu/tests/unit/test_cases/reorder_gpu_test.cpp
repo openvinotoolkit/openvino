@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,8 +103,6 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network_ref->set_input_data("input", input);
 
     auto outputs_ref = network_ref->execute();
-    cldnn::event::ptr e1 = outputs_ref.at("reorder").get_event();
-    e1->wait();
 
     // run on optimized kernel
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
@@ -116,8 +114,6 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network->set_input_data("input", input);
 
     auto outputs = network->execute();
-    cldnn::event::ptr e2 = outputs.at("reorder").get_event();
-    e2->wait();
 
     // compare output_ref and output_opt.
     if (output_data_type == data_types::i8)
@@ -911,6 +907,11 @@ TEST(reorder_gpu, basic_convert_int8) {
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, -8.0f, 9.0f };
 
+    if (engine.get_device_info().supports_immad) {
+        // Use onednn when reordering byxf format.
+        final_results = { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -7.0f, 7.0f, -8.0f, 9.0f };
+    }
+
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
     set_values(input_memory, input_f);
@@ -933,6 +934,7 @@ TEST(reorder_gpu, basic_convert_int8) {
 
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"}));
+    cfg.set_property(ov::intel_gpu::optimize_data(true)); // to enable onednn
     network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);
@@ -954,6 +956,11 @@ TEST(reorder_gpu, basic_convert_uint8) {
     layout byte_layout = { ov::element::from<uint8_t>(), format::bfyx,{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, 254.0f, 3.0f, 252.0f, 5.0f, 250.0f, 7.0f, 248.0f, 9.0f };
+
+    if (engine.get_device_info().supports_immad) {
+        // Use onednn when reordering byxf format.
+        final_results = { 1.0f, 0.0f, 3.0f, 0.0f, 5.0f, 0.0f, 7.0f, 0.0f, 9.0f };
+    }
 
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
@@ -977,6 +984,7 @@ TEST(reorder_gpu, basic_convert_uint8) {
 
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2" }));
+    cfg.set_property(ov::intel_gpu::optimize_data(true)); // to enable onednn
     network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);
@@ -1043,14 +1051,12 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
 
     tensor crop_reference_input_tensor(spatial(kernel_size, kernel_size), batch(1), feature(4 - 1));
     tensor crop_offset_tensor(spatial(0, 0), batch(0), feature(0));
-    padding output_padding = padding({ 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0);
     topology.add(
         // cropping primitive with id "crop1"
         crop("crop",
              input_info("reorder_input"),               // primitive id of the cropping input
              crop_reference_input_tensor,   // input tensor
-             crop_offset_tensor,            // bias primitive id
-             output_padding
+             crop_offset_tensor            // bias primitive id
             )
     );
 
@@ -1332,11 +1338,11 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_x) {
     auto& engine = get_test_engine();
 
     ov::Shape in_shape{1, 1, 4, 2};
-    tensor dyn_pad_dims({0, 0, 1, 0}, 0);
+    padding::DynamicDimsMask dyn_pad_dims("1000"); // {0, 0, 0, 1}
     layout in_dynamic_layout{ov::PartialShape::dynamic(in_shape.size()),
                              data_types::f16,
                              format::bfyx,
-                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims /*dynamic_pad_dim : x*/)};
+                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims /*dynamic_pad_dim : x*/)};
 
     std::vector<float> subtract_val = {};
     topology topology(input_layout("input", in_dynamic_layout),
@@ -1355,7 +1361,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_x) {
     auto input_mem = engine.allocate_memory({ov::PartialShape(in_shape),
                                              data_types::f16,
                                              format::bfyx,
-                                             padding({0, 0, 2, 0}, {0, 0, 1, 0}, 0.0f, dyn_pad_dims)});
+                                             padding({0, 0, 0, 2}, {0, 0, 0, 1}, dyn_pad_dims)});
     set_values<ov::float16>(input_mem, {
         ov::float16(0.f), ov::float16(0.f), // padding
         ov::float16(1.f), ov::float16(2.f), // data
@@ -1394,11 +1400,11 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_f) {
     auto& engine = get_test_engine();
 
     ov::Shape in_shape{2, 3, 2, 1};
-    tensor dyn_pad_dims({0, 1, 0, 0}, 0);
+    padding::DynamicDimsMask dyn_pad_dims("10");
     layout in_dynamic_layout{ov::PartialShape::dynamic(in_shape.size()),
                              data_types::f16,
                              format::bfyx,
-                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims /*dynamic_pad_dim : x*/)};
+                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims)};
 
     std::vector<float> subtract_val = {};
     topology topology(input_layout("input", in_dynamic_layout),
@@ -1417,7 +1423,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_f) {
     auto input_mem = engine.allocate_memory({ov::PartialShape(in_shape),
                                              data_types::f16,
                                              format::bfyx,
-                                             padding({0, 2, 0, 0}, {0, 1, 0, 0}, 0.0f, dyn_pad_dims)});
+                                             padding({0, 2, 0, 0}, {0, 1, 0, 0}, dyn_pad_dims)});
     set_values<ov::float16>(input_mem, {
         ov::float16(0.f), ov::float16(0.f), // f before
         ov::float16(0.f), ov::float16(0.f), // f before
@@ -1508,6 +1514,79 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfzyx) {
         7.f, 12.f,
 
         4.f, -0.5f,
+        8.f, 8.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    for (int i = 0; i < 16; i++) {
+        ASSERT_NEAR(answers[i], output_ptr[i], 1e-2f);
+    }
+}
+
+TEST(reorder_gpu_f32, dynamic_bfyx_to_fsv16) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape{ 1, 2, 4, 2 };
+    layout in_layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory({ov::PartialShape(in_shape), data_types::f16, format::bfyx});
+
+    set_values<ov::float16>(input, {
+        ov::float16(1.f), ov::float16(0.f),
+        ov::float16(5.f), ov::float16(1.5f),
+
+        ov::float16(2.f), ov::float16(0.f),
+        ov::float16(6.f), ov::float16(5.2f),
+
+        ov::float16(3.f), ov::float16(0.5f),
+        ov::float16(7.f), ov::float16(12.f),
+
+        ov::float16(4.f), ov::float16(-0.5f),
+        ov::float16(8.f), ov::float16(8.f)
+    });
+
+    topology topology(
+        input_layout("input", in_layout),
+        reorder("reorder", input_info("input"), format::b_fs_yx_fsv16, data_types::f16),
+        activation("relu", input_info("reorder"), activation_func::relu),
+        reorder("output_reorder", input_info("relu"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    auto fsv16_reorder_inst = network.get_primitive("reorder");
+    auto fsv16_reorder_impl = fsv16_reorder_inst->get_impl();
+    ASSERT_TRUE(fsv16_reorder_impl != nullptr);
+    ASSERT_TRUE(fsv16_reorder_impl->is_dynamic());
+
+    auto output_reorder_inst = network.get_primitive("output_reorder");
+    auto output_reorder_impl = output_reorder_inst->get_impl();
+    ASSERT_TRUE(output_reorder_impl != nullptr);
+    ASSERT_TRUE(output_reorder_impl->is_dynamic());
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output_reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+    ASSERT_TRUE(output->get_layout().format == format::bfyx);
+    auto l = output->get_layout();
+    auto expected_shape = ov::PartialShape(in_shape);
+    ASSERT_EQ(l.get_partial_shape(), expected_shape);
+
+    float answers[16] = {
+        1.f, 0.f,
+        5.f, 1.5f,
+
+        2.f, 0.f,
+        6.f, 5.2f,
+
+        3.f, 0.5f,
+        7.f, 12.f,
+
+        4.f, 0.f,
         8.f, 8.f
     };
 
@@ -1724,8 +1803,8 @@ TEST(reorder_gpu_opt, remove_redundant_reorder_reorder_with_padding)
     // r2 would be removed, but the padding value should be remained at the input primitive of r2.
     std::vector<int32_t> gt = {0, 0, 1, 1};
     auto r1_output_data_padding = net.get_primitive("r1")->get_output_layout().data_padding;
-    auto upper_padding = r1_output_data_padding.upper_size().sizes();
-    auto lower_padding = r1_output_data_padding.lower_size().sizes();
+    const auto& upper_padding = r1_output_data_padding._upper_size;
+    const auto& lower_padding = r1_output_data_padding._lower_size;
     for (int32_t i = 0 ; i < 4; i++) {
         ASSERT_EQ(upper_padding[i], gt[i]);
         ASSERT_EQ(lower_padding[i], gt[i]);
@@ -1833,12 +1912,9 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
     net.set_input_data("in", in);
     auto outputs = net.execute();
     auto executed_primitives = net.get_executed_primitives();
-    auto all_primitives = net.get_all_primitives();
 
-    if (engine.get_device_info().supports_immad) {
-        // Currently, oneDNN only supports in_order_queue
-        return;
-    }
+    if (config.get_queue_type() != QueueTypes::out_of_order)
+        GTEST_SKIP();
 
     ASSERT_TRUE(executed_primitives.count("in") == 1);
     ASSERT_TRUE(executed_primitives.at("in") != outputs.at("r1").get_event());
@@ -2330,7 +2406,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
 
     topology topology(
             input_layout("input", input->get_layout()),
-            reorder("reorder", input_info("input"), output_layout.with_padding(padding({ 0, 0, x_pad, y_pad, 0 }, 0.f))));
+            reorder("reorder", input_info("input"), output_layout.with_padding(padding({ 0, 0, z_pad, y_pad, x_pad }, 0.f))));
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
@@ -2384,6 +2460,99 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
                                                                           y_pad, y, y_pad,
                                                                           x_pad, x, x_pad);
                         ASSERT_FLOAT_EQ(input_ptr[linear_index++], output_ptr[bsv16_fsv16_index]);
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    const int32_t b_in = 1024;
+    const int32_t f_in = 64;
+    const int32_t x_in = 72;
+    const int32_t y_in = 2;
+    const int32_t z_in = 3;
+
+    const int32_t b_crop = 1024;
+    const int32_t f_crop = 64;
+    const int32_t x_crop = 72;
+    const int32_t y_crop = 2;
+    const int32_t z_crop = 1;
+
+    const int32_t z0_off = 0;
+    const int32_t z1_off = 1;
+    const int32_t z2_off = 2;
+
+    auto input = engine.allocate_memory({ data_types::f32,format::bfzyx,{ b_in, f_in, x_in, y_in, z_in } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(crop("crop0", input_info("input"), { b_crop, f_crop, x_crop, y_crop, z_crop }, { 0, 0, 0, 0, z0_off }));
+    topology.add(crop("crop1", input_info("input"), { b_crop, f_crop, x_crop, y_crop, z_crop }, { 0, 0, 0, 0, z1_off }));
+    topology.add(crop("crop2", input_info("input"), { b_crop, f_crop, x_crop, y_crop, z_crop }, { 0, 0, 0, 0, z2_off }));
+    topology.add(reorder("reorder0", input_info("crop0"), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder1", input_info("crop1"), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder2", input_info("crop2"), format::bfyx, data_types::f32));
+    topology.add(reshape("reshape0", input_info("reorder0"), tensor(batch(b_in), feature(y_in), spatial(x_in, f_in))));
+    topology.add(reshape("reshape1", input_info("reorder1"), tensor(batch(b_in), feature(y_in), spatial(x_in, f_in))));
+    topology.add(reshape("reshape2", input_info("reorder2"), tensor(batch(b_in), feature(y_in), spatial(x_in, f_in))));
+
+    std::vector<float> input_vec = rg.generate_random_1d<float>(input->count(), -10, 10);
+    set_values(input, input_vec);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    auto output0 = outputs.at("reshape0").get_memory();
+    auto output1 = outputs.at("reshape1").get_memory();
+    auto output2 = outputs.at("reshape2").get_memory();
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr0(output0, get_test_stream());
+    for (int b = 0; b < b_crop; ++b) {
+        for (int f = 0; f < f_crop; ++f) {
+            for (int z = 0; z < z_crop; ++z) {
+                for (int y = 0; y < y_crop; ++y) {
+                    for (int x = 0; x < x_crop; ++x) {
+                        int linear_id = x + x_in * (y + y_in * (z + z0_off + z_in * (f + f_in * b)));
+                        int output_linear_id = x + x_crop * (y + y_crop * (z + z_crop * (f + f_crop * b)));
+                        ASSERT_EQ(output_ptr0[output_linear_id], input_vec[linear_id]);
+                    }
+                }
+            }
+        }
+    }
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr1(output1, get_test_stream());
+    for (int b = 0; b < b_crop; ++b) {
+        for (int f = 0; f < f_crop; ++f) {
+            for (int z = 0; z < z_crop; ++z) {
+                for (int y = 0; y < y_crop; ++y) {
+                    for (int x = 0; x < x_crop; ++x) {
+                        int linear_id = x + x_in * (y + y_in * (z + z1_off + z_in * (f + f_in * b)));
+                        int output_linear_id = x + x_crop * (y + y_crop * (z + z_crop * (f + f_crop * b)));
+                        ASSERT_EQ(output_ptr1[output_linear_id], input_vec[linear_id]);
+                    }
+                }
+            }
+        }
+    }
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr2(output2, get_test_stream());
+    for (int b = 0; b < b_crop; ++b) {
+        for (int f = 0; f < f_crop; ++f) {
+            for (int z = 0; z < z_crop; ++z) {
+                for (int y = 0; y < y_crop; ++y) {
+                    for (int x = 0; x < x_crop; ++x) {
+                        int linear_id = x + x_in * (y + y_in * (z + z2_off + z_in * (f + f_in * b)));
+                        int output_linear_id = x + x_crop * (y + y_crop * (z + z_crop * (f + f_crop * b)));
+                        ASSERT_EQ(output_ptr2[output_linear_id], input_vec[linear_id]);
                     }
                 }
             }
@@ -2560,6 +2729,42 @@ TEST(reorder_gpu, any_format) {
     for (size_t i = 0; i < data.size(); ++i) {
         ASSERT_EQ(output[i], data[i]) << "i = " << i;
     }
+}
+
+void reorder_cpu_any_format(bool disable_usm = false);
+void reorder_cpu_any_format(bool disable_usm) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
+
+    auto input = engine->allocate_memory(layout(data_types::f32, format::yxfb, tensor(5, 7, 13, 9)));
+
+    topology topo;
+    topo.add(input_layout("in", input->get_layout()));
+    topo.add(reorder("reorder", input_info("in"), format::any, data_types::f32));
+    ExecutionConfig config = get_test_default_config(*engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", {format::any, "", impl_types::cpu}} }));
+
+    network net(*engine, topo, config);
+
+    auto data = rg.generate_random_1d<float>(input->count(), -1, 1);
+    set_values(input, data);
+    net.set_input_data("in", input);
+
+    auto outputs = net.execute();
+    auto out_mem = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<float> output(out_mem, get_test_stream());
+
+    for (size_t i = 0; i < data.size(); ++i) {
+        ASSERT_EQ(output[i], data[i]) << "i = " << i;
+    }
+}
+
+TEST(reorder_cpu, any_format) {
+    reorder_cpu_any_format();
+}
+
+TEST(reorder_cpu, any_format_disable_usm) {
+    reorder_cpu_any_format(true);
 }
 
 TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)

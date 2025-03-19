@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace lowered {
 class SpecificIterationHandlers {
 public:
     SpecificIterationHandlers() = default;
-    SpecificIterationHandlers(size_t loop_work_amount, size_t loop_increment);
+    SpecificIterationHandlers(size_t loop_work_amount, size_t loop_increment, size_t processing_dim_idx);
     SpecificIterationHandlers(pass::PassPipeline first_iter_handlers,
                               pass::PassPipeline main_body_handlers,
                               pass::PassPipeline last_iter_handlers);

@@ -46,11 +46,9 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
                                             int max_detections_per_image,
                                             bool class_agnostic_box_regression,
                                             float max_delta_log_wh,
-                                            std::vector<float> deltas_weights,
-                                            const padding& output_padding = {})
+                                            std::vector<float> deltas_weights)
         : primitive_base{id,
-                         {input_rois, input_deltas, input_scores, input_im_info, output_classes, output_scores},
-                         {output_padding}},
+                         {input_rois, input_deltas, input_scores, input_im_info, output_classes, output_scores}},
           output_classes{output_classes.pid},
           output_scores{output_scores.pid},
           score_threshold{score_threshold},
@@ -74,11 +72,9 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
                                             int max_detections_per_image,
                                             bool class_agnostic_box_regression,
                                             float max_delta_log_wh,
-                                            std::vector<float> deltas_weights,
-                                            const padding& output_padding = {})
+                                            std::vector<float> deltas_weights)
         : primitive_base{id,
-                         {input_rois, input_deltas, input_scores, input_im_info},
-                         {output_padding}},
+                         {input_rois, input_deltas, input_scores, input_im_info}},
           output_classes{},
           output_scores{},
           score_threshold{score_threshold},

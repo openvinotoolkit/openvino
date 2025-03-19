@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,8 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/util/env_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
 
@@ -57,7 +59,7 @@ void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
                 cloned_node->input(input.get_index()).get_rt_info() = input.get_rt_info();
             }
 
-            node_map[node.get()] = cloned_node;
+            node_map[node.get()] = std::move(cloned_node);
         }
     }
 }
@@ -272,35 +274,15 @@ bool replace_output_update_name(Output<Node> output, const Output<Node>& replace
         });
     };
 
-    bool preserve_legacy_output_name = false;
     if (has_result_consumers(output)) {
-        preserve_legacy_output_name = true;
         if (output.get_node()->get_output_size() != 1 || replacement.get_node()->get_output_size() != 1 ||
             is_type<ov::op::v0::Parameter>(replacement.get_node()) || has_result_consumers(replacement)) {
             return false;
         }
-    }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (preserve_legacy_output_name) {
         replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
-        // Update output tensor name
-        const auto& output_tensor_name = ov::descriptor::get_ov_tensor_legacy_name(output.get_tensor());
-        if (!output_tensor_name.empty()) {
-            ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), output_tensor_name);
-        } else {
-            ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), output.get_node()->get_friendly_name());
-        }
     }
-
-    // Save replacement tensor name before replacement as they will be overridden by the output tensor name
-    const auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(replacement.get_tensor());
 
     output.replace(replacement);
-
-    // Restore back original replacement tensor name
-    ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), tensor_name);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
                       replacement.get_node_shared_ptr());
@@ -325,7 +307,7 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
                const std::string& xml_path,
                const std::string& bin_path,
                ov::pass::Serialize::Version version) {
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Serialize");
     manager.register_pass<ov::pass::Serialize>(xml_path, bin_path, version);
     manager.run_passes(std::const_pointer_cast<ov::Model>(m));
 }
@@ -333,16 +315,22 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& output_model, bool compress_to_fp16) {
     auto cloned = m->clone();
     if (compress_to_fp16) {
-        // TODO: Implement on-the-fly compression in pass::Serialize
+        // TODO: Implement on-the-fly compression in pass::Serialize, Ticket: 145380
         bool postponed = true;
         ov::pass::compress_model_to_f16(cloned, postponed);
     }
 
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("SaveModel");
     manager.register_pass<ov::pass::FusedNamesCleanup>();
     manager.register_pass<ov::pass::Serialize>(output_model, "");
     manager.run_passes(std::move(cloned));
 }
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+void save_model(const std::shared_ptr<const ov::Model>& m, const std::wstring& output_model, bool compress_to_fp16) {
+    save_model(m, ov::util::wstring_to_string(output_model), compress_to_fp16);
+}
+#endif
 
 bool is_used(Node* node);
 bool is_used(Node* node) {

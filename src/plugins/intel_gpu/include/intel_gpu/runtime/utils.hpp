@@ -129,11 +129,6 @@ constexpr auto round_up_to(T1 val, T2 rounding)
     return static_cast<RetT>(ceil_div(val, rounding) * static_cast<UT2>(rounding));
 }
 
-template <typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&& ... args) {
-    return std::unique_ptr<T>( new T(std::forward<Args>(args)...) );
-}
-
 template <typename derived_type, typename base_type, typename std::enable_if<std::is_base_of<base_type, derived_type>::value, int>::type = 0>
 inline derived_type* downcast(base_type* base) {
     if (auto casted = dynamic_cast<derived_type*>(base))
@@ -191,6 +186,19 @@ inline bool any_not_zero(const std::vector<T> vec) {
 template <typename T>
 inline bool one_of(const T& val, const std::vector<T>& vec) {
     return std::any_of(vec.begin(), vec.end(), [&val](const T& v) { return v == val; });
+}
+template <typename T, typename... T1>
+inline bool one_of(const T& val, T1... args) {
+    return one_of(val, std::vector<T>{args...});
+}
+
+template <typename T, typename P>
+constexpr bool everyone_is(T val, P item) {
+    return val == item;
+}
+template <typename T, typename P, typename... Args>
+constexpr bool everyone_is(T val, P item, Args... item_others) {
+    return val == item && everyone_is(val, item_others...);
 }
 
 // Helpers to get string for types that have operator<< defined

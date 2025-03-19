@@ -1,10 +1,7 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 // ! [ov:imports]
-#include <gtest/gtest.h>
-
-#include "common_test_utils/matcher.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
@@ -22,7 +19,7 @@ using namespace std;
 // ! [ov:imports]
 
 // ! [ov:create_simple_model_and_pattern]
-TEST(pattern, simple_model_and_pattern) {
+void create_simple_model_and_pattern() {
     // Create a sample model
     PartialShape shape{2, 2};
     auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
@@ -39,17 +36,13 @@ TEST(pattern, simple_model_and_pattern) {
     auto pattern_abs = std::make_shared<ov::op::v0::Abs>(pattern_mul->output(0));
     auto pattern_relu = std::make_shared<ov::op::v0::Relu>(pattern_abs->output(0));
 
-    // Create a matcher and try to match the nodes
-    TestMatcher tm;
-
-    // Should perfectly match
-    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+    // pattern_relu should perfectly match model_relu
 }
 // ! [ov:create_simple_model_and_pattern]
 
 
 // ! [ov:create_simple_model_and_pattern_wrap_type]
-TEST(pattern, simple_model_and_pattern_wrap_type) {
+void create_simple_model_and_pattern_wrap_type() {
     // Create a sample model
     PartialShape shape{2, 2};
     auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
@@ -66,17 +59,13 @@ TEST(pattern, simple_model_and_pattern_wrap_type) {
     auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
     auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
 
-    // Create a matcher and try to match the nodes
-    TestMatcher tm;
-
-    // Should perfectly match
-    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+    // pattern_relu should perfectly match model_relu
 }
 // ! [ov:create_simple_model_and_pattern_wrap_type]
 
 
 // ! [ov:wrap_type_list]
-TEST(pattern, wrap_type_list) {
+void wrap_type_list() {
     // Create a sample model
     PartialShape shape{2, 2};
     auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
@@ -95,45 +84,42 @@ TEST(pattern, wrap_type_list) {
     auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
     auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid>({pattern_abs->output(0)});
 
-    // Create a matcher and try to match the nodes
-    TestMatcher tm;
-
-    // The same pattern perfectly matches 2 different nodes
-    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
-    ASSERT_TRUE(tm.match(pattern_relu, model_sig));
+    // pattern_relu should perfectly matches model_relu and model_sig
 }
 // ! [ov:wrap_type_list]
 
 void patterns_misc() {
-// ! [ov:any_input]
-    auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
-    auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
-    auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
-// ! [ov:any_input]
+{
+    // ! [ov:any_input]
+        auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
+        auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
+        auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
+    // ! [ov:any_input]
 
-// ! [ov:wrap_type_predicate]
-    ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern::any_input()}, pattern::consumers_count(2));
-// ! [ov:wrap_type_predicate]
+    // ! [ov:wrap_type_predicate]
+        ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern::any_input()}, pattern::consumers_count(2));
+    // ! [ov:wrap_type_predicate]
+}
+{
+    // ! [ov:any_input_predicate]
+        auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input([](const Output<Node>& value){
+                                                                                return value.get_shape().size() == 4;}),
+                                                                            pattern::any_input([](const Output<Node>& value){
+                                                                                return value.get_shape().size() == 4;})});
+        auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
+        auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
+    // ! [ov:any_input_predicate]
 
 
-// ! [ov:any_input_predicate]
-    auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input([](const Output<Node>& value){
-                                                                            return value.get_shape().size() == 4;}),
-                                                                         pattern::any_input([](const Output<Node>& value){
-                                                                            return value.get_shape().size() == 4;})});
-    auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
-    auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
-// ! [ov:any_input_predicate]
-
-
-// ! [ov:optional_predicate]
-    auto pattern_sig_opt = ov::pass::pattern::optional<ov::op::v0::Sigmoid>(pattern_relu, pattern::consumers_count(2));
-// ! [ov:optional_predicate]
+    // ! [ov:optional_predicate]
+        auto pattern_sig_opt = ov::pass::pattern::optional<ov::op::v0::Sigmoid>(pattern_relu, pattern::consumers_count(2));
+    // ! [ov:optional_predicate]
+}
 }
 
 
 // ! [ov:pattern_or]
-TEST(pattern, pattern_or) {
+void pattern_or() {
     // Create a sample model
     PartialShape shape{2, 2};
     auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
@@ -158,17 +144,13 @@ TEST(pattern, pattern_or) {
     // Create Or node
     auto pattern_or = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{red_pattern_sigmoid->output(0), blue_pattern_relu->output(0)});
 
-    // Create a matcher and try to match the nodes
-    TestMatcher tm;
-
-    // The same pattern perfectly matches 2 different nodes
-    ASSERT_TRUE(tm.match(pattern_or, model_relu));
+    // pattern_or should perfectly matches model_relu
 }
 // ! [ov:pattern_or]
 
 
 // ! [ov:pattern_optional_middle]
-TEST(pattern, pattern_optional_middle) {
+void pattern_optional_middle() {
     // Create a sample model
     PartialShape shape{2, 2};
     auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
@@ -186,17 +168,13 @@ TEST(pattern, pattern_optional_middle) {
     auto pattern_sig_opt = ov::pass::pattern::optional<ov::op::v0::Sigmoid>({pattern_abs->output(0)});
     auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_sig_opt->output(0)});
 
-    // Create a matcher and try to match the nodes
-    TestMatcher tm;
-
-    // Should perfectly match
-    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+    // pattern_relu should perfectly match model_relu
 }
 // ! [ov:pattern_optional_middle]
 
 
 // ! [ov:pattern_optional_top]
-TEST(pattern, pattern_optional_top) {
+void pattern_optional_top() {
     // Create a sample model
     PartialShape shape{2, 2};
     auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
@@ -214,17 +192,13 @@ TEST(pattern, pattern_optional_top) {
     auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
     auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
 
-    // Create a matcher and try to match the nodes
-    TestMatcher tm;
-
-    // Should perfectly match
-    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+    // pattern_relu should perfectly match model_relu
 }
 // ! [ov:pattern_optional_top]
 
 
 // ! [ov:pattern_optional_root]
-TEST(pattern, pattern_optional_root) {
+void pattern_optional_root() {
     // Create a sample model
     PartialShape shape{2, 2};
     auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
@@ -242,10 +216,6 @@ TEST(pattern, pattern_optional_root) {
     auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
     auto pattern_sig_opt = ov::pass::pattern::optional<ov::op::v0::Sigmoid>(pattern_relu);
 
-    // Create a matcher and try to match the nodes
-    TestMatcher tm;
-
-    // Should perfectly match
-    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+    // pattern_relu should perfectly match model_relu
 }
 // ! [ov:pattern_optional_root]

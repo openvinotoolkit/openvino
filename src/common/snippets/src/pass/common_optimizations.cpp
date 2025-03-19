@@ -45,7 +45,7 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
 
         // Firstly, we should transform all original Converts inside body to ConvertTruncation to save original behavior.
         // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
-        ov::pass::Manager manager(get_pass_config());
+        ov::pass::Manager manager(get_pass_config(), "Snippets:CommonOptimizations");
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::TransformConvertToConvertTruncation, true);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::ExplicitTransposeMatMulInputs, is_domain_sensitive);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::CommonFakeQuantizeDecomposition, is_quantized);

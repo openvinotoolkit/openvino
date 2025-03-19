@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,7 +137,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::resample_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<resample_impl>(*this);
+        return make_deep_copy<resample_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
@@ -156,9 +156,10 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         params.pads_end = convert_pads(primitive->pads_end, dimsNum);
 
         auto scales = primitive->scales;
+        auto scales_port = primitive->scales_port;
         bool scales_calc_mod = primitive->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES;
         if (scales_calc_mod && impl_param.input_layouts.size() > 1 && scales.empty()) {
-            auto mem = impl_param.memory_deps.at(2);
+            auto mem = impl_param.memory_deps.at(scales_port);
             scales = read_vector<float>(std::move(mem), impl_param.get_stream());
         }
 

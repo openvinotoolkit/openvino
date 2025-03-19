@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -11,8 +11,8 @@ import os
 
 from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, \
     Place  # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import PartialShape, Type  # pylint: disable=no-name-in-module,import-error
-from openvino.runtime.utils.types import get_element_type, \
+from openvino import PartialShape, Type  # pylint: disable=no-name-in-module,import-error
+from openvino.utils.types import get_element_type, \
     get_numpy_ctype  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.moc_frontend.analysis import json_model_analysis_dump
 from openvino.tools.ovc.moc_frontend.extractor import fe_user_data_repack, convert_params_lists_to_dicts, \
@@ -126,16 +126,13 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                     res.append(p)
             return res
         iplaces = merge_inputs(model_inputs, iplaces)
-        # Currently this only work to reorder inputs/outputs
+        oplaces = []
+        # Currently this only work to reorder inputs
         to_override_all_inputs = check_places_are_same(model_inputs, [{"node": p} for p in iplaces])
         to_override_all_outputs = False
         if argv.output:
-            oplaces = []
             _outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
-            for out_desc in _outputs:
-                oplaces.append(out_desc["name"])
-            model_outputs = input_model.get_outputs()
-            to_override_all_outputs = check_places_are_same(model_outputs, [{"node": p} for p in oplaces])
+            assert len(_outputs) == 0, "`output` argument is not supported for PyTorch"
         if to_override_all_inputs and to_override_all_outputs:
             input_model.extract_subgraph(iplaces, oplaces)
         elif to_override_all_inputs:

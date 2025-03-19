@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ OutputVector translate_addmm(const NodeContext& context) {
     if (!context.input_is_none(4)) {
         alpha = context.get_input(4);
     }
-    return {translate_addmm_common(context, beta, alpha)};
+    return {translate_addmm_common(context, std::move(beta), std::move(alpha))};
 };
 
 OutputVector translate_addmm_fx(const NodeContext& context) {
@@ -60,7 +60,7 @@ OutputVector translate_addmm_fx(const NodeContext& context) {
     if (context.has_attribute("alpha")) {
         alpha = context.get_input("alpha");
     }
-    return {translate_addmm_common(context, beta, alpha)};
+    return {translate_addmm_common(context, std::move(beta), std::move(alpha))};
 };
 
 OutputVector translate_conv1d_ext(const NodeContext& context) {
@@ -73,17 +73,8 @@ OutputVector translate_conv1d_ext(const NodeContext& context) {
     auto bias = context.get_input(2);
     bias = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(bias, x));
 
-    auto neg_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
-    auto shape_x = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i32));
-    auto x_last_dim = context.mark_node(std::make_shared<v8::Gather>(shape_x, neg_one, zero));
-    auto x_new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{neg_one, x_last_dim}, 0));
-
-    auto x_new = context.mark_node(std::make_shared<v1::Reshape>(x, x_new_shape, false));
-    auto mm = context.mark_node(std::make_shared<v0::MatMul>(x_new, weight));
-    auto addmm = context.mark_node(std::make_shared<v1::Add>(bias, mm));
-    auto size_out = context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_x, neg_one, neg_one, zero));
-    return {context.mark_node(std::make_shared<v1::Reshape>(addmm, size_out, false))};
+    auto mm = context.mark_node(std::make_shared<v0::MatMul>(x, weight));
+    return {context.mark_node(std::make_shared<v1::Add>(mm, bias))};
 };
 
 }  // namespace op

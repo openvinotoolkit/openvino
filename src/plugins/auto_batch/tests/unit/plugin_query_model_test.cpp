@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ TEST_P(QueryModelTest, QueryModelTestCase) {
     if (m_throw_exception) {
         ASSERT_ANY_THROW(m_plugin->query_model(m_model, m_properties));
     } else {
-        ASSERT_NO_THROW(m_plugin->query_model(m_model, m_properties));
+        OV_ASSERT_NO_THROW(m_plugin->query_model(m_model, m_properties));
     }
 }
 

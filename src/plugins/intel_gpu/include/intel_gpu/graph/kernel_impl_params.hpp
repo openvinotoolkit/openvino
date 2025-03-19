@@ -25,6 +25,13 @@ struct program;
 struct network;
 
 
+struct ExecutionFlags : public std::bitset<4> {
+    static const size_t SHAPE_CHANGED = 0;
+    static const size_t IMPL_CHANGED = 1;
+    static const size_t MEMORY_CHANGED = 2;
+    static const size_t SKIP = 3;
+};
+
 struct kernel_impl_params final {
     struct Hasher {
         size_t operator()(const kernel_impl_params &k) const {
@@ -38,6 +45,7 @@ struct kernel_impl_params final {
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
     bool _can_be_optimized = false;
+    bool _runtime_skippable = false;
     std::vector<layout> input_layouts;
     std::vector<layout> output_layouts;
     std::vector<tensor> input_offsets;
@@ -47,13 +55,18 @@ struct kernel_impl_params final {
     std::shared_ptr<dnnl::primitive_attr> attrs_onednn;
 #endif // ENABLE_ONEDNN_FOR_GPU
 
+    std::vector<event::ptr> dep_events = {};
+    event::ptr out_event = nullptr;
+
+    ExecutionFlags flags;
+
     optional_layout weights_layout = optional_layout();
 
     optional_layout bias_layout = optional_layout();
     optional_layout weights_zero_points_layout = optional_layout();
     optional_layout activations_zero_points_layout = optional_layout();
     optional_layout compensation_layout = optional_layout();
-    optional_layout state_layout = optional_layout();
+    std::vector<layout> state_layouts;
 
     std::map<size_t, memory::ptr> memory_deps = {};
     size_t primary_input_idx = 0;
@@ -90,7 +103,7 @@ struct kernel_impl_params final {
                        , primary_input_idx(0) {
     }
 
-    virtual ~kernel_impl_params() = default;
+    ~kernel_impl_params() = default;
 
     const layout& get_input_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(input_layouts.size() > idx,
@@ -114,6 +127,15 @@ struct kernel_impl_params final {
         return output_layouts[idx];
     }
 
+    layout& get_output_layout(size_t idx = 0) {
+        OPENVINO_ASSERT(output_layouts.size() > idx,
+                        "The size of output layouts must be greater than the requested index: ",
+                        "Requested index is ", idx, ",",
+                        "but the size of output layouts is ", output_layouts.size());
+        return output_layouts[idx];
+    }
+
+
     bool has_fused_primitives() const { return !fused_desc.empty(); }
 
     ov::element::Type_t get_output_element_type() const {
@@ -134,6 +156,10 @@ struct kernel_impl_params final {
 
     bool can_be_optimized() const {
         return _can_be_optimized;
+    }
+
+    bool runtime_skippable() const {
+        return _runtime_skippable;
     }
 
     template <class PType>

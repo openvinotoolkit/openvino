@@ -1,4 +1,4 @@
-﻿# Copyright (C) 2018-2024 Intel Corporation
+﻿# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,10 +8,21 @@
 
 execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{tags.interpreter_name()}{tags.interpreter_version()}')"
                 OUTPUT_VARIABLE PYTHON_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')"
+if(NOT PYTHON_TAG)
+    message(FATAL_ERROR "Failed to detect Python Tag via wheel.vendored.packaging.tags. Please, check 'wheel' dependency version update")
+endif()
+
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "from setuptools.command.bdist_wheel import get_abi_tag; print(f'{get_abi_tag()}')"
                 OUTPUT_VARIABLE ABI_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT ABI_TAG)
+    message(FATAL_ERROR "Failed to detect ABI Tag via setuptools.command.bdist_wheel. Please, check 'setuptools' dependency version update")
+endif()
+
 execute_process(COMMAND ${Python3_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags.platform_tags())}')"
                 OUTPUT_VARIABLE PLATFORM_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT PLATFORM_TAG)
+    message(FATAL_ERROR "Failed to detect Platform Tag via wheel.vendored.packaging.tags. Please, check 'wheel' dependency version update")
+endif()
 
 # defines wheel architecture part of `PLATFORM_TAG`
 macro(_ov_platform_arch)
@@ -105,46 +116,51 @@ if(pip_version VERSION_GREATER_EQUAL 22.0)
             --build-option --plat-name=${PLATFORM_TAG}
             "${CMAKE_CURRENT_SOURCE_DIR}")
 else()
+    # for --config-setting explanation see https://github.com/pypa/setuptools/issues/2491
     set(wheel_build_command
-        ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
-            --quiet
-            --no-user-cfg
-            bdist_wheel
-            --dist-dir ${openvino_wheels_output_dir}
-            --build-number=${WHEEL_BUILD}
-            --plat-name=${PLATFORM_TAG})
-endif()
-
-# dev target includes c headers and we need to include c bindings
-if(TARGET openvino_c)
-    list(APPEND ov_setup_py_deps openvino_c)
+        ${Python3_EXECUTABLE} -m build "${CMAKE_CURRENT_SOURCE_DIR}"
+        --outdir ${openvino_wheels_output_dir}
+        --config-setting=--build-option=--build-number=${WHEEL_BUILD}
+        --config-setting=--build-option=--plat-name=${PLATFORM_TAG}
+        --config-setting=--quiet
+        --wheel)
 endif()
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
-    COMMAND ${setup_py_env}
-        ${wheel_build_command}
-    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}"
+    COMMAND ${setup_py_env} ${wheel_build_command}
     DEPENDS ${ov_setup_py_deps}
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
+set(ie_wheel_deps ${openvino_wheel_path})
 
-set(fdupes_report ${CMAKE_CURRENT_BINARY_DIR}/fdupes_report.txt)
-add_custom_command(OUTPUT "${fdupes_report}"
-    COMMAND ${CMAKE_COMMAND}
-        -D Python3_EXECUTABLE=${Python3_EXECUTABLE}
-        -D WORKING_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}
-        -D WHEEL_VERSION=${WHEEL_VERSION}
-        -D PACKAGE_FILE=${openvino_wheel_path}
-        -D REPORT_FILE=${fdupes_report}
-        -D CMAKE_SHARED_LIBRARY_SUFFIX=${CMAKE_SHARED_LIBRARY_SUFFIX}
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/fdupes_check.cmake"
-    DEPENDS "${openvino_wheel_path}"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMENT "Run 'fdupes' checks for wheel ${openvino_wheel_name}"
+if(NOT CMAKE_HOST_WIN32)
+    set(fdupes_report ${CMAKE_CURRENT_BINARY_DIR}/fdupes_report.txt)
+    add_custom_command(OUTPUT "${fdupes_report}"
+        COMMAND ${CMAKE_COMMAND}
+            -D Python3_EXECUTABLE=${Python3_EXECUTABLE}
+            -D WORKING_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}
+            -D WHEEL_VERSION=${WHEEL_VERSION}
+            -D PACKAGE_FILE=${openvino_wheel_path}
+            -D REPORT_FILE=${fdupes_report}
+            -D CMAKE_SHARED_LIBRARY_SUFFIX=${CMAKE_SHARED_LIBRARY_SUFFIX}
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/fdupes_check.cmake"
+        DEPENDS "${openvino_wheel_path}"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        COMMENT "Run 'fdupes' checks for wheel ${openvino_wheel_name}"
+        VERBATIM)
+    list(APPEND ie_wheel_deps ${fdupes_report})
+endif()
+
+add_custom_target(ie_wheel ALL DEPENDS ${ie_wheel_deps})
+
+add_custom_command(
+    TARGET ie_wheel
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}" || ${CMAKE_COMMAND} -E true # w/a this ensures the command always succeeds
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMENT "Cleaning up Python wheel build for wheel ${openvino_wheel_name}"
     VERBATIM)
-
-add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path} ${fdupes_report})
 
 # install
 

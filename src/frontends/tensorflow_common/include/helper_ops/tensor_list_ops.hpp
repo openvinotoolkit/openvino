@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,10 @@ public:
 
     ov::element::Type get_element_type() const {
         return m_element_dtype;
+    }
+
+    void set_element_type(const ov::element::Type& element_dtype) {
+        m_element_dtype = element_dtype;
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
@@ -177,6 +181,50 @@ public:
         auto tensor_list_set_item = std::make_shared<TensorListSetItem>(inputs[0], inputs[1], inputs[2], m_decoder);
         tensor_list_set_item->set_attrs(get_attrs());
         return tensor_list_set_item;
+    }
+};
+
+// Internal operation for TensorListPushBack
+// it inserts tensor to the tail of the list
+class TensorListPushBack : public InternalOperation {
+public:
+    OPENVINO_OP("TensorListPushBack", "ov::frontend::tensorflow", InternalOperation);
+
+    TensorListPushBack(const Output<Node>& input_handle,
+                       const Output<Node>& tensor,
+                       const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
+        : InternalOperation(decoder, OutputVector{input_handle, tensor}, 1, "TensorListPushBack") {
+        validate_and_infer_types();
+    }
+
+    void validate_and_infer_types() override {
+        // deduce a type of elements in tensor list
+        ov::element::Type element_type = ov::element::dynamic;
+        if (input_value(0).get_element_type().is_static()) {
+            element_type = input_value(0).get_element_type();
+        } else if (input_value(1).get_element_type().is_static()) {
+            element_type = input_value(1).get_element_type();
+        }
+
+        // deduce a shape of tensor list [num_tensors, <tensor shape>]
+        ov::PartialShape tensor_list_shape = ov::PartialShape::dynamic();
+        if (input_value(1).get_partial_shape().rank().is_static()) {
+            auto element_rank = input_value(1).get_partial_shape().rank().get_length();
+            tensor_list_shape = ov::PartialShape::dynamic(element_rank + 1);
+            for (int64_t idx = 0; idx < element_rank; ++idx) {
+                tensor_list_shape[idx + 1] = input_value(1).get_partial_shape()[idx];
+            }
+        }
+
+        set_output_type(0, element_type, tensor_list_shape);
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        FRONT_END_OP_CONVERSION_CHECK(inputs.size() == 2,
+                                      "[TensorFlow Frontend] internal error: TensorListPushBack expects two inputs");
+        auto tensor_list_push_back = std::make_shared<TensorListPushBack>(inputs[0], inputs[1], m_decoder);
+        tensor_list_push_back->set_attrs(get_attrs());
+        return tensor_list_push_back;
     }
 };
 

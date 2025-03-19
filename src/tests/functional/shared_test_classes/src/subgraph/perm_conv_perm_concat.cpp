@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ void PermConvPermConcat::SetUp() {
         this->GetParam();
 
     if (element_type == ov::element::f32) {
-        abs_threshold = 1e-6;
+        abs_threshold = 1e-5;
     }
 
     configuration.insert(additional_config.begin(), additional_config.end());

@@ -38,11 +38,21 @@ using OutputD = ov::op::util::MultiSubGraphOp::BodyOutputDescription;
 using ConcatD = ov::op::util::MultiSubGraphOp::ConcatOutputDescription;
 
 namespace {
-ov::Rank find_element_rank(const ov::Input<ov::Node>& target_input) {
+ov::Rank find_element_rank(const ov::Input<ov::Node>& target_input, ov::element::Type& element_type) {
     const auto& curr_node = target_input.get_node()->shared_from_this();
     if (const auto& tensor_list_set_item = ov::as_type_ptr<tensorflow::TensorListSetItem>(curr_node)) {
         // the third argument to TensorListSetItem is new element to be inserted
         const auto& item = tensor_list_set_item->input_value(2);
+        if (element_type.is_dynamic()) {
+            element_type = item.get_element_type();
+        }
+        return item.get_partial_shape().rank();
+    } else if (const auto& tensor_list_push_back = ov::as_type_ptr<tensorflow::TensorListPushBack>(curr_node)) {
+        // the second argument to TensorListPushBack is new element to be inserted
+        const auto& item = tensor_list_push_back->input_value(1);
+        if (element_type.is_dynamic()) {
+            element_type = item.get_element_type();
+        }
         return item.get_partial_shape().rank();
     } else if (const auto& multi_sub_graph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(curr_node)) {
         auto input_port_idx = static_cast<uint64_t>(target_input.get_index());
@@ -65,7 +75,7 @@ ov::Rank find_element_rank(const ov::Input<ov::Node>& target_input) {
 
             // walk through all consumer inputs and try to deduce element rank
             for (const auto& target_input : param->get_output_target_inputs(0)) {
-                auto element_rank = find_element_rank(target_input);
+                auto element_rank = find_element_rank(target_input, element_type);
                 if (element_rank.is_static()) {
                     return element_rank;
                 }
@@ -95,7 +105,7 @@ void update_parameter_to_slice_input(const std::shared_ptr<ov::Node>& node,
                                      std::vector<uint64_t>& update_param_ids) {
     // select only TensorListGetItem that accepts a tensor list from Parameter node
     // value of Parameter node is unchanged from one iteration to another one in Loop
-    auto tensor_list_get_item = std::dynamic_pointer_cast<ov::frontend::tensorflow::TensorListGetItem>(node);
+    auto tensor_list_get_item = ov::as_type_ptr<ov::frontend::tensorflow::TensorListGetItem>(node);
     if (!tensor_list_get_item) {
         return;
     }
@@ -132,7 +142,7 @@ void update_result_to_concat_output(const std::shared_ptr<ov::Node>& node,
                                     std::vector<uint64_t>& remove_param_ids) {
     // select only TensorListSetItem that accepts a tensor list from Parameter node
     // output of TensorListSetItem goes to Result that is connected with the tensor list by a back edge
-    auto tensor_list_set_item = std::dynamic_pointer_cast<ov::frontend::tensorflow::TensorListSetItem>(node);
+    auto tensor_list_set_item = ov::as_type_ptr<ov::frontend::tensorflow::TensorListSetItem>(node);
     if (!tensor_list_set_item) {
         return;
     }
@@ -192,7 +202,7 @@ ov::frontend::tensorflow::pass::TensorListReplacer::TensorListReplacer() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         NodeRegistry rg;
 
-        auto tensor_list = std::dynamic_pointer_cast<TensorList>(m.get_match_root());
+        auto tensor_list = ov::as_type_ptr<TensorList>(m.get_match_root());
         if (!tensor_list) {
             return false;
         }
@@ -200,16 +210,17 @@ ov::frontend::tensorflow::pass::TensorListReplacer::TensorListReplacer() {
         auto num_elements = tensor_list->get_num_elements();
         auto element_dtype = tensor_list->get_element_type();
 
-        if (tensor_list->get_element_rank().is_dynamic()) {
+        if (tensor_list->get_element_rank().is_dynamic() || element_dtype.is_dynamic()) {
             // try to deduce element rank using successive operations
-            ov::Rank element_rank = ov::Rank::dynamic();
+            ov::Rank element_rank = tensor_list->get_element_rank();
             for (const auto& target_input : tensor_list->get_output_target_inputs(0)) {
-                element_rank = find_element_rank(target_input);
-                if (element_rank.is_static()) {
+                element_rank = find_element_rank(target_input, element_dtype);
+                if (element_rank.is_static() && element_dtype.is_static()) {
                     break;
                 }
             }
             tensor_list->set_element_rank(element_rank);
+            tensor_list->set_element_type(element_dtype);
         }
 
         if (tensor_list->get_element_rank().is_static()) {
@@ -244,7 +255,7 @@ ov::frontend::tensorflow::pass::TensorListSetItemReplacer::TensorListSetItemRepl
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         NodeRegistry rg;
 
-        auto tensor_list_set_item = std::dynamic_pointer_cast<TensorListSetItem>(m.get_match_root());
+        auto tensor_list_set_item = ov::as_type_ptr<TensorListSetItem>(m.get_match_root());
         if (!tensor_list_set_item) {
             return false;
         }
@@ -292,13 +303,57 @@ ov::frontend::tensorflow::pass::TensorListSetItemReplacer::TensorListSetItemRepl
     register_matcher(m, callback);
 }
 
+ov::frontend::tensorflow::pass::TensorListPushBackReplacer::TensorListPushBackReplacer() {
+    auto tensor_list_push_back_label = pattern::wrap_type<TensorListPushBack>();
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        NodeRegistry rg;
+
+        auto tensor_list_push_back = ov::as_type_ptr<TensorListPushBack>(m.get_match_root());
+        if (!tensor_list_push_back) {
+            return false;
+        }
+
+        auto input_handle = tensor_list_push_back->input_value(0);
+        auto tensor = tensor_list_push_back->input_value(1);
+
+        // compute tensor shape to be inserted
+        auto tensor_shape = rg.make<v3::ShapeOf>(tensor, element::i32);
+
+        // broadcast the tensor list to the shape [num_elements, <tensor_shape>]
+        Output<Node> num_elements = rg.make<v3::ShapeOf>(input_handle, element::i32);
+        auto zero_const = rg.make<v0::Constant>(element::i32, Shape{1}, 0);
+        auto one_const = rg.make<v0::Constant>(element::i32, Shape{1}, 1);
+        num_elements = rg.make<v8::Slice>(num_elements, zero_const, one_const, one_const);
+        auto new_input_handle_shape =
+            rg.make<v0::Concat>(OutputVector{std::move(num_elements), std::move(tensor_shape)}, 0);
+        input_handle = rg.make<v1::Broadcast>(input_handle, new_input_handle_shape);
+
+        // unsqueeze tensor to be inserted into the list
+        tensor = rg.make<v0::Unsqueeze>(tensor, zero_const);
+
+        // insert the tensor into the end
+        auto updated_list = rg.make<v0::Concat>(OutputVector{std::move(input_handle), std::move(tensor)}, 0);
+
+        updated_list->set_friendly_name(tensor_list_push_back->get_friendly_name());
+        copy_runtime_info(tensor_list_push_back, rg.get());
+
+        ov::replace_node(tensor_list_push_back, ov::OutputVector{updated_list->output(0)});
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(tensor_list_push_back_label,
+                                                "ov::frontend::tensorflow::pass::TensorListPushBackReplacer");
+    register_matcher(m, callback);
+}
+
 ov::frontend::tensorflow::pass::TensorListGetItemReplacer::TensorListGetItemReplacer() {
     auto tensor_list_get_item_label = pattern::wrap_type<TensorListGetItem>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         NodeRegistry rg;
 
-        auto tensor_list_get_item = std::dynamic_pointer_cast<TensorListGetItem>(m.get_match_root());
+        auto tensor_list_get_item = ov::as_type_ptr<TensorListGetItem>(m.get_match_root());
         if (!tensor_list_get_item) {
             return false;
         }
@@ -436,8 +491,7 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
         std::vector<uint64_t> update_result_last_iter_ids;
         for (uint64_t result_idx = 0; result_idx < body_results.size(); ++result_idx) {
             const auto& result = body_results[result_idx];
-            auto tensor_list_set_item =
-                std::dynamic_pointer_cast<TensorListSetItem>(result->get_input_node_shared_ptr(0));
+            auto tensor_list_set_item = ov::as_type_ptr<TensorListSetItem>(result->get_input_node_shared_ptr(0));
             if (!tensor_list_set_item) {
                 continue;
             }
@@ -474,8 +528,7 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
                                      update_result_last_iter_ids.end());
         for (auto update_result_idx : all_update_result_ids) {
             const auto& body_result = body_results[update_result_idx];
-            auto tensor_list_set_item =
-                std::dynamic_pointer_cast<TensorListSetItem>(body_result->get_input_node_shared_ptr(0));
+            auto tensor_list_set_item = ov::as_type_ptr<TensorListSetItem>(body_result->get_input_node_shared_ptr(0));
             FRONT_END_GENERAL_CHECK(tensor_list_set_item,
                                     "[TensorFlow Frontend] internal error: tensor_list_set_item is nullptr in "
                                     "TensorListInLoopOptimization");
@@ -504,7 +557,7 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
                                         "TensorListGetItem operation in TensorListInLoopOptimization");
                 auto target_input = *(body_param->get_output_target_inputs(0).begin());
                 auto tensor_list_get_item =
-                    std::dynamic_pointer_cast<TensorListGetItem>(target_input.get_node()->shared_from_this());
+                    ov::as_type_ptr<TensorListGetItem>(target_input.get_node()->shared_from_this());
                 FRONT_END_GENERAL_CHECK(tensor_list_get_item,
                                         "[TensorFlow Frontend] internal error: tensor list must have only consumer "
                                         "TensorListGetItem operation in TensorListInLoopOptimization");

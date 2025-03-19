@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Log_1}
-
 Log
 ===
 
 
 .. meta::
-  :description: Learn about Log-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Log-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Log-1*

@@ -5,10 +5,11 @@ Interface Tensor
 
    interface Tensor {
        data: SupportedTypedArray;
-       getData(): SupportedTypedArray;
        getElementType(): element;
+       getData(): SupportedTypedArray;
        getShape(): number[];
        getSize(): number;
+       isContinuous(): boolean;
 
    }
 
@@ -17,7 +18,7 @@ inference. There are different ways to create a tensor. You can find them
 in :doc:`TensorConstructor <TensorConstructor>` section.
 
 * **Defined in:**
-  `addon.ts:265 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L265>`__
+  `addon.ts:390 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L390>`__
 
 
 Properties
@@ -26,7 +27,7 @@ Properties
 
 .. rubric:: data
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -44,7 +45,7 @@ Properties
    or type of array does not match the tensor.
 
    -  **Defined in:**
-      `addon.ts:89 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L89>`__
+      `addon.ts:403 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L403>`__
 
 
 Methods
@@ -53,7 +54,7 @@ Methods
 
 .. rubric:: getData
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -67,11 +68,11 @@ Methods
      element type, e.g. ``Float32Array`` corresponds to float32.
 
    * **Defined in:**
-     `addon.ts:356 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L356>`__
+     `addon.ts:413 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L413>`__
 
 .. rubric:: getElementType
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -82,12 +83,12 @@ Methods
    * **Returns:** :doc:`element <../enums/element>`
 
    * **Defined in:**
-     `addon.ts:350 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L350>`__
+     `addon.ts:407 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L407>`__
 
 
 .. rubric:: getShape
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -98,12 +99,12 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:360 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L360>`__
+     `addon.ts:417 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L417>`__
 
 
 .. rubric:: getSize
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -114,5 +115,21 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:364 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L364>`__
+     `addon.ts:421 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L421>`__
 
+
+.. rubric:: isContinuous
+
+*
+
+   .. code-block:: ts
+
+      isContinuous(): boolean;
+
+   Reports whether the tensor is continuous or not.
+
+   * **Returns:** boolean
+
+   * **Defined in:**
+     `addon.ts:425 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L425>`__
+  

@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_Glossary}
+:orphan:
 
 Glossary
 ========
@@ -38,7 +38,6 @@ Acronyms and Abbreviations
  LRN                 Local Response Normalization
  mAP                 Mean Average Precision
  Intel® OneDNN       Intel® OneAPI Deep Neural Network Library
- `mo`                Command-line tool for model conversion, CLI for ``tools.mo.convert_model`` (legacy)
  MVN                 Mean Variance Normalization
  NCDHW               Number of images, Channels, Depth, Height, Width
  NCHW                Number of images, Channels, Height, Width

@@ -57,10 +57,12 @@
 'category: docs':
 - '**/*.md'
 - any: ['docs/**/*',
-        '!docs/snippets/**/*']
+        '!docs/snippets/**/*',
+        '!docs/articles_en/assets/snippets/**/*']
 
 'category: docs_snippets':
 - 'docs/snippets/**/*'
+- 'docs/articles_en/assets/snippets/**/*'
 
 'category: extensions':
 - 'src/core/include/openvino/core/extension.hpp'
@@ -73,6 +75,11 @@
 
 'category: NPU':
 - 'src/plugins/intel_npu/**/*'
+
+'category: NPUW':
+- 'src/plugins/intel_npu/src/plugin/npuw/**/*'
+- 'src/plugins/intel_npu/tests/functional/behavior/npuw/**/*'
+- 'src/plugins/intel_npu/tests/unit/behavior/npuw/**/*'
 
 'category: HETERO':
 - 'src/plugins/hetero/**/*'
@@ -95,10 +102,8 @@
 'category: LP transformations':
 - 'src/common/low_precision_transformations/**/*'
 
-'category: MO':
-- 'tools/mo/**/*'
+'category: OVC':
 - 'tools/ovc/**/*'
-- 'tests/layer_tests/mo_python_api_tests/**/*'
 - 'tests/layer_tests/ovc_python_api_tests/**/*'
 
 'category: ONNX FE':
@@ -112,7 +117,6 @@
 - any: ['src/bindings/js/node/CMakeLists.txt',
         'src/bindings/js/node/package.json',
         'src/bindings/js/node/package-lock.json']
-- 'tools/openvino_dev/**/*'
 
 'category: PDPD FE':
 - 'src/frontends/paddle/**/*'
@@ -145,8 +149,10 @@
 - 'tests/layer_tests/tensorflow_tests/**/*'
 - 'tests/layer_tests/tensorflow2_keras_tests/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
+- 'tests/requirements_tensorflow'
 - any: ['tests/model_hub_tests/**',
-        '!tests/model_hub_tests/pytorch/**/*']
+        '!tests/model_hub_tests/pytorch/**/*',
+        '!tests/model_hub_tests/jax/**/*']
 
 'category: TFL FE':
 - 'src/frontends/tensorflow_lite/**/*'
@@ -159,17 +165,21 @@
 - 'src/bindings/python/src/openvino/frontend/pytorch/**/*'
 - 'tests/layer_tests/py_frontend_tests/test_torch_decoder.py'
 - 'tests/layer_tests/py_frontend_tests/test_torch_frontend.py'
+- 'tests/requirements_pytorch'
 - any: ['tests/model_hub_tests/**',
-        '!tests/model_hub_tests/tensorflow/**/*']
+        '!tests/model_hub_tests/tensorflow/**/*',
+        '!tests/model_hub_tests/jax/**/*']
 
 'category: JAX FE':
 - 'src/frontends/jax/**/*'
 - 'src/bindings/python/src/openvino/frontend/jax/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
+- any: ['tests/model_hub_tests/**',
+        '!tests/model_hub_tests/tensorflow/**/*',
+        '!tests/model_hub_tests/pytorch/**/*']
 
 'category: tools':
 - any: ['tools/**',
-        '!tools/mo/**/*',
         '!tools/ovc/**/*']
 
 'category: transformations':

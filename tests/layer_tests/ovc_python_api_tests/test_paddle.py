@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import tempfile
@@ -92,15 +92,15 @@ def create_paddle_hapi_module(tmp_dir):
 
 class TestMoConvertPaddle(CommonMOConvertTest):
     test_data = [
-        create_paddle_dynamic_module,
-        create_paddle_static_module,
-        create_paddle_hapi_module
+        'create_paddle_dynamic_module',
+        'create_paddle_static_module',
+        'create_paddle_hapi_module'
     ]
     @pytest.mark.skip(reason="Paddlepaddle has incompatible protobuf. Ticket: 95904")
     @pytest.mark.parametrize("create_model", test_data)
     def test_mo_import_from_memory_paddle_fe(self, create_model, ie_device, precision, ir_version,
                                              temp_dir):
-        fw_model, graph_ref, mo_params = create_model(temp_dir)
+        fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
         test_params = {'input_model': fw_model}
         if mo_params is not None:
             test_params.update(mo_params)
@@ -165,9 +165,14 @@ class TestUnicodePathsPaddle(unittest.TestCase):
 
             assert os.path.exists(model_path), "Could not create a directory with unicode path."
 
-            from openvino import convert_model
+            from openvino import convert_model, save_model, Core
             res_model = convert_model(model_path)
             flag, msg = compare_functions(res_model, model_ref, False)
+            assert flag, msg
+
+            save_model(res_model, model_path + ".xml")
+            res_model_after_saving = Core().read_model(model_path + ".xml")
+            flag, msg = compare_functions(res_model_after_saving, model_ref, False)
             assert flag, msg
 
             from openvino.frontend import FrontEndManager
@@ -175,3 +180,5 @@ class TestUnicodePathsPaddle(unittest.TestCase):
             fe = fm.load_by_framework("paddle")
 
             assert fe.supported(model_path)
+
+            del res_model_after_saving

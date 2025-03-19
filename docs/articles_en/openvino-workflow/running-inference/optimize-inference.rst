@@ -1,5 +1,3 @@
-.. {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide}
-
 Optimize Inference
 ==================
 
@@ -39,7 +37,7 @@ to achieve the best results for your product.
    * :ref:`Inputs Pre-processing with the OpenVINO <inputs_pre_processing>`
    * :ref:`Async API <async_api>`
    * :ref:`The 'get_tensor' Idiom <tensor_idiom>`
-   * For variably-sized inputs, consider :doc:`dynamic shapes <dynamic-shapes>`
+   * For variably-sized inputs, consider :doc:`dynamic shapes <model-input-output/dynamic-shapes>`
 
 Performance-Portable Inference
 ################################

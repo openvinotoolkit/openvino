@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
         if (if_op) {
             for (size_t i = 1; i < if_op->get_input_size(); i++) {
                 auto input = if_op->input_value(i);
-                auto tuple_construct = std::dynamic_pointer_cast<ov::frontend::pytorch::PtFrameworkNode>(
+                auto tuple_construct = ov::as_type_ptr<ov::frontend::pytorch::PtFrameworkNode>(
                     cast_fw_node(input.get_node_shared_ptr(), "prim::TupleConstruct"));
                 if (!tuple_construct) {
                     continue;
@@ -145,8 +145,8 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                     int else_p_idx = inputs_mapping[j].second;
                     if (else_p_idx > else_body_idx && else_body_idx != -1)
                         else_p_idx--;
-                    auto then_p = then_p_idx == -1 ? nullptr : then_body->get_parameters()[then_p_idx];
-                    auto else_p = else_p_idx == -1 ? nullptr : else_body->get_parameters()[else_p_idx];
+                    const auto& then_p = then_p_idx == -1 ? nullptr : then_body->get_parameters()[then_p_idx];
+                    const auto& else_p = else_p_idx == -1 ? nullptr : else_body->get_parameters()[else_p_idx];
                     if (then_p || else_p)
                         new_if->set_invariant_inputs(if_op->input_value(j), {then_p, else_p});
                 }

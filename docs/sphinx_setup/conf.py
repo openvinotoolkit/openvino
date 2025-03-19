@@ -34,10 +34,20 @@ extensions = [
     'breathe'
     ]
 
+autodoc_mock_imports = []
+
 try:
     import openvino
 except ImportError:
-    autodoc_mock_imports = ["openvino"]
+    autodoc_mock_imports.append("openvino")
+    autodoc_mock_imports.append("openvino_genai")  # Mock openvino_genai too, as it depends on openvino
+
+if "openvino" not in autodoc_mock_imports:
+    try:
+        import openvino_genai
+    except ImportError:
+        autodoc_mock_imports.append("openvino_genai")
+
 
 breathe_projects = {
     "openvino": "../xml/"
@@ -55,7 +65,9 @@ source_suffix = {
     '.md': 'markdown',
 }
 
-html_baseurl = 'https://docs.openvino.ai/canonical/'
+
+# html_baseurl = 'https://docs.openvino.ai/2025/'
+
 
 # -- Sitemap configuration ---------------------------------------------------
 
@@ -72,9 +84,10 @@ ov_sitemap_urlset = [
 ov_sitemap_meta = [
     ('coveo:metadata', {
         'ovversion': version_name,
+        'ovdoctype': 'null',
+        'ovcategory': 'null'
     })
 ]
-
 
 # ----------------------------------------------------
 
@@ -113,17 +126,16 @@ html_theme_options = {
     "show_prev_next": False,
 }
 
-snippet_root = os.getenv("SNIPPET_ROOT", "")
-
 html_sidebars = {
     "**": ["search-field.html", "sidebar-nav-bs.html", "sidebar-ethical-ads.html"]
 }
 
 html_context = {
     'current_language': 'English',
-    'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
+    #'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
     'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
-    'doxygen_snippet_root': snippet_root,
+    # go back fours 3 steps down in directory to reach openvino dir
+    'doxygen_snippet_root': os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')),
     'default_mode': 'light'
 }
 
@@ -175,14 +187,11 @@ except FileNotFoundError:
 html_static_path = ['_static']
 
 html_css_files = [
-    'css/custom.css',
     'css/openvino_sphinx_theme.css',
     'css/button.css',
     'css/input.css',
     'css/textfield.css',
     'css/tabs.css',
-    'css/coveo_custom.css',
-    'https://static.cloud.coveo.com/atomic/v2/themes/coveo.css',
     'https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css',
 ]
 

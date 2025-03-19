@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -49,6 +49,9 @@ target_include_directories(openvino_core_dev INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>)
 
+target_include_directories(openvino_core_dev SYSTEM INTERFACE
+    $<BUILD_INTERFACE:$<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>>)
+
 target_link_libraries(openvino_core_dev INTERFACE openvino::itt openvino::util)
 
 set_target_properties(openvino_core_dev PROPERTIES EXPORT_NAME core::dev)
@@ -61,14 +64,6 @@ ov_developer_package_export_targets(TARGET openvino::core::dev
 # Install interface libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(openvino_core_dev ${OV_CPACK_COMP_CORE})
 
-# Fix error LNK1248: image size (...) exceeds maximum allowable size (FFFFFFFF)
-# the symbolic debugging information will be stored in a separate .pdb file.
-if(WIN32)
-    string(REPLACE "/Z7" "/Zi" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-    string(REPLACE "/Z7" "/Zi" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-    string(REPLACE "/Z7" "/Zi" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-    string(REPLACE "/Z7" "/Zi" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-endif()
 #
 # Create static or shared library depending on BUILD_SHARED_LIBS
 #
@@ -81,13 +76,15 @@ if(ENABLE_SYSTEM_PUGIXML)
     set_target_properties(openvino_core_obj PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
 endif()
 
-target_compile_definitions(openvino_core_obj PRIVATE IMPLEMENT_OPENVINO_API)
+target_compile_definitions(openvino_core_obj PRIVATE IMPLEMENT_OPENVINO_API XBYAK_NO_OP_NAMES XBYAK64)
 
 ov_build_target_faster(openvino_core_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
 ov_add_version_defines(src/version.cpp openvino_core_obj)
+
+ov_set_threading_interface_for(openvino_core_obj)
 
 target_link_libraries(openvino_core_obj PRIVATE openvino::reference openvino::util
                                          openvino::pugixml openvino::shape_inference openvino::core::dev)

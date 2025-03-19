@@ -8,6 +8,7 @@ import json
 import sys
 import shutil
 from os import path
+from utils.cfg_manager import CfgManager
 from test_data import TestData
 from test_data import TestError
 from utils.helpers import formatJSON
@@ -149,33 +150,61 @@ def getExpectedCommit(td: TestData):
     return breakCommit, td
 
 def getActualCommit(td: TestData):
+    sliderOutput = runCS(td)
+    rejectReason, foundCommit = parseSliderOutput(sliderOutput)
+    # clear temp data
+    [shutil.rmtree(dir) for dir in [
+            td.repoName,
+            td.userCachePath,
+            td.userLogPath
+            ]]
+    os.remove(td.testCfgName)
+
+    return foundCommit, rejectReason
+
+def getCSOutput(td: TestData):
+    sliderOutput = runCS(td)
+    # clear temp data
+    [shutil.rmtree(dir) for dir in [
+            td.repoName,
+            td.userCachePath,
+            td.userLogPath
+            ]]
+    os.remove(td.testCfgName)
+
+    return sliderOutput
+
+def runCS(td: TestData):
     if not td.actualDataReceived:
         raise TestError("Running actual commit before expected.")
 
     # prepare config
     cfg = formatJSON(td.testCfg, td.formatConfig)
-    testCfg = "test_cfg.json"
-
-    with open(testCfg, "w+") as customCfg:
+    td.userLogPath = CfgManager.singlestepStrFormat(
+        td.userLogPath, "testDir", os.getcwd())
+    td.userCachePath = CfgManager.singlestepStrFormat(
+        td.userCachePath, "testDir", os.getcwd())
+    td.testCfgName = "test_cfg.json"
+    for key in [
+        'userLogPath', 'clearLogsAposteriori',
+        'userCachePath', 'clearCache'
+            ]:
+        if isinstance(cfg, list):
+            cfg[0][key] = getattr(td, key)
+        else:
+            cfg[key] = getattr(td, key)
+    with open(td.testCfgName, "w+") as customCfg:
         customCfg.truncate(0)
         json.dump(cfg, customCfg)
     customCfg.close()
 
     # run slider and check output
     sliderOutput = runCmd(
-        "python3.8 commit_slider.py -cfg tests/{}".format(testCfg),
+        "python3.8 commit_slider.py -cfg tests/{}".format(td.testCfgName),
         "../")
 
     sliderOutput = '\n'.join(map(str, sliderOutput))
-    rejectReason, foundCommit = parseSliderOutput(sliderOutput)
-    # clear temp data
-    [shutil.rmtree(dir) for dir in [
-            td.repoName,
-            td.cachePath,
-            td.logPath]]
-    os.remove(testCfg)
-
-    return foundCommit, rejectReason
+    return sliderOutput
 
 def parseSliderOutput(sliderOutput: str):
     rejectReason, foundCommit, matcher = None, None, None
@@ -220,9 +249,16 @@ def requireBinarySearchData(td: TestData, rsc: map):
             'testCfg', 'patchedFile', 'repoName'
         ]]
     )
-
-    [setattr(td, key, td.commonRsc[key]) for key in [
-        'repoStructure', 'cachePath', 'logPath',
+    [setattr(td, key, td.commonRsc[key] \
+            if not key in td.testCfg or \
+            not (isinstance(td.testCfg[key], str) or \
+                 isinstance(td.testCfg[key], bool)) \
+            else td.testCfg[key]) for key in [
+        'repoStructure',
+        'userCachePath',
+        'userLogPath',
+        'clearLogsAposteriori',
+        'clearCache',
         'mainFile', 'repoPath'
     ]]
     td.patternPrefix = td.commonRsc['patchGeneratorPrefix']

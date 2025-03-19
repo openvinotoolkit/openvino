@@ -1,5 +1,5 @@
 name: Code Style
-on: [pull_request]
+on: [pull_request, merge_group]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -10,10 +10,12 @@ permissions: read-all
 jobs:
   clang-format:
     runs-on: ubuntu-22.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           submodules: 'true'
 
@@ -22,27 +24,71 @@ jobs:
           sudo apt update
           sudo apt --assume-yes install clang-format-15
 
-      # Run cmake with -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT in order to enable codestyle check for ITT collector
+      # Run cmake with extra options to cover as much source code as possible:
+      # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
+      # - -DENABLE_SNIPPETS_LIBXSMM_TPP to cover snippets TPP adaptation
       - name: CMake configure
-        run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -B build
+        run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -B build
 
       - name: Create code style diff
         run: cmake --build build --target clang_format_fix_all -j8
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@a1d57ff096639094e0ba35ef3039e79316364796 # v1.15.0
+        uses: reviewdog/action-suggester@a3026c6020837c23b61a79d12db223a00df19e6a # v1.19.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
-          fail_on_error: true
+          fail_level: error
+          filter_mode: nofilter
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
 
-  ShellCheck:
+  clang-format-aarch64:
     runs-on: ubuntu-22.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: 'true'
+
+      - name: Install clang-format-15 and cross-compilation dependencies
+        run: |
+          sudo apt update
+          sudo apt --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons clang-format-15
+
+      # Run cmake with extra options to cover as much source code as possible:
+      # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
+      # - -DENABLE_SNIPPETS_LIBXSMM_TPP to cover snippets TPP adaptation
+      - name: CMake configure
+        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake -B build_arm64
+
+      - name: Create code style diff
+        run: cmake --build build_arm64 --target clang_format_fix_all -j8
+
+      - name: suggester / clang-format
+        if: startsWith(github.event_name, 'pull_request')
+        uses: reviewdog/action-suggester@a3026c6020837c23b61a79d12db223a00df19e6a # v1.19.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          level: warning
+          fail_level: error
+          filter_mode: nofilter
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
+
+  ShellCheck:
+    runs-on: ubuntu-22.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           submodules: 'true'
 
@@ -60,20 +106,22 @@ jobs:
       # always provide suggestions even for skipped scripts in ov_shellcheck tagret
       - name: ShellCheck action
         if: always()
-        uses: reviewdog/action-shellcheck@52f34f737a16c65b8caa8c51ae1b23036afe5685 # v1.23.0
+        uses: reviewdog/action-shellcheck@6e0e63d1750d02d761b3df0f2c5ba9f9ac4a9ed7 # v1.29.0
         with:
           level: style
           reporter: github-pr-review
           check_all_files_with_shebangs: true
-          fail_on_error: true
+          fail_level: error
           exclude: |
               "*/thirdparty/*"
               "./temp/*"
 
   NamingConventionCheck:
     runs-on: ubuntu-22.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           submodules: 'true'
 

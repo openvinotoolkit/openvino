@@ -19,6 +19,8 @@ This document provides description and default values for CMake options that can
         * `ON` is default for x86 platforms; `OFF`, otherwise.
     * `ENABLE_INTEL_GPU` enables Intel GPU plugin compilation:
         * `ON` is default for x86 platforms; not available, otherwise.
+    * `ENABLE_INTEL_NPU` enables Intel NPU plugin compilation:
+        * `ON` is default for Windows and Linux x86 platforms; not available, otherwise.
     * `ENABLE_HETERO` enables HETERO plugin build:
         * `ON` is default.
     * `ENABLE_MULTI` enables MULTI plugin build:
@@ -184,10 +186,11 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [pugixml]:https://pugixml.org/
 [ONNX]:https://onnx.ai/
 [protobuf]:https://github.com/protocolbuffers/protobuf
-[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application.html
+[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2025/openvino-workflow/running-inference.html
 [PDPD]:https://github.com/PaddlePaddle/Paddle
 [TensorFlow]:https://www.tensorflow.org/
 [TensorFlow Lite]:https://www.tensorflow.org/lite
 [PyTorch]:https://pytorch.org/
 [FlatBuffers]:https://google.github.io/flatbuffers/
 [oneTBB]:https://github.com/oneapi-src/oneTBB
+[JAX]:https://github.com/google/jax

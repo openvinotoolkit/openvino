@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -346,5 +346,5 @@ class TestAminAmax(PytorchLayerTest):
     def test_amin_amax(self, op_type, input_dtype, axis, keep_dims, out, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, axis, keep_dims, out),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
-                   {"input_dtype": input_dtype, "out": out, "axes": axis, "keep_dims": keep_dims}
+                   {"input_dtype": input_dtype, "out": out, "axes": axis, "keep_dims": keep_dims},
                    )

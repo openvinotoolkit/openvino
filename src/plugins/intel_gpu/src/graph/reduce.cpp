@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,10 +73,13 @@ layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_para
     }
 
     std::vector<reduce_mode> reduce_bool_modes = {reduce_mode::logical_and, reduce_mode::logical_or};
-    if (std::find(reduce_bool_modes.begin(), reduce_bool_modes.end(), mode) != reduce_bool_modes.end())
+    if (std::find(reduce_bool_modes.begin(), reduce_bool_modes.end(), mode) != reduce_bool_modes.end()) {
         output_type = data_types::i8;
-    else if (output_type == data_types::i8 || output_type == data_types::u8)
-        output_type = data_types::f32;
+    } else if (output_type == data_types::i8 || output_type == data_types::u8) {
+        if (mode != reduce_mode::min && mode != reduce_mode::max) {
+            output_type = data_types::f32;
+        }
+    }
 
     if (desc->output_data_types[0])
         output_type = *desc->output_data_types[0];

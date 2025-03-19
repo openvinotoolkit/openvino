@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
@@ -22,12 +21,12 @@ class TRANSFORMATIONS_API TSSliceBackward;
 
 class ov::pass::transpose_sinking::TSSliceForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSSliceForward", "0");
+    OPENVINO_RTTI("ov::pass::TSSliceForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSSliceForward();
 };
 
 class ov::pass::transpose_sinking::TSSliceBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSSliceBackward", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSSliceBackward");
     TSSliceBackward();
 };

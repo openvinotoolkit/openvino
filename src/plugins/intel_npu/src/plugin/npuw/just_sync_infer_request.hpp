@@ -6,10 +6,16 @@
 
 #include <limits>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <vector>
 
 #include "base_sync_infer_request.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "spatial.hpp"
 
 namespace ov {
 namespace npuw {
@@ -17,15 +23,55 @@ namespace npuw {
 class CompiledModel;
 class AsyncInferRequest;
 
+class MemAccessSim {
+public:
+    explicit MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    using ReadList = std::list<LinkFrom>;
+    const ReadList& read_list(std::size_t idx) const;
+
+    std::size_t remaining_reads(const LinkFrom& from);
+    void register_read(const LinkFrom& from);
+
+private:
+    std::map<LinkFrom, std::size_t> m_remaining_reads;
+    std::vector<ReadList> m_read_list;
+};
+
+class FuncMemMgr {
+    MemAccessSim m_sim;
+    std::shared_ptr<ov::npuw::CompiledModel> m_model;
+
+    void assign(const LinkFrom& from);
+
+    // Function ID -> Output port number
+    using FO = std::pair<std::size_t, std::size_t>;
+    struct Assignment {
+        TensorPtr ptr;
+        LinkFrom from;
+    };
+    std::map<FO, std::vector<Assignment>> m_memory;  // Dynamic assignment table
+    std::map<LinkFrom, TensorPtr> m_table;           // Static allocation/assignment table
+
+public:
+    explicit FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    using AllocFcn = std::function<TensorPtr(const ov::element::Type&, const ov::Shape&, const std::string&)>;
+    void set_alloc(AllocFcn&& fcn);
+    void assign_memory();
+
+    TensorPtr get_tensor(const LinkFrom& from);
+
+private:
+    AllocFcn m_alloc;
+};
+
 class JustInferRequest final : public IBaseInferRequest {
 public:
     explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
 
-    // Query APIs
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
-    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
-
-private:
+protected:
+    ////////////////////////////////////
     // implement IBaseInferRequest
     void prepare_for_infer() override;
     bool valid_subrequest(std::size_t idx) const override;
@@ -34,43 +80,34 @@ private:
     void subscribe_subrequest(std::size_t idx, Completed cb) override;
     void complete_subrequest(std::size_t idx) override;
     void cancel_subrequest(std::size_t idx) override;
-    std::size_t total_subrequests() const override;
     bool supports_async_pipeline() const override;
-
     void update_subrequest_links(std::size_t idx) override;
+
+    TensorPtr alloc_global_out(std::size_t out_idx) override;
+
+    ////////////////////////////////////
+    // now own API
 
     // FIXME: probably this one should go to the base class too
     RqPtr get_real_subrequest(std::size_t idx);
-    void bind_params_results();
+
+    void bind_global_parameters(std::size_t idx);
+    void bind_global_results(std::size_t idx);
+    using IBaseInferRequest::bind_global_results;
+
     void function_prologue(std::size_t idx);
-    void unpack_closure(std::size_t idx, RqPtr request);
+
+    void unsafe_during(std::size_t real_idx, const std::function<void()>& f);
+    void unsafe_infer(std::size_t real_idx);
+    void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void connect_subrequests();
-
     void recreate_subrequests(std::size_t idx);
 
-    static constexpr const std::size_t INVALID_IDX = std::numeric_limits<std::size_t>::max();
+    FuncMemMgr m_func_mem_mgr;                       // Owns memory
+    std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
 
-    using LinkFrom = std::pair<std::size_t /* Subrequest index */
-                               ,
-                               std::size_t /* Subrequest output index */
-                               >;          // FIXME: This is a third, if not fourth, definitiion of such structure
-    using TensorPtr = ov::SoPtr<ov::ITensor>;
-    std::map<LinkFrom, TensorPtr> m_funcall_result;
-
-    using ToSubmodel = std::pair<std::size_t /* Subrequest index */
-                                 ,
-                                 std::size_t /* Subrequest input index */
-                                 >;          // Fixme: fourth installment?
-    std::map<ToSubmodel, ov::Output<const ov::Node>> m_reader_to_orig_port;
-
-    // FIXME: STOP USING ov::Output<> AT ALL! It is a weak feature
-    // These objects get discarded on occasional model recompilation
-    std::map<ov::Output<const ov::Node>, size_t> m_port_to_subrequest_idx;
-    std::map<ov::Output<const ov::Node>,
-             ov::Output<const ov::Node>>
-        m_port_orig_to_sub;  // FIXME: this one likely replaces `m_port_to_subrequest_idx'
-
+    bool is_pipelined(std::size_t idx) const;
     bool m_use_function_pipelining = false;
     struct FuncallPipeline {
         // A "brother" subrequest for a "primary" subrequest. Initialized only
@@ -87,6 +124,9 @@ private:
     // subgraphs, but with only function call-related elements
     // initialized.
     std::vector<FuncallPipeline> m_funcall_pipeline;
+
+    // Cached check if we do FOLDing and need to update closures in the repeating blocks
+    bool m_closure_update_required = false;
 };
 
 }  // namespace npuw

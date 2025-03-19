@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,8 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                 }
             }
             modelDistributionPolicy = value.as<std::set<ov::hint::ModelDistributionPolicy>>();
+        } else if (ov::cache_encryption_callbacks == key) {
+            encryption_callbacks = value.as<EncryptionCallbacks>();
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);

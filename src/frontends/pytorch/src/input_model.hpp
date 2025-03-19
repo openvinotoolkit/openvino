@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,7 @@ private:
     std::vector<std::shared_ptr<frontend::Place>> m_outputs;
     std::vector<std::shared_ptr<frontend::Place>> m_requested_places;
     std::unordered_map<size_t, PlaceDesc> m_descriptors;
+    const std::string m_decoder_type_name;
 };
 
 }  // namespace pytorch

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,10 +39,10 @@ public:
 
     void SetUp() override {
         m_model_path = ov::test::utils::getModelFromTestModelZoo(
-            ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())}));
+            ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())}).string());
         if (!std::get<1>(GetParam()).empty()) {
             m_binary_path = ov::test::utils::getModelFromTestModelZoo(
-                ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}));
+                ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}).string());
         }
 
         std::string filePrefix = ov::test::utils::generateTestFilePrefix();
@@ -71,6 +71,21 @@ TEST_P(SerializationTest, SerializeHelper) {
 TEST_P(SerializationTest, SaveModel) {
     CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
         ov::save_model(m, m_out_xml_path, false);
+    });
+}
+
+TEST_P(SerializationTest, CompareFunctionsByPath) {
+    const auto out_xml_path = std::filesystem::path(m_out_xml_path);
+    const auto out_bin_path = std::filesystem::path(m_out_bin_path);
+    CompareSerialized([&out_xml_path, &out_bin_path](const auto& m) {
+        ov::pass::Serialize(out_xml_path, out_bin_path).run_on_model(m);
+    });
+}
+
+TEST_P(SerializationTest, SaveModelByPath) {
+    const auto out_xml_path = std::filesystem::path(m_out_xml_path);
+    CompareSerialized([&out_xml_path](const auto& m) {
+        ov::save_model(m, out_xml_path, false);
     });
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/core_wrap.hpp"
@@ -11,6 +11,7 @@
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
 #include "node/include/type_validation.hpp"
+#include "openvino/core/model_util.hpp"
 #include "openvino/util/common_util.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
@@ -51,11 +52,13 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                         InstanceMethod("compileModel", &CoreWrap::compile_model_async),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
+                        InstanceMethod("importModel", &CoreWrap::import_model_async),
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("getVersions", &CoreWrap::get_versions),
                         InstanceMethod("setProperty", &CoreWrap::set_property),
                         InstanceMethod("getProperty", &CoreWrap::get_property),
+                        InstanceMethod("queryModel", &CoreWrap::query_model),
                         InstanceMethod("addExtension", &CoreWrap::add_extension)});
 }
 
@@ -85,11 +88,14 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
             model = _core.read_model(model_str, weight_tensor);
         } else if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
             model = _core.read_model(info[0].ToString());
+        } else if (ov::js::validate<Napi::String, TensorWrap>(info, allowed_signatures)) {
+            model = _core.read_model(info[0].ToString(), cast_to_tensor(info, 1));
         } else {
             OPENVINO_THROW("'readModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
+        ov::util::set_tensors_names(ov::AUTO, *model);
 
-        return ModelWrap::wrap(info.Env(), model);
+        return cpp_to_js(info.Env(), model);
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
 
@@ -350,6 +356,66 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
     }
 }
 
+void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext* context) {
+    context->nativeThread.join();
+    delete context;
+};
+
+void importModelThread(ImportModelContext* context, std::mutex& mutex) {
+    // Imports model without blocking the main thread.
+    {
+        const std::lock_guard<std::mutex> lock(mutex);
+        context->_compiled_model = context->_core.import_model(context->_stream, context->_device, context->_config);
+    }
+
+    // Callback to return to JS the results of core.import_model()
+    auto callback = [](Napi::Env env, Napi::Function, ImportModelContext* context) {
+        context->deferred.Resolve(cpp_to_js(env, context->_compiled_model));
+    };
+
+    // Addon's main thread will safely invoke the JS callback function on the behalf of the additional thread.
+    context->tsfn.BlockingCall(context, callback);
+    context->tsfn.Release();
+}
+
+Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
+    const auto& env = info.Env();
+    std::vector<std::string> allowed_signatures;
+
+    try {
+        if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
+            ov::js::validate<Napi::Buffer<uint8_t>, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            // Prepare validated data that will be transferred to the new thread.
+            auto context_data = new ImportModelContext(env, _core);
+
+            const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
+            const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+            context_data->_stream << model_stream;
+            context_data->_device = info[1].ToString();
+            context_data->_config = info.Length() == 3 ? to_anyMap(env, info[2]) : ov::AnyMap();
+
+            context_data->tsfn = Napi::ThreadSafeFunction::New(env,
+                                                               Napi::Function(),
+                                                               "TSFN",
+                                                               0,
+                                                               1,
+                                                               context_data,
+                                                               ImportModelFinalizer,
+                                                               (void*)nullptr);
+
+            context_data->nativeThread = std::thread(importModelThread, context_data, std::ref(_mutex));
+            // Returns a Promise to JS. Method import_model() is performed on additional thread.
+            return context_data->deferred.Promise();
+        } else {
+            OPENVINO_THROW("'importModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
+
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
+}
+
 Napi::Value CoreWrap::set_property(const Napi::CallbackInfo& info) {
     try {
         auto args = try_get_set_property_parameters(info);
@@ -398,5 +464,31 @@ void CoreWrap::add_extension(const Napi::CallbackInfo& info) {
         _core.add_extension(library_path);
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
+    }
+}
+
+Napi::Value CoreWrap::query_model(const Napi::CallbackInfo& info) {
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures) ||
+            ov::js::validate<ModelWrap, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            ov::AnyMap properties;
+            auto model = Napi::ObjectWrap<ModelWrap>::Unwrap(info[0].ToObject())->get_model();
+            auto device_name = info[1].ToString();
+            if (info.Length() == 3) {
+                properties = to_anyMap(info.Env(), info[2]);
+            }
+            auto query_result = _core.query_model(model, device_name, properties);
+            Napi::Object result = Napi::Object::New(info.Env());
+            for (const auto& elem : query_result) {
+                result.Set(elem.first, elem.second);
+            }
+            return result;
+        } else {
+            OPENVINO_THROW("'queryModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
+    } catch (std::exception& err) {
+        reportError(info.Env(), err.what());
+        return info.Env().Undefined();
     }
 }

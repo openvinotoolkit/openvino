@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ ov::SoPtr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
 // ! [plugin:transform_model]
 void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Perform common optimizations and device-specific transformations
-    ov::pass::Manager passManager;
+    ov::pass::Manager passManager("Plugin:Template");
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
     // Disable some transformations
@@ -221,6 +221,7 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
 #include "openvino/opsets/opset13_tbl.hpp"
 #include "openvino/opsets/opset14_tbl.hpp"
 #include "openvino/opsets/opset15_tbl.hpp"
+#include "openvino/opsets/opset16_tbl.hpp"
         // clang-format on
 #undef _OPENVINO_OP_REG
             return op_super_set.contains_type(node->get_type_info());
@@ -256,15 +257,18 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::id,
-                                                    ov::enable_profiling,
-                                                    ov::hint::performance_mode,
-                                                    ov::hint::num_requests,
-                                                    ov::hint::inference_precision,
-                                                    ov::hint::execution_mode,
-                                                    ov::num_streams,
-                                                    ov::template_plugin::disable_transformations,
-                                                    ov::log::level};
+        std::vector<ov::PropertyName> rw_properties{
+            ov::device::id,
+            ov::enable_profiling,
+            ov::hint::performance_mode,
+            ov::hint::num_requests,
+            ov::hint::inference_precision,
+            ov::hint::execution_mode,
+            ov::num_streams,
+            ov::template_plugin::disable_transformations,
+            ov::log::level,
+            ov::hint::model_priority,
+        };
         return rw_properties;
     };
     if (ov::supported_properties == name) {
@@ -279,7 +283,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::inference_num_threads.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::threads_per_stream.name(), ov::PropertyMutability::RW}};
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
         return decltype(ov::available_devices)::value_type{{""}};

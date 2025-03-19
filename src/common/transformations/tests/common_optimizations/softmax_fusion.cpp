@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ TEST_P(SoftmaxFusionFixture, SoftmaxFusion) {
         m.register_pass<ov::pass::SoftmaxFusion>();
         m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, shape);
@@ -88,7 +88,7 @@ TEST_P(SoftmaxFusionSimplePatternFixture, SoftmaxFusionSimplePatternTest) {
         m.register_pass<ov::pass::SoftmaxFusion>();
         m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, shape);
@@ -143,7 +143,7 @@ TEST_P(NegativeSoftmaxFusionFixture, NegativeSoftmaxFusion) {
     m.register_pass<ov::pass::SoftmaxFusion>();
     m.register_pass<ov::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_EQ(count_ops_of_type<opset6::ReduceMax>(f), 1);
     ASSERT_EQ(count_ops_of_type<opset6::Subtract>(f), 1);
 }

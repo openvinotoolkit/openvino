@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,32 +6,39 @@
 
 #include <vector>
 
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/config/common.hpp"
 #include "zero_device.hpp"
 
 namespace intel_npu {
 
-ZeroEngineBackend::ZeroEngineBackend(const Config& config) : _logger("ZeroEngineBackend", config.get<LOG_LEVEL>()) {
+ZeroEngineBackend::ZeroEngineBackend(const Config& config) : _logger("ZeroEngineBackend", Logger::global().level()) {
     _logger.debug("ZeroEngineBackend - initialize started");
-    Logger::global().setLevel(config.get<LOG_LEVEL>());
 
-    _instance = std::make_shared<ZeroInitStructsHolder>();
+    _initStruct = std::make_shared<ZeroInitStructsHolder>();
 
-    auto device = std::make_shared<ZeroDevice>(_instance);
+    auto device = std::make_shared<ZeroDevice>(_initStruct);
     _devices.emplace(std::make_pair(device->getName(), device));
     _logger.debug("ZeroEngineBackend - initialize completed");
 }
 
 uint32_t ZeroEngineBackend::getDriverVersion() const {
-    return _instance->getDriverVersion();
+    return _initStruct->getDriverVersion();
 }
 
-uint32_t ZeroEngineBackend::getDriverExtVersion() const {
-    return _instance->getDriverExtVersion();
+uint32_t ZeroEngineBackend::getGraphExtVersion() const {
+    return _initStruct->getGraphDdiTable().version();
 }
 
 bool ZeroEngineBackend::isBatchingSupported() const {
-    return _instance->getDriverExtVersion() >= ZE_GRAPH_EXT_VERSION_1_6;
+    return _initStruct->isExtensionSupported("ZE_extension_graph_1_6", ZE_MAKE_VERSION(1, 6));
+}
+
+bool ZeroEngineBackend::isCommandQueueExtSupported() const {
+    return _initStruct->isExtensionSupported(std::string(ZE_COMMAND_QUEUE_NPU_EXT_NAME), ZE_MAKE_VERSION(1, 0));
+}
+
+bool ZeroEngineBackend::isLUIDExtSupported() const {
+    return _initStruct->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0));
 }
 
 ZeroEngineBackend::~ZeroEngineBackend() = default;
@@ -59,6 +66,23 @@ const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
     });
     _logger.debug("ZeroEngineBackend - getDeviceNames completed and returning result");
     return devicesNames;
+}
+
+void* ZeroEngineBackend::getContext() const {
+    return _initStruct->getContext();
+}
+
+void ZeroEngineBackend::updateInfo(const Config& config) {
+    _logger.setLevel(config.get<LOG_LEVEL>());
+    if (_devices.size() > 0) {
+        for (auto& dev : _devices) {
+            dev.second->updateInfo(config);
+        }
+    }
+}
+
+const std::shared_ptr<ZeroInitStructsHolder> ZeroEngineBackend::getInitStructs() const {
+    return _initStruct;
 }
 
 }  // namespace intel_npu

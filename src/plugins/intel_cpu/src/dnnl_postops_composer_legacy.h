@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,10 @@
  */
 #pragma once
 
-#include "dnnl_types.h"
-
 #include <string>
 
 #include "cpu_memory.h"
+#include "dnnl_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/dnnl.h"
@@ -39,7 +38,10 @@ public:
     void appendRoundHTE();
     bool appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary = true);
     bool appendShift(const std::vector<float>& shift, bool allowBinary = true);
-    bool appendLinear(const std::vector<float>& scale, const std::vector<float>& shift, bool isLastPostOp, bool allowBinary = true);
+    bool appendLinear(const std::vector<float>& scale,
+                      const std::vector<float>& shift,
+                      bool isLastPostOp,
+                      bool allowBinary = true);
     void appendClip(const std::vector<float>& low, const std::vector<float>& high);
 
     const VectorDims& getOutputDims() {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # FindOpenVINO
@@ -10,7 +10,7 @@
 # The following components are supported:
 #
 #  * `Runtime`: OpenVINO C++ and C Core & Inference Runtime, frontend common
-#  * `JAX`: OpenVINO JAX frontend
+#  * `Threading`: OpenVINO threading backend for parallel.hpp
 #  * `ONNX`: OpenVINO ONNX frontend
 #  * `Paddle`: OpenVINO Paddle frontend
 #  * `PyTorch`: OpenVINO PyTorch frontend
@@ -25,6 +25,10 @@
 #
 #   find_package(OpenVINO REQUIRED COMPONENTS Runtime ONNX)
 #
+# If OpenVINO's openvino/core/parallel.hpp is required:
+#
+#   find_package(OpenVINO REQUIRED COMPONENTS Runtime Threading)
+#
 # Imported Targets:
 # ------
 #
@@ -36,10 +40,10 @@
 #   `openvino::runtime::c`
 #   The OpenVINO C Inference Runtime
 #
-#  Frontend specific targets:
+#   `openvino::threading`
+#   The OpenVINO Threading backend
 #
-#   `openvino::frontend::jax`
-#   JAX FrontEnd target (optional)
+#  Frontend specific targets:
 #
 #   `openvino::frontend::onnx`
 #   ONNX FrontEnd target (optional)
@@ -66,9 +70,6 @@
 #
 #   `OpenVINO_Runtime_FOUND`
 #   OpenVINO C++ Core & Inference Runtime is available
-#
-#   `OpenVINO_Frontend_JAX_FOUND`
-#   OpenVINO JAX frontend is available
 #
 #   `OpenVINO_Frontend_ONNX_FOUND`
 #   OpenVINO ONNX frontend is available
@@ -102,7 +103,7 @@
 #  OpenVINO build configuration variables:
 #
 #   `OpenVINO_GLIBCXX_USE_CXX11_ABI`
-#   Linux only: defines _GLIBCXX_USE_CXX11_ABI used to compiled OpenVINO
+#   Linux only: defines _GLIBCXX_USE_CXX11_ABI value used to compiled OpenVINO
 #
 
 @PACKAGE_INIT@
@@ -150,9 +151,25 @@ macro(_ov_find_dependency dep)
     unset(cmake_fd_quiet_arg)
 endmacro()
 
+macro(_ov_find_openmp)
+    set(_ov_threading "@THREADING@")
+    set(_ov_enable_intel_omp "@ENABLE_INTEL_OPENMP@")
+
+    if(_ov_threading STREQUAL "OMP")
+        if(_ov_enable_intel_omp)
+            # TODO: write code to import iomp libraries
+        else()
+            _ov_find_dependency(OpenMP)
+        endif()
+    endif()
+
+    unset(_ov_enable_intel_omp)
+    unset(_ov_threading)
+endmacro()
+
 macro(_ov_find_tbb)
-    set(THREADING "@THREADING@")
-    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+    set(_ov_threading "@THREADING@")
+    if(_ov_threading STREQUAL "TBB" OR _ov_threading STREQUAL "TBB_AUTO")
         set(enable_pkgconfig_tbb "@tbb_FOUND@")
 
         # try tbb.pc
@@ -224,6 +241,8 @@ macro(_ov_find_tbb)
             unset(enable_system_tbb)
 
             _ov_find_dependency(TBB
+                                # we need to find at least the same version as we compiled with
+                                @TBB_VERSION@
                                 COMPONENTS tbb tbbmalloc
                                 ${find_package_tbb_extra_args})
             unset(find_package_tbb_extra_args)
@@ -245,6 +264,8 @@ macro(_ov_find_tbb)
         endif()
         unset(install_tbbbind)
     endif()
+
+    unset(_ov_threading)
 endmacro()
 
 macro(_ov_find_pugixml)
@@ -494,9 +515,14 @@ if(NOT TARGET openvino)
     endif()
 endif()
 
+macro(_ov_enable_threading_interface)
+    _ov_find_tbb()
+    _ov_find_openmp()
+endmacro()
+
 if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
     # common openvino dependencies
-    _ov_find_tbb()
+    _ov_enable_threading_interface()
 
     _ov_find_itt()
     _ov_find_pugixml()
@@ -517,14 +543,19 @@ unset(_OV_ENABLE_OPENVINO_BUILD_SHARED)
 
 set(_ov_imported_libs openvino::runtime openvino::runtime::c
    openvino::frontend::onnx openvino::frontend::paddle openvino::frontend::tensorflow
-   openvino::frontend::pytorch openvino::frontend::tensorflow_lite openvino::frontend::jax)
+   openvino::frontend::pytorch openvino::frontend::tensorflow_lite)
 
 if(_ov_as_external_package)
     foreach(target IN LISTS _ov_imported_libs)
         if(TARGET ${target})
             get_target_property(imported_configs ${target} IMPORTED_CONFIGURATIONS)
-            if(NOT RELWITHDEBINFO IN_LIST imported_configs)
-                set_property(TARGET ${target} PROPERTY MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
+            if(RELEASE IN_LIST imported_configs)
+                if(NOT RELWITHDEBINFO IN_LIST imported_configs)
+                    set_property(TARGET ${target} PROPERTY MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
+                endif()
+                if(NOT MINSIZEREL IN_LIST imported_configs)
+                    set_property(TARGET ${target} PROPERTY MAP_IMPORTED_CONFIG_MINSIZEREL RELEASE)
+                endif()
             endif()
             unset(imported_configs)
         endif()
@@ -549,6 +580,7 @@ endif()
 #
 
 set(${CMAKE_FIND_PACKAGE_NAME}_Runtime_FOUND ON)
+set(${CMAKE_FIND_PACKAGE_NAME}_Threading_FOUND ON)
 
 set(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND @ENABLE_OV_ONNX_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND @ENABLE_OV_PADDLE_FRONTEND@)
@@ -556,7 +588,6 @@ set(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND @ENABLE_OV_TF_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND @ENABLE_OV_TF_LITE_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND @ENABLE_OV_IR_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND @ENABLE_OV_PYTORCH_FRONTEND@)
-set(${CMAKE_FIND_PACKAGE_NAME}_JAX_FOUND @ENABLE_OV_JAX_FRONTEND@)
 
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_ONNX_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_Paddle_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND})
@@ -564,11 +595,29 @@ set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_TensorFlow_FOUND ${${CMAKE_FIND_PACKAGE_
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_TensorFlowLite_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_IR_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_PyTorch_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND})
-set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_JAX_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_JAX_FOUND})
 
 # if no components specified, only Runtime is provided
 if(NOT ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)
     set(${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS Runtime)
+endif()
+
+if(Threading IN_LIST ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS AND NOT TARGET openvino::threading)
+    add_library(openvino::threading INTERFACE IMPORTED)
+
+    _ov_enable_threading_interface()
+
+    if(TARGET TBB::tbb)
+        set(_ov_threading_lib TBB::tbb)
+    elseif(TARGET IntelOpenMP::OpenMP_CXX)
+        set(_ov_threading_lib IntelOpenMP::OpenMP_CXX)
+    elseif(TARGET OpenMP::OpenMP_CXX)
+        set(_ov_threading_lib OpenMP::OpenMP_CXX)
+    endif()
+
+    if(_ov_threading_lib)
+        set_target_properties(openvino::threading PROPERTIES INTERFACE_LINK_LIBRARIES ${_ov_threading_lib})
+        unset(_ov_threading_lib)
+    endif()
 endif()
 
 #
@@ -600,6 +649,5 @@ unset(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND)
-unset(${CMAKE_FIND_PACKAGE_NAME}_JAX_FOUND)
 
 cmake_policy(POP)

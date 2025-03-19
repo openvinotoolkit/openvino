@@ -10,8 +10,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateGenerateProposalsIEInternalOp(
     ProgramBuilder& p,
@@ -27,7 +26,6 @@ static void CreateGenerateProposalsIEInternalOp(
         cldnn::generate_proposals prim{layer_type_name_ID(op), inputs, op->get_attrs()};
 
         prim.num_outputs = op->get_output_size();
-        prim.output_paddings = get_output_paddings(op);
         prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
 
         p.add_primitive(*op, prim);
@@ -85,5 +83,4 @@ static void CreateGenerateProposalsIEInternalOp(
 
 REGISTER_FACTORY_IMPL(internal, GenerateProposalsIEInternal);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

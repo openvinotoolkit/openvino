@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -264,6 +264,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         }
         if (params.inputs[0].Feature().v % tuning_data.feature_block_size != 0) {
             jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 1));
+        } else {
+            jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 0));
         }
     } else {
         DimensionAccessHelperJit input0_dims(params.inputs[0]);
@@ -361,16 +363,16 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
     auto cldnnJit = GetJitConstants(newParams, dispatchData);
     for (size_t i = 0; i < num_kernels; i++) {
         if (params.is_shape_agnostic) {
-            cldnnJit.RemoveConstant("X_BLOCK_SIZE");
             if (i == 0) {
-                cldnnJit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", "1"));
+                dispatchData.cldnnStyle.blockWidth = 1;
             } else if (i == 1) {
-                cldnnJit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", "2"));
+                dispatchData.cldnnStyle.blockWidth = 2;
             } else if (i == 2) {
-                cldnnJit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", "4"));
+                dispatchData.cldnnStyle.blockWidth = 4;
             } else if (i == 3) {
-                cldnnJit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", "8"));
+                dispatchData.cldnnStyle.blockWidth = 8;
             }
+            cldnnJit = GetJitConstants(newParams, dispatchData);
         }
         auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, i);
         auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);

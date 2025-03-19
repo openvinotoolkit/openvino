@@ -1,17 +1,19 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
 
 from jax_layer_test_class import JaxLayerTest
-import jax.numpy as jnp
+
 
 def get_rand_jnp_array(shape, dtype):
     if dtype in [np.float32, np.float16, np.float64]:
         return jnp.array(np.random.uniform(-1000, 1000, shape).astype(dtype))
     else:
         return jnp.array(np.random.randint(-10, 10, shape).astype(dtype))
+
 
 class TestAdd(JaxLayerTest):
     def _prepare_input(self):
@@ -28,14 +30,14 @@ class TestAdd(JaxLayerTest):
         def jax_add(lhs, rhs):
             return lhs + rhs
 
-        return jax_add, None
+        return jax_add, None, 'add'
 
     test_data = [
         dict(lhs_shape=[4], rhs_shape=[4]),
         dict(lhs_shape=[2, 5], rhs_shape=[2, 5]),
         dict(lhs_shape=[2, 3, 4, 5], rhs_shape=[2, 3, 4, 5]),
     ]
-    
+
     input_types = [
         (np.float32, np.float32),
         (np.int32, np.float32),
@@ -44,12 +46,14 @@ class TestAdd(JaxLayerTest):
     ]
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("input_type", input_types)
     def test_add(self, ie_device, precision, ir_version, params, input_type):
         self._test(*self.create_model(**params, lhs_type=input_type[0], rhs_type=input_type[1]), ie_device, precision,
                    ir_version)
+
 
 class TestAddWithConstant(JaxLayerTest):
     def _prepare_input(self):
@@ -67,14 +71,14 @@ class TestAddWithConstant(JaxLayerTest):
         def jax_add_with_constant(lhs, rhs):
             return lhs + rhs + self.const
 
-        return jax_add_with_constant, None
+        return jax_add_with_constant, None, 'add'
 
     test_data = [
         dict(lhs_shape=[4], rhs_shape=[4]),
         dict(lhs_shape=[2, 5], rhs_shape=[2, 5]),
         dict(lhs_shape=[2, 3, 4, 5], rhs_shape=[2, 3, 4, 5]),
     ]
-    
+
     input_types = [
         (np.float32, np.float32),
         (np.int32, np.float32),
@@ -83,13 +87,15 @@ class TestAddWithConstant(JaxLayerTest):
     ]
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("input_type", input_types)
     def test_add_with_constant(self, ie_device, precision, ir_version, params, input_type):
         self._test(*self.create_model(**params, lhs_type=input_type[0], rhs_type=input_type[1]), ie_device, precision,
                    ir_version)
-        
+
+
 class TestAddWithLiteralInvar(JaxLayerTest):
     def _prepare_input(self):
         lhs = get_rand_jnp_array(self.lhs_shape, self.lhs_type)
@@ -106,14 +112,14 @@ class TestAddWithLiteralInvar(JaxLayerTest):
             x = lhs + 5
             return x + rhs
 
-        return jax_add_with_constant, None
+        return jax_add_with_constant, None, 'add'
 
     test_data = [
         dict(lhs_shape=[4], rhs_shape=[4]),
         dict(lhs_shape=[2, 5], rhs_shape=[2, 5]),
         dict(lhs_shape=[2, 3, 4, 5], rhs_shape=[2, 3, 4, 5]),
     ]
-    
+
     input_types = [
         (np.float32, np.float32),
         (np.int32, np.float32),
@@ -122,6 +128,7 @@ class TestAddWithLiteralInvar(JaxLayerTest):
     ]
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("input_type", input_types)

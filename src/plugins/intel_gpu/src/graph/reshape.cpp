@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <iterator>
@@ -11,6 +11,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "primitive_type_base.h"
 #include "reshape_inst.h"
+#include "read_value_inst.h"
 #include "reshape_shape_inference.hpp"
 #include "squeeze_shape_inference.hpp"
 #include "unsqueeze_shape_inference.hpp"
@@ -23,7 +24,7 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
         return padding();
 
     auto in_pad = in_layout.data_padding;
-    if (in_pad.get_dynamic_pad_dims() == tensor(0)) {
+    if (!in_pad.is_dynamic()) {
         return padding();
     }
 
@@ -38,9 +39,9 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
 
     auto default_format = format::get_default_format(rank);
 
-    auto pad_lower = in_pad.lower_size().sizes(default_format);
-    auto pad_upper = in_pad.upper_size().sizes(default_format);
-    auto pad_mask = in_pad.get_dynamic_pad_dims().sizes(default_format);
+    auto pad_lower = layout::format_sizes(in_pad._lower_size, default_format);
+    auto pad_upper = layout::format_sizes(in_pad._upper_size, default_format);
+    auto pad_mask = layout::format_sizes(in_pad._dynamic_dims_mask, default_format);
 
     std::vector<int32_t> update_pad_lower;
     std::vector<int32_t> update_pad_upper;
@@ -50,6 +51,11 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
         update_pad_lower = pad_lower;
         update_pad_upper = pad_upper;
         update_pad_mask = pad_mask;
+
+        // Truncate to the actual rank (for shapes with a rank less than 4)
+        update_pad_lower.resize(rank);
+        update_pad_upper.resize(rank);
+        update_pad_mask.resize(rank);
 
         std::unordered_set<int64_t> tmp(axes.begin(), axes.end());
         std::vector<int64_t> unique_axes;
@@ -61,13 +67,13 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
         // Normalize then remove repeated axes after normalization.
         for (const auto& axis : axes) {
             if (static_cast<size_t>(axis) <= out_shape.size()) {
-                pad_lower.insert(std::next(std::begin(pad_lower), axis), 0);
-                pad_upper.insert(std::next(std::begin(pad_upper), axis), 0);
-                pad_mask.insert(std::next(std::begin(pad_mask), axis), 0);
+                update_pad_lower.insert(std::next(std::begin(update_pad_lower), axis), 0);
+                update_pad_upper.insert(std::next(std::begin(update_pad_upper), axis), 0);
+                update_pad_mask.insert(std::next(std::begin(update_pad_mask), axis), 0);
             } else {
-                pad_lower.push_back(0);
-                pad_upper.push_back(0);
-                pad_mask.push_back(0);
+                update_pad_lower.push_back(0);
+                update_pad_upper.push_back(0);
+                update_pad_mask.push_back(0);
             }
         }
     } else {
@@ -92,14 +98,13 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
         }
     }
 
-    auto convert_pad = [](const std::vector<int32_t> pad) {
-        return tensor(format::get_default_format(pad.size()), pad, 0);
-    };
-
-    return padding(convert_pad(update_pad_lower).sizes(),
-                   convert_pad(update_pad_upper).sizes(),
-                   0.0f,
-                   convert_pad(update_pad_mask));
+    // TODO: rework this method
+    padding::DynamicDimsMask ret_update_pad_mask;
+    OPENVINO_ASSERT(update_pad_mask.size() <= ret_update_pad_mask.size(), "invalid update_pad_mask.size().");
+    for (size_t i = 0; i < update_pad_mask.size(); i++) {
+        ret_update_pad_mask[i] = update_pad_mask[i];
+    }
+    return padding(update_pad_lower, update_pad_upper, ret_update_pad_mask);
 }
 
 layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_params const& impl_param) {
@@ -109,7 +114,8 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
     auto desc = impl_param.typed_desc<reshape>();
     if (desc->output_shape.count() == 0) {
         if (desc->output_partial_shape.size() != 0) {
-            return layout{desc->output_partial_shape, input_layout.data_type, input_layout.format};
+            format out_fmt = format::adjust_to_rank(input_layout.format, desc->output_partial_shape.rank().get_length());
+            return layout{desc->output_partial_shape, input_layout.data_type, out_fmt};
         } else {
             OPENVINO_ASSERT("[GPU] Output shape is not provided");
         }
@@ -253,6 +259,7 @@ std::string reshape_inst::to_string(reshape_node const& node) {
     reshape_info.add("output pshape", desc->output_partial_shape);
     reshape_info.add("output pattern", desc->output_pattern);
     reshape_info.add("special zero", desc->special_zero);
+    reshape_info.add("reshape mode", desc->mode);
 
     node_info->add("reshape info", reshape_info);
     node_info->dump(primitive_description);
@@ -280,7 +287,7 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
 
     // if reshape operated in-place, postpone creation of the output until network run,
     // then create new memory object as the reinterpreted output of the previous primitive
-    if (input_layout.is_static() && output_layout.is_static()) {
+    if (input_layout.is_static() && output_layout.is_static() && !node.get_dependency(0).is_type<read_value>()) {
         if (!node.can_be_optimized()) {
             _outputs = allocate_outputs();
             _mem_allocated = true;
@@ -309,6 +316,13 @@ void reshape_inst::update_output_memory() {
     if (node->get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
         return;
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
+
+    // Can_be_optimized nodes are allocating from memory_pool too. In this case,
+    // we need release the legacy output memory from memory pool explicitly.
+    if (static_cast<bool>(_outputs[0]) &&
+        _node->get_program().get_config().get_enable_memory_pool()) {
+        _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
+    }
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
 }
 

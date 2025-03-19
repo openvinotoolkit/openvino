@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -173,7 +173,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         .Times(loadSuccessCount);
     EXPECT_CALL(*mockIExeNet.get(), create_infer_request()).Times(loadSuccessCount * 2);
     if (continueRun) {
-        ASSERT_NO_THROW(plugin->compile_model(model, config));
+        OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
     } else {
         ASSERT_THROW(plugin->compile_model(model, config), ov::Exception);
     }

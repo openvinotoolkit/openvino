@@ -51,8 +51,7 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ov::snippets::op::PerfCountEnd::get_type_info_static()] = dummy_functor;
 #endif
     jitters[ov::snippets::op::Brgemm::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::IntermediateMemoryBuffer::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::NewMemoryBuffer::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::Buffer::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::VectorBuffer::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::Fill::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::ReduceMax::get_type_info_static()] = dummy_functor;
@@ -62,6 +61,33 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     for (const auto& elem : custom_opset) {
         jitters[elem] = dummy_functor;
     }
+}
+
+std::vector<ov::snippets::Reg> DummyTargetMachine::get_abi_arg_regs() const {
+    const auto num_abi_regs = 4;
+    std::vector<ov::snippets::Reg> reg_pool;
+    reg_pool.reserve(num_abi_regs);
+    for (size_t i = 0; i < num_abi_regs; i++)
+        reg_pool.emplace_back(ov::snippets::RegType::gpr, i);
+    return reg_pool;
+}
+
+std::vector<ov::snippets::Reg> DummyTargetMachine::get_gp_reg_pool() const {
+    const auto num_gp_regs = 16;
+    std::vector<ov::snippets::Reg> reg_pool;
+    reg_pool.reserve(num_gp_regs);
+    for (size_t i = 0; i < num_gp_regs; i++)
+        reg_pool.emplace_back(ov::snippets::RegType::gpr, i);
+    return reg_pool;
+}
+
+std::vector<ov::snippets::Reg> DummyTargetMachine::get_vec_reg_pool() const {
+    const auto num_vec_regs = 16;
+    std::vector<ov::snippets::Reg> reg_pool;
+    reg_pool.reserve(num_vec_regs);
+    for (size_t i = 0; i < num_vec_regs; i++)
+        reg_pool.emplace_back(ov::snippets::RegType::vec, i);
+    return reg_pool;
 }
 
 LoweringTests::LoweringTests() : TransformationTestsF() {
@@ -82,7 +108,7 @@ void LoweringTests::TearDown() {
         model_ref = cloned_model;
     }
     manager.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
+    OV_ASSERT_NO_THROW(check_rt_info(model));
 
     if (comparator.should_compare(FunctionsComparator::ACCURACY)) {
         auto acc_comparator = FunctionsComparator::no_default();

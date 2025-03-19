@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,12 +122,6 @@ void SwapOutputNames(Output<Node> output1, Output<Node> output2) {
     const auto node2_output_names = output2.get_names();
     output2.set_names(output1.get_names());
     output1.set_names(node2_output_names);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto node2_legacy_output_names = get_ov_tensor_legacy_name(output2.get_tensor());
-    set_ov_tensor_legacy_name(output2.get_tensor(), get_ov_tensor_legacy_name(output1.get_tensor()));
-    set_ov_tensor_legacy_name(output1.get_tensor(), node2_legacy_output_names);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void SwapFriendlyNames(const NodePtr& node1, const NodePtr& node2) {
@@ -347,7 +341,7 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
 namespace {
 
 std::shared_ptr<ov::op::v0::Constant> GetTransposeConstant(Node* node) {
-    auto transpose_node = dynamic_cast<ov::op::v1::Transpose*>(node);
+    auto transpose_node = ov::as_type<ov::op::v1::Transpose>(node);
     if (!transpose_node)
         return {};
 
@@ -418,7 +412,7 @@ bool RemoveTransposeConsumers(const NodePtr& node) {
     ov::op::v1::Transpose* transpose_connected_to_result = nullptr;
     for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
         for (auto& consumer_input : node->get_output_target_inputs(output_idx)) {
-            auto transpose = dynamic_cast<ov::op::v1::Transpose*>(consumer_input.get_node());
+            auto transpose = ov::as_type<ov::op::v1::Transpose>(consumer_input.get_node());
             if (!transpose) {
                 // should never happen
                 // the check that all consumers of the main node are Transposes is added
@@ -428,7 +422,7 @@ bool RemoveTransposeConsumers(const NodePtr& node) {
             out_idx_to_redundant_transposes[output_idx].push_back(transpose);
 
             for (const auto& transpose_consumer_input : transpose->output(0).get_target_inputs()) {
-                if (dynamic_cast<ov::op::v0::Result*>(transpose_consumer_input.get_node())) {
+                if (ov::as_type<ov::op::v0::Result>(transpose_consumer_input.get_node())) {
                     transpose_connected_to_result = transpose;
                 }
             }

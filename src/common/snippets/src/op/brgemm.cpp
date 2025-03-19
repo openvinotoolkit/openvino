@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets/op/brgemm.hpp"
 
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/rt_info.hpp"
 
@@ -32,31 +32,21 @@ std::vector<size_t> get_output_layout(const std::shared_ptr<const ov::Node>& n) 
 
 Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
                const size_t offset_a, const size_t offset_b, const size_t offset_c,
-               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-               const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
     : MemoryAccess(std::set<size_t>{0, 1}, std::set<size_t>{0}), Op({A, B}) {
     set_output_size(1);
     set_input_offset(offset_a, 0);
     set_input_offset(offset_b, 1);
     set_output_offset(offset_c, 0);
-    set_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
 }
 
 Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
                const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
-               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-               const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
     : MemoryAccess(PortMap{{0, desc_a}, {1, desc_b}}, PortMap{{0, desc_c}}), Op({A, B}) {
     set_output_size(1);
-    set_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
-}
-
-void Brgemm::set_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n) {
-    m_M_blk = blk_size_m;
-    m_K_blk = blk_size_k;
-    m_N_blk = blk_size_n;
 }
 
 void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c) {
@@ -90,10 +80,6 @@ std::shared_ptr<Node> Brgemm::clone_with_new_inputs(const OutputVector& new_args
 }
 
 bool Brgemm::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("blk_M", m_M_blk);
-    visitor.on_attribute("blk_K", m_K_blk);
-    visitor.on_attribute("blk_N", m_N_blk);
-    visitor.on_attribute("beta", m_beta);
     return MemoryAccess::visit_attributes(visitor);
 }
 
@@ -101,18 +87,19 @@ ov::element::Type Brgemm::get_output_type(const ov::element::Type& in_type0, con
     const bool is_f32 = utils::everyone_is(element::f32, in_type0, in_type1);
     const bool is_int8 = utils::one_of(in_type0, element::i8, element::u8) && in_type1 == element::i8;
     const bool is_bf16 = utils::everyone_is(element::bf16, in_type0, in_type1);
-    if (is_f32 || is_bf16) {
+    const bool is_f16 = utils::everyone_is(element::f16, in_type0, in_type1);
+    if (is_f32 || is_bf16 || is_f16) {
         return element::f32;
     } else if (is_int8) {
         return element::i32;
     } else {
-        return element::undefined;
+        return element::dynamic;
     }
 }
 
 ov::element::Type Brgemm::get_output_type() const {
     auto output_type = get_output_type(get_input_element_type(0), get_input_element_type(1));
-    if (output_type == element::undefined) {
+    if (output_type == element::dynamic) {
         OPENVINO_THROW("BrgemmCPU node has incompatible input element types: " +
                        get_input_element_type(0).get_type_name() +
                        " and " +

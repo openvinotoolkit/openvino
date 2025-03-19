@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,4 +55,13 @@ TEST_F(SerializationCleanupTest, SerializationShouldWorkWithDynamicFunction) {
     // .xml & .bin files should be present
     ASSERT_TRUE(std::ifstream(m_out_xml_path, std::ios::in).good());
     ASSERT_TRUE(std::ifstream(m_out_bin_path, std::ios::in).good());
+}
+
+TEST_F(SerializationCleanupTest, SerializationShouldNotWorkWithMissingParameter) {
+    const auto model = create_test_model("RemovedParameter", ov::PartialShape{2});
+    model->remove_parameter(model->get_parameters()[0]);
+
+    ASSERT_ANY_THROW(ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(model));
+    EXPECT_FALSE(std::ifstream(m_out_xml_path, std::ios::in).good());
+    EXPECT_FALSE(std::ifstream(m_out_bin_path, std::ios::in).good());
 }

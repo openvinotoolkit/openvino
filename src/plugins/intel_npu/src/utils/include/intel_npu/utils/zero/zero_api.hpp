@@ -1,13 +1,20 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <loader/ze_loader.h>
 #include <ze_api.h>
 #include <zes_api.h>
 
 #include <memory>
+
+#include "openvino/core/except.hpp"
+
+#ifndef _WIN32
+#    define LIB_ZE_LOADER_SUFFIX ".1"
+#endif
 
 namespace intel_npu {
 
@@ -32,6 +39,7 @@ namespace intel_npu {
     symbol_statement(zeDeviceGetCommandQueueGroupProperties)  \
     symbol_statement(zeDeviceGetProperties)                   \
     symbol_statement(zeDevicePciGetPropertiesExt)             \
+    symbol_statement(zeDeviceGetExternalMemoryProperties)     \
     symbol_statement(zeDriverGet)                             \
     symbol_statement(zeDriverGetApiVersion)                   \
     symbol_statement(zeDriverGetExtensionFunctionAddress)     \
@@ -51,38 +59,50 @@ namespace intel_npu {
     symbol_statement(zeInit)                                  \
     symbol_statement(zeMemAllocDevice)                        \
     symbol_statement(zeMemAllocHost)                          \
-    symbol_statement(zeMemFree)
+    symbol_statement(zeMemFree)                               \
+    symbol_statement(zeMemGetAllocProperties)                 \
+    symbol_statement(zelLoaderGetVersions)
+
+//unsupported symbols with older ze_loader versions
+#define weak_symbols_list()                                   \
+    symbol_statement(zeCommandListGetNextCommandIdExp)        \
+    symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
+    symbol_statement(zeInitDrivers)
 // clang-format on
 
 class ZeroApi {
 public:
+    ZeroApi();
     ZeroApi(const ZeroApi& other) = delete;
     ZeroApi(ZeroApi&& other) = delete;
     void operator=(const ZeroApi&) = delete;
     void operator=(ZeroApi&&) = delete;
 
-    static ZeroApi& getInstance() {
-        static ZeroApi instance;
-        return instance;
-    }
+    static const std::shared_ptr<ZeroApi>& getInstance();
+
 #define symbol_statement(symbol) decltype(&::symbol) symbol;
     symbols_list();
+    weak_symbols_list();
 #undef symbol_statement
 
 private:
-    ZeroApi();
-
     std::shared_ptr<void> lib;
 };
 
 #define symbol_statement(symbol)                                                                            \
     template <typename... Args>                                                                             \
     inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
-        return ZeroApi::getInstance().symbol(std::forward<Args>(args)...);                                  \
+        const auto& ptr = ZeroApi::getInstance();                                                           \
+        if (ptr->symbol == nullptr) {                                                                       \
+            OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
+        }                                                                                                   \
+        return ptr->symbol(std::forward<Args>(args)...);                                                    \
     }
 symbols_list();
+weak_symbols_list();
 #undef symbol_statement
 #define symbol_statement(symbol) inline decltype(&::symbol) symbol = wrapped_##symbol;
 symbols_list();
+weak_symbols_list();
 #undef symbol_statement
 }  // namespace intel_npu

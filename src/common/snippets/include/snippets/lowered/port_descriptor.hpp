@@ -20,12 +20,6 @@ using PortDescriptorPtr = std::shared_ptr<PortDescriptor>;
 class PortDescriptor {
     friend class LinearIRBuilder;
 public:
-    // The structure with service values for scheduling parameters
-    struct ServiceDimensions {
-        // The value for the subtensor that means that scheduling should be by full dimension
-        static size_t FULL_DIM;
-    };
-
     explicit PortDescriptor(const ov::Input<ov::Node>& node,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
@@ -53,6 +47,9 @@ public:
     void set_reg(Reg reg) { m_reg = std::move(reg); }
     void set_reg_type(RegType type) { m_reg.type = type; }
     void set_reg_idx(size_t idx) { m_reg.idx = idx; }
+
+    // Indexing starts from the end (rbegin() + idx)
+    void set_subtensor_dim(size_t idx, VectorDims::value_type value);
 
     std::string serialize() const;
     bool empty() const { return m_layout.empty() && m_subtensor_shape.empty();}
@@ -85,12 +82,14 @@ private:
 
 class PortDescriptorUtils {
 public:
-    static void set_port_descriptor_ptr(const ov::Input<ov::Node>& n, const PortDescriptorPtr& desc);
-    static void set_port_descriptor_ptr(const ov::Output<ov::Node>& n, const PortDescriptorPtr& desc);
+    static void set_port_descriptor_ptr(const ov::Input<ov::Node>& in, const PortDescriptorPtr& desc);
+    static void set_port_descriptor_ptr(const ov::Output<ov::Node>& out, const PortDescriptorPtr& desc);
+    static void set_port_descriptor(const ov::Input<ov::Node>& in, std::vector<size_t> subtensor, std::vector<size_t> layout = {});
+    static void set_port_descriptor(const ov::Output<ov::Node>& out, std::vector<size_t> subtensor, std::vector<size_t> layout = {});
 
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Input<ov::Node>& in);
-    static PortDescriptorPtr get_port_descriptor_ptr(const ov::Input<const ov::Node>& out);
-    static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<ov::Node>& in);
+    static PortDescriptorPtr get_port_descriptor_ptr(const ov::Input<const ov::Node>& in);
+    static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<ov::Node>& out);
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<const ov::Node>& out);
 
     static void clean(const std::shared_ptr<ov::Node>& node);
@@ -115,17 +114,6 @@ public:
     std::vector<PortDescriptorPtr> inputs{};
     std::vector<PortDescriptorPtr> outputs{};
 };
-
-template<typename T>
-void set_port_desc(const T& port, std::vector<size_t> subtensor) {
-    const auto& shape = port.get_shape();
-    for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
-        auto& dim = subtensor[subtensor.size() - i];
-        if (dim != PortDescriptor::ServiceDimensions::FULL_DIM)
-            dim = std::min(dim, shape[shape.size() - i]);
-    }
-    PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, subtensor));
-}
 
 } // namespace lowered
 } // namespace snippets

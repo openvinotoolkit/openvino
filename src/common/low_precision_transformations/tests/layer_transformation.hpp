@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "low_precision/layer_transformation.hpp"
-#include "low_precision/transformation_context.hpp"
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
@@ -29,6 +28,7 @@ struct TestTransformationParams {
         bool deconvolutionSpecificChannelsRatio = false,
         std::vector<ov::element::Type> defaultPrecisions = { element::u8, element::i8 });
 
+    TestTransformationParams& setDeqPrecision(const element::Type deqPrecision);
     TestTransformationParams& setUpdatePrecisions(const bool updatePrecisions);
     TestTransformationParams& setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization);
     TestTransformationParams& setPrecisionsOnActivations(const std::vector<element::Type>& precisionsOnActivations);

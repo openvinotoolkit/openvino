@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,14 +135,14 @@ TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, getPropertyTestAfterReleas
     config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + ov::test::utils::DEVICE_GPU));
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     std::string result;
-    ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
     if (actSleep) {
         if (!cpuSleep) {
-            ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
+            OV_ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
             EXPECT_EQ(result, modelNameCpu);
         }
     } else {
-        ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
+        OV_ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
     }
 
     auto supported_config_keys =
@@ -150,7 +150,7 @@ TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, getPropertyTestAfterReleas
     for (const auto& cfg : supported_config_keys) {
         if (cfg == ov::model_name)
             continue;
-        ASSERT_NO_THROW(exeNetwork->get_property(cfg).as<std::string>());
+        OV_ASSERT_NO_THROW(exeNetwork->get_property(cfg).as<std::string>());
     }
 }
 
@@ -159,7 +159,8 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
     bool cpuSuccess;
     bool accSuccess;
     std::tie(cpuSuccess, accSuccess) = this->GetParam();
-    size_t decreaseCount = 0;
+    size_t decreaseExeNetworkCount = 0;
+    size_t decreaseInferReqCount = 0;
     // test auto plugin
     plugin->set_device_name("AUTO");
     const std::string strDevices = ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU;
@@ -190,8 +191,11 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                               _))
             .WillByDefault(Return(mockExeNetwork));
-        if (accSuccess)
-            decreaseCount++;
+        if (accSuccess) {
+            decreaseExeNetworkCount++;
+            // will be at least 2 infer requests for mocked CPU/GPU
+            decreaseInferReqCount += 2;
+        }
     } else {
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -216,7 +220,7 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
     config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + ov::test::utils::DEVICE_GPU));
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     if (cpuSuccess || accSuccess) {
-        ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+        OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
         if (!cpuSuccess)
             EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(),
                       ov::test::utils::DEVICE_GPU);
@@ -228,8 +232,8 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
     auto sharedcount = mockExeNetwork._ptr.use_count();
     auto requestsharedcount = inferReqInternal.use_count();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    EXPECT_EQ(mockExeNetwork._ptr.use_count(), sharedcount - decreaseCount);
-    EXPECT_EQ(inferReqInternal.use_count(), requestsharedcount - decreaseCount);
+    EXPECT_EQ(mockExeNetwork._ptr.use_count(), sharedcount - decreaseExeNetworkCount);
+    EXPECT_EQ(inferReqInternal.use_count(), requestsharedcount - decreaseInferReqCount);
     if (cpuSuccess || accSuccess) {
         if (accSuccess)
             EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(),

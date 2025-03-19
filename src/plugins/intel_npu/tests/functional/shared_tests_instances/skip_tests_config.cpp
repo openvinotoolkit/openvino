@@ -1,20 +1,21 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "functional_test_utils/skip_tests_config.hpp"
 
+#include <intel_npu/utils/logger/logger.hpp>
 #include <regex>
 #include <string>
 #include <vector>
 
 #include "common/functions.h"
-#include "common/utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include <intel_npu/utils/logger/logger.hpp>
-#include "npu_private_properties.hpp"
+#include "intel_npu/npu_private_properties.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 
 class BackendName {
 public:
@@ -39,10 +40,6 @@ public:
         return _name == "LEVEL0";
     }
 
-    bool isVpual() const {
-        return _name == "VPUAL";
-    }
-
     bool isIMD() const {
         return _name == "IMD";
     }
@@ -63,7 +60,8 @@ public:
         }
 
         // Private device names may be registered via environment variables
-        const std::string environmentDevice = ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::intel_npu::Platform::AUTO_DETECT.data());
+        const std::string environmentDevice =
+            ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::intel_npu::Platform::AUTO_DETECT.data());
         const std::string standardizedEnvironmentDevice = ov::intel_npu::Platform::standardize(environmentDevice);
 
         if (std::all_of(_availableDevices.begin(), _availableDevices.end(), [&](const std::string& deviceName) {
@@ -87,15 +85,35 @@ public:
         });
     }
 
-    bool has3700() const {
-        return std::any_of(_availableDevices.begin(), _availableDevices.end(), [](const std::string& deviceName) {
-            return deviceName.find("3700") != std::string::npos;
-        });
-    }
-
 private:
     std::vector<std::string> _availableDevices;
     intel_npu::Logger _log = intel_npu::Logger("AvailableDevices", ov::log::Level::INFO);
+};
+
+class CurrentOS {
+public:
+    CurrentOS() {
+#ifdef WIN32
+        _name = "windows";
+#elif defined(__linux__)
+        _name = "linux";
+#endif
+    }
+
+    std::string getName() const {
+        return _name;
+    }
+
+    bool isLinux() const {
+        return _name == "linux";
+    }
+
+    bool isWindows() const {
+        return _name == "windows";
+    }
+
+private:
+    std::string _name;
 };
 
 class SkipRegistry {
@@ -133,8 +151,8 @@ public:
 private:
     struct Entry {
         Entry(std::string&& comment, std::vector<std::string>&& patterns)
-                : _comment{std::move(comment)}, _patterns{std::move(patterns)} {
-        }
+            : _comment{std::move(comment)},
+              _patterns{std::move(patterns)} {}
 
         std::string _comment;
         std::vector<std::string> _patterns;
@@ -152,6 +170,70 @@ std::string getCurrentTestName() {
     return currentTestName;
 }
 
+/** Checks if string containing rule has a "!" character
+ * If "!" is found a flag will be set and the rule will
+ * have the character erased to be used in further conditions
+ *
+ * @param rule Input string
+ * @return true if "!" is found
+ */
+bool isRuleInverted(std::string& rule);
+
+bool isRuleInverted(std::string& rule) {
+    auto pos = rule.find("!");
+    if (pos != std::string::npos) {
+        // Delete negation character from rule string
+        rule.erase(pos, 1);
+        return true;
+    }
+    return false;
+}
+
+/** Reads multiple rules from specified categories:
+ *      - "Backend" rule category
+ *      - "Device" rule category
+ *      - "Operating System" rule category
+ *
+ *  When a rule is found it will get inverted if it starts with "!"
+ *  it will then be checked agains the current system config
+ *
+ *  If the rule is true,then the skip will be enabled and the test will not run.
+ *  If the rule is false, then the skip will be disabled and the test will run.
+ *
+ *  No rule means skip remains enabled
+ *
+ * @param category Input category that will be searched for rules
+ * @param localSettings Input current system setting, by category
+ * @param enableRules xml node to the category that will be checked and read
+ * @return true if a rule is found to match current system config
+ */
+bool categoryRuleEnabler(const std::string& category,
+                         const std::vector<std::string>& localSettings,
+                         const pugi::xml_node& enableRules);
+
+bool categoryRuleEnabler(const std::string& category,
+                         const std::vector<std::string>& localSettings,
+                         const pugi::xml_node& enableRules) {
+    if (enableRules.child(category.c_str()).empty()) {
+        return true;
+    }
+
+    FOREACH_CHILD (enableRule, enableRules, category.c_str()) {
+        auto categoryRule = enableRule.text().get();
+
+        std::string categoryRuleString(categoryRule);
+        bool invert = isRuleInverted(categoryRuleString);
+        for (auto& localSetting : localSettings) {
+            // Perform logical XOR to invert condition
+            if (!(categoryRuleString == localSetting) != !invert) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 std::vector<std::string> disabledTestPatterns();
 
 std::vector<std::string> disabledTestPatterns() {
@@ -159,8 +241,65 @@ std::vector<std::string> disabledTestPatterns() {
     static const auto skipRegistry = []() {
         SkipRegistry _skipRegistry;
 
+        intel_npu::Logger _log = intel_npu::Logger("SkipConfig", ov::log::Level::INFO);
+
         const BackendName backendName;
         const AvailableDevices devices;
+        const CurrentOS currentOS;
+
+        try {
+            const auto& filePath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_SKIP_CONFIG_FILE;
+            // Check if skip xml path is set and read it
+            if (filePath.empty()) {
+                _log.warning("OV_NPU_TESTS_SKIP_CONFIG_FILE not set");
+                throw std::runtime_error("Using legacy skip config");
+            } else {
+                _log.info("Using %s as skip config", filePath.c_str());
+            }
+
+            auto xmlResult = ov::util::pugixml::parse_xml(filePath.c_str());
+            // Error returned from pugixml, fallback to legacy skips
+            if (!xmlResult.error_msg.empty()) {
+                _log.error(xmlResult.error_msg.c_str());
+                throw std::runtime_error("Using legacy skip config");
+            }
+
+            pugi::xml_document& xmlSkipConfig = *xmlResult.xml;
+
+            // Select the parent node
+            pugi::xml_node skipConfigsList = xmlSkipConfig.child("skip_configs");
+
+            // Iterate through each skip rule
+            FOREACH_CHILD (skipConfigRule, skipConfigsList, "skip_config") {
+                // Extract skip message, it will get printed in the test logs
+                auto skipMessageEntry = skipConfigRule.child("message").text().get();
+
+                // Read enable/disable conditions
+                // There can be multiple rules for each category
+                // If "!" is found, then rule is inverted
+                pugi::xml_node enableRules = skipConfigRule.child("enable_rules");
+                bool ruleFlag = true;
+                if (!enableRules.empty()) {
+                    // Accumulate rule for each category
+                    ruleFlag &= categoryRuleEnabler("backend", {backendName.getName()}, enableRules);
+                    ruleFlag &= categoryRuleEnabler("device", devices.getAvailableDevices(), enableRules);
+                    ruleFlag &= categoryRuleEnabler("operating_system", {currentOS.getName()}, enableRules);
+                }
+
+                // Select individual filters and add them to the skipRegistry
+                pugi::xml_node skipFiltersList = skipConfigRule.child("filters");
+                FOREACH_CHILD (skipFilter, skipFiltersList, "filter") {
+                    auto skipFilterEntry = skipFilter.text().get();
+                    // Add skip to registry
+                    _skipRegistry.addPatterns(ruleFlag, skipMessageEntry, {skipFilterEntry});
+                }
+            }
+            return _skipRegistry;
+
+        } catch (const std::runtime_error& e) {
+            // Fallback to legacy skips
+            _log.warning(e.what());
+        }
 
         // clang-format off
 
@@ -271,8 +410,8 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(
                 "Tests with unsupported precision", {
                 ".*InferRequestCheckTensorPrecision.*type=boolean.*",
-                ".*InferRequestCheckTensorPrecision.*type=bf16.*",
                 ".*InferRequestCheckTensorPrecision.*type=f64.*",
+                ".*InferRequestCheckTensorPrecision.*type=bf16.*",
                 ".*InferRequestCheckTensorPrecision.*type=u1\\D.*",
                 // [Track number: E#97469]
                 ".*InferRequestCheckTensorPrecision.*type=i64.*",
@@ -298,13 +437,6 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(
                 "compiler: Unsupported arch kind: NPUX311X", {
                 ".*CompilationForSpecificPlatform.*(3800|3900).*",
-        });
-
-        // [Track number: E#67741]
-        _skipRegistry.addPatterns(
-                "Cannot call setShape for Blobs", {
-                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
-                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*InferStaticNetworkSetChangedInputTensorThrow.*targetDevice=(NPU_|MULTI_configItem=MULTI_DEVICE_PRIORITIES_NPU).*)"
         });
 
         // [Track number: E#67749]
@@ -348,19 +480,6 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(
                 "Plugin can not perform SetConfig for value like: device=NPU config key=LOG_LEVEL value=0", {
                 "smoke_BehaviorTests/DefaultValuesConfigTests.CanSetDefaultValueBackToPlugin.*",
-        });
-
-        // [Track number: E#80555]
-        _skipRegistry.addPatterns(devices.has3700(),
-                "Problems with SplitConcat ngraph function", {
-                R"(.*smoke_BehaviorTests/InferRequest(CallbackTests|MultithreadingTests|PerfCountersTest|WaitTests)\..*)",
-                R"(.*smoke_BehaviorTests(/|/OV)InferRequestCancellationTests\..*)",
-                R"(.*smoke(_|_Multi_)BehaviorTests/OVInferRequestIOTensorTest\..*)",
-                R"(.*smoke(_|_Auto_|_Multi_)BehaviorTests/OVInferRequest(CallbackTests|IOTensorSetPrecisionTest|MultithreadingTests)\..*)",
-                ".*OVClassNetworkTestP.LoadNetworkActual.*",
-                ".*OVClassLoadNetworkTestNPU.LoadNetworkHETEROWithDeviceIDNoThrow.*",
-                R"(.*OVHoldersTest\..*)",
-                R"(.*OVHoldersTestOnImportedNetwork\..*)",
         });
 
         _skipRegistry.addPatterns(
@@ -417,7 +536,6 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(devices.count() && !devices.has3720(), "Tests are disabled for all devices except NPU3720",
                                   {
                                           // [Track number: E#49620]
-                                          ".*NPU3700(\\.|_)(SW|HW).*",
                                           ".*NPU3720.*",
                                           // [Track number: E#84621]
                                           ".*DriverCompilerAdapterDowngradeInterpolate11TestNPU.*",
@@ -468,38 +586,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVClassImportExportTestP.*OVClassCompiledModelImportExportTestP.*ImportNetworkThrowWithDeviceName.*"
         });
 
-        // [Track number: S#14836]
-        _skipRegistry.addPatterns(devices.has3700(),
-                "Async tests break on dKMB", {
-                ".*ExclusiveAsyncRequests.*",
-        });
-
-        _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(),
-                                  "TensorIterator layer is not supported by dKMB platform",
-                                  {
-                                          ".*SetBlobTest.*",
-                                  });
-
-        _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(), "Convert layer is not supported by dKMB platform",
-                                 {".*PreprocessingPrecisionConvertTest.*", ".*InferRequestPreprocess.*"});
-
-        _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(),
-                        "Tests fail on RPL dKMB boards, start_async() fails intermittently",
-                        { // [Tracking number: E#90056]
-                          ".*OVInferConsistencyTest.*",
-                          // [Tracking number: E#92317]
-                          ".*OVInferRequestIOTensorTest.*",
-                          ".*OVInferRequestMultithreadingTests.*",
-                          ".*OVInferRequestCallbackTests.*",
-                          ".*InferRequestMultithreadingTests.*",
-                          ".*InferRequestPerfCountersTest.*",
-                          ".*InferRequestWaitTests.*",
-                          ".*OVInferRequestCancellationTest.*",
-                          ".*InferRequestRunTests.*",
-                          ".*InferRequestCallbackTests.*",
-                          ".*InferRequestCancellationTests.*",
-                          ".*OVCompileAndInferRequest.*"});
-
         _skipRegistry.addPatterns(!(backendName.isZero()), "These tests runs only on LevelZero backend",
                                   {".*InferRequestRunTests.*",
                                    ".*OVClassGetMetricAndPrintNoThrow.*",
@@ -519,16 +605,6 @@ std::vector<std::string> disabledTestPatterns() {
                                    // [Tracking number: CVS#120240]
                                    ".*smoke_BehaviorTests_CachingSupportCase_NPU/CompileModelLoadFromFileTestBase.*"});
 
-        _skipRegistry.addPatterns(devices.has3700(), "Do not run the tests that require a new CiD version on the 3700 platform",
-                                  {
-                                   // [Tracking number: E#92279]
-                                   ".*CompileModelLoadFromFileTestBase.*",
-                                   ".*CorrectConfigTests.CanUseCache.*",
-                                   ".*CorrectConfigTests.CanLoadNetworkWithCorrectConfig.*",
-                                   ".*DriverCompilerAdapterDowngradeInterpolate11TestNPU.CheckOpsetVersion.*",
-                                   ".*DriverCompilerAdapterInputsOutputsTestNPU.CheckInOutputs.*",
-                                   ".*DriverCompilerAdapterExpectedThrowNPU.CheckWrongGraphExtAndThrow.*"});
-
 #ifdef WIN32
 #elif defined(__linux__)
         // [Tracking number: E#103391]
@@ -542,20 +618,7 @@ std::vector<std::string> disabledTestPatterns() {
                 // [Tracking number: E#111369]
                 ".*OVInferRequestMultithreadingTests.canRun3SyncRequestsConsistently.*"
         });
-
-        // [Tracking number: E#107154]
-        _skipRegistry.addPatterns(
-                "Can't disable ELF Backend since Graphfile does not work on linux", {
-                ".*NPU_USE_ELF_COMPILER_BACKEND:NO.*",
-                ".*USE_ELF_COMPILER_BACKEND_NO.*"
-        });
 #endif
-
-        _skipRegistry.addPatterns(backendName.isZero(), "Most ProfilingTest_VPU3700 instances break sporadically, only stable instances are left, #65844", {
-                                                ".*precommit_profilingDisabled/ProfilingTest_VPU3700.*",
-                                                ".*precommit_profilingDisabled_drv/ProfilingTest_VPU3700.*",
-                                                ".*precommit_profilingEnabled_drv/ProfilingTest_VPU3700.*",
-                                                });
 
         _skipRegistry.addPatterns(backendName.isIMD(), "IMD/Simics do not support the tests",
                                   {
@@ -623,32 +686,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_BehaviorTests_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.LoadNetworkHETEROWithDeviceIDNoThrow.*"
         });
 
-        // [Tracking number: E#109040]
-        _skipRegistry.addPatterns(devices.has3700(),
-                "error: Value of: ex.what(), Expected: has substring device xml header", {
-                ".*smoke_OVClassImportExportTestP/OVClassCompiledModelImportExportTestP.smoke_ImportNetworkThrowWithDeviceName/0.*"
-        });
-
-        // [Tracking number: E#109040]
-        _skipRegistry.addPatterns(devices.has3700(),
-                "The device candidate list should not include the meta plugin for MULTI", {
-                ".*OVCheckSetSupportedRWMandatoryMetricsPropsTests/OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties/target_device=MULTI.*"
-        });
-
-        // [Tracking number: E#109040]
-        _skipRegistry.addPatterns(devices.has3700(),
-                "The device candidate list should not include the meta plugin for AUTO", {
-                ".*OVCheckSetSupportedRWMandatoryMetricsPropsTests/OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties/target_device=AUTO.*"
-        });
-
-        // [Tracking number: E#109040]
-        _skipRegistry.addPatterns(devices.has3700(),
-                "Disabled tests for NPU3700", {
-                ".*smoke_BehaviorTest/CompileForDifferentPlatformsTests.CompilationForSpecificPlatform.*DEVICE_ID_3720.*",
-                ".*smoke_BehaviorTests/OVCompiledGraphImportExportTest.importExportedFunctionConstantResultOnly.*",
-                ".*smoke_BehaviorTests/OVCompiledGraphImportExportTest.importExportedIENetworkConstantResultOnly.*"
-        });
-
 #ifdef WIN32
         // [Track number: CVS-128116]
         _skipRegistry.addPatterns("Unicode paths for ov::cache_dir are not correctly handled on Windows",
@@ -658,10 +695,7 @@ std::vector<std::string> disabledTestPatterns() {
         // [Tracking number: E#108600]
         _skipRegistry.addPatterns(backendName.isZero(),
                 "Unsupported NPU properties", {
-                ".*OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*EXECUTION_MODE_HINT.*",
-                ".*OVCheckChangePropComplieModleGetPropTests_InferencePrecision.*",
                 ".*OVCheckMetricsPropsTests_ModelDependceProps.*",
-                ".*OVCheckChangePropComplieModleGetPropTests_DEVICE_ID.*ENABLE_CPU_PINNING.*",
                 ".*OVClassCompileModelAndCheckSecondaryPropertiesTest.*"
         });
 
@@ -669,10 +703,8 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(backendName.isZero(),
                 "Failing properties tests", {
                 ".*OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow.*",
+                // [Tracking number: E#133153]
                 ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE_PARAMS.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_PROFILING_OUTPUT_FILE.*"
         });
 
         // [Tracking number: E#109040]
@@ -691,12 +723,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_BehaviorTests_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.LoadNetworkHETEROWithDeviceIDNoThrow.*"
         });
 
-        // [Tracking number: E#109040]
-        _skipRegistry.addPatterns(devices.has3700(),
-                "error: Value of: ex.what(), Expected: has substring device xml header", {
-                ".*smoke_OVClassImportExportTestP/OVClassCompiledModelImportExportTestP.smoke_ImportNetworkThrowWithDeviceName/0.*"
-        });
-
         // [Tracking number: E#114623]
         _skipRegistry.addPatterns(!devices.has3720(),
                 "The private platform names cannot be identified via the \"ov::available_devices\" configuration.", {
@@ -712,27 +738,7 @@ std::vector<std::string> disabledTestPatterns() {
         });
 
         // [Tracking number: E#109040]
-        _skipRegistry.addPatterns(devices.has3700(),
-                "The device candidate list should not include the meta plugin for MULTI", {
-                ".*OVCheckSetSupportedRWMandatoryMetricsPropsTests/OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties/target_device=MULTI.*"
-        });
-
-        // [Tracking number: E#109040]
-        _skipRegistry.addPatterns(devices.has3700(),
-                "The device candidate list should not include the meta plugin for AUTO", {
-                ".*OVCheckSetSupportedRWMandatoryMetricsPropsTests/OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties/target_device=AUTO.*"
-        });
-
-        // [Tracking number: E#109040]
-        _skipRegistry.addPatterns(devices.has3700(),
-                "Disabled tests for NPU3700", {
-                ".*smoke_BehaviorTest/CompileForDifferentPlatformsTests.CompilationForSpecificPlatform.*DEVICE_ID_3720.*",
-                ".*smoke_BehaviorTests/OVCompiledGraphImportExportTest.importExportedFunctionConstantResultOnly.*",
-                ".*smoke_BehaviorTests/OVCompiledGraphImportExportTest.importExportedIENetworkConstantResultOnly.*"
-        });
-
-        // [Tracking number: E#109040]
-        _skipRegistry.addPatterns(devices.has3700() || devices.has3720(),
+        _skipRegistry.addPatterns(devices.has3720(),
                 "Disabled tests for NPU3720", {
                 ".*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=i16.*",
                 ".*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=u16.*",
@@ -754,10 +760,8 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(backendName.isZero(),
                 "Failing properties tests", {
                 ".*OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow.*",
+                // [Tracking number: E#133153]
                 ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE_PARAMS.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_PROFILING_OUTPUT_FILE.*"
         });
 
         // [Tracking number: E#117582]
@@ -818,24 +822,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_OVClassNetworkTestP/OVClassNetworkTestPNPU.*"
         });
 
-        // [Tracking number: E#118348]
-        _skipRegistry.addPatterns(devices.has3700() && backendName.isZero(),
-                "Failing infer request tests on dKMB using CID", {
-                ".*smoke_BehaviorTests/OVInferRequestPerfCountersExceptionTest.perfCountWereNotEnabledExceptionTest.*",
-                ".*smoke_Auto_BehaviorTests/OVInferRequestPerfCountersExceptionTest.perfCountWereNotEnabledExceptionTest.*",
-                ".*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersExceptionTest.perfCountWereNotEnabledExceptionTest.*",
-                ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_QueryState.*",
-                ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_SetState.*",
-                ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_Reset.*",
-                ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_2infers_set.*",
-                ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_2infers.*",
-                ".*smoke_Hetero_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_QueryState.*",
-                ".*smoke_Hetero_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_SetState.*",
-                ".*smoke_Hetero_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_Reset.*",
-                ".*smoke_Hetero_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_2infers_set.*",
-                ".*smoke_Hetero_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_2infers.*"
-        });
-
         // [Tracking number: E#125086]
         _skipRegistry.addPatterns(devices.has3720() && backendName.isZero(), 
                 "Failing tests after functional tests migration to OV", {
@@ -847,28 +833,9 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*"
         });
 
-        // [Tracking number: E#118348]
-        _skipRegistry.addPatterns(devices.has3700() && backendName.isZero(),
-                "Failing infer request tests on dKMB using MLIR", {
-                ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_QueryState.*",
-                ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_SetState.*",
-                ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_Reset.*",
-                ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_2infers_set.*",
-                ".*smoke_BehaviorTests_VariableState/OVInferRequestVariableStateTest.inferreq_smoke_VariableState_2infers.*"
-        });
-
-        // [Tracking number: E#116494]
         _skipRegistry.addPatterns(
-                "NPU plugin doesn't implement `set_tensors` function", {
-                ".*OVInferRequestBatchedTests.SetInputTensorsBase.*",
-                ".*OVInferRequestBatchedTests.SetInputTensorsAsync.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_override_with_set.*",
-                ".*OVInferRequestBatchedTests.SetInputTensorsBase_Caching.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Multiple_Infer.*",
+                "NPU plugin doesn't support infer dynamic", {
                 ".*OVInferRequestBatchedTests.SetInputTensors_Can_Infer_Dynamic.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Get_Tensor_Not_Allowed.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Correct_all.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Cache_CheckDeepCopy.*"
         });
 
         // [Tracking number: E#118381]
@@ -903,11 +870,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*"
         });
 
-        // [Tracking number: E#116762]
-        _skipRegistry.addPatterns("softMaxDynamicTest4D_NPU3720 tests do not work with COMPILER_TYPE=DRIVER", {
-                ".*SoftMaxLayerTestNPU.CompareWithRef.*"
-        });
-
         // [Tracking number: E#109040]
 	_skipRegistry.addPatterns("CheckWrongGraphExtAndThrow tests do not work with COMPILER_TYPE=DRIVER", {
                 ".*DriverCompilerAdapterExpectedThrowNPU.CheckWrongGraphExtAndThrow.*"
@@ -925,18 +887,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_Hetero_BehaviorTests/OVClassCompiledModelImportExportTestP.smoke_ImportNetworkThrowWithDeviceName.*"
         });
 
-        // [Tracking number: E#121448]
-        _skipRegistry.addPatterns(devices.has3700() && backendName.isZero(), "CID from driver 31.0.100.1937 doesn't support certain properties", {
-                ".*smoke_BehaviorTests/OVClassCompiledModelPropertiesTests.canCompileModelWithPropertiesAndCheckGetProperty.*NPU_DYNAMIC_SHAPE_TO_STATIC.*",
-                ".*smoke_BehaviorTests/OVClassCompileModelWithCorrectPropertiesTest.CompileModelWithCorrectPropertiesTest.*NPU_DYNAMIC_SHAPE_TO_STATIC.*",
-                ".*smoke_BehaviorTests/OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY.GetMetricNoThrow.*NPU_DYNAMIC_SHAPE_TO_STATIC.*",
-                ".*smoke_BehaviorTests/OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY.GetMetricNoThrow.*NPU_DYNAMIC_SHAPE_TO_STATIC.*",
-                ".*smoke_BehaviorTests/OVClassCompiledModelGetPropertyTest_EXEC_DEVICES.CanGetExecutionDeviceInfo.*NPU_DYNAMIC_SHAPE_TO_STATIC.*",
-                ".*smoke_BehaviorTests/OVCompileModelGetExecutionDeviceTests.CanGetExecutionDeviceInfo.*NPU_DYNAMIC_SHAPE_TO_STATIC.*",
-                // COMPILATION_NUM_THREADS
-                ".*smoke_BehaviorTests/OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*"
-        });
-
         _skipRegistry.addPatterns("NPU cannot set properties for compiled models", {
                 ".*OVClassCompiledModelSetCorrectConfigTest.canSetConfig.*"
         });
@@ -947,6 +897,10 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
         });
 
+        // get_runtime_model method is not supported on NPU
+        _skipRegistry.addPatterns("get_runtime_model method is not supported on NPU", {
+                ".*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*",
+        });
         return _skipRegistry;
     }();
     // clang-format on

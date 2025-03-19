@@ -1,8 +1,0 @@
--c ../constraints.txt
-h5py
-tensorflow>=1.15.5,<2.17.0
-numpy>=1.16.6,<1.26
-networkx
-defusedxml
-requests
-fastjsonschema

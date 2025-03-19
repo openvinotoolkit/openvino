@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,15 @@ KERNEL (reorder_data)(
 #endif
     )
 {
+#if INPUT0_LAYOUT_BYFX
+    // GWS_FEATURE takes Y for byfx format
+    const uint b = get_global_id(GWS_BATCH);
+    const uint y = get_global_id(GWS_FEATURE);
+#else
     const uint b = get_global_id(GWS_BATCH);
     const uint f = get_global_id(GWS_FEATURE);
+#endif
+
 #if   INPUT0_DIMS == 2
     const uint y = 0;
     const uint x = 0;
@@ -37,8 +44,14 @@ KERNEL (reorder_data)(
     const uint u = 0;
     const uint v = 0;
 #elif INPUT0_DIMS == 4
-    const uint y = ((uint)(get_global_id(GWS_YX))) / INPUT0_SIZE_X;
-    const uint x = ((uint)(get_global_id(GWS_YX))) % INPUT0_SIZE_X;
+    #if INPUT0_LAYOUT_BYFX
+        // GWS_YX takes (F and X) axes for byfx format
+        const uint f = ((uint)(get_global_id(GWS_YX))) / INPUT0_SIZE_X;
+        const uint x = ((uint)(get_global_id(GWS_YX))) % INPUT0_SIZE_X;
+    #else
+        const uint y = ((uint)(get_global_id(GWS_YX))) / INPUT0_SIZE_X;
+        const uint x = ((uint)(get_global_id(GWS_YX))) % INPUT0_SIZE_X;
+    #endif
     const uint z = 0;
     const uint w = 0;
     const uint u = 0;

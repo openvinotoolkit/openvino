@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "nodes/common/blocked_desc_creator.h"
 #include <dnnl_extension_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "common_test_utils/test_assertions.hpp"
 
 using namespace ov::intel_cpu;
 using namespace testing;
@@ -282,7 +283,7 @@ TEST(MemDescTest, MemSize) {
     ASSERT_EQ(blockedDescDefUpper.getCurrentMemSize(), undefSize);
     auto maxElementsCount = std::accumulate(pluginShapeDefUpperBound.getMaxDims().begin(),
                                             pluginShapeDefUpperBound.getMaxDims().end(),
-                                            1, std::multiplies<size_t>());
+                                            1, std::multiplies<>());
     ASSERT_EQ(blockedDescDefUpper.getMaxMemSize(), maxElementsCount * iePrc.size());
 
     DnnlBlockedMemoryDesc memDescDefUpper(pluginShapeDefUpperBound, dnnlDataType, dnnl::memory::format_tag::nhwc);
@@ -321,7 +322,7 @@ TEST(MakeUndefinedDnnlDesc, checkRank) {
 
     ov::intel_cpu::Shape pluginShapeRightRank(ov::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
     MemoryDescPtr memDesc;
-    ASSERT_NO_THROW(memDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, pluginShapeRightRank));
+    OV_ASSERT_NO_THROW(memDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, pluginShapeRightRank));
     ASSERT_FALSE(memDesc->isDefined());
 }
 
@@ -342,7 +343,7 @@ TEST(MakeUndefinedDnnlDesc, checkDims) {
         auto partialShape = fullyUndef;
         partialShape[i] = {dims[i]};
         MemoryDescPtr memDesc;
-        ASSERT_NO_THROW(memDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef)));
+        OV_ASSERT_NO_THROW(memDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef)));
         ASSERT_FALSE(memDesc->isDefined());
     }
 }
@@ -439,7 +440,7 @@ TEST(makeDummyDesc, LowerBoundMoreThanDummyValue) {
     ASSERT_FALSE(desc->isDefined());
 
     MemoryDescPtr definedDesc;
-    ASSERT_NO_THROW(definedDesc = MemoryDescUtils::makeDummyDesc(*desc));
+    OV_ASSERT_NO_THROW(definedDesc = MemoryDescUtils::makeDummyDesc(*desc));
 
     ASSERT_TRUE(definedDesc->isDefined());
     ASSERT_EQ((VectorDims{1, 3, 85, 144}), definedDesc->getShape().getStaticDims());

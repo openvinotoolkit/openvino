@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ std::shared_ptr<Node> makeDequantization(
         }
 
         std::shared_ptr<Node> subtractConst = std::make_shared<ov::opset1::Constant>(
-            dequantizationOperations.subtract.constantPrecision != ov::element::undefined
+            dequantizationOperations.subtract.constantPrecision != ov::element::dynamic
                 ? dequantizationOperations.subtract.constantPrecision
                 : parent.get_element_type(),
             shape,
@@ -61,7 +61,7 @@ std::shared_ptr<Node> makeDequantization(
         if (dequantizationOperations.subtract.addConvert) {
             std::shared_ptr<Node> subtractConstConvert = std::make_shared<ov::opset1::Convert>(
                 subtractConst,
-                dequantizationOperations.subtract.outPrecision == ov::element::undefined
+                dequantizationOperations.subtract.outPrecision == ov::element::dynamic
                     ? parent.get_element_type()
                     : dequantizationOperations.subtract.outPrecision);
 
@@ -76,29 +76,18 @@ std::shared_ptr<Node> makeDequantization(
         ov::Output<Node> leftBranchParent = dequantizationOperations.subtract.constantIndex == 1 ? parent : subtractConst;
         ov::Output<Node> rightBranchParent = dequantizationOperations.subtract.constantIndex == 1 ? subtractConst : parent;
 
-        if (((dequantizationOperations.subtract.outPrecision == ov::element::undefined) ||
+        if (((dequantizationOperations.subtract.outPrecision == ov::element::dynamic) ||
              (dequantizationOperations.subtract.outPrecision == parent.get_element_type())) &&
-            (((dequantizationOperations.subtract.constantPrecision == ov::element::undefined) ||
+            (((dequantizationOperations.subtract.constantPrecision == ov::element::dynamic) ||
               (dequantizationOperations.subtract.constantPrecision == parent.get_element_type())) ||
              dequantizationOperations.subtract.addConvert)) {
-            subtract = dequantizationOperations.subtract.constantIndex == 1ul ?
-                std::make_shared<ov::opset1::Subtract>(parent, subtractConst) :
-                subtract = std::make_shared<ov::opset1::Subtract>(subtractConst, parent);
+            subtract = std::make_shared<ov::opset1::Subtract>(leftBranchParent, rightBranchParent);
         } else {
-            if (dequantizationOperations.subtract.constantIndex == 1ul) {
-                subtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
-                    std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
-                    std::vector<ov::element::Type>{ov::element::f32},
-                    ov::op::TemporaryReplaceOutputType(parent, ov::element::f32).get(),
-                    ov::op::TemporaryReplaceOutputType(subtractConst, ov::element::f32).get());
-            } else {
-                subtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
-                    std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
-                    std::vector<ov::element::Type>{ov::element::f32},
-                    ov::op::TemporaryReplaceOutputType(subtractConst, ov::element::f32).get(),
-                    ov::op::TemporaryReplaceOutputType(parent, ov::element::f32).get());
-            }
-
+            subtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
+                std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+                std::vector<ov::element::Type>{ov::element::f32},
+                ov::op::TemporaryReplaceOutputType(leftBranchParent, ov::element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(rightBranchParent, ov::element::f32).get());
             ov::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
         }
 
@@ -143,38 +132,32 @@ std::shared_ptr<Node> makeMultiply(const ov::Output<Node>& parent, const Dequant
         }
     }
 
+    std::shared_ptr<Node> constant = std::make_shared<ov::opset1::Constant>(
+        multiply.constantPrecision != ov::element::dynamic ? multiply.constantPrecision : parent.get_element_type(),
+        shape,
+        values);
+    if (multiply.addConvert) {
+        constant = std::make_shared<ov::opset1::Convert>(
+            constant,
+            multiply.outPrecision == ov::element::dynamic ? parent.get_element_type() : multiply.outPrecision);
+    }
+
+    ov::Output<Node> leftBranchParent = multiply.constantIndex == 1 ? parent : constant;
+    ov::Output<Node> rightBranchParent = multiply.constantIndex == 1 ? constant : parent;
+
     std::shared_ptr<ov::opset1::Multiply> newMultiply;
-    if (((multiply.outPrecision == ov::element::undefined) || (multiply.outPrecision == parent.get_element_type())) &&
-        ((multiply.constantPrecision == ov::element::undefined) ||
-         (multiply.constantPrecision == parent.get_element_type()))) {
-        const std::shared_ptr<ov::opset1::Constant> constant = std::make_shared<ov::opset1::Constant>(
-            multiply.constantPrecision != ov::element::undefined ? multiply.constantPrecision
-                                                                 : parent.get_element_type(),
-            shape,
-            values);
-
-        newMultiply = multiply.constantIndex == 1ul ?
-            std::make_shared<ov::opset1::Multiply>(parent, constant) :
-            std::make_shared<ov::opset1::Multiply>(constant, parent);
+    if (((multiply.outPrecision == ov::element::dynamic) || (multiply.outPrecision == parent.get_element_type())) &&
+            ((multiply.constantPrecision == ov::element::dynamic) ||
+             (multiply.constantPrecision == parent.get_element_type())) ||
+        multiply.addConvert) {
+        newMultiply = std::make_shared<ov::opset1::Multiply>(leftBranchParent, rightBranchParent);
     } else {
-        const std::shared_ptr<ov::opset1::Constant> constant = std::make_shared<ov::opset1::Constant>(
-            multiply.constantPrecision != ov::element::undefined ? multiply.constantPrecision
-                                                                 : parent.get_element_type(),
-            shape,
-            values);
-
         // TODO: use templates
-        newMultiply = multiply.constantIndex == 1ul
-                          ? std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-                                std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
-                                std::vector<ov::element::Type>{multiply.outPrecision},
-                                ov::op::TemporaryReplaceOutputType(parent, ov::element::f32).get(),
-                                ov::op::TemporaryReplaceOutputType(constant, ov::element::f32).get())
-                          : std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-                                std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
-                                std::vector<ov::element::Type>{multiply.outPrecision},
-                                ov::op::TemporaryReplaceOutputType(constant, ov::element::f32).get(),
-                                ov::op::TemporaryReplaceOutputType(parent, ov::element::f32).get());
+        newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+                        std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+                        std::vector<ov::element::Type>{multiply.outPrecision},
+                        ov::op::TemporaryReplaceOutputType(leftBranchParent, ov::element::f32).get(),
+                        ov::op::TemporaryReplaceOutputType(rightBranchParent, ov::element::f32).get());
     }
 
     return newMultiply;
@@ -242,7 +225,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ov::opset1::FakeQuantize> fq = makeFakeQuantize(output, precision, fqOnData);
     return std::make_shared<ov::op::TypeRelaxed<ov::opset1::FakeQuantize>>(
         *fq,
-        fqOnData.outputPrecision == ov::element::undefined ? precision : fqOnData.outputPrecision);
+        fqOnData.outputPrecision == ov::element::dynamic ? precision : fqOnData.outputPrecision);
 }
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
@@ -335,7 +318,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ov::opset1::FakeQuantize> fq = makeFakeQuantize(input, constantPrecision, fqOnData);
     return std::make_shared<ov::op::TypeRelaxed<ov::opset1::FakeQuantize>>(
         *fq,
-        fqOnData.outputPrecision == ov::element::undefined ? constantPrecision : fqOnData.outputPrecision);
+        fqOnData.outputPrecision == ov::element::dynamic ? constantPrecision : fqOnData.outputPrecision);
 }
 
 void addAttributes(std::vector<std::shared_ptr<ov::Node>> nodes, std::vector<ov::Any> attributes) {

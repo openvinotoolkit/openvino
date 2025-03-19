@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "loop_inst.h"
-#include "implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include <vector>
 #include <algorithm>
 
@@ -90,7 +90,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::loop_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<loop_impl>(*this);
+        return std::make_unique<loop_impl>(*this);
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
@@ -123,7 +123,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 
         if (is_dynamic) {
             instance.update_shape();
-            if (instance.shape_changed()) {
+            if (instance.get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                 instance.preproc_memories_done = false;
                 instance.reset_memory();
             }
@@ -199,9 +199,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         // If there are concatenated_input_mem_mappings or backedge_memory_mappings we need to wait for
         // previous tasks before accessing memory in get_sliced_mem() and setup_iteration() functions
         if (!concatenated_input_mem_mappings.empty() || !backedge_memory_mappings.empty()) {
-            for (auto& e : events) {
-                e->wait();
-            }
+            stream.wait_for_events(events);
         }
 
         // Set sliced input data
@@ -289,7 +287,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     }
 
     static std::unique_ptr<primitive_impl> create(const loop_node& arg, const kernel_impl_params&) {
-        return make_unique<loop_impl>(arg);
+        return std::make_unique<loop_impl>(arg);
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -311,7 +309,7 @@ attach_loop_common::attach_loop_common() {
     implementation_map<loop>::add(impl_types::common,
                                     shape_types::dynamic_shape,
                                     loop_impl::create,
-                                    {},
+                                    std::vector<data_types>{},
                                     {});
     implementation_map<loop>::add(impl_types::common, loop_impl::create, {});
 }

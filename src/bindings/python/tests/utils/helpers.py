@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Tuple, Union, List
@@ -7,13 +7,14 @@ from typing import Tuple, Union, List
 import os
 import sys
 import numpy as np
+import base64
 
 from sys import platform
 from pathlib import Path
 
 import openvino
-from openvino import Model, Core, Shape
-import openvino.runtime.opset13 as ops
+from openvino import Model, Core, Shape, Tensor, Type
+import openvino.opset13 as ops
 
 
 def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> Tuple[bool, str]:  # noqa: C901 the function is too complex
@@ -196,6 +197,27 @@ def generate_relu_compiled_model(
     return core.compile_model(model, device, {})
 
 
+def encrypt_base64(src):
+    return base64.b64encode(src)
+
+
+def decrypt_base64(src):
+    return base64.b64decode(src)
+
+
+def generate_relu_compiled_model_with_config(
+    device,
+    config,
+    input_shape: List[int] = None,
+    input_dtype=np.float32,
+) -> openvino.CompiledModel:
+    if input_shape is None:
+        input_shape = [1, 3, 32, 32]
+    model = get_relu_model(input_shape, input_dtype)
+    core = Core()
+    return core.compile_model(model, device, config)
+
+
 def generate_model_and_image(device, input_shape: List[int] = None):
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
@@ -234,7 +256,61 @@ def generate_model_with_memory(input_shape, data_type) -> openvino._pyopenvino.M
     return model
 
 
-def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
+def generate_concat_compiled_model(device, input_shape: List[int] = None, ov_type=Type.f32, numpy_dtype=np.float32):
+    if input_shape is None:
+        input_shape = [5]
+
+    core = Core()
+
+    params = []
+    params += [ops.parameter(input_shape, ov_type)]
+    if ov_type == Type.bf16:
+        params += [ops.parameter(input_shape, ov_type)]
+    else:
+        params += [ops.parameter(input_shape, numpy_dtype)]
+
+    model = Model(ops.concat(params, 0), params)
+    return core.compile_model(model, device)
+
+
+def generate_concat_compiled_model_with_data(device, input_shape: List[int] = None, ov_type=Type.f32, numpy_dtype=np.float32):
+    if input_shape is None:
+        input_shape = [5]
+
+    compiled_model = generate_concat_compiled_model(device, input_shape, ov_type, numpy_dtype)
+    request = compiled_model.create_infer_request()
+    tensor1 = Tensor(ov_type, input_shape)
+    tensor1.data[:] = np.array([6, 7, 8, 9, 0])
+    array1 = np.array([1, 2, 3, 4, 5], dtype=numpy_dtype)
+
+    return request, tensor1, array1
+
+
+def generate_abs_compiled_model_with_data(device, ov_type, numpy_dtype):
+    input_shape = [1, 4]
+    param = ops.parameter(input_shape, ov_type)
+    model = Model(ops.abs(param), [param])
+    core = Core()
+    compiled_model = core.compile_model(model, device)
+
+    request = compiled_model.create_infer_request()
+
+    tensor1 = Tensor(ov_type, input_shape)
+    tensor1.data[:] = np.array([6, -7, -8, 9])
+
+    array1 = np.array([[-1, 2, 5, -3]]).astype(numpy_dtype)
+
+    return compiled_model, request, tensor1, array1
+
+
+def create_filename_for_test(test_name):
+    python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
+    filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
+    filename = filename + "_" + python_version
+    return filename
+
+
+def create_filenames_for_ir(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
     """Return a tuple with automatically generated paths for xml and bin files.
 
     :param test_name: Name used in generating.
@@ -242,9 +318,7 @@ def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path
     :param is_bin_path: True if bin file should be pathlib.Path object, otherwise return string.
     :return: Tuple with two objects representing xml and bin files.
     """
-    python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
-    filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
-    filename = filename + "_" + python_version
+    filename = create_filename_for_test(test_name)
     path_to_xml = tmp_path / Path(filename + ".xml")
     path_to_bin = tmp_path / Path(filename + ".bin")
     _xml = path_to_xml if is_xml_path else str(path_to_xml)

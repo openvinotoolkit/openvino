@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 
 using namespace cldnn;
 using namespace ::tests;
-
 
 template <format::type layoutFormat, typename DataType>
 struct arg_max_input_types {
@@ -56,9 +55,20 @@ using format_types = testing::Types<arg_max_input_types<format::bfyx, float>,
                                     arg_max_input_types<format::bfyx, ov::float16>,
                                     arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, ov::float16>,
                                     arg_max_input_types<format::bfyx, int8_t>,
-                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, int8_t>>;
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, int8_t>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv32, int8_t>,
+                                    arg_max_input_types<format::bfyx, uint8_t>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, uint8_t>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv32, uint8_t>>;
 
 TYPED_TEST_SUITE(argmax_gpu_test, format_types);
+
+// Helper trait to check for uint8_t input_type
+template<typename T>
+struct is_uint8_input : std::false_type {};
+
+template<format::type Fmt>
+struct is_uint8_input<arg_max_input_types<Fmt, uint8_t>> : std::true_type {};
 
 TYPED_TEST(argmax_gpu_test, base) {
     //  Input  : 2x4x2x2
@@ -82,7 +92,25 @@ TYPED_TEST(argmax_gpu_test, base) {
                                     /*b1f1*/ 4.f,  0.5f,  8.f,   8.2f,
                                     /*b1f2*/ 0.2f, 0.2f,  -10.f, 5.2f,
                                     /*b1f3*/ 4.f,  0.5f,  8.f,   8.2f};
-    set_values(input, this->getTypedVector(input_vec));
+
+    // Positive values for u8 input type test
+    std::vector<float> input_vec_u8 = {// y0x0 y0x1 y1x0 y1x1
+                                    /*b0f0*/ 0.1f, 0.1f, 0.9f,  1.5f,
+                                    /*b0f1*/ 0.2f, 0.2f,  0.1f, 5.2f,
+                                    /*b0f2*/ 0.2f, 0.2f,  0.1f, 5.2f,
+                                    /*b0f3*/ 0.2f, 0.2f,  0.1f, 4.2f,
+
+                                    /*b1f0*/ 3.f,  0.5f,  7.f,   10.f,
+                                    /*b1f1*/ 4.f,  0.5f,  8.f,   8.2f,
+                                    /*b1f2*/ 0.2f, 0.2f,  0.1f, 5.2f,
+                                    /*b1f3*/ 4.f,  0.5f,  8.f,   8.2f};
+
+    // If format is of type u8 then use non negative values as input.
+    if (is_uint8_input<TypeParam>::value) {
+        set_values(input, this->getTypedVector(input_vec_u8));
+    } else {
+        set_values(input, this->getTypedVector(input_vec));
+    }
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -113,7 +141,6 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
                              ov::op::TopKSortType::SORT_VALUES,
                              false,
                              false,
-                             padding(),
                              data_types::i32));
 
     std::vector<float> input_vec = {// y0x0 y0x1 y1x0 y1x1
@@ -164,7 +191,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
                              ov::op::TopKSortType::SORT_VALUES,
                              false,
                              false,
-                             padding(),
                              data_types::f32));
 
     std::vector<float> input_vec = {0.1f, -0.1f, 0.9f,  1.5f, 0.2f, 0.2f, -10.f, 5.2f,
@@ -232,7 +258,6 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
                              ov::op::TopKSortType::SORT_VALUES,
                              false,
                              false,
-                             padding(),
                              data_types::f32));
 
     std::vector<float> input_vec = {0.1f, -0.1f, 0.9f,  1.5f, 0.2f, 0.2f, -10.f, 5.2f,
@@ -298,7 +323,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
                              ov::op::TopKSortType::SORT_VALUES,
                              false,
                              false,
-                             padding(),
                              data_types::f32));
 
     std::vector<float> input_vec = {0.1f, -0.1f, 0.9f,  1.5f, 0.2f, 0.2f, -10.f, 5.2f,
@@ -409,7 +433,6 @@ TEST(top_k_layer_tests, second_output2) {
                              ov::op::TopKSortType::SORT_VALUES,
                              false,
                              false,
-                             padding(),
                              data_types::f32));
 
     std::vector<float> input_vec = {0.1f, -0.1f, 0.9f,  1.5f, 0.2f, 0.2f, -10.f, 5.2f,
@@ -500,14 +523,13 @@ TEST(top_k_layer_tests, multiple_outputs) {
                                         ov::op::TopKSortType::SORT_VALUES,
                                         false,
                                         false,
-                                        padding(),
                                         data_types::f32,
                                         2);
     arg_max_min_prim.output_paddings = {padding(), padding()};
     arg_max_min_prim.output_data_types = {optional_data_type{data_types::f32}, optional_data_type{data_types::f32}};
     topology.add(arg_max_min_prim);
-    topology.add(permute("permute_1", input_info("arg_max", 0), {0, 1, 2, 3}, padding()));
-    topology.add(permute("permute_2", input_info("arg_max", 1), {0, 1, 2, 3}, padding()));
+    topology.add(permute("permute_1", input_info("arg_max", 0), {0, 1, 2, 3}));
+    topology.add(permute("permute_2", input_info("arg_max", 1), {0, 1, 2, 3}));
     topology.add(concatenation("concat", { input_info("permute_1"), input_info("permute_2") }, 0));
 
     std::vector<float> input_vec = {
@@ -586,7 +608,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
                              ov::op::TopKSortType::SORT_VALUES,
                              false,
                              false,
-                             padding(),
                              data_types::f32));
 
     std::vector<float> input_vec = {0.1f, -0.1f, 0.9f,  1.5f, 0.2f, 0.2f, -10.f, 5.2f,
@@ -644,7 +665,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
                              ov::op::TopKSortType::SORT_INDICES,
                              false,
                              false,
-                             padding(),
                              data_types::f32));
 
     std::vector<float> input_vec = {0.1f, -0.1f, 0.9f,  1.5f, 0.2f, 0.2f, -10.f, 5.2f,
@@ -703,7 +723,6 @@ void test_top_k_layer_tests_sort_probabilities_by_indices(bool is_caching_test) 
                              ov::op::TopKSortType::SORT_VALUES,
                              false,
                              false,
-                             padding(),
                              data_types::i32));
     std::vector<T> input_vec = {0.9f, 0.1f, 0.2f, 0.8f, 0.5f, 0.6f, 0.3f, 0.4f, 0.7f, 0.95f};
 
@@ -957,7 +976,7 @@ TEST(arg_max_min_test, check_second_output_data_type) {
 
     auto arg_max_min_prim = std::make_shared<arg_max_min>("output", input_prim_ids,
                                                         ov::op::TopKMode::MAX, 400, 1,
-                                                        ov::op::TopKSortType::SORT_VALUES, true, false, padding(),
+                                                        ov::op::TopKSortType::SORT_VALUES, true, false,
                                                         data_types::f16, 2);
 
     arg_max_min_prim->output_paddings = {padding(), padding()};

@@ -1,12 +1,14 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import platform
 
 import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+
+from common.utils.tf_utils import mix_two_arrays_with_several_values
+
+rng = np.random.default_rng(235345)
 
 
 class TestXlog1py(CommonTFLayerTest):
@@ -16,11 +18,12 @@ class TestXlog1py(CommonTFLayerTest):
         x_shape = inputs_info['x:0']
         y_shape = inputs_info['y:0']
         inputs_data = {}
-        # x = [-3 ,3] y = [1, 2]
-        # generate x in way to have zeros
-        inputs_data['x:0'] = (6 * np.random.random(size=x_shape).astype(np.float32) - 3) * \
-                            np.random.randint(2, size=x_shape).astype(np.float32)
-        inputs_data['y:0'] = np.random.random(size=y_shape).astype(np.float32) + 1
+        inputs_data['x:0'] = rng.uniform(-5.0, 5.0, x_shape).astype(self.input_type)
+        inputs_data['y:0'] = rng.uniform(0.5, 5.0, y_shape).astype(self.input_type)
+        # to mix input data so it has inf and nan values for log(y) at positions multiplied by zero x
+        inputs_data['x:0'], inputs_data['y:0'] = \
+            mix_two_arrays_with_several_values(inputs_data['x:0'], inputs_data['y:0'],
+                                               [[0.0, -1.0], [0.0, -10.0], [0.0, np.inf], [0.0, np.nan]], rng)
         return inputs_data
 
     def create_xlog1py_net(self, input_shape, input_type):
@@ -36,18 +39,12 @@ class TestXlog1py(CommonTFLayerTest):
 
         return tf_net, None
 
-    test_data_basic = [
-        dict(input_shape=[10, 20], input_type=np.float32),
-        dict(input_shape=[2, 3, 4], input_type=np.float32),
-    ]
-
-    @pytest.mark.parametrize("params", test_data_basic)
+    @pytest.mark.parametrize('input_shape', [[20, 5], [2, 3, 4]])
+    @pytest.mark.parametrize('input_type', [np.float16, np.float32, np.float64])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_xlog1py_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_legacy_frontend):
-        self._test(*self.create_xlog1py_net(**params),
+    def test_xlog1py_basic(self, input_shape, input_type, ie_device, precision, ir_version, temp_dir,
+                           use_legacy_frontend):
+        self._test(*self.create_xlog1py_net(input_shape, input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

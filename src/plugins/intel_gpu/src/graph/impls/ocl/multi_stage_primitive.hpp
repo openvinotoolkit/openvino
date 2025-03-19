@@ -18,7 +18,7 @@
 #include "primitive_inst.h"
 #include "kernel_selector_helper.h"
 #include "register.hpp"
-#include "implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "concatenation_inst.h"
 #include "gather_inst.h"
 #include "permute_inst.h"
@@ -49,11 +49,14 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         , _kernels({}) {
         _kernels.reserve(other._kernels.size());
         for (size_t k = 0; k < other._kernels.size(); ++k) {
-            _kernels.emplace_back(other._kernels[k]->clone());
+            _kernels.emplace_back(other._kernels[k]->clone(other.can_share_kernels));
         }
         this->can_reuse_memory = other.can_reuse_memory;
+        this->can_share_kernels = other.can_share_kernels;
         this->_kernel_name = other._kernel_name;
+        this->can_reuse_memory = other.can_reuse_memory;
         this->_is_dynamic = other._is_dynamic;
+        this->m_manager = other.m_manager;
     }
 
     multi_stage_primitive(const std::vector<kernel_selector::kernel_data>& kd)
@@ -73,7 +76,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         ob << _kernels_data.size();
         for (auto& kd : _kernels_data) {
             ob << make_data(&kd.internalBufferDataType, sizeof(kernel_selector::Datatype));
-            ob << kd.internalBufferSizes;
+            ob << kd.internalBuffers;
             ob << kd.kernels;
             ob << kd.kernelName;
         }
@@ -87,26 +90,21 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         for (size_t i = 0; i < kernels_size; i++) {
             kernel_selector::kernel_data kd;
             ib >> make_data(&kd.internalBufferDataType, sizeof(kernel_selector::Datatype));
-            ib >> kd.internalBufferSizes;
+            ib >> kd.internalBuffers;
             ib >> kd.kernels;
             ib >> kd.kernelName;
             _kernels_data[i] = kd;
         }
     }
 
+    void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
+        auto new_impl_params = this->canonicalize_shapes(impl_params);
+        update_dispatch_data(new_impl_params);
+        inst.update_shape_info_tensor(new_impl_params);
+    }
+
 protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance, size_t stage) const = 0;
-
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
-        if (events.size() == 1 && !is_output)
-            return events[0];
-
-        if (group && !is_output)
-            return stream.group_events(events);
-
-        return events.empty() ? stream.create_user_event(true)
-                              : stream.enqueue_marker(events, is_output);
-    }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         _kernels.clear();
@@ -126,6 +124,7 @@ protected:
             for (size_t i = 1; i < _kernels_data[0].kernels.size(); ++i)
                 kernel_dump_info.second += " " + _kernels_data[0].kernels[i].code.kernelString->entry_point;
         }
+        this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
     void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
@@ -135,31 +134,42 @@ protected:
         for (size_t k = 0; k < cached_kernel_ids.size(); ++k) {
             _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k]));
         }
+        this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
     std::vector<std::string> get_cached_kernel_ids(const kernels_cache& kernels_cache) override {
         return {kernels_cache.get_cached_kernel_ids(_kernels)};
     }
 
+    template<typename ImplType, typename KernelParamsType>
+    static std::unique_ptr<primitive_impl> make_deep_copy(const ImplType& impl_ocl) {
+        auto prim_impl = std::make_unique<ImplType>(impl_ocl);
+        for (auto& _kernel_data : (*prim_impl)._kernels_data) {
+            KernelParamsType* params_ptr = dynamic_cast<KernelParamsType*>(_kernel_data.params.get());
+            if (params_ptr != nullptr) {
+                _kernel_data.params = std::make_unique<KernelParamsType>(*params_ptr);
+            }
+        }
+        return prim_impl;
+    }
+
     std::vector<kernel::ptr> get_kernels() const override {
         return _kernels;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
-        std::vector<layout> layouts;
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
+        std::vector<BufferDescriptor> internal_buffers;
         for (auto& kd : _kernels_data) {
-            if (kd.internalBufferSizes.empty())
+            if (kd.internalBuffers.empty())
                 continue;
 
             auto dtype = from_data_type(kd.internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
-            for (auto size : kd.internalBufferSizes) {
-                layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                        {1, 1, 1, (tensor::value_type)(size / bpp)}};
-                layouts.push_back(inbuf_layout);
+            for (const auto& buffer : kd.internalBuffers) {
+                internal_buffers.emplace_back(buffer.byte_count / bpp, dtype, buffer.lockable);
             }
         }
-        return layouts;
+        return internal_buffers;
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
@@ -220,12 +230,13 @@ protected:
         }
     }
 
-    std::vector<kernel::ptr> get_kernels() override {
-        return _kernels;
-    }
-
     std::pair<std::string, std::string> get_kernels_dump_info() const override {
         return kernel_dump_info;
+    }
+
+    virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
+        OPENVINO_ASSERT(this->_is_dynamic, "[GPU] update_dispatch_data() is called for static shape implementation ", this-> _kernel_name);
+        OPENVINO_ASSERT(false, "[GPU] update_dispatch_data() is not implemented for dynamic implemenation ", this->_kernel_name);
     }
 };
 

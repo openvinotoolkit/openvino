@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 
 // create dummy network for tests
 std::shared_ptr<ov::Model> buildSingleLayerSoftMaxNetwork();
+
+std::shared_ptr<ov::Model> createModelWithLargeSize();
 
 // class encapsulated Platform getting from environmental variable
 class PlatformEnvironment {

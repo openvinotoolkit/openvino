@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "strided_slice_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/strided_slice.hpp"
 
@@ -32,7 +31,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::strided_slice_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<strided_slice_impl>(*this);
+        return std::make_unique<strided_slice_impl>(*this);
     }
 
     strided_slice_impl() : parent("strided_slice_cpu_impl") {}
@@ -89,12 +88,10 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
             return stream.group_events(events);
         }
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
-            for (auto e : events) {
-                e->wait();
-            }
+            stream.wait_for_events(events);
         }
 
         auto params = instance.get_impl_params();
@@ -168,23 +165,19 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
         output_mem_ptr->unlock(stream);
 
         if (pass_through_events) {
-            if (events.size() > 1) {
-                return stream.group_events(events);
-            } else if (events.size() == 1) {
-                return events[0];
-            }
+            return stream.group_events(events);
         }
 
-        return stream.create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const strided_slice_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<strided_slice_impl>();
+        return std::make_unique<strided_slice_impl>();
     }
 };
 

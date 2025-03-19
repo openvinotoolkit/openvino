@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,7 @@ using GatherCompressed = ov::op::internal::GatherCompressed;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 template <typename T>
 void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const int64_t batch_dim = 0, bool support_neg_ind = false,
@@ -100,8 +99,12 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
     const auto input_shape = op->get_input_partial_shape(0);
     const auto input_rank = input_shape.rank().get_length();
     const auto& indices = op->input_value(1);
+    const auto& indices_node = indices.get_node_shared_ptr();
+    auto indices_constant = ov::as_type_ptr<ov::op::v0::Constant>(indices_node);
+    bool is_indices_constant = (indices_constant) ? true : false;
+
     if (is_static && axis == 0 && input_rank > 1 && indices.get_partial_shape().rank().get_length() == 0 &&
-        std::equal(input_shape.begin()+1, input_shape.end(), out_shape.begin()+1)) {
+        std::equal(input_shape.begin()+1, input_shape.end(), out_shape.begin()+1) && is_indices_constant) {
         // Gather -> Crop
         // this Gather simply divides an input tensor along Batch axis
         auto get_crop_layer_name = [&](std::string name, size_t idx)->std::string {
@@ -109,8 +112,6 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
         };
 
         // Get indices info to calculate offset
-        const auto& indices_node = indices.get_node_shared_ptr();
-        auto indices_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(indices_node);
         float result = 0.f;
         OPENVINO_ASSERT(ov::op::util::get_single_value(indices_constant, result),
                         "Unsupported indices node in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
@@ -147,7 +148,7 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
             float zp_value = 0.0f;
             bool has_scalar_zp = false;
             if (op->get_input_size() == 5) {
-                std::shared_ptr<ov::op::v0::Constant> zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(4));
+                std::shared_ptr<ov::op::v0::Constant> zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(4));
                 if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
                     has_scalar_zp = true;
                     zp_value = zp_const->cast_vector<float>()[0];
@@ -226,5 +227,4 @@ static void CreateGatherCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov
 
 REGISTER_FACTORY_IMPL(internal, GatherCompressed);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

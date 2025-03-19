@@ -1,40 +1,45 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <filesystem>
+
 #include "base/ov_behavior_test_utils.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
-#include "common/utils.hpp"
+#include "common/functions.h"
 #include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/subgraph_builders/concat_with_params.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/kso_func.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/config/common.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#include <iostream>
-#define GTEST_COUT std::cerr << "[          ] [ INFO ] "
-#include <codecvt>
-#include <functional_test_utils/skip_tests_config.hpp>
-#include "openvino/pass/manager.hpp"
+#    include <iostream>
+#    define GTEST_COUT std::cerr << "[          ] [ INFO ] "
+#    include <codecvt>
+#    include <functional_test_utils/skip_tests_config.hpp>
+
+#    include "openvino/pass/manager.hpp"
+
 #endif
 
 namespace ov {
 namespace test {
 namespace behavior {
 
-class OVClassBaseTestPNPU :
-        public OVClassNetworkTest,
-        public testing::WithParamInterface<CompilationParams>,
-        public OVPluginTestBase {
+class OVClassBaseTestPNPU : public OVClassNetworkTest,
+                            public testing::WithParamInterface<CompilationParams>,
+                            public OVPluginTestBase {
 protected:
     ov::AnyMap configuration;
     std::string deathTestStyle;
@@ -90,7 +95,6 @@ public:
 };
 
 class OVClassBasicTestPNPU : public OVBasicPropertiesTestsP {
-
 public:
     void TearDown() override {
         for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
@@ -115,14 +119,16 @@ TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualNoThrow) {
 
 TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualHeteroDeviceNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.compile_model(
-            actualNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") + target_device, configuration));
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
+                                        ov::test::utils::DEVICE_HETERO + std::string(":") + target_device,
+                                        configuration));
 }
 
 TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualHeteroDevice2NoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO,
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
+                                        ov::test::utils::DEVICE_HETERO,
                                         ov::device::priorities(target_device),
                                         ov::device::properties(target_device, configuration)));
 }
@@ -131,7 +137,8 @@ TEST_P(OVClassNetworkTestPNPU, LoadNetworkActualHeteroDeviceUsingDevicePropertie
     ov::Core ie = createCoreWithTemplate();
     configuration.emplace(ov::enable_profiling(true));
 
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO,
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
+                                        ov::test::utils::DEVICE_HETERO,
                                         ov::device::priorities(target_device),
                                         ov::device::properties(target_device, configuration)));
 }
@@ -169,6 +176,238 @@ TEST(compatibility_OVClassBasicPropsTestNPU, smoke_SetConfigDevicePropertiesThro
                  ov::Exception);
 }
 
+//
+// NPU specific metrics
+//
+
+using OVClassGetMetricAndPrintNoThrow = OVClassBaseTestP;
+TEST_P(OVClassGetMetricAndPrintNoThrow, DeviceAllocMemSizeLesserThanTotalMemSizeNPU) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    ov::Any p;
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_total_mem_size.name()));
+    uint64_t t = p.as<uint64_t>();
+    ASSERT_NE(t, 0);
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t a = p.as<uint64_t>();
+
+    ASSERT_LT(a, t);
+
+    std::cout << "OV NPU device alloc/total memory size: " << a << "/" << t << std::endl;
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, DeviceAllocMemSizeLesserAfterModelIsLoadedNPU) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    ov::Any p;
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t a1 = p.as<uint64_t>();
+
+    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
+        auto model = ov::test::utils::make_conv_pool_relu();
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {}));
+    }
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t a2 = p.as<uint64_t>();
+
+    std::cout << "OV NPU device {alloc before load network/alloc after load network} memory size: {" << a1 << "/" << a2
+              << "}" << std::endl;
+
+    // after the network is loaded onto device, allocated memory value should increase
+    ASSERT_LE(a1, a2);
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeLesserAfterModelIsLoaded) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    ov::Any p;
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t a1 = p.as<uint64_t>();
+
+    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
+        auto model = ov::test::utils::make_conv_pool_relu();
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, ov::AnyMap{ov::log::level(ov::log::Level::ERR)}));
+    }
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t a2 = p.as<uint64_t>();
+
+    std::cout << "OV NPU device {alloc before load network/alloc after load network} memory size: {" << a1 << "/" << a2
+              << "}" << std::endl;
+
+    // after the network is loaded onto device, allocated memory value should increase
+    ASSERT_LE(a1, a2);
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyCompiledModel) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core core;
+    ov::Any deviceAllocMemSizeAny;
+
+    auto model = createModelWithLargeSize();
+
+    OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                           core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
+    uint64_t deviceAllocMemSizeFinal;
+
+    for (size_t i = 0; i < 1000; ++i) {
+        ov::CompiledModel compiledModel;
+        OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
+
+        compiledModel = {};
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                               core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+        ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+    }
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInferRequest) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core core;
+    ov::Any deviceAllocMemSizeAny;
+
+    ov::CompiledModel compiledModel;
+    auto model = createModelWithLargeSize();
+
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
+
+    // After memory consumption updates, need to run first inference before measurements
+    auto inferRequest = compiledModel.create_infer_request();
+    inferRequest.infer();
+    inferRequest = {};
+
+    OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                           core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
+    uint64_t deviceAllocMemSizeFinal;
+
+    for (size_t i = 0; i < 1000; ++i) {
+        inferRequest = compiledModel.create_infer_request();
+        inferRequest.infer();
+
+        inferRequest = {};
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                               core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+        ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+    }
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInferRequestSetTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core core;
+    ov::Any deviceAllocMemSizeAny;
+
+    ov::CompiledModel compiledModel;
+    auto model = createModelWithLargeSize();
+
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
+
+    // After memory consumption updates, need to run first inference before measurements
+    auto inferRequest = compiledModel.create_infer_request();
+    inferRequest.infer();
+    inferRequest = {};
+
+    OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                           core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
+    uint64_t deviceAllocMemSizeFinal;
+
+    for (size_t i = 0; i < 1000; ++i) {
+        auto inferRequest = compiledModel.create_infer_request();
+        auto tensor = ov::Tensor(model->input(0).get_element_type(), model->input(0).get_shape());
+        ov::test::utils::fill_data_random(static_cast<ov::float16*>(tensor.data()), tensor.get_size());
+        inferRequest.set_input_tensor(tensor);
+        inferRequest.infer();
+
+        inferRequest = {};
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                               core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+        ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+    }
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInferRequestGetTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core core;
+    ov::Any deviceAllocMemSizeAny;
+
+    ov::CompiledModel compiledModel;
+    auto model = createModelWithLargeSize();
+
+    OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                           core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
+    uint64_t deviceAllocMemSizeFinal;
+
+    for (size_t i = 0; i < 1000; ++i) {
+        OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
+
+        auto inferRequest = compiledModel.create_infer_request();
+        auto tensor = inferRequest.get_output_tensor();
+        inferRequest.infer();
+
+        inferRequest = {};
+        compiledModel = {};
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                               core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+        ASSERT_LT(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+
+        tensor = {};
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                               core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+        ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+    }
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, DriverVersionNPU) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    ov::Any p;
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::driver_version.name()));
+    uint32_t t = p.as<uint32_t>();
+
+    std::cout << "NPU driver version is " << t << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_npu::driver_version.name());
+}
+
+using OVClassCompileModel = OVClassBaseTestP;
+TEST_P(OVClassCompileModel, CompileModelWithDifferentThreadNumbers) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    ov::Any p;
+
+    auto model = ov::test::utils::make_conv_pool_relu();
+    OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::compilation_num_threads.name(), ov::Any(1)}}));
+
+    OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::compilation_num_threads.name(), ov::Any(2)}}));
+
+    OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::compilation_num_threads.name(), ov::Any(4)}}));
+
+    EXPECT_ANY_THROW(ie.compile_model(model, target_device, {{ov::compilation_num_threads.name(), ov::Any(-1)}}));
+    OV_EXPECT_THROW(
+        std::ignore = ie.compile_model(model, target_device, {{ov::compilation_num_threads.name(), ov::Any(-1)}}),
+        ::ov::Exception,
+        testing::HasSubstr("ov::compilation_num_threads must be positive int32 value"));
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {
@@ -181,21 +420,21 @@ TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {
         std::string unicode_target_device = target_device + "_UNICODE_" + std::to_string(testIndex);
         std::wstring postfix = ov::test::utils::test_unicode_postfix_vector[testIndex];
         std::wstring unicode_path =
-                ov::test::utils::stringToWString(ov::test::utils::getOpenvinoLibDirectory() + "/") + postfix;
+            ov::test::utils::stringToWString(ov::test::utils::getOpenvinoLibDirectory() + "/") + postfix;
         try {
-#ifndef _WIN32
+#    ifndef _WIN32
             std::filesystem::create_directory(ov::util::wstring_to_string(unicode_path));
-#else
+#    else
             std::filesystem::create_directory(unicode_path);
-#endif
+#    endif
             std::string pluginNamePath =
-                    ov::util::make_plugin_library_name(ov::util::wstring_to_string(unicode_path), pluginName);
+                ov::util::make_plugin_library_name(ov::util::wstring_to_string(unicode_path), pluginName);
 
             for (auto&& lib : libs) {
                 auto&& libPath = ov::test::utils::stringToWString(
-                        ov::util::make_plugin_library_name(ov::test::utils::getOpenvinoLibDirectory(), lib));
+                    ov::util::make_plugin_library_name(ov::test::utils::getOpenvinoLibDirectory(), lib));
                 auto&& libPathNew = ov::test::utils::stringToWString(
-                        ov::util::make_plugin_library_name(::ov::util::wstring_to_string(unicode_path), lib));
+                    ov::util::make_plugin_library_name(::ov::util::wstring_to_string(unicode_path), lib));
                 bool is_copy_successfully = ov::test::utils::copyFile(libPath, libPathNew);
                 if (!is_copy_successfully) {
                     FAIL() << "Unable to copy from '" << libPath << "' to '" << libPathNew << "'";

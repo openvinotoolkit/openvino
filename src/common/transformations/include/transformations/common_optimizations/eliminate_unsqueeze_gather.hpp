@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -25,7 +24,7 @@ class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
 
 class ov::pass::EliminateUnsqueezeGather : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateUnsqueezeGather", "0");
+    OPENVINO_MATCHER_PASS_RTTI("EliminateUnsqueezeGather");
     EliminateUnsqueezeGather();
 };
 
@@ -39,6 +38,6 @@ public:
 
 class ov::pass::EliminateGatherUnsqueeze : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateGatherUnsqueeze", "0");
+    OPENVINO_MATCHER_PASS_RTTI("EliminateGatherUnsqueeze");
     EliminateGatherUnsqueeze();
 };

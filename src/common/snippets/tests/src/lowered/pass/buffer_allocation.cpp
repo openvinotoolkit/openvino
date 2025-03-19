@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,11 +82,9 @@ void BufferAllocationTest::ApplyTransformations(const std::shared_ptr<ov::snippe
 
 void BufferAllocationTest::Validate() {
     std::set<size_t> reg_groups, clusters;
-    for (const auto& expr : m_linear_ir) {
-        if (const auto buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(expr->get_node())) {
-            reg_groups.insert(buffer->get_reg_group());
-            clusters.insert(buffer->get_cluster_id());
-        }
+    for (const auto& buffer_expr : m_linear_ir.get_buffers()) {
+        reg_groups.insert(buffer_expr->get_reg_group());
+        clusters.insert(buffer_expr->get_cluster_id());
     }
     EXPECT_EQ(reg_groups.size(), m_expected_reg_group_count);
     EXPECT_EQ(clusters.size(), m_expected_cluster_count);
@@ -95,15 +93,14 @@ void BufferAllocationTest::Validate() {
 
 std::shared_ptr<ov::Model> EltwiseBufferAllocationTest::GetModel() const {
     const auto subtensor_eltwise = std::vector<size_t>{1, m_vector_size};
-    const auto subtensor_buffer = std::vector<size_t>{ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM,
-                                                      ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
+    const auto subtensor_buffer = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
     const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 3, 100, 100}));
     const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 3, 100, 100}));
     const auto add = std::make_shared<ov::op::v1::Add>(parameter0, parameter1);
-    const auto buffer0 = std::make_shared<ov::snippets::op::IntermediateMemoryBuffer>(add);
+    const auto buffer0 = std::make_shared<ov::snippets::op::Buffer>(add);
     const auto relu = std::make_shared<ov::op::v0::Relu>(buffer0);
-    const auto buffer1 = std::make_shared<ov::snippets::op::IntermediateMemoryBuffer>(relu);
+    const auto buffer1 = std::make_shared<ov::snippets::op::Buffer>(relu);
     const auto exp = std::make_shared<ov::op::v0::Exp>(buffer1);
     const auto body = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(exp), ov::ParameterVector{parameter0, parameter1});
 

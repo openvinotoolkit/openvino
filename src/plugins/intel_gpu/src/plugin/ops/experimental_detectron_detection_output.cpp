@@ -9,8 +9,7 @@
 #include "intel_gpu/primitives/experimental_detectron_detection_output.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateExperimentalDetectronDetectionOutputOp(
     ProgramBuilder& p,
@@ -40,7 +39,6 @@ static void CreateExperimentalDetectronDetectionOutputOp(
                                                             attrs.max_delta_log_wh,
                                                             attrs.deltas_weights};
         prim.num_outputs = op->get_output_size();
-        prim.output_paddings = get_output_paddings(op);
         prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
 
         p.add_primitive(*op, prim);
@@ -107,5 +105,4 @@ static void CreateExperimentalDetectronDetectionOutputOp(
 
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronDetectionOutput);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

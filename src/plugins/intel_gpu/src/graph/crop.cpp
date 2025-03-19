@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
     std::vector<ShapeType> input_shapes = {
         impl_param.input_layouts[0].get<ShapeType>(),
     };
-    for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
+    for (size_t i = 1; i < desc->input.size(); ++i) {
         input_shapes.push_back(impl_param.input_layouts[i].get<ShapeType>());
     }
     int64_t axis = desc->axis;
@@ -180,6 +180,9 @@ std::string crop_inst::to_string(crop_node const& node) {
     }
     crop_info.add("reference input size", ref_in_sizes.to_string());
     crop_info.add("offset", offsets.to_string());
+    crop_info.add("axis", desc->axis);
+    crop_info.add("num_splits", desc->num_splits);
+    crop_info.add("output_idx", desc->output_idx);
 
     node_info->add("crop info", crop_info);
     node_info->dump(primitive_description);
@@ -250,8 +253,7 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
                                         "Invalid Batch offset: exceeds data for output!");
     }
 
-    if (node.can_be_optimized()) {
-        build_deps();
+    if (!node.is_dynamic() && node.can_be_optimized()) {
         update_output_memory();
     }
 }
@@ -264,9 +266,21 @@ void crop_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
+    if (_node != nullptr)
+        build_deps();
+
+    if (node->get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
+        return;
+
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
+    // Can_be_optimized nodes are allocating from memory_pool too. In this case,
+    // we need release the legacy output memory from memory pool explicitly.
+    if (static_cast<bool>(_outputs[0]) &&
+        _node->get_program().get_config().get_enable_memory_pool()) {
+        _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
+    }
     _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout());
     _mem_allocated = false;
 }

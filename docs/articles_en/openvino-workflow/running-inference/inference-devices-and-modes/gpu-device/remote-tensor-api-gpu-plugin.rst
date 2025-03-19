@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API}
-
 Remote Tensor API of GPU Plugin
 ===============================
 
@@ -61,21 +59,21 @@ of ``ov::RemoteContext`` derived classes.
          .. tab-item:: Create from cl_context
             :sync: create-from-cl-context
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_cl_context]
 
          .. tab-item:: Create from cl_queue
             :sync: create-from-cl-queue
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_cl_queue]
 
          .. tab-item:: Create from ID3D11Device
             :sync: create-from-id3d11device
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_d3d_device]
 
@@ -87,21 +85,21 @@ of ``ov::RemoteContext`` derived classes.
          .. tab-item:: Create from cl_context
             :sync: create-from-cl-context
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_cl_context]
 
          .. tab-item:: Create from cl_queue
             :sync: create-from-cl-queue
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_cl_queue]
 
          .. tab-item:: Create from ID3D11Device
             :sync: create-from-id3d11device
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_d3d_device]
 
@@ -113,21 +111,21 @@ of ``ov::RemoteContext`` derived classes.
          .. tab-item:: Create from cl_context
             :sync: create-from-cl-context
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_cl_context]
 
          .. tab-item:: Create from cl_queue
             :sync: create-from-cl-queue
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_cl_queue]
 
          .. tab-item:: Create from VADisplay
             :sync: create-from-vadisplay
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [context_from_va_display]
 
@@ -139,21 +137,21 @@ of ``ov::RemoteContext`` derived classes.
          .. tab-item:: Create from cl_context
             :sync: create-from-cl-context
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_cl_context]
 
          .. tab-item:: Create from cl_queue
             :sync: create-from-cl-queue
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_cl_queue]
 
          .. tab-item:: Create from VADisplay
             :sync: create-from-vadisplay
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [context_from_va_display]
 
@@ -177,14 +175,14 @@ To request the current default context of the plugin, use one of the following m
          .. tab-item:: Get context from Core
             :sync: get-context-core
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [default_context_from_core]
 
          .. tab-item:: Get context from compiled model
             :sync: get-context-compiled-model
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [default_context_from_model]
 
@@ -196,14 +194,14 @@ To request the current default context of the plugin, use one of the following m
          .. tab-item:: Get context from Core
             :sync: get-context-core
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [default_context_from_core]
 
          .. tab-item:: Get context from compiled model
             :sync: get-context-compiled-model
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [default_context_from_model]
 
@@ -231,35 +229,35 @@ For more details, see the code snippets below:
          .. tab-item:: USM pointer
             :sync: usm-pointer
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [wrap_usm_pointer]
 
          .. tab-item:: cl_mem
             :sync: cl-mem
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [wrap_cl_mem]
 
          .. tab-item:: cl::Buffer
             :sync: buffer
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [wrap_cl_buffer]
 
          .. tab-item:: cl::Image2D
             :sync: image2D
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [wrap_cl_image]
 
          .. tab-item:: biplanar NV12 surface
             :sync: biplanar-nv12-surface
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [wrap_nv12_surface]
 
@@ -271,21 +269,21 @@ For more details, see the code snippets below:
          .. tab-item:: USM host memory
             :sync: usm-host-memory
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [allocate_usm_host]
 
          .. tab-item:: USM device memory
             :sync: usm-device-memory
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [allocate_usm_device]
 
          .. tab-item:: cl::Buffer
             :sync: buffer
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [allocate_cl_buffer]
 
@@ -299,35 +297,35 @@ For more details, see the code snippets below:
          .. tab-item:: USM pointer
             :sync: usm-pointer
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [wrap_usm_pointer]
 
          .. tab-item:: cl_mem
             :sync: cl-mem
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [wrap_cl_mem]
 
          .. tab-item:: cl::Buffer
             :sync: buffer
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
               :language: c
               :fragment: [wrap_cl_buffer]
 
          .. tab-item:: cl::Image2D
             :sync: image2D
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [wrap_cl_image]
 
          .. tab-item:: biplanar NV12 surface
             :sync: biplanar-nv12-surface
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [create_nv12_surface]
 
@@ -339,20 +337,127 @@ For more details, see the code snippets below:
          .. tab-item:: USM host memory
             :sync: usm-host-memory
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [allocate_usm_host]
 
          .. tab-item:: USM device memory
             :sync: usm-device-memory
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/remote_objects_creation_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [allocate_usm_device]
 
 The ``ov::intel_gpu::ocl::D3DContext`` and ``ov::intel_gpu::ocl::VAContext`` classes are derived from ``ov::intel_gpu::ocl::ClContext``.
 Therefore, they provide the functionality described above and extend it
-to allow creation of ``ov::RemoteTensor`` objects from ``ID3D11Buffer``, ``ID3D11Texture2D`` pointers or the ``VASurfaceID`` handle respectively.
+to enable creation of ``ov::RemoteTensor`` objects from ``ID3D11Buffer``, ``ID3D11Texture2D``
+pointers or the ``VASurfaceID`` handle, as shown in the examples below:
+
+
+.. tab-set::
+
+   .. tab-item:: ID3D11Buffer
+      :sync: id3d11-buffer
+
+      .. code-block:: cpp
+
+         // ...
+
+         // initialize the core and load the network
+         ov::Core core;
+         auto model = core.read_model("model.xml");
+         auto compiled_model = core.compile_model(model, "GPU");
+         auto infer_request = compiled_model.create_infer_request();
+
+
+         // obtain the RemoteContext from the compiled model object and cast it to D3DContext
+         auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::D3DContext>();
+
+         auto input = model->get_parameters().at(0);
+         ID3D11Buffer* d3d_handle = get_d3d_buffer();
+         auto tensor = gpu_context.create_tensor(input->get_element_type(), input->get_shape(), d3d_handle);
+         infer_request.set_tensor(input, tensor);
+
+   .. tab-item:: ID3D11Texture2D
+      :sync: id3d11-texture
+
+      .. code-block:: cpp
+
+         using namespace ov::preprocess;
+         auto p = PrePostProcessor(model);
+         p.input().tensor().set_element_type(ov::element::u8)
+                           .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                           .set_memory_type(ov::intel_gpu::memory_type::surface);
+         p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+         p.input().model().set_layout("NCHW");
+         model = p.build();
+
+         CComPtr<ID3D11Device> device_ptr = get_d3d_device_ptr()
+         // create the shared context object
+         auto shared_d3d_context = ov::intel_gpu::ocl::D3DContext(core, device_ptr);
+         // compile model within a shared context
+         auto compiled_model = core.compile_model(model, shared_d3d_context);
+
+         auto param_input_y = model->get_parameters().at(0);
+         auto param_input_uv = model->get_parameters().at(1);
+
+         D3D11_TEXTURE2D_DESC texture_description = get_texture_desc();
+         CComPtr<ID3D11Texture2D> dx11_texture = get_texture();
+         //     ...
+         //wrap decoder output into RemoteBlobs and set it as inference input
+         auto nv12_blob = shared_d3d_context.create_tensor_nv12(texture_description.Heights, texture_description.Width, dx11_texture);
+
+         auto infer_request = compiled_model.create_infer_request();
+         infer_request.set_tensor(param_input_y->get_friendly_name(), nv12_blob.first);
+         infer_request.set_tensor(param_input_uv->get_friendly_name(), nv12_blob.second);
+         infer_request.start_async();
+         infer_request.wait();
+
+   .. tab-item:: VASurfaceID
+      :sync: vasurfaceid
+
+      .. code-block:: cpp
+
+         using namespace ov::preprocess;
+         auto p = PrePostProcessor(model);
+         p.input().tensor().set_element_type(ov::element::u8)
+                           .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                           .set_memory_type(ov::intel_gpu::memory_type::surface);
+         p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+         p.input().model().set_layout("NCHW");
+         model = p.build();
+
+         CComPtr<ID3D11Device> device_ptr = get_d3d_device_ptr()
+         // create the shared context object
+         auto shared_va_context = ov::intel_gpu::ocl::VAContext(core, device_ptr);
+         // compile model within a shared context
+         auto compiled_model = core.compile_model(model, shared_va_context);
+
+         auto param_input_y = model->get_parameters().at(0);
+         auto param_input_uv = model->get_parameters().at(1);
+
+         auto shape = param_input_y->get_shape();
+         auto width = shape[1];
+         auto height = shape[2];
+
+         VASurfaceID va_surface = decode_va_surface();
+         //     ...
+         //wrap decoder output into RemoteBlobs and set it as inference input
+         auto nv12_blob = shared_va_context.create_tensor_nv12(height, width, va_surface);
+
+         auto infer_request = compiled_model.create_infer_request();
+         infer_request.set_tensor(param_input_y->get_friendly_name(), nv12_blob.first);
+         infer_request.set_tensor(param_input_uv->get_friendly_name(), nv12_blob.second);
+         infer_request.start_async();
+         infer_request.wait();
+
+
+.. important::
+
+   Currently, only sharing of D3D11 surfaces is supported via the
+   `cl_intel_d3d11_nv12_media_sharing <https://github.com/KhronosGroup/OpenCL-Registry/blob/main/extensions/intel/cl_intel_d3d11_nv12_media_sharing.txt>`__
+   extension, which provides interoperability between OpenCL and DirectX.
+
 
 Direct NV12 Video Surface Input
 ###########################################################
@@ -379,28 +484,28 @@ should be added before model compilation:
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_two_planes.cpp
                :language: cpp
                :fragment: [init_preproc]
 
          .. tab-item:: C
             :sync: c
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes_c.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_two_planes_c.cpp
                :language: c
                :fragment: [init_preproc]
 
    .. tab-item:: single-plane
       :sync: single-plane
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_single_plane.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_single_plane.cpp
          :language: cpp
          :fragment: [init_preproc]
 
    .. tab-item:: NV12 to Grey
       :sync: nv12-grey
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_to_gray.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_to_gray.cpp
          :language: cpp
          :fragment: [init_preproc]
 
@@ -424,28 +529,28 @@ inputs need to be set via the ``ov::InferRequest::set_tensors`` method with vect
                .. tab-item:: C++
                   :sync: cpp
 
-                  .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes.cpp
+                  .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_two_planes.cpp
                      :language: cpp
                      :fragment: [single_batch]
 
                .. tab-item:: C
                   :sync: cpp
 
-                  .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes_c.cpp
+                  .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_two_planes_c.cpp
                      :language: c
                      :fragment: [single_batch]
 
          .. tab-item:: single-plane
             :sync: single-plane
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_single_plane.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_single_plane.cpp
                :language: cpp
                :fragment: [single_batch]
 
          .. tab-item:: NV12 to Grey
             :sync: nv12-grey
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_to_gray.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_to_gray.cpp
                :language: cpp
                :fragment: [single_batch]
 
@@ -457,21 +562,21 @@ inputs need to be set via the ``ov::InferRequest::set_tensors`` method with vect
          .. tab-item:: two-plane
             :sync: two-plane
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_two_planes.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_two_planes.cpp
                :language: cpp
                :fragment: [batched_case]
 
          .. tab-item:: single-plane
             :sync: single-plane
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_single_plane.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_single_plane.cpp
                :language: cpp
                :fragment: [batched_case]
 
          .. tab-item:: NV12 to Grey
             :sync: nv12-grey
 
-            .. doxygensnippet:: docs/articles_en/assets/snippets/preprocessing_nv12_to_gray.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_to_gray.cpp
                :language: cpp
                :fragment: [batched_case]
 
@@ -492,7 +597,7 @@ on waiting for the completion of inference. The pseudo-code may look as follows:
 
 .. dropdown:: Queue and context sharing example
 
-   .. doxygensnippet:: docs/articles_en/assets/snippets/queue_sharing.cpp
+   .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/queue_sharing.cpp
       :language: cpp
       :fragment: [queue_sharing]
 
@@ -516,7 +621,7 @@ Two types of map entries are possible: descriptor and container.
 Descriptor sets the expected structure and possible parameter values of the map.
 
 For possible low-level properties and their description, refer to the header file:
-`remote_properties.hpp <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/inference/include/openvino/runtime/intel_gpu/remote_properties.hpp>`__.
+`remote_properties.hpp <https://github.com/openvinotoolkit/openvino/blob/releases/2025/0/src/inference/include/openvino/runtime/intel_gpu/remote_properties.hpp>`__.
 
 Examples
 ###########################################################
@@ -533,13 +638,13 @@ To see pseudo-code of usage examples, refer to the sections below.
 
    This example uses the OpenCL context obtained from a compiled model object.
 
-   .. doxygensnippet:: docs/articles_en/assets/snippets/context_sharing.cpp
+   .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/context_sharing.cpp
       :language: cpp
       :fragment: [context_sharing_get_from_ov]
 
 .. dropdown:: Running GPU Plugin Inference within User-Supplied Shared Context
 
-   .. doxygensnippet:: docs/articles_en/assets/snippets/context_sharing.cpp
+   .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/context_sharing.cpp
       :language: cpp
       :fragment: [context_sharing_user_handle]
 
@@ -550,20 +655,20 @@ To see pseudo-code of usage examples, refer to the sections below.
       .. tab-item:: C++
          :sync: cpp
 
-         .. doxygensnippet:: docs/articles_en/assets/snippets/context_sharing_va.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/context_sharing_va.cpp
             :language: cpp
             :fragment: [context_sharing_va]
 
       .. tab-item:: C
          :sync: c
 
-         .. doxygensnippet:: docs/articles_en/assets/snippets/context_sharing_va_c.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/context_sharing_va_c.cpp
             :language: c
             :fragment: [context_sharing_va]
 
 See Also
 #######################################
 
-* `ov::Core <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html>`__
-* `ov::RemoteTensor <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
+* `ov::Core <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_core.html>`__
+* `ov::RemoteTensor <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,13 +13,18 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_min.hpp"
@@ -44,6 +49,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -110,7 +116,7 @@ const std::shared_ptr<Node> propagate_through_ops =
  */
 class PropagateUpMarkToKeepInMixedPrecision : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PropagateUpMarkToKeepInMixedPrecision", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PropagateUpMarkToKeepInMixedPrecision");
     PropagateUpMarkToKeepInMixedPrecision() {
         MATCHER_SCOPE(PropagateUpMarkToKeepInMixedPrecision);
 
@@ -153,7 +159,7 @@ public:
  */
 class PropagateDownMarkToKeepInMixedPrecision : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PropagateDownMarkToKeepInMixedPrecision", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PropagateDownMarkToKeepInMixedPrecision");
     PropagateDownMarkToKeepInMixedPrecision() {
         MATCHER_SCOPE(PropagateDownMarkToKeepInMixedPrecision);
 
@@ -191,7 +197,7 @@ public:
 
 class InitMarkReduceOpPath : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("InitMarkReduceOpPath", "0");
+    OPENVINO_MATCHER_PASS_RTTI("InitMarkReduceOpPath");
     InitMarkReduceOpPath() {
         MATCHER_SCOPE(InitMarkReduceOpPath);
 
@@ -211,7 +217,7 @@ public:
 
 class PropagateMarkUpReduceOpPath : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PropagateMarkUpReduceOpPath", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PropagateMarkUpReduceOpPath");
     PropagateMarkUpReduceOpPath() {
         MATCHER_SCOPE(PropagateMarkUpReduceOpPath);
 
@@ -238,8 +244,8 @@ public:
 
 class MarkExp : public pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("MarkExp");
     // only exponent that go into ReduceOp should be marked as precision sensitive and kept in f32
-    OPENVINO_RTTI("MarkExp", "0");
     MarkExp() {
         MATCHER_SCOPE(MarkExp);
         auto exp_pattern = pattern::wrap_type<ov::op::v0::Exp>();
@@ -265,7 +271,7 @@ public:
  */
 class MarkExpInReduceOpPath : public BackwardGraphRewrite {
 public:
-    OPENVINO_RTTI("MarkExpInReduceOpPath", "0");
+    OPENVINO_RTTI("MarkExpInReduceOpPath", "0", BackwardGraphRewrite);
     MarkExpInReduceOpPath() {
         // marking of ReduceOp path is needed to mark only Exponents that go into ReduceSum/ReduceMean
         ADD_MATCHER_FOR_THIS(InitMarkReduceOpPath);
@@ -282,7 +288,7 @@ public:
  */
 class MarkDivWithEps : public MatcherPass {
 public:
-    OPENVINO_RTTI("MarkDivWithEps", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MarkDivWithEps");
     MarkDivWithEps() {
         MATCHER_SCOPE(MarkDivWithEps);
 
@@ -361,7 +367,7 @@ public:
 
 class PropagateDownDisableSensitivityForQuantized : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DisableMarkingForQuantizedNodes", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PropagateDownDisableSensitivityForQuantized");
     PropagateDownDisableSensitivityForQuantized() {
         MATCHER_SCOPE(PropagateDownDisableSensitivityForQuantized);
 
@@ -423,8 +429,10 @@ public:
 bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(MarkSugraphsToKeepInMixedPrecision);
 
-    Manager manager(get_pass_config());
+    Manager manager(get_pass_config(), "MarkSugraphsToKeepInMixedPrecision");
+    manager.set_per_pass_validation(false);
     // Mark root of Division with eps pattern to keep in FP32
+    REGISTER_PASS(manager, ov::pass::MarkFloatingPointRange)
     REGISTER_PASS(manager, MarkDivWithEps)
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
     REGISTER_PASS(manager, PropagateDownDisableSensitivityForQuantized)
@@ -443,6 +451,7 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     for (auto& node : m->get_ops()) {
         erase_reduceop_path(node);
         erase_fq_path(node);
+        ov::pass::erase_range_path(node);
     }
 
     return false;  // no need to revalidate

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_detection_Proposal_4}
-
 Proposal
 ========
 

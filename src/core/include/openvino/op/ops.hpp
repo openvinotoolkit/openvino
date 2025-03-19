@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,10 @@
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/bucketize.hpp"
@@ -88,6 +90,7 @@
 #include "openvino/op/hswish.hpp"
 #include "openvino/op/i420_to_bgr.hpp"
 #include "openvino/op/i420_to_rgb.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/idft.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/interpolate.hpp"
@@ -96,6 +99,7 @@
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
+#include "openvino/op/istft.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/log.hpp"
@@ -167,6 +171,8 @@
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/search_sorted.hpp"
+#include "openvino/op/segment_max.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/selu.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -176,6 +182,7 @@
 #include "openvino/op/sin.hpp"
 #include "openvino/op/sinh.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/slice_scatter.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/softsign.hpp"
@@ -185,7 +192,10 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/stft.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/string_tensor_pack.hpp"
+#include "openvino/op/string_tensor_unpack.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"

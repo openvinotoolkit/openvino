@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,9 +29,8 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
                           const ov::Strides& strides,
                           const ov::Shape& rates,
                           const ov::op::PadType& auto_pad,
-                          const tensor& output_shape = tensor{},
-                          const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                          const tensor& output_shape = tensor{})
+        : primitive_base(id, {input}),
           sizes(sizes),
           strides(strides),
           rates(rates),

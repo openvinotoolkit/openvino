@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,13 +135,16 @@ pass::MarkCompressedFloatConstants::MarkCompressedFloatConstants() {
         if (convert_node->get_destination_type() != element::f32)
             return false;
         if (const_node->get_output_element_type(0) != element::f16 &&
-            const_node->get_output_element_type(0) != element::bf16)
+            const_node->get_output_element_type(0) != element::bf16 &&
+            const_node->get_output_element_type(0) != element::f8e4m3 &&
+            const_node->get_output_element_type(0) != element::f8e5m2 &&
+            const_node->get_output_element_type(0) != element::f8e8m0)
             return false;
 
         mark_as_decompression(convert_node);
         disable_constant_folding(const_node);
         disable_constant_folding(convert_node);
-        return true;
+        return false;
     };
 
     auto m = std::make_shared<pass::pattern::Matcher>(convert, matcher_name);

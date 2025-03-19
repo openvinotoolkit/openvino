@@ -20,7 +20,7 @@ struct experimental_detectron_generate_proposals_single_image_impl
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::experimental_detectron_generate_proposals_single_image_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<experimental_detectron_generate_proposals_single_image_impl>(*this);
+        return make_deep_copy<experimental_detectron_generate_proposals_single_image_impl, kernel_params_t>(*this);
     }
 
 protected:

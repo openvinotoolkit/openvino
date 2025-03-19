@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,6 +30,7 @@ ov_add_test_target(
         DEPENDENCIES
             openvino_intel_gpu_plugin
         LINK_LIBRARIES
+            openvino::reference
             funcSharedTests
             OpenCL::NewHeaders # should come before OpenCL::OpenCL
             OpenCL::OpenCL

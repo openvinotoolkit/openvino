@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,7 @@ void prepare_padding::run(program& p) {
                     auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
                     auto& new_reorder_node = p.get_or_create(new_reorder);
                     p.add_intermediate(new_reorder_node, node, input);
+                    new_reorder_node.recalc_output_layouts(false);
                 }
 
                 p.apply_needed_padding(node, node.get_dependency(0), needed_padding);
@@ -58,6 +59,10 @@ void prepare_padding::run(program& p) {
                     format == format::b_fs_zyx_fsv32)
                     continue;
 
+                auto in_layout = prim_node.get_input_layout();
+                const auto spatial_rank = in_layout.get_spatial_rank();
+                if (spatial_rank > 3 || spatial_rank < 1) continue;     // FIXME: should support spatial_rank > 3?
+
                 auto padding_begin = prim->padding_begin;
                 auto padding_end = prim->padding_end;
 
@@ -69,25 +74,35 @@ void prepare_padding::run(program& p) {
                 tensor::value_type pe_y = std::max<std::ptrdiff_t>(padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0, 0);
                 tensor::value_type pe_x = std::max<std::ptrdiff_t>(padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0, 0);
 
-                tensor pad_l = tensor(0);
-                tensor pad_u = tensor(0);
-                pad_l.spatial[0] = pb_x;
-                pad_l.spatial[1] = pb_y;
-                pad_l.spatial[2] = pb_z;
+                const auto& lower_sizes = in_layout.data_padding._lower_size;
+                const auto& upper_sizes = in_layout.data_padding._upper_size;
 
-                pad_u.spatial[0] = pe_x;
-                pad_u.spatial[1] = pe_y;
-                pad_u.spatial[2] = pe_z;
+                std::vector<int32_t> needed_lpad, needed_upad;
+                needed_lpad.push_back(lower_sizes[0]);
+                needed_lpad.push_back(lower_sizes[1]);
 
-                auto in_layout = prim_node.get_input_layout();
+                needed_upad.push_back(upper_sizes[0]);
+                needed_upad.push_back(upper_sizes[1]);
+                if (spatial_rank == 3) {
+                    needed_lpad.push_back(std::max(pb_z, lower_sizes[2]));
+                    needed_lpad.push_back(std::max(pb_y, lower_sizes[3]));
+                    needed_lpad.push_back(std::max(pb_x, lower_sizes[4]));
 
-                const auto& actual_lpad = in_layout.data_padding.lower_size();
-                const auto& actual_upad = in_layout.data_padding.upper_size();
+                    needed_upad.push_back(std::max(pe_z, upper_sizes[2]));
+                    needed_upad.push_back(std::max(pe_y, upper_sizes[3]));
+                    needed_upad.push_back(std::max(pe_x, upper_sizes[4]));
+                } else if (spatial_rank == 2) {
+                    needed_lpad.push_back(std::max(pb_y, lower_sizes[2]));
+                    needed_lpad.push_back(std::max(pb_x, lower_sizes[3]));
 
-                auto needed_lpad = tensor::max(pad_l, actual_lpad);
-                auto needed_upad = tensor::max(pad_u, actual_upad);
+                    needed_upad.push_back(std::max(pe_y, upper_sizes[2]));
+                    needed_upad.push_back(std::max(pe_x, upper_sizes[3]));
+                } else {
+                    needed_lpad.push_back(std::max(pb_x, lower_sizes[2]));
+                    needed_upad.push_back(std::max(pb_x, upper_sizes[2]));
+                }
 
-                padding needed_padding(needed_lpad.sizes(), needed_upad.sizes());
+                padding needed_padding(needed_lpad, needed_upad);
 
                 add_required_padding(prim_node, needed_padding);
             } else if (node->is_type<deconvolution>()) {
@@ -195,6 +210,7 @@ void prepare_padding::run(program& p) {
             auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
             auto& new_reorder_node = p.get_or_create(new_reorder);
             p.add_intermediate(new_reorder_node, node, input);
+            new_reorder_node.recalc_output_layouts(false);
         }
 
         p.apply_needed_padding(node, node.get_dependency(0), needed_padding);
@@ -269,7 +285,13 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
     //    round_up_to(left_padding + prev_prim_output_layout.spatial(0) + right_padding, 16));
     // right_padding = needed_buffer_size_x - left_padding - prev_prim_output_layout.spatial(0);
 
-    cldnn::padding needed_padding({0, 0, padding_begin_x, padding_begin_y, padding_begin_z}, {0, 0, padding_end_x, padding_end_y, padding_end_z}, 0);
+    cldnn::padding needed_padding = padding();
+    if (padding_begin.size() >= 3)
+        needed_padding = padding({0, 0, padding_begin_z, padding_begin_y, padding_begin_x}, {0, 0, padding_end_z, padding_end_y, padding_end_x}, 0);
+    else if (padding_begin.size() >= 2)
+        needed_padding = padding({0, 0, padding_begin_y, padding_begin_x}, {0, 0, padding_end_y, padding_end_x}, 0);
+    else if (padding_begin.size() >= 1)
+        needed_padding = padding({0, 0, padding_begin_x}, {0, 0, padding_end_x}, 0);
     needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);
 
     return needed_padding;

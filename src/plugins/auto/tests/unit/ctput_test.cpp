@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,9 @@ public:
     void SetUp() override {
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
+        std::vector<std::string> deviceIDs = {};
+        ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
@@ -84,7 +87,7 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
             .Times(0);
     }
 
-    ASSERT_NO_THROW(plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
 using LoadNetworkWithCTPUTMockTestExeDevice = LoadNetworkWithCTPUTMockTest;
@@ -97,7 +100,7 @@ TEST_P(LoadNetworkWithCTPUTMockTestExeDevice, CTPUTSingleDevExecutionDevie) {
     config.insert({ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     config.insert(ov::device::priorities(targetDevices[0]));
     // Call single device logic and performance hint is THROUGHPUT
-    ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
     EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(), ov::test::utils::DEVICE_CPU);
 }
 
@@ -148,6 +151,9 @@ public:
     void SetUp() override {
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
+        std::vector<std::string> deviceIDs = {};
+        ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
@@ -195,7 +201,7 @@ TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
                                   ::testing::Matcher<const ov::AnyMap&>(_)))
             .Times(1);
     }
-    ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
     EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(), secondDevice);
 }
 

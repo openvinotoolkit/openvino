@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,16 +34,16 @@ struct Range {
         max_known_port = std::max(static_cast<int>(max_known_port), 1);
         for (size_t port = 0; port < max_known_port; port++) {
             std::map<ov::element::Type, ov::test::utils::InputGenerateData> type_map;
-            for (auto& type : ov::element::Type::get_known_types()) {
-                ov::test::utils::InputGenerateData new_range = rangeByType.get_range(*type);
-                if (type->is_real() && port < real_port_ranges.size()) {
+            for (const auto& type : get_known_types()) {
+                ov::test::utils::InputGenerateData new_range = rangeByType.get_range(type);
+                if (type.is_real() && port < real_port_ranges.size()) {
                     new_range.correct_range(real_port_ranges.at(port));
                     new_range.input_attribute = real_port_ranges.at(port).input_attribute;
-                } else if (type->is_integral() && port < int_port_ranges.size()) {
+                } else if (type.is_integral() && port < int_port_ranges.size()) {
                     new_range.correct_range(int_port_ranges.at(port));
                     new_range.input_attribute = int_port_ranges.at(port).input_attribute;
                 }
-                type_map[*type] = new_range;
+                type_map[type] = new_range;
             }
             data.push_back(type_map);
         }
@@ -128,9 +128,11 @@ static std::map<ov::NodeTypeInfo, Range> inputRanges = {
     {ov::op::v5::HSigmoid::get_type_info_static(), Range({{0, 15}}, {{-1, 2, 32768}})},
     {ov::op::v5::Round::get_type_info_static(), Range({{0, 15}}, {{-10, 20, 4}})},
     {ov::op::v7::Gelu::get_type_info_static(), Range({{0, 15}}, {{-1, 2, 32768}})},
+    {ov::op::v14::MaxPool::get_type_info_static(), Range({{0, 10, 1, 1}}, {{0, 10, 1, 1}})},
     {ov::op::v8::MaxPool::get_type_info_static(), Range({{0, 10, 1, 1}}, {{0, 10, 1, 1}})},
     {ov::op::v1::MaxPool::get_type_info_static(), Range({{0, 10, 1, 1}}, {{0, 10, 1, 1}})},
     {ov::op::v1::AvgPool::get_type_info_static(), Range({{0, 10, 1, 1}}, {{0, 10, 1, 1}})},
+    {ov::op::v14::AvgPool::get_type_info_static(), Range({{0, 10, 1, 1}}, {{0, 10, 1, 1}})},
     {ov::op::v9::SoftSign::get_type_info_static(), Range({{0, 15}}, {{-100, 200, 32768}})},
     // new temp
     {ov::op::v1::Convolution::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
@@ -236,6 +238,10 @@ static std::map<ov::NodeTypeInfo, Range> inputRanges = {
     {ov::op::v1::Add::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v15::ROIAlignRotated::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v1::BatchToSpace::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v15::BitwiseLeftShift::get_type_info_static(), Range({{0, 5}, {0, 4}}, {})},
+    {ov::op::v15::BitwiseRightShift::get_type_info_static(), Range({{0, 5}, {0, 4}}, {})},
+    {ov::op::v15::STFT::get_type_info_static(), Range({{16, 24}, {1, 16}}, {{0, 1, 10000}, {0, 1, 10000}})},
+    {ov::op::v16::ISTFT::get_type_info_static(), Range({{}, {}, {16, 0, 1}, {4, 0, 1}, {64, 0, 1}}, {{0, 1, 10000}, {0, 1, 10000}})},
 };
 
 class ModelRange {

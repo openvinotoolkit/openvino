@@ -1,12 +1,10 @@
-.. {#openvino_docs_ops_movement_GatherND_8}
-
 GatherND
 ========
 
 
 
 .. meta::
-  :description: Learn about GatherND-8 - a data movement operation, 
+  :description: Learn about GatherND-8 - a data movement operation,
                 which can be performed on two required input tensors.
 
 **Versioned name**: *GatherND-8*
@@ -49,7 +47,7 @@ if ``indices.shape[-1] == data.rank - batch_dims``, else
 
 * **1**: ``data`` tensor of type *T*. A tensor of a rank not less than 1. **Required.**
 * **2**: ``indices`` tensor of type *T_IND*. A tensor of a rank not less than 1.
-  It requires all indices from this tensor to be in the range ``[0, s-1]`` where ``s`` is the corresponding dimension to 
+  It requires all indices from this tensor to be in the range ``[0, s-1]`` where ``s`` is the corresponding dimension to
   which this index is applied. **Required.**
 
 
@@ -122,7 +120,7 @@ Example 5 shows how *GatherND* operates gathering slices for non-default *batch_
    output  = [[ 5,  6,  7,  8], [13, 14, 15, 16]], shape = (2, 4)
 
 
-More complex examples 6 and 7 show how *GatherND* operates gathering slices with leading dimensions 
+More complex examples 6 and 7 show how *GatherND* operates gathering slices with leading dimensions
 for non-default *batch_dims* value:
 
 .. code-block:: sh
@@ -143,7 +141,7 @@ for non-default *batch_dims* value:
                [21, 22, 23, 24]] <--- this is the sixth batch
              ] <--- the second batch, shape = (2, 3, 4)
    output  = [[[ 2], [ 5], [11]], [[13], [19], [23]]], shape = (2, 3, 1)
-   
+
 
 
 .. code-block:: sh
@@ -238,7 +236,7 @@ for non-default *batch_dims* value:
                <dim>1</dim>
                <dim>64</dim>
                <dim>64</dim>
-               <dim>1</dim>          
+               <dim>1</dim>
                <dim>1</dim>
            </port>
        </input>

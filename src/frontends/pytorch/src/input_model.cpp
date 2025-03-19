@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,9 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder) : m_model_decoder(model_decoder) {
+InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder)
+    : m_model_decoder(model_decoder),
+      m_decoder_type_name(model_decoder->decoder_type_name()) {
     const auto& inputs = m_model_decoder->inputs();
     for (size_t i = 0; i < inputs.size(); ++i) {
         auto in_place = std::make_shared<pytorch::Place>(*this, inputs[i]);
@@ -166,7 +168,7 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
     });
     FRONT_END_GENERAL_CHECK(all_inputs, "Only initial inputs are supported by override_all_inputs.");
     // We need to add back "self" input if it was in initial inputs
-    if (m_inputs.size() > 0 && m_inputs[0]) {
+    if (!m_inputs.empty() && m_inputs[0]) {
         // We need to remove "self" input to not confuse external users
         const auto& names = m_inputs[0]->get_names();
         if (std::any_of(names.cbegin(), names.cend(), [](const std::string& n) {
@@ -180,12 +182,14 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
                                     inputs.size());
             auto self_place = m_inputs[0];
             // Verify that no same place already in vector
-            auto no_self = std::all_of(inputs.cbegin(), inputs.cend(), [&](const Place::Ptr& p) {
-                return !p->is_equal(self_place);
+            auto no_self = std::none_of(inputs.cbegin(), inputs.cend(), [&](const Place::Ptr& p) {
+                return p->is_equal(self_place);
             });
             FRONT_END_GENERAL_CHECK(no_self, "Unexpected input of 'self' was provided to override_all_inputs.");
-            m_inputs = std::vector<ov::frontend::Place::Ptr>{self_place};
-            m_inputs.insert(m_inputs.cend(), inputs.cbegin(), inputs.cend());
+            m_inputs.clear();
+            m_inputs.reserve(inputs.size() + 1);
+            m_inputs.push_back(std::move(self_place));
+            m_inputs.insert(m_inputs.end(), inputs.cbegin(), inputs.cend());
             return;
         }
     }
@@ -199,7 +203,7 @@ void InputModel::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
 }
 
 const std::string& InputModel::decoder_type_name() const {
-    return m_model_decoder->decoder_type_name();
+    return m_decoder_type_name;
 }
 
 std::shared_ptr<TorchDecoder> InputModel::get_decoder() const {

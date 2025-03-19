@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ TEST(TransformationTests, ConvertConvertLike) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertConvertLike>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -62,7 +62,7 @@ TEST(TransformationTests, ConvertConvertLike2) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertConvertLike>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -89,7 +89,7 @@ TEST(TransformationTests, ConvertConvertLike_Negative) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertConvertLike>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {

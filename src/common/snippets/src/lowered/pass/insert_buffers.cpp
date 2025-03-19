@@ -7,7 +7,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 
 namespace ov {
@@ -72,12 +72,11 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
                               const LinearIR::constExprIt& begin_it,
                               const LinearIR::constExprIt& end_it,
                               const LoopManagerPtr& loop_manager,
-                              const std::vector<LoopPort>& loop_entries,
-                              const std::vector<LoopPort>& loop_exits) const {
-    for (const auto& input_port : loop_entries) {
-        const auto& entry_port = input_port.expr_port;
-        const auto& expr = entry_port->get_expr();
-        const auto port_idx = entry_port->get_index();
+                              const std::vector<ExpressionPort>& loop_entries,
+                              const std::vector<ExpressionPort>& loop_exits) const {
+    for (const auto& entry_port : loop_entries) {
+        const auto& expr = entry_port.get_expr();
+        const auto port_idx = entry_port.get_index();
         const auto node = expr->get_node();
         auto parent_expr_output = expr->get_input_port_connector(port_idx)->get_source();
         auto parent_expr = parent_expr_output.get_expr();
@@ -93,11 +92,11 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
         }
         const auto& parent_port = parent_expr_output.get_index();
         const auto& parent = parent_expr->get_node();
-        if (ov::is_type<op::Buffer>(parent) ||
-            ov::is_type<op::VectorBuffer>(parent) ||
-            ov::is_type<ov::op::v0::Parameter>(parent) ||
-            ov::is_type<ov::op::v0::Constant>(parent) ||
-            is_type<op::RankNormalization>(parent))
+        if (ov::is_type_any_of<op::Buffer,
+                               op::VectorBuffer,
+                               ov::op::v0::Parameter,
+                               ov::op::v0::Constant,
+                               op::RankNormalization>(parent))
             continue;
 
         // Each MemoryAccess op needs Buffer
@@ -115,18 +114,17 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             //          Current expr Loop identifies:  3, 4, 6
             //          Need to insert between 2nd and 4th Loops - after 2nd Loop
             const auto pos = insertion_position(linear_ir, loop_manager, parent_expr, expr);
-            const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port));
-            const auto buffer_consumer = has_shape_infer_parent ? top_shape_infer_expr->get_input_port(0)  : *entry_port;
+            const auto buffer = std::make_shared<op::Buffer>(parent->output(parent_port));
+            const auto buffer_consumer = has_shape_infer_parent ? top_shape_infer_expr->get_input_port(0)  : entry_port;
             linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { buffer_consumer  });
         }
     }
 
-    for (const auto& output_port : loop_exits) {
-        const auto& exit_port = output_port.expr_port;
-        const auto& expr = exit_port->get_expr();
-        const auto port_idx = exit_port->get_index();
+    for (const auto& exit_port : loop_exits) {
+        const auto& expr = exit_port.get_expr();
+        const auto port_idx = exit_port.get_index();
         const auto node = expr->get_node();
-        const auto output_connector = exit_port->get_port_connector_ptr();
+        const auto output_connector = exit_port.get_port_connector_ptr();
         const auto child_exprs_inputs = output_connector->get_consumers();
         const auto& current_loops = expr->get_loop_ids();
 
@@ -178,18 +176,11 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
 
             // potential_consumers is unsorted by linear IR set.
             // We have to find first expr in Linear IR from the set to insert Buffer before *all* consumers
-            // [113536]: Remove this logic with `std::find` using, when expression numeration will be supported
             OPENVINO_ASSERT(!potential_consumers.empty(), "Buffer should have one consumer at least");
-            auto consumer_expr = potential_consumers.begin()->get_expr();
-            if (potential_consumers.size() > 1) {
-                std::set<ExpressionPtr> consumers;
-                for (const auto& port : potential_consumers)
-                    consumers.insert(port.get_expr());
-                const auto it = std::find_if(begin_it, end_it,
-                                             [&consumers](const ExpressionPtr& expr) { return consumers.count(expr) > 0; });
-                OPENVINO_ASSERT(it != end_it, "Consumer of Buffer has not been found in Linear IR");
-                consumer_expr = *it;
-            }
+            const auto& consumer_expr = std::min_element(potential_consumers.begin(), potential_consumers.end(),
+                                                         [](const ExpressionPort& l, const ExpressionPort& r) {
+                                                             return l.get_expr()->get_exec_num() < r.get_expr()->get_exec_num();
+                                                         })->get_expr();
 
             // We should insert Buffer between first different Loops.
             // Example: Current expr Loop identifies: 3, 2, 1
@@ -198,7 +189,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             // Note: All potential consumers must have the same count of first equal Loop identifies and the same count of different last identifies
             const auto pos = insertion_position(linear_ir, loop_manager, expr, consumer_expr);
 
-            auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(node->output(port_idx));
+            auto buffer = std::make_shared<op::Buffer>(node->output(port_idx));
             // We cannot insert Node output connector on Buffer output because not all consumers of Node needs Buffer
             //  Example:
             //       Add
@@ -207,7 +198,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             //             |    <- It should be new PortConnector
             //            Relu
             // Output port connector is automatically filled from PortDescriptor
-            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ *exit_port }, buffer_loop_ids, false, pos, { potential_consumers });
+            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ exit_port }, buffer_loop_ids, false, pos, { potential_consumers });
         }
     }
 }
@@ -220,8 +211,15 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
         const auto loop_info = loop_data.second;
         const auto loop_entries = loop_info->get_input_ports();
         const auto loop_exits = loop_info->get_output_ports();
+
+        auto cvt_to_expr_ports = [](const std::vector<LoopPort>& loop_ports) {
+            std::vector<ExpressionPort> expr_ports(loop_ports.size());
+            std::transform(loop_ports.cbegin(), loop_ports.cend(), expr_ports.begin(),
+                           [](const LoopPort& loop_port) { return *loop_port.get_expr_port(); });
+            return expr_ports;
+        };
         // using begin() as expr_it because we work with LoopInfo, not expressions in Linear IR
-        insertion(linear_ir, begin, end, loop_manager, loop_entries, loop_exits);
+        insertion(linear_ir, begin, end, loop_manager, cvt_to_expr_ports(loop_entries), cvt_to_expr_ports(loop_exits));
     }
 
     for (auto expr_it = begin; expr_it != end; expr_it++) {
@@ -233,7 +231,7 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
 
         const auto input_ports = ma->get_memory_access_input_ports();
         const auto output_ports = ma->get_memory_access_output_ports();
-        std::vector<LoopPort> loop_entries(input_ports.size()), loop_exits(output_ports.size());
+        std::vector<ExpressionPort> loop_entries(input_ports.size()), loop_exits(output_ports.size());
         for (const auto& p : input_ports) {
             loop_entries[p.first] = expr->get_input_port(p.first);
         }

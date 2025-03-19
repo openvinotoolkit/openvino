@@ -8,7 +8,7 @@ Interface PrePostProcessorConstructor
    }
 
 * **Defined in:**
-  `addon.ts:557 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L557>`__
+  `addon.ts:626 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L626>`__
 
 
 Constructors
@@ -17,7 +17,7 @@ Constructors
 
 .. rubric:: constructor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -30,5 +30,5 @@ Constructors
    * **Returns:** :doc:`PrePostProcessor <PrePostProcessor>`
 
    * **Defined in:**
-     `addon.ts:558 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L558>`__
+     `addon.ts:627 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L627>`__
 

@@ -64,6 +64,25 @@ __attribute__((overloadable)) int local_atomic_max(local int *p, int v) {
                 (global itype *)p, as_##itype(v[0])); \
     }
 
+#define DEF_BLOCK_LOAD_STORE16(type, itype, suffix) \
+    __attribute__((overloadable)) \
+            type##16 block_load(const global type *p, int vlen) __attribute__( \
+                    (enable_if(vlen == 16, "wrong vector length"))) { \
+        type##16 x; \
+        x.s01234567 = as_##type##8( \
+                intel_sub_group_block_read8##suffix((global void *)p)); \
+        x.s89abcdef = as_##type##8( \
+                intel_sub_group_block_read8##suffix((global void *)(p + 8 * get_sub_group_size()))); \
+        return x; \
+    } \
+    __attribute__((overloadable)) void block_store( \
+            global type *p, type##16 v) { \
+        intel_sub_group_block_write8##suffix( \
+                (global itype *)p, as_##itype##8(v.s01234567)); \
+        intel_sub_group_block_write8##suffix( \
+                (global itype *)(p + 8 * get_sub_group_size()), as_##itype##8(v.s89abcdef)); \
+    }
+
 DEF_BLOCK_LOAD_STORE1(half, ushort, _us)
 DEF_BLOCK_LOAD_STORE(half, ushort, _us, 2)
 DEF_BLOCK_LOAD_STORE(half, ushort, _us, 4)
@@ -73,6 +92,7 @@ DEF_BLOCK_LOAD_STORE1(uint, uint, )
 DEF_BLOCK_LOAD_STORE(uint, uint, , 2)
 DEF_BLOCK_LOAD_STORE(uint, uint, , 4)
 DEF_BLOCK_LOAD_STORE(uint, uint, , 8)
+DEF_BLOCK_LOAD_STORE16(uint, uint, )
 
 #define DEF_BLOCK2D_LOAD_STORE(type, itype, vl, SG, suffix, BR, BC) \
     itype##vl __builtin_IB_subgroup_block_read_flat_##suffix( \
@@ -173,6 +193,21 @@ DEF_BLOCK2D_LOAD_STORE(half, ushort, 16, 16, u16_m8k32v1, 32, 8)
 
 #define xlane_tile_access(t, i, j, sg, br, bc, nbr) \
     sub_group_broadcast(tile_access(t, i, j, sg, br, bc, nbr), i % sg)
+
+#define tile_predicated_assignment_t( \
+        t, sg_offset_r, sg_offset_c, predicate, value, sg, br, bc, nbr, nbc) \
+    do { \
+        for (int j = 0; j < (bc * nbc); j++) { \
+            for (int i0 = 0; i0 < (br * nbr); i0 += sg) { \
+                int i = i0 + get_sub_group_local_id(); \
+                int offset_r = sg_offset_r + j; \
+                int offset_c = sg_offset_c + i; \
+                if (predicate(offset_r, offset_c)) { \
+                    tile_access(t, i0, j, sg, br, bc, nbr) = value; \
+                } \
+            } \
+        } \
+    } while (0)
 
 #define DECLARE_2D_TILE_OPS(tile_type, element_type, sg, br, bc, nbr, nbc) \
     __attribute__((overloadable)) void tile_load_full(tile_type *t, \

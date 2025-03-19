@@ -39,9 +39,8 @@ struct generate_proposals
                        int64_t post_nms_count,
                        bool normalized,
                        float nms_eta,
-                       const data_types roi_num_type,
-                       const padding& output_padding = {}) :
-            primitive_base{id, inputs, {output_padding}},
+                       const data_types roi_num_type) :
+            primitive_base{id, inputs},
             output_rois_scores{inputs[4].pid},
             output_rois_num{inputs[5].pid},
             roi_num_type{roi_num_type} {
@@ -63,7 +62,7 @@ struct generate_proposals
 
     primitive_id output_rois_scores;
     primitive_id output_rois_num;
-    data_types roi_num_type = data_types::undefined;
+    data_types roi_num_type = data_types::dynamic;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import os
 import re
-
-import numpy as np
 import tensorflow as tf
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -20,6 +19,27 @@ def mix_array_with_value(input_array, value):
     input_shape = input_array.shape
     mask = np.random.randint(0, 2, input_shape).astype(bool)
     return np.where(mask, input_array, value)
+
+
+def mix_array_with_several_values(input_array, values, rng):
+    num_values = len(values)
+    input_shape = input_array.shape
+    mask = rng.choice(num_values + 1, input_shape).astype(np.int32)
+    for ind, value in enumerate(values):
+        input_array = np.where(mask == ind, input_array, value)
+    return input_array
+
+
+# mix two arrays with a list of value pairs
+def mix_two_arrays_with_several_values(input_array1, input_array2, values, rng):
+    num_values = len(values)
+    input_shape = input_array1.shape
+    # generate the common mask for both input arrays
+    mask = rng.choice(num_values + 1, input_shape).astype(np.int32)
+    for ind, value in enumerate(values):
+        input_array1 = np.where(mask == ind, input_array1, value[0])
+        input_array2 = np.where(mask == ind, input_array2, value[1])
+    return input_array1, input_array2
 
 
 def load_graph(model_file, output_nodes_for_freeze=None):

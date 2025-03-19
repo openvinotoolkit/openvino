@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,11 +33,9 @@ std::string ov::getPrimitivesPriority(const std::shared_ptr<ov::Node>& node) {
 
 Any PrimitivesPriority::merge(const ov::NodeVector& nodes) const {
     auto canBeMerged = [](const std::shared_ptr<Node>& node) -> bool {
-        if (std::dynamic_pointer_cast<ov::op::v1::Convolution>(node) ||
-            std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||
-            std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ov::op::v0::MatMul>(node)) {
+        if (ov::as_type_ptr<ov::op::v1::Convolution>(node) || ov::as_type_ptr<ov::op::v1::GroupConvolution>(node) ||
+            ov::as_type_ptr<ov::op::v1::GroupConvolutionBackpropData>(node) ||
+            ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(node) || ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
             return true;
         }
         return false;

@@ -16,18 +16,22 @@ It is recommended to have a single Core instance per application.
        compileModelSync(model, deviceName, config?): CompiledModel;
        compileModelSync(modelPath, deviceName, config?): CompiledModel;
        getAvailableDevices(): string[];
-       getProperty(propertyName): string | number | boolean;
-       getProperty(deviceName, propertyName): string | number | boolean;
+       getProperty(propertyName): OVAny;
+       getProperty(deviceName, propertyName): OVAny;
        getVersions(deviceName): {
            [deviceName: string]: {
                buildNumber: string;
                description: string;
            };
        };
+       importModel(modelStream, device, config?): Promise<CompiledModel>
        importModelSync(modelStream, device, config?): CompiledModel;
+       queryModel(model, deviceName, properties?): string[];
        readModel(modelPath, weightsPath?): Promise<Model>;
+       readModel(model, weights): Promise<Model>;
        readModel(modelBuffer, weightsBuffer?): Promise<Model>;
        readModelSync(modelPath, weightsPath?): Model;
+       readModelSync(model, weights): Model;
        readModelSync(modelBuffer, weightsBuffer?): Model;
        setProperty(properties): void;
        setProperty(deviceName, properties): void;
@@ -35,7 +39,7 @@ It is recommended to have a single Core instance per application.
 
 
 * **Defined in:**
-  `addon.ts:32 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L32>`__
+  `addon.ts:34 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L34>`__
 
 
 Methods
@@ -44,7 +48,7 @@ Methods
 
 .. rubric:: addExtension
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -59,13 +63,13 @@ Methods
        A path to the library with ov::Extension
 
    * **Defined in:**
-     `addon.ts:37 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L37>`__
+     `addon.ts:39 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L39>`__
 
 
 .. rubric:: compileModel
    :name: compileModel
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -92,16 +96,14 @@ Methods
 
        .. code-block:: ts
 
-          config: {
-              [propertyName: string]: string;
-          }
+          config: Record<string, OVAny>,
 
-     - [propertyName: string]:string
+     - Record<string,\ :doc:`OVAny <../types/OVAny>`\>
 
-   * **Returns:** Promise<\ :doc:`CompiledModel <CompiledModel>` \>
+   * **Returns:** Promise<\ :doc:`CompiledModel <CompiledModel>`\>
 
    * **Defined in:**
-     `addon.ts:48 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L48>`__
+     `addon.ts:50 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L50>`__
 
 
    .. code-block:: ts
@@ -119,7 +121,7 @@ Methods
 
      - model: :doc:`Model <Model>`
 
-       The path to a model.is i
+       The path to a model.
 
      - deviceName: string
 
@@ -129,24 +131,22 @@ Methods
 
        .. code-block:: ts
 
-          config: {
-              [propertyName: string]: string;
-          }
+          config: Record<string, OVAny>,
 
        An object with the key-value pairs
        (property name, property value): relevant only for this load operation.
 
-       - [propertyName: string]:string
+       - Record<string, \ :doc:`OVAny <../types/OVAny>`\>
 
-   * **Returns:** Promise<\ :doc:`CompiledModel <CompiledModel>` \>
+   * **Returns:** Promise<\ :doc:`CompiledModel <CompiledModel>`\>
 
    * **Defined in:**
-     `addon.ts:67 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L67>`__
+     `addon.ts:69 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L69>`__
 
 
 .. rubric:: compileModelSync
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -163,16 +163,14 @@ Methods
 
        .. code-block:: ts
 
-          config: {
-                    [propertyName: string]: string;
-           }
+          config: Record<string, OVAny>,
 
-     - [propertyName: string]:string
+     - Record<string, \ :doc:`OVAny <../types/OVAny>`\>
 
    * **Returns:** :doc:`CompiledModel <CompiledModel>`
 
    * **Defined in:**
-     `addon.ts:76 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L76>`__
+     `addon.ts:78 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L78>`__
 
 
    .. code-block:: ts
@@ -190,21 +188,19 @@ Methods
 
        .. code-block:: ts
 
-          config: {
-                    [propertyName: string]: string;
-           }
+          config: Record<string, OVAny>,
 
-     - [propertyName: string]:string
+     - Record<string, \ :doc:`OVAny <../types/OVAny>`\>
 
    * **Returns:** :doc:`CompiledModel <CompiledModel>`
 
    * **Defined in:**
-     `addon.ts:85 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L85>`__
+     `addon.ts:87 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L87>`__
 
 
 .. rubric:: getAvailableDevices
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -222,16 +218,16 @@ Methods
      ``set_property`` and so on.
 
    * **Defined in:**
-     `addon.ts:99 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L99>`__
+     `addon.ts:101 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L101>`__
 
 
 .. rubric:: getProperty
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
-      getProperty(propertyName): string | number | boolean
+      getProperty(propertyName): OVAny
 
    It gets the properties dedicated to device behavior.
 
@@ -241,16 +237,16 @@ Methods
 
        A property name.
 
-   * **Returns:**  string | number | boolean
+   * **Returns:**  :doc:`OVAny <../types/OVAny>`
 
    * **Defined in:**
-     `addon.ts:104 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L104>`__
+     `addon.ts:106 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L106>`__
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
-      getProperty(deviceName, propertyName): string | number | boolean
+      getProperty(deviceName, propertyName): OVAny
 
    It gets the properties dedicated to device behavior.
 
@@ -264,15 +260,15 @@ Methods
 
        A property name.
 
-   * **Returns:**  string | number | boolean
+   * **Returns:**  :doc:`OVAny <../types/OVAny>`
 
    * **Defined in:**
-     `addon.ts:111 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L111>`__
+     `addon.ts:113 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L113>`__
 
 
 .. rubric:: getVersions
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -306,17 +302,57 @@ Methods
      * description: string
 
    * **Defined in:**
-     `addon.ts:119 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L119>`__
+     `addon.ts:121 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L121>`__
+
+
+.. rubric:: importModel
+   :name: importModel
+
+*
+
+   .. code-block:: ts
+
+      importModel(modelStream, device, config?): Promise<CompiledModel>
+
+   It asynchronously imports a previously exported compiled model.
+
+   * **Parameters:**
+
+     - modelStream: Buffer
+
+       The input stream that contains a model, previously exported with the
+       :ref:`CompiledModel.exportModelSync <exportModelSync>` method.
+
+     - device: string
+
+       The name of a device, for which you import a compiled model. Note, if the device name
+       was not used to compile the original model, an exception is thrown.
+
+     - ``Optional``
+
+       .. code-block:: ts
+
+          config: Record<string, OVAny>,
+
+       An object with the key-value pairs (property name, property value): relevant only for this load operation.
+
+       - Record<string, \ :doc:`OVAny <../types/OVAny>`\>
+
+   * **Returns:** Promise<\ :doc:`CompiledModel <CompiledModel>`\ >
+
+   * **Defined in:**
+     `addon.ts:137 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L137>`__
 
 
 .. rubric:: importModelSync
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
       importModelSync(modelStream, device, config?): CompiledModel
 
+   A synchronous version of :ref:`Core.importModel <importModel>`.
    It imports a previously exported compiled model.
 
    * **Parameters:**
@@ -335,24 +371,60 @@ Methods
 
        .. code-block:: ts
 
-          config: {
-                    [key: string]: string | number | boolean;
-           }
+          config: Record<string, OVAny>,
 
        An object with the key-value pairs (property name, property value): relevant only for this load operation.
 
-       - [key: string]: string | number | boolean
+       - Record<string, \ :doc:`OVAny <../types/OVAny>`\>
 
    * **Returns:** :doc:`CompiledModel <CompiledModel>`
 
    * **Defined in:**
-     `addon.ts:135 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L135>`__
+     `addon.ts:146 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L146>`__
+
+
+.. rubric:: queryModel
+
+*
+
+   .. code-block:: ts
+
+      queryModel(model, deviceName, properties?): { [key: string]: string }
+
+   It queries the device if it supports specified model with the specified
+   properties.
+
+   * **Parameters:**
+
+     - model: :doc:`Model <Model>`
+
+       The :doc:`Model <Model>` object acquired from :ref:`Core.readModel <readModel>`
+
+     - deviceName: string
+
+       The name of a device.
+
+     - ``Optional``
+
+       An object with the property name - property value pairs.
+       (property name, property value).
+
+       .. code-block:: ts
+
+          properties: Record<string, OVAny>,
+
+     - Record<string, \ :doc:`OVAny <../types/OVAny>`\>
+
+   * **Returns:** [key: string]: string
+
+   * **Defined in:**
+     `addon.ts:217 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L217>`__
 
 
 .. rubric:: readModel
    :name: readModel
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -384,9 +456,31 @@ Methods
    * **Returns:** Promise<\ :doc:`Model <Model>`\ >
 
    * **Defined in:**
-     `addon.ts:152 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L152>`__
+     `addon.ts:164 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L164>`__
 
-.. container:: m-4
+
+   .. code-block:: ts
+
+      readModel(model, weights): Promise<Model>
+
+   It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
+
+   * **Parameters:**
+
+     - model: string
+
+       A string with model in the IR / ONNX / PDPD / TF and TFLite format.
+
+     - weights: Tensor
+
+       Tensor with weights. Reading ONNX / PDPD / TF and TFLite models does
+       not support loading weights from weights tensors.
+
+   * **Returns:** Promise<\ :doc:`Model <Model>`\ >
+
+   * **Defined in:**
+     `addon.ts:172 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L172>`__
+
 
    .. code-block:: ts
 
@@ -411,12 +505,12 @@ Methods
    * **Returns:**  Promise<\ :doc:`Model <Model>`\ >
 
    * **Defined in:**
-     `addon.ts:160 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L160>`__
+     `addon.ts:179 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L179>`__
 
 
 .. rubric:: readModelSync
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -439,7 +533,25 @@ Methods
    * **Returns:** Promise<\ :doc:`Model <Model>`\ >
 
    * **Defined in:**
-     `addon.ts:166 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L166>`__
+     `addon.ts:187 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L187>`__
+
+
+   .. code-block:: ts
+
+      readModelSync(modelPath, weights): Model
+
+   A synchronous version of :ref:`Core.readModel <readModel>`.
+   It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
+
+   * **Parameters:**
+
+     - modelPath: string
+     - weights: Tensor
+
+   * **Returns:** :doc:`Model <Model>`
+
+   * **Defined in:**
+     `addon.ts:192 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L192>`__
 
 
    .. code-block:: ts
@@ -458,16 +570,16 @@ Methods
    * **Returns:**  :doc:`Model <Model>`
 
    * **Defined in:**
-     `addon.ts:171 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L171>`__
+     `addon.ts:197 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L197>`__
 
 
 .. rubric:: setProperty
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
-      setProperty(properties): void
+      setProperty(properties: Record<string, OVAny>): void
 
    It sets the properties.
 
@@ -477,23 +589,21 @@ Methods
 
        .. code-block:: ts
 
-          properties: {
-                   [key: string]: string | number | boolean;
-          }
+          properties: Record<string, OVAny>,
 
        An object with the property name - property value pairs.
 
-       - [key: string]: string | number | boolean
+       - Record<string, \ :doc:`OVAny <../types/OVAny>`\>
 
    * **Returns:**  void
 
    * **Defined in:**
-     `addon.ts:176 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L176>`__
+     `addon.ts:202 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L202>`__
 
 
    .. code-block:: ts
 
-      setProperty(deviceName, properties): void
+      setProperty(deviceName, properties: Record<string, OVAny>): void
 
    It sets the properties for a device.
 
@@ -504,14 +614,12 @@ Methods
 
        .. code-block:: ts
 
-          properties: {
-                   [key: string]: string | number | boolean;
-          }
+          properties: Record<string, OVAny>,
 
-       - [key: string]: string | number | boolean
+       - Record<string, \ :doc:`OVAny <../types/OVAny>`\>
 
-   * **Returns:**  string | number | boolean
+   * **Returns:**  :doc:`OVAny <../types/OVAny>`
 
    * **Defined in:**
-     `addon.ts:182 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L182>`__
+     `addon.ts:204 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L204>`__
 

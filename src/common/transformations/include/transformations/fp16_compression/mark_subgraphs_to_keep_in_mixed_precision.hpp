@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/backward_graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -26,6 +25,6 @@ constexpr auto float16_min_normalized = float16::from_bits(0x0400);
  */
 class ov::pass::MarkSugraphsToKeepInMixedPrecision : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("MarkSugraphsToKeepInMixedPrecision", "0");
+    OPENVINO_MODEL_PASS_RTTI("MarkSugraphsToKeepInMixedPrecision");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

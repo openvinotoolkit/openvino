@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,8 @@ public:
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,
         const ov::Shape& inputShape,
-        const ov::builder::subgraph::DequantizationOperations dequantization);
+        const ov::builder::subgraph::DequantizationOperations dequantization,
+        bool constant_path);
 };
 
 }  // namespace subgraph

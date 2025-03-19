@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ bool matching_node_found_in_graph(const std::vector<DerivedFromNode>& ops,
                                   const std::unordered_set<std::string>& output_names,
                                   int out_tensor_number = 0) {
     return std::any_of(std::begin(ops), std::end(ops), [&](const DerivedFromNode op) {
-        if (const std::shared_ptr<OpType> casted = std::dynamic_pointer_cast<OpType>(op)) {
+        if (const std::shared_ptr<OpType> casted = ov::as_type_ptr<OpType>(op)) {
             const auto& op_friendly_name = casted->get_friendly_name();
             const auto& op_output_names = casted->get_output_tensor(out_tensor_number).get_names();
             if (op_friendly_name == friendly_name && op_output_names == output_names) {
@@ -44,11 +44,11 @@ template <typename OpType, typename DerivedFromNode>
 std::shared_ptr<OpType> find_by_friendly_name(const std::vector<DerivedFromNode>& ops,
                                               const std::string& friendly_name) {
     const auto it = std::find_if(std::begin(ops), std::end(ops), [&friendly_name](const DerivedFromNode& op) {
-        return op->get_friendly_name() == friendly_name && std::dynamic_pointer_cast<OpType>(op) != nullptr;
+        return op->get_friendly_name() == friendly_name && ov::as_type_ptr<OpType>(op) != nullptr;
     });
 
     if (it != std::end(ops)) {
-        return std::dynamic_pointer_cast<OpType>(*it);
+        return ov::as_type_ptr<OpType>(*it);
     } else {
         return nullptr;
     }

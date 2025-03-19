@@ -16,7 +16,7 @@ the user. Any action performed on the ``TypedArray`` will be reflected in this
 tensor memory.
 
 * **Defined in:**
-  `addon.ts:376 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L376>`__
+  `addon.ts:433 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L433>`__
 
 
 Constructors
@@ -25,7 +25,7 @@ Constructors
 
 .. rubric:: constructor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -47,7 +47,7 @@ Constructors
    * **Returns:**  :doc:`Tensor <Tensor>`
 
    * **Defined in:**
-     `addon.ts:383 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L383>`__
+     `addon.ts:440 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L440>`__
 
 
    .. code-block:: ts
@@ -74,7 +74,7 @@ Constructors
    * **Returns:**  :doc:`Tensor <Tensor>`
 
    * **Defined in:**
-     `addon.ts:392 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L392>`__
+     `addon.ts:449 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L449>`__
 
 
    .. code-block:: ts
@@ -88,5 +88,5 @@ Constructors
    * **Returns:**  :doc:`Tensor <Tensor>`
 
    * **Defined in:**
-     `addon.ts:399 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L399>`__
+     `addon.ts:459 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L459>`__
 

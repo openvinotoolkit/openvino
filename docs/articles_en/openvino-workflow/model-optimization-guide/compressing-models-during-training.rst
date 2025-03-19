@@ -1,6 +1,4 @@
-.. {#tmo_introduction}
-
-Compressing Models During Training
+Training-time Optimization
 ==================================
 
 
@@ -12,100 +10,76 @@ Compressing Models During Training
    compressing-models-during-training/filter-pruning
 
 
-Introduction
-####################
+Training-time optimization offered by NNCF is based on model compression algorithms executed
+alongside the training process. This approach results in the optimal balance between lower
+accuracy and higher performance, and better results than post-training quantization. It also
+enables you to set the minimum acceptable accuracy value for your optimized model, determining
+the optimization efficiency.
 
-Training-time model compression improves model performance by applying optimizations (such as quantization) during the training. The training process minimizes the loss associated with the lower-precision optimizations, so it is able to maintain the model’s accuracy while reducing its latency and memory footprint. Generally, training-time model optimization results in better model performance and accuracy than :doc:`post-training optimization <quantizing-models-post-training>`, but it can require more effort to set up.
+With a few lines of code, you can apply NNCF compression to a PyTorch or TensorFlow training
+script. Once the model is optimized, you may convert it to the
+:doc:`OpenVINO IR format <../../documentation/openvino-ir-format>`, getting even better
+inference results with OpenVINO Runtime. To optimize your model, you will need:
 
-OpenVINO provides the Neural Network Compression Framework (NNCF) tool for implementing compression algorithms on models to improve their performance. NNCF is a Python library that integrates into PyTorch and TensorFlow training pipelines to add training-time compression methods to the pipeline. To apply training-time compression methods with NNCF, you need:
-
-- A floating-point model from the PyTorch or TensorFlow framework.
-- A training pipeline set up in the PyTorch or TensorFlow framework.
-- Training and validation datasets.
-
-Adding compression to a training pipeline only requires a few lines of code. The compression techniques are defined through a single configuration file that specifies which algorithms to use during fine-tuning.
-
-NNCF Quick Start Examples
-+++++++++++++++++++++++++
-
-See the following Jupyter Notebooks for step-by-step examples showing how to add model compression to a PyTorch or Tensorflow training pipeline with NNCF:
-
-- `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
-- `Quantization Aware Training with NNCF and TensorFlow <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__.
-
-Installation
-####################
-
-NNCF is open-sourced on `GitHub <https://github.com/openvinotoolkit/nncf>`__ and distributed as a separate package from OpenVINO. It is also available on PyPI. Install it to the same Python environment where PyTorch or TensorFlow is installed.
-
-Install from PyPI
-++++++++++++++++++++
-
-To install the latest released version via pip manager run the following command:
-
-.. code-block:: sh
-
-   pip install nncf
-
-
-To install the latest NNCF version from source, follow the instruction on `GitHub <https://github.com/openvinotoolkit/nncf#installation>`__.
-
-.. note::
-
-   NNCF does not have OpenVINO as an installation requirement. To deploy optimized models you should install OpenVINO separately.
-
-Working with NNCF
-####################
-
-The figure below shows a common workflow of applying training-time compressions with NNCF. The NNCF optimizations are added to the TensorFlow or PyTorch training script, and then the model undergoes fine-tuning. The optimized model can then be exported to OpenVINO IR format for accelerated performance with OpenVINO Runtime.
+* A PyTorch or TensorFlow floating-point model.
+* A training pipeline set up in the original framework (PyTorch or TensorFlow).
+* Training and validation datasets.
+* A `JSON configuration file <https://github.com/openvinotoolkit/nncf/blob/develop/docs/ConfigFile.md>`__
+  specifying which compression methods to use.
 
 .. image:: ../../assets/images/nncf_workflow.svg
+   :align: center
 
 
 Training-Time Compression Methods
-+++++++++++++++++++++++++++++++++
-
-NNCF provides several methods for improving model performance with training-time compression.
+########################################
 
 Quantization
---------------------
-Quantization is the process of converting the weights and activation values in a neural network from a high-precision format (such as 32-bit floating point) to a lower-precision format (such as 8-bit integer). It helps to reduce the model’s memory footprint and latency. NNCF uses quantization-aware training to quantize models.
++++++++++++++++++++++++++
 
-Quantization-aware training inserts nodes into the neural network during training that simulate the effect of lower precision. This allows the training algorithm to consider quantization errors as part of the overall training loss that gets minimized during training. The network is then able to achieve enhanced accuracy when quantized.
+Uniform 8-bit quantization, the method officially supported by NNCF, converts all weights and
+activation values in a model from a high-precision format, such as 32-bit floating point, to a
+lower-precision format, such as 8-bit integer. During training, it inserts into the model nodes
+that simulate the effect of a lower precision. This way, the training algorithm considers
+quantization errors part of the overall training loss and tries to minimize their impact.
 
-The officially supported method of quantization in NNCF is uniform 8-bit quantization. This means all the weights and activation functions in the neural network are converted to 8-bit values. See the :doc:`Quantization-aware Training guide <compressing-models-during-training/quantization-aware-training>` to learn more.
+To learn more, see:
+
+* guide on quantization for :doc:`PyTorch and TensorFlow <./compressing-models-during-training/quantization-aware-training>`.
+* Jupyter notebook on `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
+* Jupyter notebook on `Quantization Aware Training with NNCF and TensorFlow <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__.
+
 
 Filter pruning
---------------------
++++++++++++++++++++++++++
 
-Filter pruning algorithms compress models by zeroing out the output filters of convolutional layers based on a certain filter importance criterion. During fine-tuning, an importance criteria is used to search for redundant filters that don’t significantly contribute to the network’s output and zero them out. After fine-tuning, the zeroed-out filters are removed from the network. For more information, see the :doc:`Filter Pruning <compressing-models-during-training/filter-pruning>` page.
+During fine-tuning, the importance criterion is used to search for redundant convolutional layer
+filters that don't significantly contribute to the model's output. After fine-tuning, these
+filters are removed from the model.
+
+For more information, see:
+
+* How to use :doc:`Filter Pruning <../model-optimization-guide/compressing-models-during-training/filter-pruning>`.
+* Technical details of `Filter Pruning <https://github.com/openvinotoolkit/nncf/blob/develop/docs/usage/training_time_compression/other_algorithms/Pruning.md>`__.
+
 
 Experimental methods
---------------------
++++++++++++++++++++++++++
 
-NNCF also provides state-of-the-art compression techniques that are still in the experimental stages of development and are only recommended for expert developers. These include:
+NNCF provides some state-of-the-art compression methods that are still in the experimental
+stages of development and are only recommended for expert developers. These include:
 
-- Mixed-precision quantization
-- Sparsity
-- Binarization
+* Mixed-precision quantization.
+* Sparsity (check out the `Sparsity-Aware Training  notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-sparsity-aware-training>`__).
+* Movement Pruning (Movement Sparsity).
 
-To learn more about these methods, visit the `NNCF repository on GitHub <https://github.com/openvinotoolkit/nncf>`__.
+To learn `more about these methods <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file#training-time-compression-algorithms>`__,
+see developer documentation of the NNCF repository.
 
-Recommended Workflow
-++++++++++++++++++++
-
-Using compression-aware training requires a training pipeline, an annotated dataset, and compute resources (such as CPUs or GPUs). If you don't already have these set up and available, it can be easier to start post-training quantization to quickly see quantized results. Then you can use compression-aware training if the model isn't accurate enough. We recommend the following workflow for compressing models with NNCF:
-
-1. :doc:`Perform post-training quantization <quantizing-models-post-training>` on your model and then compare performance to the original model.
-2. If the accuracy is too degraded, use :doc:`Quantization-aware Training <compressing-models-during-training/quantization-aware-training>` to increase accuracy while still achieving faster inference time.
-3. If the quantized model is still too slow, use :doc:`Filter Pruning <compressing-models-during-training/filter-pruning>` to further improve the model’s inference speed.
 
 Additional Resources
 ####################
 
-- :doc:`Quantizing Models Post-training <quantizing-models-post-training>`
+- :doc:`Post-training quantization <quantizing-models-post-training>`
+- :doc:`Model Optimization - NNCF <../model-optimization>`
 - `NNCF GitHub repository <https://github.com/openvinotoolkit/nncf>`__
-- `NNCF FAQ <https://github.com/openvinotoolkit/nncf/blob/develop/docs/FAQ.md>`__
-- `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
-- `Quantization Aware Training with NNCF and TensorFlow <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__.
-

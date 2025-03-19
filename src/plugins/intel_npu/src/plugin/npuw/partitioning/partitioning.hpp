@@ -9,7 +9,9 @@
 #include <variant>
 #include <vector>
 
-#include "intel_npu/al/config/config.hpp"
+#include "../lazy_tensor.hpp"
+#include "../spatial.hpp"
+#include "intel_npu/config/config.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {
@@ -30,16 +32,32 @@ struct Subgraph {
     bool _optimized_out = false;
 
     std::string _avoid_list;
+    std::string _tag;
 
     // Function calls only (note: all the above fields are not used)
     //
     // FIXME: Replace with variant or some other proper way (maybe
     // even a class hierarchy)
-    std::string _repeated_id;
-    std::string _funcall;
+    std::string _repeated_id;  // FIXME: What's the difference
+    std::string _funcall;      // ..between these two?
     std::vector<ov::Tensor> _closure;
     std::vector<ov::Tensor> _scales;  // Scale coeffs for manual unpacking
     std::vector<ov::Tensor> _zerops;  // Zero points for manual unpacking
+
+    // Stores transformation history for weights which will be applied before inference
+    std::vector<weights::LazyTensor> _lazy_closure;
+    // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
+    std::vector<bool> _is_lazy_unpack;
+
+    bool _forced_to_fcall = false;
+
+    struct Gather {
+        // NB.: int64_t is strange but it is used by OV to refer to parameters
+        int64_t dst_idx = -1;
+        int64_t src_idx = -1;
+        int64_t idx_idx = -1;
+    };
+    Gather _host_gather;
 
     using Ref = std::reference_wrapper<Subgraph>;
 };
@@ -49,9 +67,16 @@ struct Function {
     std::size_t _param_offset;
     std::size_t _num_params_total;
 
+    std::string _tag;  // derived from the partitioning
+
     // Mapping: from a prototype {Layer/input_idx} to {param_idx}
     // NOTE: it seems it is required only for `matchRepeatedSubgraphs()'
     std::map<std::pair<std::string, std::size_t>, std::size_t> _param_mapping;
+
+    std::optional<ov::npuw::function::Spatial> _spatial;
+
+    // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
+    std::set<std::size_t> _idx_lazy_unpack;
 };
 
 struct Group {
@@ -63,6 +88,12 @@ struct Group {
     float gflops;
 
     std::string avoid_list;
+    std::string tag;
+
+    // Set to true if the Group was forcibly turned to functon. Such
+    // function has just a single associated funcall and are subjects
+    // to some optimizations (simplifications).
+    bool forced_to_fcall = false;
 
     ov::npuw::Subgraph sg;
 };

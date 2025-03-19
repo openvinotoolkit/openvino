@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ref_transpose.hpp"
-#include "openvino/core/parallel.hpp"
-#include "nodes/common/cpu_memcpy.h"
 
-namespace ov {
-namespace intel_cpu {
+#include "nodes/common/cpu_memcpy.h"
+#include "openvino/core/parallel.hpp"
+
+namespace ov::intel_cpu {
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {
     for (int j = nDims - 1; j >= 0; j--) {
@@ -20,29 +20,34 @@ static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims&
 static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDims& indexes) {
     for (int j = nDims - 1; j >= 0; --j) {
         ++indexes[j];
-        if (indexes[j] < dims[j])
+        if (indexes[j] < dims[j]) {
             break;
-        else
-            indexes[j] = 0;
+        }
+        indexes[j] = 0;
     }
 }
 
-void RefTransposeExecutor::referenceExecute(const uint8_t* src_data, uint8_t* dst_data, jit_permute_config_params jcp, const int mb) {
+void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
+                                            uint8_t* dst_data,
+                                            const jit_permute_config_params& jcp,
+                                            const int mb) {
     VectorDims dst_dims = jcp.dst_block_dims;
     const VectorDims dst_strides = jcp.dst_strides;
     const VectorDims src_strides = jcp.src_strides;
     const size_t data_size = jcp.data_size;
     const size_t ndims = dst_dims.size();
 
-    if (static_cast<int>(dst_dims[0]) != mb)
+    if (static_cast<int>(dst_dims[0]) != mb) {
         dst_dims[0] = mb;
+    }
 
-    size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<size_t>());
+    size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<>());
 
     auto get_idx = [ndims, data_size](const VectorDims& indexes, const VectorDims& strides) {
         size_t idx = 0;
-        for (size_t i = 0; i < ndims; ++i)
+        for (size_t i = 0; i < ndims; ++i) {
             idx += indexes[i] * strides[i];
+        }
         return idx * data_size;
     };
 
@@ -64,19 +69,18 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data, uint8_t* ds
 }
 
 void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
-    const uint8_t* src_data = src[0]->getDataAs<const uint8_t>();
-    uint8_t* dst_data = dst[0]->getDataAs<uint8_t>();
+    const auto* src_data = src[0]->getDataAs<const uint8_t>();
+    auto* dst_data = dst[0]->getDataAs<uint8_t>();
     const int MB = src[0]->getStaticDims()[0];
     referenceExecute(src_data, dst_data, jcp, MB);
 }
 
-bool RefTransposeExecutor::init(const TransposeParams &transposeParams,
-                                const std::vector<MemoryDescPtr> &srcDescs,
-                                const std::vector<MemoryDescPtr> &dstDescs,
-                                const dnnl::primitive_attr &attr) {
+bool RefTransposeExecutor::init(const TransposeParams& transposeParams,
+                                const std::vector<MemoryDescPtr>& srcDescs,
+                                const std::vector<MemoryDescPtr>& dstDescs,
+                                const dnnl::primitive_attr& attr) {
     jcp = TransposeExecutor::prepareParams(transposeParams.permuteParams);
     return true;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
         }
     }
     if (m_is_input && m_is_output) {
-        OPENVINO_DEBUG << "[WARNING] Place " << tensor_index << " is input and output at a same time.";
+        OPENVINO_DEBUG("[WARNING] Place ", tensor_index, " is input and output at a same time.");
     }
 }
 

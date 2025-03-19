@@ -1,7 +1,5 @@
-.. {#openvino_docs_model_processing_introduction}
-
-Model Preparation
-=================
+Traditional Model Preparation
+===============================================================================================
 
 
 .. meta::
@@ -24,13 +22,14 @@ OpenVINO supports the following model formats:
 * TensorFlow Lite,
 * ONNX,
 * PaddlePaddle,
+* JAX/Flax (experimental feature)
 * OpenVINO IR.
 
 The easiest way to obtain a model is to download it from an online database, such as
 `Kaggle <https://www.kaggle.com/models>`__, `Hugging Face <https://huggingface.co/>`__, and
 `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
 
-* Skip model conversion and :doc:`run inference <running-inference/integrate-openvino-with-your-application>`
+* Skip model conversion and :doc:`run inference <running-inference>`
   directly from the **TensorFlow, TensorFlow Lite, ONNX, or PaddlePaddle** source format.
   Conversion will still be performed but it will happen automatically and "under the hood".
   This option, while convenient, offers lower performance and stability, as well as fewer
@@ -52,29 +51,23 @@ The easiest way to obtain a model is to download it from an online database, suc
   Once saved as :doc:`OpenVINO IR <model-preparation/convert-model-to-ir>`
   (a set of ``.xml`` and ``.bin`` files), the model may be deployed with maximum performance.
   Because it is already optimized for
-  :doc:`OpenVINO inference <running-inference/integrate-openvino-with-your-application>`,
+  :doc:`OpenVINO inference <running-inference>`,
   it can be read, compiled, and inferred with no additional delay.
 
 .. note::
 
-   Model conversion API prior to OpenVINO 2023.1 is considered deprecated. Existing and new
-   projects are recommended to transition to the new solutions, keeping in mind that they are
-   not fully backwards compatible with ``openvino.tools.mo.convert_model`` or the ``mo``
-   CLI tool. For more details, see the
-   :doc:`Model Conversion API Transition Guide <../documentation/legacy-features/transition-legacy-conversion-api>`.
-
-   For PyTorch models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only
+   For PyTorch and JAX/Flax models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only
    conversion option.
 
-Model States
+Different model representations
 ##############################################
 
-There are three states a model in OpenVINO can be: saved on disk, loaded but not compiled
-(``ov.Model``) or loaded and compiled (``ov.CompiledModel``).
+A model in OpenVINO can be represented in three ways: saved on disk, loaded but not compiled
+(``ov.Model``), and loaded and compiled (``ov.CompiledModel``).
 
 | **Saved on disk**
-|    A model in this state consists of one or more files that fully represent the neural
-     network. A model can be stored in different ways. For example:
+|    One or more files saved on a drive, fully representing the neural network.
+     Different model formats are stored in different ways, for example:
 |       OpenVINO IR: pair of .xml and .bin files
 |       ONNX: .onnx file
 |       TensorFlow: directory with a .pb file and two subfolders or just a .pb file
@@ -88,7 +81,7 @@ There are three states a model in OpenVINO can be: saved on disk, loaded but not
      applying quantization or even adding preprocessing steps before compiling the model.
 
 | **Loaded and compiled**
-|   This state is achieved when one or more devices are specified for a model object to
+|   This representation is achieved when one or more devices are specified for a model object to
     run on (``ov.CompiledModel``), allowing device optimizations to be made and enabling
     inference.
 
@@ -269,6 +262,7 @@ Before saving the model to OpenVINO IR, consider
 :doc:`Post-training Optimization <model-optimization-guide/quantizing-models-post-training>` to achieve more efficient inference and
 a smaller model.
 
+.. _convert_model_cli_ovc:
 
 Convert a Model in CLI: ``ovc``
 ###############################
@@ -281,7 +275,7 @@ formats to
 which can then be read, compiled, and run by the final inference application.
 
 .. note::
-   PyTorch models cannot be converted with ``ovc``, use ``openvino.convert_model`` instead.
+   PyTorch and JAX/Flax models cannot be converted with ``ovc``, use ``openvino.convert_model`` instead.
 
 Additional Resources
 ####################
@@ -298,15 +292,4 @@ follow:
 * :doc:`Post-training optimization <model-optimization-guide/quantizing-models-post-training>`
 * :doc:`Model inference in OpenVINO Runtime <running-inference>`
 
-If you are still using the legacy conversion API (``mo`` or ``openvino.tools.mo.convert_model``),
-refer to the following materials:
-
-* :doc:`Transition from legacy mo and ov.tools.mo.convert_model <../documentation/legacy-features/transition-legacy-conversion-api>`
-* :doc:`Legacy Model Conversion API <../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
-
-
-
-
 .. need to investigate python api article generation - api/ie_python_api/_autosummary/openvino.Model.html does not exist, api/ie_python_api/_autosummary/openvino.runtime.Model.html does.
-
-

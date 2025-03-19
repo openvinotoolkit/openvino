@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ ov::pass::ConvertShapeOf3::ConvertShapeOf3() {
     auto shapeof = pattern::wrap_type<ov::op::v3::ShapeOf>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto shapeof = std::dynamic_pointer_cast<ov::op::v3::ShapeOf>(m.get_match_root());
+        auto shapeof = ov::as_type_ptr<ov::op::v3::ShapeOf>(m.get_match_root());
         if (!shapeof) {
             return false;
         }

@@ -5,6 +5,7 @@
 #include "test_utils.h"
 #include "program_wrapper.h"
 #include "fully_connected_inst.h"
+#include "convolution_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "graph/impls/onednn/utils.hpp"
 #endif
@@ -51,7 +52,7 @@ TEST(post_optimize_weights, fuse_reorder_to_weights_reorder_test_dynamic) {
         input_layout("input", in_layout),
         input_layout("weights", weights->get_layout()),
         reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16),
-        fully_connected("fc", input_info("input"), { "reorder_dt" }, "", data_types::f16, {}, 3)
+        fully_connected("fc", input_info("input"), { "reorder_dt" }, "", data_types::f16, 3)
     );
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -134,7 +135,7 @@ TEST(post_optimize_weights, weights_reorder_constant_folding_test_dynamic) {
     topology topology(
         input_layout("input", in_layout),
         data("weights", weights),
-        fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f16, {}, 3)
+        fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f16, 3)
     );
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -200,24 +201,24 @@ TEST(post_optimize_weights, fuse_only_with_supported_weights_layout) {
     ASSERT_TRUE(has_node(*prog, "reorder"));
 }
 
-TEST(post_optimize_weights, fuse_reorder_to_onednn_weights_reorder_test) {
+TEST(post_optimize_weights, onednn_group_conv_weights_reorder_test) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
-    ov::Shape pshape = { 4, 16 };
+    ov::Shape pshape = { 1, 512, 2, 332 };
+    ov::Shape weight_pshape = { 64, 1, 8, 5, 5 };
     auto input = engine.allocate_memory({ pshape, data_types::f16, format::bfyx });
-    auto weights = engine.allocate_memory({ pshape, data_types::f32, format::bfyx });
+    auto weights = engine.allocate_memory({ weight_pshape, data_types::f16, format::bfzyx });
 
-    std::vector<float> weights_data(pshape[0] * pshape[1]);
+    std::vector<ov::float16> weights_data(weight_pshape[0] * weight_pshape[1] * weight_pshape[2] * weight_pshape[3] * weight_pshape[4]);
     std::iota(weights_data.begin(), weights_data.end(), 0.f);
     set_values(weights, weights_data);
 
     topology topology(
         input_layout("input", input->get_layout()),
-        input_layout("weights", weights->get_layout()),
-        reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16),
-        fully_connected("fc", input_info("input"), { "reorder_dt" }, "", data_types::f16)
+        data("weights", weights),
+        convolution("conv", input_info("input"), "weights", "", 64, {1, 1}, {1, 1}, {2, 2}, {2, 2}, true)
     );
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -225,23 +226,19 @@ TEST(post_optimize_weights, fuse_reorder_to_onednn_weights_reorder_test) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     if (engine.get_device_info().supports_immad) {
-        ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_impl} }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::onednn };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", conv_impl} }));
     }
-
-    layout_optimizer lo(true);
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
 
     auto prog = program::build_program(engine, topology, config);
 
-    ASSERT_TRUE(has_node(*prog, "reorder_dt"));
-    auto& fc_node = prog->get_node("fc");
-    auto weights_param = fc_node.as<fully_connected>().get_selected_impl()->get_weights_reorder_params();
-    ASSERT_TRUE(format::is_weights_format(prog->get_node("reorder_dt").get_output_layout().format));
-    ASSERT_TRUE(prog->get_node("reorder_dt").get_input_layout().data_type == data_types::f32);
+    auto& conv_node = prog->get_node("conv");
+    auto weights_param = conv_node.as<convolution>().get_selected_impl()->get_weights_reorder_params();
+    ASSERT_TRUE(format::is_weights_format(prog->get_node("weights_weights_reorder_0").get_output_layout().format));
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    // Check onednn_weights_params->_in_desc data_type is properly updated
+    // Check onednn_weights_params->_out_desc.get_size() with reorder output_layout bytes_count
     auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_param);
-    ASSERT_TRUE(onednn_weights_params->_in_desc.get_data_type() == onednn::convert_data_type(data_types::f32));
+    ASSERT_TRUE(onednn_weights_params->_out_desc.get_size() == prog->get_node("weights_weights_reorder_0").get_output_layout().bytes_count());
 #endif
 }

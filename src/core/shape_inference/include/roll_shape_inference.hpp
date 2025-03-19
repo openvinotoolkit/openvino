@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ std::vector<TRShape> shape_infer(const Roll* op,
 
     if (data_pshape.rank().is_static()) {
         if (auto axes = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
-            ov::util::normalize_axes(op, data_pshape.size(), *axes);
+            ov::util::validate_axes(*axes, data_pshape.rank(), *op);
         }
     }
 

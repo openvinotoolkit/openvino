@@ -32,19 +32,26 @@ public:
     Group() = delete;
     Group(const std::shared_ptr<ov::Node>& node,
           size_t gid,
-          ade::NodeHandle nh,
-          const std::shared_ptr<ade::Graph>& g,
+          own::ade::NodeHandle nh,
+          const std::weak_ptr<own::ade::Graph>& g,
+          const std::weak_ptr<Snapshot>& snapshot);
+    Group(size_t gid,
+          own::ade::NodeHandle nh,
+          const std::weak_ptr<own::ade::Graph>& g,
           const std::weak_ptr<Snapshot>& snapshot);
 
     // After we formed a final structure of partitioning,
     // we append excluded Convert layers to properly link submodels
     // Convert this representation to plugin-compatible one
     ov::npuw::Group toGroup() const;
-    std::vector<ade::NodeHandle> srcNodes() const;
-    std::vector<ade::NodeHandle> dstNodes() const;
-    ade::NodeHandle getHandle() const;
+    std::vector<own::ade::NodeHandle> srcNodes() const;
+    std::vector<own::ade::NodeHandle> dstNodes() const;
+    own::ade::NodeHandle getHandle() const;
     // Note: can only be used during initial group initialization
     std::shared_ptr<ov::Node> getInitialNode() const;
+    void addInput(const std::shared_ptr<ov::Node>& node);
+    void addOutput(const std::shared_ptr<ov::Node>& node);
+    void addContent(const std::shared_ptr<ov::Node>& node);
     size_t getId() const;
     // This group consumes its producer
     void fuse(const Group::GPtr& gptr_prod);
@@ -56,7 +63,9 @@ public:
     bool hasCycle(const Group::GPtr& gptr_cons) const;
     size_t size() const;
     void freeze();
+    void noFold();
     bool isFrozen() const;
+    bool isNoFold() const;
     const detail::OVNodeSet& getContent() const;
 
     // Below is repeated blocks functionality
@@ -65,8 +74,15 @@ public:
     std::shared_ptr<Repeated> repeated() const;
     std::unordered_set<MetaInterconnect> metaInterconnect(const Group::GPtr& gptr_prod) const;
     std::unordered_set<Interconnect> interconnect(const Group::GPtr& gptr_prod) const;
+    // FIXME: unify avoid and isolate
     void avoid(const std::string& device);
+    void isolate(const std::string& tag);
+    void dontIsolate();
     const std::set<std::string>& avoidedTargets() const;
+    const std::string& isolatedTag() const;
+    std::string specialTags() const;
+    void addWeightsPrecision(const std::vector<ov::element::Type>& prec);
+    const std::vector<ov::element::Type>& getConstsPrecision() const;
 
 private:
     void includeExtraLayers(detail::OVNodeSet& input_layers,
@@ -82,12 +98,18 @@ private:
     detail::OVNodeSet m_content;
     detail::OVNodeSet m_output_layers;
 
-    ade::NodeHandle m_nh;
+    own::ade::NodeHandle m_nh;
     size_t m_id;  // used for utility prints only
-    std::shared_ptr<ade::Graph> m_graph;
+    std::weak_ptr<own::ade::Graph> m_graph;
     std::weak_ptr<Snapshot> m_snapshot;
     bool m_frozen = false;
+    bool m_nofold = false;
     std::set<std::string> m_avoided_devices;
+    std::string m_isol_tag = "";
+
+    // Structure to keep track of mixed precision within initial model
+    // Note: partitioning is stable so keep it in a single vector
+    std::vector<ov::element::Type> m_consts_precision;
 
     // Unique repeated tag
     std::shared_ptr<Repeated> m_repeated = nullptr;

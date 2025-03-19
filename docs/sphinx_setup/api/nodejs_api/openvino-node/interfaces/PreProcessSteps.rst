@@ -9,7 +9,7 @@ Interface PreProcessSteps
    }
 
 * **Defined in:**
-  `addon.ts:534 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L534>`__
+  `addon.ts:603 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L603>`__
 
 
 Methods
@@ -18,7 +18,7 @@ Methods
 
 .. rubric:: resize
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -31,5 +31,5 @@ Methods
    * **Returns:** :doc:`PreProcessSteps <PreProcessSteps>`
 
    * **Defined in:**
-     `addon.ts:535 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L535>`__
+     `addon.ts:604 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L604>`__
 

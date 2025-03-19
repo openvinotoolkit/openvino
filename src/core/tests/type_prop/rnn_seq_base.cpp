@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,10 +83,7 @@ public:
         return std::make_shared<T>(X, H_t, sequence_lengths, W, R, B, p.hidden_size.get_max_length(), p.direction);
     }
 
-    template <
-        typename T = TOp,
-        typename std::enable_if<std::is_same<T, v0::LSTMSequence>::value || std::is_same<T, v5::LSTMSequence>::value,
-                                bool>::type = true>
+    template <typename T = TOp, typename std::enable_if<std::is_same<T, v5::LSTMSequence>::value, bool>::type = true>
     std::shared_ptr<T> make_rnn_seq_based_op(RNNSeqParams& p, bool use_default_ctor = false) {
         p.gates_count = 4;
         p.outputs_size = 3;
@@ -108,12 +105,6 @@ public:
             op->set_direction(p.direction);
             op->set_hidden_size(p.hidden_size.get_max_length());
             auto inputs = OutputVector{X, H_t, C_t, sequence_lengths, W, R, B};
-            if (ov::is_type<v0::LSTMSequence>(op)) {
-                const auto P =
-                    make_shared<v0::Parameter>(p.et,
-                                               PartialShape{p.num_directions, p.hidden_size * (p.gates_count - 1)});
-                inputs.push_back(P);
-            }
             op->set_arguments(inputs);
             op->validate_and_infer_types();
             return op;
@@ -282,7 +273,7 @@ REGISTER_TYPED_TEST_SUITE_P(RNNSeqBaseTest,
                             interval_symbols_dims_shape_infer_REVERSE,
                             interval_symbols_dims_shape_infer_BIDIRECTIONAL);
 
-using RNNSeqBaseTypes = Types<op::v5::RNNSequence, op::v5::GRUSequence, op::v0::LSTMSequence, op::v5::LSTMSequence>;
+using RNNSeqBaseTypes = Types<op::v5::RNNSequence, op::v5::GRUSequence, op::v5::LSTMSequence>;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, RNNSeqBaseTest, RNNSeqBaseTypes);
 
 }  // namespace rnn_seq_test

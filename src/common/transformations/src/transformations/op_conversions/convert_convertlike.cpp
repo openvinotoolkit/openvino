@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,14 +21,14 @@ ov::pass::ConvertConvertLike::ConvertConvertLike() {
     auto convertlike = pattern::wrap_type<ov::op::v1::ConvertLike>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto cvtlike = std::dynamic_pointer_cast<ov::op::v1::ConvertLike>(m.get_match_root());
+        auto cvtlike = ov::as_type_ptr<ov::op::v1::ConvertLike>(m.get_match_root());
         if (!cvtlike) {
             return false;
         }
 
         auto like = cvtlike->input_value(1);
         const element::Type& dest_type = like.get_element_type();
-        if (dest_type == element::dynamic || dest_type == element::undefined)
+        if (dest_type == element::dynamic)
             return false;
 
         auto cvt = std::make_shared<ov::op::v0::Convert>(cvtlike->input_value(0), dest_type);

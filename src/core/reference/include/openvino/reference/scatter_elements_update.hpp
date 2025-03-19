@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,7 +96,7 @@ std::function<T(const T, const T)> reduction_functor_for(
 }
 
 template <>
-std::function<char(const char, const char)> reduction_functor_for<char>(
+inline std::function<char(const char, const char)> reduction_functor_for<char>(
     const ov::op::v12::ScatterElementsUpdate::Reduction reduction_type) {
     switch (reduction_type) {
     case ov::op::v12::ScatterElementsUpdate::Reduction::MAX:

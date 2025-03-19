@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_reduction_ReduceLogicalOr_1}
-
 ReduceLogicalOr
 ===============
 

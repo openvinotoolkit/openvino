@@ -82,7 +82,8 @@ std::shared_ptr<ov::Model> MHAFunction::initOriginal() const {
     auto softmax_out = add->output(0);
     if (with_reshape) {
         const auto interm_shape = add->get_output_shape(0);
-        const auto batch = std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + rank - 1, 1, std::multiplies<size_t>());
+        const auto batch =
+            std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + (rank - 1), 1, std::multiplies<size_t>());
         const auto reshape0ConstData = std::vector<int64_t>{ batch, -1 };
         const auto reshape1ConstData = interm_shape;
         const auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape0ConstData.size()}, reshape0ConstData);
@@ -109,46 +110,43 @@ std::shared_ptr<ov::Model> MHAFunction::initReference() const {
     auto data1 = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
     auto data2 = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
     auto data3 = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
+
     ov::ParameterVector ngraphParams = {data0, data1, data2, data3};
-    NodeVector subgraph_inputs = {data0, data1, data2, data3};
-
-    auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
-    auto transpose1Param = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
-    auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
-    auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
-
-    ov::ParameterVector subgraph_params = {transpose0Param, transpose1Param, addParam, transpose2Param};
 
     const auto rank = input_shapes[0].size();
     const auto fusion_order = get_fusion_order(rank);
     const auto decomposed_order = get_decomposed_order(rank);
 
-    const auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
     const auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, decomposed_order);
-    const auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
-    const auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(data1, transpose1Const);
 
-    const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
-    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
-    std::shared_ptr<ov::Node> matmul_parent1 = transpose1;
+    std::shared_ptr<ov::Node> subgraph_parent1 = transpose1;
     if (with_mul) {
         ov::Shape shape(rank, 1);
         if (transpose1->get_output_partial_shape(0).is_static()) {
             shape[rank - 3] = transpose1->get_output_shape(0)[rank - 3];
         }
-        const auto mulConst = ov::test::utils::make_constant(precisions[1], shape);
 
-        if (ov::shape_size(shape) > 1) {
-            const auto mulParam = std::make_shared<ov::opset1::Parameter>(precisions[1], mulConst->get_shape());
-            matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulParam);
-            subgraph_params = {transpose0Param, transpose1Param, mulParam, addParam, transpose2Param};
-            subgraph_inputs = {data0, data1, mulConst, data2, data3};
-        } else {
-            matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
-        }
+        const auto mulConst = ov::test::utils::make_constant(precisions[1], shape);
+        subgraph_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
     }
 
-    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, matmul_parent1);
+    NodeVector subgraph_inputs = {data0, subgraph_parent1, data2, data3};
+
+    auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(subgraph_parent1->get_element_type(), subgraph_parent1->get_output_partial_shape(0));
+    auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+    auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
+
+    ov::ParameterVector subgraph_params = {transpose0Param, brgemm1Param, addParam, transpose2Param};
+
+    const auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+    const auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+    const auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+
+    const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
+
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, brgemm1Param);
     const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
     const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
@@ -167,55 +165,45 @@ std::shared_ptr<ov::Model> MHASplitMFunction::initReference() const {
     auto data3 = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
     ov::ParameterVector ngraphParams = {data0, data1, data2, data3};
 
+    const auto rank_before = input_shapes[1].size();
+    const auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank_before}, get_decomposed_order(rank_before));
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(data1, transpose1Const);
+
+    std::shared_ptr<ov::Node> subgraph_parent1 = transpose1;
+    if (with_mul) {
+        ov::Shape shape(rank_before, 1);
+        if (transpose1->get_output_partial_shape(0).is_static()) {
+            shape[rank_before - 3] = transpose1->get_output_shape(0)[rank_before - 3];
+        }
+        const auto mulConst = ov::test::utils::make_constant(precisions[1], shape);
+        subgraph_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
+    }
+
     auto make_reshape = [](const std::shared_ptr<ov::Node>& node, const ov::Shape& new_shape) {
         auto shape_const = ov::op::v0::Constant::create(ov::element::i32, {new_shape.size()}, new_shape);
         return std::make_shared<ov::op::v1::Reshape>(node, shape_const, true);
     };
 
     auto reshape0 = make_reshape(data0, reshapes[0]);
-    auto reshape1 = make_reshape(data1, reshapes[1]);
+    auto reshape1 = make_reshape(subgraph_parent1, reshapes[1]);
     auto reshape2 = make_reshape(data2, reshapes[2]);
     auto reshape3 = make_reshape(data3, reshapes[3]);
     NodeVector subgraph_inputs = {reshape0, reshape1, reshape2, reshape3};
 
     auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], reshape0->get_shape());
-    auto transpose1Param = std::make_shared<ov::opset1::Parameter>(precisions[1], reshape1->get_shape());
+    auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(precisions[1], reshape1->get_shape());
     auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], reshape2->get_shape());
     auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precisions[3], reshape3->get_shape());
-    ov::ParameterVector subgraph_params = {transpose0Param, transpose1Param, addParam, transpose2Param};
+    ov::ParameterVector subgraph_params = {transpose0Param, brgemm1Param, addParam, transpose2Param};
 
     const auto rank = input_shapes[0].size() + 1;
-
     const auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, get_fusion_order_after_split_m(rank, true));
-    const auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, get_decomposed_order_after_split_m(rank));
     const auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, get_fusion_order_after_split_m(rank, true));
     const auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, get_fusion_order_after_split_m(rank, false));
 
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
-    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
 
-    std::shared_ptr<ov::Node> matmul_parent1 = transpose1;
-    if (with_mul) {
-        ov::Shape shape(rank - 1, 1);
-        if (transpose1->get_output_partial_shape(0).is_static()) {
-            shape[rank - 4] = transpose1->get_output_shape(0)[rank - 4];
-        }
-        const auto mulConst = ov::test::utils::make_constant(precisions[1], shape);
-
-        if (ov::shape_size(shape) > 1) {
-            ov::Shape reshape_shape = shape;
-            reshape_shape.insert(reshape_shape.cbegin() + rank - 3, 1);
-            const auto mulReshape = make_reshape(mulConst, reshape_shape);
-            const auto mulParam = std::make_shared<ov::opset1::Parameter>(precisions[1], mulReshape->get_shape());
-            matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulParam);
-            subgraph_params = {transpose0Param, transpose1Param, mulParam, addParam, transpose2Param};
-            subgraph_inputs = {reshape0, reshape1, mulReshape, reshape2, reshape3};
-        } else {
-            matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
-        }
-    }
-
-    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, matmul_parent1);
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, brgemm1Param);
     const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
     const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
@@ -229,6 +217,37 @@ std::shared_ptr<ov::Model> MHASplitMFunction::initReference() const {
     auto reshape4 = make_reshape(subgraph, reshapes[4]);
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(reshape4)};
     return std::make_shared<ov::Model>(results, ngraphParams, "mha");
+}
+
+std::shared_ptr<ov::Model> MHAWithDynamicMulFunction::initOriginal() const {
+    auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto transpose1Param = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
+    auto mulParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+    auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
+    auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precisions[4], input_shapes[4]);
+    ov::ParameterVector ngraphParam = {transpose0Param, transpose1Param, mulParam, addParam, transpose2Param};
+
+    const auto rank = input_shapes[0].size();
+    const auto fusion_order = get_fusion_order(rank);
+    const auto decomposed_order = get_decomposed_order(rank);
+
+    const auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+    const auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, decomposed_order);
+    const auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+    const auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+
+    const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
+    const auto mul = std::make_shared<ov::op::v1::Multiply>(transpose1, mulParam);
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, mul);
+    const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
+    const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
+    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
+    const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
+
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(transpose3)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
 }
 
 std::shared_ptr<ov::Model> MHAMatMul0TransposeFunction::initOriginal() const {
@@ -257,7 +276,8 @@ std::shared_ptr<ov::Model> MHAMatMul0TransposeFunction::initOriginal() const {
     auto softmax_out = add->output(0);
     if (with_reshape) {
         const auto interm_shape = add->get_output_shape(0);
-        const auto batch = std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + rank - 1, 1, std::multiplies<size_t>());
+        const auto batch =
+            std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + (rank - 1), 1, std::multiplies<size_t>());
         const auto reshape0ConstData = std::vector<int64_t>{ batch, -1 };
         const auto reshape1ConstData = interm_shape;
         const auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape0ConstData.size()}, reshape0ConstData);
@@ -285,30 +305,36 @@ std::shared_ptr<ov::Model> MHAMatMul0TransposeFunction::initReference() const {
     auto data2 = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
     auto data3 = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
     ov::ParameterVector ngraphParams = {data0, data1, data2, data3};
-    NodeVector subgraph_inputs = {data0, data1, data2, data3};
-
-    auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
-    auto transpose1Param = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
-    auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
-    auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
-
-    ov::ParameterVector subgraph_params = {transpose0Param, transpose1Param, addParam, transpose2Param};
 
     const auto rank = input_shapes[0].size();
     const auto fusion_order = get_fusion_order(rank);
     const auto decomposed_order = get_decomposed_order(rank);
+    std::vector<int64_t> transposed_b_order(rank);
+    std::iota(transposed_b_order.begin(), transposed_b_order.end(), 0);
+    std::swap(transposed_b_order[rank - 1], transposed_b_order[rank - 2]);
+
+    const auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(data1, transpose1Const);
+    const auto mulConst = ov::test::utils::make_constant(precisions[1], ov::Shape{1});
+    const auto mul = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
+    const auto transposeBConst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{rank}, transposed_b_order);
+    const auto transposeB = std::make_shared<ov::op::v1::Transpose>(mul, transposeBConst);
+
+    NodeVector subgraph_inputs = {data0, transposeB, data2, data3};
+
+    auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(transposeB->get_element_type(), transposeB->get_output_partial_shape(0));
+    auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+    auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
+
+    ov::ParameterVector subgraph_params = {transpose0Param, brgemm1Param, addParam, transpose2Param};
 
     const auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
-    const auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, decomposed_order);
     const auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
     const auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
 
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
-    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
-
-    const auto mulConst = ov::test::utils::make_constant(precisions[1], ov::Shape{1});
-    const auto mul = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
-    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, mul);
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, brgemm1Param);
     const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
     const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
@@ -362,8 +388,8 @@ std::shared_ptr<ov::Model> MHASelectFunction::initOriginal() const {
     // Value is equal to '1' - to avoid situation e^(-1000) / (sum(e^(-1000)) = 0/0 = NAN
     auto selectConst = ov::op::v0::Constant::create(precisions[2], ov::Shape{1}, std::vector<float>{1});
 
-    float transA = false;
-    float transB = false;
+    bool transA = false;
+    bool transB = false;
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, transpose1, transA, transB);
@@ -500,8 +526,8 @@ std::shared_ptr<ov::Model> MHAWOTransposeOnInputsFunction::initOriginal() const 
 
     auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 1, 3});
 
-    float transA = false;
-    float transB = false;
+    bool transA = false;
+    bool transB = false;
     const auto mulConst = ov::test::utils::make_constant(precision, ov::Shape({1}));
     const auto mul = std::make_shared<ov::op::v1::Multiply>(param1, mulConst);
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, mul, transA, transB);
@@ -519,8 +545,8 @@ std::shared_ptr<ov::Model> MHAWOTransposeFunction::initOriginal() const {
     auto param2 = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
     ov::ParameterVector ngraphParam = {param0, param1, param2};
 
-    float transA = false;
-    float transB = false;
+    bool transA = false;
+    bool transB = false;
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, param1, transA, transB);
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, param2, transA, transB);
@@ -567,38 +593,25 @@ std::shared_ptr<ov::Model> MHAFQAfterMatMulFunction::initOriginal() const {
     auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[3]);
     ov::ParameterVector ngraphParam = {transpose0Param, transpose1Param, addParam, transpose2Param};
 
-    const auto shape_rank = input_shapes[0].get_shape().size();
+    const auto shape_rank = input_shapes[0].size();
     auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
     auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 3, 1});
     auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
     auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
 
-    std::vector<int64_t> reshape0ConstData = {static_cast<int64_t>(input_shapes[0].get_shape()[0] *
-                                                                   input_shapes[0].get_shape()[1] * input_shapes[0].get_shape()[2]),
-                                              -1};
-    auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, {reshape0ConstData.size()}, reshape0ConstData);
-
-    std::vector<int64_t> reshape1ConstData = {static_cast<int64_t>(input_shapes[0].get_shape()[0]),
-                                              static_cast<int64_t>(input_shapes[0].get_shape()[2]),
-                                              static_cast<int64_t>(input_shapes[0].get_shape()[1]),
-                                              static_cast<int64_t>(input_shapes[0].get_shape()[1])};
-    auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, {reshape1ConstData.size()}, reshape1ConstData);
-
-    float transA = false;
-    float transB = false;
+    bool transA = false;
+    bool transB = false;
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, transpose1, transA, transB);
     auto fq0 = ov::test::utils::make_fake_quantize(matMul0, ov::element::f32, 256, {1},
-                                                 {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+                                                   {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     const auto add = std::make_shared<ov::op::v1::Add>(fq0, addParam);
-    const auto reshape0 = std::make_shared<ov::opset1::Reshape>(add, reshape0Const, true);
-    const auto softMax = std::make_shared<ov::opset1::Softmax>(reshape0, 1);
-    const auto reshape1 = std::make_shared<ov::opset1::Reshape>(softMax, reshape1Const, true);
+    const auto softMax = std::make_shared<ov::op::v8::Softmax>(add, -1);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
-    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(reshape1, transpose2, transA, transB);
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2, transA, transB);
     auto fq1 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1},
-                                                 {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+                                                   {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fq1, transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(transpose3)};
@@ -611,46 +624,33 @@ std::shared_ptr<ov::Model> MHAINT8MatMulFunction::initOriginal() const {
     auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[3]);
     ov::ParameterVector ngraphParam = {transpose0Param, transpose1Param, addParam, transpose2Param};
 
-    const auto shape_rank = input_shapes[0].get_shape().size();
+    const auto shape_rank = input_shapes[0].size();
     auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
     auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 3, 1});
     auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
     auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
 
-    std::vector<int64_t> reshape0ConstData = {static_cast<int64_t>(input_shapes[0].get_shape()[0] *
-                                                                   input_shapes[0].get_shape()[1] * input_shapes[0].get_shape()[2]),
-                                              -1};
-    auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, {reshape0ConstData.size()}, reshape0ConstData);
-
-    std::vector<int64_t> reshape1ConstData = {static_cast<int64_t>(input_shapes[0].get_shape()[0]),
-                                              static_cast<int64_t>(input_shapes[0].get_shape()[2]),
-                                              static_cast<int64_t>(input_shapes[0].get_shape()[1]),
-                                              static_cast<int64_t>(input_shapes[0].get_shape()[1])};
-    auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, {reshape1ConstData.size()}, reshape1ConstData);
-
     auto fq0 = ov::test::utils::make_fake_quantize(transpose0Param, ov::element::f32, 256, {1},
-                                                 {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+                                                   {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     auto fq1 = ov::test::utils::make_fake_quantize(transpose1Param, ov::element::f32, 256, {1},
-                                                 {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+                                                   {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     auto fq2 = ov::test::utils::make_fake_quantize(transpose2Param, ov::element::f32, 256, {1},
-                                                 {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
-    float transA = false;
-    float transB = false;
+                                                   {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+    bool transA = false;
+    bool transB = false;
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(fq0, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(fq1, transpose1Const);
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, transpose1, transA, transB);
     auto fq3 = ov::test::utils::make_fake_quantize(matMul0, ov::element::f32, 256, {1},
-                                                 {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+                                                   {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     const auto add = std::make_shared<ov::op::v1::Add>(fq3, addParam);
-    const auto reshape0 = std::make_shared<ov::opset1::Reshape>(add, reshape0Const, true);
-    const auto softMax = std::make_shared<ov::opset1::Softmax>(reshape0, 1);
-    const auto reshape1 = std::make_shared<ov::opset1::Reshape>(softMax, reshape1Const, true);
-    auto fq4 = ov::test::utils::make_fake_quantize(reshape1, ov::element::f32, 256, {1},
-                                                 {0}, {0.820726}, {0}, {0.820726});
+    const auto softMax = std::make_shared<ov::op::v8::Softmax>(add, -1);
+    auto fq4 = ov::test::utils::make_fake_quantize(softMax, ov::element::f32, 256, {1},
+                                                   {0}, {0.820726}, {0}, {0.820726});
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(fq2, transpose2Const);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(fq4, transpose2, transA, transB);
     auto fq5 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1},
-                                                 {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
+                                                   {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fq5, transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(transpose3)};
@@ -663,34 +663,20 @@ std::shared_ptr<ov::Model> MHAQuantMatMul0Function::initOriginal() const {
     auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[3]);
     ov::ParameterVector ngraphParam = {transpose0Param, transpose1Param, addParam, transpose2Param};
 
-    const auto channel = int64_t(12);
-    const auto last_dim = input_shapes[0].get_shape().back();
-    OPENVINO_ASSERT(last_dim % channel == 0, "Incorrect test configuration");
-    const auto new_shape = std::vector<int64_t>{0, 0, channel, static_cast<int64_t>(last_dim) / channel};
+    const auto shape_rank = input_shapes[0].size();
+    auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
+    auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 3, 1});
+    auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
+    auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
 
-    auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, {new_shape.size()}, new_shape);
-    auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, {new_shape.size()}, new_shape);
-    auto reshape2Const = ov::op::v0::Constant::create(ov::element::i64, {new_shape.size()}, new_shape);
-    auto reshape3Const = ov::op::v0::Constant::create(ov::element::i64, {input_shapes[0].size()}, std::vector<int64_t>{0, 0, -1});
-
-    auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
-    auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 3, 1});
-    auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
-    auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
-
-    const auto reshape1 = std::make_shared<ov::op::v1::Reshape>(transpose1Param, reshape1Const, true);
-    const auto reshape2 = std::make_shared<ov::op::v1::Reshape>(transpose2Param, reshape2Const, true);
-
-    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(reshape1, transpose1Const);
-    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(reshape2, transpose2Const);
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
+    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
 
     auto fq0 = ov::test::utils::make_fake_quantize(transpose0Param, ov::element::f32, 256, {1},
-                                                 {-12.5187311}, {12.4209289}, {-12.5187311}, {12.4209289});
+                                                   {-12.5187311}, {12.4209289}, {-12.5187311}, {12.4209289});
     auto fq1 = ov::test::utils::make_fake_quantize(transpose1, ov::element::f32, 256, {1},
-                                                 {-1.43326699}, {1.42206954}, {-1.43326699}, {1.42206954});
-
-    const auto reshape0 = std::make_shared<ov::op::v1::Reshape>(fq0, reshape0Const, true);
-    const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(reshape0, transpose0Const);
+                                                   {-1.43326699}, {1.42206954}, {-1.43326699}, {1.42206954});
+    const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(fq0, transpose0Const);
 
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, fq1);
     const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
@@ -698,11 +684,10 @@ std::shared_ptr<ov::Model> MHAQuantMatMul0Function::initOriginal() const {
 
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
     auto fq2 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1},
-                                                 {-1.81826221}, {1.804057}, {-1.81826221}, {1.804057});
+                                                   {-1.81826221}, {1.804057}, {-1.81826221}, {1.804057});
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fq2, transpose3Const);
-    const auto reshape3 = std::make_shared<ov::op::v1::Reshape>(transpose3, reshape3Const, true);
 
-    ov::ResultVector results{std::make_shared<ov::opset1::Result>(reshape3)};
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(transpose3)};
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
 }
 std::shared_ptr<ov::Model> MHAFQFunction::initOriginal() const {
@@ -712,21 +697,18 @@ std::shared_ptr<ov::Model> MHAFQFunction::initOriginal() const {
     auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[3]);
     ov::ParameterVector ngraphParam = {transpose0Param, transpose1Param, addParam, transpose2Param};
 
-    const auto shape_rank = input_shapes[0].get_shape().size();
+    const auto shape_rank = input_shapes[0].size();
     auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
     auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 3, 1});
     auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
     auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
 
-    const auto fq0 = ov::test::utils::make_fake_quantize(transpose0Param, ov::element::f32, 256, {1},
-                                                       {-5.217694}, {6.661877}, {-5.217694}, {6.661877});
-    const auto fq1 = ov::test::utils::make_fake_quantize(transpose1Param, ov::element::f32, 256, {1},
-                                                       {-6.40245}, {6.45286}, {-6.40245}, {6.45286});
-    const auto fq_add = ov::test::utils::make_fake_quantize(addParam, ov::element::f32, 256, {1},
-                                                          {-1000}, {0}, {-1000}, {0});
+    const auto fq0 = ov::test::utils::make_fake_quantize(transpose0Param, ov::element::f32, 256, {1}, {-5.217694}, {6.661877}, {-5.217694}, {6.661877});
+    const auto fq1 = ov::test::utils::make_fake_quantize(transpose1Param, ov::element::f32, 256, {1}, {-6.40245}, {6.45286}, {-6.40245}, {6.45286});
+    const auto fq_add = ov::test::utils::make_fake_quantize(addParam, ov::element::f32, 256, {1}, {-1000}, {0}, {-1000}, {0});
 
-    float transA = false;
-    float transB = false;
+    bool transA = false;
+    bool transB = false;
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(fq0, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(fq1, transpose1Const);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
@@ -735,16 +717,13 @@ std::shared_ptr<ov::Model> MHAFQFunction::initOriginal() const {
     const auto mul_deq_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, std::vector<float>{0.00098425});
     const auto mul_deq = std::make_shared<ov::opset1::Multiply>(convert, mul_deq_const);
     const auto mul = std::make_shared<ov::opset1::Multiply>(transpose1, mul_deq);
-    auto fq1_1 = ov::test::utils::make_fake_quantize(mul, ov::element::f32, 256, {1},
-                                                   {-0.8003067}, {0.8066083}, {-0.8003067}, {0.8066083});
+    const auto fq1_1 = ov::test::utils::make_fake_quantize(mul, ov::element::f32, 256, {1}, {-0.8003067}, {0.8066083}, {-0.8003067}, {0.8066083});
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, fq1_1, transA, transB);
-    auto fq2 = ov::test::utils::make_fake_quantize(matMul0, ov::element::f32, 256, {1},
-                                                   {-14.50351}, {17.65645}, {-14.50351}, {17.65645});
+    const auto fq2 = ov::test::utils::make_fake_quantize(matMul0, ov::element::f32, 256, {1}, {-14.50351}, {17.65645}, {-14.50351}, {17.65645});
     const auto add = std::make_shared<ov::opset1::Add>(fq2, fq_add);
     const auto softMax = std::make_shared<ov::opset1::Softmax>(add, 3);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2, transA, transB);
-    auto fq3 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1},
-                                                 {-1.895786}, {2.0028071}, {-1.895786}, {2.0028071});
+    auto fq3 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1}, {-1.895786}, {2.0028071}, {-1.895786}, {2.0028071});
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fq3, transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(transpose3)};
@@ -775,12 +754,12 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initOriginal() cons
     auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, {reshape1ConstData.size()}, reshape1ConstData);
 
     const auto fq_signed_params = ov::builder::subgraph::FakeQuantizeOnData(256, {1}, {-36912.66015625}, {36624.28125}, {-128}, {127}, ov::element::i8);
-    const auto fq0 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(transpose0Param, ov::element::i8, fq_signed_params);
-    const auto fq1 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(transpose1Param, ov::element::i8, fq_signed_params);
-    const auto fq2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(transpose2Param, ov::element::i8, fq_signed_params);
+    const auto fq0 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(transpose0Param, ov::element::f32, fq_signed_params);
+    const auto fq1 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(transpose1Param, ov::element::f32, fq_signed_params);
+    const auto fq2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(transpose2Param, ov::element::f32, fq_signed_params);
 
-    float transA = false;
-    float transB = false;
+    bool transA = false;
+    bool transB = false;
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(fq0, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(fq1, transpose1Const);
     const auto matMul0 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
@@ -789,7 +768,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initOriginal() cons
             ov::op::TemporaryReplaceOutputType(transpose0, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(transpose1, element::f32).get(), transA, transB);
 
-    const auto fq3 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(matMul0, ov::element::i8, fq_signed_params);
+    const auto fq3 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(matMul0, ov::element::f32, fq_signed_params);
     const auto add = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
@@ -802,12 +781,12 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initOriginal() cons
             ov::op::TemporaryReplaceOutputType(add, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(deq, element::f32).get());
 
-    const auto reshape0 = std::make_shared<ov::opset1::Reshape>(add, reshape0Const, true);
+    const auto reshape0 = std::make_shared<ov::opset1::Reshape>(deq_mul, reshape0Const, true);
     const auto softMax = std::make_shared<ov::opset1::Softmax>(reshape0, 1);
     const auto reshape1 = std::make_shared<ov::opset1::Reshape>(softMax, reshape1Const, true);
 
     const auto fq_unsigned_params = ov::builder::subgraph::FakeQuantizeOnData(256, {1}, {0}, {0.245}, {0}, {255}, ov::element::u8);
-    const auto fq4 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(reshape1, ov::element::u8, fq_unsigned_params);
+    const auto fq4 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(reshape1, ov::element::f32, fq_unsigned_params);
 
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(fq2, transpose2Const);
     const auto matMul1 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
@@ -815,7 +794,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initOriginal() cons
             std::vector<element::Type>{ element::f32 },
             ov::op::TemporaryReplaceOutputType(fq4, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(transpose2, element::f32).get(), transA, transB);
-    const auto fq5 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(matMul1, ov::element::i8, fq_signed_params);
+    const auto fq5 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(matMul1, ov::element::f32, fq_signed_params);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fq5, transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(transpose3)};
@@ -829,45 +808,49 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
     ov::ParameterVector ngraphParams = {data0, data1, data2, data3};
 
     const auto fq_signed_params = ov::builder::subgraph::FakeQuantizeOnData(256, {1}, {-36912.66015625}, {36624.28125}, {-128}, {127}, ov::element::i8);
-    const auto fq0 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(data0, ov::element::i8, fq_signed_params);
-    const auto fq1 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(data1, ov::element::i8, fq_signed_params);
-    const auto fq2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(data3, ov::element::i8, fq_signed_params);
-    NodeVector subgraph_inputs = {fq0, fq1, data2, fq2};
+    const auto fq0 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(data0, ov::element::f32, fq_signed_params);
+    const auto fq1 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(data1, ov::element::f32, fq_signed_params);
+    const auto fq2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(data3, ov::element::f32, fq_signed_params);
 
-    auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
-    auto transpose1Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[1]);
-    auto addParam = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[2]);
-    auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[3]);
-    ov::ParameterVector subgraph_params = {transpose0Param, transpose1Param, addParam, transpose2Param};
+    const auto rank = input_shapes[0].get_shape().size();
+    const auto fusion_order = get_fusion_order(rank);
+    const auto decomposed_order = get_decomposed_order(rank);
+    const auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, decomposed_order);
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(fq1, transpose1Const);
 
-    const auto shape_rank = input_shapes[0].get_shape().size();
-    auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
-    auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 3, 1});
-    auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
-    auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
+    NodeVector subgraph_inputs = {fq0, transpose1, data2, fq2};
 
-    std::vector<int64_t> reshape0ConstData = {static_cast<int64_t>(input_shapes[0].get_shape()[0] *
-                                                                   input_shapes[0].get_shape()[1] * input_shapes[0].get_shape()[2]),
-                                              -1};
-    auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, {reshape0ConstData.size()}, reshape0ConstData);
+    const auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
+    const auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(transpose1->get_element_type(), transpose1->get_output_partial_shape(0));
+    const auto addParam = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[2]);
+    const auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[3]);
+    ov::ParameterVector subgraph_params = {transpose0Param, brgemm1Param, addParam, transpose2Param};
 
-    std::vector<int64_t> reshape1ConstData = {static_cast<int64_t>(input_shapes[0].get_shape()[0]),
-                                              static_cast<int64_t>(input_shapes[0].get_shape()[2]),
-                                              static_cast<int64_t>(input_shapes[0].get_shape()[1]),
-                                              static_cast<int64_t>(input_shapes[0].get_shape()[1])};
-    auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, {reshape1ConstData.size()}, reshape1ConstData);
+    const auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+    const auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
+    const auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
 
-    float transA = false;
-    float transB = false;
+    bool transA = false;
+    bool transB = false;
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
-    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
     const auto matMul0 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
             ov::op::TemporaryReplaceOutputType(transpose0, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(transpose1, element::f32).get(), transA, transB);
+            ov::op::TemporaryReplaceOutputType(brgemm1Param, element::f32).get(), transA, transB);
 
-    const auto fq3 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(matMul0, ov::element::i8, fq_signed_params);
+    auto decomposed_fq =
+        [](const ov::Output<ov::Node>& input, const ov::element::Type& out_precision, float il, float ih, float scale) {
+            const auto input_low = ov::op::v0::Constant::create(ov::element::f32, {1}, {il});
+            const auto input_high = ov::op::v0::Constant::create(ov::element::f32, {1}, {ih});
+            const auto output_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {scale});
+            const auto max = std::make_shared<ov::op::v1::Maximum>(input, input_low);
+            const auto min = std::make_shared<ov::op::v1::Minimum>(max, input_high);
+            const auto mul = std::make_shared<ov::op::v1::Multiply>(min, output_scale);
+            return std::make_shared<ov::snippets::op::ConvertSaturation>(mul, out_precision);
+        };
+
+    const auto fq3 = decomposed_fq(matMul0, ov::element::i8, fq_signed_params.inputLowValues[0], fq_signed_params.inputHighValues[0], 0.00346764503f);
     const auto add = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
@@ -880,12 +863,8 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             ov::op::TemporaryReplaceOutputType(add, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(deq, element::f32).get());
 
-    const auto reshape0 = std::make_shared<ov::opset1::Reshape>(add, reshape0Const, true);
-    const auto softMax = std::make_shared<ov::opset1::Softmax>(reshape0, 1);
-    const auto reshape1 = std::make_shared<ov::opset1::Reshape>(softMax, reshape1Const, true);
-
-    const auto fq_unsigned_params = ov::builder::subgraph::FakeQuantizeOnData(256, {1}, {0}, {0.245}, {0}, {255}, ov::element::u8);
-    const auto fq4 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(reshape1, ov::element::u8, fq_unsigned_params);
+    const auto softMax = std::make_shared<ov::opset1::Softmax>(deq_mul, 3);
+    const auto fq4 = decomposed_fq(softMax, ov::element::u8, 0.f, 0.245f, 1040.81628f);
 
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
     const auto matMul1 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
@@ -893,7 +872,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             std::vector<element::Type>{ element::f32 },
             ov::op::TemporaryReplaceOutputType(fq4, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(transpose2, element::f32).get(), transA, transB);
-    const auto fq5 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(matMul1, ov::element::i8, fq_signed_params);
+    const auto fq5 = decomposed_fq(matMul1, ov::element::i8, fq_signed_params.inputLowValues[0], fq_signed_params.inputHighValues[0], 0.00346764503f);
 
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
                                                                      std::make_shared<ov::Model>(NodeVector{fq5}, subgraph_params));
@@ -915,8 +894,8 @@ std::shared_ptr<ov::Model> MHAMulAddFunction::initOriginal() const {
     auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{input_shapes[2].size()}, std::vector<int64_t>{0, 2, 1, 3});
     auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{input_shapes[2].size()}, std::vector<int64_t>{0, 2, 1, 3});
 
-    float transA = false;
-    float transB = false;
+    bool transA = false;
+    bool transB = false;
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, transpose1, transA, transB);
@@ -959,8 +938,8 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
     const auto data2 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[2]);
     ov::ParameterVector ngraphParam = {data0, data1, data2};
 
-    bool is_supported = ((m_transposed_b && m_order == std::vector<int64_t>{0, 2, 1, 3}) ||
-                         (!m_transposed_b && m_order == std::vector<int64_t>{0, 2, 3, 1}));
+    bool is_supported = ((m_transposed_b && m_order == std::vector<int64_t>{0, 2, 3, 1}) ||
+                         (!m_transposed_b && m_order == std::vector<int64_t>{0, 2, 1, 3}));
 
     std::shared_ptr<ov::Node> in1 = data1;
     if (!m_order.empty() && !is_supported) {
@@ -968,7 +947,7 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
         in1 = std::make_shared<ov::op::v1::Transpose>(in1, transposeConst);
     }
     if (m_transposed_b) {
-        if (m_order != std::vector<int64_t>{0, 2, 1, 3}) {
+        if (m_order != std::vector<int64_t>{0, 2, 1, 3} && !m_transpose_b_native_support) {
             const auto rank = input_shapes[1].size();
             std::vector<int32_t> transpose_order(rank, 0);
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
@@ -981,19 +960,24 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
     const auto param0 = std::make_shared<ov::opset1::Parameter>(precision, data0->get_output_partial_shape(0));
     const auto param1 = std::make_shared<ov::opset1::Parameter>(precision, in1->get_output_partial_shape(0));
     const auto param2 = std::make_shared<ov::opset1::Parameter>(precision, data2->get_output_partial_shape(0));
+    ov::ParameterVector subgraph_params = {param0, param1, param2};
+    ov::OutputVector subgraphs_inputs = {data0, in1, data2};
 
     std::shared_ptr<ov::Node> matmul0_in1 = param1;
     if (!m_order.empty() && is_supported) {
-        const auto transposeConst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{m_order.size()}, m_order);
+        const auto transposeConst = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{m_order.size()}, m_order);
         matmul0_in1 = std::make_shared<ov::op::v1::Transpose>(param1, transposeConst);
+
+        std::swap(subgraphs_inputs[0], subgraphs_inputs[1]);
+        std::swap(subgraph_params[0], subgraph_params[1]);
     }
 
-    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, matmul0_in1);
+    const bool mm0_transpose_b = m_transposed_b && m_transpose_b_native_support;
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, matmul0_in1, false, mm0_transpose_b);
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, param2);
 
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{data0, in1, data2},
-                                                                 std::make_shared<ov::Model>(NodeVector{matMul1}, ov::ParameterVector{param0, param1, param2}));
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraphs_inputs, std::make_shared<ov::Model>(NodeVector{matMul1}, subgraph_params));
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(subgraph)};
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");

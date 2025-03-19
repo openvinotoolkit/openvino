@@ -1,12 +1,15 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/symbolic_transformations/symbol_optimization.hpp"
 
+#include <optional>
+
 #include "itt.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -28,7 +31,7 @@ void update_symbol(std::shared_ptr<ov::Symbol>& symbol) {
 void apply_table_of_equivalence_on_model(const std::shared_ptr<ov::Model>& m) {
     for (const auto& op : m->get_ordered_ops()) {
         // handle inner sub-graphs
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op))
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op))
             for (const auto& sub_graph : multi_subgraph_op->get_functions())
                 if (sub_graph)
                     apply_table_of_equivalence_on_model(sub_graph);
@@ -215,7 +218,7 @@ void optimize_value_usage(ov::Output<ov::Node>& output, STS_map& symbol_shape_so
             get_alternative_source_from_value_or_shape_source(symbol_shape_source, symbol, output, symbol_value_source);
 
     if (alternative_source.get_node_shared_ptr() != nullptr) {
-        evaluate_both_bounds(alternative_source);
+        ov::util::evaluate_both_bounds(alternative_source);
         output.replace(alternative_source);
     } else {
         // in case we can not optimize it -- it is symbol which appeared just now on the value path
@@ -354,12 +357,85 @@ void save_shape_sources(const std::shared_ptr<ov::Node>& op, STS_map& symbol_sha
         }
     }
 }
+
+struct OutputValue {
+    std::vector<ov::Any> value;
+
+    bool operator==(const OutputValue& other) const {
+        return value == other.value;
+    }
+
+    bool operator<(const OutputValue& other) const {
+        return std::lexicographical_compare(
+            std::begin(value),
+            std::end(value),
+            std::begin(other.value),
+            std::end(other.value),
+            [](const ov::Any& a, const ov::Any& b) {
+                // each element is either a symbol or an integer. in case they differ any integer is less than a symbol.
+                if (a.is<std::shared_ptr<ov::Symbol>>() && b.is<std::shared_ptr<ov::Symbol>>())
+                    return a.as<std::shared_ptr<ov::Symbol>>() < b.as<std::shared_ptr<ov::Symbol>>();
+                if (a.is<int64_t>() && b.is<int64_t>())
+                    return a.as<int64_t>() < b.as<int64_t>();
+                return a.is<int64_t>();
+            });
+    }
+
+    static std::optional<OutputValue> make(const ov::Output<ov::Node>& output) {
+        auto symbols = output.get_tensor().get_value_symbol();
+        if (symbols.empty() || symbols.size() == 1)
+            return {};
+
+        const auto& lower_value = ov::util::to_vector<int64_t>(output.get_tensor().get_lower_value());
+        const auto& upper_value = ov::util::to_vector<int64_t>(output.get_tensor().get_upper_value());
+        const auto& et = output.get_element_type();
+        bool use_values = lower_value && upper_value && (et == ov::element::i64 || et == ov::element::i32);
+
+        std::vector<ov::Any> symbols_as_any(symbols.size(), nullptr);
+        for (size_t i = 0; i < symbols_as_any.size(); ++i) {
+            if (use_values && lower_value->at(i) == upper_value->at(i))
+                symbols_as_any[i] = lower_value->at(i);
+            else if (symbols.at(i) != nullptr)
+                symbols_as_any[i] = ov::symbol::ancestor_of(symbols.at(i));
+            else
+                return {};
+        }
+        return {OutputValue{std::move(symbols_as_any)}};
+    }
+};
+
+void save_and_update_value_sources(const std::shared_ptr<ov::Node>& op,
+                                   std::map<OutputValue, ov::Output<ov::Node>>& multi_symbol_source) {
+    for (auto& output : op->outputs()) {
+        if (output.get_tensor().get_value_symbol().size() < 2)
+            continue;  // singular values are handled by optimize_value_usage helper
+
+        if (auto result = OutputValue::make(output)) {
+            if (multi_symbol_source.count(*result)) {
+                auto alternative_source = multi_symbol_source[*result];
+                if (output.get_element_type() != alternative_source.get_element_type()) {
+                    auto convert = std::make_shared<ov::op::v0::Convert>(alternative_source, output.get_element_type());
+                    ov::copy_runtime_info(output.get_node_shared_ptr(), convert);
+                    alternative_source = convert->output(0);
+                }
+                if (output.get_partial_shape().is_dynamic() ||
+                    output.get_partial_shape() != alternative_source.get_partial_shape())
+                    continue;
+                output.replace(alternative_source);
+            } else {
+                multi_symbol_source[*result] = output;
+            }
+        }
+    }
+}
+
 }  // namespace
 
 bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(OptimizeSymbolsUsedAsValues);
     STS_map symbol_shape_source;
     STS_map symbol_value_source;
+    std::map<OutputValue, ov::Output<ov::Node>> multi_symbol_source;
     for (const auto& op : topological_order(m)) {
         // Result has output port which has shared (during validate_and_infer_type) tensor with input port.
         // Transformations may replace input of Result. After replacement and before Result::validate_and_infer_type --
@@ -375,6 +451,7 @@ bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<o
         for (auto& output : op->outputs())
             optimize_value_usage(output, symbol_shape_source, symbol_value_source);
         save_shape_sources(op, symbol_shape_source);
+        save_and_update_value_sources(op, multi_symbol_source);
     }
     return true;
 }

@@ -12,8 +12,7 @@
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -29,7 +28,7 @@ static void CreateEyeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::Eye
     for (size_t i = dim_size, j = os_sz; i > 0 && j > 0; --i, --j) {
         dims[i - 1] = output_shapes[j - 1];
     }
-    const ov::op::v0::Constant* constant = dynamic_cast<ov::op::v0::Constant*>(op->get_input_node_ptr(2));
+    const ov::op::v0::Constant* constant = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2));
     OPENVINO_ASSERT(constant != nullptr, "Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     int32_t shift{};
@@ -59,5 +58,4 @@ static void CreateEyeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::Eye
 
 REGISTER_FACTORY_IMPL(v9, Eye);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

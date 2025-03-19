@@ -1,14 +1,18 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <signal.h>
+#ifdef WIN32
+#    include <process.h>
+#endif
 #include <functional_test_utils/summary/op_summary.hpp>
 #include <iostream>
 #include <sstream>
+
 #include "gtest/gtest.h"
-#include "intel_npu/al/config/config.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "npu_test_report.hpp"
 #include "npu_test_tool.hpp"
 
@@ -38,7 +42,12 @@ int main(int argc, char** argv, char** envp) {
     }
     oss << std::endl;
 
+#ifdef WIN32
+    oss << "Process id: " << _getpid() << std::endl;
+#else
     oss << "Process id: " << getpid() << std::endl;
+#endif
+
     std::cout << oss.str();
     oss.str("");
 
@@ -76,9 +85,8 @@ int main(int argc, char** argv, char** envp) {
 
     auto& log = intel_npu::Logger::global();
     auto level = ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_LOG_LEVEL;
-    ov::log::Level logLevel = level.empty()
-                                      ? ov::log::Level::ERR
-                                      : intel_npu::OptionParser<ov::log::Level>::parse(level.c_str());
+    ov::log::Level logLevel =
+        level.empty() ? ov::log::Level::ERR : intel_npu::OptionParser<ov::log::Level>::parse(level.c_str());
     log.setLevel(logLevel);
 
     return RUN_ALL_TESTS();

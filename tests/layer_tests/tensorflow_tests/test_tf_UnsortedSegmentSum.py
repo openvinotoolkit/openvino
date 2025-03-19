@@ -1,12 +1,12 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import platform
 
 import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+
+rng = np.random.default_rng(23254)
 
 
 class TestUnsortedSegmentSum(CommonTFLayerTest):
@@ -16,10 +16,10 @@ class TestUnsortedSegmentSum(CommonTFLayerTest):
         data_shape = inputs_info['data:0']
         segment_ids_shape = inputs_info['segment_ids:0']
         inputs_data = {}
-        inputs_data['data:0'] = np.random.randint(-50, 50, data_shape).astype(self.data_type)
+        inputs_data['data:0'] = rng.integers(-10, 10, data_shape).astype(self.data_type)
         # segment_ids can have negative values
-        inputs_data['segment_ids:0'] = np.random.randint(-self.num_segments_val, self.num_segments_val,
-                                                         segment_ids_shape)
+        inputs_data['segment_ids:0'] = rng.integers(-self.num_segments_val, self.num_segments_val,
+                                                    segment_ids_shape).astype(self.segment_ids_type)
         return inputs_data
 
     def create_unsorted_segment_sum_net(self, data_shape, segment_ids_shape, num_segments_val, data_type,
@@ -44,31 +44,21 @@ class TestUnsortedSegmentSum(CommonTFLayerTest):
         dict(data_shape=[8], segment_ids_shape=[8], num_segments_val=10),
         dict(data_shape=[10, 4], segment_ids_shape=[10], num_segments_val=5),
         dict(data_shape=[5, 6, 7], segment_ids_shape=[5], num_segments_val=100),
+        dict(data_shape=[5, 2], segment_ids_shape=[5, 2], num_segments_val=5),
+        dict(data_shape=[4, 3, 7], segment_ids_shape=[4, 3], num_segments_val=10),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.parametrize("data_type", [
-        np.float32, np.int32
-    ])
-    @pytest.mark.parametrize("segment_ids_type", [
-        np.int32, np.int64
-    ])
-    @pytest.mark.parametrize("num_segments_type", [
-        np.int32, np.int64
-    ])
+    @pytest.mark.parametrize("data_type", [np.float32, np.int32])
+    @pytest.mark.parametrize("segment_ids_type", [np.int32, np.int64])
+    @pytest.mark.parametrize("num_segments_type", [np.int32, np.int64])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
     def test_unsorted_segment_sum_basic(self, params, data_type, segment_ids_type, num_segments_type, ie_device,
                                         precision, ir_version, temp_dir,
                                         use_legacy_frontend):
-        if use_legacy_frontend:
-            pytest.skip("UnsortedSegmentSum operation is not supported via legacy frontend.")
-        if ie_device == 'GPU':
-            pytest.skip("GPU error: Can't choose implementation for embedding_segment_sum:UnsortedSegmentSum node")
-        self._test(
-            *self.create_unsorted_segment_sum_net(**params, data_type=data_type, segment_ids_type=segment_ids_type,
-                                                  num_segments_type=num_segments_type),
-            ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend)
+        self._test(*self.create_unsorted_segment_sum_net(**params,
+                                                         data_type=data_type, segment_ids_type=segment_ids_type,
+                                                         num_segments_type=num_segments_type),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_legacy_frontend=use_legacy_frontend)

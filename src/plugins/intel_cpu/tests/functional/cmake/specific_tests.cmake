@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -39,7 +39,11 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
 
 if(NOT (ARM OR AARCH64))
   list(APPEND EXCLUDED_SOURCE_PATHS_FOR_SUBSET_TEST ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm)
-elseif(NOT X86_64)
+endif()
+if(NOT RISCV64)
+  list(APPEND EXCLUDED_SOURCE_PATHS_FOR_SUBSET_TEST ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv64)
+endif()
+if(NOT X86_64)
   list(APPEND EXCLUDED_SOURCE_PATHS_FOR_SUBSET_TEST ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64)
 endif()
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,14 +14,16 @@
 using namespace ov;
 
 void state_network_example () {
-    //! [ov:state_network]
+    //! [ov:stateful_model]
     // ...
 
     auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 1});
     auto init_const = ov::opset8::Constant::create(ov::element::f32, ov::Shape{1, 1}, {0});
 
-    // The ReadValue/Assign operations must be used in pairs in the network.
-    // For each such a pair, its own variable object must be created.
+    // Typically ReadValue/Assign operations are presented as pairs in models.
+    // ReadValue operation reads information from an internal memory buffer, Assign operation writes data to this buffer.
+    // For each pair, its own Variable object must be created.
+    // Variable defines name, shape and type of the buffer.
     const std::string variable_name("variable0");
     ov::op::util::VariableInfo var_info = {init_const->get_shape(),
                                            init_const->get_element_type(),
@@ -37,7 +39,7 @@ void state_network_example () {
     auto model = std::make_shared<ov::Model>(ov::ResultVector({result}),
                                              ov::SinkVector({save}),
                                              ov::ParameterVector({input}));
-    //! [ov:state_network]
+    //! [ov:stateful_model]
 }
 
 void low_latency_2_example() {
@@ -97,7 +99,7 @@ void replace_non_reshapable_const() {
     for (const auto& node : model->get_ops()) {
         // Trying to find the problematic Constant by name.
         if (node->get_friendly_name() == "name_of_non_reshapable_const") {
-            auto const_with_hardcoded_shape = std::dynamic_pointer_cast<ov::opset8::Constant>(node);
+            auto const_with_hardcoded_shape = ov::as_type_ptr<ov::opset8::Constant>(node);
             // Replacing the problematic Constant with a new one. Do this for all the problematic Constants in the network, then
             // you can apply the reshape feature.
             ov::replace_node(const_with_hardcoded_shape, new_const);

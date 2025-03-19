@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ pass::ConvertDetectionOutput8ToDetectionOutput1::ConvertDetectionOutput8ToDetect
     auto detection_output_v8_pattern = pattern::wrap_type<ov::op::v8::DetectionOutput>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto detection_output_v8_node = std::dynamic_pointer_cast<ov::op::v8::DetectionOutput>(m.get_match_root());
+        auto detection_output_v8_node = ov::as_type_ptr<ov::op::v8::DetectionOutput>(m.get_match_root());
         if (!detection_output_v8_node)
             return false;
         const auto& attributes_v8 = detection_output_v8_node->get_attrs();

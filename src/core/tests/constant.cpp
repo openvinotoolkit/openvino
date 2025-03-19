@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,7 +100,7 @@ TEST(constant, boolean_vector) {
     EXPECT_EQ(v[2], 1);
     EXPECT_EQ(v[3], 0);
 
-    const char* p = c.get_data_ptr<char>();
+    const auto p = c.get_vector<char>();
     EXPECT_EQ(p[0], 1);
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
@@ -301,7 +301,7 @@ TEST(constant, int4_string) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0x01, p[0]);
-    EXPECT_EQ(0x0F, p[1] & 0x0F);
+    EXPECT_EQ(0x0F, p[1]);
 
     EXPECT_EQ(input, c.get_value_strings());
 
@@ -322,7 +322,7 @@ TEST(constant, int4_string_broadcast_negative_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0xFF, p[0]);
-    EXPECT_EQ(0x0F, p[1] & 0x0F);
+    EXPECT_EQ(0x0F, p[1]);
 
     EXPECT_EQ(std::vector<std::string>(3, "-1"), c.get_value_strings());
 }
@@ -338,7 +338,7 @@ TEST(constant, int4_string_broadcast_positive_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0x11, p[0]);
-    EXPECT_EQ(0x01, p[1] & 0x0F);
+    EXPECT_EQ(0x01, p[1]);
 
     EXPECT_EQ(std::vector<std::string>(3, "1"), c.get_value_strings());
 }
@@ -354,7 +354,7 @@ TEST(constant, int4_vector_negative_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0xEF, p[0]);
-    EXPECT_EQ(0x0F, p[1] & 0x0F);
+    EXPECT_EQ(0x0F, p[1]);
 }
 
 TEST(constant, int4_vector_positive_number) {
@@ -368,7 +368,7 @@ TEST(constant, int4_vector_positive_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0x21, p[0]);
-    EXPECT_EQ(0x05, p[1] & 0x0F);
+    EXPECT_EQ(0x05, p[1]);
 }
 
 TEST(constant, int4_vector_broadcast_negative_number) {
@@ -382,7 +382,7 @@ TEST(constant, int4_vector_broadcast_negative_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0xFF, p[0]);
-    EXPECT_EQ(0x0F, p[1] & 0x0F);
+    EXPECT_EQ(0x0F, p[1]);
 }
 
 TEST(constant, int4_vector_broadcast_positive_number) {
@@ -394,9 +394,9 @@ TEST(constant, int4_vector_broadcast_positive_number) {
     EXPECT_EQ(v[1], int8_t(3));
     EXPECT_EQ(v[2], int8_t(3));
 
-    const auto p = c.get_data_ptr<uint8_t>();
+    const auto p = c.get_vector<uint8_t>();
     EXPECT_EQ(0x33, p[0]);
-    EXPECT_EQ(0x03, p[1] & 0x0F);
+    EXPECT_EQ(0x03, p[1]);
 }
 
 TEST(constant, int4_input_value_validation) {
@@ -444,8 +444,6 @@ TEST(constant, int8_string) {
     EXPECT_EQ(p[1], 0);
     EXPECT_EQ(p[2], 1);
     EXPECT_EQ(p[3], 0);
-
-    EXPECT_EQ(input, c.get_value_strings());
 
     EXPECT_EQ(input, c.get_value_strings());
 
@@ -1004,8 +1002,8 @@ TEST(constant, uint3_string_broadcast) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(p[0], 0b01010101);
-    EXPECT_EQ(p[1] & 0b11000000, 0b01000000);
-    EXPECT_EQ(p[2] & 0b11000000, 0b11000000);
+    EXPECT_EQ(p[1], 0b01000000);
+    EXPECT_EQ(p[2], 0b11111000);
 }
 
 TEST(constant, uint3_vector_less_than_one_storage_unit) {
@@ -1018,10 +1016,10 @@ TEST(constant, uint3_vector_less_than_one_storage_unit) {
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, ElementsAre(5, 3, 1));
 
-    const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0] & 0b11111100, 0b01110100);
-    // p[1] ignore
-    EXPECT_EQ(p[2] & 0b11100000, 0b10000000);
+    const auto p = c.get_vector<uint8_t>();
+    EXPECT_EQ(p[0], 0b01110100);
+    EXPECT_EQ(p[1], 0);
+    EXPECT_EQ(p[2], 0b10000000);
 }
 
 TEST(constant, uint3_vector_greater_than_one_storage_unit) {
@@ -1034,14 +1032,14 @@ TEST(constant, uint3_vector_greater_than_one_storage_unit) {
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, ElementsAre(2, 3, 1, 0, 4, 5, 6, 7, 5, 2));
 
-    const auto p = c.get_data_ptr<uint8_t>();
+    const auto p = c.get_vector<uint8_t>();
     EXPECT_EQ(p[0], 0b10110100);
     EXPECT_EQ(p[1], 0b00011011);
     EXPECT_EQ(p[2], 0b00001111);
 
-    EXPECT_EQ(p[3] & 0b11110000, 0b01100000);
-    // p[4] ignore
-    EXPECT_EQ(p[5] & 0b11000000, 0b10000000);
+    EXPECT_EQ(p[3], 0b01100000);
+    EXPECT_EQ(p[4], 0);
+    EXPECT_EQ(p[5], 0b10000000);
 }
 
 TEST(constant, uint3_vector_broadcast) {
@@ -1143,7 +1141,7 @@ TEST(constant, uint4_vector) {
     EXPECT_EQ(v[2], 1);
     EXPECT_EQ(v[3], 0);
 
-    const auto p = c.get_data_ptr<uint8_t>();
+    const auto p = c.get_vector<uint8_t>();
     EXPECT_EQ(p[0], 0x01);
     EXPECT_EQ(p[1], 0x01);
 }
@@ -1159,9 +1157,29 @@ TEST(constant, uint4_vector_broadcast) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     const auto first_byte = p[0];
-    const auto second_byte = p[1] & 0x0F;
+    const auto second_byte = p[1];
     EXPECT_EQ(0x11, first_byte);
     EXPECT_EQ(0x01, second_byte);
+
+    const auto vector = c.get_vector<uint8_t>();
+    EXPECT_EQ(vector[0], 0x11);
+    EXPECT_EQ(vector[1], 0x01);
+}
+
+TEST(constant, uint4_get_vector_from_one_element) {
+    auto c = std::make_shared<op::v0::Constant>(element::u4, Shape{1}, 9);
+    auto v = c->get_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), 1);
+    EXPECT_EQ(v[0], 0x09);
+}
+
+TEST(constant, uint4_get_vector_from_scalar) {
+    auto c = std::make_shared<op::v0::Constant>(element::u4, Shape{}, 8);
+    auto v = c->get_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), 1);
+    EXPECT_EQ(v[0], 0x08);
 }
 
 TEST(constant, uint4_input_value_validation) {
@@ -1240,8 +1258,8 @@ TEST(constant, uint6_vector_less_than_one_storage_unit) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(p[0], 0x57);
-    EXPECT_EQ(p[1] & 0xF0, 0x10);
-    EXPECT_EQ(p[2] & 0b1111100, 0b00010000);
+    EXPECT_EQ(p[1], 0x10);
+    EXPECT_EQ(p[2], 0b00010000);
 }
 
 TEST(constant, uint6_vector_greater_than_one_storage_unit) {
@@ -1254,14 +1272,14 @@ TEST(constant, uint6_vector_greater_than_one_storage_unit) {
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, ElementsAre(25, 3, 1, 0, 45, 5));
 
-    const auto p = c.get_data_ptr<uint8_t>();
+    const auto p = c.get_vector<uint8_t>();
     EXPECT_EQ(p[0], 0x93);
     EXPECT_EQ(p[1], 0x10);
     EXPECT_EQ(p[2], 0b01000000);
 
     EXPECT_EQ(p[3], 0xd5);
-    // p[4] ignore
-    EXPECT_EQ(p[5] & 0b11110000, 0b10000000);
+    EXPECT_EQ(p[4], 0);
+    EXPECT_EQ(p[5], 0b10000000);
 }
 
 TEST(constant, uint6_vector_broadcast) {
@@ -1667,7 +1685,7 @@ TEST(constant, nf4_write_custom_type) {
     auto p = c.get_data_ptr<uint8_t>();
 
     EXPECT_EQ(p[0], 0x20);
-    EXPECT_EQ(p[1] & 0x0f, 0x0f);
+    EXPECT_EQ(p[1], 0x0f);
     EXPECT_THROW(c.get_strides(), Exception);
 }
 
@@ -1835,6 +1853,7 @@ TEST(constant, float8_e4m3_vector) {
 
     ov::op::v0::Constant const_op_from_ptr(ov::element::f8e4m3, data_shape, data_vec.data());
     EXPECT_EQ(data_vec, const_op_from_ptr.get_vector<ov::float8_e4m3>());
+    EXPECT_EQ(const_op_from_ptr.get_strides(), Strides({element::f8e4m3.size()}));
 }
 
 TEST(constant, float8_e5m3_vector) {
@@ -1858,6 +1877,7 @@ TEST(constant, float8_e5m3_vector) {
 
     ov::op::v0::Constant const_op_from_ptr(ov::element::f8e5m2, data_shape, data_vec.data());
     EXPECT_EQ(data_vec, const_op_from_ptr.get_vector<ov::float8_e5m2>());
+    EXPECT_EQ(const_op_from_ptr.get_strides(), Strides({element::f8e5m2.size()}));
 }
 
 TEST(constant, float8_e8m0_vector) {
@@ -2014,7 +2034,7 @@ TEST(constant, f4e2m1_vector) {
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(p[0], 0x6b);
     EXPECT_EQ(p[1], 0x3c);
-    EXPECT_EQ(p[2] & 0x0F, 0x0d);
+    EXPECT_EQ(p[2], 0x0d);
 }
 
 TEST(constant, f4e2m1_from_float_vector) {
@@ -2022,10 +2042,10 @@ TEST(constant, f4e2m1_from_float_vector) {
     auto v = c.cast_vector<float>();
     EXPECT_THAT(v, ElementsAre(-1.5f, 4.0f, -2.0f, 1.5f, -3.0f));
 
-    const auto p = c.get_data_ptr<uint8_t>();
+    const auto p = c.get_vector<uint8_t>();
     EXPECT_EQ(p[0], 0x6b);
     EXPECT_EQ(p[1], 0x3c);
-    EXPECT_EQ(p[2] & 0x0F, 0x0d);
+    EXPECT_EQ(p[2], 0x0d);
 }
 
 TEST(constant, f4e2m1_vector_broadcast) {
@@ -2037,7 +2057,7 @@ TEST(constant, f4e2m1_vector_broadcast) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0x33, p[0]);
-    EXPECT_EQ(0x03, p[1] & 0x0F);
+    EXPECT_EQ(0x03, p[1]);
 }
 
 TEST(constant, f4e2m1_write_then_cast_custom_type) {
@@ -2107,7 +2127,7 @@ TEST(constant, f8e8m0_from_float_vector) {
     auto v = c.cast_vector<float>();
     EXPECT_THAT(v, ElementsAre(std::numeric_limits<float>::min() / 2, 4.0f, 2.0f, 2.0f, 2.0f));
 
-    const auto p = c.get_data_ptr<uint8_t>();
+    const auto p = c.get_vector<uint8_t>();
     EXPECT_EQ(p[0], 0x00);
     EXPECT_EQ(p[1], 0x81);
     EXPECT_EQ(p[2], 0x80);
@@ -2603,6 +2623,88 @@ TEST(constant, hold_tensor_custom_strides_revalidate) {
     ASSERT_EQ(const_op->get_data_ptr(), shared_data_ptr);
     EXPECT_EQ(const_op->get_strides(), strides);
     EXPECT_EQ(const_op->get_tensor_view().get_strides(), strides);
+}
+
+TEST(constant, hold_shared_memory_same_size) {
+    auto storage =
+        std::make_shared<std::vector<int32_t>>(std::initializer_list<int32_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1});
+    {
+        auto c = op::v0::Constant(element::i32, Shape{storage->size()}, storage->data(), {});
+        std::fill_n(storage->begin() + 3, 4, 0);
+
+        EXPECT_EQ(storage.use_count(), 1);
+        EXPECT_EQ(c.get_data_ptr(), storage->data());
+        EXPECT_EQ(c.get_vector<int32_t>(), std::vector<int32_t>({1, 2, 3, 0, 0, 0, 0, 4, 3, 2, 1}));
+        EXPECT_EQ(c.cast_vector<int32_t>(), std::vector<int32_t>({1, 2, 3, 0, 0, 0, 0, 4, 3, 2, 1}));
+    }
+    EXPECT_EQ(storage.use_count(), 1);
+}
+
+TEST(constant, hold_shared_memory_shape_within_memory_size) {
+    auto storage = std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1};
+    auto c = op::v0::Constant(element::u8, Shape{2, 3}, storage.data(), {});
+
+    EXPECT_EQ(c.get_data_ptr(), storage.data());
+    EXPECT_EQ(c.get_vector<uint8_t>(), std::vector<uint8_t>({1, 2, 3, 4, 5, 6}));
+    EXPECT_EQ(c.cast_vector<uint8_t>(), std::vector<uint8_t>({1, 2, 3, 4, 5, 6}));
+}
+
+TEST(constant, hold_shared_memory_different_precision) {
+    auto storage = std::vector<uint32_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1};
+    auto c = op::v0::Constant(element::u8, Shape{2, 3, 1}, storage.data(), {});
+
+    EXPECT_EQ(c.get_data_ptr(), storage.data());
+    EXPECT_EQ(c.get_vector<uint8_t>(), std::vector<uint8_t>({1, 0, 0, 0, 2, 0}));
+    EXPECT_EQ(c.cast_vector<uint8_t>(), std::vector<uint8_t>({1, 0, 0, 0, 2, 0}));
+}
+
+TEST(constant, own_shared_memory) {
+    struct CustomStorage {
+        CustomStorage(std::initializer_list<int16_t> values) : values{std::move(values)} {
+            ON_CALL(*this, dtor_impl).WillByDefault(testing::Return());
+        }
+
+        ~CustomStorage() {
+            dtor_impl();
+        }
+
+        MOCK_METHOD(void, dtor_impl, ());
+
+        constexpr ov::element::Type get_element_type() const {
+            return ov::element::i16;
+        }
+
+        std::vector<int16_t> values{};
+    };
+
+    {
+        auto storage = std::make_shared<CustomStorage>(std::initializer_list<int16_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1});
+        auto c =
+            std::make_shared<op::v0::Constant>(storage->get_element_type(), Shape{2}, storage->values.data(), storage);
+
+        EXPECT_EQ(storage.use_count(), 2);
+
+        c = nullptr;
+        EXPECT_EQ(storage.use_count(), 1);
+        EXPECT_CALL(*storage, dtor_impl).Times(1);
+    }
+
+    {
+        std::shared_ptr<op::v0::Constant> c;
+        CustomStorage* s_ptr;
+        {
+            auto storage = std::make_shared<testing::StrictMock<CustomStorage>>(
+                std::initializer_list<int16_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1});
+            s_ptr = storage.get();
+            c = std::make_shared<op::v0::Constant>(storage->get_element_type(),
+                                                   Shape{2},
+                                                   storage->values.data(),
+                                                   storage);
+        }
+
+        EXPECT_CALL(*s_ptr, dtor_impl).Times(1);
+        c = nullptr;
+    }
 }
 
 // Test verifies 2 things:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "register.hpp"
@@ -16,13 +16,12 @@ void register_implementations() {
     REGISTER_OCL(broadcast);
     REGISTER_OCL(bucketize);
     REGISTER_OCL(concatenation);
-    REGISTER_OCL(convolution);
     REGISTER_OCL(crop);
     REGISTER_OCL(custom_gpu_primitive);
     REGISTER_OCL(deconvolution);
     REGISTER_OCL(depth_to_space);
-    REGISTER_OCL(detection_output);
     REGISTER_OCL(dft);
+    REGISTER_OCL(dynamic_quantize);
     REGISTER_OCL(batch_to_space);
     REGISTER_OCL(experimental_detectron_detection_output);
     REGISTER_OCL(experimental_detectron_generate_proposals_single_image);
@@ -33,19 +32,17 @@ void register_implementations() {
     REGISTER_OCL(fully_connected);
     REGISTER_OCL(gather);
     REGISTER_OCL(gather_elements);
-    REGISTER_OCL(gather_nd);
     REGISTER_OCL(gemm);
     REGISTER_OCL(generate_proposals);
     REGISTER_OCL(grid_sample);
     REGISTER_OCL(group_normalization);
     REGISTER_OCL(kv_cache);
+    REGISTER_OCL(paged_attention);
     REGISTER_OCL(lrn);
-    REGISTER_OCL(lstm_elt);
     REGISTER_OCL(multiclass_nms);
     REGISTER_OCL(multinomial);
     REGISTER_OCL(mutable_data);
     REGISTER_OCL(mvn);
-    REGISTER_OCL(non_max_suppression);
     REGISTER_OCL(matrix_nms);
     REGISTER_OCL(normalize);
     REGISTER_OCL(one_hot);
@@ -57,7 +54,6 @@ void register_implementations() {
     REGISTER_OCL(range);
     REGISTER_OCL(reduce);
     REGISTER_OCL(region_yolo);
-    REGISTER_OCL(reorder);
     REGISTER_OCL(reorg_yolo);
     REGISTER_OCL(reshape);
     REGISTER_OCL(reverse);
@@ -66,13 +62,9 @@ void register_implementations() {
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
     REGISTER_OCL(roll);
-    REGISTER_OCL(scatter_update);
     REGISTER_OCL(scatter_nd_update);
-    REGISTER_OCL(scatter_elements_update);
     REGISTER_OCL(select);
-    REGISTER_OCL(shape_of);
     REGISTER_OCL(shuffle_channels);
-    REGISTER_OCL(softmax);
     REGISTER_OCL(space_to_batch);
     REGISTER_OCL(space_to_depth);
     REGISTER_OCL(slice);
@@ -95,6 +87,8 @@ void register_implementations() {
     REGISTER_OCL(unique_gather);
     REGISTER_OCL(scaled_dot_product_attention);
     REGISTER_OCL(rope);
+    REGISTER_OCL(search_sorted);
+    REGISTER_OCL(STFT);
 }
 
 }  // namespace ocl

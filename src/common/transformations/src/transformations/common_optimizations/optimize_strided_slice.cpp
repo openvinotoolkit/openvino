@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ bool ov::pass::UselessSliceEraser::run_on_model(const std::shared_ptr<ov::Model>
         if (node->get_input_shape(0) != node->get_output_shape(0))
             continue;
 
-        auto stridesNode = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(3));
+        auto stridesNode = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(3));
         if (stridesNode) {
             auto strides = stridesNode->cast_vector<int64_t>();
             if (!std::any_of(strides.begin(), strides.end(), [](int64_t strd) {
@@ -65,9 +65,9 @@ op::util::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> sli
     };
 
     auto data = slice->input_value(0).get_node_shared_ptr();
-    auto begin = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
-    auto end = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
-    auto strides = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
+    auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
+    auto end = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
+    auto strides = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
     if (!begin || !end || !strides || slice->input(0).get_partial_shape().is_dynamic())
         return op::util::SlicePlan();
 
@@ -104,7 +104,7 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
         // Recursively apply transformation for sub-graph based operations
         graph_rewritten = ov::op::util::process_subgraph(*this, node) || graph_rewritten;
 
-        if (auto ss = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node)) {
+        if (auto ss = ov::as_type_ptr<ov::op::v1::StridedSlice>(node)) {
             auto slice_plan = get_slice_plan(ss);
             if (slice_plan == op::util::SlicePlan())
                 continue;
@@ -425,7 +425,7 @@ ov::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes) {
 
 bool ov::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("StridedSliceOptimization");
     manager.set_per_pass_validation(false);
     if (m_use_shapes) {
         manager.register_pass<UselessSliceEraser>();

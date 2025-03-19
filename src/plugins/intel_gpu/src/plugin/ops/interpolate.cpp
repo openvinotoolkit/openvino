@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,21 +11,20 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static std::vector<int64_t> ExtractAxes(const std::shared_ptr<ov::op::util::InterpolateBase>& op, size_t axes_index) {
     std::vector<int64_t> axes;
     auto inputRank = op->get_input_partial_shape(0).size();
     if (op->get_input_size() == axes_index + 1) {
-        auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(axes_index));
+        auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(axes_index));
         OPENVINO_ASSERT(axes_constant, "Unsupported parameter node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         axes = axes_constant->cast_vector<int64_t>();
-        ov::util::normalize_axes(op.get(), inputRank, axes);
+        ov::util::try_normalize_axes(axes, inputRank, *op);
     } else {
         for (size_t i = 0; i < inputRank; ++i) {
-            axes.push_back(ov::util::normalize_axis(op.get(), i, inputRank));
+            axes.push_back(ov::util::try_normalize_axis(i, inputRank, *op));
         }
     }
     return axes;
@@ -76,10 +75,10 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
     auto attrs = op->get_attrs();
 
-    auto sizes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(SIZES_INDEX));
+    auto sizes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(SIZES_INDEX));
     std::vector<int64_t> sizes = sizes_constant ? sizes_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
 
-    auto scales_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(SCALES_INDEX));
+    auto scales_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(SCALES_INDEX));
     std::vector<float> scales = scales_constant ? scales_constant->cast_vector<float>() : std::vector<float>{};
 
     std::vector<int64_t> axes = ExtractAxes(op, AXES_INDEX);
@@ -156,7 +155,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
     auto attrs = op->get_attrs();
 
-    auto scales_or_sizes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(eScalesOrSizesIndex));
+    auto scales_or_sizes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(eScalesOrSizesIndex));
     std::vector<float> scales = scales_or_sizes_constant && attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES ?
         scales_or_sizes_constant->cast_vector<float>() : std::vector<float>{};
     std::vector<int64_t> sizes = scales_or_sizes_constant && attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SIZES ?
@@ -191,7 +190,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
             resamplePrim = std::make_shared<cldnn::resample>(layerName,
                                                              inputs[0],
                                                              inputs[eScalesOrSizesIndex],
-                                                             inputs[eScalesOrSizesIndex],
+                                                             inputs[eAxesIndex],
                                                              axes,
                                                              attrs.pads_begin,
                                                              attrs.pads_end,
@@ -200,7 +199,8 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
                                                              attrs.mode,
                                                              attrs.shape_calculation_mode,
                                                              attrs.coordinate_transformation_mode,
-                                                             attrs.nearest_mode);
+                                                             attrs.nearest_mode,
+                                                             1);
         }
     } else {
         auto outShape = op->get_output_shape(0);
@@ -226,5 +226,4 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
 REGISTER_FACTORY_IMPL(v4, Interpolate);
 REGISTER_FACTORY_IMPL(v11, Interpolate);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

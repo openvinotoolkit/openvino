@@ -1,5 +1,3 @@
-.. {#interpolate-11}
-
 Interpolate
 ===========
 

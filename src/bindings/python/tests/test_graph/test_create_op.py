@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
 from openvino import PartialShape, Dimension, Model, Type
-from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.utils.types import make_constant_node
+from openvino.exceptions import UserInputError
+from openvino.utils.types import make_constant_node
 
-import openvino.runtime.opset1 as ov_opset1
-import openvino.runtime.opset5 as ov_opset5
-import openvino.runtime.opset10 as ov_opset10
-import openvino.runtime.opset11 as ov
+import openvino.opset1 as ov_opset1
+import openvino.opset5 as ov_opset5
+import openvino.opset10 as ov_opset10
+import openvino.opset15 as ov_opset15
+import openvino.opset16 as ov_opset16
+import openvino.opset11 as ov
+from openvino.op.util import VariableInfo, Variable
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
@@ -313,262 +316,6 @@ def test_lstm_cell_operator(dtype):
     assert list(node_param.get_output_shape(1)) == [1, 128]
 
 
-@pytest.mark.parametrize("dtype", [np.float32, np.float64])
-@pytest.mark.parametrize("op_name", ["lstm", "lstmOpset1"])
-def test_lstm_cell_operator_opset1(dtype, op_name):
-    batch_size = 1
-    input_size = 16
-    hidden_size = 128
-
-    x_shape = [batch_size, input_size]
-    h_t_shape = [batch_size, hidden_size]
-    c_t_shape = [batch_size, hidden_size]
-    w_shape = [4 * hidden_size, input_size]
-    r_shape = [4 * hidden_size, hidden_size]
-    b_shape = [4 * hidden_size]
-
-    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
-    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
-    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
-    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
-    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
-    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
-
-    node_default = ov_opset1.lstm_cell(
-        parameter_x, parameter_h_t, parameter_c_t, parameter_w, parameter_r, parameter_b, hidden_size, name=op_name,
-    )
-
-    assert node_default.get_type_name() == "LSTMCell"
-    assert node_default.get_friendly_name() == op_name
-    assert node_default.get_output_size() == 2
-    assert list(node_default.get_output_shape(0)) == [1, 128]
-    assert list(node_default.get_output_shape(1)) == [1, 128]
-
-    activations = ["tanh", "Sigmoid", "RELU"]
-    activation_alpha = [1.0, 2.0, 3.0]
-    activation_beta = [3.0, 2.0, 1.0]
-    clip = 0.5
-
-    node_param = ov_opset1.lstm_cell(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        activations,
-        activation_alpha,
-        activation_beta,
-        clip,
-    )
-
-    assert node_param.get_type_name() == "LSTMCell"
-    assert node_param.get_output_size() == 2
-    assert list(node_param.get_output_shape(0)) == [1, 128]
-    assert list(node_param.get_output_shape(1)) == [1, 128]
-
-
-@pytest.mark.parametrize("dtype", [np.float32, np.float64])
-@pytest.mark.parametrize("op_name", ["lstm", "lstmOpset1"])
-def test_lstm_sequence_operator_bidirectional_opset1(dtype, op_name):
-    batch_size = 1
-    input_size = 16
-    hidden_size = 128
-    num_directions = 2
-    seq_length = 2
-
-    x_shape = [batch_size, seq_length, input_size]
-    h_t_shape = [batch_size, num_directions, hidden_size]
-    c_t_shape = [batch_size, num_directions, hidden_size]
-    seq_len_shape = [batch_size]
-    w_shape = [num_directions, 4 * hidden_size, input_size]
-    r_shape = [num_directions, 4 * hidden_size, hidden_size]
-    b_shape = [num_directions, 4 * hidden_size]
-
-    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
-    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
-    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
-    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
-    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
-    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
-
-    direction = "BIDIRECTIONAL"
-    node = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-        name=op_name,
-    )
-
-    assert node.get_type_name() == "LSTMSequence"
-    assert node.get_friendly_name() == op_name
-    assert node.get_output_size() == 3
-
-    activations = ["RELU", "tanh", "Sigmoid"]
-    activation_alpha = [1.0, 2.0, 3.0]
-    activation_beta = [3.0, 2.0, 1.0]
-    clip = 1.22
-
-    node_param = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-        activations,
-        activation_alpha,
-        activation_beta,
-        clip,
-    )
-
-    assert node_param.get_type_name() == "LSTMSequence"
-    assert node_param.get_output_size() == 3
-
-
-@pytest.mark.parametrize("dtype", [np.float32, np.float64])
-def test_lstm_sequence_operator_reverse_opset1(dtype):
-    batch_size = 2
-    input_size = 4
-    hidden_size = 3
-    num_directions = 1
-    seq_length = 2
-
-    x_shape = [batch_size, seq_length, input_size]
-    h_t_shape = [batch_size, num_directions, hidden_size]
-    c_t_shape = [batch_size, num_directions, hidden_size]
-    seq_len_shape = [batch_size]
-    w_shape = [num_directions, 4 * hidden_size, input_size]
-    r_shape = [num_directions, 4 * hidden_size, hidden_size]
-    b_shape = [num_directions, 4 * hidden_size]
-
-    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
-    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
-    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
-    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
-    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
-    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
-
-    direction = "REVERSE"
-
-    node_default = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-    )
-
-    assert node_default.get_type_name() == "LSTMSequence"
-    assert node_default.get_output_size() == 3
-
-    activations = ["RELU", "tanh", "Sigmoid"]
-    activation_alpha = [1.0, 2.0, 3.0]
-    activation_beta = [3.0, 2.0, 1.0]
-    clip = 1.22
-
-    node_param = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-        activations,
-        activation_alpha,
-        activation_beta,
-        clip,
-    )
-
-    assert node_param.get_type_name() == "LSTMSequence"
-    assert node_param.get_output_size() == 3
-
-
-@pytest.mark.parametrize("dtype", [np.float32, np.float64])
-def test_lstm_sequence_operator_forward_opset1(dtype):
-    batch_size = 2
-    input_size = 4
-    hidden_size = 3
-    num_directions = 1
-    seq_length = 2
-
-    x_shape = [batch_size, seq_length, input_size]
-    h_t_shape = [batch_size, num_directions, hidden_size]
-    c_t_shape = [batch_size, num_directions, hidden_size]
-    seq_len_shape = [batch_size]
-    w_shape = [num_directions, 4 * hidden_size, input_size]
-    r_shape = [num_directions, 4 * hidden_size, hidden_size]
-    b_shape = [num_directions, 4 * hidden_size]
-
-    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
-    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
-    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
-    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
-    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
-    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
-
-    direction = "forward"
-
-    node_default = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-    )
-
-    assert node_default.get_type_name() == "LSTMSequence"
-    assert node_default.get_output_size() == 3
-
-    activations = ["RELU", "tanh", "Sigmoid"]
-    activation_alpha = [2.0]
-    activation_beta = [1.0]
-    clip = 0.5
-
-    node = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-        activations,
-        activation_alpha,
-        activation_beta,
-        clip,
-    )
-
-    assert node.get_type_name() == "LSTMSequence"
-    assert node.get_output_size() == 3
-
-
 def test_gru_cell_operator():
     batch_size = 1
     input_size = 16
@@ -837,7 +584,7 @@ def test_roi_pooling_deprecation():
         _ = ov.roi_pooling(inputs, coords=coords, output_roi=[6, 6])
     assert "The following arguments must be defined: `spatial_scale`!" in str(e.value)
 
-    with pytest.warns(DeprecationWarning) as w:
+    with pytest.warns(DeprecationWarning, match="`output_size` is deprecated and will be removed in future") as w:
         node = ov.roi_pooling(inputs, coords=coords, output_size=[6, 6], spatial_scale=0.0625, method="Max")
     assert issubclass(w[0].category, DeprecationWarning)
     assert "`output_size` is deprecated and will be removed in future" in str(w[0].message)
@@ -879,6 +626,37 @@ def test_roi_align(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling
     )
 
     assert node.get_type_name() == "ROIAlign"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == Type.f32
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
+@pytest.mark.parametrize(
+    ("data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio", "spatial_scale", "clockwise_mode", "expected_shape"),
+    [
+        ([2, 3, 5, 6], [7, 5], [7], 2, 2, 1, 1.0, True, [7, 3, 2, 2]),
+        ([10, 3, 5, 5], [7, 5], [7], 3, 4, 1, 1.0, True, [7, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 5], [3], 3, 4, 1, 1.0, False, [3, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 5], [3], 3, 4, 1, float(1), False, [3, 3, 3, 4]),
+    ],
+)
+def test_roi_align_rotated(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, clockwise_mode, expected_shape):
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
+    batch_indices_parameter = ov.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
+
+    node = ov_opset15.roi_align_rotated(
+        data_parameter,
+        rois_parameter,
+        batch_indices_parameter,
+        pooled_h,
+        pooled_w,
+        sampling_ratio,
+        spatial_scale,
+        clockwise_mode,
+    )
+
+    assert node.get_type_name() == "ROIAlignRotated"
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.f32
     assert list(node.get_output_shape(0)) == expected_shape
@@ -1135,7 +913,9 @@ def test_proposal(int_dtype, fp_dtype, op_name):
     assert node.get_type_name() == "Proposal"
     assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 2
-    assert list(node.get_output_shape(0)) == [batch_size * attributes["post_nms_topn"], 5]
+    # Updated dtype promotion rules, need to be adjusted:
+    # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#changes-to-numpy-data-type-promotion
+    assert list(node.get_output_shape(0)) == [np.uint64(batch_size) * attributes["post_nms_topn"], 5]
 
 
 def test_tensor_iterator():
@@ -1218,6 +998,32 @@ def test_read_value():
     assert read_value_attributes["variable_shape"] == [2, 2]
 
 
+def test_read_value_ctors():
+    data = np.ones((1, 64), dtype=np.float32)
+    # check mixed args&kwargs creation
+    read_value = ov.read_value(data, "variable_id_1", name="read_value")
+    assert read_value.friendly_name == "read_value"
+
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([1, 64])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+
+    # check kwargs creation
+    read_value_1 = ov.read_value(init_value=data, ov_variable=variable_1)
+    assert list(read_value_1.get_output_shape(0)) == [1, 64]
+
+    # check args creation
+    read_value_2 = ov.read_value(variable_1)
+    assert list(read_value_2.get_output_shape(0)) == [1, 64]
+
+    with pytest.raises(TypeError) as e:
+        ov.read_value(data, "variable_id_1", 2)
+
+    assert "The necessary overload for read_value was not found" in str(e.value)
+
+
 def test_read_value_dyn_variable_pshape():
     init_value = ov.parameter([2, 2], name="init_value", dtype=np.int32)
 
@@ -1239,6 +1045,7 @@ def test_assign():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [5, 7]
     assert node.get_output_element_type(0) == Type.i32
+    assert node.get_variable_id() == "var_id_667"
     assert assign_attributes["variable_id"] == "var_id_667"
 
 
@@ -2392,6 +2199,122 @@ def test_topk_opset11(op_name):
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [1, 3, 3]
     assert list(node.get_output_shape(1)) == [1, 3, 3]
+
+
+def test_slice_scatter():
+    data_shape = [10, 7, 2, 13]
+    data = ov.parameter(data_shape, name="input", dtype=np.float32)
+    updates = ov.parameter([4, 7, 2, 13], name="updates", dtype=np.float32)
+    start = ov.constant(np.array([2, 0, 0], dtype=np.int32))
+    stop = ov.constant(np.array([9, 7, 2], dtype=np.int32))
+    step = ov.constant(np.array([2, 1, 1], dtype=np.int32))
+
+    node_default_axes = ov_opset15.slice_scatter(data, updates, start, stop, step)
+
+    assert node_default_axes.get_type_name() == "SliceScatter"
+    assert node_default_axes.get_output_size() == 1
+    assert node_default_axes.get_output_element_type(0) == Type.f32
+    assert node_default_axes.get_output_shape(0) == data_shape
+
+    start = ov.constant(np.array([0, 2], dtype=np.int32))
+    stop = ov.constant(np.array([2, 9], dtype=np.int32))
+    step = ov.constant(np.array([1, 2], dtype=np.int32))
+    axes = ov.constant(np.array([-2, 0], dtype=np.int32))
+
+    node = ov_opset15.slice_scatter(data, updates, start, stop, step, axes)
+
+    assert node.get_type_name() == "SliceScatter"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == Type.f32
+    assert node_default_axes.get_output_shape(0) == data_shape
+
+
+def test_stft():
+    data_shape = [4, 48]
+    data = ov.parameter(data_shape, name="input", dtype=np.float32)
+    window = ov.parameter([7], name="window", dtype=np.float32)
+    frame_size = ov.constant(np.array(11, dtype=np.int32))
+    frame_step = ov.constant(np.array(3, dtype=np.int32))
+
+    transpose_frames = False
+    op = ov_opset15.stft(data, window, frame_size, frame_step, transpose_frames)
+
+    assert op.get_type_name() == "STFT"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.f32
+    assert op.get_output_shape(0) == [4, 13, 6, 2]
+
+    transpose_frames = True
+    op = ov_opset15.stft(data, window, frame_size, frame_step, transpose_frames)
+
+    assert op.get_type_name() == "STFT"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.f32
+    assert op.get_output_shape(0) == [4, 6, 13, 2]
+
+
+def test_istft():
+    data_shape = [4, 6, 13, 2]
+    data = ov.parameter(data_shape, name="input", dtype=np.float32)
+    window = ov.parameter([7], name="window", dtype=np.float32)
+    frame_size = ov.constant(np.array(11, dtype=np.int32))
+    frame_step = ov.constant(np.array(3, dtype=np.int32))
+
+    center = False
+    normalized = True
+    op = ov_opset16.istft(data, window, frame_size, frame_step, center, normalized)
+
+    assert op.get_type_name() == "ISTFT"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.f32
+    assert op.get_output_shape(0) == [4, 47]
+
+    center = True
+    normalized = False
+    op = ov_opset16.istft(data, window, frame_size, frame_step, center, normalized)
+
+    assert op.get_type_name() == "ISTFT"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.f32
+    assert op.get_output_shape(0) == [4, 37]
+
+    signal_length = ov.constant(np.array(48, dtype=np.int32))
+    center = False
+    normalized = False
+    op = ov_opset16.istft(data, window, frame_size, frame_step, center, normalized, signal_length)
+
+    assert op.get_type_name() == "ISTFT"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.f32
+    assert op.get_output_shape(0) == [4, 48]
+
+
+def test_search_sorted():
+    sorted_sequence = ov.parameter([7, 256, 200, 200], name="sorted", dtype=np.float32)
+    values = ov.parameter([7, 256, 200, 10], name="values", dtype=np.float32)
+    op = ov_opset15.search_sorted(sorted_sequence=sorted_sequence, values=values, name="default")
+    assert op.get_type_name() == "SearchSorted"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.i64
+    assert op.get_output_shape(0) == [7, 256, 200, 10]
+    assert op.get_attributes()["right_mode"] is False
+    assert op.get_friendly_name() == "default"
+
+    op = ov_opset15.search_sorted(sorted_sequence, values, right_mode=True, name="right")
+    assert op.get_type_name() == "SearchSorted"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.i64
+    assert op.get_output_shape(0) == [7, 256, 200, 10]
+    assert op.get_attributes()["right_mode"] is True
+    assert op.get_friendly_name() == "right"
+
+    op = ov_opset15.search_sorted(sorted_sequence, values, False, name="left")
+    assert op.get_type_name() == "SearchSorted"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.i64
+    assert op.get_output_shape(0) == [7, 256, 200, 10]
+    assert op.get_attributes()["right_mode"] is False
+    assert op.get_friendly_name() == "left"
 
 
 def test_parameter_get_attributes():

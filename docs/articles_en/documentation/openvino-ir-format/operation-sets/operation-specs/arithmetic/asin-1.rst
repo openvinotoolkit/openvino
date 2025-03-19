@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Asin_1}
-
 Asin
 ====
 
 
 .. meta::
-  :description: Learn about Asin-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Asin-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Asin-1*
@@ -33,7 +31,7 @@ No attributes available.
 *Asin* does the following with the input tensor *a*:
 
 .. math::
-   
+
    a_{i} = asin(a_{i})
 
 **Examples**
@@ -42,7 +40,7 @@ No attributes available.
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Asin">
        <input>
            <port id="0">

@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -22,6 +21,6 @@ class TRANSFORMATIONS_API ConvertCompressedOnlyToLegacy;
  */
 class ov::pass::ConvertCompressedOnlyToLegacy : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ConvertCompressedOnlyToLegacy", "0");
+    OPENVINO_MODEL_PASS_RTTI("ConvertCompressedOnlyToLegacy");
     bool run_on_model(const std::shared_ptr<Model>& f) override;
 };

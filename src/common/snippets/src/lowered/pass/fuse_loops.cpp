@@ -7,7 +7,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -26,18 +26,18 @@ bool FuseLoops::loop_ports_are_compatible(const LoopInfoPtr& loop_upper,
                                           const LoopInfoPtr& loop_lower) {
     auto found_port = [](const std::vector<LoopPort>& loop_ports, const ExpressionPort& target_port) {
         return std::find_if(loop_ports.cbegin(), loop_ports.cend(),
-                            [&target_port](const LoopPort& loop_port) {return *(loop_port.expr_port.get()) == target_port; });
+                            [&target_port](const LoopPort& loop_port) {return *(loop_port.get_expr_port().get()) == target_port; });
     };
     const auto& upper_exit_ports = loop_upper->get_output_ports();
     const auto& lower_entry_ports = loop_lower->get_input_ports();
     for (const auto& lower_entry_port : lower_entry_ports) {
-        const auto& src_port = lower_entry_port.expr_port->get_port_connector_ptr()->get_source();
+        const auto& src_port = lower_entry_port.get_expr_port()->get_port_connector_ptr()->get_source();
         const auto upper_exit_port_it = found_port(upper_exit_ports, src_port);
         if (upper_exit_port_it != upper_exit_ports.cend()) {
             const auto& upper_exit_port = *upper_exit_port_it;
-            if (!lower_entry_port.is_incremented || !upper_exit_port.is_incremented)
+            if (!lower_entry_port.is_incremented() || !upper_exit_port.is_incremented())
                 return false;
-            if (lower_entry_port.dim_idx != upper_exit_port.dim_idx)
+            if (lower_entry_port.get_dim_idx() != upper_exit_port.get_dim_idx())
                 return false;
         }
     }
@@ -65,27 +65,27 @@ bool FuseLoops::can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const Unified
         (work_amount_upper == work_amount_lower) && increment_upper == increment_lower;
     const bool bcastable_upper = work_amount_upper == 1 && increment_upper == 1;
     const bool bcastable_lower = work_amount_lower == 1 && increment_lower == 1;
-    const auto is_const_wa_equal = loop_upper->is_work_amount_const() == loop_lower->is_work_amount_const();
     // WA: we can't fuse 2 loops if one of them has first iteration handler but second hasn't,
     // because in this case Main/Tail body handlers of the loop wo first iter handler must be reset with new parameters
     // (e.g. tail size). This logic is not implemented for now, so fusion for such loops is skipped.
     const bool first_iter_handlers_match = loop_upper->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty() ==
                                            loop_lower->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty();
-    return first_iter_handlers_match && is_const_wa_equal && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
+    // InnerSplittedUnifiedLoops can be fused only if they point to the same outer loop
+    const auto& ispl_loop_upper = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(loop_upper);
+    const auto& ispl_loop_lower = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(loop_lower);
+    const auto& inner_splitted_loop_compatible =
+        (!ispl_loop_upper && !ispl_loop_lower) ||
+        (ispl_loop_upper && ispl_loop_lower && ispl_loop_upper->get_outer_splitted_loop_info() == ispl_loop_lower->get_outer_splitted_loop_info());
+    return first_iter_handlers_match && inner_splitted_loop_compatible && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
 }
 
 void FuseLoops::move(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id,
                      LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos, LinearIR::constExprIt pos) {
     // Inner Loops can contain ports which are ports of outer Loops as well.
     // When we move these inner loops, we can corrupt the sort of LoopPorts of outer Loops.
-    // Firstly, we should find correct target loop bounds before their movings.
-    std::map<size_t, std::pair<LinearIR::constExprIt, LinearIR::constExprIt>> outer_loops;  // The map: LoopID -> [ LoopBegin, LoopEnd ]
+    // Firstly, we should get outer loop ids
     const auto outer_loop_ids = LoopManager::get_outer_expr_loops(*loop_begin_pos, loop_id);
-    for (const auto& loop_id : outer_loop_ids) {
-        const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
-        // save previos iterator since the current iterator can be moved
-        outer_loops[loop_id] = {std::prev(loop_bounds.first), loop_bounds.second};
-    }
+
      // Secondly, move expressions
     for (auto it = loop_begin_pos; it != loop_end_pos;) {
         auto expr_it = it;
@@ -96,12 +96,7 @@ void FuseLoops::move(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, si
         linear_ir.move(expr_it, pos);
     }
     // Thirdly, sort Loop Ports of outer Loops.
-    for (auto& loop : outer_loops) {
-        const auto loop_id = loop.first;
-        auto begin = std::next(loop.second.first);
-        auto end = loop.second.second;
-        loop_manager->sort_loop_ports(begin, end, loop_id);
-    }
+    loop_manager->sort_loop_ports(outer_loop_ids);
 }
 
 bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LoopManagerPtr& loop_manager,
@@ -118,7 +113,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LoopManagerPt
     bool is_fusion_allowed = true;
     for (size_t i = 0; i < loop_target->get_output_ports().size() && is_fusion_allowed; ++i) {
         const auto target_output_port = loop_target->get_output_ports()[i];
-        const auto consumer_inputs = target_output_port.expr_port->get_connected_ports();
+        const auto consumer_inputs = target_output_port.get_expr_port()->get_connected_ports();
         for (const auto& consumer_input : consumer_inputs) {
             const auto& consumer = consumer_input.get_expr();
             if (ov::is_type<ov::op::v0::Result>(consumer->get_node()) || consumer == current_input_port->get_expr())
@@ -127,7 +122,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LoopManagerPt
             // is after current Loop (after Loop_down).
             is_fusion_allowed = is_loop_id_found(consumer->get_loop_ids(), target_loop_id) || // is inside target Loop
                                 is_loop_id_found(consumer->get_loop_ids(), current_loop_id) || // is inside current Loop
-                                std::find(current_loop_end_pos, linear_ir.cend(), consumer) != linear_ir.end();  // is after current Loop
+                                consumer->get_exec_num() > (*current_loop_end_pos)->get_exec_num(); // is after current Loop
         }
     }
 
@@ -162,12 +157,12 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LoopManagerPt
     bool is_fusion_allowed = true;
     for (size_t i = 0; i < loop_target->get_input_ports().size() && is_fusion_allowed; ++i) {
         const auto target_entry_port = loop_target->get_input_ports()[i];
-        const auto parent_expr_output = *target_entry_port.expr_port->get_connected_ports().begin();
+        const auto parent_expr_output = *target_entry_port.get_expr_port()->get_connected_ports().begin();
         const auto& parent_expr = parent_expr_output.get_expr();
         if (ov::is_type<ov::op::v0::Parameter>(parent_expr->get_node()) || parent_expr == current_output_port->get_expr())
             continue;
         is_fusion_allowed = is_loop_id_found(parent_expr->get_loop_ids(), current_loop_id) ||  // The parent expr is from the same current Loop
-                            std::find(linear_ir.cbegin(), current_loop_begin_pos, parent_expr) != current_loop_begin_pos; // The parent is before current Loop
+                            parent_expr->get_exec_num() < (*current_loop_begin_pos)->get_exec_num(); // The parent is before current Loop
     }
 
     if (!is_fusion_allowed)
@@ -195,9 +190,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type<ov::op::v0::Parameter>(node) ||
-            ov::is_type<ov::op::v0::Constant>(node) ||
-            ov::is_type<ov::op::v0::Result>(node))
+        if (ov::is_type_any_of<ov::op::v0::Parameter, ov::op::v0::Constant, ov::op::v0::Result>(node))
             continue;
 
         // Outer Loop ----> Inner Loop
@@ -226,12 +219,10 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 bool was_fusion_up = false;
                 for (size_t in_port = 0; !was_fusion_up && in_port < input_ports.size(); ++in_port) {
                     const auto& input_port = input_ports[in_port];
-                    const auto parent_expr_output = *input_port.expr_port->get_connected_ports().begin();
+                    const auto parent_expr_output = *input_port.get_expr_port()->get_connected_ports().begin();
                     const auto& parent_expr = parent_expr_output.get_expr();
                     const auto parent = parent_expr->get_node();
-                    if (ov::is_type<ov::op::v0::Constant>(parent) ||
-                        ov::is_type<ov::op::v0::Parameter>(parent) ||
-                        ov::is_type<op::Buffer>(parent)) {
+                    if (ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter, op::Buffer>(parent)) {
                         continue;
                     }
 
@@ -252,7 +243,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                     const auto upper_loop_id = upper_loop_ids[loop_idx];
                     OPENVINO_ASSERT(current_loop_id != upper_loop_id,
                                     "Loops cannot have parents of input ports with the same identifier (", upper_loop_id, ")");
-                    if (fuse_upper_into_current(linear_ir, loop_manager, input_port.expr_port, current_loop_id, upper_loop_id,
+                    if (fuse_upper_into_current(linear_ir, loop_manager, input_port.get_expr_port(), current_loop_id, upper_loop_id,
                                                 current_loop_begin_pos, current_loop_end_pos)) {
                         was_fusion_up = true;
                         prev_fused_loops.insert(current_loop_id);
@@ -271,12 +262,11 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 const auto& output_ports = current_loop_info->get_output_ports();
                 for (size_t out_port = 0; !was_fusion_down && out_port < output_ports.size(); ++out_port) {
                     const auto& output_port = output_ports[out_port];
-                    const auto consumer_exprs_inputs = output_port.expr_port->get_connected_ports();
+                    const auto consumer_exprs_inputs = output_port.get_expr_port()->get_connected_ports();
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
                         const auto& consumer_expr = consumer_expr_input.get_expr();
                         const auto consumer = consumer_expr->get_node();
-                        if (ov::is_type<ov::op::v0::Result>(consumer) ||
-                            ov::is_type<op::Buffer>(consumer)) {
+                        if (ov::is_type_any_of<ov::op::v0::Result, op::Buffer>(consumer)) {
                             continue;
                         }
 
@@ -299,7 +289,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                         if (current_loop_id == lower_loop_id)
                             continue;
 
-                        if (fuse_lower_into_current(linear_ir, loop_manager, output_port.expr_port, current_loop_id, lower_loop_id,
+                        if (fuse_lower_into_current(linear_ir, loop_manager, output_port.get_expr_port(), current_loop_id, lower_loop_id,
                                                     current_loop_begin_pos, current_loop_end_pos)) {
                             was_fusion_down = true;
                             prev_fused_loops.insert(current_loop_id);

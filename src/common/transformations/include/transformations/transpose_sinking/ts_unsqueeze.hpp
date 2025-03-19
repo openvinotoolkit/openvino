@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
@@ -27,7 +26,7 @@ class TRANSFORMATIONS_API TSUnsqueezeBackward;
  */
 class ov::pass::transpose_sinking::TSUnsqueezeForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSUnsqueezeForward", "0");
+    OPENVINO_RTTI("ov::pass::TSUnsqueezeForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSUnsqueezeForward();
 };
 
@@ -38,6 +37,6 @@ public:
  */
 class ov::pass::transpose_sinking::TSUnsqueezeBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSUnsqueezeBackward", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSUnsqueezeBackward");
     TSUnsqueezeBackward();
 };

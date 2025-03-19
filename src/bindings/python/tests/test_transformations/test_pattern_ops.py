@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 import pytest
 
-from openvino import PartialShape
-from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import Matcher, WrapType, Or, AnyInput, Optional
-from openvino.runtime.passes import (
+from openvino import PartialShape, Symbol, Dimension
+from openvino import opset13 as ops
+from openvino.passes import Matcher, WrapType, Or, AnyInput, Optional
+from openvino.passes import (
     consumers_count,
     has_static_dim,
     has_static_dims,
@@ -15,8 +15,9 @@ from openvino.runtime.passes import (
     has_static_rank,
     type_matches,
     type_matches_any,
+    shape_matches,
 )
-from openvino.runtime.utils.types import get_element_type
+from openvino.utils.types import get_element_type
 
 from tests.test_transformations.utils.utils import expect_exception
 
@@ -189,7 +190,7 @@ def test_pattern_optional_root():
 
 
 def test_wrap_type_pattern_type():
-    last_opset_number = 15
+    last_opset_number = 16
     for i in range(1, last_opset_number + 1):
         WrapType(f"opset{i}.Parameter")
         WrapType(f"opset{i}::Parameter")
@@ -251,6 +252,30 @@ def test_any_input_predicate():
     matcher = Matcher(AnyInput(lambda output: len(output.get_shape()) == 4), "FindActivation")
     assert matcher.match(param)
     assert not matcher.match(slope)
+
+
+def test_any_input_symbol_predicate():
+    def symbol_matching_test(shape: PartialShape, pattern: str):
+        param = ops.parameter(shape)
+        matcher = Matcher(AnyInput(shape_matches(pattern)), "Find" + pattern)
+        assert matcher.match(param), f"Match failed for {shape} {pattern}"
+        return matcher.get_symbols()
+
+    symbols = symbol_matching_test(PartialShape([1, 3, 22, 22]), "[Batch,Channels,Spatial,Spatial]")
+    assert symbols["Batch"] == 1, symbols
+    assert symbols["Channels"] == 3, symbols
+    assert symbols["Spatial"] == 22, symbols
+
+    shape = PartialShape([-1, 2, 3, 4, -1, 6, 7])
+    a_dim, b_dim = Dimension(), Dimension()
+    a_dim.set_symbol(Symbol())
+    b_dim.set_symbol(Symbol())
+    shape[0] = a_dim
+    shape[4] = b_dim
+    symbols = symbol_matching_test(shape, "[Batches...,Dyn,Six,7]")
+    assert symbols["Batches"] == [a_dim.get_symbol(), 2, 3, 4], symbols
+    assert symbols["Dyn"] == b_dim.get_symbol(), symbols
+    assert symbols["Six"] == 6, symbols
 
 
 def test_optional_full_match():
@@ -348,7 +373,9 @@ def test_optional_with_multi_input_node():
 
 def test_all_predicates():
     static_param = ops.parameter(PartialShape([1, 3, 22, 22]), np.float32)
-    dynamic_param = ops.parameter(PartialShape([-1, 6]), np.compat.long)
+    # np.compat.long =/= int:
+    # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#windows-default-integer
+    dynamic_param = ops.parameter(PartialShape([-1, 6]), np.intp)
     fully_dynamic_param = ops.parameter(PartialShape.dynamic())
 
     assert Matcher(WrapType("opset13.Parameter", consumers_count(0)), "Test").match(static_param)
@@ -373,7 +400,7 @@ def test_all_predicates():
 
     assert Matcher(WrapType("opset13.Parameter",  # noqa: ECE001
                             type_matches_any([get_element_type(np.float32),
-                                              get_element_type(np.compat.long)])), "Test").match(static_param)
+                                              get_element_type(np.intp)])), "Test").match(static_param)
     assert Matcher(WrapType("opset13.Parameter",  # noqa: ECE001
                             type_matches_any([get_element_type(np.float32),
-                                              get_element_type(np.compat.long)])), "Test").match(dynamic_param)
+                                              get_element_type(np.intp)])), "Test").match(dynamic_param)

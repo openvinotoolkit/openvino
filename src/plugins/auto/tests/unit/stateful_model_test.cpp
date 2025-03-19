@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -231,7 +231,7 @@ TEST_P(StatefulModelSupportedTest, CanFilterOutCorrectTargetDeviceWithStatefulMo
     if (expectedTimes < 0) {
         ASSERT_THROW(plugin->compile_model(model, config), ov::Exception);
     } else {
-        ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+        OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(), expectedExecuteDev);
     }

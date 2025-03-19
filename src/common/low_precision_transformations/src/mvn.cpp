@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,15 +52,15 @@ MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool MVNTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!LayerTransformation::canBeTransformed(context, operation)) {
+bool MVNTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!LayerTransformation::canBeTransformed(operation)) {
         return false;
     }
 
@@ -117,17 +117,13 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
     return false;
 }
 
-bool MVNTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool MVNTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> operation = m.get_match_root();
-    if (!canBeTransformed(context, operation)) {
+    if (!canBeTransformed(operation)) {
         return false;
     }
 
-    std::shared_ptr<Node> mvn = ov::as_type_ptr<op::v0::MVN>(operation);
-    if (!mvn) {
-        mvn = ov::as_type_ptr<opset6::MVN>(operation);
-    }
-
+    const auto mvn = NetworkHelper::separateInStandaloneBranch(operation, defaultPrecisions);
     bool normalizeVariance;
     if (ov::is_type<op::v0::MVN>(mvn)) {
         normalizeVariance = ov::as_type_ptr<op::v0::MVN>(mvn)->get_normalize_variance();
@@ -171,9 +167,9 @@ bool MVNTransformation::transform(TransformationContext &context, ov::pass::patt
 
     NetworkHelper::insertDequantizationAfter(mvn, newMultiply, newMVN);
 
-    updateOutput(context, newMultiply, newMVN);
+    updateOutput(newMultiply, newMVN);
 
-    OPENVINO_DEBUG << "LPT: done: " << newMVN;
+    OPENVINO_DEBUG("LPT: done: ", newMVN);
     return true;
 }
 

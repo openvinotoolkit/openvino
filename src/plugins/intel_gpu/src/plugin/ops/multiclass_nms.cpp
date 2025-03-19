@@ -10,8 +10,7 @@
 #include "intel_gpu/primitives/multiclass_nms.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 
 static void CreateMulticlassNmsIEInternalOp(ProgramBuilder& p, const std::shared_ptr<op::internal::MulticlassNmsIEInternal>& op) {
@@ -22,7 +21,6 @@ static void CreateMulticlassNmsIEInternalOp(ProgramBuilder& p, const std::shared
     if (p.use_new_shape_infer()) {
         cldnn::multiclass_nms prim{layer_type_name_ID(op), inputs, op->get_attrs()};
         prim.num_outputs = op->get_output_size();
-        prim.output_paddings = get_output_paddings(op);
         prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
 
         p.add_primitive(*op, prim);
@@ -83,5 +81,4 @@ static void CreateMulticlassNmsIEInternalOp(ProgramBuilder& p, const std::shared
 
 REGISTER_FACTORY_IMPL(internal, MulticlassNmsIEInternal);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

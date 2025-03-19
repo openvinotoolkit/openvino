@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -18,3 +18,4 @@ from openvino._pyopenvino._offline_transformations import compress_model_transfo
 from openvino._pyopenvino._offline_transformations import compress_quantize_weights_transformation
 from openvino._pyopenvino._offline_transformations import convert_sequence_to_tensor_iterator_transformation
 from openvino._pyopenvino._offline_transformations import paged_attention_transformation
+from openvino._pyopenvino._offline_transformations import stateful_to_stateless_transformation

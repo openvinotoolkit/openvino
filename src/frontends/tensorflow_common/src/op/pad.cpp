@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,7 @@ static OutputVector translate_pad_base_op(const NodeContext& node,
     if (auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr())) {
         is_complex = true;
         complex_part_type = complex_type_mark->get_complex_part_type();
-        input = complex_type_mark->input_value(0);
+        input = complex_type_mark->get_data();
     }
     auto pad_mode = ov::op::PadMode::CONSTANT;
 
@@ -76,7 +76,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
 
     auto constant_value = create_same_type_const_scalar<int32_t>(input, 0);
     if (auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr())) {
-        constant_value = create_same_type_const_scalar<int32_t>(complex_type_mark->input_value(0), 0);
+        constant_value = create_same_type_const_scalar<int32_t>(complex_type_mark->get_data(), 0);
     }
 
     return translate_pad_base_op(node, input, paddings, constant_value);
@@ -88,7 +88,7 @@ OutputVector translate_padv2_op(const NodeContext& node) {
     auto paddings = node.get_input(1);
     auto constant_value = node.get_input(2);
     if (auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr())) {
-        input = complex_type_mark->input_value(0);
+        input = complex_type_mark->get_data();
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
 
         auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
@@ -98,7 +98,7 @@ OutputVector translate_padv2_op(const NodeContext& node) {
         auto x_imag = make_shared<v8::Gather>(input, gather_index_imag, minus_one)->output(0);
 
         auto constant_complex_type_mark = as_type_ptr<ComplexTypeMark>(constant_value.get_node_shared_ptr());
-        auto constant_input = constant_complex_type_mark->input_value(0);
+        auto constant_input = constant_complex_type_mark->get_data();
         auto constant_value_real = make_shared<v8::Gather>(constant_input, gather_index_real, minus_one)->output(0);
         auto constant_value_imag = make_shared<v8::Gather>(constant_input, gather_index_imag, minus_one)->output(0);
 

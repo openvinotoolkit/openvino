@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,15 @@
 namespace ov {
 namespace reference {
 namespace func {
-void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t count) {
+/**
+ * @brief Emulation of conversion fp16 value to f8e5m2 format
+ *
+ * @param arg_f       Pointer to the input data.
+ * @param out_f       Pointer to the otuput data.
+ * @param count       Number of elements in the data input.
+ * @param use_clamp   If use clamp.
+ */
+void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t count, bool use_clamp) {
     const auto arg_u = reinterpret_cast<const uint16_t*>(arg_f);
     auto out_u = reinterpret_cast<uint16_t*>(out_f);
     uint16_t val_bit_repr;
@@ -24,13 +32,6 @@ void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t c
     for (size_t i = 0; i < count; ++i) {
         /// converts float number to half precision in round-to-nearest-even mode and returns half with converted value.
         val_bit_repr = arg_u[i];
-        /// 0x7c00 = 0111110000000000 - exponent mask
-        /// s 11111 xxx xxxx xxxx - is nan (if some x is 1) or inf (if all x is 0)
-        /// 0x7800 is 0111100000000000 and 0x400 is 0000010000000000
-        /// number is not normal if all exponent is 1 or 0
-        /// 0x7f00 is 0 11111 1100000000
-        /// 0x7b00 is 0 11110 1100000000
-        const bool can_round = ((val_bit_repr & 0x7F00) < 0x7B00) ? true : false;
         /// s 11111 xxx xxxx xxxx - is nan (if some x is 1) or inf (if all x is 0)
         const bool is_naninf = ((val_bit_repr & fp16_inf) == fp16_inf) ? true : false;
         /* nearest rounding masks */
@@ -39,7 +40,7 @@ void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t c
         /// rne_tie - 0x180 is      0 00000 0110000000 or 384.0
         uint16_t rnmask_tie = (val_bit_repr & rne_tie);
 
-        if (!is_naninf && can_round) {
+        if (!is_naninf) {
             /* round to nearest even, if rne_mask is enabled */
             /* 0 00000 0010000000, find grs patterns */
             // 0xx - do nothing
@@ -48,6 +49,10 @@ void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t c
             val_bit_repr += (((rnmask > 0x0080) || (rnmask_tie == rne_tie)) << lshift);
         }
         val_bit_repr &= mask_mant; /* truncation */
+        if (use_clamp) {
+            // clamp inf to max and -inf to lowest, S.11111.00 -> S.11110.11
+            val_bit_repr -= (((val_bit_repr & 0x7F00) == fp16_inf) << lshift);
+        }
         out_u[i] = val_bit_repr;
     }
 }
@@ -57,19 +62,19 @@ void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t c
  *
  * @param arg_f       Pointer to the input data.
  * @param out_f       Pointer to the otuput data.
- * @param count     Number of elements in the data input.
+ * @param count       Number of elements in the data input.
+ * @param use_clamp   If use clamp.
  *
  * Exponent denormal values 0 -7
  * Exponent normal values 1..15 -6..8 (7 - exponent)
  * Exponent NaN values 15 8
  *
  */
-void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count) {
+void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count, bool use_clamp) {
     const auto arg_u = reinterpret_cast<const uint16_t*>(arg_f);
     auto out_u = reinterpret_cast<uint16_t*>(out_f);
     uint16_t val_bit_repr;
 
-    constexpr auto use_clamp = true;
     constexpr auto exp_bits = 5;
     constexpr auto mbits = 9;
     constexpr auto non_mant_bits = exp_bits + 1;  /// exponent + sign

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,12 @@ namespace frontend {
 namespace jax {
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
+    auto inputs = context.inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs, "Got less inputs than expected");
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() <= max_inputs, "Got more inputs than expected");
+}
+
+void num_inputs_check(const NodeContext& context, size_t min_inputs) {
     auto inputs = context.inputs();
     FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs, "Got less inputs than expected");
 }
@@ -48,18 +54,45 @@ const std::unordered_map<int64_t, element::Type> JAX_TO_OV_TYPE{
     {5, element::f16},
     {6, element::f32},
     {7, element::f64},
+    {8, element::u16},
+    {9, element::u32},
+    {10, element::u64},
     {11, element::boolean},
     {12, element::i8},   // quantized i8
     {13, element::u8},   // quantized u8
     {14, element::i32},  // quantized i32
     {15, element::bf16},
 };
+
+std::shared_ptr<JaxFrameworkNode> create_fw_node_with_exception(const NodeContext& context,
+                                                                const ov::OutputVector& inputs,
+                                                                size_t num_outputs,
+                                                                const std::string& exception_message,
+                                                                bool skip_subgraphs = false) {
+    auto fw_node = std::make_shared<JaxFrameworkNode>(context.get_decoder(), inputs, num_outputs);
+    auto attrs = fw_node->get_attrs();
+    std::string message(exception_message);
+    if (!message.empty()) {
+        message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() + '\n' + message;
+    }
+    attrs[JaxFrameworkNode::failed_conversion_key] = message;
+    fw_node->set_attrs(attrs);
+    return fw_node;
+}
+
 }  // namespace
 
 element::Type convert_dtype(int64_t jax_type) {
     FRONT_END_OP_CONVERSION_CHECK(JAX_TO_OV_TYPE.count(jax_type), "Unknown type: ", jax_type);
     return JAX_TO_OV_TYPE.at(jax_type);
 };
+
+OutputVector make_framework_node(const NodeContext& context, const std::string& exception) {
+    // We create additional output for such nodes. It contains new tensor that represents input that was changed.
+    auto fw_node = create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception);
+    auto outputs = fw_node->outputs();
+    return outputs;
+}
 
 }  // namespace jax
 }  // namespace frontend

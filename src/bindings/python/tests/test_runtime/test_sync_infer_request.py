@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from contextlib import nullcontext as does_not_raise
@@ -10,7 +10,7 @@ import pytest
 import datetime
 import openvino.properties as props
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino import (
     Core,
     CompiledModel,
@@ -22,65 +22,26 @@ from openvino import (
     Tensor,
     compile_model,
 )
-from openvino.runtime import ProfilingInfo
+from openvino import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
 
-from tests.utils.helpers import generate_image, get_relu_model, generate_model_with_memory
+from tests.utils.helpers import (
+    generate_image,
+    get_relu_model,
+    generate_concat_compiled_model_with_data,
+    generate_add_compiled_model,
+    generate_abs_compiled_model_with_data,
+)
 
 
 def create_simple_request_and_inputs(device):
-    input_shape = [2, 2]
-    param_a = ops.parameter(input_shape, np.float32)
-    param_b = ops.parameter(input_shape, np.float32)
-    model = Model(ops.add(param_a, param_b), [param_a, param_b])
-
-    core = Core()
-    compiled_model = core.compile_model(model, device)
+    compiled_model = generate_add_compiled_model(device, input_shape=[2, 2])
     request = compiled_model.create_infer_request()
 
     arr_1 = np.array([[1, 2], [3, 4]], dtype=np.float32)
     arr_2 = np.array([[3, 4], [1, 2]], dtype=np.float32)
 
     return request, arr_1, arr_2
-
-
-def concat_model_with_data(device, ov_type, numpy_dtype):
-    core = Core()
-
-    input_shape = [5]
-
-    params = []
-    params += [ops.parameter(input_shape, ov_type)]
-    if ov_type == Type.bf16:
-        params += [ops.parameter(input_shape, ov_type)]
-    else:
-        params += [ops.parameter(input_shape, numpy_dtype)]
-
-    model = Model(ops.concat(params, 0), params)
-    compiled_model = core.compile_model(model, device)
-    request = compiled_model.create_infer_request()
-    tensor1 = Tensor(ov_type, input_shape)
-    tensor1.data[:] = np.array([6, 7, 8, 9, 0])
-    array1 = np.array([1, 2, 3, 4, 5], dtype=numpy_dtype)
-
-    return request, tensor1, array1
-
-
-def abs_model_with_data(device, ov_type, numpy_dtype):
-    input_shape = [1, 4]
-    param = ops.parameter(input_shape, ov_type)
-    model = Model(ops.abs(param), [param])
-    core = Core()
-    compiled_model = core.compile_model(model, device)
-
-    request = compiled_model.create_infer_request()
-
-    tensor1 = Tensor(ov_type, input_shape)
-    tensor1.data[:] = np.array([6, -7, -8, 9])
-
-    array1 = np.array([[-1, 2, 5, -3]]).astype(numpy_dtype)
-
-    return compiled_model, request, tensor1, array1
 
 
 def test_get_profiling_info(device):
@@ -347,7 +308,7 @@ def test_infer_mixed_keys(device, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
-    request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
+    request, tensor1, array1 = generate_concat_compiled_model_with_data(device=device, ov_type=ov_type, numpy_dtype=numpy_dtype)
 
     request.infer([tensor1, array1], share_inputs=share_inputs)
 
@@ -367,7 +328,7 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_single_input(device, ov_type, numpy_dtype, share_inputs):
-    _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
+    _, request, tensor1, array1 = generate_abs_compiled_model_with_data(device, ov_type, numpy_dtype)
 
     request.infer(array1, share_inputs=share_inputs)
     assert np.array_equal(request.get_output_tensor().data, np.abs(array1))
@@ -602,10 +563,10 @@ def test_array_like_input_request(device, share_inputs):
         def __init__(self, array) -> None:
             self.data = array
 
-        def __array__(self):
+        def __array__(self, dtype=None, copy=None):
             return np.array(self.data)
 
-    _, request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
+    _, request, _, input_data = generate_abs_compiled_model_with_data(device, Type.f32, np.single)
     model_input_object = ArrayLikeObject(input_data.tolist())
     model_input_list = [ArrayLikeObject(input_data.tolist())]
     model_input_dict = {0: ArrayLikeObject(input_data.tolist())}
@@ -630,7 +591,7 @@ def test_convert_infer_request(device):
     res = request.infer(inputs)
     with pytest.raises(TypeError) as e:
         deepcopy(res)
-    assert "Cannot deepcopy 'openvino.runtime.ConstOutput' object." in str(e)
+    assert "Cannot deepcopy 'openvino.ConstOutput' object." in str(e)
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
@@ -772,7 +733,7 @@ def test_not_writable_inputs_infer(device, share_inputs, input_data, change_flag
 @pytest.mark.parametrize("share_outputs", [True, False])
 @pytest.mark.parametrize("is_positional", [True, False])
 def test_compiled_model_share_memory(device, share_inputs, share_outputs, is_positional):
-    compiled, _, _, input_data = abs_model_with_data(device, Type.f32, np.float32)
+    compiled, _, _, input_data = generate_abs_compiled_model_with_data(device, Type.f32, np.float32)
 
     if is_positional:
         results = compiled(input_data, share_inputs=share_inputs, share_outputs=share_outputs)
@@ -800,7 +761,7 @@ def test_compiled_model_share_memory(device, share_inputs, share_outputs, is_pos
 @pytest.mark.parametrize("share_outputs", [True, False])
 @pytest.mark.parametrize("is_positional", [True, False])
 def test_infer_request_share_memory(device, share_inputs, share_outputs, is_positional):
-    _, request, _, input_data = abs_model_with_data(device, Type.f32, np.float32)
+    _, request, _, input_data = generate_abs_compiled_model_with_data(device, Type.f32, np.float32)
 
     if is_positional:
         results = request.infer(input_data, share_inputs=share_inputs, share_outputs=share_outputs)

@@ -19,7 +19,7 @@ namespace pass {
  */
 class PropagateBufferOffset: public Pass {
 public:
-    OPENVINO_RTTI("PropagateBufferOffset", "Pass")
+    OPENVINO_RTTI("PropagateBufferOffset", "", Pass);
     PropagateBufferOffset() = default;
 
     /**
@@ -34,7 +34,7 @@ private:
      * @brief Propagates Buffer offset to the connected memory access ops
      * @param buffer_expr expression with Buffer op with inited offset
      */
-    static void propagate(const ExpressionPtr& buffer_expr);
+    static void propagate(const BufferExpressionPtr& buffer_expr);
 };
 
 } // namespace pass

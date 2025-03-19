@@ -1,18 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/internal_properties.hpp"
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "reshape_inst.h"
-#include "layout_optimizer.h"
-
-#include "gemm_inst.h"
-#include "pooling_inst.h"
-#include "fully_connected_inst.h"
-
-#include <iterator>
 #include <vector>
 #include <memory>
 
@@ -103,7 +95,7 @@ void handle_reshape::run(program& p) {
                 if (user->is_type<reorder>() &&
                     (*user).as<reorder>().get_primitive()->truncate == false)   // not to split conversion only reorder
                     reorder_node_to_split.push_back(user);
-                if (user->get_preferred_impl_type() == cldnn::impl_types::onednn)
+                if (user->can_use(impl_types::onednn))
                     onednn_users.push_back(user);
             }
 
@@ -113,23 +105,17 @@ void handle_reshape::run(program& p) {
                 // Copy reorder_node_to_split to iteration
                 std::vector<program_node*> reorder_users(reorder_node_to_split);
                 for (const auto& reorder_node : reorder_users) {
-                    auto output_data_type = reorder_node->get_output_layout().data_type;
                     bool onednn_support = true;
                     for (const auto& user : onednn_users) {
-                        auto out_dt = user->get_output_layout().data_type;
-                        if (user->is_type<fully_connected>() || user->is_type<gemm>()) {
-                            bool is_fc = user->is_type<fully_connected>();
-                            auto wei_dt = is_fc ? user->as<fully_connected>().weights().get_output_layout().data_type :
-                                                    user->as<gemm>().get_input_layout(1).data_type;
-                            onednn_support = layout_optimizer::onednn_check_data_types_for_fc_gemm(output_data_type, wei_dt, out_dt);
-                        } else if (user->is_type<convolution>() || user->is_type<deconvolution>()) {
-                            bool is_conv = user->is_type<convolution>();
-                            auto wei_dt = is_conv ? user->as<convolution>().weights().get_output_layout().data_type :
-                                                    user->as<deconvolution>().weights().get_output_layout().data_type;
-                            onednn_support = layout_optimizer::onednn_check_data_types_for_convolution(output_data_type, wei_dt, out_dt);
-                        } else if (user->is_type<pooling>()) {
-                            onednn_support = layout_optimizer::onednn_check_data_types_for_pooling(output_data_type, out_dt);
-                        }
+                        auto idx = user->get_dependency_index(*node);
+                        user->replace_dependency(idx, *reorder_node, false);
+                        // Disable forcing to enable validate() call
+                        auto forced_impl = user->get_forced_impl_type();
+                        user->set_forced_impl_type(impl_types::any);
+
+                        onednn_support = user->can_use(impl_types::onednn);
+                        user->set_forced_impl_type(forced_impl);
+                        user->replace_dependency(idx, *node, false);
 
                         if (!onednn_support) {
                             reorder_node_to_split.erase(std::remove(reorder_node_to_split.begin(), reorder_node_to_split.end(), reorder_node),
@@ -181,6 +167,8 @@ void handle_reshape::run(program& p) {
                         }
 
                         reorder_reshape_nodes.push_back(&new_reshape_node);
+                        new_reshape_node.recalc_output_layouts(false);
+                        node->recalc_output_layouts(false);
                     }
                 }
 
@@ -208,7 +196,8 @@ void handle_reshape::run(program& p) {
                                        0,
                                        reshape_input_node.get_dependencies().empty());
                     reshape_reorder_id++;
-                    reshape_input_node.recalc_output_layout();
+                    reshape_input_node.recalc_output_layouts(false);
+                    node->recalc_output_layouts(false);
                 }
             }
 
@@ -233,7 +222,8 @@ void handle_reshape::run(program& p) {
                         << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
                     auto& reshape_input_node = p.get_or_create(reshape_input);
                     p.add_intermediate(reshape_input_node, *node, 0, reshape_input_node.get_dependencies().empty());
-                    reshape_input_node.recalc_output_layout();
+                    reshape_input_node.recalc_output_layouts(false);
+                    node->recalc_output_layouts(false);
                 }
 
                 // Check whether output reorder is required for format change
@@ -251,9 +241,9 @@ void handle_reshape::run(program& p) {
                                         *user,
                                         *node,
                                         reshape_output_node.get_dependencies().empty());
-                        reshape_output_node.recalc_output_layout();
+                        reshape_output_node.recalc_output_layouts(false);
                     }
-                    node->recalc_output_layout();
+                    node->recalc_output_layouts(false);
                 }
             }
         }

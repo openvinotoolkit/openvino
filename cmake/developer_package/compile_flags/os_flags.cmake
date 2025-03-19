@@ -1,281 +1,8 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include(ProcessorCount)
-include(CheckCXXCompilerFlag)
-
-#
-# ov_disable_deprecated_warnings()
-#
-# Disables deprecated warnings generation in current scope (directory, function)
-# Defines ov_c_cxx_deprecated varaible which contains C / C++ compiler flags
-#
-macro(ov_disable_deprecated_warnings)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set(ov_c_cxx_deprecated "/wd4996")
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        if(WIN32)
-            set(ov_c_cxx_deprecated "/Qdiag-disable:1478,1786")
-        else()
-            set(ov_c_cxx_deprecated "-diag-disable=1478,1786")
-        endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
-        set(ov_c_cxx_deprecated "-Wno-deprecated-declarations")
-    else()
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-    endif()
-
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_deprecated}")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_deprecated}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_deprecated}")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_deprecated}")
-endmacro()
-
-#
-# ov_deprecated_no_errors()
-#
-# Don't threat deprecated warnings as errors in current scope (directory, function)
-# Defines ov_c_cxx_deprecated_no_errors varaible which contains C / C++ compiler flags
-#
-macro(ov_deprecated_no_errors)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        # show 4996 only for /w4
-        set(ov_c_cxx_deprecated_no_errors "/wd4996")
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        if(WIN32)
-            set(ov_c_cxx_deprecated_no_errors "/Qdiag-warning:1478,1786")
-        else()
-            set(ov_c_cxx_deprecated_no_errors "-diag-warning=1478,1786")
-        endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
-        set(ov_c_cxx_deprecated_no_errors "-Wno-error=deprecated-declarations")
-        # Suppress #warning messages
-        set(ov_c_cxx_deprecated_no_errors "${ov_c_cxx_deprecated_no_errors} -Wno-cpp")
-    else()
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-    endif()
-
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_deprecated_no_errors}")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_deprecated_no_errors}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_deprecated_no_errors}")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_deprecated_no_errors}")
-endmacro()
-
-#
-# ov_dev_package_no_errors()
-#
-# Exports flags for 3rdparty modules, but without errors
-#
-macro(ov_dev_package_no_errors)
-    if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
-        set(ov_c_cxx_dev_no_errors "-Wno-all")
-        if(SUGGEST_OVERRIDE_SUPPORTED)
-            set(ov_cxx_dev_no_errors "-Wno-error=suggest-override")
-        endif()
-    endif()
-
-    if(CMAKE_COMPILE_WARNING_AS_ERROR AND WIN32)
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-            if(CMAKE_VERSION VERSION_LESS 3.24)
-                ov_add_compiler_flags(/WX-)
-            endif()
-            string(REPLACE "/WX" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
-        endif()
-        set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
-    endif()
-
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_dev_no_errors}")
-endmacro()
-
-#
-# ov_sse42_optimization_flags(<output flags>)
-#
-# Provides SSE4.2 compilation flags depending on an OS and a compiler
-#
-macro(ov_sse42_optimization_flags flags)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        # No such option for MSVC 2019
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" OR OV_COMPILER_IS_INTEL_LLVM)
-        if(WIN32)
-            set(${flags} /QxSSE4.2)
-        else()
-            set(${flags} -xSSE4.2)
-        endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
-        set(${flags} -msse4.2)
-        if(EMSCRIPTEN)
-            list(APPEND ${flags} -msimd128)
-        endif()
-    else()
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-    endif()
-endmacro()
-
-#
-# ov_avx2_optimization_flags(<output flags>)
-#
-# Provides AVX2 compilation flags depending on an OS and a compiler
-#
-macro(ov_avx2_optimization_flags flags)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set(${flags} /arch:AVX2)
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        if(WIN32)
-            set(${flags} /QxCORE-AVX2)
-        else()
-            set(${flags} -xCORE-AVX2)
-        endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
-        set(${flags} -mavx2 -mfma -mf16c)
-    else()
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-    endif()
-endmacro()
-
-#
-# ov_avx512_optimization_flags(<output flags>)
-#
-# Provides common AVX512 compilation flags for AVX512F instruction set support
-# depending on an OS and a compiler
-#
-macro(ov_avx512_optimization_flags flags)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set(${flags} /arch:AVX512)
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        if(WIN32)
-            set(${flags} /QxCOMMON-AVX512)
-        else()
-            set(${flags} -xCOMMON-AVX512)
-        endif()
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
-        set(${flags} -mavx512f -mavx512bw -mavx512vl -mfma -mf16c)
-    else()
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-    endif()
-endmacro()
-
-#
-# ov_arm_neon_optimization_flags(<output flags>)
-#
-macro(ov_arm_neon_optimization_flags flags)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        # nothing to define; works out of box
-    elseif(ANDROID)
-        if(ANDROID_ABI STREQUAL "arm64-v8a")
-            set(${flags} -mfpu=neon -Wno-unused-command-line-argument)
-        elseif(ANDROID_ABI STREQUAL "armeabi-v7a-hard with NEON")
-            set(${flags} -march=armv7-a+fp -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon -Wno-unused-command-line-argument)
-        elseif((ANDROID_ABI STREQUAL "armeabi-v7a with NEON") OR
-               (ANDROID_ABI STREQUAL "armeabi-v7a" AND
-                DEFINED CMAKE_ANDROID_ARM_NEON AND CMAKE_ANDROID_ARM_NEON))
-                set(${flags} -march=armv7-a+fp -mfloat-abi=softfp -mfpu=neon -Wno-unused-command-line-argument)
-        endif()
-    else()
-        if(AARCH64)
-            set(${flags} -O2)
-            if(NOT CMAKE_CL_64)
-                list(APPEND ${flags} -ftree-vectorize)
-            endif()
-        elseif(ARM)
-            set(${flags} -mfpu=neon -Wno-unused-command-line-argument)
-        endif()
-    endif()
-endmacro()
-
-#
-# ov_disable_all_warnings(<target1 [target2 target3 ...]>)
-#
-# Disables all warnings for 3rd party targets
-#
-function(ov_disable_all_warnings)
-    foreach(target IN LISTS ARGN)
-        get_target_property(target_type ${target} TYPE)
-
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-            target_compile_options(${target} PRIVATE /WX-)
-        elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
-            target_compile_options(${target} PRIVATE -w)
-            # required for LTO
-            set(link_interface INTERFACE_LINK_OPTIONS)
-            if(target_type STREQUAL "SHARED_LIBRARY" OR target_type STREQUAL "EXECUTABLE")
-                set(link_interface LINK_OPTIONS)
-            endif()
-            if(CMAKE_COMPILER_IS_GNUCXX)
-                set_target_properties(${target} PROPERTIES ${link_interface} "-Wno-error=maybe-uninitialized;-Wno-maybe-uninitialized")
-            endif()
-        elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            # 193: zero used for undefined preprocessing identifier "XXX"
-            # 1011: missing return statement at end of non-void function "XXX"
-            # 2415: variable "xxx" of static storage duration was declared but never referenced
-            target_compile_options(${target} PRIVATE -diag-disable=warn,193,1011,2415)
-        endif()
-    endforeach()
-endfunction()
-
-#
-# ov_add_compiler_flags(<flag1 [flag2 flag3 ...>])
-#
-# Adds compiler flags to C / C++ sources
-#
-macro(ov_add_compiler_flags)
-    foreach(flag ${ARGN})
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
-    endforeach()
-endmacro()
-
-#
-# ov_force_include(<target> <PUBLIC | PRIVATE | INTERFACE> <header file>)
-#
-# Forced includes certain header file to all target source files
-#
-function(ov_force_include target scope header_file)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        target_compile_options(${target} ${scope} /FI"${header_file}")
-    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_INTEL_LLVM)
-        target_compile_options(${target} ${scope} -include "${header_file}")
-    else()
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
-    endif()
-endfunction()
-
-#
-# ov_abi_free_target(<target name>)
-#
-# Marks target to be compiliance in CXX ABI free manner
-#
-function(ov_abi_free_target target)
-    # To guarantee OpenVINO can be used with gcc versions 7 through 12.2
-    # - https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
-    # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
-    # Since gcc 13.0 abi=18
-    # Version 18, which first appeard in G++ 13, fixes manglings of lambdas that have additional context.
-    # which means we became not compatible
-    if(CMAKE_COMPILER_IS_GNUCXX AND NOT MINGW64 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0)
-        target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wabi=11>)
-    endif()
-endfunction()
-
-#
-# ov_python_minimal_api(<target>)
-#
-# Set options to use only Python Limited API
-#
-function(ov_python_minimal_api target)
-    # pybind11 uses a lot of API which is not a part of minimal python API subset
-    # Ref 1: https://docs.python.org/3.11/c-api/stable.html
-    # Ref 2: https://github.com/pybind/pybind11/issues/1755
-    # target_compile_definitions(${target} PRIVATE Py_LIMITED_API=0x03090000)
-    # if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    #     target_compile_options(${target} PRIVATE "-Wno-unused-variable")
-    # endif()
-endfunction()
+include(compile_flags/functions)
 
 #
 # Compilation and linker flags
@@ -287,11 +14,7 @@ endif()
 
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set(CMAKE_CXX_STANDARD 14)
-    else()
-        set(CMAKE_CXX_STANDARD 11)
-    endif()
+    set(CMAKE_CXX_STANDARD 17)
 endif()
 
 if(NOT DEFINED CMAKE_CXX_EXTENSIONS)
@@ -307,8 +30,6 @@ if(ENABLE_COVERAGE)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
 endif()
 
-# Honor visibility properties for all target types
-set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
@@ -316,7 +37,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 if(CMAKE_CL_64)
     # Default char Type Is unsigned
     # ov_add_compiler_flags(/J)
-elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
     ov_add_compiler_flags(-fsigned-char)
 endif()
 
@@ -349,6 +70,16 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/bigobj)
     # Build with multiple processes
     ov_add_compiler_flags(/MP)
+
+    # Specifies both the source character set and the execution character set as UTF-8.
+    # For details, refer to link: https://learn.microsoft.com/en-us/cpp/build/reference/utf-8-set-source-and-executable-character-sets-to-utf-8?view=msvc-170
+    ov_add_compiler_flags(/utf-8)
+
+    # Workaround for an MSVC compiler issue in some versions of Visual Studio 2022.
+    # The issue involves a null dereference to a mutex. For details, refer to link https://github.com/microsoft/STL/wiki/Changelog#vs-2022-1710
+    if(MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+        ov_add_compiler_flags(/D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
+    endif()
 
     if(AARCH64 AND NOT MSVC_VERSION LESS 1930)
         # otherwise, _ARM64_EXTENDED_INTRINSICS is defined, which defines 'mvn' macro
@@ -389,50 +120,34 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     endif()
 
     #
-    # Debug information flags, by default CMake adds /Zi option
-    # but provides no way to specify CMAKE_COMPILE_PDB_NAME on root level
-    # In order to avoid issues with ninja we are replacing default flag instead of having two of them
-    # and observing warning D9025 about flag override
+    # PDB related flags
     #
 
-    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" AND WIN32)
+    if(ENABLE_PDB_IN_RELEASE)
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+
+        set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /DEBUG")
+        set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /DEBUG")
+        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG")
+    endif()
+
+    # need to set extra flags after /DEBUG to ensure that binary size is not bloated
+    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF")
+    set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF")
+
+elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     #
     # Warnings as errors
     #
 
-    if(CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_VERSION VERSION_LESS 3.24)
-        ov_add_compiler_flags(/Qdiag-warning:47,1740,1786)
-    endif()
+    ov_add_compiler_flags(/WX)
 
     #
     # Disable noisy warnings
     #
-
-    # 161: unrecognized pragma
-    ov_add_compiler_flags(/Qdiag-disable:161)
-    # 177: variable was declared but never referenced
-    ov_add_compiler_flags(/Qdiag-disable:177)
-    # 556: not matched type of assigned function pointer
-    ov_add_compiler_flags(/Qdiag-disable:556)
-    # 1744: field of class type without a DLL interface used in a class with a DLL interface
-    ov_add_compiler_flags(/Qdiag-disable:1744)
-    # 1879: unimplemented pragma ignored
-    ov_add_compiler_flags(/Qdiag-disable:1879)
-    # 2586: decorated name length exceeded, name was truncated
-    ov_add_compiler_flags(/Qdiag-disable:2586)
-    # 2651: attribute does not apply to any entity
-    ov_add_compiler_flags(/Qdiag-disable:2651)
-    # 3180: unrecognized OpenMP pragma
-    ov_add_compiler_flags(/Qdiag-disable:3180)
-    # 11075: To get full report use -Qopt-report:4 -Qopt-report-phase ipo
-    ov_add_compiler_flags(/Qdiag-disable:11075)
-    # 15335: was not vectorized: vectorization possible but seems inefficient.
-    # Use vector always directive or /Qvec-threshold0 to override
-    ov_add_compiler_flags(/Qdiag-disable:15335)
+    ov_disable_deprecated_warnings()
 else()
     #
     # Common enabled warnings
@@ -452,7 +167,7 @@ else()
     # - https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
     # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
     if((CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8) OR
-       (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10) OR OV_COMPILER_IS_INTEL_LLVM)
+       (OV_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10) OR OV_COMPILER_IS_INTEL_LLVM)
         # Enable __FILE__ trim only for release mode
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
@@ -470,13 +185,9 @@ else()
     # Disable noisy warnings
     #
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        # 177: function "XXX" was declared but never referenced
-        ov_add_compiler_flags(-diag-disable=remark,177,2196)
-    endif()
-
     if(OV_COMPILER_IS_INTEL_LLVM)
         ov_add_compiler_flags(-Wno-tautological-constant-compare)
+        ov_disable_deprecated_warnings()
     endif()
 
     #
@@ -520,46 +231,3 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
 endif()
 
 check_cxx_compiler_flag("-Wunused-but-set-variable" UNUSED_BUT_SET_VARIABLE_SUPPORTED)
-
-#
-# ov_link_system_libraries(target <PUBLIC | PRIVATE | INTERFACE> <lib1 [lib2 lib3 ...]>)
-#
-# Links provided libraries and include their INTERFACE_INCLUDE_DIRECTORIES as SYSTEM
-#
-function(ov_link_system_libraries TARGET_NAME)
-    set(MODE PRIVATE)
-
-    foreach(arg IN LISTS ARGN)
-        if(arg MATCHES "(PRIVATE|PUBLIC|INTERFACE)")
-            set(MODE ${arg})
-        else()
-            if(TARGET "${arg}")
-                target_include_directories(${TARGET_NAME}
-                    SYSTEM ${MODE}
-                        $<TARGET_PROPERTY:${arg},INTERFACE_INCLUDE_DIRECTORIES>
-                        $<TARGET_PROPERTY:${arg},INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
-                )
-            endif()
-
-            target_link_libraries(${TARGET_NAME} ${MODE} ${arg})
-        endif()
-    endforeach()
-endfunction()
-
-#
-# ov_try_use_gold_linker()
-#
-# Tries to use gold linker in current scope (directory, function)
-#
-function(ov_try_use_gold_linker)
-    # don't use the gold linker, if the mold linker is set
-    if(CMAKE_EXE_LINKER_FLAGS MATCHES "mold" OR CMAKE_MODULE_LINKER_FLAGS MATCHES "mold" OR CMAKE_SHARED_LINKER_FLAGS MATCHES "mold")
-        return()
-    endif()
-
-    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
-    if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
-    endif()
-endfunction()

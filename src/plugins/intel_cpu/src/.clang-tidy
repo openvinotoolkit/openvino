@@ -1,0 +1,103 @@
+---
+
+### NOTE:
+# The 'Checks: >' is a multiline string here. Comment must not be moved into the string.
+#
+### Scopes to be enabled:
+#
+# cppcoreguidelines-*,
+# readability-*,
+# modernize-*,
+# bugprone-*,
+# misc-*,
+#
+### Checks that are turned off for a reason:
+#
+# -cppcoreguidelines-pro-bounds-pointer-arithmetic
+# -google-readability-todo. No big reason to enforce
+# -modernize-use-trailing-return-type. Just stylistic preference
+# -readability-identifier-length. A lot of code use short names for readability, i.e. 'B' for batch
+# -readability-uppercase-literal-suffix. 
+#
+### Checks that are turned off but better be enabled later:
+# -bugprone-narrowing-conversions
+# -bugprone-easily-swappable-parameters
+# -bugprone-exception-escape. There are a lot of legacy code which does not handle exceptions properly and just catches them all. Major refactoring is required to correct this.
+# -bugprone-implicit-widening-of-multiplication-result
+# -bugprone-incorrect-roundings. There are explicit ways to perform rounding (i.e. std::floor(), std::round(), etc). Requires careful updates case by case
+# -bugprone-lambda-function-name. Used by generic debug caps macro
+# -bugprone-signed-char-misuse. The source code contains valid logic when pointer to the data is interpreted as int8_t (i.e. weights tensor)
+# -cppcoreguidelines-narrowing-conversions
+# -google-default-arguments,
+# -google-explicit-constructor,
+# -google-readability-casting,
+# -modernize-avoid-c-arrays,
+# -readability-implicit-bool-conversion,
+# -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
+# -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
+# Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
+# -modernize-use-constraints,
+# -modernize-use-std-numbers
+
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  google-*,
+  modernize-*,
+  cppcoreguidelines-prefer-member-initializer,
+  readability-else-after-return,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-incorrect-roundings,
+  -bugprone-lambda-function-name,
+  -bugprone-narrowing-conversions,
+  -bugprone-signed-char-misuse,
+  -cppcoreguidelines-narrowing-conversions,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -google-build-using-namespace,
+  -google-explicit-constructor,
+  -google-readability-casting,
+  -google-readability-todo,
+  -readability-braces-around-statements,
+  -modernize-avoid-c-arrays,
+  -modernize-use-constraints,
+  -modernize-use-std-numbers,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -readability-implicit-bool-conversion,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-uppercase-literal-suffix,
+  -readability-function-cognitive-complexity,
+# Treat warnings as errors
+WarningsAsErrors: '*'
+# Use clang-format for applied fixes
+FormatStyle: file
+HeaderFilterRegex: ''
+CheckOptions:
+  - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
+    value: true
+  # matches with corresponding cpplink check  
+  - key: google-readability-namespace-comments.ShortNamespaceLines
+    value: "10"
+  # matches with corresponding cpplink check  
+  - key: google-readability-namespace-comments.SpacesBeforeComments
+    value: "2"
+  - key: modernize-loop-convert.MinConfidence
+    value: reasonable
+  - key: modernize-pass-by-value.IncludeStyle
+    value: google
+  - key: modernize-use-auto.MinTypeNameLength
+    value: "3"
+  - key: modernize-use-override.AllowOverrideAndFinal
+    value: true
+### To be considered to enable:
+#  # Unifies the usage of the statements
+#  - key: readability-braces-around-statements.ShortStatementLines
+#    value: "1"
+#  Reasonable way to enforce splitting complex code into simple functions
+#  - key: google-readability-function-size.StatementThreshold
+#    value: "800"
+---

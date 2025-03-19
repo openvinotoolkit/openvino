@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,8 +53,8 @@ public:
         auto input1_prim = get_mem(get_input_layout(p, 1));
 
         if (!p.kernel_name.empty()) {
-            ov::intel_gpu::ImplementationDesc gemm_ref_impl = { format::bfyx, "gemm_ref" };
-            ov::intel_gpu::ImplementationDesc gemm_target_impl = { format::bfyx, p.kernel_name };
+            ov::intel_gpu::ImplementationDesc gemm_ref_impl = { format::bfyx, "gemm_ref", impl_types::ocl  };
+            ov::intel_gpu::ImplementationDesc gemm_target_impl = { format::bfyx, p.kernel_name, impl_types::ocl  };
             cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_prim", gemm_target_impl} }));
             cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_prim", gemm_ref_impl} }));
         }
@@ -120,6 +120,7 @@ public:
 #define CASE_GEMM_2IN_FP16_4 { { 1, 2, 128, 64 }, { 1, 2, 64, 256 } }, { 1, 2, 128, 256 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_2IN_FP16_5 { { 2, 3, 2, 2 }, { 2, 3, 2, 2 } }, { 2, 3, 2, 2 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_2IN_FP16_3D_1 { { 16, 8, 64 }, { 16, 64, 8 }, { 16, 1, 8 } }, { 16, 8, 8 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GEMM_2IN_FP16_3D_2 { { 1, 8, 64 }, { 1, 64, 8 }, { 1, 1, 1 } }, { 1, 8, 8 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_2IN_FP16_5D_1 { { 2, 3, 5, 6, 4 }, { 2, 3, 5, 4, 6} }, { 2, 3, 5, 6, 6 }, data_types::f16, data_types::f16, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 #define CASE_GEMM_2IN_FP16_6D_1 { { 2, 3, 2, 3, 5, 7 }, { 2, 3, 2, 3, 7, 5 } }, { 2, 3, 2, 3, 5, 5 }, data_types::f16, data_types::f16, data_types::f16, format::bfwzyx, data_types::f16, format::bfwzyx
 
@@ -142,6 +143,8 @@ public:
 #define CASE_GEMM_PERMUTES_FUSION_FP16_3 { { 17, 11, 2, 18 }, { 17, 11, 18, 4 } }, { 17, 11, 2, 4 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_PERMUTES_FUSION_FP16_4 { { 3, 2, 10, 12 }, { 3, 2, 12, 20 } }, { 3, 2, 10, 20 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_PERMUTES_FUSION_FP16_5 { { 3, 2, 16, 32 }, { 3, 2, 32, 16} }, { 3, 2, 16, 16 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GEMM_PERMUTES_FUSION_FP16_6 { { 3, 2, 16, 32 },  { 3, 16, 2, 32} }, { 3, 2, 2, 32 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+
 class gemm_3in_quantize_i8 : public GemmFusingTest {};
 TEST_P(gemm_3in_quantize_i8, basic) {
     // TODO: Fix me, refer PR(#15873)
@@ -196,6 +199,9 @@ TEST_P(gemm_2in_quantize_u8, basic) {
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
+    ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_prim", gemm_impl} }));
+
     tolerance = default_tolerance(data_types::u8);
     execute(p, false);
 }
@@ -229,9 +235,6 @@ TEST_P(gemm_2in_quantize_float_in, basic) {
                  input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
-
-    ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "gemm_tiled_opt" };
-    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_impl } }));
 
     tolerance = default_tolerance(data_types::u8);
     execute(p, false);
@@ -334,7 +337,6 @@ TEST_P(gemm_2in_add, eltwise_postop_dynamic) {
     if (engine.get_device_info().supports_immad) {
         ov::intel_gpu::ImplementationDesc gemmv_impl = { cldnn::format::type::any, "", impl_types::onednn };
         cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemmv_impl } }));
-        cfg_fused.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     }
 
     auto add_data_layout = get_output_layout(p);
@@ -396,8 +398,71 @@ TEST_P(gemm_2in_add, eltwise_postop_cached) {
     execute(p, false, true);
 }
 
+TEST_P(gemm_2in_add, eltwise_postop_scalar) {
+    auto p = GetParam();
+
+    if (engine.get_device_info().supports_immad) {
+        ov::intel_gpu::ImplementationDesc gemmv_impl = { cldnn::format::type::any, "", impl_types::onednn };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemmv_impl } }));
+    }
+
+    auto add_data_layout = get_output_layout(p);
+    auto add_data_size = add_data_layout.get_partial_shape();
+    for (size_t i = 0; i < add_data_size.size(); i++)
+        add_data_size[i] = 1;
+    add_data_layout.set_partial_shape(add_data_size);
+
+    auto in_layout0 = get_input_layout(p, 0);
+    auto in_layout1 = get_input_layout(p, 1);
+
+    create_topologies(
+        input_layout("input0", in_layout0),
+        input_layout("input1", in_layout1),
+        data("add_data", get_mem(add_data_layout, 0.5f)),
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32, false, false, 1.f, 0.f, in_layout0.get_rank(), in_layout1.get_rank()),
+        eltwise("add_prim", { input_info("gemm_prim"), input_info("add_data") }, p.eltwise_m, p.default_type),
+        reorder("reorder_bfyx", input_info("add_prim"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p, false, true);
+}
+
+TEST_P(gemm_2in_add, eltwise_postop_scalar_dynamic) {
+    auto p = GetParam();
+
+    if (engine.get_device_info().supports_immad) {
+        ov::intel_gpu::ImplementationDesc gemmv_impl = { cldnn::format::type::any, "", impl_types::onednn };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemmv_impl } }));
+    }
+
+    auto add_data_layout = get_output_layout(p);
+    auto add_data_size = add_data_layout.get_partial_shape();
+    for (size_t i = 0; i < add_data_size.size(); i++)
+        add_data_size[i] = 1;
+    add_data_layout.set_partial_shape(add_data_size);
+
+    auto in_layout0 = get_input_layout(p, 0);
+    auto in_layout1 = get_input_layout(p, 1);
+
+    in_layout0.set_partial_shape(ov::PartialShape::dynamic(p.in_shapes[0].size()));
+    in_layout1.set_partial_shape(ov::PartialShape::dynamic(p.in_shapes[1].size()));
+
+    create_topologies(
+        input_layout("input0", in_layout0),
+        input_layout("input1", in_layout1),
+        data("add_data", get_mem(add_data_layout, 0.5f)),
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32, false, false, 1.f, 0.f, in_layout0.get_rank(), in_layout1.get_rank()),
+        eltwise("add_prim", { input_info("gemm_prim"), input_info("add_data") }, p.eltwise_m, p.default_type),
+        reorder("reorder_bfyx", input_info("add_prim"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p, true, true);
+}
+
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vector<gemm_test_params>{
-    // gemm_test_params{ CASE_GEMM_2IN_FP16_3, 3, 4, "", broadcast_kinds::none, eltwise_mode::sum },    // TODO: check why failed in eltwise_postop_dynamic
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3, 3, 4, "", broadcast_kinds::none, eltwise_mode::sum },
     gemm_test_params{ CASE_GEMM_2IN_FP16_4, 3, 4, "", broadcast_kinds::none, eltwise_mode::sum },
     gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", broadcast_kinds::batch, eltwise_mode::sum },
     gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", broadcast_kinds::batch, eltwise_mode::prod },
@@ -416,9 +481,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vec
 class gemm_2in_dynamic_add : public gemm_2in_add {};
 TEST_P(gemm_2in_dynamic_add, add) {
     auto p = GetParam();
-
-    if (engine.get_device_info().supports_immad)
-        p.expected_fused_primitives++;
 
     cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -456,8 +518,10 @@ TEST_P(gemm_2in_dynamic_add, add) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_dynamic_add, ::testing::ValuesIn(std::vector<gemm_test_params>{
-    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_1, 4, 5, "", broadcast_kinds::batch, eltwise_mode::sum },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_1, 4, 5, "", broadcast_kinds::feature, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_1, 4, 4, "gemm_tiled_opt", broadcast_kinds::batch, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_1, 4, 4, "gemm_tiled_opt", broadcast_kinds::feature, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_2, 4, 4, "gemm_tiled_opt", broadcast_kinds::feature, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_2, 4, 4, "gemm_tiled_opt", broadcast_kinds::batch, eltwise_mode::sum },
 }));
 
 class gemm_2in_act_scale_quantize_i8 : public GemmFusingTest {};
@@ -567,6 +631,10 @@ TEST_P(gemm_2in_act_scale_eltwise, broadcast_eltwise) {
         reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
 
+    // Onednn impl gives different results for some reason (looks like missing saturation somewhere)
+    ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_impl } }));
+
     tolerance = default_tolerance(p.default_type);
     if (p.default_type == data_types::f16 && p.kernel_name == "gemm_tiled_opt") {
         tolerance *= 2.1f; // Issue: 94154
@@ -587,174 +655,3 @@ INSTANTIATE_TEST_SUITE_P(
         // gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8_slm" },   // tolerance issue
         gemm_test_params{CASE_GEMM_ELTWISE_2IN_FP16_2, 3, 3, "gemm_tiled_opt"},
     }));
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-class GemmFusingTestOneDNN : public ::BaseFusingTest<gemm_test_params> {
-public:
-    void execute(gemm_test_params& p, bool is_dynamic, bool is_caching_test = false) {
-        if (!engine.get_device_info().supports_immad)
-            return;
-        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
-
-        auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
-        auto forcing_format = p.input_format;
-        for (auto& forcing : impl_forcing)
-            if (forcing.first == "gemm_prim")
-                forcing_format = forcing.second.output_format;
-        ov::intel_gpu::ImplementationDesc gemm_impl = { forcing_format, "", impl_types::onednn };
-        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_impl } }));
-        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
-
-        auto in0_layout = get_input_layout(p, 0);
-        auto in1_layout = get_input_layout(p, 1); 
-        auto& in0_shape = in0_layout.get_partial_shape();
-        auto& in1_shape = in1_layout.get_partial_shape();
-
-        if (p.permute_orders.size() > 0) {
-            // in0 permute exists
-            if (p.permute_orders[0].size() > 0) {
-                auto order = p.permute_orders[0];
-                auto in0_shape_untranspose = get_permute_input_shape(in0_shape.get_shape(), order);
-                in0_layout.set_partial_shape(in0_shape_untranspose);
-            }
-            // in1 permute exists
-            if (p.permute_orders[1].size() > 0) {
-                auto order = p.permute_orders[1];
-                auto in1_shape_untranspose = get_permute_input_shape(in1_shape.get_shape(), order);
-                in1_layout.set_partial_shape(in1_shape_untranspose);
-            }
-        }
-        auto input0_prim = get_mem(in0_layout);
-        auto input1_prim = get_mem(in1_layout);
-        network::ptr network_not_fused = get_network(this->engine, this->topology_non_fused, cfg_not_fused, get_test_stream_ptr(), is_caching_test);
-        network::ptr network_fused = get_network(this->engine, this->topology_fused, cfg_fused, get_test_stream_ptr(), is_caching_test);
-        network_fused->set_input_data("input0", input0_prim);
-        network_not_fused->set_input_data("input0", input0_prim);
-        network_fused->set_input_data("input1", input1_prim);
-        network_not_fused->set_input_data("input1", input1_prim);
-        if (p.in_shapes.size() > 2) {
-            auto input2_prim = get_mem(get_input_layout(p, 2));
-            network_fused->set_input_data("input2", input2_prim);
-            network_not_fused->set_input_data("input2", input2_prim);
-        }
-
-        compare(*network_not_fused, *network_fused, p);
-    }
-
-    ov::Shape get_permute_input_shape(const ov::Shape& permute_out_shape, const std::vector<uint16_t>& permute_order) {
-        auto in_shape = permute_out_shape;
-        for (size_t i = 0; i < permute_order.size(); ++i) {
-            in_shape[permute_order[i]] = permute_out_shape[i];
-        }
-        return in_shape;
-    }
-
-    layout get_input_layout(gemm_test_params& p, int in_no) {
-        if (in_no == 0)
-            return layout{ p.in_shapes.at(0), p.data_type_in0, p.input_format };
-        else if (in_no == 1)
-            return layout{ p.in_shapes.at(1), p.data_type_in1, p.input_format };
-        else
-            return layout{ p.in_shapes.at(2), p.data_type_in2, p.input_format };
-    }
-
-    layout get_per_channel_layout(gemm_test_params& p) {
-        return layout{ov::PartialShape{ 1, p.in_shapes[0][1], 1, 1 }, p.default_type, p.default_format };
-    }
-
-    layout get_output_layout(gemm_test_params& p) {
-        return layout{ p.out_shape, p.default_type, p.input_format };
-    }
-};
-
-class gemm_permute_2in_out_permute : public GemmFusingTestOneDNN {};
-TEST_P(gemm_permute_2in_out_permute, gemm_permute) {
-    auto p = GetParam();
-    auto in_lay0 = get_input_layout(p, 0);
-    auto in_lay1 = get_input_layout(p, 1);
-    create_topologies(
-        input_layout("input0", in_lay0),
-        input_layout("input1", in_lay1),
-        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f16),
-        permute("permute", input_info("gemm_prim"), p.permute_orders[2]),
-        reorder("reorder_bfyx", input_info("permute"), p.default_format, data_types::f32)
-    );
-
-    tolerance = default_tolerance(data_types::f16);
-    execute(p, false);
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    fusings_gpu, gemm_permute_2in_out_permute, ::testing::ValuesIn(std::vector<gemm_test_params>{
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_1, 3, 4, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{}, {}, {0, 2, 1, 3}}}, // byfx
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_2, 3, 4, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{}, {}, {0, 2, 1, 3}}}, // byfx
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_3, 3, 4, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{}, {}, {0, 2, 1, 3}}}, // byfx
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_4, 3, 4, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{}, {}, {1, 2, 3, 0}}}, // fyxb
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_4, 3, 4, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{}, {}, {2, 0, 1, 3}}}, // ybfx
-    }));
-
-class permute_gemm_2_permuted_inputs : public GemmFusingTestOneDNN {};
-TEST_P(permute_gemm_2_permuted_inputs, permute_gemm) {
-    auto p = GetParam();
-    auto in_lay0 = get_input_layout(p, 0);
-    auto in_lay1 = get_input_layout(p, 1);
-    auto permute_in_lay0 = get_permute_input_shape(in_lay0.get_shape(), p.permute_orders[0]);
-    auto permute_in_lay1 = get_permute_input_shape(in_lay1.get_shape(), p.permute_orders[1]);
-    in_lay0.set_partial_shape(permute_in_lay0);
-    in_lay1.set_partial_shape(permute_in_lay1);
-    create_topologies(
-        input_layout("input0", in_lay0),
-        input_layout("input1", in_lay1),
-        permute("permute0", input_info("input0"), p.permute_orders[0]),
-        permute("permute1", input_info("input1"), p.permute_orders[1]),
-        gemm("gemm_prim", { input_info("permute0"), input_info("permute1") }, data_types::f16),
-        reorder("reorder_bfyx", input_info("gemm_prim"), p.default_format, data_types::f32)
-    );
-
-    tolerance = default_tolerance(data_types::f16);
-    execute(p, false);
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    fusings_gpu, permute_gemm_2_permuted_inputs, ::testing::ValuesIn(std::vector<gemm_test_params>{
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_1, 3, 5, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{0, 2, 1, 3} /*byfx*/, {1, 2, 3, 0} /*xbfy*/}},
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_2, 3, 5, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{0, 2, 1, 3} /*byfx*/, {1, 2, 3, 0} /*xbfy*/}},
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_3, 3, 5, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{0, 2, 1, 3} /*byfx*/, {1, 2, 3, 0} /*xbfy*/}},
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_4, 3, 5, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{0, 2, 1, 3} /*byfx*/, {1, 2, 3, 0} /*xbfy*/}},
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_4, 3, 5, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{0, 2, 1, 3} /*byfx*/, {2, 0, 1, 3} /*fybx*/}},
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_4, 3, 5, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{0, 2, 1, 3} /*byfx*/, {3, 0, 1, 2} /*fyxb*/}},
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_5, 3, 5, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{1, 2, 3, 0} /*xbfy*/, {0, 2, 3, 1} /*bxfy*/}},
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_5, 3, 5, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{1, 2, 0, 3} /*ybfx*/, {0, 2, 3, 1} /*bxfy*/}},
-    }));
-
-class permute_gemm_2_permuted_inputs_output_permute : public GemmFusingTestOneDNN {};
-TEST_P(permute_gemm_2_permuted_inputs_output_permute, permute_gemm) {
-    auto p = GetParam();
-    auto in_lay0 = get_input_layout(p, 0);
-    auto in_lay1 = get_input_layout(p, 1);
-    auto permute_in_lay0 = get_permute_input_shape(in_lay0.get_shape(), p.permute_orders[0]);
-    auto permute_in_lay1 = get_permute_input_shape(in_lay1.get_shape(), p.permute_orders[1]);
-    in_lay0.set_partial_shape(permute_in_lay0);
-    in_lay1.set_partial_shape(permute_in_lay1);
-    create_topologies(
-        input_layout("input0", in_lay0),
-        input_layout("input1", in_lay1),
-        permute("permute0", input_info("input0"), p.permute_orders[0]),
-        permute("permute1", input_info("input1"), p.permute_orders[1]),
-        gemm("gemm_prim", { input_info("permute0"), input_info("permute1") }, data_types::f16),
-        permute("permute2", input_info("gemm_prim"), p.permute_orders[2]),
-        reorder("reorder_bfyx", input_info("permute2"), p.default_format, data_types::f32)
-    );
-
-    tolerance = default_tolerance(data_types::f16);
-    execute(p, false);
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    fusings_gpu, permute_gemm_2_permuted_inputs_output_permute, ::testing::ValuesIn(std::vector<gemm_test_params>{
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_1, 3, 6, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{0, 2, 1, 3} /*byfx*/, {1, 2, 3, 0} /*xbfy*/, {1, 2, 3, 0} /*xbfy*/}},
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_2, 3, 6, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{0, 2, 1, 3} /*byfx*/, {1, 2, 3, 0} /*xbfy*/, {2, 0, 1, 3} /*fybx*/}},
-        gemm_test_params{CASE_GEMM_PERMUTES_FUSION_FP16_3, 3, 6, "", broadcast_kinds::feature/*dummy*/, eltwise_mode::sum/*dummy*/, {{0, 2, 1, 3} /*byfx*/, {1, 2, 3, 0} /*xbfy*/, {0, 2, 1, 3} /*byfx*/}},
-    }));
-
-#endif // ENABLE_ONEDNN_FOR_GPU

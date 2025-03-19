@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/c/openvino.h>
@@ -61,14 +61,14 @@ ov_model_t* model = NULL;
 ov_core_read_model(core, "model.xml", NULL, &model);
 
 //! [ov_dynamic_shapes:print_dynamic]
-ov_output_port_t* output_port = NULL;
-ov_output_port_t* input_port = NULL;
+ov_output_const_port_t* output_port = NULL;
+ov_output_const_port_t* input_port = NULL;
 ov_partial_shape_t partial_shape;
-char * str_partial_shape = NULL;
+const char * str_partial_shape = NULL;
 
 // Print output partial shape
 {
-ov_model_output(model, &output_port);
+ov_model_const_output(model, &output_port);
 ov_port_get_partial_shape(output_port, &partial_shape);
 str_partial_shape = ov_partial_shape_to_string(partial_shape);
 printf("The output partial shape: %s", str_partial_shape);
@@ -76,7 +76,7 @@ printf("The output partial shape: %s", str_partial_shape);
 
 // Print input partial shape
 {
-ov_model_input(model, &input_port);
+ov_model_const_input(model, &input_port);
 ov_port_get_partial_shape(input_port, &partial_shape);
 str_partial_shape = ov_partial_shape_to_string(partial_shape);
 printf("The input partial shape: %s", str_partial_shape);
@@ -85,8 +85,8 @@ printf("The input partial shape: %s", str_partial_shape);
 // free allocated resource
 ov_free(str_partial_shape);
 ov_partial_shape_free(&partial_shape);
-ov_output_port_free(output_port);
-ov_output_port_free(input_port);
+ov_output_const_port_free(output_port);
+ov_output_const_port_free(input_port);
 //! [ov_dynamic_shapes:print_dynamic]
 ov_model_free(model);
 ov_core_free(core);
@@ -98,15 +98,15 @@ ov_core_create(&core);
 
 //! [ov_dynamic_shapes:detect_dynamic]
 ov_model_t* model = NULL;
-ov_output_port_t* input_port = NULL;
-ov_output_port_t* output_port = NULL;
+ov_output_const_port_t* input_port = NULL;
+ov_output_const_port_t* output_port = NULL;
 ov_partial_shape_t partial_shape;
 
 ov_core_read_model(core, "model.xml", NULL, &model);
 
 // for input
 {
-ov_model_input_by_index(model, 0, &input_port);
+ov_model_const_input_by_index(model, 0, &input_port);
 ov_port_get_partial_shape(input_port, &partial_shape);
 if (ov_partial_shape_is_dynamic(partial_shape)) {
     // input is dynamic
@@ -115,7 +115,7 @@ if (ov_partial_shape_is_dynamic(partial_shape)) {
 
 // for output
 {
-ov_model_output_by_index(model, 0, &output_port);
+ov_model_const_output_by_index(model, 0, &output_port);
 ov_port_get_partial_shape(output_port, &partial_shape);
 if (ov_partial_shape_is_dynamic(partial_shape)) {
     // output is dynamic
@@ -124,8 +124,8 @@ if (ov_partial_shape_is_dynamic(partial_shape)) {
 
 // free allocated resource
 ov_partial_shape_free(&partial_shape);
-ov_output_port_free(input_port);
-ov_output_port_free(output_port);
+ov_output_const_port_free(input_port);
+ov_output_const_port_free(output_port);
 //! [ov_dynamic_shapes:detect_dynamic]
 ov_model_free(model);
 ov_core_free(core);
@@ -147,8 +147,8 @@ ov_infer_request_t* infer_request = NULL;
 ov_compiled_model_create_infer_request(compiled_model, &infer_request);
 
 //! [ov_dynamic_shapes:set_input_tensor]
-ov_output_port_t* input_port = NULL;
-ov_element_type_e* type = NULL;
+ov_output_const_port_t* input_port = NULL;
+ov_element_type_e type = DYNAMIC;
 ov_shape_t input_shape_1;
 ov_tensor_t* input_tensor_1 = NULL;
 ov_tensor_t* output_tensor = NULL;
@@ -163,8 +163,8 @@ void* data_2 = NULL;
 // Create tensor compatible with the model input
 // Shape {1, 128} is compatible with any reshape statements made in previous examples
 {
-ov_model_input(model, &input_port);
-ov_port_get_element_type(input_port, type);
+ov_model_const_input(model, &input_port);
+ov_port_get_element_type(input_port, &type);
 int64_t dims[2] = {1, 128};
 ov_shape_create(2, dims, &input_shape_1);
 ov_tensor_create(type, input_shape_1, &input_tensor_1);
@@ -214,7 +214,7 @@ ov_tensor_get_shape(output_tensor, &output_shape_2);
 // ... read values in data_2 according to the shape output_shape_2
 
 // free resource
-ov_output_port_free(input_port);
+ov_output_const_port_free(input_port);
 ov_shape_free(&input_shape_1);
 ov_tensor_free(input_tensor_1);
 ov_shape_free(&output_shape_1);

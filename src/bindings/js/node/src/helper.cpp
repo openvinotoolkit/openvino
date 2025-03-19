@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/helper.hpp"
 
+#include "node/include/compiled_model.hpp"
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
 
@@ -251,9 +252,31 @@ Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info
     return interval;
 }
 
+Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Model> model) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->model;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to Model prototype.");
+    }
+    const auto& model_js = prototype.New({});
+    const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
+    mw->set_model(model);
+    return model_js;
+}
+
 template <>
 Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, const bool value) {
     return Napi::Boolean::New(info.Env(), value);
+}
+
+Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_model) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
+    }
+    auto obj = prototype.New({});
+    const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
+    cm->set_compiled_model(compiled_model);
+    return obj;
 }
 
 ov::TensorVector parse_input_data(const Napi::Value& input) {
@@ -390,10 +413,6 @@ Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
     // Check for int
     else if (value.is<int>()) {
         return Napi::Number::New(info.Env(), value.as<int>());
-    }
-    // Check for ov::Affinity
-    else if (value.is<ov::Affinity>()) {
-        return Napi::String::New(info.Env(), value.as<std::string>());
     }
     // Check for ov::element::Type
     else if (value.is<ov::element::Type>()) {

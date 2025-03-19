@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,9 @@ static std::map<ActivationTypes, std::string> activationNames = {
         {ActivationTypes::GeluTanh,              "GeluTanh"},
         {ActivationTypes::SoftSign,              "SoftSign"},
         {ActivationTypes::IsInf,                 "IsInf"},
+        {ActivationTypes::IsFinite,              "IsFinite"},
         {ActivationTypes::IsNaN,                 "IsNaN"},
+        {ActivationTypes::LogicalNot,            "LogicalNot"},
 };
 
 typedef std::tuple<

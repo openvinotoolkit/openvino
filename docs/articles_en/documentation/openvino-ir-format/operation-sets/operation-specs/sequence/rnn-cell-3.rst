@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_sequence_RNNCell_3}
-
 RNNCell
 =======
 
 
 .. meta::
-  :description: Learn about RNNCell-3 - a sequence processing operation, which 
+  :description: Learn about RNNCell-3 - a sequence processing operation, which
                 can be performed on five required input tensors.
 
 **Versioned name**: *RNNCell-3*

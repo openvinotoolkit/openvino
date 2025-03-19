@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -21,12 +21,12 @@ class TRANSFORMATIONS_API ConvertDivideWithConstant;
 
 class ov::pass::ConvertDivide : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertDivide", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertDivide");
     ConvertDivide();
 };
 
 class ov::pass::ConvertDivideWithConstant : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertDivideWithConstant", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertDivideWithConstant");
     ConvertDivideWithConstant();
 };

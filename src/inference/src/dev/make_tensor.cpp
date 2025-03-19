@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,15 +54,14 @@ public:
           m_strides_once{},
           m_ptr{ptr} {
         OPENVINO_ASSERT(shape_size(shape) == 0 || m_ptr != nullptr);
-        OPENVINO_ASSERT(m_element_type != element::undefined && m_element_type.is_static());
+        OPENVINO_ASSERT(m_element_type.is_static());
     }
 
     void* data(const element::Type& element_type) const override {
-        if (element_type != element::undefined && element_type != element::dynamic &&
-            (element_type.bitwidth() != get_element_type().bitwidth() ||
-             element_type.is_real() != get_element_type().is_real() ||
-             (element_type == element::string && get_element_type() != element::string) ||
-             (element_type != element::string && get_element_type() == element::string))) {
+        if (element_type.is_static() && (element_type.bitwidth() != get_element_type().bitwidth() ||
+                                         element_type.is_real() != get_element_type().is_real() ||
+                                         (element_type == element::string && get_element_type() != element::string) ||
+                                         (element_type != element::string && get_element_type() == element::string))) {
             OPENVINO_THROW("Tensor data with element type ",
                            get_element_type(),
                            ", is not representable as pointer to ",
@@ -205,6 +204,8 @@ public:
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
                          const auto byte_size = element::get_memory_size(element_type, shape_size(shape));
                          auto data = const_cast<Allocator&>(allocator).allocate(byte_size);
+                         OPENVINO_ASSERT(byte_size == 0 || data != nullptr, "Failed to allocate memory");
+
                          initialize_elements(data, element_type, shape);
                          return data;
                      }()},
@@ -284,34 +285,23 @@ std::shared_ptr<ITensor> make_tensor(const element::Type element_type, const Sha
 }
 
 /**
- * @brief ROI tensor on other tensor
+ * @brief Base class for representing a Region of Interest (ROI) on another tensor
  * ROI tensor holds the owner
  */
-class RoiTensor : public ITensor {
+class BaseRoiTensor {
 public:
-    RoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end)
+    BaseRoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end)
         : m_owner{owner},
           m_shape{make_roi_shape(owner->get_shape(), begin, end)},
           m_capacity{m_shape},
-          m_offset{std::inner_product(begin.begin(), begin.end(), get_strides().begin(), static_cast<size_t>(0))} {
-        OPENVINO_ASSERT(get_element_type().bitwidth() >= 8,
-                        "ROI Tensor for types with bitwidths less then 8 bit is not implemented. Tensor type: ",
-                        get_element_type());
+          m_offset{
+              std::inner_product(begin.begin(), begin.end(), m_owner->get_strides().begin(), static_cast<size_t>(0))} {
+        OPENVINO_ASSERT(m_owner->get_element_type().bitwidth() >= 8,
+                        "ROI Tensor for types with bitwidths less than 8 bit is not implemented. Tensor type: ",
+                        m_owner->get_element_type());
     }
 
-    const element::Type& get_element_type() const override {
-        return m_owner->get_element_type();
-    }
-
-    const Strides& get_strides() const override {
-        return m_owner->get_strides();
-    }
-
-    const Shape& get_shape() const override {
-        return m_shape;
-    }
-
-    void set_shape(ov::Shape new_shape) override {
+    void set_shape(ov::Shape new_shape) {
         OPENVINO_ASSERT(new_shape.size() == m_shape.size());
         for (auto new_dim = new_shape.cbegin(), max_dim = m_capacity.cbegin(); new_dim != new_shape.cend();
              ++max_dim, ++new_dim) {
@@ -326,12 +316,7 @@ public:
         m_shape = std::move(new_shape);
     }
 
-    void* data(const element::Type& element_type) const override {
-        auto owner_data = m_owner->data(element_type);
-        return static_cast<uint8_t*>(owner_data) + m_offset;
-    }
-
-private:
+protected:
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
     const Shape m_capacity;
@@ -339,7 +324,117 @@ private:
 };
 
 /**
+ * @brief Tensor representing a Region of Interest (ROI) on another host tensor
+ * ROI tensor holds the owner
+ */
+class RoiTensor : public BaseRoiTensor, public ITensor {
+public:
+    RoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end)
+        : BaseRoiTensor(owner, begin, end) {}
+
+    const element::Type& get_element_type() const override {
+        return m_owner->get_element_type();
+    }
+
+    const Strides& get_strides() const override {
+        return m_owner->get_strides();
+    }
+
+    const Shape& get_shape() const override {
+        return m_shape;
+    }
+
+    void set_shape(ov::Shape new_shape) override {
+        BaseRoiTensor::set_shape(new_shape);
+    }
+
+    void* data(const element::Type& element_type) const override {
+        auto owner_data = m_owner->data(element_type);
+        return static_cast<uint8_t*>(owner_data) + m_offset;
+    }
+};
+
+/**
+ * @brief Tensor representing a Region of Interest (ROI) on another device tensor
+ * ROI tensor holds the owner
+ */
+class RoiRemoteTensor : public BaseRoiTensor, public IRemoteTensor {
+public:
+    RoiRemoteTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end)
+        : BaseRoiTensor(owner, begin, end) {}
+
+    const element::Type& get_element_type() const override {
+        return m_owner->get_element_type();
+    }
+
+    const Strides& get_strides() const override {
+        return m_owner->get_strides();
+    }
+
+    const Shape& get_shape() const override {
+        return m_shape;
+    }
+
+    void set_shape(ov::Shape new_shape) override {
+        BaseRoiTensor::set_shape(new_shape);
+    }
+
+    void copy_to(const std::shared_ptr<ov::ITensor>& dst) const override {
+        auto owner_remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(m_owner);
+
+        if (std::dynamic_pointer_cast<RoiRemoteTensor>(dst)) {
+            OPENVINO_ASSERT(get_shape() == dst->get_shape(),
+                            "Cannot copy to RoiRemoteTensor. Shapes are not equal. (src: ",
+                            get_shape(),
+                            " != dst: ",
+                            dst->get_shape(),
+                            ")");
+
+            auto dst_roi_remote_tensor = std::dynamic_pointer_cast<RoiRemoteTensor>(dst);
+            owner_remote_tensor->copy_to(dst_roi_remote_tensor->m_owner,
+                                         m_offset,
+                                         dst_roi_remote_tensor->m_offset,
+                                         m_shape);
+        } else {
+            owner_remote_tensor->copy_to(dst, m_offset, 0, m_shape);
+        }
+    };
+
+    void copy_from(const std::shared_ptr<const ov::ITensor>& src) override {
+        auto owner_remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(m_owner);
+
+        OPENVINO_ASSERT(src->get_shape() == get_shape(),
+                        "Cannot copy to RoiRemoteTensor. Shapes are not equal. (src: ",
+                        src->get_shape(),
+                        " != dst: ",
+                        get_shape(),
+                        ")");
+
+        if (std::dynamic_pointer_cast<const RoiRemoteTensor>(src)) {
+            const auto src_roi_remote_tensor = std::dynamic_pointer_cast<const RoiRemoteTensor>(src);
+            owner_remote_tensor->copy_from(src_roi_remote_tensor->m_owner,
+                                           src_roi_remote_tensor->m_offset,
+                                           m_offset,
+                                           m_shape);
+        } else {
+            owner_remote_tensor->copy_from(src, 0, m_offset, m_shape);
+        }
+    };
+
+    const AnyMap& get_properties() const override {
+        auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(m_owner);
+        return remote_tensor->get_properties();
+    };
+
+    const std::string& get_device_name() const override {
+        auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(m_owner);
+        return remote_tensor->get_device_name();
+    }
+};
+
+/**
  * @brief Creates ROI tensor
+ * It determines whether the tensor is remote tensor or regular tensor and returns the appropriate ROI tensor type
  *
  * @param other Tensor what owns the memory
  * @param begin Begin coordinates
@@ -350,7 +445,11 @@ private:
 std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ITensor>& other,
                                      const Coordinate& begin,
                                      const Coordinate& end) {
-    return std::make_shared<RoiTensor>(other, begin, end);
+    if (std::dynamic_pointer_cast<IRemoteTensor>(other)) {
+        return std::make_shared<RoiRemoteTensor>(other, begin, end);
+    } else {
+        return std::make_shared<RoiTensor>(other, begin, end);
+    }
 }
 
 namespace util {

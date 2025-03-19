@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Power_1}
-
 Power
 =====
 
 
 .. meta::
-  :description: Learn about Power-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Power-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Power-1*

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/layout.hpp"
-#include "intel_gpu/runtime/optionals.hpp"
 
 #include <algorithm>
 #include <string>
@@ -130,7 +129,14 @@ public:
           output_paddings(output_paddings),
           output_data_types(output_data_types),
           input(input),
-          num_outputs(num_outputs) {}
+          num_outputs(num_outputs) {
+        if (output_paddings.size() < num_outputs) {
+            this->output_paddings.insert(this->output_paddings.end(), num_outputs - output_paddings.size(), padding());
+        }
+        if (output_data_types.size() < num_outputs) {
+            this->output_data_types.insert(this->output_data_types.end(), num_outputs - output_data_types.size(), optional_data_type());
+        }
+    }
 
     virtual ~primitive() = default;
 
@@ -175,7 +181,8 @@ public:
             return false;
 
         for (size_t i = 0; i < output_data_types.size(); ++i) {
-            if (output_data_types[i].value_or(data_types::undefined) != rhs.output_data_types[i].value_or(data_types::undefined))
+            if (output_data_types[i].value_or(data_types::dynamic) !=
+                rhs.output_data_types[i].value_or(data_types::dynamic))
                 return false;
         }
 
@@ -302,9 +309,9 @@ class primitive_base : public primitive {
 protected:
     explicit primitive_base(const primitive_id& id,
                             const std::vector<input_info>& input,
-                            const std::vector<padding>& output_paddings = {padding()},
+                            const size_t num_outputs = 1,
                             const std::vector<optional_data_type> output_data_types = {optional_data_type()},
-                            const size_t num_outputs = 1)
+                            const std::vector<padding>& output_paddings = {padding()})
         : primitive(PType::type_id(), id, input, output_paddings, output_data_types, num_outputs) {}
 };
 

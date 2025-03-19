@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,16 +32,16 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool MatMulTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool MatMulTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<ov::opset1::MatMul> matMul = ov::as_type_ptr<ov::opset1::MatMul>(m.get_match_root());
-    if ((matMul == nullptr) || !canBeTransformed(context, matMul)) {
+    if ((matMul == nullptr) || !canBeTransformed(matMul)) {
         return false;
     }
 
@@ -160,7 +160,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
     }
 
     const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<ov::opset1::Multiply>(
-            mulConst1,
+            foldConvert(mulConst1, element::f32),
             foldConvert(mulConst2, element::f32)));
 
     const auto newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
@@ -174,9 +174,9 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
     NetworkHelper::insertDequantizationAfter(matMul, newMultiply, newMatMul);
     copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
-    updateOutput(context, newMultiply, newMatMul);
+    updateOutput(newMultiply, newMatMul);
 
-    OPENVINO_DEBUG << "LPT: done: " << newMatMul;
+    OPENVINO_DEBUG("LPT: done: ", newMatMul);
     return true;
 }
 
@@ -184,21 +184,21 @@ bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
     return false;
 }
 
-bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformedSpatialDimension(context, layer)) {
+bool MatMulTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
+    if (!LayerTransformation::canBeTransformedSpatialDimension(layer)) {
         return false;
     }
 
     std::shared_ptr<ov::opset1::MatMul> matMul = ov::as_type_ptr<ov::opset1::MatMul>(layer);
     if (matMul == nullptr) {
-        OPENVINO_DEBUG << "LPT: early exit: not MatMul";
+        OPENVINO_DEBUG("LPT: early exit: not MatMul");
         return false;
     }
 
     const auto dequantization1 = NetworkHelper::getDequantization(layer, defaultPrecisions, 0);
     if (!dequantization1.empty()) {
         if (updatePrecisions && !dequantization1.isLowPrecision()) {
-            OPENVINO_DEBUG << "LPT: early exit: dequantization before is not in low precision";
+            OPENVINO_DEBUG("LPT: early exit: dequantization before is not in low precision");
             return false;
         }
 
@@ -214,14 +214,23 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
                 return false;
             }
         }
-
-        if (!NetworkHelper::checkZeroPoint(dequantization1.subtract)) {
-            return false;
-        }
     } else {
         return false;
     }
 
+    // WA: LPT don't expect Convert on dequantization scale: the convert is usually folded at the previous transformation pipeline steps.
+    // However, such subgraphs may arise on Matmul weights since decompression handling logic keeps these subgraphs unchanged
+    // TODO: remove this logic when
+    //       1. CompressedMatmul is implemented
+    //       2. Or convert on scales is supported across the whole LPT pipeline
+    if (auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(layer->get_input_node_shared_ptr(1))) {
+        if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(mul->get_input_node_shared_ptr(1))) {
+            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0))) {
+                auto new_constant = foldConvert(constant, convert->get_destination_type());
+                ov::replace_node_update_name(convert, new_constant);
+            }
+        }
+    }
     const auto dequantization2 = NetworkHelper::getDequantization(layer, defaultPrecisions, 1);
     if (!dequantization2.empty()) {
         if ((updatePrecisions && !dequantization2.isLowPrecision())) {

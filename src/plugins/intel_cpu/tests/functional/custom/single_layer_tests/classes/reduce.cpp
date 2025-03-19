@@ -139,11 +139,9 @@ void ReduceCPULayerTest::SetUp() {
 
     function = makeNgraphFunction(netPrecision, params, reduce, "Reduce");
 
-    if (ov::with_cpu_x86_avx512_core_amx()) {
-        if (netPrecision == ov::element::f32 && configuration.count(ov::hint::inference_precision.name()) &&
-            configuration.at(ov::hint::inference_precision.name()) == ov::element::f16) {
-            abs_threshold = 5e-3;
-        }
+    if (netPrecision == ov::element::f32 && configuration.count(ov::hint::inference_precision.name()) &&
+        configuration.at(ov::hint::inference_precision.name()) == ov::element::f16) {
+        abs_threshold = 5e-3;
     }
 }
 
@@ -245,6 +243,25 @@ const std::vector<ov::test::utils::ReductionType>& reductionTypes() {
     return reductionTypes;
 }
 
+const std::vector<ov::test::utils::ReductionType>& reductionTypesArithmetic() {
+    static const std::vector<ov::test::utils::ReductionType> reductionTypesArithmetic = {
+            ov::test::utils::ReductionType::Mean,
+            ov::test::utils::ReductionType::Sum,
+            ov::test::utils::ReductionType::Prod,
+            ov::test::utils::ReductionType::L1,
+            ov::test::utils::ReductionType::L2,
+    };
+    return reductionTypesArithmetic;
+}
+
+const std::vector<ov::test::utils::ReductionType>& reductionTypesCompare() {
+    static const std::vector<ov::test::utils::ReductionType> reductionTypesCompare = {
+            ov::test::utils::ReductionType::Max,
+            ov::test::utils::ReductionType::Min,
+    };
+    return reductionTypesCompare;
+}
+
 const std::vector<ElementType>& inpOutPrc() {
     static const std::vector<ElementType> inpOutPrc = {ElementType::f32};
     return inpOutPrc;
@@ -254,10 +271,7 @@ const std::vector<std::map<std::string, ov::element::Type>> additionalConfig() {
     static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
         {{ov::hint::inference_precision.name(), ov::element::f32}},
         {{ov::hint::inference_precision.name(), ov::element::bf16}},
-// ARM doesn't support FP16 for now
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         {{ov::hint::inference_precision.name(), ov::element::f16}},
-#endif
     };
     return additionalConfig;
 }

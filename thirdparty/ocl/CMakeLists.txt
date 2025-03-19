@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -32,6 +32,15 @@ unset(CMAKE_DEBUG_POSTFIX)
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION OFF)
 if(NOT DEFINED USE_DYNAMIC_VCXX_RUNTIME)
     set(USE_DYNAMIC_VCXX_RUNTIME ON)
+endif()
+
+#
+# Suppress warnings
+#
+if(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+    ov_add_compiler_flags("/Wno-macro-redefined")
+    ov_add_compiler_flags("/Wno-nonportable-include-path")
+    ov_add_compiler_flags("/Wno-comment")
 endif()
 
 #

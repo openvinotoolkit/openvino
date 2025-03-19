@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +45,10 @@ public:
 
     template <typename T>
     T const_named_param(const std::string& name) const;
+
+    bool has_param(const std::string& name) const {
+        return m_param_name_to_id.find(name) != m_param_name_to_id.end();
+    }
 
     size_t get_input_size() const override {
         return m_decoder_inputs.size();
@@ -97,6 +101,7 @@ public:
     }
 
     Output<Node> get_param(const std::string& name) const {
+        FRONT_END_GENERAL_CHECK(m_param_name_to_id.count(name), "No param id corresponding name exists: ", name);
         auto id = m_param_name_to_id.at(name);
         FRONT_END_GENERAL_CHECK(m_tensor_map->count(id), "No tensor corresponding param id: ", id, " exist.");
         return m_tensor_map->at(id);

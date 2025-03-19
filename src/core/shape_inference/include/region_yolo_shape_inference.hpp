@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,8 +35,8 @@ std::vector<TRShape> shape_infer(const RegionYolo* op, const std::vector<TShape>
         output_shape.reserve(out_rank);
 
         if (op->get_do_softmax()) {
-            const auto axis = static_cast<size_t>(ov::util::normalize_axis(op, op->get_axis(), input_rank));
-            const auto end_axis = ov::util::normalize_axis(op, op->get_end_axis(), input_rank);
+            const auto axis = ov::util::try_normalize_axis(op->get_axis(), input_rank, *op);
+            const auto end_axis = ov::util::try_normalize_axis(op->get_end_axis(), input_rank, *op);
 
             auto input_it = input_shape.cbegin();
             auto out_it = std::copy_n(input_it, axis + 1, std::back_inserter(output_shape));

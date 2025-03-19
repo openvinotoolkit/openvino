@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 // Plugin
 #include "metrics.hpp"
 
-#include "device_helpers.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {
@@ -65,7 +65,7 @@ const std::vector<std::string>& Metrics::GetSupportedConfigKeys() const {
 }
 
 // TODO each backend may support different optimization capabilities
-const std::vector<std::string>& Metrics::GetOptimizationCapabilities() const {
+const std::vector<std::string> Metrics::GetOptimizationCapabilities() const {
     return _optimizationCapabilities;
 }
 
@@ -91,23 +91,15 @@ IDevice::Uuid Metrics::GetDeviceUuid(const std::string& specifiedDeviceName) con
     return IDevice::Uuid{};
 }
 
-std::map<std::string, double> Metrics::GetUtilization(const std::string& specifiedDeviceName) const {
-    std::string uuidStr;
-    double utilization = 0.0;
-    try {
-        const auto devName = getDeviceName(specifiedDeviceName);
-        const auto uuid = GetDeviceUuid(specifiedDeviceName);
-        std::stringstream ssuuid;
-        ssuuid << uuid;
-        uuidStr = ssuuid.str();
-        auto device = _backends->getDevice(devName);
-        if (device) {
-            utilization = device->getUtilization();
-        }
-    } catch (...) {
-        return {};
+ov::device::LUID Metrics::GetDeviceLUID(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device) {
+        return device->getLUID();
     }
-    return {{uuidStr, utilization}};
+    return ov::device::LUID{{
+        0,
+    }};
 }
 
 std::vector<ov::PropertyName> Metrics::GetCachingProperties() const {
@@ -134,12 +126,12 @@ uint32_t Metrics::GetDriverVersion() const {
     return _backends->getDriverVersion();
 }
 
-uint32_t Metrics::GetDriverExtVersion() const {
+uint32_t Metrics::GetGraphExtVersion() const {
     if (_backends == nullptr) {
         OPENVINO_THROW("No available backends");
     }
 
-    return _backends->getDriverExtVersion();
+    return _backends->getGraphExtVersion();
 }
 
 uint32_t Metrics::GetSteppingNumber(const std::string& specifiedDeviceName) const {
@@ -179,13 +171,12 @@ uint64_t Metrics::GetDeviceTotalMemSize(const std::string& specifiedDeviceName) 
 }
 
 std::string Metrics::getDeviceName(const std::string& specifiedDeviceName) const {
-    std::vector<std::string> devNames;
-    if (_backends == nullptr || (devNames = _backends->getAvailableDevicesNames()).empty()) {
-        OPENVINO_THROW("No available devices");
-    }
-
     // In case of single device and empty input from user we should use the first element from the device list
     if (specifiedDeviceName.empty()) {
+        std::vector<std::string> devNames;
+        if (_backends == nullptr || (devNames = _backends->getAvailableDevicesNames()).empty()) {
+            OPENVINO_THROW("No available devices");
+        }
         if (devNames.size() == 1) {
             return devNames[0];
         } else {

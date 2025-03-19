@@ -3,69 +3,71 @@ Most Efficient Large Language Models for AI PC
 
 This page is regularly updated to help you identify the best-performing LLMs on the
 Intel® Core™ Ultra processor family and AI PCs.
+The current data is as of OpenVINO 2025.0, 06 March 2025 (7-155H and 7-268V)
+and OpenVINO 2024.6, 13 Dec. 2024 (9-288V).
 
-The table below lists the key performance indicators for a selection of Large Language Models,
-running on an Intel® Core™ Ultra 7-165H based system, on built-in GPUs.
-
-For complete information on the system config, see:
-`Hardware Platforms [PDF] <https://docs.openvino.ai/2024/_static/benchmarks_files/OV-2024.2-platform_list.pdf>`__
+The tables below list the key performance indicators for inference on built-in GPUs.
 
 
-.. raw:: html
 
-   <label><link rel="stylesheet" type="text/css" href="../../_static/css/openVinoDataTables.css"></label>
-   <br/><label>hide/reveal additional columns:</label><br/>
-   <label class="column-container">
-       Token latency
-       <input type="checkbox" checked id="1st" name="1st" value="1st" data-column="2" class="toggle-vis"/>
-       <label for="1st" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Memory used
-       <input type="checkbox" checked id="maxrss" name="maxrss" value="maxrss" data-column="3" class="toggle-vis"/>
-       <label for="maxrss" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Input tokens
-       <input type="checkbox" checked id="input" name="input" value="input" data-column="4" class="toggle-vis"/>
-       <label for="input" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Output tokens
-       <input type="checkbox" checked id="output" name="output" value="output" data-column="5" class="toggle-vis"/>
-       <label for="output" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Model precision
-       <input type="checkbox" checked id="precision" name="precision" value="precision" data-column="6" class="toggle-vis"/>
-       <label for="precision" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Beam
-       <input type="checkbox" checked id="beam" name="beam" value="beam" data-column="7" class="toggle-vis"/>
-       <label for="beam" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Batch size
-       <input type="checkbox" checked id="batch" name="batch" value="batch" data-column="8" class="toggle-vis"/>
-       <label for="batch" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Framework
-       <input type="checkbox" checked id="framework" name="framework" value="framework" data-column="9" class="toggle-vis"/>
-       <label for="framework" class="checkmark"></label>
-    </label>
+.. tab-set::
+
+   .. tab-item:: 9-288V
+
+      .. data-table::
+         :class: modeldata stripe
+         :name: supportedModelsTable_V1
+         :header-rows: 1
+         :file:  ../../_static/benchmarks_files/llm_models_9-288V.csv
+         :data-column-hidden: [3,4,6]
+         :data-order: [[ 0, "asc" ]]
+         :data-page-length: 10
+
+   .. tab-item:: 7-268V
+
+      .. data-table::
+         :class: modeldata stripe
+         :name: supportedModelsTable_V2
+         :header-rows: 1
+         :file:  ../../_static/benchmarks_files/llm_models_7-258V.csv
+         :data-column-hidden: [3,4,6]
+         :data-order: [[ 0, "asc" ]]
+
+   .. tab-item:: 7-155H
+
+      .. data-table::
+         :class: modeldata stripe
+         :name: supportedModelsTable_V3
+         :header-rows: 1
+         :file:  ../../_static/benchmarks_files/llm_models_7-155H.csv
+         :data-column-hidden: [3,4,6]
+         :data-order: [[ 0, "asc" ]]
 
 
-.. csv-table::
-   :class: modeldata stripe
-   :name: supportedModelsTable
-   :header-rows: 1
-   :file:  ../../_static/download/llm_models.csv
+.. grid:: 1 1 2 2
+   :gutter: 4
 
+   .. grid-item::
 
-This page is regularly updated to help you identify the best-performing LLMs on the
-Intel® Core™ Ultra processor family and AI PCs.
+      All models listed here were tested with the following parameters:
 
-For complete information on the system config, see:
-`Hardware Platforms [PDF] <https://docs.openvino.ai/2024/_static/benchmarks_files/OV-2024.2-platform_list.pdf>`__
+      *  Framework: PyTorch
+      *  Beam: 1
+      *  Batch size: 1
+
+   .. grid-item::
+
+      .. button-link:: https://docs.openvino.ai/2025/_static/download/benchmarking_genai_platform_list.pdf
+         :color: primary
+         :outline:
+         :expand:
+
+         :material-regular:`download;1.5em` Get system descriptions [PDF]
+
+      .. button-link:: ../../_static/benchmarks_files/llm_models.csv
+         :color: primary
+         :outline:
+         :expand:
+
+         :material-regular:`download;1.5em` Get the data in .csv [CSV]
+

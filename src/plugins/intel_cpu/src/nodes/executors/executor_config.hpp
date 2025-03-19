@@ -4,13 +4,10 @@
 
 #pragma once
 
-#include "post_ops.hpp"
 #include "memory_arguments.hpp"
-#include "printers.hpp"
+#include "post_ops.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace executor {
+namespace ov::intel_cpu::executor {
 
 template <typename Attrs>
 struct Config {
@@ -19,6 +16,4 @@ struct Config {
     PostOps postOps;
 };
 
-}  // namespace executor
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::executor

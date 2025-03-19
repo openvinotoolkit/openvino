@@ -4,24 +4,17 @@
 
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
 
+#include <common/primitive_desc_iface.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/reorder.h"
+#include "utils/cpu_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace utils {
-
-DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc, const DnnlMemoryDescPtr dstDesc) {
-    const auto& weiDesc = srcDesc->getDnnlDesc();
-    const auto reorderedWeiDesc = dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
-    const auto transposedWeiDesc = reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
-
-    return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
-}
+namespace ov::intel_cpu::utils {
 
 MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const DnnlMemoryDescPtr dstWeightDesc,
@@ -84,11 +77,9 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
 
     auto globalWeightCache = context->getWeightsCache();
     MemoryPtr ptr;
-    if (globalWeightCache &&
-        dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
-        const std::string string_hash = format + "_" + std::to_string(weightsMem->getSize()) + "_" +
-                                        std::to_string(reinterpret_cast<uint64_t>(weightsMem->getData()));
-        ptr = *globalWeightCache->findOrCreate(string_hash, create);
+    if (globalWeightCache && dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
+        ptr = *globalWeightCache->findOrCreate(DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc),
+                                               create);
     } else {
         ptr = create();
     }
@@ -98,6 +89,4 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     return ptr;
 }
 
-}  // namespace utils
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::utils

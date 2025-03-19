@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "exception.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/node_context.hpp"
+#include "openvino/frontend/tensorflow/visibility.hpp"
 #include "variable.hpp"
 #include "variables_map.hpp"
 
@@ -18,7 +19,7 @@ class TranslateSession;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
-class NodeContext : public ov::frontend::NodeContext {
+class TENSORFLOW_FRONTEND_API NodeContext : public ov::frontend::NodeContext {
 public:
     using Ptr = std::shared_ptr<NodeContext>;
     NodeContext(const std::shared_ptr<DecoderBase>& decoder,
@@ -37,7 +38,7 @@ public:
     }
 
     /// Retrieve the input by reference. It is needed for operations working with reference inputs
-    Output<Node> get_input_by_reference(int port_index) const {
+    Output<Node> get_input_by_reference(int port_index) const override {
         auto input = m_inputs.at(port_index);
         auto ref_node = ov::as_type_ptr<Variable>(input.get_node_shared_ptr());
         if (ref_node) {

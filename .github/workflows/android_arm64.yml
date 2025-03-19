@@ -24,7 +24,8 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -43,6 +44,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
+    if: "!needs.smart_ci.outputs.skip_workflow"
     runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
@@ -52,13 +54,14 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_22_04_android_arm64
+            ov_build/ubuntu_22_04_android
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -71,7 +74,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_android_arm64 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_android }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -91,15 +94,19 @@ jobs:
       ANDROID_NDK_HOME: '/deps/android_tools/ndk-bundle'
       ANDROID_SDK_VERSION: 29
       ANDROID_ABI_CONFIG: arm64-v8a
+      VCPKG_TARGET_TRIPLET: arm64-android
       VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
       VCPKG_FORCE_SYSTEM_BINARIES: '1'
       SCCACHE_AZURE_KEY_PREFIX: android_arm64
-    if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           path: 'openvino'
+
+      - name: Get VCPKG version and put it into GitHub ENV
+        run: echo VCPKG_VERSION=$(cat ${OPENVINO_REPO}/vcpkg.json | python3 -c "import sys, json; print(json.load(sys.stdin)['builtin-baseline'])") >> $GITHUB_ENV
 
       - name: Init submodules for non vcpkg dependencies
         run: |
@@ -112,11 +119,11 @@ jobs:
           popd
 
       - name: Clone vcpkg
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           repository: 'microsoft/vcpkg'
-          # Keep in sync with <root>/vcpkg.json <builtin-baseline>
-          ref: '7ba0ba7334c3346e7eee1e049ba85da193a8d821'
+          ref: ${{ env.VCPKG_VERSION }}
           path: 'vcpkg'
           fetch-depth: '0'
 
@@ -152,7 +159,7 @@ jobs:
             -DENABLE_SYSTEM_FLATBUFFERS=ON \
             -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
             -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
-            -DVCPKG_TARGET_TRIPLET=arm64-android \
+            -DVCPKG_TARGET_TRIPLET=${{ env.VCPKG_TARGET_TRIPLET }} \
             -DVCPKG_HOST_TRIPLET=x64-linux-release \
             -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
@@ -166,7 +173,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake - build
-        run: cmake --build ${BUILD_DIR} --parallel
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc)
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -175,7 +182,7 @@ jobs:
       # Upload build logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         if: always()
         with:
           name: build_logs
@@ -183,7 +190,7 @@ jobs:
           if-no-files-found: 'ignore'
 
   Overall_Status:
-    name: ci/gha_overall_status_android
+    name: ci/gha_overall_status_android_arm64
     needs: [Smart_CI, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest

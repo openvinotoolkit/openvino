@@ -62,3 +62,7 @@ void dump_failure(const std::shared_ptr<ov::Model>& model, const std::string& de
             OPENVINO_THROW("NPUW: Assertion " #expr " failed"); \
         }                                                       \
     } while (0)
+
+#ifdef _MSC_VER
+#    define __PRETTY_FUNCTION__ __FUNCSIG__
+#endif

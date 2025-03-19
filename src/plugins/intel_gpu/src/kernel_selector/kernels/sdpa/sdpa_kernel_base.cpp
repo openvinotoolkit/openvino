@@ -4,6 +4,7 @@
 
 #include "sdpa_kernel_base.h"
 #include "kernel_selector_utils.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace kernel_selector {
 
@@ -69,14 +70,34 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
     auto jit = MakeBaseParamsJitConstants(params);
 
     if (params.conf.broadcast_axis != -1) {
+        jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", params.conf.kv_group_size));
         jit.AddConstant(MakeJitConstant("DO_BROADCAST_KEY_VALUE", GetBroadcastInputStr(params.inputs[0].GetDims().size(),
                                                                                        params.conf.broadcast_axis,
-                                                                                       params.conf.group_size)));
+                                                                                       params.conf.kv_group_size)));
+    } else {
+        jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", 1));
     }
 
     jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
-    jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
-    jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4));
+    if (!params.conf.is_paged_attention) {
+        jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
+        jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4));
+    }
+
+    jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
+
+    if (params.conf.is_kv_compressed) {
+        jit.AddConstant(MakeJitConstant("USE_ASYMMETRIC_QUANTIZATION", params.conf.use_asymmetric_quantization));
+        jit.AddConstant(MakeJitConstant("COMBINE_SCALES_AND_ZP", params.conf.combine_scales_and_zp));
+        jit.AddConstant(MakeJitConstant("COMPRESSED_PER_HEAD", params.conf.per_head_quantization));
+        jit.AddConstant(MakeJitConstant("KEY_COMPRESSION_SCALE", params.key_cache_comp_scale));
+        jit.AddConstant(MakeJitConstant("VALUE_COMPRESSION_SCALE", params.value_cache_comp_scale));
+
+        if (params.conf.use_asymmetric_quantization && !params.conf.combine_scales_and_zp) {
+            jit.AddConstant(MakeJitConstant("KEY_COMPRESSION_ZP", params.key_cache_comp_zp));
+            jit.AddConstant(MakeJitConstant("VALUE_COMPRESSION_ZP", params.value_cache_comp_zp));
+        }
+    }
 
     auto is_default_order = [](const std::vector<int64_t>& order) {
         for (size_t i = 0; i < order.size(); i++)
@@ -86,7 +107,7 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
     };
 
     auto use_index_calc_func = [&](const std::vector<int64_t> order, bool is_query = false) {
-        if (!params.input0_order.empty() && !is_default_order(params.input0_order))
+        if (!order.empty() && !is_default_order(order))
             return true;
 
         if (params.conf.broadcast_axis != -1)
@@ -111,8 +132,10 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
         jit.AddConstant(MakeJitConstant("INPUT2_DIMS_ORDER", GetDimsOrder(params.input2_order)));
 
     TransposedDimensionAccessHelperJit dims_q(params.inputs[0], params.input0_order);
+    const auto num_heads = params.conf.is_paged_attention ? std::to_string(params.conf.heads_num) : dims_q.f();
     jit.AddConstant(MakeJitConstant("TARGET_SEQ_LEN", dims_q.y()));
-    jit.AddConstant(MakeJitConstant("NUM_HEADS", dims_q.f()));
+    jit.AddConstant(MakeJitConstant("NUM_HEADS", num_heads));
+    jit.AddConstant(MakeJitConstant("NUM_KV_HEADS", params.conf.kv_heads_num));
 
     TransposedDimensionAccessHelperJit dims_k(params.inputs[1], params.input1_order);
     jit.AddConstant(MakeJitConstant("SOURCE_SEQ_LEN", dims_k.y()));

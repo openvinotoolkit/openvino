@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,7 @@ namespace ov {
 namespace builder {
 namespace subgraph {
 
-DequantizationOperations::Convert::Convert() :
-    isEmpty(true),
-    outPrecision(ov::element::undefined)
-{}
+DequantizationOperations::Convert::Convert() : isEmpty(true), outPrecision(ov::element::dynamic) {}
 
 DequantizationOperations::Convert::Convert(const ov::element::Type outPrecision, const bool toRemove) :
     isEmpty(false),
@@ -27,25 +24,22 @@ bool DequantizationOperations::Convert::equal(const DequantizationOperations::Co
     return (this->outPrecision == value.outPrecision) && (this->addDequantizationAttribute == value.addDequantizationAttribute);
 }
 
-DequantizationOperations::Subtract::Subtract() :
-    isEmpty(true),
-    outPrecision(ov::element::undefined),
-    constantShapeIsDefined(false)
-{}
+DequantizationOperations::Subtract::Subtract()
+    : isEmpty(true),
+      outPrecision(ov::element::dynamic),
+      constantShapeIsDefined(false) {}
 
-DequantizationOperations::Subtract::Subtract(const float value, const bool toRemove) :
-    isEmpty(false),
-    values({ value }),
-    outPrecision(ov::element::undefined),
-    constantShapeIsDefined(false) {
-}
+DequantizationOperations::Subtract::Subtract(const float value, const bool toRemove)
+    : isEmpty(false),
+      values({value}),
+      outPrecision(ov::element::dynamic),
+      constantShapeIsDefined(false) {}
 
-DequantizationOperations::Subtract::Subtract(const std::vector<float>& values) :
-    isEmpty(values.empty()),
-    values(values),
-    outPrecision(ov::element::undefined),
-    constantShapeIsDefined(false) {
-}
+DequantizationOperations::Subtract::Subtract(const std::vector<float>& values)
+    : isEmpty(values.empty()),
+      values(values),
+      outPrecision(ov::element::dynamic),
+      constantShapeIsDefined(false) {}
 
 DequantizationOperations::Subtract::Subtract(
     const std::vector<float>& values,
@@ -96,25 +90,27 @@ DequantizationOperations::Subtract& DequantizationOperations::Subtract::setConst
     return *this;
 }
 
-DequantizationOperations::Multiply::Multiply() :
-    isEmpty(true),
-    outPrecision(ov::element::undefined),
-    constantShapeIsDefined(false) {
+DequantizationOperations::Subtract& DequantizationOperations::Subtract::setAddConvert(bool value) {
+    addConvert = value;
+    return *this;
 }
 
-DequantizationOperations::Multiply::Multiply(const float value) :
-    isEmpty(false),
-    values({ value }),
-    outPrecision(ov::element::undefined),
-    constantShapeIsDefined(false) {
-}
+DequantizationOperations::Multiply::Multiply()
+    : isEmpty(true),
+      outPrecision(ov::element::dynamic),
+      constantShapeIsDefined(false) {}
 
-DequantizationOperations::Multiply::Multiply(const std::vector<float>& values) :
-    isEmpty(values.empty()),
-    values(values),
-    outPrecision(ov::element::undefined),
-    constantShapeIsDefined(false) {
-}
+DequantizationOperations::Multiply::Multiply(const float value)
+    : isEmpty(false),
+      values({value}),
+      outPrecision(ov::element::dynamic),
+      constantShapeIsDefined(false) {}
+
+DequantizationOperations::Multiply::Multiply(const std::vector<float>& values)
+    : isEmpty(values.empty()),
+      values(values),
+      outPrecision(ov::element::dynamic),
+      constantShapeIsDefined(false) {}
 
 DequantizationOperations::Multiply::Multiply(const std::vector<float>& values, const ov::element::Type outPrecision) :
     isEmpty(false),
@@ -129,13 +125,15 @@ DequantizationOperations::Multiply::Multiply(
     const ov::Shape& constantShape,
     const bool toRemove,
     const size_t constantIndex,
-    ov::element::Type constantPrecision) :
+    ov::element::Type constantPrecision,
+    const bool addConvert) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
     constantShape(constantShape),
     constantIndex(constantIndex),
     constantPrecision(constantPrecision),
+    addConvert(addConvert),
     constantShapeIsDefined(true) {
 }
 
@@ -166,6 +164,11 @@ DequantizationOperations::Multiply& DequantizationOperations::Multiply::setConst
     return *this;
 }
 
+DequantizationOperations::Multiply& DequantizationOperations::Multiply::setAddConvert(bool value) {
+    addConvert = value;
+    return *this;
+}
+
 DequantizationOperations::DequantizationOperations() {}
 
 DequantizationOperations::DequantizationOperations(
@@ -179,9 +182,11 @@ DequantizationOperations::DequantizationOperations(
 
 void DequantizationOperations::setPrecision(const ov::element::Type& type) noexcept {
     convert.outPrecision = type;
-    subtract.constantPrecision = type;
+    if (!subtract.addConvert)
+        subtract.constantPrecision = type;
     subtract.outPrecision = type;
-    multiply.constantPrecision = type;
+    if (!multiply.addConvert)
+        multiply.constantPrecision = type;
     multiply.outPrecision = type;
 }
 

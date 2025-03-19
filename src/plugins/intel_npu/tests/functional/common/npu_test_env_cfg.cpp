@@ -1,13 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common/npu_test_env_cfg.hpp"
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/common.hpp"
 
 #include <cstdlib>
 #include <stdexcept>
+
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/config.hpp"
 
 namespace ov::test::utils {
 
@@ -133,6 +134,10 @@ NpuTestEnvConfig::NpuTestEnvConfig() {
     if (auto var = std::getenv("IE_NPU_TESTS_PLATFORM")) {
         IE_NPU_TESTS_PLATFORM = var;
     }
+
+    if (auto var = std::getenv("OV_NPU_TESTS_SKIP_CONFIG_FILE")) {
+        OV_NPU_TESTS_SKIP_CONFIG_FILE = var;
+    }
 }
 
 const NpuTestEnvConfig& NpuTestEnvConfig::getInstance() {
@@ -142,14 +147,14 @@ const NpuTestEnvConfig& NpuTestEnvConfig::getInstance() {
 
 std::string getTestsDeviceNameFromEnvironmentOr(const std::string& instead) {
     return (!NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME.empty())
-                   ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME
-                   : instead;
+               ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME
+               : instead;
 }
 
 std::string getTestsPlatformFromEnvironmentOr(const std::string& instead) {
     return (!NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM.empty())
-                   ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM
-                   : instead;
+               ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM
+               : instead;
 }
 
 std::string getDeviceNameTestCase(const std::string& str) {
@@ -158,7 +163,7 @@ std::string getDeviceNameTestCase(const std::string& str) {
 }
 
 std::string getDeviceName() {
-    return ov::test::utils::getTestsDeviceNameFromEnvironmentOr("NPU.3700");
+    return ov::test::utils::getTestsDeviceNameFromEnvironmentOr("NPU.3720");
 }
 
 std::string getDeviceNameID(const std::string& str) {

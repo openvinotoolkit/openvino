@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,30 +40,6 @@ TYPED_TEST_P(BitwiseOperator, default_constructor_integer) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_element_type(), element::i32);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 4, 5, 6, {5, 8}, {5, 6}}));
-}
-
-TYPED_TEST_P(BitwiseOperator, default_constructor_boolean) {
-    auto lhs = std::make_shared<Parameter>(element::boolean, PartialShape{-1, 4, 1, 6, {1, 6}, {2, 6}});
-    auto rhs = std::make_shared<Parameter>(element::boolean, PartialShape{-1, 1, 5, 6, {5, 8}, {5, 8}});
-
-    const auto op = this->make_op();
-
-    op->set_argument(0, lhs);
-    op->set_argument(1, rhs);
-
-    auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NONE);
-    op->set_autob(autob);
-    EXPECT_EQ(op->get_autob(), op::AutoBroadcastType::NONE);
-    ASSERT_THROW(op->validate_and_infer_types(), NodeValidationFailure);
-
-    autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY);
-    op->set_autob(autob);
-    EXPECT_EQ(op->get_autob(), op::AutoBroadcastType::NUMPY);
-
-    op->validate_and_infer_types();
-
-    EXPECT_EQ(op->get_element_type(), element::boolean);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 4, 5, 6, {5, 8}, {5, 6}}));
 }
 
@@ -271,7 +247,7 @@ TYPED_TEST_P(BitwiseOperator, incompatible_element_types_f32) {
 
     OV_EXPECT_THROW(std::ignore = this->make_op(lhs, rhs),
                     NodeValidationFailure,
-                    HasSubstr("The element type of the input tensor must be integer or boolean."));
+                    HasSubstr("The element type of the input tensor must be integer"));
 }
 
 TYPED_TEST_P(BitwiseOperator, shape_inference_1D_x_1D_incompatible) {
@@ -901,7 +877,6 @@ TYPED_TEST_P(BitwiseOperator, symbols_equal_dynamic_shape_broadcast_none) {
 
 REGISTER_TYPED_TEST_SUITE_P(BitwiseOperator,
                             default_constructor_integer,
-                            default_constructor_boolean,
 
                             // Static shapes
                             shape_inference_2D,
@@ -956,3 +931,57 @@ REGISTER_TYPED_TEST_SUITE_P(BitwiseOperator,
                             symbols_equal_static_shape_broadcast_none,
                             symbols_different_dynamic_shape_broadcast_none,
                             symbols_equal_dynamic_shape_broadcast_none);
+
+template <class TOp>
+class BitwiseOperatorBoolean : public BitwiseOperator<TOp> {};
+TYPED_TEST_SUITE_P(BitwiseOperatorBoolean);
+
+TYPED_TEST_P(BitwiseOperatorBoolean, default_constructor_boolean) {
+    auto lhs = std::make_shared<Parameter>(element::boolean, PartialShape{-1, 4, 1, 6, {1, 6}, {2, 6}});
+    auto rhs = std::make_shared<Parameter>(element::boolean, PartialShape{-1, 1, 5, 6, {5, 8}, {5, 8}});
+
+    const auto op = this->make_op();
+
+    op->set_argument(0, lhs);
+    op->set_argument(1, rhs);
+
+    auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NONE);
+    op->set_autob(autob);
+    EXPECT_EQ(op->get_autob(), op::AutoBroadcastType::NONE);
+    ASSERT_THROW(op->validate_and_infer_types(), NodeValidationFailure);
+
+    autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY);
+    op->set_autob(autob);
+    EXPECT_EQ(op->get_autob(), op::AutoBroadcastType::NUMPY);
+
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_element_type(), element::boolean);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 4, 5, 6, {5, 8}, {5, 6}}));
+}
+
+TYPED_TEST_P(BitwiseOperatorBoolean, incompatible_element_types_f32) {
+    auto lhs = std::make_shared<Parameter>(element::f32, Shape{2, 2, 3, 3});
+    auto rhs = std::make_shared<Parameter>(element::f32, Shape{2, 2, 3, 3});
+
+    OV_EXPECT_THROW(std::ignore = this->make_op(lhs, rhs),
+                    NodeValidationFailure,
+                    HasSubstr("The element type of the input tensor must be integer or boolean."));
+}
+
+REGISTER_TYPED_TEST_SUITE_P(BitwiseOperatorBoolean, default_constructor_boolean, incompatible_element_types_f32);
+
+template <class TOp>
+class BitwiseOperatorNotBoolean : public BitwiseOperator<TOp> {};
+TYPED_TEST_SUITE_P(BitwiseOperatorNotBoolean);
+
+TYPED_TEST_P(BitwiseOperatorNotBoolean, incompatible_element_types_boolean) {
+    auto lhs = std::make_shared<Parameter>(element::boolean, Shape{2, 2, 3, 3});
+    auto rhs = std::make_shared<Parameter>(element::boolean, Shape{2, 2, 3, 3});
+
+    OV_EXPECT_THROW(std::ignore = this->make_op(lhs, rhs),
+                    NodeValidationFailure,
+                    HasSubstr("The element type of the input tensor must be integer number"));
+}
+
+REGISTER_TYPED_TEST_SUITE_P(BitwiseOperatorNotBoolean, incompatible_element_types_boolean);

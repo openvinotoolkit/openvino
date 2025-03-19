@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,11 +68,11 @@ TEST_P(ConcatToBroadcastTest, TestTransfromationExecuted) {
 
     for (auto& op : ops) {
         std::cout << op << std::endl;
-        if (std::dynamic_pointer_cast<ov::op::v3::Broadcast>(op)) {
+        if (ov::as_type_ptr<ov::op::v3::Broadcast>(op)) {
             ++broadcast_count;
-        } else if (std::dynamic_pointer_cast<ov::op::v0::Tile>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v0::Tile>(op)) {
             ++tile_count;
-        } else if (std::dynamic_pointer_cast<ov::op::v0::Concat>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v0::Concat>(op)) {
             ++concat_count;
         }
     }

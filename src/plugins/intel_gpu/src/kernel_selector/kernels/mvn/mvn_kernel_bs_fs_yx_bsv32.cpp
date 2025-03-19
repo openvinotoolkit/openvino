@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -226,7 +226,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-            kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
+            kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                             dispatchData.item_groups * intermediate_bytes);
         }
         {
@@ -250,7 +250,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-            kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
+            kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                             intermediate_bytes);
         }
         if (params.mvnNormalizeVariance) {
@@ -297,7 +297,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-            kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
+            kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                             intermediate_bytes);
         }
         {  // Final
@@ -348,11 +348,11 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-            kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
+            kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                             intermediate_bytes);
             if (params.mvnNormalizeVariance) {
                 kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-                kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
+                kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                             intermediate_bytes);
             }
         }

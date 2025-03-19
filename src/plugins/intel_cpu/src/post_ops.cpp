@@ -3,12 +3,12 @@
 //
 
 #include "post_ops.hpp"
+
 #include "node.h"
 #include "nodes/eltwise.h"
 #include "nodes/fake_quantize.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 EltwiseKind getEltwiseKind(const Algorithm alg) {
     switch (alg) {
@@ -40,7 +40,7 @@ EltwiseKind getEltwiseKind(const Algorithm alg) {
         return EltwiseKind::ScaleShift;
     default:
         OPENVINO_THROW("Unexpected eltwise algorithm: ", algToString(alg));
-     }
+    }
 }
 
 ScaleShiftPostOp::Type convertToScaleShiftOpt(const Algorithm alg) {
@@ -61,7 +61,7 @@ ScaleShiftPostOp::Type convertToScaleShiftOpt(const Algorithm alg) {
         return ScaleShiftPostOp::prelu;
     default:
         OPENVINO_THROW("Unexpected eltwise algorithm: ", algToString(alg));
-     }
+    }
 }
 
 ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg) {
@@ -102,7 +102,7 @@ ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg) {
         return ActivationPostOp::Type::round_half_away_from_zero;
     default:
         OPENVINO_THROW("Unexpected eltwise algorithm: ", algToString(alg));
-     }
+    }
 }
 
 Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type type) {
@@ -117,7 +117,7 @@ Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type type) {
         return Algorithm::EltwiseElu;
     case ActivationPostOp::Type::abs:
         return Algorithm::EltwiseAbs;
-    case  ActivationPostOp::Type::soft_relu:
+    case ActivationPostOp::Type::soft_relu:
         return Algorithm::EltwiseSoftRelu;
     case ActivationPostOp::Type::logistic:
         return Algorithm::EltwiseSigmoid;
@@ -137,9 +137,9 @@ Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type type) {
         return Algorithm::EltwiseMish;
     case ActivationPostOp::Type::hsigmoid:
         return Algorithm::EltwiseHsigmoid;
-    case  ActivationPostOp::Type::round_half_to_even:
+    case ActivationPostOp::Type::round_half_to_even:
         return Algorithm::EltwiseRoundHalfToEven;
-    case  ActivationPostOp::Type::round_half_away_from_zero:
+    case ActivationPostOp::Type::round_half_away_from_zero:
         return Algorithm::EltwiseRoundHalfAwayFromZero;
     case ActivationPostOp::Type::square:
         OPENVINO_THROW("square is not supported");
@@ -150,17 +150,17 @@ Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type type) {
     OPENVINO_THROW("Unsupported algorithm");
 }
 
-PostOps getPostOps(std::vector<NodePtr> fused) {
+PostOps getPostOps(const std::vector<NodePtr>& fused) {
     PostOps ops;
 
-    auto makeActivationPostOp = [](const std::shared_ptr<node::Eltwise> eltwise) {
+    auto makeActivationPostOp = [](const std::shared_ptr<node::Eltwise>& eltwise) {
         return std::make_shared<ActivationPostOp>(convertToActivationPostOpt(eltwise->getAlgorithm()),
                                                   eltwise->getAlpha(),
                                                   eltwise->getBeta(),
                                                   eltwise->getGamma());
     };
 
-    auto makeScaleShiftPostOp = [](const std::shared_ptr<node::Eltwise> eltwise) {
+    auto makeScaleShiftPostOp = [](const std::shared_ptr<node::Eltwise>& eltwise) {
         return std::make_shared<ScaleShiftPostOp>(convertToScaleShiftOpt(eltwise->getAlgorithm()),
                                                   eltwise->getScales(),
                                                   eltwise->getShifts());
@@ -193,5 +193,4 @@ PostOps getPostOps(std::vector<NodePtr> fused) {
     return ops;
 }
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace ov::intel_cpu

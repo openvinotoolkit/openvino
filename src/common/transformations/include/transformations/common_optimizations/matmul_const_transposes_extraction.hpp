@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 /**
@@ -18,7 +18,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API MatMulConstTransposesExtraction : public MatcherPass {
 public:
-    OPENVINO_RTTI("MatMulConstTransposesExtraction", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MatMulConstTransposesExtraction");
     MatMulConstTransposesExtraction();
 };
 

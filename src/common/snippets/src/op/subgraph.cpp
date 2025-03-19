@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,12 +21,11 @@
 #include "snippets/pass/gn_decomposition.hpp"
 
 #include "snippets/runtime_configurator.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/linear_ir_builder.hpp"
-#include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/split_loops.hpp"
 #include "snippets/lowered/pass/fuse_loops.hpp"
@@ -44,23 +43,26 @@
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_perf_count.hpp"
 #include "snippets/lowered/pass/validate_shapes.hpp"
+#include "snippets/lowered/pass/validate_buffers.hpp"
 #include "snippets/lowered/pass/validate.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
-#include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
+#include "snippets/lowered/pass/extract_loop_invariants.hpp"
+#include "snippets/lowered/pass/set_dynamic_wa_to_outermost_loop.hpp"
+
+#include "snippets/lowered/pass/init_registers.hpp"
 
 #include "transformations/utils/utils.hpp"
 
 #include "snippets/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "openvino/pass/serialize.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -82,19 +84,20 @@ void Subgraph::set_virtual_port_count(const size_t count) {
 }
 
 auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool {
-    return ov::is_type<ov::op::v1::Transpose>(op) ||
-           ov::is_type<ov::op::v1::Softmax>(op) ||
-           ov::is_type<ov::op::v8::Softmax>(op) ||
-           ov::is_type<ov::op::v0::MatMul>(op) ||
-           ov::is_type<ov::op::v1::Broadcast>(op) || // Broadcast is domain sensetive op because the output shape depends on
-           ov::is_type<ov::op::v3::Broadcast>(op) ||   // the both input and broadcast shapes (the both - are inputs of op). Note: is used only in MHA pattern
-           ov::is_type<ov::op::v12::GroupNormalization>(op) ||
-           ov::is_type<op::Reshape>(op);
+    // Broadcast is domain sensetive op because the output shape depends on
+    // the both input and broadcast shapes (the both - are inputs of op). Note: is used only in MHA pattern
+    return ov::is_type_any_of<ov::op::v1::Transpose,
+                              ov::op::v1::Softmax,
+                              ov::op::v8::Softmax,
+                              ov::op::v0::MatMul,
+                              ov::op::v1::Broadcast,
+                              ov::op::v3::Broadcast,
+                              ov::op::v12::GroupNormalization,
+                              op::Reshape>(op);
 }
 
 auto Subgraph::is_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> bool {
-    return ov::is_type<snippets::op::Reshape>(op) ||
-           ov::is_type<snippets::op::RankNormalization>(op);
+    return ov::is_type<ov::snippets::op::ShapeInferOp>(op);
 }
 
 void Subgraph::init_config() {
@@ -103,7 +106,7 @@ void Subgraph::init_config() {
     for (const auto& op : ops) {
         update(config.m_is_quantized, ov::is_type<ov::op::v0::FakeQuantize>(op));
         update(config.m_has_domain_sensitive_ops, is_domain_sensitive_op(op));
-        update(config.m_has_broadcast_sensitive_ops, ov::is_type<ov::op::v12::GroupNormalization>(op) || ov::is_type<op::Reshape>(op));
+        update(config.m_has_broadcast_sensitive_ops, ov::is_type_any_of<ov::op::v12::GroupNormalization, op::Reshape>(op));
     }
 }
 
@@ -139,7 +142,7 @@ auto Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
             if (are_prev_or_next_ops) {
                 push_prc_size(transpose->get_element_type().size());
             }
-        } else if (ov::is_type<ov::op::v1::Softmax>(op) || ov::is_type<ov::op::v8::Softmax>(op)) {
+        } else if (ov::is_type_any_of<ov::op::v1::Softmax, ov::op::v8::Softmax>(op)) {
             // Softmax always uses 2 FP32 Buffers after decomposition.
             // They are inplace and the same, so we can push precision size only once
             push_prc_size(ov::element::f32.size());
@@ -282,14 +285,12 @@ void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, c
 }
 
 auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {
-    return ov::is_type<ov::op::v1::Transpose>(node) ||
-           ov::is_type<ov::op::v1::Broadcast>(node) ||
-           ov::is_type<ov::op::v3::Broadcast>(node) ||
-           ov::is_type<ov::op::v1::Reshape>(node);
+    return ov::is_type_any_of<ov::op::v1::Transpose, ov::op::v1::Broadcast, ov::op::v3::Broadcast, ov::op::v1::Reshape>(
+        node);
 }
 
 bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept {
-    const auto elementwise = std::dynamic_pointer_cast<const ov::op::util::BinaryElementwiseArithmetic>(node);
+    const auto elementwise = ov::as_type_ptr<const ov::op::util::BinaryElementwiseArithmetic>(node);
     return
         (elementwise == nullptr) ||
         (elementwise->get_input_partial_shape(0).size() == elementwise->get_input_partial_shape(1).size()) ||
@@ -362,6 +363,10 @@ Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
     lowering_config.m_min_parallel_work_amount = min_parallel_work_amount;
     lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
+#ifdef SNIPPETS_DEBUG_CAPS
+    lowering_config.debug_config = config.m_debug_config;
+    OPENVINO_ASSERT(lowering_config.debug_config, "Debug config is not initialized");
+#endif  // SNIPPETS_DEBUG_CAPS
 
     m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
     m_shape_infer = m_linear_ir->get_shape_infer_instance();
@@ -397,13 +402,17 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
-    ov::snippets::pass::Manager manager;
+    std::shared_ptr<ov::pass::PassConfig> pass_config = std::make_shared<ov::pass::PassConfig>();
     // If subgraph has its own specific canonicalization, which is different with common behavior, will skip the this common one.
     // for example in GN, scale and bias shape [c] are canonicalized to [1,c,1,1], not [1,1,1,c]. Common canonicalization is disabled in this case.
-    if (!blocked_input_shapes.empty() && !config.m_has_broadcast_sensitive_ops)
-        manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
-    if (!input_precisions.empty() && !output_precisions.empty())
-        manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
+    if (blocked_input_shapes.empty() || config.m_has_broadcast_sensitive_ops)
+        pass_config->disable<snippets::pass::Canonicalization>();
+    if (input_precisions.empty() || output_precisions.empty())
+        pass_config->disable<snippets::pass::AlignElementTypes>();
+
+    ov::snippets::pass::Manager manager(pass_config, "SnippetsDataFlowManager");
+    manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
+    manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
 
     if (config.m_has_domain_sensitive_ops) {
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
@@ -459,18 +468,24 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     pipeline.register_pass<lowered::pass::InsertBroadcastMove>();
     pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
+    pipeline.register_pass<lowered::pass::ExtractLoopInvariants>();
     pipeline.register_pass<lowered::pass::ValidateShapes>();
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
+    pipeline.register_pass<lowered::pass::SetDynamicWAToOuterMostLoop>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
-    pipeline.register_pass<lowered::pass::Validate>(); // must be last
     pipeline.run(*m_linear_ir);
 
+    lowered::pass::PassPipeline validation_pipeline;
+    validation_pipeline.register_pass<lowered::pass::ValidateBuffers>();
+    validation_pipeline.register_pass<lowered::pass::Validate>();
+    validation_pipeline.run(*m_linear_ir);
+
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_linear_ir->get_config().perf_count_mode != lowered::PerfCountMode::Disabled) {
+    if (m_linear_ir->get_config().debug_config->perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
         lowered::pass::InsertPerfCount perf_count_pass({});
         perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
     }
@@ -487,10 +502,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
 
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::pre_generation_pipeline")
 
-    std::function<RegType(const ov::Output<Node>& out)> reg_type_mapper = [&](const ov::Output<Node>& out) -> RegType {
-        return get_generator()->get_op_out_reg_type(out);
-    };
-
     lowered::pass::PassPipeline gen_pipeline(lowered_pass_config);
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
     //    1. InsertSpecificIterations must be called after AssignRegisters since tail loop expressions must have the same
@@ -499,7 +510,8 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     //       (this might happen if tail loop and main loop have different increments)
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
-    gen_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper, get_generator()->get_target_machine()->get_reg_count());
+
+    gen_pipeline.register_pass<lowered::pass::InitRegisters>(get_generator(), lowered_pass_config);
     gen_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
     gen_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
     gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
@@ -531,33 +543,28 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     // Note: to not corrupt the lowered linear IR for the shape-dependent passes, we have to make a copy
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
     ov::snippets::lowered::ExpressionMap expression_map;
-    auto linear_ir = *lowered::LinearIRBuilder().clone(m_linear_ir, expression_map);
+    const auto linear_ir = lowered::LinearIRBuilder().clone(m_linear_ir, expression_map);
 
     if (is_dynamic()) {
         ov::snippets::lowered::pass::PassPipeline shape_dependent_pipeline;
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::SetLoadStoreScalar>();
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::InsertBroadcastMove>();
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
-        shape_dependent_pipeline.run(linear_ir);
+        shape_dependent_pipeline.run(*linear_ir);
     }
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
-
-    // Note: Since the code emission is performed on a copy of LIR, but RuntimeConfigurator works with the initial instance,
-    //  we need to replace cloned expression pointers to original ones in the KernelExecutorTable
-    const auto& exec_table = m_generator->get_target_machine()->get_runtime_configurator()->get_kernel_executor_table();
-    for (const auto& expr : *m_linear_ir)
-        exec_table->replace_key_expression(expression_map.at(expr.get()), expr);
-    // Some kernel executors might've been registered during code emission.
-    //  We need to update them, so appropriate kernels will be compiled.
-    exec_table->update_state();
     return {std::move(lowering_result)};
 }
 
-const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
+const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {
     OPENVINO_ASSERT(m_generator, "Generator has not been inited!");
+    return m_generator->get_target_machine()->get_runtime_configurator();
+}
+
+const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
     OPENVINO_ASSERT(m_linear_ir, "LoweredLinearIR has not been inited!");
-    return m_generator->get_target_machine()->get_runtime_configurator()->get_updated_config(m_linear_ir);
+    return get_runtime_configurator()->get_updated_config(m_linear_ir);
 }
 
 void Subgraph::print() const {

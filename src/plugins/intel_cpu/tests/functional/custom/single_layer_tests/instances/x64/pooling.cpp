@@ -17,9 +17,8 @@ namespace {
 const auto ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 const auto avx512 = CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
 const auto avx = CPUSpecificParams{{}, {}, {"jit_avx"}, "jit_avx"};
-const auto sse42 = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
 
-const std::vector<CPUSpecificParams> vecCpuConfigs = {sse42, avx, avx512};
+const std::vector<CPUSpecificParams> vecCpuConfigs = {avx, avx512};
 
 const std::vector<maxPoolV8SpecificParams> paramsMaxV84D_ref = {
         maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},
@@ -50,13 +49,9 @@ const auto avx2_nwc = CPUSpecificParams{{nwc}, {nwc}, {"jit_avx2"}, "jit_avx2"};
 const auto avx2_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"};
 const auto avx2_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx2"}, "jit_avx2"};
 
-const auto sse42_nwc = CPUSpecificParams{{nwc}, {nwc}, {"jit_sse42"}, "jit_sse42"};
-const auto sse42_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"};
-const auto sse42_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_sse42"}, "jit_sse42"};
-
-const std::vector<CPUSpecificParams> vecCpuConfigsFusing_3D = {sse42_nwc, avx2_nwc, avx512_nwc};
-const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {sse42_nhwc, avx2_nhwc, avx512_nhwc};
-const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D = {sse42_ndhwc, avx2_ndhwc, avx512_ndhwc};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_3D = {avx2_nwc, avx512_nwc};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {avx2_nhwc, avx512_nhwc};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D = {avx2_ndhwc, avx512_ndhwc};
 
 std::vector<fusingSpecificParams> fusingParamsSet {
     emptyFusingSpec,
@@ -168,6 +163,39 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8_FP16, PoolingLayerCPUTest,
                               ::testing::Values(cpu_f16_plugin_config)),
                           PoolingLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_5D_I8, AvgPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg5D()),
+                              ::testing::ValuesIn(inputShapes5D_int8),
+                              ::testing::Values(ElementType::f32),
+                              ::testing::Values(true),
+                              ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_5D)),
+                              ::testing::ValuesIn(fusingParamsSet),
+                              ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                          AvgPoolingV14LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_4D_I8_FP16, AvgPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg4D()),
+                              ::testing::ValuesIn(inputShapes4D_int8),
+                              ::testing::Values(ElementType::f32),
+                              ::testing::Values(true),
+                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_4D)),
+                              ::testing::ValuesIn(fusingParamsSet),
+                              ::testing::Values(cpu_f16_plugin_config)),
+                          AvgPoolingV14LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_5D_I8_FP16, AvgPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg5D()),
+                              ::testing::ValuesIn(inputShapes5D_int8),
+                              ::testing::Values(ElementType::f32),
+                              ::testing::Values(true),
+                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_5D)),
+                              ::testing::ValuesIn(fusingParamsSet),
+                              ::testing::Values(cpu_f16_plugin_config)),
+                          AvgPoolingV14LayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D_FP16, PoolingLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsMax3D()),
@@ -190,6 +218,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D_FP16, PoolingLayerCPUTest,
                                  ::testing::Values(cpu_f16_plugin_config)),
                          PoolingLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_3D_FP16, AvgPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsAvg3D()),
+                                 ::testing::ValuesIn(inputShapes3D()),
+                                 ::testing::ValuesIn(inpOutPrecision()),
+                                 ::testing::Values(false),
+                                 ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigs)),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpu_f16_plugin_config)),
+                         AvgPoolingV14LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_3D_FP16_Ceil_Torch, AvgPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsAvgV143D()),
+                                 ::testing::ValuesIn(inputShapes3D()),
+                                 ::testing::ValuesIn(inpOutPrecision()),
+                                 ::testing::Values(false),
+                                 ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigs)),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpu_f16_plugin_config)),
+                         AvgPoolingV14LayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_4D_FP16, PoolingLayerCPUTest,
                             ::testing::Combine(
                             ::testing::ValuesIn(paramsMax4D()),
@@ -209,6 +259,46 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D_FP16, MaxPoolingV8LayerCPUTest,
                                  ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigs)),
                                  ::testing::Values(cpu_f16_plugin_config)),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_4D_FP16, MaxPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV84D()),
+                                 ::testing::ValuesIn(inputShapes4D()),
+                                 ::testing::ValuesIn(inpOutPrecision()),
+                                 ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigs)),
+                                 ::testing::Values(cpu_f16_plugin_config)),
+                         MaxPoolingV8LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_4D_FP16_Ceil_Torch, MaxPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV144D()),
+                                 ::testing::ValuesIn(inputShapes4D()),
+                                 ::testing::ValuesIn(inpOutPrecision()),
+                                 ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigs)),
+                                 ::testing::Values(cpu_f16_plugin_config)),
+                         MaxPoolingV14LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_4D_FP16, AvgPoolingV14LayerCPUTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(paramsAvg4D()),
+                            ::testing::ValuesIn(inputShapes4D()),
+                            ::testing::ValuesIn(inpOutPrecision()),
+                            ::testing::Values(false),
+                            ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigs)),
+                            ::testing::Values(emptyFusingSpec),
+                            ::testing::Values(cpu_f16_plugin_config)),
+                        AvgPoolingV14LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_Large_FP16, AvgPoolingV14LayerCPUTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(paramsAvg4D_Large()),
+                            ::testing::ValuesIn(inputShapes4D_Large()),
+                            ::testing::ValuesIn(inpOutPrecision()),
+                            ::testing::Values(false),
+                            ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigs)),
+                            ::testing::Values(emptyFusingSpec),
+                            ::testing::Values(cpu_f16_plugin_config)),
+                        AvgPoolingV14LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_FP16, PoolingLayerCPUTest,
                         ::testing::Combine(
@@ -252,6 +342,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_5D_FP16, MaxPoolingV8LayerCPUTest,
                                  ::testing::Values(cpu_f16_plugin_config)),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_5D_FP16, MaxPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV85D()),
+                                 ::testing::ValuesIn(inputShapes5D()),
+                                 ::testing::ValuesIn(inpOutPrecision()),
+                                 ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigs)),
+                                 ::testing::Values(cpu_f16_plugin_config)),
+                         MaxPoolingV14LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_5D_FP16_Ceil_Torch, MaxPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV145D()),
+                                 ::testing::ValuesIn(inputShapes5D()),
+                                 ::testing::ValuesIn(inpOutPrecision()),
+                                 ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigs)),
+                                 ::testing::Values(cpu_f16_plugin_config)),
+                         MaxPoolingV14LayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D, PoolingLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsMax3D()),
@@ -272,6 +380,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_3D, MaxPoolingV8LayerCPUTest,
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_3D, MaxPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV83D()),
+                                 ::testing::ValuesIn(inputShapes3D()),
+                                 ::testing::ValuesIn((inpOutPrecision())),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_3D)),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MaxPoolingV14LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_3D_Ceil_Torch, MaxPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV143D()),
+                                 ::testing::ValuesIn(inputShapes3D()),
+                                 ::testing::ValuesIn((inpOutPrecision())),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_3D)),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MaxPoolingV14LayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_5D, PoolingLayerCPUTest,
                          ::testing::Combine(
                              ::testing::ValuesIn(paramsMax5D()),
@@ -291,6 +417,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_5D, MaxPoolingV8LayerCPUTest,
                                  ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_5D)),
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_5D, MaxPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV85D()),
+                                 ::testing::ValuesIn(inputShapes5D()),
+                                 ::testing::ValuesIn((inpOutPrecision())),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_5D)),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MaxPoolingV14LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14CeilTorch_CPU_5D, MaxPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV145D()),
+                                 ::testing::ValuesIn(inputShapes5D()),
+                                 ::testing::ValuesIn((inpOutPrecision())),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_5D)),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MaxPoolingV14LayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace Pooling
 }  // namespace test

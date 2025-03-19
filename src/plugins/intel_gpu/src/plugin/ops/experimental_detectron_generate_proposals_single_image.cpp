@@ -10,8 +10,7 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/experimental_detectron_generate_proposals_single_image.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
         ProgramBuilder& p,
@@ -31,7 +30,6 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
                              attrs.min_size, attrs.nms_threshold, attrs.pre_nms_count, attrs.post_nms_count};
 
         prim.num_outputs = op->get_output_size();
-        prim.output_paddings = get_output_paddings(op);
         prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
 
         p.add_primitive(*op, prim);
@@ -65,5 +63,4 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
 
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronGenerateProposalsSingleImage);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

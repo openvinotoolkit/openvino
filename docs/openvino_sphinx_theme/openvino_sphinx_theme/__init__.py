@@ -7,7 +7,7 @@ import jinja2
 from docutils.parsers import rst
 from pathlib import Path
 from sphinx.util import logging
-from .directives.code import DoxygenSnippet, Scrollbox, Nodescrollbox, visit_scrollbox, depart_scrollbox
+from .directives.code import DoxygenSnippet, Scrollbox, Nodescrollbox, visit_scrollbox, depart_scrollbox, DataTable
 
 SPHINX_LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
         return False
 
     def get_edit_url():
-        """Return a URL for an "edit this page" link."""
+        """Return a URL for an "Edit on GitHub" link."""
         doc_context = dict()
         doc_context.update(**context)
 
@@ -99,6 +99,7 @@ def setup(app):
     app.add_html_theme('openvino_sphinx_theme', theme_path)
     rst.directives.register_directive('doxygensnippet', DoxygenSnippet)
     rst.directives.register_directive('scrollbox', Scrollbox)
+    rst.directives.register_directive('data-table', DataTable)
     app.add_node(
         Nodescrollbox,
         html=(visit_scrollbox, depart_scrollbox),

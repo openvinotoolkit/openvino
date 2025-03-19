@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -321,7 +321,8 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         }
         return decltype(ov::execution_devices)::value_type{std::move(device_names)};
     } else if (ov::hetero::number_of_submodels == name) {
-        return decltype(ov::hetero::number_of_submodels)::value_type{m_compiled_submodels.size()};
+        return decltype(ov::hetero::number_of_submodels)::value_type{
+            (m_compiled_submodels.size() - get_hetero_plugin()->independent_submodel_size)};
     }
     return m_cfg.get(name);
 }

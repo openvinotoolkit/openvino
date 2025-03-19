@@ -15,7 +15,7 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/validate.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -33,18 +33,16 @@ namespace {
 bool Validate::is_supported_constant(const std::shared_ptr<const ov::Node>& op) {
     const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(op);
     const auto consumers = op->get_output_target_inputs(0);
-    return constant &&
-           (ov::shape_size(constant->get_output_shape(0)) == 1 ||
-            std::all_of(consumers.cbegin(), consumers.cend(),
-                        [](const ov::Input<ov::Node>& in) {
-                            return ov::is_type<const ov::op::v1::Transpose>(in.get_node()) ||
-                                   ov::is_type<const ov::op::v1::Broadcast>(in.get_node()) ||
-                                   ov::is_type<const ov::op::v3::Broadcast>(in.get_node());
+    return constant && (ov::shape_size(constant->get_output_shape(0)) == 1 ||
+                        std::all_of(consumers.cbegin(), consumers.cend(), [](const ov::Input<ov::Node>& in) {
+                            return ov::is_type_any_of<const ov::op::v1::Transpose,
+                                                      const ov::op::v1::Broadcast,
+                                                      const ov::op::v3::Broadcast>(in.get_node());
                         }));
 }
 
 bool Validate::is_supported_convert(const std::shared_ptr<const ov::Node>& op) {
-    return ov::is_type<const op::ConvertTruncation>(op) || ov::is_type<const op::ConvertSaturation>(op);
+    return ov::is_type_any_of<const op::ConvertTruncation, const op::ConvertSaturation>(op);
 }
 
 bool Validate::is_supported_matmul(const std::shared_ptr<const ov::Node>& op) {
@@ -59,7 +57,7 @@ bool Validate::is_supported_softmax(const std::shared_ptr<const ov::Node>& op) {
     const auto softmax_rank = op->get_input_partial_shape(0).rank();
     int64_t axis = 0;
     if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(op)) {
-        axis = ov::util::normalize_axis(softmax_v8->get_friendly_name(), softmax_v8->get_axis(), softmax_rank);
+        axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), softmax_rank, *softmax_v8);
     } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(op)) {
         axis = softmax_v1->get_axis();
     } else {

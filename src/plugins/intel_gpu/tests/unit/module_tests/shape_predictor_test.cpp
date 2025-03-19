@@ -23,7 +23,9 @@ TEST_P(shape_predictor_tests, prediction) {
     auto& expected_predicted_shape = p.expected_predicted_shape;
     auto& engine = get_test_engine();
 
-    ShapePredictor sp(&engine, p.buffers_preallocation_ratio);
+    ShapePredictor::Settings settings;
+    settings.buffers_preallocation_ratio = p.buffers_preallocation_ratio;
+    ShapePredictor sp(&engine, settings);
     std::pair<bool, ov::Shape> result;
 
     for (auto& shape : in_shapes)
@@ -74,7 +76,9 @@ TEST_P(shape_predictor_tests_b_fs_yx_fsv16, prediction) {
     auto& expected_predicted_shape = p.expected_predicted_shape;
     auto& engine = get_test_engine();
 
-    ShapePredictor sp(&engine, p.buffers_preallocation_ratio);
+    ShapePredictor::Settings settings;
+    settings.buffers_preallocation_ratio = p.buffers_preallocation_ratio;
+    ShapePredictor sp(&engine, settings);
     std::pair<bool, ov::Shape> result;
 
     for (auto& shape : in_shapes)
@@ -117,3 +121,25 @@ INSTANTIATE_TEST_SUITE_P(smoke, shape_predictor_tests_b_fs_yx_fsv16,
         {{{1,1}, {1,128}, {1,256}}, {}, 1.1f, true},
         {{{1,3,128}, {1,3,112}, {1,3,418}, {1,3,512}}, {}, 1.1f, true},
     }));
+
+TEST(shape_predictor_tests, check_max_buffer_size) {
+    auto& engine = get_test_engine();
+
+    const auto& buffers_preallocation_ratio = 1.1f;
+    ShapePredictor::Settings settings;
+    settings.buffers_preallocation_ratio = buffers_preallocation_ratio;
+    ShapePredictor sp(&engine, settings);
+
+    const auto max_alloc_mem_size = engine.get_device_info().max_alloc_mem_size;
+    auto layout = cldnn::layout({static_cast<int64_t>(max_alloc_mem_size)}, ov::element::u8, format::bfyx);
+
+    std::pair<bool, ov::Shape> result;
+
+    // Perform 3 iteration to trigger shape preallocation
+    result = sp.predict_preallocation_shape("dummy_name", layout, false);
+    result = sp.predict_preallocation_shape("dummy_name", layout, false);
+    result = sp.predict_preallocation_shape("dummy_name", layout, false);
+
+    const auto bytes_count = ov::shape_size(result.second);
+    ASSERT_FALSE(sp.can_preallocate(bytes_count));
+}

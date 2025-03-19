@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "loop_inst.h"
@@ -9,7 +9,6 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include <string>
 #include <exception>
 #include <algorithm>
@@ -375,7 +374,7 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
     if (extern_mem_ptr != nullptr) {
         layout sliced_layout = intern_prim->get_output_layout(internal_id.idx);
         auto inter_mem_ptr = intern_prim->output_memory_ptr(internal_id.idx);
-        if (inter_mem_ptr == nullptr || shape_changed()) {
+        if (inter_mem_ptr == nullptr || get_flag(ExecutionFlags::SHAPE_CHANGED)) {
             // if inner body intern_prim has no output memory because it has dynamic shape,
             // calculate inner body intern_prim layout using concat_mem's layout.
             auto updated_sliced_layout = sliced_layout.get_partial_shape();
@@ -407,7 +406,7 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
         } else {
             sliced_mems.reserve(num_iterations);
             sliced_mems.push_back(inter_mem_ptr);
-            for (int j=1; j < num_iterations; ++j) {
+            for (int j = 1; j < num_iterations; ++j) {
                 memory::ptr sliced_mem = engine.allocate_memory(sliced_layout);
                 sliced_mems.push_back(sliced_mem);
             }
@@ -445,8 +444,7 @@ void loop_inst::preprocess_output_memory(const int64_t num_iterations) {
                 auto memory_mapping_info = create_concat_memory_map(output_mapping, memory, num_iterations);
                 concatenated_output_mem_mappings.push_back(memory_mapping_info);
                 GPU_DEBUG_LOG << i << ") generate concat output memory mapping: " << memory_mapping_info->to_string() << std::endl;
-            }
-            GPU_DEBUG_IF(iter != concatenated_output_mem_mappings.end()) {
+            } else {
                 GPU_DEBUG_LOG << i << ") memory_mapping_info is already existed : " << (*iter)->to_string() << std::endl;
             }
         }
@@ -536,7 +534,8 @@ void loop_inst::preprocess_backedge_memory() {
         // in case where memory buffer has been over-allocated by shape predictor, memory layout might be unexpected shape.
         // so memory layout needs to be re-interprete according to original layout.
         auto initial_layout = get_external_output_layout(external_id.pid, external_id.idx);
-        if (initial_mem != nullptr && !initial_mem->get_layout().identical(initial_layout)) {
+        OPENVINO_ASSERT(initial_mem != nullptr, "initial_mem should not be null");
+        if (!initial_mem->get_layout().identical(initial_layout)) {
             OPENVINO_ASSERT(initial_layout.bytes_count() <= initial_mem->get_layout().bytes_count(),
                             "initial layout size(", initial_layout.to_short_string(),
                             ") should not exceed initial memory size(", initial_mem->get_layout().to_short_string(), ")");
@@ -720,7 +719,7 @@ void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_itera
                     }
                 }
             } else {
-                if (!output_allocated || shape_changed()) {
+                if (!output_allocated || get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                     auto concat_layout = _impl_params->get_output_layout(external_id.idx);
                     auto concat_mem = _network.get_engine().allocate_memory(concat_layout, false);
                     external_outputs[external_id.idx] = concat_mem;
@@ -1002,16 +1001,16 @@ void loop_inst::set_memory_in_body_network(cldnn::network::ptr body_network,
                 const std::shared_ptr<cldnn::primitive_inst>& inst, memory::ptr mem) {
     if (inst->is_input()) {
         // in case where memory buffer has been over-allocated by shape predictor, memory layout might be unexpected shape.
-        // so memory layout needs to be re-interprete according to original layout.
+        // so memory layout needs to be re-interpret according to original layout.
         memory::ptr updated_mem = mem;
         layout impl_layout = inst->get_impl_params()->get_output_layout();
         OPENVINO_ASSERT(impl_layout.bytes_count() <= updated_mem->get_layout().bytes_count(),
                         "impl_params layout size(", impl_layout.to_short_string(),
                         ") should not exceed memory size(", updated_mem->get_layout().to_short_string(), ")");
-        if (impl_layout.bytes_count() < updated_mem->get_layout().bytes_count()) {
-            updated_mem = body_network->get_engine().reinterpret_buffer(*updated_mem, impl_layout);
-        }
-        body_network->set_input_data(inst->id(), updated_mem);
+        // Set need_to_check_memory_to_set to false to set output memory even if the input node has static shape,
+        body_network->set_input_data(inst->id(), updated_mem, false);
+        // Update impl_params.output_layouts[0] to updated_mem's layout
+        inst->update_shape();
     } else if (inst->is_output()) {
         body_network->set_output_memory(inst->id(), mem);
     } else {
@@ -1067,7 +1066,7 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                                 << ") to " << mapping.to_primitive->id() << ")" << std::endl;
             }
         }
-    } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE) {
+    } else if (mapping.type == loop_inst::backedge_memory_mapping::SINGLE) {
         memory::ptr to_mem = mapping.to_primitive->output_memory_ptr();
 
         if (is_dynamic()) {
@@ -1079,8 +1078,10 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
             if (iter == 0) {
                 auto to_id = mapping.to_primitive->id();
                 // Check backedge_to shape needs to be updated by initial_mem
-                if (mapping.initial_mem != nullptr && !mapping.initial_mem->get_layout().identical(to_mem->get_layout())) {
+                OPENVINO_ASSERT(mapping.initial_mem != nullptr, "initial_mem should not be null");
+                if (!mapping.initial_mem->get_layout().identical(to_mem->get_layout())) {
                     to_mem = body_network->get_engine().allocate_memory(mapping.initial_mem->get_layout(), false);
+
                     body_network->set_input_data(to_id, to_mem);
                     ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
                     GPU_DEBUG_LOG << iter << ") [SINGLE] Backedge_to node(" << to_id << ") is set to new memory("

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,7 +88,7 @@ protected:
             manager.register_pass<ov::pass::FakeQuantizeDecomposition>();
             manager.run_passes(f);
 
-            ASSERT_NO_THROW(check_rt_info(f));
+            OV_ASSERT_NO_THROW(check_rt_info(f));
         }
 
         {

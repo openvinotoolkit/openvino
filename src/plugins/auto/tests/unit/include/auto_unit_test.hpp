@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <common_test_utils/test_constants.hpp>
+#include <common_test_utils/test_assertions.hpp>
 #include <memory>
 
 #include "gmock_plugin.hpp"

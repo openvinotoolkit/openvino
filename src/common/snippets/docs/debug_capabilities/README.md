@@ -9,3 +9,4 @@ Use the following cmake option to enable snippets debug capabilities:
 
 * [Performance counters](perf_count.md)
 * [Snippets segfault detector](snippets_segfault_detector.md)
+* [Linear IR passes serialization](linear_ir_passes_serialization.md)

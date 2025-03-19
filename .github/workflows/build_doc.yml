@@ -14,21 +14,23 @@ permissions: read-all
 
 jobs:
   Build_Doc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           submodules: 'true'
           lfs: 'true'
 
       - name: Install apt-get dependencies
-        uses: awalsh128/cache-apt-pkgs-action@a6c3917cc929dd0345bfb2d3feaf9101823370ad # v1.4.2
+        uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40 # v1.4.3
         with:
           packages: graphviz texlive liblua5.2-0 libclang1-9 libclang-cpp9
           version: 3.0
 
-      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         id: cp310
         with:
           python-version: '3.10'
@@ -40,15 +42,19 @@ jobs:
       - name: Install python dependencies
         run: |
           python3 -m pip install -r docs/requirements.txt
-          (cd docs/openvino_sphinx_theme && python3 setup.py install)
+          (cd docs/openvino_sphinx_theme && python3 -m pip install .)
           python3 -m pip install docs/openvino_custom_sphinx_sitemap
 
       - name: Download and install doxygen
         run: |
           # install doxygen
           wget https://www.doxygen.nl/files/doxygen-$DOXY_VER.linux.bin.tar.gz
-          tar -xzf doxygen-$DOXY_VER.linux.bin.tar.gz
+          tar -I pigz -xf doxygen-$DOXY_VER.linux.bin.tar.gz
           echo "$(pwd)/doxygen-$DOXY_VER/bin/" >> $GITHUB_PATH
+
+      - name: Validate benchmarks files
+        run: |
+          python3 docs/scripts/tests/validate_benchmarks.py  docs/sphinx_setup/_static/benchmarks_files/
 
       - name: Build docs
         run: |
@@ -58,7 +64,7 @@ jobs:
 
       - name: Cache documentation
         id: cache_sphinx_docs
-        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         with:
           path: build/docs/_build/.doctrees
           key: sphinx-docs-cache
@@ -72,13 +78,13 @@ jobs:
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
       - name: 'Upload sphinx.log'
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: sphinx_build_log_${{ env.PR_NUMBER }}.log
           path: build/docs/sphinx.log
 
       - name: 'Upload docs html'
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_docs_html_${{ env.PR_NUMBER }}.zip
           path: build/docs/openvino_docs_html.zip
@@ -95,7 +101,7 @@ jobs:
 
       - name: 'Upload test results'
         if: failure()
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_docs_pytest
           path: build/docs/_artifacts/

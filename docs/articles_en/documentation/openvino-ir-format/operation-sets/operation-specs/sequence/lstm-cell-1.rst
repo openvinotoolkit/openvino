@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_sequence_LSTMCell_1}
-
 LSTMCell
 ========
 
 
 .. meta::
-  :description: Learn about LSTMCell-1 - a sequence processing operation, which 
+  :description: Learn about LSTMCell-1 - a sequence processing operation, which
                 can be performed on five required and one optional input tensor.
 
 **Versioned name**: *LSTMCell-1*

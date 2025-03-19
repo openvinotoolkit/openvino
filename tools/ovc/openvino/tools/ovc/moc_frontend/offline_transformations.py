@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import List
@@ -78,7 +78,7 @@ def get_available_transformations():
         return {}
 
 
-# net should be openvino.runtime.Model type, but OV Engine is still optional dependency
+# net should be openvino.Model type, but OV Engine is still optional dependency
 def apply_user_transformations(func: object, transforms: list):
     available_transformations = get_available_transformations()
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,9 @@
 #include <limits>
 #include <string>
 #include <functional>
+#include <array>
+#include <bitset>
+#include <optional>
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -46,6 +49,11 @@ struct data_type_traits {
     static bool is_i8_u8(data_types data_type) {
         auto et = ov::element::Type(data_type);
         return et.is_quantized() && et.bitwidth() == 8;
+    }
+
+    static bool is_i4_u4(data_types data_type) {
+        auto et = ov::element::Type(data_type);
+        return et.bitwidth() == 4;
     }
 
     static ov::element::Type max_type(ov::element::Type t1, ov::element::Type t2) {
@@ -126,58 +134,54 @@ inline data_types element_type_to_data_type(ov::element::Type t) {
     }
 }
 
+constexpr size_t SHAPE_RANK_MAX = 9;
+
 /// @brief Represents data padding information.
 struct padding {
-    /// @brief Filling value for padding area.
-    float filling_value() const { return _filling_value; }
+    using DynamicDimsMask = std::bitset<SHAPE_RANK_MAX>;
+    static constexpr DynamicDimsMask EMPTY_MASK{0x0};
 
-    /// @brief Gets lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
-    /// @return Tensor with padding for top/left/lower bounds of data.
-    tensor lower_size() const { return _lower_size; }
+    std::array<int32_t, SHAPE_RANK_MAX> _lower_size = {0};  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
+    std::array<int32_t, SHAPE_RANK_MAX> _upper_size = {0};  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
+    DynamicDimsMask _dynamic_dims_mask = EMPTY_MASK;         ///< A mask saying which dimension has dynamic pad
 
-    /// @brief Gets upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
-    /// @return Tensor with padding for bottom/right/upper bounds of data.
-    tensor upper_size() const { return _upper_size; }
-
-    void set_dynamic_pad(const tensor& dynamic_pad_dims) {
-        _dynamic_pad_dims = dynamic_pad_dims;
-    }
-
-    tensor get_dynamic_pad_dims() const {
-        return _dynamic_pad_dims;
-    }
     /// @brief
-    /// @param lower_sizes Top-left padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
-    /// @param upper_sizes Bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
-    /// @param filling_value Filling value for padding area.
-    padding(const std::vector<tensor::value_type>& lower_sizes,
-            const std::vector<tensor::value_type>& upper_sizes,
-            float filling_value = 0.0f,
-            const tensor& dynamic_pad_dims = tensor(0))
-        : _lower_size(to_abs(lower_sizes), 0),
-          _upper_size(to_abs(upper_sizes), 0),
-          _filling_value(filling_value),
-          _dynamic_pad_dims(dynamic_pad_dims) {}
+    /// @param lower_sizes Top-left padding sizes, in the same size and order as shape.
+    /// @param upper_sizes Bottom-right padding sizes, in the same size and order as shape.
+    padding(const std::vector<int32_t>& lower_sizes,
+            const std::vector<int32_t>& upper_sizes,
+            const DynamicDimsMask& dynamic_pad_dims = EMPTY_MASK) {
+            // paddings
+            OPENVINO_ASSERT(lower_sizes.size() <= SHAPE_RANK_MAX);
+            OPENVINO_ASSERT(upper_sizes.size() <= SHAPE_RANK_MAX);
+            std::copy_n(lower_sizes.begin(), lower_sizes.size(), _lower_size.begin());
+            std::copy_n(upper_sizes.begin(), upper_sizes.size(), _upper_size.begin());
+            _dynamic_dims_mask = dynamic_pad_dims;
+          }
 
     /// @brief Constrcuts symmetric padding.
-    /// @param sizes Top-left and bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&,
-    /// value_type) for details.
-    /// @param filling_value Filling value for padding area.
-    explicit padding(const std::vector<tensor::value_type>& sizes, float filling_value = 0.0f, const tensor& dynamic_pad_dims = tensor(0))
-        : padding(sizes, sizes, filling_value, dynamic_pad_dims) {}
+    /// @param sizes Top-left and bottom-right padding sizes, in the same size and order as shape.
+    explicit padding(const std::vector<int32_t>& sizes,
+                     const DynamicDimsMask& dynamic_pad_dims = EMPTY_MASK)
+        : padding(sizes, sizes, dynamic_pad_dims) {}
 
     /// @brief Constructs "zero-sized" padding.
-    padding() : padding({0, 0, 0, 0}, 0, tensor(0)) {}
+    padding() : padding({}, EMPTY_MASK) {}
 
     /// @brief Returns true if padding size is not zero.
     explicit operator bool() const {
-        return std::any_of(_lower_size.raw.begin(), _lower_size.raw.end(), [](const tensor::value_type& el) { return el != 0; }) ||
-               std::any_of(_upper_size.raw.begin(), _upper_size.raw.end(), [](const tensor::value_type& el) { return el != 0; });
+        return std::any_of(_lower_size.begin(), _lower_size.end(), [](int32_t i){ return i > 0; }) ||
+               std::any_of(_upper_size.begin(), _upper_size.end(), [](int32_t i){ return i > 0; });
+    }
+
+    bool is_dynamic() const {
+        return _dynamic_dims_mask.any();
     }
 
     friend bool operator==(const padding& lhs, const padding& rhs) {
-        return lhs._lower_size == rhs._lower_size && lhs._upper_size == rhs._upper_size &&
-               lhs._filling_value == rhs._filling_value && lhs._dynamic_pad_dims == rhs._dynamic_pad_dims;
+        return lhs._dynamic_dims_mask == rhs._dynamic_dims_mask &&
+               lhs._lower_size == rhs._lower_size &&
+               lhs._upper_size == rhs._upper_size;
     }
 
     friend bool operator!=(const padding& lhs, const padding& rhs) {
@@ -185,61 +189,53 @@ struct padding {
     }
 
     friend bool operator<(const padding& lhs, const padding& rhs) {
-        if (lhs._filling_value != rhs._filling_value)
-            return (lhs._filling_value < rhs._filling_value);
-        if (lhs._lower_size != rhs._lower_size)
-            return (lhs._lower_size < rhs._lower_size);
-        return (lhs._upper_size < rhs._upper_size);
+        // Compare only actual padding size not _dynamic_dims_mask
+        if (lhs._lower_size < rhs._lower_size) return true;
+        else if (lhs._lower_size > rhs._lower_size) return false;
+        if (lhs._upper_size < rhs._upper_size) return true;
+        return false;
     }
 
     static padding max(padding const& lhs, padding const& rhs, float filling_value = 0.0f) {
-        auto lower = tensor::max(lhs.lower_size(), rhs.lower_size());
-        auto upper = tensor::max(lhs.upper_size(), rhs.upper_size());
-        auto dynamic_pad_dims = tensor::max(lhs.get_dynamic_pad_dims(), rhs.get_dynamic_pad_dims());
-        return padding{lower.sizes(), upper.sizes(), filling_value, dynamic_pad_dims};
+        auto ret = lhs;
+        for (size_t i = 0; i < SHAPE_RANK_MAX; ++i) {
+            ret._lower_size[i] = std::max(ret._lower_size[i], rhs._lower_size[i]);
+            ret._upper_size[i] = std::max(ret._upper_size[i], rhs._upper_size[i]);
+        }
+        ret._dynamic_dims_mask = ret._dynamic_dims_mask | rhs._dynamic_dims_mask;
+        return ret;
     }
 
     size_t hash() const {
         size_t seed = 0;
-        seed = cldnn::hash_combine(seed, _filling_value);
-        seed = cldnn::hash_combine(seed, _lower_size.hash());
-        seed = cldnn::hash_combine(seed, _upper_size.hash());
-        seed = cldnn::hash_combine(seed, _dynamic_pad_dims.hash());
+        seed = hash_range(seed, std::begin(_lower_size), std::end(_lower_size));
+        seed = hash_range(seed, std::begin(_upper_size), std::end(_upper_size));
+        seed = cldnn::hash_combine(seed, _dynamic_dims_mask);
         return seed;
     }
 
     void save(BinaryOutputBuffer& ob) const {
-        ob << _lower_size.sizes();
-        ob << _upper_size.sizes();
-        ob << _filling_value;
-        ob << _dynamic_pad_dims.sizes();
+        std::vector<int32_t> sizes;
+        sizes.assign(_lower_size.begin(), _lower_size.end());
+        ob << sizes;
+        sizes.assign(_upper_size.begin(), _upper_size.end());
+        ob << sizes;
+        OPENVINO_ASSERT(sizes.size() == _dynamic_dims_mask.size(), "invalid size.");
+        for (size_t i = 0; i < _dynamic_dims_mask.size(); i++)
+            sizes[i] = static_cast<int32_t>(_dynamic_dims_mask[i]);
+        ob << sizes;
     }
 
     void load(BinaryInputBuffer& ib) {
-        std::vector<tensor::value_type> sizes;
+        std::vector<int32_t> sizes;
         ib >> sizes;
-        _lower_size = tensor(sizes);
+        std::copy_n(sizes.begin(), sizes.size(), _lower_size.begin());
         ib >> sizes;
-        _upper_size = tensor(sizes);
-        ib >> _filling_value;
+        std::copy_n(sizes.begin(), sizes.size(), _upper_size.begin());
         ib >> sizes;
-        _dynamic_pad_dims = tensor(sizes);
-    }
-
-private:
-    tensor _lower_size;  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
-    tensor _upper_size;  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
-    // TODO: Add support for non-zero filling value (if necessary) or remove variable (if not necessary).
-    float _filling_value;  ///< Filling value for an element of padding. If data type of elements is different than float it is converted
-                           ///< to it using round-towards-nearest-even (for floating-point data types) or round-towards-zero (for integral
-                           ///< data types).
-    tensor _dynamic_pad_dims = tensor(0);
-
-    static std::vector<tensor::value_type> to_abs(const std::vector<tensor::value_type>& sizes) {
-        std::vector<tensor::value_type> result;
-        result.reserve(sizes.size());
-        std::transform(sizes.cbegin(), sizes.cend(), std::back_inserter(result), [](const tensor::value_type& el) { return abs(el); });
-        return result;  // NRVO
+        OPENVINO_ASSERT(sizes.size() == _dynamic_dims_mask.size(), "invalid size.");
+        for (size_t i = 0; i < _dynamic_dims_mask.size(); i++)
+            _dynamic_dims_mask[i] = static_cast<bool>(sizes[i]);
     }
 };
 
@@ -268,25 +264,34 @@ struct layout {
         : data_type(data_type)
         , format(fmt)
         , data_padding(apadding)
-        , size(size) { }
+        , size(size) {}
 
     layout(const layout& other) = default;
 
     layout()
-        : data_type(cldnn::data_types::undefined)
-        , format(cldnn::format::any)
-        , data_padding(padding())
-        , size(ov::PartialShape()) { }
+        : data_type(cldnn::data_types::dynamic),
+          format(cldnn::format::any),
+          data_padding(padding()),
+          size(ov::PartialShape()) {}
 
     layout& operator=(const layout& other) {
         if (this == &other)
             return *this;
         data_type = other.data_type;
         format = other.format;
-        size = other.size;
         data_padding = other.data_padding;
+        size = other.size;
         return *this;
     }
+
+    layout clone_with_other_shape(const ov::PartialShape& new_shape) const {
+        return layout(new_shape, this->data_type, this->format, this->data_padding);
+    }
+
+    layout clone_with_other_shape(const ov::Shape& new_shape) const {
+        return clone_with_other_shape(ov::PartialShape(new_shape));
+    }
+
 
     friend bool operator==(const layout& lhs, const layout& rhs) {
         return lhs.data_type == rhs.data_type && lhs.format == rhs.format && lhs.size == rhs.size && lhs.data_padding == rhs.data_padding;
@@ -306,13 +311,10 @@ struct layout {
         return (lhs.data_padding < rhs.data_padding);
     }
 
-    /// Number of elements to be stored in this memory layout
+    /// Number of elements to be stored in this layout
     size_t count() const;
 
-    /// Layout size with padding included
-    tensor get_buffer_size() const;
-
-    tensor get_pitches() const;
+    std::vector<tensor::value_type> get_pitches() const;
 
     // @brief Calculates position within buffer of the data element pointed by the provided tensor.
     // element == { 0,0,0,0 } means first no-padding (i.e. data) element
@@ -324,10 +326,6 @@ struct layout {
     /// Modify padding in layout
     layout with_padding(padding const& padd) const;
 
-    bool has_dynamic_pad() const {
-        return data_padding.get_dynamic_pad_dims() != tensor(0);
-    }
-
     /// Data type stored in @ref memory (see. @ref data_types)
     ov::element::Type_t data_type;
 
@@ -338,7 +336,15 @@ struct layout {
     padding data_padding;
 
     /// Number of bytes needed to store this layout
-    size_t bytes_count() const { return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3; }
+    size_t bytes_count() const {
+        if (format == cldnn::format::custom) {
+            auto bytes_of_layout = (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+            auto desc_size = format.traits().desc_size;
+            return desc_size > bytes_of_layout ? desc_size : bytes_of_layout;
+        } else {
+            return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+        }
+    }
 
     size_t get_rank() const;
 
@@ -430,6 +436,29 @@ struct layout {
         return seed;
     }
 
+    /// @brief Returns a vector of tensors values, ordered regarding to @p format from the default format.
+    /// @param _sizes an array that supports operator[] and stores data in the same order as shape.
+    /// e.g. it could be std::vector, std::array, or std::bitset, etc.
+    template <class TArray>
+    inline static std::vector<int32_t> format_sizes(const TArray _sizes, const cldnn::format &fmt,
+                                                    const int32_t default_val = 1) {
+        const auto& output_order = fmt.order();
+        std::vector<int32_t> sizes(output_order.size(), default_val);
+
+        auto default_fmt = format::get_default_format(sizes.size(), format::is_weights_format(fmt), format::is_grouped(fmt));
+        const auto& default_order = default_fmt.order();
+
+        for (size_t i = 0; i < sizes.size(); ++i) {
+            auto c = output_order[i];
+            auto pos = default_order.find(c);
+            OPENVINO_ASSERT(pos != std::string::npos, "[GPU] Unknown coord type: ", c);
+
+            sizes[i] = static_cast<int32_t>(_sizes[pos]);
+        }
+
+        return sizes;
+    }
+
 private:
     /// The size of the @ref memory (excluding padding)
     ov::PartialShape size;
@@ -439,8 +468,23 @@ inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {
     return os << p.to_string();
 }
 
-using optional_data_type = optional_value<data_types>;
-using optional_layout = optional_value<layout>;
+inline ::std::ostream& operator<<(::std::ostream& os, const std::vector<layout>& layouts) {
+    std::stringstream ss;
+
+    ss << "[";
+    for (size_t i = 0; i < layouts.size(); i++) {
+        ss << layouts[i].to_short_string();
+
+        if (i + 1 != layouts.size())
+            ss << ", ";
+    }
+    ss << "]";
+
+    return os << ss.str();
+}
+
+using optional_data_type = std::optional<data_types>;
+using optional_layout = std::optional<layout>;
 
 /// @}
 /// @}

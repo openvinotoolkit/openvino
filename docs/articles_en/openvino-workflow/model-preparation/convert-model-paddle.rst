@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle}
-
 Converting a PaddlePaddle Model
 ===============================
 
@@ -17,7 +15,7 @@ are different depending on the PaddlePaddle model format.
    PaddlePaddle model serialized in a file can be loaded by ``openvino.Core.read_model``
    or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing
    OpenVINO IR first. Refer to the
-   :doc:`inference example <../running-inference/integrate-openvino-with-your-application>`
+   :doc:`inference example <../running-inference>`
    for more details. Using ``openvino.convert_model`` is still recommended if model load
    latency matters for the inference application.
 
@@ -153,11 +151,14 @@ Some PaddlePaddle models may require setting ``example_input`` or ``output`` for
 Supported PaddlePaddle Layers
 #############################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
+For the list of supported standard layers, refer to the
+:doc:`Supported Operations <../../documentation/compatibility-and-support/supported-operations>`
+page.
 
 
 Additional Resources
 ####################
 
-Check out more examples of model conversion in :doc:`interactive Python tutorials <../../learn-openvino/interactive-tutorials-python>`.
+Check out more examples of model conversion in
+:doc:`interactive Python tutorials <../../get-started/learn-openvino/interactive-tutorials-python>`.
 

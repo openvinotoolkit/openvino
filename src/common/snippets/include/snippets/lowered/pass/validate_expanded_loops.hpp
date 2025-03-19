@@ -18,7 +18,7 @@ namespace pass {
  */
 class ValidateExpandedLoops : public Pass {
 public:
-    OPENVINO_RTTI("ValidateExpandedLoops", "Pass")
+    OPENVINO_RTTI("ValidateExpandedLoops", "", Pass)
     ValidateExpandedLoops() = default;
     bool run(LinearIR& linear_ir) override;
 

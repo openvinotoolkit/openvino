@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,16 +19,11 @@ class Any;
 
 class OPENVINO_API RuntimeAttribute {
 public:
-    _OPENVINO_HIDDEN_METHOD static const DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"RuntimeAttribute"};
-        return type_info_static;
-    }
-    virtual const DiscreteTypeInfo& get_type_info() const {
-        return get_type_info_static();
-    }
+    OPENVINO_RTTI_BASE("RuntimeAttribute")
+
     using Ptr = std::shared_ptr<RuntimeAttribute>;
     using Base = std::tuple<::ov::RuntimeAttribute>;
-    virtual ~RuntimeAttribute() = default;
+    virtual ~RuntimeAttribute();
     virtual bool is_copyable() const;
     virtual bool is_copyable(const std::shared_ptr<Node>& to) const;
     virtual Any init(const std::shared_ptr<Node>& node) const;

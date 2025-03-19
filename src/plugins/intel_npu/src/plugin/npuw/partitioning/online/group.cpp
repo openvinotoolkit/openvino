@@ -22,10 +22,10 @@ using ov::npuw::online::detail::isOp;
 
 Group::Group(const std::shared_ptr<ov::Node>& node,
              size_t gid,
-             ade::NodeHandle nh,
-             const std::shared_ptr<ade::Graph>& g,
+             own::ade::NodeHandle nh,
+             const std::weak_ptr<own::ade::Graph>& g,
              const std::weak_ptr<Snapshot>& snapshot)
-    : m_nh(nh),
+    : m_nh(std::move(nh)),
       m_id(gid),
       m_graph(g),
       m_snapshot(snapshot) {
@@ -33,6 +33,15 @@ Group::Group(const std::shared_ptr<ov::Node>& node,
     m_output_layers.insert(node);
     m_content.insert(node);
 }
+
+Group::Group(size_t gid,
+             own::ade::NodeHandle nh,
+             const std::weak_ptr<own::ade::Graph>& g,
+             const std::weak_ptr<Snapshot>& snapshot)
+    : m_nh(std::move(nh)),
+      m_id(gid),
+      m_graph(g),
+      m_snapshot(snapshot) {}
 
 // Include Parameters, Outputs, Converts, etc to content's layers for proper linking at the plugin level
 void Group::includeExtraLayers(detail::OVNodeSet& input_layers,
@@ -89,9 +98,15 @@ ov::npuw::Group Group::toGroup() const {
     for (auto&& node : content_copy) {
         g.all_layers.push_back(node->get_friendly_name());
     }
+
+    // Sort layers to stabilize the partitioning
+    std::sort(g.input_layers.begin(), g.input_layers.end());
+    std::sort(g.output_layers.begin(), g.output_layers.end());
+    std::sort(g.all_layers.begin(), g.all_layers.end());
+
     g.gflops = 0.0001f;  // FIXME: calculate proper flops
 
-    if (m_repeated) {
+    if (m_repeated && !isNoFold()) {
         g.repeated_id = ov::npuw::online::util::repeated_id(m_repeated);
     }
 
@@ -102,6 +117,8 @@ ov::npuw::Group Group::toGroup() const {
             g.avoid_list += ',' + *iter;
         }
     }
+
+    g.tag = m_isol_tag;
 
     return g;
 }
@@ -115,19 +132,31 @@ std::shared_ptr<ov::Node> Group::getInitialNode() const {
     return *(m_content.begin());
 }
 
+void Group::addInput(const std::shared_ptr<ov::Node>& node) {
+    m_input_layers.insert(node);
+}
+
+void Group::addOutput(const std::shared_ptr<ov::Node>& node) {
+    m_output_layers.insert(node);
+}
+
+void Group::addContent(const std::shared_ptr<ov::Node>& node) {
+    m_content.insert(node);
+}
+
 size_t Group::getId() const {
     return m_id;
 }
 
-std::vector<ade::NodeHandle> Group::srcNodes() const {
+std::vector<own::ade::NodeHandle> Group::srcNodes() const {
     return m_nh->srcNodes();
 }
 
-std::vector<ade::NodeHandle> Group::dstNodes() const {
+std::vector<own::ade::NodeHandle> Group::dstNodes() const {
     return m_nh->dstNodes();
 }
 
-ade::NodeHandle Group::getHandle() const {
+own::ade::NodeHandle Group::getHandle() const {
     return m_nh;
 }
 
@@ -185,14 +214,16 @@ void Group::relinkGraph(const Group::GPtr& gptr_other) {
     auto consumers = gptr_other->dstNodes();
 
     // Remove gptr_other node from the graph. Note: also removes all it's edges
-    m_graph->remove(gptr_other->getHandle());
+    auto&& graph = m_graph.lock();
+    NPUW_ASSERT(graph);
+    graph->remove(gptr_other->getHandle());
     for (const auto& nh : producers) {
         if (m_nh == nh) {
             continue;
         }
         // relink the graph
-        if (!m_graph->linked(nh, m_nh)) {
-            m_graph->link(nh, m_nh);
+        if (!graph->linked(nh, m_nh)) {
+            graph->link(nh, m_nh);
         }
     }
     for (const auto& nh : consumers) {
@@ -200,8 +231,8 @@ void Group::relinkGraph(const Group::GPtr& gptr_other) {
             continue;
         }
         // relink the graph
-        if (!m_graph->linked(m_nh, nh)) {
-            m_graph->link(m_nh, nh);
+        if (!graph->linked(m_nh, nh)) {
+            graph->link(m_nh, nh);
         }
     }
 }
@@ -213,7 +244,7 @@ void Group::fuse(const Group::GPtr& gptr_prod) {
 
 // This group absorbs the consumer
 void Group::fuseWith(const Group::GPtr& gptr_cons) {
-    // Update ov::node to ade::NodeHandle map
+    // Update ov::node to own::ade::NodeHandle map
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
     for (const auto& layer : gptr_cons->m_content) {
@@ -240,7 +271,7 @@ void Group::fuseInputs(const std::pair<Group::GPtr, Group::GPtr>& gptr_inputs) {
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
 
-    // Update ov::node to ade::NodeHandle map and merge all contents together
+    // Update ov::node to own::ade::NodeHandle map and merge all contents together
     for (const auto& layer : absorbed_group->m_content) {
         node_to_gr->at(layer) = absorbing_group;
         absorbing_group->m_content.insert(layer);
@@ -252,6 +283,7 @@ void Group::fuseInputs(const std::pair<Group::GPtr, Group::GPtr>& gptr_inputs) {
 }
 
 // This group takes extra info of other group (such as reptrack, avoids, etc)
+// FIXME: unify managing all those tags, e.g. via a map string->string
 void Group::takeFlags(const Group::GPtr& gptr_other) {
     // Update reptrack
     for (const auto& layer_to_track : gptr_other->m_reptrack) {
@@ -262,17 +294,25 @@ void Group::takeFlags(const Group::GPtr& gptr_other) {
             m_reptrack[layer].push_back(rep);
         }
     }
+    // Update weights precisions
+    for (const auto& wp : gptr_other->m_consts_precision) {
+        m_consts_precision.push_back(wp);
+    }
     // Update avoids
     for (const auto& device : gptr_other->avoidedTargets()) {
         avoid(device);
     }
+    // Update nofold
+    m_nofold = gptr_other->isNoFold();
+    // Update isolate tag
+    m_isol_tag = gptr_other->isolatedTag();
 }
 
 // Check if there is indirect path from this to gptr_cons
 bool Group::hasCycle(const Group::GPtr& gptr_cons) const {
-    std::unordered_set<ade::NodeHandle> visited;
+    std::unordered_set<own::ade::NodeHandle> visited;
 
-    std::stack<ade::NodeHandle> st;
+    std::stack<own::ade::NodeHandle> st;
 
     for (const auto& prod : gptr_cons->srcNodes()) {
         // skip self during this iter
@@ -309,8 +349,16 @@ void Group::freeze() {
     m_frozen = true;
 }
 
+void Group::noFold() {
+    m_nofold = true;
+}
+
 bool Group::isFrozen() const {
     return m_frozen;
+}
+
+bool Group::isNoFold() const {
+    return m_nofold;
 }
 
 const ov::npuw::online::detail::OVNodeSet& Group::getContent() const {
@@ -375,10 +423,44 @@ std::unordered_set<Interconnect> Group::interconnect(const Group::GPtr& gptr_pro
     return ics;
 }
 
+void Group::addWeightsPrecision(const std::vector<ov::element::Type>& prec) {
+    m_consts_precision.insert(m_consts_precision.end(), prec.begin(), prec.end());
+}
+
+const std::vector<ov::element::Type>& Group::getConstsPrecision() const {
+    return m_consts_precision;
+}
+
+std::string Group::specialTags() const {
+    std::string tags = "";
+
+    if (m_nofold) {
+        tags += "nofold";
+    }
+
+    if (!m_isol_tag.empty()) {
+        tags += m_isol_tag;
+    }
+
+    return tags;
+}
+
 void Group::avoid(const std::string& device) {
     m_avoided_devices.insert(device);
 }
 
 const std::set<std::string>& Group::avoidedTargets() const {
     return m_avoided_devices;
+}
+
+void Group::isolate(const std::string& tag) {
+    m_isol_tag = tag;
+}
+
+void Group::dontIsolate() {
+    m_isol_tag = "";
+}
+
+const std::string& Group::isolatedTag() const {
+    return m_isol_tag;
 }

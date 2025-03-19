@@ -20,7 +20,7 @@ namespace snippets {
 class FakeQuantizeTokenizationTest : public TransformationTestsF {
 public:
     void register_passes() {
-        ov::snippets::pass::SnippetsTokenization::Config config = { 1, std::numeric_limits<size_t>::max(), true, true, { 3, 4 } };
+        ov::snippets::pass::SnippetsTokenization::Config config = { 1, std::numeric_limits<size_t>::max(), true, true, true, { 3, 4 }};
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
@@ -33,10 +33,10 @@ public:
         TransformationTestsF::TearDown();
 
         auto subgraph = FunctionHelper::getSubgraph(model);
-        auto body = subgraph == nullptr ? nullptr : std::dynamic_pointer_cast<ov::snippets::op::Subgraph>(subgraph)->body_ptr();
+        auto body = subgraph == nullptr ? nullptr : ov::as_type_ptr<ov::snippets::op::Subgraph>(subgraph)->body_ptr();
 
         auto subgraph_ref = FunctionHelper::getSubgraph(model_ref);
-        auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ov::snippets::op::Subgraph>(subgraph_ref)->body_ptr();
+        auto body_ref = subgraph_ref == nullptr ? nullptr : ov::as_type_ptr<ov::snippets::op::Subgraph>(subgraph_ref)->body_ptr();
 
         if ((body != nullptr) && (body_ref != nullptr)) {
             auto res = comparator.compare(body, body_ref);

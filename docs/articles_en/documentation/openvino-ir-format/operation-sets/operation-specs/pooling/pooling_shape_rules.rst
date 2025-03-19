@@ -1,5 +1,3 @@
-.. {#openvino_docs_pooling_shape_rules}
-
 Shape Calculation Rules for Pooling Operators
 =============================================
 

@@ -1,15 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 
-#include "snippets/op/subgraph.hpp"
-#include "snippets/itt.hpp"
-
+#include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/rt_info.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/subgraph.hpp"
 
 bool ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(const std::shared_ptr<ov::Node>& node) {
     const auto inputs = node->inputs();
@@ -58,6 +57,7 @@ void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<
                     "ExplicitTransposeMatMulInputs expects Parameter with one consumer in cases when there isn't existing Transpose on input");
     // Extract Transpose from MatMul
     OPENVINO_ASSERT(input.get_partial_shape().rank().is_static(), "ExplicitTransposeMatMulInputs supports only static ranks of shapes");
+
     const auto rank = input.get_partial_shape().size();
     std::vector<size_t> transpose_order(rank, 0);
     std::iota(transpose_order.begin(), transpose_order.end(), 0);
@@ -75,7 +75,7 @@ ov::snippets::pass::ExplicitTransposeMatMulInputs::ExplicitTransposeMatMulInputs
     auto m_matmul0 = std::make_shared<ov::op::v0::MatMul>(ov::pass::pattern::any_input(), ov::pass::pattern::any_input());
 
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_matmul0, matcher_name),
-        [=](ov::pass::pattern::Matcher &m) {
+        [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ExplicitTransposeMatMulInputs")
             auto root = m.get_match_root();
             bool rewritten = false;
@@ -89,7 +89,8 @@ ov::snippets::pass::ExplicitTransposeMatMulInputs::ExplicitTransposeMatMulInputs
                 matmul->set_transpose_a(false);
                 rewritten |= true;
             }
-            if (matmul->get_transpose_b()) {
+
+            if (matmul->get_transpose_b() && !transformation_callback(matmul)) {
                 extract(matmul->input(1));
                 matmul->set_transpose_b(false);
                 rewritten |= true;

@@ -1,16 +1,21 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/paddle/frontend.hpp"
 
 #include <google/protobuf/port_def.inc>
+#ifndef PROTOBUF_VERSION
+#    include <google/protobuf/runtime_version.h>
+#endif
 #if PROTOBUF_VERSION >= 4022000  // protobuf 4.22
 #    define OV_PROTOBUF_ABSL_IS_USED
 #endif
 #include <google/protobuf/port_undef.inc>
 
-#ifndef OV_PROTOBUF_ABSL_IS_USED
+#ifdef OV_PROTOBUF_ABSL_IS_USED
+#    include <absl/log/globals.h>
+#else
 #    include <google/protobuf/stubs/logging.h>
 #endif
 
@@ -343,7 +348,7 @@ std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recurs
 
 void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>& models) const {
     for (auto& model : models) {
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:Paddle:try_remove_internal_ops");
         manager.register_pass<ov::frontend::paddle::pass::TransformTensorArray>(models);
         manager.register_pass<ov::frontend::paddle::pass::TransformIf>(models);
         manager.register_pass<ov::frontend::paddle::pass::TransformWhile>(models);
@@ -357,7 +362,7 @@ void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>
 
 void FrontEnd::fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& models) const {
     for (auto& model : models) {
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:Paddle:fuse_fakequantize_ops");
         manager.register_pass<ov::frontend::paddle::pass::TransformFakeQuantize>();
         manager.run_passes(model);
     }
@@ -378,6 +383,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants[0].is<std::string>()) {
         std::string suffix = ".pdmodel";
         std::string model_path = variants[0].as<std::string>();
+        FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: \"", model_path, '"');
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<char>() + "__model__";
         }
@@ -390,6 +396,10 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     else if (variants[0].is<std::wstring>()) {
         std::wstring suffix = L".pdmodel";
         std::wstring model_path = variants[0].as<std::wstring>();
+        FRONT_END_GENERAL_CHECK(util::file_exists(model_path),
+                                "Could not open the file: \"",
+                                util::path_to_string(model_path),
+                                '"');
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
         }
@@ -482,7 +492,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
-            paddle::normalize_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node), m_op_translators);
+            paddle::normalize_framework_node(ov::as_type_ptr<FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {
@@ -501,7 +511,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
 
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:Paddle:convert_partially");
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -549,12 +559,12 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
         m_extensions.push_back(so_ext);
-    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+    } else if (auto common_conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
         m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return common_conv_ext->get_converter_named()(context);
         };
-    } else if (const auto& paddle_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+    } else if (const auto& paddle_conv_ext = ov::as_type_ptr<ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(paddle_conv_ext);
         m_op_translators[paddle_conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return paddle_conv_ext->get_converter()(context);
@@ -567,7 +577,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Frontend:Paddle:normalize");
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 }
@@ -576,11 +586,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 }  // namespace frontend
 }  // namespace ov
 
-PADDLE_C_API FrontEndVersion get_api_version() {
+PADDLE_FRONTEND_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-PADDLE_C_API void* get_front_end_data() {
+PADDLE_FRONTEND_C_API void* get_front_end_data() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {
@@ -589,7 +599,9 @@ PADDLE_C_API void* get_front_end_data() {
 
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
-#    ifndef OV_PROTOBUF_ABSL_IS_USED
+#    ifdef OV_PROTOBUF_ABSL_IS_USED
+    absl::SetGlobalVLogLevel(0);
+#    else
     google::protobuf::SetLogHandler(nullptr);
 #    endif
 #endif

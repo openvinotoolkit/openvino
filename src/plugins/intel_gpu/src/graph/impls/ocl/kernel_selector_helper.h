@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -200,7 +200,18 @@ inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) 
             return kernel_selector::eltwise_mode::IS_INF;
         case eltwise_mode::is_nan:
             return kernel_selector::eltwise_mode::IS_NAN;
+        case eltwise_mode::right_shift:
+            return kernel_selector::eltwise_mode::RIGHT_SHIFT;
+        case eltwise_mode::left_shift:
+            return kernel_selector::eltwise_mode::LEFT_SHIFT;
+        case eltwise_mode::bitwise_and:
+            return kernel_selector::eltwise_mode::BITWISE_AND;
+        case eltwise_mode::bitwise_or:
+            return kernel_selector::eltwise_mode::BITWISE_OR;
+        case eltwise_mode::bitwise_xor:
+            return kernel_selector::eltwise_mode::BITWISE_XOR;
         default:
+            OPENVINO_ASSERT(false, "Unsupported eltwise mode!");
             return kernel_selector::eltwise_mode::ADD;
     }
 }
@@ -213,7 +224,7 @@ inline ov::PartialShape extend_shape_to_rank_from_end(ov::PartialShape pshape, s
     return pshape;
 }
 
-inline ov::PartialShape extend_shape_to_rank_from_begin(ov::PartialShape pshape, size_t rank = 4) {
+inline ov::PartialShape extend_shape_to_rank_from_begin(const ov::PartialShape& pshape, size_t rank = 4) {
     if (pshape.size() >= rank) {
         return pshape;
     }
@@ -253,10 +264,10 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
     for (auto& fd : updated_impl_params.fused_desc) {
         if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
             if (updated_impl_params.input_layouts.size() > size_t(fd.outer_dep_start_idx)) {
-                auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
+                const auto& out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
 
                 auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
-                auto dep_shape = dep_layout.get_partial_shape();
+                const auto& dep_shape = dep_layout.get_partial_shape();
 
                 if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
                     dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
@@ -288,12 +299,14 @@ inline void update_shapes(kernel_selector::Params& p, const kernel_impl_params& 
         const auto& fused_prim = impl_param.fused_desc[i];
         auto& fd = bp.fused_ops[i];
         fd.output_tensor = convert_data_tensor(fused_prim.output_layout);
+        fd.tensors.clear();
         for (size_t i = fd.dep_idx_start; i < fd.dep_idx_start + fd.dep_size; i++) {
             fd.tensors.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
     }
 }
 
+bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 
 }  // namespace cldnn

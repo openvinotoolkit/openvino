@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_movement_SpaceToDepth_1}
-
 SpaceToDepth
 ============
 

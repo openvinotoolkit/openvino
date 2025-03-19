@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -24,3 +24,5 @@ from openvino._pyopenvino.preprocess import PreProcessSteps
 from openvino._pyopenvino.preprocess import PostProcessSteps
 from openvino._pyopenvino.preprocess import ColorFormat
 from openvino._pyopenvino.preprocess import ResizeAlgorithm
+from openvino._pyopenvino.preprocess import PaddingMode
+

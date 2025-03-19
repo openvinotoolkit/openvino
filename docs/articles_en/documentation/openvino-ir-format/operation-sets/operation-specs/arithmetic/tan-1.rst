@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Tan_1}
-
 Tan
 ===
 
 
 .. meta::
-  :description: Learn about Tan-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Tan-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Tan-1*
@@ -54,7 +52,7 @@ Tan
 **Examples**
 
 .. code-block:: xml
-   :force: 
+   :force:
 
     <layer ... type="Tan">
         <input>

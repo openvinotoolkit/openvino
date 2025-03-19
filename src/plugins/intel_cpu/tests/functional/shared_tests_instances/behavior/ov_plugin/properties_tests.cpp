@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ auto cpu_properties = []() -> std::vector<ov::AnyMap> {
         // check that hints doesn't override customer value (now for streams and later for other config opts)
         {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}, {ov::hint::num_requests(3)}},
         {{ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}, {ov::hint::num_requests(3)}},
+        {{ov::hint::enable_cpu_reservation(true)}, {ov::num_streams(1)}, {ov::inference_num_threads(2)}},
     };
 
     auto numa_nodes = ov::get_available_numa_nodes();
@@ -51,7 +52,7 @@ const std::vector<ov::AnyMap> cpu_inproperties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      {ov::hint::num_requests.name(), "should be int"}},
     {{ov::num_streams.name(), "OFF"}},
-    {{ov::hint::enable_cpu_pinning.name(), "OFF"}},
+    {{ov::hint::enable_cpu_pinning.name(), "NOT_BOOL"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -84,19 +85,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
 // OV Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(smoke_HeteroOVGetMetricPropsTest,
-                         OVGetMetricPropsTest,
-                         ::testing::Values("HETERO"));
-
 INSTANTIATE_TEST_SUITE_P(smoke_OVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_HeteroOVCheckGetSupportedROMetricsPropsTests,
-    OVCheckGetSupportedROMetricsPropsTests,
-    ::testing::Combine(::testing::Values("HETERO"),
-                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
-                           {ov::device::full_name.name()}))),
-    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_OVCheckGetSupportedROMetricsPropsTests,
@@ -109,13 +98,6 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(smoke_OVGetAvailableDevicesPropsTest,
                          OVGetAvailableDevicesPropsTest,
                          ::testing::Values("CPU"));
-
-const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_CPU)}};
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetDevicePriorityConfigPropsTest,
-                         OVClassSetDevicePriorityConfigPropsTest,
-                         ::testing::Combine(::testing::Values("HETERO"),
-                                            ::testing::ValuesIn(multiConfigs)));
 
 const std::vector<ov::AnyMap> configsDeviceProperties = {
     {ov::device::properties("CPU", ov::num_streams(2))},

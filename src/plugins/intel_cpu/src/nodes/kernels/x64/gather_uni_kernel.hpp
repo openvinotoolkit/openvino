@@ -19,15 +19,13 @@
 //      1      |   X   |   X   |   X   |   X   |   X   |   X   |
 //--------------------------------------------------------------
 
-
 #pragma once
 
-#include "jit_kernel_base.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "dnnl_types.h"
+#include "jit_kernel_base.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct jGatherConfParams {
     uint64_t dataTypeSize = 1lu;
@@ -71,13 +69,17 @@ struct gatherJitExecArgs {
 };
 
 struct jitGatherKernelBase {
-    void (*ker_)(const gatherJitExecArgs *);
-    void operator()(const gatherJitExecArgs *args) {
+    void (*ker_)(const gatherJitExecArgs*){nullptr};
+    void operator()(const gatherJitExecArgs* args) {
         assert(ker_);
         ker_(args);
     }
-    explicit jitGatherKernelBase(const jGatherConfParams& jcp) : ker_(nullptr), jcp(jcp) {}
-    virtual ~jitGatherKernelBase() {}
+    explicit jitGatherKernelBase(const jGatherConfParams& jcp, uint64_t vlen, uint64_t indicesTypeSize)
+        : jcp(jcp),
+          vlen(vlen),
+          dataElPerVec(vlen / jcp.dataTypeSize),
+          idxElPerVec(vlen / indicesTypeSize) {}
+    virtual ~jitGatherKernelBase() = default;
 
     virtual void create_ker() = 0;
     uint64_t getVecLen() {
@@ -120,8 +122,10 @@ struct jitUniGatherKernel : public jitGatherKernelBase, public dnnl::impl::cpu::
     bool isSupportedConfiguration(uint64_t afterAxisSize) override;
 
 protected:
-    using Vmm = typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    using Vmask = typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Opmask>::type;
+    using Vmm =
+        typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmask =
+        typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Opmask>::type;
     static const uint32_t vlenXmm = dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::vlen;
     static const uint32_t indicesTypeSize = sizeof(uint32_t);
     static const uint8_t idxTypeShift = 2;
@@ -155,7 +159,8 @@ protected:
     // Masks pool. Do not use k0 with gather instruction!
     Vmask masksContainer[8] = {Vmask(0), Vmask(1), Vmask(2), Vmask(3), Vmask(4), Vmask(5), Vmask(6), Vmask(7)};
     // Auxiliary pool.
-    Vmm vmmAuxContainer[12] = {Vmm(0), Vmm(1), Vmm(2), Vmm(3), Vmm(4), Vmm(5), Vmm(6), /*AVX5*/ Vmm(16), Vmm(17), Vmm(18), Vmm(19), Vmm(20)};
+    Vmm vmmAuxContainer[12] =
+        {Vmm(0), Vmm(1), Vmm(2), Vmm(3), Vmm(4), Vmm(5), Vmm(6), /*AVX5*/ Vmm(16), Vmm(17), Vmm(18), Vmm(19), Vmm(20)};
     // Common.
     Vmm vmmZeros = Vmm(7);
     Vmm vmmSrcBeforeAxisSumB = Vmm(8);
@@ -165,13 +170,13 @@ protected:
     Vmm vmmAxisAndAfterAxisSizeB = Vmm(12);
 
     // Only short.
-    Vmm  vmmSrcAfterBatchSizeB = Vmm(13);
-    Vmm  vmmPermIdxMask = Vmm(14);
+    Vmm vmmSrcAfterBatchSizeB = Vmm(13);
+    Vmm vmmPermIdxMask = Vmm(14);
     Vmm& vmmBeforeAxDiffB = vmmAxisAndAfterAxisSizeB;
     // Blocked short.
     Vmm& vmmSpecIdxDiff = vmmAuxContainer[4];
     Vmm& vmmAfterAxisSize = vmmAuxContainer[5];
-    Vmm  vmmAfterAxisIdxB = Vmm(15);
+    Vmm vmmAfterAxisIdxB = Vmm(15);
     Vmm& vmmAfterAxisPermMask = vmmPermIdxMask;
     Vmm& vmmBeforeAxPermMask = vmmAuxContainer[6];
     // Only long.
@@ -179,12 +184,12 @@ protected:
     Vmm vmmIdxBatchSumB = Vmm(14);
 
     // XMM
-    Xbyak::Xmm xmmAuxContainer[6] = {Xbyak::Xmm(0), Xbyak::Xmm(1), Xbyak::Xmm(2), Xbyak::Xmm(3), Xbyak::Xmm(4), Xbyak::Xmm(16)};
+    Xbyak::Xmm xmmAuxContainer[6] =
+        {Xbyak::Xmm(0), Xbyak::Xmm(1), Xbyak::Xmm(2), Xbyak::Xmm(3), Xbyak::Xmm(4), Xbyak::Xmm(16)};
     Xbyak::Xmm xmmZeros = Xbyak::Xmm(vmmZeros.getIdx());
     Xbyak::Xmm xmmSrcBeforeAxisSum = Xbyak::Xmm(vmmSrcBeforeAxisSumB.getIdx());
     Xbyak::Xmm xmmSpecIdxSizeB = Xbyak::Xmm(vmmSpecIdxSizeB.getIdx());
     Xbyak::Xmm xmmSpecIdxB = Xbyak::Xmm(vmmSpecIdxB.getIdx());
-
 
     void calcSrcShiftLong(Vmm* vAuxPool, bool shiftFirst = true);
     void calcSrcShiftLongBlock(Vmm* vAuxPool, bool shiftFirst = true);
@@ -199,7 +204,11 @@ protected:
     // Aux functions.
     void normalizeRawIndices(Vmm& rawIndices, Vmask& dstMask, Vmask& aux);
     void normWithUpperBound(Vmm& vTarget, Vmm& vMax, Vmask& kAuxMask);
-    void fillRestWorkMask(Vmask& kMask, Vmm& vAux, const Xbyak::Reg64& rWorkRest, const Xbyak::Reg64& rAux0, const Xbyak::Reg64& rAux1);
+    void fillRestWorkMask(Vmask& kMask,
+                          Vmm& vAux,
+                          const Xbyak::Reg64& rWorkRest,
+                          const Xbyak::Reg64& rAux0,
+                          const Xbyak::Reg64& rAux1);
     void storeVectorPart(const Xbyak::Reg64& rDst, const Xbyak::Reg64& rToStoreCounter, Vmm& vmmSrc, Vmm& vAux);
     void uniVpGatherDd(Vmm& vDst, const Xbyak::Address& srcAddr, Vmask& vMask);
     void fillVlenVector();
@@ -208,5 +217,4 @@ protected:
     const unsigned* permMask16bitUni;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

@@ -12,6 +12,10 @@
 #include "openvino/runtime/properties.hpp"
 #include "utils/cpu_test_utils.hpp"
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#endif
+
 using namespace CPUTestUtils;
 
 namespace ov {
@@ -106,6 +110,7 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
                 break;
         }
     }
+
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = params.start_from;
     in_data.range = params.range;
@@ -152,6 +157,15 @@ void EltwiseLayerCPUTest::SetUp() {
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+
+    // issue 163147
+    if (ElementType::f16 == netType && enforceSnippets) {
+        auto fusedOpsNames = postOpMgrPtr ? postOpMgrPtr->getFusedOpsNames() : "";
+        if (fusedOpsNames.find("PerChannel") != std::string::npos) {
+            rel_threshold = 0.01f;
+            abs_threshold = 0.0078125f;
+        }
+    }
 
     shapes.resize(2);
     switch (opType) {
@@ -258,18 +272,39 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
        (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
-       (eltwise_type == utils::EltwiseTypes::MOD)) {
+       (eltwise_type == utils::EltwiseTypes::FLOOR_MOD) ||
+       (eltwise_type == utils::EltwiseTypes::MOD) ||
+       (eltwise_type == utils::EltwiseTypes::SQUARED_DIFF)) {
         return "jit";
     }
 #endif
-    if (eltwise_type == utils::EltwiseTypes::MOD) {
+    if (eltwise_type == utils::EltwiseTypes::FLOOR_MOD ||
+        eltwise_type == utils::EltwiseTypes::MOD) {
         return "ref";
     } else {
         return "acl";
     }
-#else
-    return CPUTestsBase::getPrimitiveType();
 #endif
+
+#if defined(OPENVINO_ARCH_RISCV64)
+    if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+        if ((eltwise_type == utils::EltwiseTypes::ADD) ||
+            (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
+            (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
+            (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+            return "jit";
+        }
+    }
+#if defined(OV_CPU_WITH_SHL)
+    if ((eltwise_type == utils::EltwiseTypes::ADD) ||
+        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
+        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
+        (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+        return "shl";
+    }
+#endif
+#endif
+    return CPUTestsBase::getPrimitiveType();
 }
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
@@ -306,8 +341,8 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         utils::EltwiseTypes::SUBTRACT,                // TODO: Fix CVS-105430
         utils::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
-        utils::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
 #endif
+        utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::SQUARED_DIFF,
         utils::EltwiseTypes::MOD,
     };
@@ -318,6 +353,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
+        utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::MOD,
     };
     return eltwiseOpTypesBinInp;

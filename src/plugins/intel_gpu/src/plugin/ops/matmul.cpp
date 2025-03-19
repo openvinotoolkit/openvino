@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,7 @@ using IndirectGemm = ov::intel_gpu::op::IndirectGemm;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::MatMul>& op) {
     validate_inputs_count(op, {2});
@@ -76,8 +75,6 @@ static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
                                             [] (const ov::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; }) &&
                                 std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
                                             [] (const ov::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; });
-        if (inputsAligned)
-            return false;
 
         // Heuristic condition for permute and tiled_opt kernel perform better than ref kernel.
         bool in0_large = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
@@ -90,7 +87,7 @@ static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
         bool in1_very_large = tensor_from_dims(shapes[0].to_shape()).count() > 100000;
         bool needs_to_transpose_inputs = (in0_very_large || in1_very_large) && !is_u8_i8 && !p.get_engine().get_device_info().supports_immad;
 
-        return (in0_large && in1_large) || needs_to_transpose_inputs;
+        return !inputsAligned || (in0_large && in1_large) || needs_to_transpose_inputs;
     };
 
     auto transposeInput = [] (ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, const ov::PartialShape& shape,
@@ -216,5 +213,4 @@ REGISTER_FACTORY_IMPL(v0, MatMul);
 REGISTER_FACTORY_IMPL(internal, Gemm);
 REGISTER_FACTORY_IMPL(internal, IndirectGemm);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

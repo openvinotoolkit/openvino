@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,6 +70,8 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
         CASE_CONVERT(ov::element::nf4)
         CASE_CONVERT(ov::element::f8e4m3)
         CASE_CONVERT(ov::element::f8e5m2)
+        CASE_CONVERT(ov::element::f8e8m0)
+        CASE_CONVERT(ov::element::f4e2m1)
     case ov::element::boolean:
         fill_data_boolean(static_cast<fundamental_type_for<ov::element::boolean>*>(tensor.data()),
                           size,
@@ -270,6 +272,7 @@ ov::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type elem
         CASE(ov::element::Type_t::f16)
         CASE(ov::element::Type_t::f32)
         CASE(ov::element::Type_t::f64)
+        CASE(ov::element::Type_t::f8e8m0)
     case ov::element::Type_t::u1:
     case ov::element::Type_t::i4:
     case ov::element::Type_t::u4:

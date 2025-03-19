@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -195,3 +195,5 @@ bool ov::op::util::FrameworkNode::visit_attributes(AttributeVisitor& visitor) {
 
 ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>::AttributeAdapter(ov::op::util::FrameworkNodeAttrs& value)
     : DirectValueAccessor<ov::op::util::FrameworkNodeAttrs>(value) {}
+
+ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>::~AttributeAdapter() = default;

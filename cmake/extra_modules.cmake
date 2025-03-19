@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -119,6 +119,10 @@ function(_ov_register_extra_modules)
     add_library(${NS}::${exported_target_clean_name} ALIAS ${exported_target})
 endif()\n")
         endforeach()
+
+        configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
+                       "${OpenVINODeveloperPackage_DIR}/OpenVINODeveloperPackageConfig-version.cmake" 
+                       @ONLY)
     endfunction()
 
     _ov_generate_fake_developer_package("openvino")

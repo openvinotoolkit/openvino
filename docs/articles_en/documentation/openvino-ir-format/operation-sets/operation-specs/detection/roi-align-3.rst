@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_detection_ROIAlign_3}
-
 ROIAlign
 ========
 
 
 .. meta::
-  :description: Learn about ROIAlign-3 - an object detection operation, 
+  :description: Learn about ROIAlign-3 - an object detection operation,
                 which can be performed on three required input tensors.
 
 **Versioned name**: *ROIAlign-3*

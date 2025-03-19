@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,6 @@ struct VersionRange {
     }
     static constexpr VersionRange in(int version) {
         return VersionRange{version, version};
-    }
-    static constexpr VersionRange single_version_for_all_opsets() {
-        return VersionRange{1, LATEST_SUPPORTED_ONNX_OPSET_VERSION};
     }
     // -1 means that that a left/right boundary of the range was not specified
     const int m_since = -1, m_until = -1;

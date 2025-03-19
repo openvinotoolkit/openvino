@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,7 +93,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -188,7 +188,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicReshapeCase)
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -278,7 +278,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicSqueezeCase)
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -364,7 +364,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -444,7 +444,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicReshapeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -525,7 +525,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicSqueezeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -605,7 +605,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -685,7 +685,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicReshapeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -766,7 +766,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicSqueezeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -1271,7 +1271,8 @@ using LoopWithLSTMCellToLSTMSequenceFusionParam = std::tuple<std::string,  // f 
                                                              std::string,  // g activation function
                                                              std::string,  // h activation function
                                                              size_t,       // input size
-                                                             size_t>;      // hidden size
+                                                             size_t,       // hidden size
+                                                             bool>;        // with mul-by-one pattern
 
 class LoopWithLSTMCellToLSTMSequenceFusionTest
     : public testing::WithParamInterface<LoopWithLSTMCellToLSTMSequenceFusionParam>,
@@ -1286,6 +1287,17 @@ void generate_weights_value(std::vector<float>& weights_value, const Shape& weig
         weights_value[i] = distribution(rng);
     }
 }
+
+std::shared_ptr<Node> stitch_mul_by_one_pattern(const std::shared_ptr<Node>& in_node) {
+    auto shape_of = std::make_shared<op::v3::ShapeOf>(in_node);
+    auto concat_value = std::make_shared<op::v0::Constant>(element::i64, Shape{1}, 1);
+    auto concat = std::make_shared<op::v0::Concat>(OutputVector{concat_value, shape_of}, 0);
+    auto broadcast_value = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, 1);
+    auto broadcast = std::make_shared<op::v3::Broadcast>(broadcast_value, concat);
+    auto squeeze_axes = std::make_shared<op::v0::Constant>(element::i64, Shape{1}, 0);
+    auto squeeze = std::make_shared<op::v0::Squeeze>(broadcast, squeeze_axes);
+    return std::make_shared<op::v1::Multiply>(in_node, squeeze);
+}
 }  // namespace
 
 TEST_P(LoopWithLSTMCellToLSTMSequenceFusionTest, FusionTest) {
@@ -1295,6 +1307,7 @@ TEST_P(LoopWithLSTMCellToLSTMSequenceFusionTest, FusionTest) {
     const std::string& h_activation = std::get<2>(param);
     size_t input_size = std::get<3>(param);
     size_t hidden_size = std::get<4>(param);
+    bool with_mul_by_one_pattern = std::get<5>(param);
     size_t batch_size = 2;
     size_t time_len = 10;
 
@@ -1314,15 +1327,22 @@ TEST_P(LoopWithLSTMCellToLSTMSequenceFusionTest, FusionTest) {
         // create body graph with LSTMCell
         auto xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, batch_size, input_size});
         auto squeeze_axis = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 0);
-        auto xi_squeeze = std::make_shared<op::v0::Squeeze>(xi, squeeze_axis);
+        std::shared_ptr<ov::Node> xi_squeeze = std::make_shared<op::v0::Squeeze>(xi, squeeze_axis);
+        if (with_mul_by_one_pattern) {
+            xi_squeeze = stitch_mul_by_one_pattern(xi_squeeze);
+        }
         auto init_hidden_state = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        std::shared_ptr<ov::Node> hidden_state_to_lstm_cell = init_hidden_state;
+        if (with_mul_by_one_pattern) {
+            hidden_state_to_lstm_cell = stitch_mul_by_one_pattern(init_hidden_state);
+        }
         auto init_cell_state = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
         auto w_const = op::v0::Constant::create(element::f32, w_shape, w);
         auto r_const = op::v0::Constant::create(element::f32, r_shape, r);
         auto b_const = op::v0::Constant::create(element::f32, b_shape, b);
         auto lstm_cell =
             std::make_shared<op::v4::LSTMCell>(xi_squeeze,
-                                               init_hidden_state,
+                                               hidden_state_to_lstm_cell,
                                                init_cell_state,
                                                w_const,
                                                r_const,
@@ -1459,4 +1479,5 @@ INSTANTIATE_TEST_SUITE_P(LoopWithLSTMCellToLSTMSequenceFusion,
                                           testing::Values("sigmoid", "relu"),
                                           testing::Values("tanh", "relu"),
                                           testing::Values(2, 3),
-                                          testing::Values(3, 4)));
+                                          testing::Values(3, 4),
+                                          testing::Values(true, false)));

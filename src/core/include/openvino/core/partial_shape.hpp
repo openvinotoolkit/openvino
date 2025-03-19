@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -439,5 +439,6 @@ public:
     AttributeAdapter(ov::PartialShape& value) : DirectValueAccessor<ov::PartialShape>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<PartialShape>");
+    ~AttributeAdapter() override;
 };
 }  // namespace ov

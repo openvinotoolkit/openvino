@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "detection_output_inst.h"
-#include "implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
 
@@ -46,7 +46,7 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::detection_output_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<detection_output_impl>(*this);
+        return std::make_unique<detection_output_impl>(*this);
     }
 
     detection_output_impl() : parent() {}
@@ -446,8 +446,8 @@ public:
         const int input_buffer_size_y = input_buffer_size[2];
         const int input_buffer_size_f = input_buffer_size[1];
         const auto& input_padding = location_layout.data_padding;
-        const int input_padding_lower_x = input_padding.lower_size().spatial[0];
-        const int input_padding_lower_y = input_padding.lower_size().spatial[1];
+        const int input_padding_lower_x = input_padding._lower_size[2];
+        const int input_padding_lower_y = input_padding._lower_size[3];
 
         for (int image = 0; image < num_of_images; ++image) {
             std::vector<std::vector<bounding_box>>& label_to_bbox = locations[image];
@@ -540,13 +540,13 @@ public:
 
         assert(num_of_priors * num_classes == input_confidence->get_layout().feature());
 
-        const auto& input_buffer_size = input_confidence->get_layout().get_buffer_size();
-        const int input_buffer_size_x = input_buffer_size.spatial[0];
-        const int input_buffer_size_y = input_buffer_size.spatial[1];
-        const int input_buffer_size_f = input_buffer_size.feature[0];
+        const auto& input_buffer_layout = input_confidence->get_layout();
+        const int input_buffer_size_x = input_buffer_layout.spatial(0);
+        const int input_buffer_size_y = input_buffer_layout.spatial(1);
+        const int input_buffer_size_f = input_buffer_layout.feature();
         const auto& input_padding = input_confidence->get_layout().data_padding;
-        const int input_padding_lower_x = input_padding.lower_size().spatial[0];
-        const int input_padding_lower_y = input_padding.lower_size().spatial[1];
+        const int input_padding_lower_x = input_padding._lower_size[2];
+        const int input_padding_lower_y = input_padding._lower_size[3];
         const int stride = input_buffer_size_y * input_buffer_size_x;
 
         for (int image = 0; image < num_of_images; ++image) {
@@ -635,13 +635,12 @@ public:
 
         assert(num_of_priors * num_classes == confidence_layout.feature());
 
-        const auto& input_buffer_size = confidence_layout.get_buffer_size();
-        const int input_buffer_size_x = input_buffer_size.spatial[0];
-        const int input_buffer_size_y = input_buffer_size.spatial[1];
-        const int input_buffer_size_f = input_buffer_size.feature[0];
+        const int input_buffer_size_x = confidence_layout.spatial(0);
+        const int input_buffer_size_y = confidence_layout.spatial(1);
+        const int input_buffer_size_f = confidence_layout.feature();
         const auto& input_padding = confidence_layout.data_padding;
-        const int input_padding_lower_x = input_padding.lower_size().spatial[0];
-        const int input_padding_lower_y = input_padding.lower_size().spatial[1];
+        const int input_padding_lower_x = input_padding._lower_size[2];
+        const int input_padding_lower_y = input_padding._lower_size[3];
         const int stride = input_buffer_size_y * input_buffer_size_x;
 
         for (int image = 0; image < num_of_images; ++image) {
@@ -828,12 +827,10 @@ public:
     event::ptr execute_impl(const std::vector<event::ptr>& events, detection_output_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
-            for (auto e : events) {
-                e->wait();
-            }
+            stream.wait_for_events(events);
         }
 
         const int num_of_images = instance.location_memory()->get_layout().batch();  // batch size
@@ -852,20 +849,16 @@ public:
         }
 
         if (pass_through_events) {
-            if (events.size() > 1) {
-                return stream.group_events(events);
-            } else if (events.size() == 1) {
-                return events[0];
-            }
+            return stream.group_events(events);
         }
 
-        return stream.create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
     static std::unique_ptr<primitive_impl> create(const detection_output_node& arg, const kernel_impl_params&) {
-        return make_unique<detection_output_impl>(arg);
+        return std::make_unique<detection_output_impl>(arg);
     }
 };
 

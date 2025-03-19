@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_convolution_ConvolutionBackpropData_1}
-
 ConvolutionBackpropData
 =======================
 

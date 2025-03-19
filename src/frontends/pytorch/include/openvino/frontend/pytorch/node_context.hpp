@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,11 +18,11 @@ typedef std::unordered_map<size_t, Output<Node>> TensorMap;
 
 class NodeContext : public frontend::NodeContext {
 public:
-    NodeContext(std::shared_ptr<TorchDecoder> decoder,
+    NodeContext(const std::shared_ptr<TorchDecoder>& decoder,
                 const TensorMap& ext_tensor_map,
-                std::shared_ptr<TensorMap> tensor_map,
-                std::shared_ptr<ParameterVector> external_parameters,
-                std::shared_ptr<std::set<size_t>> mutated_tensors,
+                const std::shared_ptr<TensorMap>& tensor_map,
+                const std::shared_ptr<ParameterVector>& external_parameters,
+                const std::shared_ptr<std::set<size_t>>& mutated_tensors,
                 TranslateSession* translate_session)
         : frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
@@ -32,11 +32,12 @@ public:
           m_mutated_tensors(mutated_tensors),
           m_translate_session(translate_session),
           m_decoder_inputs(decoder->inputs()),
-          m_decoder_outputs(decoder->outputs()) {
+          m_decoder_outputs(decoder->outputs()),
+          m_inputs_is_none(m_decoder_inputs.size(), false) {
         FRONT_END_GENERAL_CHECK(m_tensor_map != nullptr && m_external_parameters != nullptr &&
                                 m_mutated_tensors != nullptr && m_translate_session != nullptr);
         for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
-            m_inputs_is_none.push_back(decoder->input_is_none(i));
+            m_inputs_is_none[i] = decoder->input_is_none(i);
         }
     }
 
@@ -50,36 +51,9 @@ public:
 
     // Search for input in tensor map and return an output port for already converted op
     // TODO: int due to base class uses it, but naturally it should be size_t for PT
-    Output<Node> get_input(int index) const override {
-        size_t index_ = static_cast<size_t>(index);
-        FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index_), "Input doesn't exist with index: ", index);
-        auto input = m_decoder_inputs.at(index);
-        if (input == 0) {
-            // Case when input can be inlined (possible only for fx decoder)
-            if (m_decoder->is_input_inlined(index_)) {
-                auto inlined_input = m_decoder->inlined_input(index_);
-                FRONT_END_GENERAL_CHECK(inlined_input.size() == 1, "Incorrect inlined input with index:", index);
-                return inlined_input[0];
-            }
-        }
-        FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
-        return m_tensor_map->at(input);
-    }
+    Output<Node> get_input(int index) const override;
 
-    Output<Node> get_input(const std::string& name) const override {
-        FRONT_END_GENERAL_CHECK(has_attribute(name), "Input with name ", name, " doesn't exist");
-        auto attr = get_attribute_as_any(name);
-        if (attr.is<Output<Node>>()) {
-            // Case when input is constant value
-            return attr.as<Output<Node>>();
-        } else if (attr.is<type::PyNone>()) {
-            // None means input is unknown type, most likely a Node
-            auto input = m_decoder->get_named_input(name);
-            FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
-            return m_tensor_map->at(input);
-        }
-        FRONT_END_GENERAL_CHECK(false, "Input has type which can't be converted to ov::Node.");
-    }
+    Output<Node> get_input(const std::string& name) const override;
 
     Any get_values_from_const_input(int index) const override;
 
@@ -89,7 +63,7 @@ public:
         return m_decoder->get_input_type(index);
     }
 
-    bool input_is_none(size_t index) const;
+    bool input_is_none(size_t index) const override;
 
     Any get_output_type(size_t index) const {
         return m_decoder->get_output_type(index);
@@ -111,7 +85,7 @@ public:
         return m_decoder->get_schema();
     }
 
-    std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const;
+    std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const override;
 
     // Call mark_node for each node from the vector
     void mark_nodes(std::vector<std::shared_ptr<Node>> ov_nodes) const {
@@ -140,7 +114,7 @@ public:
         return m_translate_session;
     }
 
-    void add_tensor_to_context(size_t index, Output<Node> ov_output) const;
+    void add_tensor_to_context(size_t index, const Output<Node>& ov_output) const;
 
     Output<Node> get_tensor_from_model(size_t index) const {
         if (m_tensor_map->find(index) != m_tensor_map->end()) {
@@ -155,6 +129,8 @@ public:
     std::shared_ptr<ov::Model> convert_subgraph(size_t index) const;
 
 private:
+    ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
+
     std::shared_ptr<TorchDecoder> m_decoder;
     const TensorMap& m_ext_tensor_map;
     std::shared_ptr<TensorMap> m_tensor_map;

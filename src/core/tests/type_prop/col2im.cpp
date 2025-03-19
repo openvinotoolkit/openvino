@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -245,6 +245,47 @@ TEST_F(TypePropCol2ImTest, dynamic_batch_size) {
     EXPECT_EQ(op->get_pads_end(), (Shape{3, 3}));
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 3, 32, 32}));
+}
+
+TEST_F(TypePropCol2ImTest, dynamic_output_size_from_shape_of) {
+    const auto data = std::make_shared<Parameter>(element::i64, PartialShape{Dimension::dynamic(), 12, 324});
+    const auto output_size = std::make_shared<ShapeOf>(
+        std::make_shared<Parameter>(element::i64, PartialShape{Dimension::dynamic(), Dimension::dynamic()}));
+    const auto kernel_size = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{2}, std::vector<int32_t>{2, 2});
+    const auto strides = Strides{2, 2};
+    const auto dilations = Strides{2, 2};
+    const auto pads_begin = Shape{3, 3};
+    const auto pads_end = Shape{3, 3};
+
+    const auto op = make_op(data, output_size, kernel_size, strides, dilations, pads_begin, pads_end);
+
+    EXPECT_EQ(op->get_strides(), (Strides{2, 2}));
+    EXPECT_EQ(op->get_dilations(), (Strides{2, 2}));
+    EXPECT_EQ(op->get_pads_begin(), (Shape{3, 3}));
+    EXPECT_EQ(op->get_pads_end(), (Shape{3, 3}));
+    EXPECT_EQ(op->get_output_element_type(0), element::i64);
+    EXPECT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}));
+}
+
+TEST_F(TypePropCol2ImTest, dynamic_kernel_size_from_shape_of) {
+    const auto data = std::make_shared<Parameter>(element::i64, PartialShape{Dimension::dynamic(), 12, 324});
+    const auto output_size = std::make_shared<ShapeOf>(std::make_shared<Parameter>(element::i64, Shape{32, 32}));
+    const auto kernel_size = std::make_shared<ShapeOf>(
+        std::make_shared<Parameter>(element::i64, PartialShape{Dimension::dynamic(), Dimension::dynamic()}));
+    const auto strides = Strides{2, 2};
+    const auto dilations = Strides{2, 2};
+    const auto pads_begin = Shape{3, 3};
+    const auto pads_end = Shape{3, 3};
+
+    const auto op = make_op(data, output_size, kernel_size, strides, dilations, pads_begin, pads_end);
+
+    EXPECT_EQ(op->get_strides(), (Strides{2, 2}));
+    EXPECT_EQ(op->get_dilations(), (Strides{2, 2}));
+    EXPECT_EQ(op->get_pads_begin(), (Shape{3, 3}));
+    EXPECT_EQ(op->get_pads_end(), (Shape{3, 3}));
+    EXPECT_EQ(op->get_output_element_type(0), element::i64);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), Dimension::dynamic(), 32, 32}));
 }
 
 TEST_F(TypePropCol2ImTest, interval_data_shape) {

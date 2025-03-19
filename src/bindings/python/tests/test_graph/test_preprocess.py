@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 
 from openvino import Core, Layout, Model, Shape, Tensor, Type
-from openvino.runtime.utils.decorators import custom_preprocess_function
-from openvino.runtime import Output
-from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
+from openvino.utils.decorators import custom_preprocess_function
+from openvino import Output
+from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm, PaddingMode
 
 
 def test_graph_preprocess_mean():
@@ -72,7 +72,8 @@ def test_graph_preprocess_scale_vector():
     assert list(model.get_output_shape(0)) == [2, 2]
     assert model.get_output_element_type(0) == Type.f32
     assert "Constant" in model_operators
-    assert "Divide" in model_operators
+    # Div will be converted to Mul in the transformations
+    assert "Multiply" in model_operators
 
 
 def test_graph_preprocess_mean_scale_convert():
@@ -95,12 +96,13 @@ def test_graph_preprocess_mean_scale_convert():
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
+    # Div will be converted to Mul in the transformations
     expected_ops = [
         "Parameter",
         "Convert",
         "Constant",
         "Subtract",
-        "Divide",
+        "Multiply",
         "Result",
         "Abs",
     ]
@@ -137,12 +139,13 @@ def test_graph_preprocess_input_output_by_name():
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
+    # Div will be converted to Mul in the transformations
     expected_ops = [
         "Parameter",
         "Convert",
         "Constant",
         "Subtract",
-        "Divide",
+        "Multiply",
         "Result",
         "Abs",
     ]
@@ -404,7 +407,7 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
             "Gather",
             "Interpolate",
         ]
-        assert len(model_operators) == 15
+        assert len(model_operators) == 12
         assert model.get_output_size() == 1
         assert list(model.get_output_shape(0)) == [1, 3, 3, 3]
         assert model.get_output_element_type(0) == Type.f32
@@ -456,10 +459,9 @@ def test_graph_preprocess_postprocess_layout():
         "Constant",
         "Result",
         "Gather",
-        "Range",
         "Transpose",
     ]
-    assert len(model_operators) == 14
+    assert len(model_operators) == 11
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 1, 3, 3]
     assert model.get_output_element_type(0) == Type.f32
@@ -486,9 +488,8 @@ def test_graph_preprocess_reverse_channels():
         "Constant",
         "Result",
         "Gather",
-        "Range",
     ]
-    assert len(model_operators) == 10
+    assert len(model_operators) == 7
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 2, 2, 2]
     assert model.get_output_element_type(0) == Type.f32
@@ -628,6 +629,7 @@ def test_graph_preprocess_model():
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
+    # Div will be converted to Mul in the transformations
     expected_ops = [
         "Parameter",
         "Constant",
@@ -636,7 +638,7 @@ def test_graph_preprocess_model():
         "Convert",
         "Abs",
         "Add",
-        "Divide",
+        "Multiply",
     ]
     assert len(model_operators) == 13
     assert model.get_output_size() == 1
@@ -728,3 +730,63 @@ def test_graph_set_layout_by_layout_class_thow_exception():
         layout = Layout("1-2-3D")
         ppp.input().model().set_layout(layout)
     assert "Layout name is invalid" in str(e.value)
+
+
+@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [([0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT)])
+def test_pad_vector_constant_layout(pads_begin, pads_end, values, mode):
+    shape = [1, 3, 200, 200]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
+    model = parameter_a
+    model = Model(model, [parameter_a], "TestModel")
+    ppp = PrePostProcessor(model)
+    ppp.input().tensor().set_shape([1, 3, 199, 199])
+    ppp.input().preprocess().pad(pads_begin, pads_end, values, mode)
+    new_model = ppp.build()
+    assert new_model
+    assert list(new_model.get_output_shape(0)) == shape
+
+
+@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [([0, 0, -2, 0], [0, 0, -4, 1], 0, PaddingMode.CONSTANT)])
+def test_pad_vector_out_of_range(pads_begin, pads_end, values, mode):
+    shape = [1, 3, 5, 5]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = parameter_a
+    model = Model(model, [parameter_a], "TestModel")
+    ppp = PrePostProcessor(model)
+    with pytest.raises(RuntimeError) as e:
+        ppp.input().preprocess().pad(pads_begin, pads_end, values, mode)
+        ppp.build()
+    assert "not aligned with original parameter's shape" in str(e.value)
+
+
+@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [([0, 0, 2, 0, 1], [0, 0, 4, 1, 1], 0, PaddingMode.CONSTANT)])
+def test_pad_vector_dim_mismatch(pads_begin, pads_end, values, mode):
+    shape = [1, 3, 5, 5]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = parameter_a
+    model = Model(model, [parameter_a], "TestModel")
+    ppp = PrePostProcessor(model)
+    with pytest.raises(RuntimeError) as e:
+        ppp.input().preprocess().pad(pads_begin, pads_end, values, mode)
+        ppp.build()
+    assert "mismatches with rank of input" in str(e.value)
+
+
+@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [([0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT)])
+def test_pad_vector_type_and_ops(pads_begin, pads_end, values, mode):
+    shape = [1, 3, 200, 200]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
+    model = parameter_a
+    model = Model(model, [parameter_a], "TestModel")
+    ppp = PrePostProcessor(model)
+    ppp.input().tensor().set_shape([1, 3, 199, 199])
+    ppp.input().preprocess().pad(pads_begin, pads_end, values, mode)
+    new_model = ppp.build()
+    assert new_model
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
+    expected_ops = ["Parameter", "Constant", "Result", "Pad"]
+    assert list(new_model.get_output_shape(0)) == shape
+    assert new_model.get_output_element_type(0) == Type.f32
+    assert len(model_operators) == 6
+    for op in expected_ops:
+        assert op in model_operators

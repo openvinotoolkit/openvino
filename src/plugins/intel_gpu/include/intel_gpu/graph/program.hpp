@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,6 @@ struct program {
     friend class pre_replace_deconv;                // to be removed when possible
     friend class prepare_primitive_fusing;          // to be removed when possible
     friend class prepare_quantization;              // to be removed when possible
-    friend class prepare_conv_eltw_fusing;          // to be removed when possible
     friend class reorder_inputs;                    // to be removed when possible
     friend class remove_redundant_reorders;         // to be removed when possible
     friend class post_optimize_weights;             // to be removed when possible
@@ -174,6 +173,11 @@ public:
     program_node const& get_node(primitive_id const& id) const;
     std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) { return nodes_map.at(prim); }
     std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) const { return nodes_map.at(prim); }
+    void set_state_initializers(const std::string& variable_id, const primitive_id& id);
+    bool has_state_initializers(const std::string& variable_id, const primitive_id& id);
+    bool contains_state(const std::string& variable_id);
+    const std::vector<primitive_id>& get_initializers(const std::string& variable_id) { return state_initializers.at(variable_id); }
+    const std::map<std::string, std::vector<primitive_id>>& get_state_initializers() const { return state_initializers; }
 
     // returns already existing program_node for given primitive 'prim' (lookup in 'nodes_map')
     // if it was previously created, otherwise creates and then returns program_node
@@ -289,6 +293,7 @@ public:
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
     bool is_new_shape_infer() const { return new_shape_infer; }
+    layout_optimizer& get_layout_optimizer() const { return *_layout_optimizer; }
 
 private:
     uint32_t prog_id = 0;
@@ -303,12 +308,12 @@ private:
     nodes_ordering processing_order;
     std::vector<primitive_id> allocating_order;
     std::unique_ptr<pass_manager> pm;
-    bool is_internal;
-    bool _is_body_program;
+    std::unique_ptr<layout_optimizer> _layout_optimizer;
+    bool is_internal = false;
+    bool _is_body_program = false;
     // if subgraph can be optimized if it consists of only inputs and corresponding outputs
     bool _can_be_optimized;
     std::unique_ptr<ImplementationsCache> _impls_cache;
-    const size_t _impls_cache_capacity = 300;
     std::shared_ptr<ICompilationContext> _compilation_context;
     bool _loaded_from_cache = false;
 
@@ -320,6 +325,8 @@ private:
     std::list<optimized_info> optimized;
     primitives_info prim_info;
     graph_optimizer_info optimizer_passes_info;
+
+    std::map<std::string, std::vector<primitive_id>> state_initializers;
 
     primitives_info get_current_stage_info() const;
     /*

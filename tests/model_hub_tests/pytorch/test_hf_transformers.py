@@ -1,56 +1,27 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 
+from datasets import Audio, load_dataset
+from huggingface_hub import hf_hub_download, model_info
+from PIL import Image
 import pytest
 import torch
-from huggingface_hub import model_info
-from models_hub_common.constants import hf_hub_cache_dir
-from models_hub_common.utils import cleanup_dir
 import transformers
-from transformers import AutoConfig, AutoModel, AutoProcessor, AutoTokenizer, AutoFeatureExtractor, AutoModelForTextToWaveform, \
-    CLIPFeatureExtractor, XCLIPVisionModel, T5Tokenizer, VisionEncoderDecoderModel, ViTImageProcessor, BlipProcessor, BlipForConditionalGeneration, \
-    SpeechT5Processor, SpeechT5ForTextToSpeech, LayoutLMv2Processor, Pix2StructForConditionalGeneration, RetriBertTokenizer, VivitImageProcessor
+from transformers import (
+    AutoConfig, AutoFeatureExtractor, AutoImageProcessor, AutoModel,
+    AutoModelForTextToWaveform, AutoProcessor, AutoTokenizer,
+    BlipForConditionalGeneration, BlipProcessor, CLIPFeatureExtractor,
+    FlavaImageModel, LayoutLMv2Processor, Pix2StructForConditionalGeneration,
+    RetriBertTokenizer, SpeechT5ForTextToSpeech, SpeechT5Processor,
+    T5Tokenizer, ViTImageProcessor, VisionEncoderDecoderModel,
+    VivitImageProcessor, XCLIPVisionModel
+)
 
-from torch_utils import TestTorchConvertModel, process_pytest_marks
-
-def is_gptq_model(config):
-    config_dict = config.to_dict() if not isinstance(config, dict) else config
-    quantization_config = config_dict.get("quantization_config", None)
-    return quantization_config and quantization_config["quant_method"] == "gptq"
-
-
-def patch_gptq():
-    orig_cuda_check = torch.cuda.is_available
-    orig_post_init_model = None
-    torch.set_default_dtype(torch.float32)
-    torch.cuda.is_available = lambda: True
-
-    from optimum.gptq import GPTQQuantizer
-
-    orig_post_init_model = GPTQQuantizer.post_init_model
-
-    def post_init_model(self, model):
-        from auto_gptq import exllama_set_max_input_length
-
-        class StoreAttr(object):
-            pass
-
-        model.quantize_config = StoreAttr()
-        model.quantize_config.desc_act = self.desc_act
-        if self.desc_act and not self.disable_exllama and self.max_input_length is not None:
-            model = exllama_set_max_input_length(model, self.max_input_length)
-        return model
-
-    GPTQQuantizer.post_init_model = post_init_model
-    return orig_cuda_check, orig_post_init_model
-
-
-def unpatch_gptq(orig_cuda_check, orig_post_init_model):
-    from optimum.gptq import GPTQQuantizer
-    torch.cuda.is_available = orig_cuda_check
-    GPTQQuantizer.post_init_model = orig_post_init_model
+from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
+from models_hub_common.utils import cleanup_dir, get_models_list, retry
+from torch_utils import TestTorchConvertModel
 
 
 def flattenize_tuples(list_input):
@@ -71,41 +42,22 @@ def flattenize_outputs(outputs):
         return dict((k, v.numpy(force=True)) for k, v in outputs.items())
 
 
-def filter_example(model, example):
-    try:
-        import inspect
-        if isinstance(example, dict):
-            model_params = inspect.signature(model.forward).parameters
-            names_set = {p for p in model_params}
-            new_example = dict()
-            for k, v in example:
-                if k in names_set:
-                    new_example[k] = v
-        return new_example
-    except:
-        return example
-
-
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
 
 class TestTransformersModel(TestTorchConvertModel):
     def setup_class(self):
-        from PIL import Image
         import requests
 
         self.infer_timeout = 1800
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         self.image = Image.open(requests.get(url, stream=True).raw)
-        self.cuda_available, self.gptq_postinit = None, None
 
+    @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
-        name_suffix = ''
-        if name.find(':') != -1:
-            name_suffix = name[name.find(':') + 1:]
-            name = name[:name.find(':')]
+        name, _, name_suffix = name.partition(':')
 
         mi = model_info(name)
         auto_processor = None
@@ -115,11 +67,7 @@ class TestTransformersModel(TestTorchConvertModel):
             config = AutoConfig.from_pretrained(name)
         except Exception:
             config = {}
-        is_gptq = is_gptq_model(config)
         model_kwargs = {"torchscript": True}
-        if is_gptq:
-            self.cuda_available, self.gptq_postinit = patch_gptq()
-            model_kwargs["torch_dtype"] = torch.float32
         if "bart" in mi.tags:
             model_kwargs["attn_implementation"] = "eager"
         try:
@@ -134,10 +82,9 @@ class TestTransformersModel(TestTorchConvertModel):
             example = dict(encoded_input)
         elif 'xclip' in mi.tags:
             model = XCLIPVisionModel.from_pretrained(name, **model_kwargs)
-            # needs video as input
-            example = {'pixel_values': torch.randn(*(16, 3, 224, 224), dtype=torch.float32)}
+            example = {'pixel_values': torch.randn(16, 3, 224, 224)}
         elif 'audio-spectrogram-transformer' in mi.tags:
-            example = {'input_values': torch.randn(*(1, 1024, 128), dtype=torch.float32)}
+            example = {'input_values': torch.randn(1, 1024, 128)}
         elif 'mega' in mi.tags:
             model = AutoModel.from_pretrained(name, **model_kwargs)
             model.config.output_attentions = True
@@ -147,33 +94,35 @@ class TestTransformersModel(TestTorchConvertModel):
         elif 'bros' in mi.tags:
             processor = AutoProcessor.from_pretrained(name)
             encoding = processor("to the moon!", return_tensors="pt")
-            bbox = torch.randn([1, 6, 8], dtype=torch.float32)
-            example = dict(input_ids=encoding["input_ids"], bbox=bbox, attention_mask=encoding["attention_mask"])
+            bbox = torch.randn([1, 6, 8])
+            example = dict(
+                input_ids=encoding["input_ids"], bbox=bbox, attention_mask=encoding["attention_mask"])
         elif 'upernet' in mi.tags:
             processor = AutoProcessor.from_pretrained(name)
             example = dict(processor(images=self.image, return_tensors="pt"))
         elif 'deformable_detr' in mi.tags or 'oneformer' in mi.tags:
             processor = AutoProcessor.from_pretrained(name)
-            example = dict(processor(images=self.image, task_inputs=["semantic"], return_tensors="pt"))
+            example = dict(processor(images=self.image, task_inputs=[
+                           "semantic"], return_tensors="pt"))
         elif 'clap' in mi.tags:
             example_inputs_map = {
-                'audio_model': {'input_features': torch.randn([1, 1, 1001, 64], dtype=torch.float32)},
-                'audio_projection': {'hidden_states': torch.randn([1, 768], dtype=torch.float32)},
+                'audio_model': {'input_features': torch.randn([1, 1, 1001, 64])},
+                'audio_projection': {'hidden_states': torch.randn([1, 768])},
             }
             example = example_inputs_map[name_suffix]
         elif 'git' in mi.tags:
             processor = AutoProcessor.from_pretrained(name)
-            example = {'pixel_values': torch.randn(*(1, 3, 224, 224), dtype=torch.float32), 
+            example = {'pixel_values': torch.randn(1, 3, 224, 224),
                        'input_ids': torch.randint(1, 100, size=(1, 13), dtype=torch.int64)}
         elif 'blip-2' in mi.tags:
             processor = AutoProcessor.from_pretrained(name)
             example = dict(processor(images=self.image, return_tensors="pt"))
             example_inputs_map = {
-                'vision_model' :  {'pixel_values': torch.randn([1, 3, 224, 224], dtype=torch.float32)},
-                'qformer': {'query_embeds' : torch.randn([1, 32, 768], dtype=torch.float32), 
-                            'encoder_hidden_states' : torch.randn([1, 257, 1408], dtype=torch.float32),
-                            'encoder_attention_mask' : torch.ones([1, 257], dtype=torch.int64)},
-                'language_projection': {'input' : torch.randn([1, 32, 768], dtype=torch.float32)},
+                'vision_model':  {'pixel_values': torch.randn([1, 3, 224, 224])},
+                'qformer': {'query_embeds': torch.randn([1, 32, 768]),
+                            'encoder_hidden_states': torch.randn([1, 257, 1408]),
+                            'encoder_attention_mask': torch.ones([1, 257])},
+                'language_projection': {'input': torch.randn([1, 32, 768])},
             }
             example = example_inputs_map[name_suffix]
         elif "t5" in mi.tags:
@@ -195,10 +144,11 @@ class TestTransformersModel(TestTorchConvertModel):
 
             example = dict(encoded_input)
             example["decoder_input_ids"] = torch.randint(0, 1000, [1, 20])
-            example["decoder_attention_mask"] = torch.ones([1, 20], dtype=torch.int64)
+            example["decoder_attention_mask"] = torch.ones(
+                [1, 20], dtype=torch.int64)
         elif 'idefics' in mi.tags:
             processor = AutoProcessor.from_pretrained(name)
-            
+
             prompts = [[
                 "User: What is in this image?",
                 "https://upload.wikimedia.org/wikipedia/commons/8/86/Id%C3%A9fix.JPG",
@@ -213,47 +163,59 @@ class TestTransformersModel(TestTorchConvertModel):
                 "\nAssistant:",
             ]]
 
-            inputs = processor(prompts, add_end_of_utterance_token=False, return_tensors="pt")
+            inputs = processor(
+                prompts, add_end_of_utterance_token=False, return_tensors="pt")
             example = dict(inputs)
         elif 'blip' in mi.tags and 'text2text-generation' in mi.tags:
             processor = BlipProcessor.from_pretrained(name)
-            model = BlipForConditionalGeneration.from_pretrained(name, **model_kwargs)
+            model = BlipForConditionalGeneration.from_pretrained(
+                name, **model_kwargs)
             text = "a photography of"
             inputs = processor(self.image, text, return_tensors="pt")
             example = dict(inputs)
         elif 'speecht5' in mi.tags:
-            from datasets import load_dataset
-
             processor = SpeechT5Processor.from_pretrained(name)
-            model = SpeechT5ForTextToSpeech.from_pretrained(name, **model_kwargs)
+            model = SpeechT5ForTextToSpeech.from_pretrained(
+                name, **model_kwargs)
 
-            inputs = processor(text="Hello, my dog is cute.", return_tensors="pt")
+            inputs = processor(text="Hello, my dog is cute.",
+                               return_tensors="pt")
             # load xvector containing speaker's voice characteristics from a dataset
-            embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
-            speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
+            embeddings_dataset = load_dataset(
+                "Matthijs/cmu-arctic-xvectors", split="validation")
+            speaker_embeddings = torch.tensor(
+                embeddings_dataset[7306]["xvector"]).unsqueeze(0)
 
             example = dict(inputs)
             example['speaker_embeddings'] = speaker_embeddings
-            example['decoder_input_values'] = torch.randn([1, 20, model.config.num_mel_bins])
+            example['decoder_input_values'] = torch.randn(
+                [1, 20, model.config.num_mel_bins])
         elif 'layoutlmv2' in mi.tags:
             processor = LayoutLMv2Processor.from_pretrained(name)
 
             question = "What's the content of this image?"
-            encoding = processor(self.image, question, max_length=512, truncation=True, return_tensors="pt")
+            encoding = processor(
+                self.image, question, max_length=512, truncation=True, return_tensors="pt")
             example = dict(encoding)
         elif 'pix2struct' in mi.tags:
-            model = Pix2StructForConditionalGeneration.from_pretrained(name, **model_kwargs)
+            model = Pix2StructForConditionalGeneration.from_pretrained(
+                name, **model_kwargs)
             processor = AutoProcessor.from_pretrained(name)
 
             import requests
-            from PIL import Image
             image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/ai2d-demo.jpg"
             image = Image.open(requests.get(image_url, stream=True).raw)
             question = "What does the label 15 represent? (1) lava (2) core (3) tunnel (4) ash cloud"
-            inputs = processor(images=image, text=question, return_tensors="pt")
+            inputs = processor(images=image, text=question,
+                               return_tensors="pt")
             example = dict(inputs)
             example["decoder_input_ids"] = torch.randint(0, 1000, [1, 20])
-            example["decoder_attention_mask"] = torch.ones([1, 20], dtype=torch.int64)
+            example["decoder_attention_mask"] = torch.ones(
+                [1, 20], dtype=torch.int64)
+        elif "pix2struct_vision_model" in mi.tags:
+            image_processor = AutoProcessor.from_pretrained("google/pix2struct-textcaps-base")
+            inputs = image_processor(images=self.image, return_tensors="pt")
+            example = dict(inputs)
         elif "mms-lid" in name:
             processor = AutoFeatureExtractor.from_pretrained(name)
             input_values = processor(torch.randn(16000).numpy(),
@@ -272,10 +234,11 @@ class TestTransformersModel(TestTorchConvertModel):
             encoded_input = processor(images=self.image, return_tensors="pt")
             example = (encoded_input.pixel_values,)
         elif "flava" in mi.tags:
-            processor = AutoProcessor.from_pretrained(name)
-            encoded_input = processor(text=["a photo of a cat", "a photo of a dog"],
-                                      images=[self.image, self.image],
-                                      return_tensors="pt")
+            model = FlavaImageModel.from_pretrained(name, **model_kwargs)
+            feature_extractor = AutoFeatureExtractor.from_pretrained(name)
+
+            encoded_input = feature_extractor(images=[self.image],
+                                              return_tensors="pt")
             example = dict(encoded_input)
         elif "vivit" in mi.tags:
             frames = list(torch.randint(
@@ -308,10 +271,11 @@ class TestTransformersModel(TestTorchConvertModel):
             text = "some example text in the English language"
             inputs = tokenizer(text, return_tensors="pt")
             example = dict(inputs)
-        elif 'musicgen' in mi.tags:
+        elif 'musicgen' in mi.tags or "musicgen_melody" in mi.tags:
             processor = AutoProcessor.from_pretrained(name)
-            model = AutoModelForTextToWaveform.from_pretrained(name, **model_kwargs)
-            
+            model = AutoModelForTextToWaveform.from_pretrained(
+                name, **model_kwargs)
+
             inputs = processor(
                 text=["80s pop track with bassy drums and synth"],
                 padding=True,
@@ -322,12 +286,92 @@ class TestTransformersModel(TestTorchConvertModel):
             pad_token_id = model.generation_config.pad_token_id
             example["decoder_input_ids"] = torch.ones(
                 (inputs.input_ids.shape[0] * model.decoder.num_codebooks, 1), dtype=torch.long) * pad_token_id
-        elif 'kosmos-2' in mi.tags:
+        elif 'kosmos-2' in mi.tags or 'instructblip' in mi.tags:
             processor = AutoProcessor.from_pretrained(name)
 
             prompt = "<grounding>An image of"
-            inputs = processor(text=prompt, images=self.image, return_tensors="pt")
+            inputs = processor(
+                text=prompt, images=self.image, return_tensors="pt")
             example = dict(inputs)
+        elif 'vitmatte' in mi.tags:
+            processor = AutoImageProcessor.from_pretrained(name)
+            filepath = hf_hub_download(repo_id="hf-internal-testing/image-matting-fixtures",
+                                       filename="image.png",
+                                       repo_type="dataset")
+            image = Image.open(filepath).convert("RGB")
+            filepath = hf_hub_download(repo_id="hf-internal-testing/image-matting-fixtures",
+                                       filename="trimap.png",
+                                       repo_type="dataset")
+            trimap = Image.open(filepath).convert("L")
+            inputs = processor(images=image, trimaps=trimap,
+                               return_tensors="pt")
+            example = dict(inputs)
+        elif 'sam' in mi.tags:
+            processor = AutoProcessor.from_pretrained(name)
+            input_points = [[[450, 600]]]
+            inputs = processor(self.image,
+                               input_points=input_points,
+                               return_tensors="pt")
+            example = dict(inputs)
+            if "original_sizes" in example:
+                del example["original_sizes"]
+            if "reshaped_input_sizes" in example:
+                del example["reshaped_input_sizes"]
+        elif 'udop' in mi.tags:
+            processor = AutoProcessor.from_pretrained(name, apply_ocr=False)
+            dataset = load_dataset("nielsr/funsd-layoutlmv3", split="train")
+            example = dataset[0]
+            image = example["image"]
+            words = example["tokens"]
+            boxes = example["bboxes"]
+            inputs = processor(image, words, boxes=boxes, return_tensors="pt")
+            decoder_input_ids = torch.tensor([[config.decoder_start_token_id]])
+            example = dict(decoder_input_ids=decoder_input_ids,
+                           decoder_attention_mask=torch.tensor([[True]]), **inputs)
+        elif 'clvp' in mi.tags:
+            text = "This is an example text."
+            ds = load_dataset("hf-internal-testing/librispeech_asr_dummy",
+                              "clean", split="validation")
+            ds = ds.cast_column("audio", Audio(sampling_rate=22050))
+            sorted_audio = ds.sort("id").select(range(1))[:1]["audio"][0]
+            _, audio, sr = sorted_audio.values()
+            processor = AutoProcessor.from_pretrained(name)
+            inputs = processor(raw_speech=audio, sampling_rate=sr,
+                               text=text, return_tensors="pt")
+            example = dict(inputs)
+        elif "decision_transformer" in mi.tags:
+            states = torch.randn(1, 1, config.state_dim)
+            actions = torch.zeros((1, 1, config.act_dim), dtype=torch.float32)
+            rewards = torch.zeros(1, 1, dtype=torch.float32)
+            target_return = torch.randn(1, 1, 1)
+            timesteps = torch.tensor(0, dtype=torch.long).reshape(1, 1)
+            attention_mask = torch.zeros(1, 1, dtype=torch.float32)
+            example = dict(states=states,
+                           actions=actions,
+                           rewards=rewards,
+                           returns_to_go=target_return,
+                           timesteps=timesteps,
+                           attention_mask=attention_mask)
+        elif "time_series_transformer" in mi.tags or "informer" in mi.tags or "autoformer" in mi.tags:
+            file = hf_hub_download(repo_id="hf-internal-testing/tourism-monthly-batch",
+                                   filename="train-batch.pt", repo_type="dataset")
+            batch = torch.load(file)
+            example = dict(past_values=batch["past_values"],
+                           past_time_features=batch["past_time_features"],
+                           past_observed_mask=batch["past_observed_mask"],
+                           static_categorical_features=batch["static_categorical_features"],
+                           static_real_features=batch["static_real_features"],
+                           future_time_features=batch["future_time_features"]
+                           )
+        elif "seg-ment-tation" in mi.tags:
+            image_processor = AutoImageProcessor.from_pretrained(name)
+            inputs = image_processor(images=self.image, return_tensors="pt")
+            example = dict(inputs)
+        elif "lxmert" in mi.tags:
+            example = {"input_ids": torch.randint(1, 1000, [1, 20]),
+                       "attention_mask": torch.ones([1, 20], dtype=torch.bool),
+                       "visual_feats": torch.randn(1, 10, config.visual_feat_dim),
+                       "visual_pos": torch.randn(1, 10, config.visual_pos_dim)}
         else:
             try:
                 if auto_model == "AutoModelForCausalLM":
@@ -359,14 +403,12 @@ class TestTransformersModel(TestTorchConvertModel):
                     example = dict(input_ids=inputs.input_ids,
                                    decoder_input_ids=decoder_inputs.input_ids)
                 elif auto_model == "AutoModelForSpeechSeq2Seq":
-                    from datasets import load_dataset
                     processor = AutoProcessor.from_pretrained(name)
                     inputs = processor(torch.randn(1000).numpy(),
                                        sampling_rate=16000,
                                        return_tensors="pt")
                     example = dict(inputs)
                 elif auto_model == "AutoModelForCTC":
-                    from datasets import load_dataset
                     processor = AutoProcessor.from_pretrained(name)
                     input_values = processor(torch.randn(1000).numpy(),
                                              return_tensors="pt")
@@ -379,8 +421,8 @@ class TestTransformersModel(TestTorchConvertModel):
                     queries = ["What is the name of the first actor?",
                                "How many movies has George Clooney played in?",
                                "What is the total number of movies?", ]
-                    answer_coordinates = [[(0, 0)], [(2, 1)], [
-                        (0, 1), (1, 1), (2, 1)]]
+                    answer_coordinates = [[(0, 0)], [(2, 1)],
+                                          [(0, 1), (1, 1), (2, 1)]]
                     answer_text = [["Brad Pitt"], ["69"], ["209"]]
                     table = pd.DataFrame.from_dict(data)
                     encoded_input = tokenizer(table=table, queries=queries, answer_coordinates=answer_coordinates,
@@ -404,14 +446,45 @@ class TestTransformersModel(TestTorchConvertModel):
             model = self.load_model_with_default_class(name, **model_kwargs)
         if hasattr(model, "set_default_language"):
             model.set_default_language("en_XX")
+        if hasattr(model, "config") and hasattr(model.config, "return_loss"):
+            model.config.return_loss = False
         if name_suffix != '':
             model = model._modules[name_suffix]
         if example is None:
             if "encodec" in mi.tags:
                 example = (torch.randn(1, 1, 100),)
+            elif len({"blip_2_vision_model", "vit-hybrid", "siglip_vision_model", "flava_image_codebook", "superpoint", "donut-swin", "hiera"}.intersection(mi.tags)):
+                image_size = getattr(model.config, "image_size", 384)
+                if not isinstance(image_size, (list, tuple)):
+                    image_size = [image_size, image_size]
+                example = {"pixel_values": torch.randn(1, 3, image_size[0],
+                                                       image_size[1])}
+            elif len({"LanguageBindDepth", "LanguageBindImage", "LanguageBindThermal"}.intersection(mi.tags)):
+                image_size = getattr(model.config.vision_config,
+                                     "image_size", 384)
+                example = {"input_ids": torch.randint(0, 1000, [1, 20]),
+                           "pixel_values": torch.randn(1, 3, image_size, image_size)}
+            elif len({"speech-encoder-decoder", "wav2vec2", "unispeech", "wavlm", "data2vec-audio", "sew"}.intersection(mi.tags)):
+                example = {"input_values": torch.rand(1, 1000)}
+            elif "blip_2_qformer" in mi.tags:
+                example = {"query_embeds": torch.randn(1, 20, model.config.hidden_size),
+                           "attention_mask": torch.ones([1, 20]),
+                           "encoder_hidden_states": torch.randn(1, 20, model.config.encoder_hidden_size),
+                           "encoder_attention_mask": torch.ones([1, 20])}
+            elif "patchtsmixer" in mi.tags or "patchtst" in mi.tags:
+                example = {"past_values": torch.rand(1, model.config.context_length,
+                                                     model.config.num_input_channels)}
             else:
-                example = (torch.randint(1, 1000, [1, 100]),)
-        self.example = filter_example(model, example)
+                vocab_size = getattr(model.config, "vocab_size", 1000)
+                example = (torch.randint(1, vocab_size, [1, 100]),)
+        if len({"seamless_m4t", "whisper", "speech_to_text", "speech-encoder-decoder"}.intersection(mi.tags)):
+            example["decoder_input_ids"] = torch.randint(0, 1000, [1, 20])
+            example["decoder_attention_mask"] = torch.ones(
+                [1, 20], dtype=torch.int64)
+
+        if "hybridbert" in mi.tags and "token_type_ids" in example:
+            del example["token_type_ids"]
+        self.example = example
         if "vit_mae" in mi.tags:
             # vit-mae by default will generate random noise
             self.example["noise"] = torch.rand(1, 192)
@@ -424,22 +497,22 @@ class TestTransformersModel(TestTorchConvertModel):
         return model
 
     def teardown_method(self):
-        # remove all downloaded files from cache
-        cleanup_dir(hf_hub_cache_dir)
-        # restore after gptq patching
-        if self.cuda_available is not None:
-            unpatch_gptq(self.cuda_available, self.gptq_postinit)
-            self.cuda_available, self.gptq_postinit = None, None
+        if clean_hf_cache_dir:
+            # remove all downloaded files from cache
+            cleanup_dir(hf_cache_dir)
+
         super().teardown_method()
 
     @staticmethod
     def load_model_with_default_class(name, **kwargs):
         try:
             mi = model_info(name)
-            assert len({"owlv2", "owlvit", "vit_mae"}.intersection(mi.tags)) == 0, "TBD: support default classes of these models"
-            assert "architectures" in mi.config and len(mi.config["architectures"]) == 1
+            assert len({"owlv2", "owlvit", "vit_mae"}.intersection(
+                mi.tags)) == 0, "TBD: support default classes of these models"
+            assert "architectures" in mi.config and len(
+                mi.config["architectures"]) == 1
             class_name = mi.config["architectures"][0]
-            model_class = transformers.__getattr__(class_name)
+            model_class = getattr(transformers, class_name)
             return model_class.from_pretrained(name, **kwargs)
         except:
             return AutoModel.from_pretrained(name, **kwargs)
@@ -448,16 +521,28 @@ class TestTransformersModel(TestTorchConvertModel):
                                            ("bert-base-uncased", "bert"),
                                            ("google/flan-t5-base", "t5"),
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
-                                           ("gpt2", "gpt2"),
                                            ("openai/clip-vit-large-patch14", "clip"),
-                                           ("katuni4ka/opt-125m-gptq", "opt"),
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
-    @pytest.mark.parametrize("name",
-                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "hf_transformers_models")))
+    @pytest.mark.parametrize("name,type", [("bert-base-uncased", "bert"),
+                                           ("openai/clip-vit-large-patch14", "clip"),
+                                           ])
+    @pytest.mark.precommit
+    def test_convert_model_precommit_export(self, name, type, ie_device):
+        self.mode = "export"
+        self.run(model_name=name, model_link=type, ie_device=ie_device)
+
+    @pytest.mark.parametrize("type,name,mark,reason",
+                             get_models_list(os.path.join(os.path.dirname(__file__), "hf_transformers_models")))
     @pytest.mark.nightly
-    def test_convert_model_all_models(self, name, ie_device):
+    def test_convert_model_all_models(self, name, type, mark, reason, ie_device):
+        valid_marks = ['skip', 'xfail']
+        assert mark is None or mark in valid_marks, f"Invalid case for {name}"
+        if mark == 'skip':
+            pytest.skip(reason)
+        elif mark == 'xfail':
+            pytest.xfail(reason)
         self.run(model_name=name, model_link=None, ie_device=ie_device)

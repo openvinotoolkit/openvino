@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -42,7 +42,7 @@ const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
     {{ov::hint::execution_mode.name(), ov::hint::ExecutionMode::ACCURACY}},
     {{ov::hint::num_requests.name(), 2u}},
     {{ov::log::level.name(), ov::log::Level::ERR}},
-    {{ov::device::id.name(), removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700"))}},
+    {{ov::device::id.name(), removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))}},
     {{ov::enable_profiling.name(), true}},
 };
 
@@ -77,7 +77,7 @@ const std::vector<std::string> ImmutableProperties{
 };
 
 const std::vector<ov::AnyMap> CorrectCompiledModelProperties = {
-    {{ov::device::id.name(), removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700"))}},
+    {{ov::device::id.name(), removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))}},
     {{ov::enable_profiling.name(), true}},
     {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}},
     {{ov::hint::execution_mode.name(), ov::hint::ExecutionMode::PERFORMANCE}},
@@ -91,7 +91,7 @@ const std::vector<ov::AnyMap> IncorrectImmutableProperties = {
     {{ov::intel_npu::device_alloc_mem_size.name(), 1024}},
     {{ov::intel_npu::device_total_mem_size.name(), 2048}},
     {{ov::intel_npu::driver_version.name(), 3}},
-    {{ov::available_devices.name(), testing::internal::Strings{"3700", "3720"}}},
+    {{ov::available_devices.name(), testing::internal::Strings{"3720"}}},
     {{ov::device::capabilities.name(), testing::internal::Strings{ov::device::capability::BF16}}},
     {{ov::range_for_async_infer_requests.name(), std::tuple<unsigned int, unsigned int, unsigned int>{1u, 10u, 1u}}},
     {{ov::range_for_streams.name(), std::tuple<unsigned int, unsigned int>{1u, 4u}}},
@@ -114,7 +114,7 @@ const std::vector<ov::AnyMap> IncorrectImmutableProperties = {
                                                                             0x67}}}},
     {{ov::device::architecture.name(), "3720"}},
     {{ov::device::type.name(), "NPU"}},
-    {{ov::device::full_name.name(), "NPU.3700"}},
+    {{ov::device::full_name.name(), "NPU.3720"}},
     {{ov::device::pci_info.name(),
       ov::device::PCIInfo{0xFFFF, 0xFFFF, 0, 0xFFFF}}},  // setting invalid domain,bus,device and function ids
     {{ov::device::gops.name(),
@@ -135,7 +135,6 @@ const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
 };
 
 const std::vector<ov::AnyMap> IncorrectInexistingProperties = {
-    {{ov::affinity.name(), ov::Affinity::HYBRID_AWARE}},
     {{ov::intel_cpu::denormals_optimization.name(), true}},
     {{ov::intel_gpu::hint::host_task_priority.name(), ov::hint::Priority::LOW}},
     {{ov::intel_gpu::hint::queue_throttle.name(), ov::intel_gpu::hint::ThrottleLevel::HIGH}}};
@@ -178,6 +177,14 @@ INSTANTIATE_TEST_SUITE_P(
     (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>));
 
 INSTANTIATE_TEST_SUITE_P(
+    smoke_BehaviorTests_OVCheckSetSupportedRWMandatoryMetricsPropsTests,
+    OVCheckSetSupportedRWMetricsPropsTests,
+    ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
+                           {ov::log::level.name()}))),
+    ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>);
+
+INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckGetSupportedROMetricsPropsTests,
     OVCheckGetSupportedROMetricsPropsTests,
     ::testing::Combine(
@@ -209,21 +216,21 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassSetDefaultDevi
                          OVClassSetDefaultDeviceIDPropTest,
                          ::testing::Values(std::make_pair(
                              ov::test::utils::DEVICE_NPU,
-                             removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700")))),
+                             removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720")))),
                          (ov::test::utils::appendPlatformTypeTestName<OVClassSetDefaultDeviceIDPropTest>));
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVClassSpecificDeviceTest,
     OVSpecificDeviceSetConfigTest,
     ::testing::Values(std::string(ov::test::utils::DEVICE_NPU) + "." +
-                      removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700"))),
+                      removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))),
     (ov::test::utils::appendPlatformTypeTestName<OVSpecificDeviceSetConfigTest>));
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVClassSpecificDeviceTest,
     OVSpecificDeviceGetConfigTest,
     ::testing::Values(std::string(ov::test::utils::DEVICE_NPU) + "." +
-                      removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700"))),
+                      removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))),
     (ov::test::utils::appendPlatformTypeTestName<OVSpecificDeviceGetConfigTest>));
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVGetAvailableDevicesPropsTest,
@@ -235,7 +242,7 @@ INSTANTIATE_TEST_SUITE_P(
     compatibility_smoke_BehaviorTests_OVClassSpecificDeviceTest,
     OVSpecificDeviceTestSetConfig,
     ::testing::Values(std::string(ov::test::utils::DEVICE_NPU) + "." +
-                      removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3700"))),
+                      removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))),
     (ov::test::utils::appendPlatformTypeTestName<OVSpecificDeviceTestSetConfig>));
 
 const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_NPU)}};
@@ -243,8 +250,8 @@ const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassSetDevicePriorityConfigPropsTest,
                          OVClassSetDevicePriorityConfigPropsTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI,
-                                                ov::test::utils::DEVICE_AUTO,
-                                                ov::test::utils::DEVICE_HETERO),
+                                                              ov::test::utils::DEVICE_AUTO,
+                                                              ov::test::utils::DEVICE_HETERO),
                                             ::testing::ValuesIn(multiConfigs)),
                          (ov::test::utils::appendPlatformTypeTestName<OVClassSetDevicePriorityConfigPropsTest>));
 
@@ -275,7 +282,6 @@ const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {
     {ov::device::properties(
         ov::AnyMap{{ov::test::utils::DEVICE_NPU, ov::AnyMap{ov::num_streams(ov::streams::AUTO)}}})}};
 
-// IE Class load and check network with ov::device::properties
 INSTANTIATE_TEST_SUITE_P(
     smoke_NPU_BehaviorTests_OVClassCompileModelAndCheckSecondaryPropertiesTest,
     OVClassCompileModelAndCheckSecondaryPropertiesTest,
@@ -288,4 +294,16 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                        ::testing::ValuesIn(configsDevicePropertiesDouble)),
     (ov::test::utils::appendPlatformTypeTestName<OVClassCompileModelAndCheckSecondaryPropertiesTest>));
+
+// OVClassCompileModelAndCheckSecondaryPropertiesTest only works with property num_streams of type int32_t
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
+                         OVClassCompileModelAndCheckSecondaryPropertiesTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU, "AUTO:NPU", "MULTI:NPU"),
+                                            ::testing::ValuesIn(configsDeviceProperties)));
+
+INSTANTIATE_TEST_SUITE_P(BehaviorTests_OVGetConfigTest_nightly,
+                         OVGetConfigTest,
+                         ::testing::Values(ov::test::utils::DEVICE_NPU),
+                         ov::test::utils::appendPlatformTypeTestName<OVGetConfigTest>);
+
 };  // namespace

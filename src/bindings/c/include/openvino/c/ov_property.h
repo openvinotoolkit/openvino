@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,18 +108,20 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_cache_mode;
 
 /**
+ * @brief Write-only property<ov_encryption_callbacks*> to set encryption and decryption function for model cache.
+ * If ov_property_key_cache_encryption_callbacks is set, model topology will be encrypted when saving to the cache and
+ * decrypted when loading from the cache. This property is set in ov_core_compile_model_* only
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_cache_encryption_callbacks;
+
+/**
  * @brief Read-write property<uint32_t string> to set/get the number of executor logical partitions.
  * @ingroup ov_property_c_api
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_num_streams;
-
-/**
- * @brief Read-write property to set/get the name for setting CPU affinity per thread option.
- * @ingroup ov_property_c_api
- */
-OPENVINO_C_VAR(const char*)
-ov_property_key_affinity;
 
 /**
  * @brief Read-write property<int32_t string> to set/get the maximum number of threads that can be used

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,9 @@ InputModel::InputModel(std::istream& model_stream,
                        frontend::ExtensionHolder extensions)
     : InputModel(model_stream, ov::util::wstring_to_string(path), enable_mmap, std::move(extensions)) {}
 #endif
+
+InputModel::InputModel(std::shared_ptr<ModelProto> model_proto, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<ONNXModelEditor>(model_proto, std::move(extensions))} {}
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();
@@ -238,7 +241,7 @@ ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& p
         return m_editor->get_input_type(tensor_name);
     }
     // now we can return the concrete element type only for model inputs
-    return ov::element::undefined;
+    return ov::element::dynamic;
 }
 
 std::shared_ptr<Model> InputModel::decode() {
@@ -278,8 +281,9 @@ void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr
     for (const auto& output : outputs) {
         bool is_correct = is_correct_place(output);
         if (!is_correct)
-            OPENVINO_WARN << "Name  " << output->get_names().at(0)
-                          << " of output node is not a correct node name. Ignoring this parameter.";
+            OPENVINO_WARN("Name  ",
+                          output->get_names().at(0),
+                          " of output node is not a correct node name. Ignoring this parameter.");
         else
             expected_valid_outputs.push_back(output);
     }
@@ -311,8 +315,9 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
     for (const auto& input : inputs) {
         bool is_correct = is_correct_place(input);
         if (!is_correct)
-            OPENVINO_WARN << "Name  " << input->get_names().at(0)
-                          << " of input node is not a correct node. Ignoring this parameter.";
+            OPENVINO_WARN("Name  ",
+                          input->get_names().at(0),
+                          " of input node is not a correct node. Ignoring this parameter.");
         else
             expected_valid_inputs.push_back(input);
     }

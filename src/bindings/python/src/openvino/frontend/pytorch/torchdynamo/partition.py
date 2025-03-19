@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: ignore-errors
@@ -23,6 +23,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
+
+
+class PatternNode:
+    op_types = {}
+
+    def __init__(self):
+        self.op_types = {}
 
 
 class Partitioner:
@@ -56,59 +63,79 @@ class Partitioner:
             return True
         return False
 
-    def capture_gptq_patterns(self, graph_module: GraphModule) -> bool:
+    def check_pattern(self, node: torch.fx.Node, pattern: PatternNode, enabled_ops: list) -> bool:
+        if node.op == "call_function":
+            if ("call_function" + ":" + str(node.target)) in pattern.op_types:
+                pt_input_nodes = node.all_input_nodes
+                pattern_input_ops = pattern.op_types["call_function" + ":" + str(node.target)]
+                if pattern_input_ops is None:
+                    enabled_ops.append(node)
+                    return True
+                if len(pt_input_nodes) != len(pattern_input_ops):
+                    return False
+                for i in range(len(pt_input_nodes)):
+                    if not self.check_pattern(pt_input_nodes[i], pattern_input_ops[i], enabled_ops):
+                        return False
+                enabled_ops.append(node)
+                return True
+        elif node.op == "get_attr":
+            if "get_attr" in pattern.op_types:
+                return True
+            else:
+                return False
+        return False
+
+    def capture_gptq_patterns(self, graph_module: GraphModule):
+        const_0_node = PatternNode
+        const_0_node.op_types["get_attr"] = None
+        unsqueeze_0_node = PatternNode
+        unsqueeze_0_node.op_types["call_function:aten.unsqueeze.default"] = [const_0_node,]
+        expand_node = PatternNode
+        expand_node.op_types["call_function:aten.expand.default"] = [unsqueeze_0_node,]
+        const_1_node = PatternNode
+        const_1_node.op_types["get_attr"] = None
+        unsqueeze_1_node = PatternNode
+        unsqueeze_1_node.op_types["call_function:aten.unsqueeze.default"] = [const_1_node,]
+        bitwise_right_shift_node = PatternNode
+        bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor"] = [expand_node, unsqueeze_1_node]
+        to_copy_node = PatternNode
+        to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node,]
+        add_or_to_copy_node = PatternNode
+        add_or_to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node,]
+        add_or_to_copy_node.op_types["call_function:aten.add.Tensor"] = [to_copy_node,]
+        bitwise_and_node = PatternNode
+        bitwise_and_node.op_types["call_function:aten.bitwise_and.Scalar"] = [add_or_to_copy_node,]
+
         for node in graph_module.graph.nodes:
             if str(node.op) == "call_function" and str(node.target) == "aten.bitwise_and.Scalar":
-                bitwise_and_in_nodes = node.all_input_nodes
-                if len(bitwise_and_in_nodes) != 1:
-                    continue
-                to_copy_node = bitwise_and_in_nodes[0]
-                if str(to_copy_node.op) != "call_function" or str(to_copy_node.target) != "aten._to_copy.default":
-                    continue
-                to_copy_in_nodes = to_copy_node.all_input_nodes
-                if len(to_copy_in_nodes) != 1:
-                    continue
-                bitwise_right_shift_node = to_copy_in_nodes[0]
-                if str(bitwise_right_shift_node.op) != "call_function" or str(bitwise_right_shift_node.target) != "aten.bitwise_right_shift.Tensor":
-                    continue
-                bitwise_right_shift_in_nodes = bitwise_right_shift_node.all_input_nodes
-                if len(bitwise_right_shift_in_nodes) != 2:
-                    continue
-                expand_node = bitwise_right_shift_in_nodes[0]
-                if str(expand_node.op) != "call_function" or str(expand_node.target) != "aten.expand.default":
-                    continue
-                expand_in_nodes = expand_node.all_input_nodes
-                if len(expand_in_nodes) != 1:
-                    continue
-                unsqueeze_0_node = expand_in_nodes[0]
-                if str(unsqueeze_0_node.op) != "call_function" or str(unsqueeze_0_node.target) != "aten.unsqueeze.default":
-                    continue
-                unsqueeze_0_in_nodes = unsqueeze_0_node.all_input_nodes
-                if len(unsqueeze_0_in_nodes) != 1:
-                    continue
-                const_0_node = unsqueeze_0_in_nodes[0]
-                if str(const_0_node.op) != "get_attr":
-                    continue
-                unsqueeze_1_node = bitwise_right_shift_in_nodes[1]
-                if str(unsqueeze_1_node.op) != "call_function" or str(unsqueeze_1_node.target) != "aten.unsqueeze.default":
-                    continue
-                unsqueeze_1_in_nodes = unsqueeze_1_node.all_input_nodes
-                if len(unsqueeze_1_in_nodes) != 1:
-                    continue
-                const_1_node = unsqueeze_1_in_nodes[0]
-                if str(const_1_node.op) != "get_attr":
-                    continue
+                enabled_ops = []
+                pattern_match = self.check_pattern(node, bitwise_and_node, enabled_ops)
+                if pattern_match:
+                    for pattern_op in enabled_ops:
+                        self.supported_ops.enable_by_name(pattern_op)
 
-                self.supported_ops.enable_by_name(node)
-                self.supported_ops.enable_by_name(to_copy_node)
-                self.supported_ops.enable_by_name(bitwise_right_shift_node)
-                self.supported_ops.enable_by_name(expand_node)
-                self.supported_ops.enable_by_name(unsqueeze_0_node)
-                self.supported_ops.enable_by_name(unsqueeze_1_node)
+    def capture_nncf_patterns(self, graph_module: GraphModule):
+        const_node = PatternNode
+        const_node.op_types["get_attr"] = None
+        bitwise_right_shift_node = PatternNode
+        bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor_Scalar"] = [const_node]
+        bitwise_and_node = PatternNode
+        bitwise_and_node.op_types["call_function:aten.bitwise_and.Scalar"] = [const_node,]
+        stack_node = PatternNode
+        stack_node.op_types["call_function:aten.stack.default"] = [bitwise_and_node, bitwise_right_shift_node]
+
+        for node in graph_module.graph.nodes:
+            if str(node.op) == "call_function" and str(node.target) == "aten.stack.default":
+                enabled_ops = []
+                pattern_match = self.check_pattern(node, bitwise_and_node, enabled_ops)
+                if pattern_match:
+                    for pattern_op in enabled_ops:
+                        self.supported_ops.enable_by_name(pattern_op)
 
     def make_partitions(self, graph_module: GraphModule, options) -> GraphModule:
         allow_single_node_partition = _is_testing(options)
         self.capture_gptq_patterns(graph_module)
+        self.capture_nncf_patterns(graph_module)
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=allow_single_node_partition)
         partitions = partitioner.propose_partitions()

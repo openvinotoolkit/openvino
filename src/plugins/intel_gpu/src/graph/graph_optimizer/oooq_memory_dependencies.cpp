@@ -1,18 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pass_manager.h"
 #include "program_node.h"
-#include "layout_optimizer.h"
 #include "intel_gpu/graph/program.hpp"
-#include "program_helpers.h"
 #include "intel_gpu/runtime/itt.hpp"
 #include <vector>
-#include <memory>
 #include <list>
-#include <map>
-#include <set>
 #include <algorithm>
 
 using namespace cldnn;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -208,7 +208,7 @@ void InputModel::InputModelTFImpl::load_places() {
                 // so we need to check if Any object is initialized first
                 pshape = shape_any.as<ov::PartialShape>();
             } else {
-                OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name << " does not have 'shape' attribute";
+                OPENVINO_DEBUG("TensorFlow Frontend: Placeholder ", op_name, " does not have 'shape' attribute");
             }
             auto output_shapes_any = node_decoder->get_attribute("_output_shapes");
             if (pshape.rank().is_static() && pshape.rank().get_length() == 0 &&
@@ -219,8 +219,9 @@ void InputModel::InputModelTFImpl::load_places() {
                 auto output_shapes = output_shapes_any.as<std::vector<ov::PartialShape>>();
                 if (output_shapes.size() == 1 && output_shapes[0].rank().is_static()) {
                     pshape = output_shapes[0];
-                    OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name
-                                   << " has shape from '_output_shapes' attribute.";
+                    OPENVINO_DEBUG("TensorFlow Frontend: Placeholder ",
+                                   op_name,
+                                   " has shape from '_output_shapes' attribute.");
                 }
             }
             auto dtype_any = node_decoder->get_attribute("dtype");
@@ -229,14 +230,21 @@ void InputModel::InputModelTFImpl::load_places() {
             if (dtype_any.is<ov::element::Type>()) {
                 type = dtype_any.as<ov::element::Type>();
             }
-            std::vector<std::string> names = {op_name + ":0"};
-            auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
-
-            m_default_places[op_name + ":0"] = tensor_place;
+            std::string internal_tensor_name = op_name + ":0";
+            std::vector<std::string> names{internal_tensor_name};
+            auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names, op_name);
+            m_default_places[internal_tensor_name] = tensor_place;
 
             if (op_type == "Placeholder") {
-                // by default, PlaceholderWithDefault is NOT used as input
-                m_inputs.push_back(tensor_place);
+                if (m_saved_model_input_names && (m_saved_model_input_names->size() > 0)) {
+                    // if input signature is defined,
+                    // found input must present in this signature
+                    if (m_saved_model_input_names->find(internal_tensor_name) != m_saved_model_input_names->end()) {
+                        m_inputs.push_back(tensor_place);
+                    }
+                } else {
+                    m_inputs.push_back(tensor_place);
+                }
             }
         } else if (op_type == "input_arg") {
             if (m_input_names.size() > 0 &&
@@ -256,7 +264,8 @@ void InputModel::InputModelTFImpl::load_places() {
             auto tensor_place = std::make_shared<TensorPlace>(m_input_model,
                                                               ov::PartialShape::dynamic(),
                                                               type,
-                                                              std::vector<std::string>{op_name});
+                                                              std::vector<std::string>{op_name},
+                                                              op_name);
             m_inputs.push_back(tensor_place);
         }
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ public:
                         "Currently NodeFactory doesn't support Constant node: ",
                         op_type_name);
 
-        OPENVINO_WARN << "Empty op created! Please assign inputs and attributes and run validate() before op is used.";
+        OPENVINO_WARN("Empty op created! Please assign inputs and attributes and run validate() before op is used.");
 
         return op_node;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,12 @@
 #include <cstdint>
 #include <numeric>
 #include <algorithm>
+#include <optional>
 #include <vector>
 #include <string>
 #include <utility>
 #include <stdexcept>
-#include "intel_gpu/runtime/optionals.hpp"
+
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -42,6 +43,9 @@ struct format_traits {
     std::string internal_order;
     /// @brief Block sizes as a vector of pairs of dimension number and block size ordered from rare to often.
     std::vector<std::pair<size_t, int>> block_sizes;
+    std::vector<std::pair<size_t, int>> logic_block_sizes;
+    /// @brief Onednn memory descriptor size used for asymmetric compensation.
+    size_t desc_size = 0;
     /// @brief Characters representing batch dimensions in an order.
     static const char* batch_chars() { return "bno"; }
     /// @brief Characters representing feature map/channel dimensions in an order.
@@ -149,6 +153,7 @@ struct format {
         os_is_zyx_osv32_isv16,
         os_is_yx_osv32_isv2,                          ///< format used only for fully connected weights compressed for i4
         os_is_zyx_osv64_isv16,
+        os_is_yx_osv64_isv2,                          ///< format used only for fully connected weights compressed for i4
         os_zyxi_osv16,                                ///< format used for weights for 3D convolution
         os_is_yx_isv16_osv16,                         ///< format used for blocked convolution
         os_is_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D convolution
@@ -257,6 +262,7 @@ struct format {
     static const std::string& internal_order(const format& fmt) { return fmt.traits().internal_order; }
     /// @brief Returns block sizes for @p format.
     static const std::vector<std::pair<size_t, int>>& block_sizes(const format& fmt) { return fmt.traits().block_sizes; }
+    static const std::vector<std::pair<size_t, int>>& logic_block_sizes(const format& fmt) { return fmt.traits().logic_block_sizes; }
     /// @brief Returns number of dimensions contained within a @p format
     static size_t dimension(const format& fmt) { return order(fmt).size(); }
     /// @brief Checks if @p format is a winograd format
@@ -340,6 +346,7 @@ struct format {
     const std::string& internal_order() const { return traits().internal_order; }
     /// @brief Returns block sizes as vector of pairs of dimension and block size for that dimension.
     const std::vector<std::pair<size_t, int>>& block_sizes() const { return traits().block_sizes; }
+    const std::vector<std::pair<size_t, int>>& logic_block_sizes() const { return traits().logic_block_sizes; }
     /// @brief Returns number of dimensions contained within this format
     size_t dimension() const { return traits()._order.size(); }
     /// @brief Checks if @p format is a winograd format
@@ -363,7 +370,7 @@ struct format {
 
     type value;
 
-    optional_value<format_traits> custom_traits = {};
+    std::optional<format_traits> custom_traits = {};
 
     /// @brief Implicit conversion from format::type.
     format(type t) : value(t) {}

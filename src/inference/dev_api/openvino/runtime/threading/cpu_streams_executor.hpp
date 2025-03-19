@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,9 @@ public:
 
     int get_socket_id() override;
 
-    void run_sub_stream(Task task, int id) override;
+    std::vector<int> get_rank() override;
+
+    void cpu_reset() override;
 
 private:
     struct Impl;

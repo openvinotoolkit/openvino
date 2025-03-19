@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_query_api}
-
 Query Device Properties - Configuration
 =======================================
 
@@ -33,9 +31,8 @@ of ``ov::available_devices``, the string name of ``AVAILABLE_DEVICES`` and the t
    static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 
 
-Refer to the :doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>`
-sources and the :doc:`Multi-Device execution <multi-device>` documentation for examples of
-using the setting and getting properties in user applications.
+Refer to the :doc:`Hello Query Device C++ Sample <../../../get-started/learn-openvino/openvino-samples/hello-query-device>`
+sources for an example of using the setting and getting properties in user applications.
 
 
 Get a Set of Available Devices
@@ -91,7 +88,7 @@ The ``ov::CompiledModel`` class is also extended to support the properties:
 * ``ov::CompiledModel::set_property``
 
 For documentation about OpenVINO common device-independent properties, refer to
-`properties.hpp (GitHub) <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/inference/include/openvino/runtime/properties.hpp>`__.
+`properties.hpp (GitHub) <https://github.com/openvinotoolkit/openvino/blob/releases/2025/0/src/inference/include/openvino/runtime/properties.hpp>`__.
 Device-specific configuration keys can be found in a corresponding device folders,
 for example, ``openvino/runtime/intel_gpu/properties.hpp``.
 
@@ -257,29 +254,6 @@ Or the number of threads that would be used for inference on ``CPU`` device:
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.cpp
          :language: cpp
          :fragment: [inference_num_threads]
-
-
-Setting Properties for Compiled Model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-The only mode that supports this method is `Multi-Device execution <./multi-device>`__:
-
-
-.. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.py
-         :language: py
-         :fragment: [multi_device]
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.cpp
-         :language: cpp
-         :fragment: [multi_device]
 
 
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@ public:
     MOCK_METHOD((std::string), get_device_list, ((const ov::AnyMap&)), (const, override));
     MOCK_METHOD((ov::Any), get_property, ((const std::string&), (const ov::AnyMap&)), (const, override));
     MOCK_METHOD((std::map<std::string, double>), get_device_utilization, ((const std::string&)), (const, override));
+    MOCK_METHOD((bool), is_meta_device, ((const std::string&)), (const, override));
     MOCK_METHOD((std::list<DeviceInformation>),
                 get_valid_device,
                 ((const std::vector<DeviceInformation>&), const std::string&, const double),

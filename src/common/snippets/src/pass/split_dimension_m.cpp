@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets/pass/split_dimension_m.hpp"
 
-#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace {
 size_t get_dim_M(const ov::Shape& shape) {
@@ -23,44 +23,108 @@ bool is_prime_number(size_t value) {
 }
 }  // namespace
 
-bool ov::snippets::pass::SplitDimensionM::is_supported_matmul(const std::shared_ptr<const ov::Node>& node) {
+namespace ov {
+namespace snippets {
+namespace pass {
+
+const size_t SplitDimensionM::min_kernel_m = 32;
+
+bool SplitDimensionM::is_supported_matmul(const std::shared_ptr<const ov::Node>& node) {
     const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(node);
     return matmul && !matmul->get_transpose_a() && !matmul->is_dynamic();
 }
 
-std::pair<size_t, size_t> ov::snippets::pass::SplitDimensionM::get_splited_dimensions(size_t batch_dim, size_t m_dim,
-                                                                                      size_t optimal_parallelism_work_amount) {
-    std::pair<size_t, size_t> splited = { 1, m_dim };
-
+std::pair<size_t, size_t> SplitDimensionM::split_ideally(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount) {
+    // Ideal case #1: M can be split on the parts one of which complements the batch dimension to the optimal parallel work amount
+    // In this case, each thread will execute the Snippets kernel once
     const size_t lower_bound = optimal_parallelism_work_amount / batch_dim;
-    if (lower_bound * batch_dim == optimal_parallelism_work_amount && m_dim % lower_bound == 0) {
-        splited.first = lower_bound;
-        splited.second = m_dim / lower_bound;
-        OPENVINO_ASSERT(splited.first * splited.second == m_dim, "Incorrect dimension M splitting!");
-        return splited;
+    if (lower_bound * batch_dim == optimal_parallelism_work_amount && m_dim % lower_bound == 0)
+        return std::make_pair(lower_bound, m_dim / lower_bound);
+
+    // Ideal case #2: M is divisible by optimal parallel work amount, and the new_m_dim is big enough
+    // In this case, each thread will execute the Snippets kernel 'batch_dim' times
+    if (m_dim % optimal_parallelism_work_amount == 0) {
+        const auto new_m_dim = m_dim / optimal_parallelism_work_amount;
+        if (new_m_dim >= min_kernel_m)
+            return std::make_pair(optimal_parallelism_work_amount, new_m_dim);
     }
 
+    return std::make_pair(1, m_dim);
+}
+
+std::pair<size_t, size_t> SplitDimensionM::split_fallback_increase_parallel_wa(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount) {
+    std::pair<size_t, size_t> splited = { 1, m_dim };
     const size_t upper_bound = utils::div_up(2 * optimal_parallelism_work_amount, batch_dim);
     for (size_t divisor_0 = upper_bound - 1; divisor_0 > 1; divisor_0--) {
         size_t divisor_1 = m_dim / divisor_0;
-        if (divisor_1 * divisor_0 == m_dim) {
-            splited.first = divisor_0;
-            splited.second = divisor_1;
-            break;
-        }
+        if (divisor_1 * divisor_0 == m_dim)
+            return divisor_0 * batch_dim >= optimal_parallelism_work_amount ? std::make_pair(divisor_0, divisor_1) : splited;
     }
-    OPENVINO_ASSERT(splited.first * splited.second == m_dim, "Incorrect dimension M splitting!");
     return splited;
 }
 
-bool ov::snippets::pass::SplitDimensionM::can_be_optimized(const std::shared_ptr<const ov::Node>& node, size_t concurrency) {
+std::pair<size_t, size_t> SplitDimensionM::split_minimize_kernel_wa(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount) {
+    // This heuristic minimizes 'm_kernel' (=> maximizes 'm_batch') with a limitation that 'm_kernel >= min_kernel_m'.
+    // In other words, it tries to find 'm_kernel' bigger than 'min_kernel_m' and at the same time as close as possible to this value.
+    std::pair<size_t, size_t> best_result = {1, m_dim};
+    for (size_t divisor = 2; divisor < std::sqrt(m_dim); ++divisor) {
+        if (m_dim % divisor != 0)
+            continue;
+        // If divisor is more than 'min_kernel_m', divisor becomes 'm_kernel',
+        // guaranteeing the most optimal implementation from 'm_kernel' minimization perspective.
+        if (divisor >= min_kernel_m)
+            return std::make_pair(m_dim / divisor, divisor);
+
+        // If divisor is less than 'min_kernel_m', divisor becomes m_batch.
+        // However, it is not guaranteed that the current 'm_kernel = m_dim / divisor' is minimized, as one of the next divisors can be more optimal.
+        // So in this case the best result is remembered
+        const size_t m_kernel = m_dim / divisor;
+        if (m_kernel >= min_kernel_m) {
+            best_result.first = divisor;
+            best_result.second = m_kernel;
+        }
+    }
+    if (best_result.first * batch_dim >= optimal_parallelism_work_amount)
+        return best_result;
+    return std::make_pair(1, m_dim);
+}
+
+bool SplitDimensionM::can_be_optimized(const std::shared_ptr<const ov::Node>& node, size_t concurrency) {
     if (!is_supported_matmul(node))
         return false;
     size_t batch_m_dim, new_m_dim;
     return split(node->get_shape(), concurrency, batch_m_dim, new_m_dim);
 }
 
-std::shared_ptr<ov::op::v0::MatMul> ov::snippets::pass::SplitDimensionM::get_matmul(const std::shared_ptr<op::Subgraph>& subgraph) {
+std::vector<size_t> SplitDimensionM::get_updated_order(const std::vector<size_t>& order, size_t m_index) {
+    std::vector<size_t> new_order(order.size() + 1, 0);
+    size_t shift_idx = 0;
+    for (size_t i = 0; i < order.size(); ++i) {
+        if (order[i] < m_index) {
+            new_order[i + shift_idx] = order[i];
+        } else if (order[i] == m_index) {
+            new_order[i + shift_idx++] = order[i];
+            new_order[i + shift_idx] = order[i] + 1;
+        } else {
+            new_order[i + shift_idx] = order[i] + 1;
+        }
+    }
+    return new_order;
+}
+
+ov::snippets::VectorDims SplitDimensionM::reshape_m_dim(ov::snippets::VectorDims shape, size_t m_index, size_t batch_m_dim, size_t new_m_dim) {
+    if (shape[m_index] == 1)
+        return unsqueeze_m_dim(std::move(shape), m_index);
+    shape[m_index] = new_m_dim;
+    shape.insert(shape.begin() + m_index, batch_m_dim);
+    return shape;
+}
+ov::snippets::VectorDims SplitDimensionM::unsqueeze_m_dim(ov::snippets::VectorDims shape, size_t m_index) {
+    shape.insert(shape.begin() + m_index, 1);
+    return shape;
+}
+
+std::shared_ptr<ov::op::v0::MatMul> SplitDimensionM::get_matmul(const std::shared_ptr<op::Subgraph>& subgraph) {
     const auto& body = subgraph->body_ptr();
     const auto& parameters = body->get_parameters();
     // [107806]: If count of Parameters isn't equal to Subgraph inputs (it's possible case in general),
@@ -79,27 +143,35 @@ std::shared_ptr<ov::op::v0::MatMul> ov::snippets::pass::SplitDimensionM::get_mat
     return is_supported_matmul(matmul0) ? ov::as_type_ptr<ov::op::v0::MatMul>(matmul0) : nullptr;
 }
 
-bool ov::snippets::pass::SplitDimensionM::split(const ov::Shape& shape, size_t optimal_parallelism_work_amount, size_t& batch_m_dim, size_t& new_m_dim) {
+bool SplitDimensionM::split(const ov::Shape& shape, size_t optimal_parallelism_work_amount, size_t& batch_m_dim, size_t& new_m_dim) {
     const auto batch_dim =
         std::accumulate(shape.rbegin() + 2, shape.rend(), size_t(1), std::multiplies<size_t>());  // B (batch)
     const auto m_dim = get_dim_M(shape);  // M
     if (is_prime_number(m_dim))
         return false;
 
-    auto is_optimized = [&](size_t batch_dim) {
-        return batch_dim >= optimal_parallelism_work_amount;
-    };
-
     // We skip optimization if the current batch is optimal for concurrency
-    if (is_optimized(batch_dim))
+    if (batch_dim % optimal_parallelism_work_amount == 0)
         return false;
 
-    std::tie(batch_m_dim, new_m_dim) = get_splited_dimensions(batch_dim, m_dim, optimal_parallelism_work_amount);
-    return is_optimized(batch_dim * batch_m_dim);
+    auto split_is_done = [&batch_m_dim]() {
+        return batch_m_dim != 1;
+    };
+
+    std::tie(batch_m_dim, new_m_dim) = split_ideally(batch_dim, m_dim, optimal_parallelism_work_amount);
+    if (split_is_done())
+        return true;
+
+    std::tie(batch_m_dim, new_m_dim) = split_minimize_kernel_wa(batch_dim, m_dim, optimal_parallelism_work_amount);
+    if (split_is_done())
+        return true;
+    // If all the previous heuristics failed, fallback heuristic is used, which reflects the old splitting behavior
+    if (batch_dim < optimal_parallelism_work_amount)
+        std::tie(batch_m_dim, new_m_dim) = split_fallback_increase_parallel_wa(batch_dim, m_dim, optimal_parallelism_work_amount);
+    return split_is_done();
 }
 
-void ov::snippets::pass::SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph,
-                                                           const ov::Shape& shape, size_t batch_m_dim, size_t new_m_dim) {
+void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph, const ov::Shape& shape, size_t batch_m_dim, size_t new_m_dim) {
     const auto& body = subgraph->body_ptr();
     const auto& parameters = body->get_parameters();
     const auto& results = body->get_results();
@@ -121,42 +193,20 @@ void ov::snippets::pass::SplitDimensionM::reshape_subgraph(const std::shared_ptr
         reshaped_params.insert(param);
     };
 
-    auto get_updated_shape = [&](const ov::Shape& shape, size_t m_index, bool split_m_dim) {
+    auto get_updated_shape = [&](const ov::snippets::VectorDims& shape, size_t m_index, bool split_m_dim) {
         const auto current_m_dim = shape[m_index];
         OPENVINO_ASSERT(!split_m_dim || current_m_dim == 1 || current_m_dim == m_dim, "Incorrect shape for splitting!");
-        ov::Shape new_shape = shape;
-        if ((split_m_dim && current_m_dim == 1) || !split_m_dim) {
-            new_shape.insert(new_shape.begin() + m_index, 1);
-        } else {
-            new_shape[m_index] = new_m_dim;
-            new_shape.insert(new_shape.begin() + m_index, batch_m_dim);
-        }
+        const auto new_shape = split_m_dim ? reshape_m_dim(shape, m_index, batch_m_dim, new_m_dim) : unsqueeze_m_dim(shape, m_index);
         OPENVINO_ASSERT(ov::shape_size(new_shape) == ov::shape_size(shape), "Incorrect shape splitting!");
         return new_shape;
-    };
-
-    auto get_updated_order = [](const std::vector<int32_t>& order, int m_index) {
-        std::vector<int32_t> new_order(order.size() + 1, 0);
-        size_t shift_idx = 0;
-        for (size_t i = 0; i < order.size(); ++i) {
-            if (order[i] < m_index) {
-                new_order[i + shift_idx] = order[i];
-            } else if (order[i] == m_index) {
-                new_order[i + shift_idx++] = order[i];
-                new_order[i + shift_idx] = order[i] + 1;
-            } else {
-                new_order[i + shift_idx] = order[i] + 1;
-            }
-        }
-        return new_order;
     };
 
     auto reshape_transpose = [&](const std::shared_ptr<ov::Node>& transpose, bool is_input) -> size_t {
         const auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
         OPENVINO_ASSERT(order_constant != nullptr, "Transpose must have Constant order");
-        const auto order = order_constant->cast_vector<int32_t>();
+        const auto order = order_constant->cast_vector<size_t>();
         const auto m_index = is_input ? order[order.size() - 2] : order.size() - 2;  // Index of M dimension in the previous order
-        const auto new_order = get_updated_order(order, static_cast<int>(m_index));
+        const auto new_order = get_updated_order(order, m_index);
         transpose->set_argument(1, std::make_shared<ov::op::v0::Constant>(order_constant->get_element_type(), ov::Shape{new_order.size()}, new_order));
         return m_index;
     };
@@ -201,9 +251,10 @@ void ov::snippets::pass::SplitDimensionM::reshape_subgraph(const std::shared_ptr
             softmax_v1->set_axis(softmax_v1->get_output_partial_shape(0).size()); // since new_shape.size() = old_shape.size() + 1
         } else if (const auto broadcast = ov::as_type_ptr<ov::op::v1::Broadcast>(op)) {
             // Broadcast is tokenized only between MatMuls -> Split M dimension
-            const auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr());
+            const auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->get_input_node_shared_ptr(1));
             OPENVINO_ASSERT(shape_const, "SplitDimensionM expects Broadcast with Constant output shape");
-            const auto new_shape = get_updated_shape(shape_const->cast_vector<size_t>(), broadcast->get_output_shape(0).size() - 2, true);
+            const auto m_dim_idx = broadcast->get_output_partial_shape(0).size() - 2;
+            const auto new_shape = get_updated_shape(shape_const->cast_vector<size_t>(), m_dim_idx, true);
             broadcast->set_argument(1, std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(), ov::Shape{new_shape.size()}, new_shape));
         }
     }
@@ -251,7 +302,7 @@ void ov::snippets::pass::SplitDimensionM::reshape_subgraph(const std::shared_ptr
     subgraph->validate_and_infer_types();
 }
 
-bool ov::snippets::pass::SplitDimensionM::run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) {
+bool SplitDimensionM::run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SplitDimensionM");
     // To increase parallelism work in MHA pattern,
     // we split 1st dimension (starting from 0th) into 2 new dimensions to get 4D Shapes where
@@ -260,6 +311,12 @@ bool ov::snippets::pass::SplitDimensionM::run_on_subgraph(const std::shared_ptr<
 
     // It's needed only for MHA patterns. Need to add support for common patterns
     if (!subgraph->has_domain_sensitive_ops())
+        return false;
+
+    // The pass supports only static shapes on Subgraph inputs due to static `Reshape` insertion around Subgraph.
+    const auto& params = subgraph->body_ptr()->get_parameters();
+    const auto is_dynamic = [](const std::shared_ptr<ov::Node>& p) { return p->get_output_partial_shape(0).is_dynamic(); };
+    if (std::any_of(params.cbegin(), params.cend(), is_dynamic))
         return false;
 
     if (const auto matmul0 = get_matmul(subgraph)) {
@@ -273,3 +330,6 @@ bool ov::snippets::pass::SplitDimensionM::run_on_subgraph(const std::shared_ptr<
     }
     return false;
 }
+} // namespace pass
+} // namespace snippets
+} // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,9 @@ enum EltwiseTypes {
     BITWISE_AND,
     BITWISE_NOT,
     BITWISE_OR,
-    BITWISE_XOR
+    BITWISE_XOR,
+    RIGHT_SHIFT,
+    LEFT_SHIFT
 };
 
 enum SqueezeOpType {
@@ -117,11 +119,13 @@ enum ActivationTypes {
     SoftPlus,
     Swish,
     HSigmoid,
+    LogicalNot,
     RoundHalfToEven,
     RoundHalfAwayFromZero,
     GeluErf,
     GeluTanh,
     SoftSign,
+    IsFinite,
     IsInf,
     IsNaN,
 };

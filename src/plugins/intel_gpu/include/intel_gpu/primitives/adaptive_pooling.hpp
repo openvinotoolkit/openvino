@@ -69,10 +69,9 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
                      const input_info &input,
                      const input_info &output_shape,
                      data_types index_element_type,
-                     const padding& output_padding = padding(),
                      data_types output_data_type = data_types::i32,
                      const size_t num_outputs = 1)
-            : primitive_base(id, {input, output_shape}, {output_padding}, {optional_data_type{output_data_type}}, num_outputs),
+            : primitive_base(id, {input, output_shape}, num_outputs, {optional_data_type{output_data_type}}),
               mode{adaptive_pooling_mode::max},
               output_size{tensor(0)},
               indices_output{""},

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -34,10 +34,11 @@ endif()
 #               [SKIP_INSTALL]
 #               [SKIP_REGISTRATION] Skip creation of <device>.xml
 #               [ADD_CLANG_FORMAT]
+#               [ADD_CLANG_TIDY]
 #               )
 #
 function(ov_add_plugin)
-    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
+    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT ADD_CLANG_TIDY AS_EXTENSION SKIP_REGISTRATION)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(OV_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -88,18 +89,25 @@ function(ov_add_plugin)
 
         target_link_libraries(${OV_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
-        if(WIN32)
-            set_target_properties(${OV_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${OV_PLUGIN_NAME})
-        endif()
-
         if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
-            target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-in-shared-libs)
+            if (APPLE)
+                target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,-undefined,dynamic_lookup)
+            else()
+                target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-in-shared-libs)
+            endif()
         endif()
 
         set(custom_filter "")
         foreach(filter IN LISTS OV_PLUGIN_CPPLINT_FILTERS)
             string(CONCAT custom_filter "${custom_filter}" "," "${filter}")
         endforeach()
+
+        if (OV_PLUGIN_ADD_CLANG_TIDY)
+            if (ENABLE_CLANG_TIDY)
+                set_target_properties(${OV_PLUGIN_NAME} PROPERTIES
+                    CXX_CLANG_TIDY "${CLANG_TIDY};--extra-arg=-Wno-unused-command-line-argument")
+            endif()
+        endif()
 
         if (OV_PLUGIN_ADD_CLANG_FORMAT)
             ov_add_clang_format_target(${OV_PLUGIN_NAME}_clang FOR_SOURCES ${OV_PLUGIN_SOURCES})
@@ -134,6 +142,8 @@ function(ov_add_plugin)
                 install(TARGETS ${OV_PLUGIN_NAME}
                         LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
+
+                ov_install_pdb(${TARGET_NAME})
             else()
                 ov_install_static_lib(${OV_PLUGIN_NAME} ${OV_CPACK_COMP_CORE})
             endif()
@@ -326,10 +336,11 @@ function(ov_generate_plugins_hpp)
         ov_target_link_plugins(openvino_runtime_s)
     endif()
 
+    get_target_property(OV_RUNTIME_OBJ_BINARY_DIR openvino_runtime_obj BINARY_DIR)
     if(OV_GENERATOR_MULTI_CONFIG AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
-        set(ov_plugins_hpp "${CMAKE_BINARY_DIR}/src/inference/$<CONFIG>/ov_plugins.hpp")
+        set(ov_plugins_hpp "${OV_RUNTIME_OBJ_BINARY_DIR}/$<CONFIG>/ov_plugins.hpp")
     else()
-        set(ov_plugins_hpp "${CMAKE_BINARY_DIR}/src/inference/ov_plugins.hpp")
+        set(ov_plugins_hpp "${OV_RUNTIME_OBJ_BINARY_DIR}/ov_plugins.hpp")
     endif()
     set(plugins_hpp_in "${OpenVINODeveloperScripts_DIR}/plugins/plugins.hpp.in")
 

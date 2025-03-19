@@ -23,6 +23,7 @@ struct Repeated {
     };
 
     void exclude();
+    void resetExclude();
     bool openForMerge() const;
 
     bool m_excluded = false;
@@ -66,11 +67,23 @@ struct hash<std::pair<ov::npuw::online::detail::OVNodePtr, ov::npuw::online::det
 };
 
 template <>
-struct hash<std::pair<std::string, std::set<std::string>>> {
-    inline size_t operator()(const std::pair<std::string, std::set<std::string>>& p) const {
-        std::size_t seed = std::hash<std::string>()(p.first) + 0x9e3779b9;
-        for (const auto& s : p.second) {
-            seed ^= std::hash<std::string>()(s) + 0x9e3779b9;
+struct hash<std::vector<ov::element::Type>> {
+    inline size_t operator()(const std::vector<ov::element::Type>& vec) const {
+        std::size_t seed = vec.size();
+        for (const auto& s : vec) {
+            seed ^= s.hash() + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        }
+        return seed;
+    }
+};
+
+template <>
+struct hash<std::tuple<std::string, std::set<std::string>, std::string>> {
+    inline size_t operator()(const std::tuple<std::string, std::set<std::string>, std::string>& t) const {
+        std::size_t seed = std::hash<std::string>()(std::get<0>(t)) + 0x9e3779b9;
+        seed ^= std::hash<std::string>()(std::get<2>(t)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        for (const auto& s : std::get<1>(t)) {
+            seed ^= std::hash<std::string>()(s) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         }
         return seed;
     }

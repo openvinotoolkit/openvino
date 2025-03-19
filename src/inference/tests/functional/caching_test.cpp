@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
@@ -275,14 +276,14 @@ public:
     }
 
     ov::CompiledModel performReadAndLoad(ov::Core& core, const ov::AnyMap& config = {}) const {
-        auto model = core.read_model(modelName);
+        auto model = core.read_model(modelName, {}, config);
         if (m_modelCallback)
             m_modelCallback(model);
         return core.compile_model(model, deviceToLoad, config);
     }
 
     ov::CompiledModel performReadAndLoadWithContext(ov::Core& core, const ov::AnyMap& config = {}) const {
-        auto model = core.read_model(modelName);
+        auto model = core.read_model(modelName, {}, config);
         EXPECT_CALL(*mockPlugin, get_default_context(_)).Times(AnyNumber());
         auto context = core.get_default_context(deviceToLoad);
         if (m_modelCallback)
@@ -779,7 +780,7 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig) {
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
             .Times(!m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
-        ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
+        OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
             m_testFunction(core);
         }));
@@ -803,7 +804,7 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_inline) {
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
             .Times(!m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
-        ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
+        OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
             m_testFunctionWithCfg(core, {{ov::cache_dir.name(), m_cacheDir}});
         }));
     }
@@ -831,7 +832,7 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_by_device_name) {
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
             .Times(!m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
-        ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
+        OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
             core.set_property("mock", ov::cache_dir(m_cacheDir));
             m_testFunction(core);
         }));
@@ -2079,7 +2080,7 @@ TEST_P(CachingTest, LoadAUTO_OneDevice) {
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
             .Times(TEST_COUNT - index - 1);
         EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(index);
-        ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
+        OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(cacheDir));
             m_testFunction(core);
         }));
@@ -2110,7 +2111,7 @@ TEST_P(CachingTest, LoadAUTOWithConfig) {
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
             .Times(TEST_COUNT - index - 1);
         EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(index);
-        ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
+        OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
             m_testFunctionWithCfg(core, {{ov::cache_dir.name(), cacheDir}});
         }));
     }
@@ -2188,7 +2189,7 @@ TEST_P(CachingTest, LoadMulti_race) {
         EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(devCount - 1);
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(cacheDir));
-            ASSERT_NO_THROW(m_testFunction(core));
+            OV_ASSERT_NO_THROW(m_testFunction(core));
         });
         index++;
     } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
@@ -2229,7 +2230,7 @@ TEST_P(CachingTest, LoadMultiWithConfig_race) {
         EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(devCount - 1);
         testLoad([&](ov::Core& core) {
-            ASSERT_NO_THROW(m_testFunctionWithCfg(core, {{ov::cache_dir.name(), cacheDir}}));
+            OV_ASSERT_NO_THROW(m_testFunctionWithCfg(core, {{ov::cache_dir.name(), cacheDir}}));
         });
         index++;
     } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
@@ -2420,6 +2421,229 @@ TEST_P(CachingTest, Load_threads) {
         });
         index++;
     } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
+    std::cout << "Caching Load multiple threads test completed. Tried " << index << " times" << std::endl;
+}
+
+TEST_P(CachingTest, Load_mmap) {
+    ON_CALL(*mockPlugin, import_model(_, _)).WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+        if (m_checkConfigCb) {
+            m_checkConfigCb(config);
+        }
+        std::shared_ptr<ov::AlignedBuffer> model_buffer;
+        if (config.count(ov::internal::cached_model_buffer.name()))
+            model_buffer = config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        EXPECT_TRUE(model_buffer);
+
+        std::string name;
+        istr >> name;
+        char space;
+        istr.read(&space, 1);
+        std::lock_guard<std::mutex> lock(mock_creation_mutex);
+        return create_mock_compiled_model(m_models[name], mockPlugin);
+    }));
+
+    ON_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
+        .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
+            return std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
+                                                 ov::internal::caching_with_mmap.name()};
+        }));
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return;  // skip the remote Context test for Multi plugin
+    }
+    int index = 0;
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    MkDirGuard guard(m_cacheDir);
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(1);
+    testLoad([&](ov::Core& core) {
+        core.set_property({{ov::cache_dir.name(), m_cacheDir}});
+        m_testFunction(core);
+        m_testFunction(core);
+    });
+    std::cout << "Caching Load multiple threads test completed. Tried " << index << " times" << std::endl;
+}
+
+TEST_P(CachingTest, Load_mmap_is_disabled) {
+    ON_CALL(*mockPlugin, import_model(_, _)).WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+        if (m_checkConfigCb) {
+            m_checkConfigCb(config);
+        }
+        std::shared_ptr<ov::AlignedBuffer> model_buffer;
+        if (config.count(ov::internal::cached_model_buffer.name()))
+            model_buffer = config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        EXPECT_FALSE(model_buffer);
+
+        std::string name;
+        istr >> name;
+        char space;
+        istr.read(&space, 1);
+        std::lock_guard<std::mutex> lock(mock_creation_mutex);
+        return create_mock_compiled_model(m_models[name], mockPlugin);
+    }));
+    ON_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
+        .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
+            return std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
+                                                 ov::internal::caching_with_mmap.name()};
+        }));
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return;  // skip the remote Context test for Multi plugin
+    }
+    int index = 0;
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    MkDirGuard guard(m_cacheDir);
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(1);
+    testLoad([&](ov::Core& core) {
+        core.set_property({{ov::cache_dir.name(), m_cacheDir}});
+        core.set_property({ov::enable_mmap(false)});
+        m_testFunction(core);
+        m_testFunction(core);
+    });
+    std::cout << "Caching Load multiple threads test completed. Tried " << index << " times" << std::endl;
+}
+
+TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin) {
+    ON_CALL(*mockPlugin, import_model(_, _)).WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+        if (m_checkConfigCb) {
+            m_checkConfigCb(config);
+        }
+        std::shared_ptr<ov::AlignedBuffer> model_buffer;
+        if (config.count(ov::internal::cached_model_buffer.name()))
+            model_buffer = config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        EXPECT_FALSE(model_buffer);
+
+        std::string name;
+        istr >> name;
+        char space;
+        istr.read(&space, 1);
+        std::lock_guard<std::mutex> lock(mock_creation_mutex);
+        return create_mock_compiled_model(m_models[name], mockPlugin);
+    }));
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return;  // skip the remote Context test for Multi plugin
+    }
+    int index = 0;
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    MkDirGuard guard(m_cacheDir);
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(1);
+    testLoad([&](ov::Core& core) {
+        core.set_property({{ov::cache_dir.name(), m_cacheDir}});
+        core.set_property({ov::enable_mmap(true)});
+        m_testFunction(core);
+        m_testFunction(core);
+    });
+    std::cout << "Caching Load multiple threads test completed. Tried " << index << " times" << std::endl;
+}
+
+TEST_P(CachingTest, Load_mmap_is_disabled_local_cfg) {
+    ON_CALL(*mockPlugin, import_model(_, _)).WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+        if (m_checkConfigCb) {
+            m_checkConfigCb(config);
+        }
+        std::shared_ptr<ov::AlignedBuffer> model_buffer;
+        if (config.count(ov::internal::cached_model_buffer.name()))
+            model_buffer = config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        EXPECT_FALSE(model_buffer);
+
+        std::string name;
+        istr >> name;
+        char space;
+        istr.read(&space, 1);
+        std::lock_guard<std::mutex> lock(mock_creation_mutex);
+        return create_mock_compiled_model(m_models[name], mockPlugin);
+    }));
+    ON_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
+        .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
+            return std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
+                                                 ov::internal::caching_with_mmap.name()};
+        }));
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return;  // skip the remote Context test for Multi plugin
+    }
+    int index = 0;
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    MkDirGuard guard(m_cacheDir);
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(1);
+    testLoad([&](ov::Core& core) {
+        const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}, {ov::enable_mmap(false)}};
+        m_testFunctionWithCfg(core, config);
+        m_testFunctionWithCfg(core, config);
+    });
+    std::cout << "Caching Load multiple threads test completed. Tried " << index << " times" << std::endl;
+}
+
+TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin_local_cfg) {
+    ON_CALL(*mockPlugin, import_model(_, _)).WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+        if (m_checkConfigCb) {
+            m_checkConfigCb(config);
+        }
+        std::shared_ptr<ov::AlignedBuffer> model_buffer;
+        if (config.count(ov::internal::cached_model_buffer.name()))
+            model_buffer = config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        EXPECT_FALSE(model_buffer);
+
+        std::string name;
+        istr >> name;
+        char space;
+        istr.read(&space, 1);
+        std::lock_guard<std::mutex> lock(mock_creation_mutex);
+        return create_mock_compiled_model(m_models[name], mockPlugin);
+    }));
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return;  // skip the remote Context test for Multi plugin
+    }
+    int index = 0;
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    MkDirGuard guard(m_cacheDir);
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(1);
+    testLoad([&](ov::Core& core) {
+        const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}, {ov::enable_mmap(false)}};
+        m_testFunctionWithCfg(core, config);
+        m_testFunctionWithCfg(core, config);
+    });
     std::cout << "Caching Load multiple threads test completed. Tried " << index << " times" << std::endl;
 }
 

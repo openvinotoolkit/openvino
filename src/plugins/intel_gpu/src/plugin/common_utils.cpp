@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/op/util/op_types.hpp"
 
 #include <algorithm>
@@ -82,22 +83,23 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
 
     // For state conversions
     CASE(ov::element::f32, ov::element::f32, float, float);
-    CASE(ov::element::f16, ov::element::f16, ov::float16, ov::float16);
     CASE(ov::element::f32, ov::element::f16, float, ov::float16);
     CASE(ov::element::f16, ov::element::f32, ov::float16, float);
+    CASE(ov::element::f16, ov::element::f16, ov::float16, ov::float16);
+    CASE(ov::element::bf16, ov::element::f32, ov::bfloat16, float);
+    CASE(ov::element::bf16, ov::element::f16, ov::bfloat16, ov::float16);
+    CASE(ov::element::boolean, ov::element::u8, bool, uint8_t);
 
     OPENVINO_THROW("[GPU] Unsupported element types combination for copy: ", src_et, " -> ", dst_et);
 }
 
 }  // namespace
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 bool is_supported(ov::element::Type_t et) {
     switch (et) {
-        case ov::element::Type_t::undefined: return true;
-        case ov::element::Type_t::dynamic: return false;
+        case ov::element::Type_t::dynamic: return true;
         case ov::element::Type_t::boolean: return true; // converted to u8
         case ov::element::Type_t::bf16: return false;
         case ov::element::Type_t::f16: return true;
@@ -199,7 +201,7 @@ void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldn
     dst->copy_from(stream, tmp_tensor.data(), blocking);
 }
 
-void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream) {
+void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::stream& stream) {
     auto src_et = src->get_element_type();
     auto dst_et = dst->get_element_type();
 
@@ -210,11 +212,16 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldn
 
     std::unique_ptr<cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read>> src_lock = nullptr;
     std::unique_ptr<cldnn::mem_lock<uint8_t>> dst_lock = nullptr;
+    ov::Tensor tmp_tensor;
 
     if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
         auto mem = remote->get_original_memory();
         src_lock.reset(new cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read>(mem, stream));
         src_ptr = src_lock->data();
+    } else if (dynamic_cast<const ov::IRemoteTensor*>(src)) {
+        tmp_tensor = ov::Tensor(src_et, src->get_shape());
+        src->copy_to(get_tensor_impl(tmp_tensor)._ptr);
+        src_ptr = tmp_tensor.data();
     } else {
         src_ptr = src->data();
     }
@@ -223,11 +230,26 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldn
         auto mem = remote->get_original_memory();
         dst_lock.reset(new cldnn::mem_lock<uint8_t>(mem, stream));
         dst_ptr = dst_lock->data();
+    } else if (auto remote = dynamic_cast<ov::IRemoteTensor*>(dst)) {
+        tmp_tensor = ov::Tensor(dst_et, src->get_shape());
+        ::convert_and_copy(src_ptr,
+                           src_et,
+                           tmp_tensor.data(),
+                           dst_et,
+                           size,
+                           cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
+        remote->copy_from(get_tensor_impl(tmp_tensor)._ptr);
+        return;
     } else {
         dst_ptr = dst->data();
     }
 
-    return ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
+    return ::convert_and_copy(src_ptr,
+                              src_et,
+                              dst_ptr,
+                              dst_et,
+                              size,
+                              cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
 }
 
 std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map) {
@@ -241,13 +263,4 @@ std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op,
     return output_data_types;
 }
 
-std::vector<cldnn::padding> get_output_paddings(const ov::Node* op) {
-    std::vector<cldnn::padding> output_paddings;
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        output_paddings.push_back(cldnn::padding());
-    }
-    return output_paddings;
-}
-
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

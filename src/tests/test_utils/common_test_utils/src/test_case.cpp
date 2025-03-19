@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,6 +100,12 @@ std::pair<testing::AssertionResult, size_t> TestCase::compare_results(size_t tol
         }
 
         switch (element_type) {
+        case ov::element::Type_t::f8e5m2:
+            res = compare_values<ov::float8_e5m2>(exp_result, result_tensor, tolerance_bits);
+            break;
+        case ov::element::Type_t::f8e4m3:
+            res = compare_values<ov::float8_e4m3>(exp_result, result_tensor, tolerance_bits);
+            break;
         case ov::element::Type_t::f16:
             res = compare_values<ov::float16>(exp_result, result_tensor, tolerance_bits);
             break;
@@ -112,6 +118,9 @@ std::pair<testing::AssertionResult, size_t> TestCase::compare_results(size_t tol
         case element::Type_t::f64:
             res = compare_values<double>(exp_result, result_tensor, tolerance_bits);
             break;
+        case element::Type_t::i4:
+            res = compare_values<uint8_t>(exp_result, result_tensor, tolerance_bits);
+            break;
         case element::Type_t::i8:
             res = compare_values<int8_t>(exp_result, result_tensor, tolerance_bits);
             break;
@@ -123,6 +132,9 @@ std::pair<testing::AssertionResult, size_t> TestCase::compare_results(size_t tol
             break;
         case element::Type_t::i64:
             res = compare_values<int64_t>(exp_result, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::u4:
+            res = compare_values<uint8_t>(exp_result, result_tensor, tolerance_bits);
             break;
         case element::Type_t::u8:
             res = compare_values<uint8_t>(exp_result, result_tensor, tolerance_bits);

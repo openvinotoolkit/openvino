@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,84 @@ namespace py = pybind11;
 
 namespace Common {
 namespace utils {
+
+class OutPyBuffer : public std::streambuf {
+public:
+    OutPyBuffer(py::object bytes_io_stream) : m_py_stream{std::move(bytes_io_stream)} {}
+
+protected:
+    std::streamsize xsputn(const char_type* s, std::streamsize n) override {
+        return m_py_stream.attr("write")(py::bytes(s, n)).cast<std::streamsize>();
+    }
+
+    int_type overflow(int_type c) override {
+        char as_char = c;
+        if (m_py_stream.attr("write")(py::bytes(&as_char, 1)).cast<int>() != 1) {
+            return traits_type::eof();
+        }
+        return c;
+    }
+
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
+        const int python_direction = [&]{
+            switch (dir) {
+                case std::ios_base::beg:
+                    return 0;
+                case std::ios_base::cur:
+                    return 1;
+                case std::ios_base::end:
+                    return 2;
+                default:
+                    return -1;
+            }
+        }();
+        if (python_direction == -1) {
+            return pos_type(off_type(-1));
+        }
+        const auto abs_pos = m_py_stream.attr("seek")(off, python_direction).cast<int>();
+        return pos_type(abs_pos);
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return seekoff(pos, std::ios_base::beg, which);
+    }
+    
+private:
+    py::object m_py_stream;
+};
+
+class MemoryBuffer : public std::streambuf {
+public:
+    MemoryBuffer(char* data, std::size_t size) {
+        setg(data, data, data + size);
+    }
+
+protected:
+    pos_type seekoff(off_type off,
+                     std::ios_base::seekdir dir,
+                     std::ios_base::openmode which = std::ios_base::in) override {
+        switch (dir) {
+        case std::ios_base::beg:
+            setg(eback(), eback() + off, egptr());
+            break;
+        case std::ios_base::end:
+            setg(eback(), egptr() + off, egptr());
+            break;
+        case std::ios_base::cur:
+            setg(eback(), gptr() + off, egptr());
+            break;
+        default:
+            return pos_type(off_type(-1));
+    }
+        return (gptr() < eback() || gptr() > egptr()) ? pos_type(off_type(-1)) : pos_type(gptr() - eback());
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return seekoff(pos, std::ios_base::beg, which);
+    }
+
+};
+
     enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
 
     struct EmptyList {};
@@ -50,6 +128,8 @@ namespace utils {
 
     std::string convert_path_to_string(const py::object& path);
 
+    std::shared_ptr<ov::Model> convert_to_model(const py::object& obj);
+
     void deprecation_warning(const std::string& function_name, const std::string& version = std::string(), const std::string& message = std::string(), int stacklevel=2);
 
     void raise_not_implemented();
@@ -66,3 +146,24 @@ namespace utils {
 
 }; // namespace utils
 }; // namespace Common
+
+namespace pybind11 {
+namespace ov_extension {
+    void conditional_keep_alive_impl(size_t Nurse, size_t Patient, size_t Condition, detail::function_call &call, handle ret);
+
+    // Keep patient alive while nurse lives
+    template <size_t Nurse, size_t Patient, size_t Condition>
+    struct conditional_keep_alive {};
+
+}; // namespace ov_extension
+
+    // Process a conditional_keep_alive call policy -- invokes conditional_keep_alive_impl during the the pre-call handler
+    template <size_t Nurse, size_t Patient, size_t Condition>
+    struct detail::process_attribute<ov_extension::conditional_keep_alive<Nurse, Patient, Condition>>
+        : public detail::process_attribute_default<ov_extension::conditional_keep_alive<Nurse, Patient, Condition>> {
+        static void precall(function_call &call) {
+            ov_extension::conditional_keep_alive_impl(Nurse, Patient, Condition, call, handle());
+        }
+    };
+
+}; // namespace pybind11

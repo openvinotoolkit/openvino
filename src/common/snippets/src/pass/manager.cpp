@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,9 @@
 namespace ov {
 namespace snippets {
 namespace pass {
+
+Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config, std::string name)
+    : ov::pass::Manager(std::move(pass_config), std::move(name)) {}
 
 std::shared_ptr<Manager::PassBase> Manager::register_pass_instance(const PassPosition& position,
                                                                    const std::shared_ptr<PassBase>& pass) {

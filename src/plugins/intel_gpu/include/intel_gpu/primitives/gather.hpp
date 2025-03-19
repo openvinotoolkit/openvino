@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,9 +32,8 @@ struct gather : public primitive_base<gather> {
            const int64_t input_rank,
            const ov::Shape& output_shape,
            const int64_t batch_dim = 0,
-           const bool support_neg_ind = false,
-           const padding& output_padding = padding())
-        : primitive_base(id, {dict, idx}, {output_padding})
+           const bool support_neg_ind = false)
+        : primitive_base(id, {dict, idx})
         , axis(axis)
         , input_rank(input_rank)
         , output_shape(output_shape)
@@ -62,9 +61,8 @@ struct gather : public primitive_base<gather> {
            const int64_t input_rank,
            const ov::Shape& output_shape,
            const int64_t batch_dim = 0,
-           const bool support_neg_ind = false,
-           const padding& output_padding = padding())
-        : primitive_base(id, {dict, idx}, {output_padding})
+           const bool support_neg_ind = false)
+        : primitive_base(id, {dict, idx})
         , axis(axis)
         , input_rank(input_rank)
         , output_shape(output_shape)
@@ -92,7 +90,7 @@ struct gather : public primitive_base<gather> {
     ov::element::Type decompressed_type;
     input_info decompression_scale;
     input_info decompression_zero_point;
-    optional_value<float> decompression_zero_point_scalar = optional_value<float>();
+    std::optional<float> decompression_zero_point_scalar = std::optional<float>();
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -164,7 +162,7 @@ struct gather : public primitive_base<gather> {
             ib >> make_data(&decompression_zero_point_value, sizeof(float));
             decompression_zero_point_scalar = decompression_zero_point_value;
         } else {
-            decompression_zero_point_scalar = optional_value<float>();
+            decompression_zero_point_scalar = std::optional<float>();
         }
     }
 

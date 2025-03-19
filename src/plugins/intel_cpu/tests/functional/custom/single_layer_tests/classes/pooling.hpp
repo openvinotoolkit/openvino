@@ -38,29 +38,52 @@ protected:
     void SetUp() override;
 };
 
+class AvgPoolingV14LayerCPUTest : public testing::WithParamInterface<poolLayerCpuTestParamsSet>,
+                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj);
+
+protected:
+    void SetUp() override;
+};
+
 class MaxPoolingV8LayerCPUTest : public testing::WithParamInterface<maxPoolV8LayerCpuTestParamsSet>,
                                  virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj);
+protected:
+    void SetUp() override;
+};
 
+class MaxPoolingV14LayerCPUTest : public testing::WithParamInterface<maxPoolV8LayerCpuTestParamsSet>,
+                                 virtual public SubgraphBaseTest, public CPUTestsBase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj);
 protected:
     void SetUp() override;
 };
 
 namespace Pooling {
 const std::vector<ElementType>& inpOutPrecision();
-const ov::op::RoundingType expectedAvgRoundingType();
+const ov::op::RoundingType expectedAvgRoundingType(const ov::op::RoundingType ceil_type = ov::op::RoundingType::CEIL);
 
 const CPUSpecificParams& expectedCpuConfigAnyLayout();
 const std::vector<CPUSpecificParams>& vecCpuConfigsFusing_4D();
 
 const std::vector<poolSpecificParams>& paramsMax3D();
 const std::vector<poolSpecificParams>& paramsAvg3D();
+const std::vector<poolSpecificParams>& paramsAvgV143D();
+
+const std::vector<poolSpecificParams>& paramsMax3D();
 const std::vector<poolSpecificParams>& paramsMax4D();
 
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV83D();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV84D();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D();
+
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV143D();
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D();
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV145D();
 
 const std::vector<InputShape>& inputShapes3D();
 const std::vector<InputShape>& inputShapes4D();
@@ -68,8 +91,10 @@ const std::vector<InputShape>& inputShapes4D_Large();
 const std::vector<InputShape>& inputShapes5D();
 
 const std::vector<poolSpecificParams>& paramsAvg4D();
+const std::vector<poolSpecificParams>& paramsAvgV144D();
 const std::vector<poolSpecificParams>& paramsAvg4D_Large();
 const std::vector<poolSpecificParams>& paramsAvg5D();
+const std::vector<poolSpecificParams>& paramsAvgV145D();
 const std::vector<poolSpecificParams>& paramsMax5D();
 }  // namespace Pooling
 }  // namespace test

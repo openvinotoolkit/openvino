@@ -31,12 +31,28 @@ namespace pass {
 
 class SplitLoops : public RangedPass {
 public:
-    OPENVINO_RTTI("SplitLoops", "RangedPass")
-    SplitLoops();
+    OPENVINO_RTTI("SplitLoops", "", RangedPass)
+    SplitLoops() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
     static bool can_be_split(const UnifiedLoopInfoPtr& current, const UnifiedLoopInfoPtr& target);
+
+    static void split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment);
+
+    /**
+     * @interface TransformInnerSplitLoop
+     * @brief The pass replace existing inner splitted LoopInfo with new InnerSplittedUnifiedLoopInfo and
+     *        update the corresponding LoopInfo
+     * @ingroup snippets
+     */
+    class TransformInnerSplitLoop : public pass::RangedPass {
+    public:
+        TransformInnerSplitLoop() = default;
+        OPENVINO_RTTI("TransformInnerSplitLoop", "", RangedPass)
+        bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
+        std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
+    };
 };
 
 } // namespace pass

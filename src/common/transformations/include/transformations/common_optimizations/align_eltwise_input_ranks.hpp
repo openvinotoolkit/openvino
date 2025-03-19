@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 /**
@@ -17,7 +17,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API AlignEltwiseInputRanks : public MatcherPass {
 public:
-    OPENVINO_RTTI("AlignEltwiseInputRanks", "0");
+    OPENVINO_MATCHER_PASS_RTTI("AlignEltwiseInputRanks");
     AlignEltwiseInputRanks();
 };
 

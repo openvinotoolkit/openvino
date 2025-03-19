@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -10,6 +10,7 @@
 #include <streambuf>
 #include <string>
 
+#include "openvino/c/ov_common.h"
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/exception.hpp"
@@ -30,11 +31,47 @@
         return ov_status_e::UNKNOW_EXCEPTION;              \
     }
 
-#define GET_PROPERTY_FROM_ARGS_LIST                     \
-    std::string property_key = va_arg(args_ptr, char*); \
-    std::string _value = va_arg(args_ptr, char*);       \
-    ov::Any value = _value;                             \
-    property[property_key] = value;
+#define GET_PROPERTY_FROM_ARGS_LIST                                                                            \
+    std::string property_key = va_arg(args_ptr, char*);                                                        \
+    if (property_key == ov::cache_encryption_callbacks.name()) {                                               \
+        ov_encryption_callbacks* _value = va_arg(args_ptr, ov_encryption_callbacks*);                          \
+        auto encrypt_func = _value->encrypt_func;                                                              \
+        auto decrypt_func = _value->decrypt_func;                                                              \
+        std::function<std::string(const std::string&)> encrypt_value = [encrypt_func](const std::string& in) { \
+            size_t out_size = 0;                                                                               \
+            std::string out_str;                                                                               \
+            encrypt_func(in.c_str(), in.length(), nullptr, &out_size);                                         \
+            if (out_size > 0) {                                                                                \
+                std::unique_ptr<char[]> output_ptr(new char[out_size]);                                        \
+                if (output_ptr) {                                                                              \
+                    char* output = output_ptr.get();                                                           \
+                    encrypt_func(in.c_str(), in.length(), output, &out_size);                                  \
+                    out_str.assign(output, out_size);                                                          \
+                }                                                                                              \
+            }                                                                                                  \
+            return out_str;                                                                                    \
+        };                                                                                                     \
+        std::function<std::string(const std::string&)> decrypt_value = [decrypt_func](const std::string& in) { \
+            size_t out_size = 0;                                                                               \
+            std::string out_str;                                                                               \
+            decrypt_func(in.c_str(), in.length(), nullptr, &out_size);                                         \
+            if (out_size > 0) {                                                                                \
+                std::unique_ptr<char[]> output_ptr(new char[out_size]);                                        \
+                if (output_ptr) {                                                                              \
+                    char* output = output_ptr.get();                                                           \
+                    decrypt_func(in.c_str(), in.length(), output, &out_size);                                  \
+                    out_str.assign(output, out_size);                                                          \
+                }                                                                                              \
+            }                                                                                                  \
+            return out_str;                                                                                    \
+        };                                                                                                     \
+        ov::EncryptionCallbacks encryption_callbacks{std::move(encrypt_value), std::move(decrypt_value)};      \
+        property[property_key] = encryption_callbacks;                                                         \
+    } else {                                                                                                   \
+        std::string _value = va_arg(args_ptr, char*);                                                          \
+        ov::Any value = _value;                                                                                \
+        property[property_key] = value;                                                                        \
+    }
 
 /**
  * @struct ov_core

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/primitives/matrix_nms.hpp"
@@ -20,8 +20,7 @@ using NmsStaticShapeIE8 = ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixN
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 void CreateNmsStaticShapeIE8Op(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::NmsStaticShapeIE8>& op) {
@@ -30,7 +29,6 @@ void CreateNmsStaticShapeIE8Op(ProgramBuilder& p, const std::shared_ptr<ov::op::
     if (p.use_new_shape_infer()) {
         auto prim = cldnn::matrix_nms(layer_type_name_ID(op), inputs[0], inputs[1], op->get_attrs());
         prim.num_outputs = op->get_output_size();
-        prim.output_paddings = get_output_paddings(op);
         prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
 
         p.add_primitive(*op, prim);
@@ -88,5 +86,4 @@ void CreateNmsStaticShapeIE8Op(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
 REGISTER_FACTORY_IMPL(internal, NmsStaticShapeIE8);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

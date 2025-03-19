@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
         pattern::type_matches_any({element::i8, element::u8, element::f16, element::f32, element::f64}));
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto const_node = std::dynamic_pointer_cast<opset6::Constant>(m.get_match_root());
+        auto const_node = ov::as_type_ptr<opset6::Constant>(m.get_match_root());
         if (!const_node)
             return false;
 
@@ -29,9 +29,13 @@ ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
 
         for (const auto& dim : dims) {
             if (dim >= shape.size()) {
-                OPENVINO_DEBUG << "[WARNING] Attempt to initialize masks on " << dim
-                               << " dimension which is out of shape " << shape << " for node ("
-                               << const_node->get_friendly_name() << ")";
+                OPENVINO_DEBUG("[WARNING] Attempt to initialize masks on ",
+                               dim,
+                               " dimension which is out of shape ",
+                               shape,
+                               " for node (",
+                               const_node->get_friendly_name(),
+                               ")");
                 continue;
             }
 
@@ -61,10 +65,11 @@ ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
         setMask(const_node, mask);
 #ifdef ENABLE_OPENVINO_DEBUG
         setInitMask(const_node, mask);
-#endif
+
         if (!mask->all_dims_are_empty()) {
-            OPENVINO_DEBUG << "MASK (" << const_node->get_friendly_name() << ") " << *mask << std::endl;
+            OPENVINO_DEBUG("MASK (", const_node->get_friendly_name(), ") ", *mask, "\n");
         }
+#endif
 
         return false;
     };

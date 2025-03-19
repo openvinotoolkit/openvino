@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateShuffleChannelsOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::ShuffleChannels>& op) {
     validate_inputs_count(op, {1, 2});
@@ -17,7 +16,7 @@ static void CreateShuffleChannelsOp(ProgramBuilder& p, const std::shared_ptr<ov:
     std::string layerName = layer_type_name_ID(op);
 
     int32_t group = op->get_group();
-    int64_t axis = ov::util::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
+    int64_t axis = ov::util::try_normalize_axis(op->get_axis(), op->get_input_partial_shape(0).rank(), *op);
 
     auto shuffleChannelsPrim = cldnn::shuffle_channels(layerName,
                                                        inputs[0],
@@ -29,5 +28,4 @@ static void CreateShuffleChannelsOp(ProgramBuilder& p, const std::shared_ptr<ov:
 
 REGISTER_FACTORY_IMPL(v0, ShuffleChannels);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

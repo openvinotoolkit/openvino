@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,9 @@ inline string to_string(const vector<T>& vec) {
 }
 
 inline string to_string(const ov::snippets::Reg& reg) {
-    return string("Reg(type = " + ov::snippets::regTypeToStr(reg.type) + ", idx = " + to_string(reg.idx) + ")");
+    stringstream ss;
+    ss << reg;
+    return ss.str();
 }
 
 inline string to_string(const ov::Node::type_info_t& info) {
@@ -27,6 +29,12 @@ inline string to_string(const ov::Node::type_info_t& info) {
 }
 
 inline string to_string(const SpecificLoopIterType& type) {
+    stringstream ss;
+    ss << type;
+    return ss.str();
+}
+
+inline string to_string(const LoopPort::Type& type) {
     stringstream ss;
     ss << type;
     return ss.str();
@@ -61,10 +69,7 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
     const auto& buffers_ref = linear_ir_ref->get_buffers();
     COMPARE("Number of buffers", buffers.size(), buffers_ref.size());
 
-    auto run_comparison = [&](const LinearIR::constExprIt& expr_it, const LinearIR::constExprIt& expr_it_ref) {
-        const auto& expr = expr_it->get();
-        const auto& expr_ref = expr_it_ref->get();
-
+    auto run_comparison = [&](const ExpressionPtr& expr, const ExpressionPtr& expr_ref) {
         const auto node = expr->get_node();
         const auto node_ref = expr_ref->get_node();
         if (m_nodes_cmp_values != NodesCmpValues::NONE)
@@ -90,14 +95,15 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
     };
 
     for (auto param_it = parameters.begin(), param_it_ref = parameters_ref.begin(); param_it != parameters.end(); ++param_it, ++param_it_ref)
-        PROPAGATE_ERROR("", run_comparison(param_it, param_it_ref));
+        PROPAGATE_ERROR("", run_comparison(*param_it, *param_it_ref));
     for (auto expr_it = ops.begin(), expr_it_ref = ops_ref.begin(); expr_it != ops.end(); ++expr_it, ++expr_it_ref)
-        PROPAGATE_ERROR("", run_comparison(expr_it, expr_it_ref));
+        PROPAGATE_ERROR("", run_comparison(*expr_it, *expr_it_ref));
     for (auto result_it = results.begin(), result_it_ref = results_ref.begin(); result_it != results.end(); ++result_it, ++result_it_ref)
-        PROPAGATE_ERROR("", run_comparison(result_it, result_it_ref));
+        PROPAGATE_ERROR("", run_comparison(*result_it, *result_it_ref));
 
-    if (should_compare(LIRCmpValues::LOOP_MANAGER))
+    if (should_compare(LIRCmpValues::LOOP_MANAGER)) {
         PROPAGATE_ERROR("Loop managers", compare_loop_managers(linear_ir->get_loop_manager(), linear_ir_ref->get_loop_manager()));
+    }
     return Result::ok();
 }
 
@@ -177,9 +183,10 @@ LIRComparator::Result LIRComparator::compare_loop_ports(const std::vector<LoopPo
     COMPARE("Loop ports size", loop_ports.size(), loop_ports_ref.size());
     for (size_t i = 0; i < loop_ports.size(); ++i) {
         const std::string prefix = "Loop port " + std::to_string(i) + ": ";
-        COMPARE(prefix + "is_incremented", loop_ports[i].is_incremented, loop_ports_ref[i].is_incremented);
-        COMPARE(prefix + "dim_idx", loop_ports[i].dim_idx, loop_ports_ref[i].dim_idx);
-        PROPAGATE_ERROR(prefix + "expr_port", compare_expression_ports(*loop_ports[i].expr_port, *loop_ports_ref[i].expr_port));
+        COMPARE(prefix + "type", loop_ports[i].get_type(), loop_ports_ref[i].get_type());
+        if (loop_ports[i].is_processed())
+            COMPARE(prefix + "dim_idx", loop_ports[i].get_dim_idx(), loop_ports_ref[i].get_dim_idx());
+        PROPAGATE_ERROR(prefix + "expr_port", compare_expression_ports(*loop_ports[i].get_expr_port(), *loop_ports_ref[i].get_expr_port()));
     }
     return Result::ok();
 }

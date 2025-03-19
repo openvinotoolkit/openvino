@@ -1,5 +1,3 @@
-.. {#openvino_docs_Extensibility_UG_GPU}
-
 How to Implement Custom GPU Operations
 ======================================
 
@@ -30,31 +28,26 @@ There are two options for using the custom operation configuration file:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/custom_kernels_api.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/custom_kernels_api.py
         :language: python
         :fragment: [part0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/custom_kernels_api.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/custom_kernels_api.cpp
         :language: cpp
         :fragment: [part0]
 
 
-All OpenVINO samples, except the trivial ``hello_classification``, and most Open
-Model Zoo demos feature a dedicated command-line option ``-c`` to load custom kernels.
+All OpenVINO samples, except the trivial ``hello_classification``,
+feature a dedicated command-line option ``-c`` to load custom kernels.
 For example, to load custom operations for the classification sample, run the command below:
 
 .. code-block:: cpp
 
    $ ./classification_sample -m <path_to_model>/bvlc_alexnet_fp16.xml -i ./validation_set/daily/227x227/apron.bmp -d GPU
    -c <absolute_path_to_config>/custom_layer_example.xml
-
-.. important::
-
-   Due to the deprecation of Open Model Zoo, models in the OpenVINO IR format are now
-   published on `Hugging Face <https://huggingface.co/OpenVINO>`__.
 
 
 .. _config-file-format:
@@ -395,3 +388,7 @@ execution ends.
 For more information, refer to the
 `printf Function <https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/printfFunction.html>`__.
 
+Additional Resources
+####################
+
+* Models in the OpenVINO IR format published on `Hugging Face <https://huggingface.co/OpenVINO>`__.

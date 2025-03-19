@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "strided_slice_inst.h"
@@ -17,6 +16,9 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing_through::run(program& p) {
+    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions())
+        return;
+
     auto try_fuse_through = [&](program_node& node) -> std::vector<program_node*> {
         // This function tries to fuse peer_node to first non reorder or reshape previous primitive.
         // It returns chain of primitives (reshapes and reorders) including potential fused_node (e.g. Conv, FC, etc)

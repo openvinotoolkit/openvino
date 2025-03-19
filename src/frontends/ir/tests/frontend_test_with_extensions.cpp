@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,7 +70,7 @@ TEST_F(IRFrontendExtensionTests, custom_ops_test_with_framework_node_extension) 
 
     core.add_extension(extension);
 
-    ASSERT_NO_THROW(model = core.read_model(customOpsModel, ov::Tensor()));
+    OV_ASSERT_NO_THROW(model = core.read_model(customOpsModel, ov::Tensor()));
     ASSERT_TRUE(!!model);
 }
 

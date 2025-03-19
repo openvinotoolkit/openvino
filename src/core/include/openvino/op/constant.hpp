@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -162,7 +162,6 @@ public:
         case Type_t::f8e8m0:
             fill_data<Type_t::f8e8m0>(value);
             break;
-        case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
         }
@@ -186,6 +185,17 @@ public:
     /// \param data A void* to constant data.
     Constant(const element::Type& type, const Shape& shape, const void* data);
 
+    /// \brief Construct a tensor constant from shared memory.
+    ///
+    /// The Constant can take ownership of shared memory if provided shared object is not null and manges memory
+    /// lifetime.
+    ///
+    /// \param type   The element type of the tensor constant.
+    /// \param shape  The shape of the tensor constant.
+    /// \param data   The pointer to shared memory.
+    /// \param so     The shared object to take it ownership.
+    Constant(const element::Type& type, const Shape& shape, const void* data, std::shared_ptr<void> so);
+
     Constant(const element::Type& type, const Shape& shape, const std::shared_ptr<ov::AlignedBuffer>& data);
 
     Constant(const Constant& other);
@@ -204,7 +214,7 @@ public:
     bool evaluate_upper(TensorVector& outputs) const override;
 
     // Don't constant fold a constant; it would make a copy
-    bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override;
+    bool can_constant_fold(const OutputVector& inputs_values) const override;
 
     /// \brief Returns the value of the constant node as a Shape object
     ///        Can only be used on element::i64 nodes and interprets
@@ -277,13 +287,33 @@ public:
     /// \return The initialization literals for the tensor constant.
     std::vector<std::string> get_value_strings() const;
 
-    template <typename T>
+    /// @brief Get constant buffer as vector of element type T.
+    ///
+    /// For low precision the vector do not perform bit unpacks.
+    /// The returned vector has N elements where:
+    /// - N is (elements count * (precision byte size / T byte size)) for standard precisions.
+    /// - N is (byte size) for low precisions.
+    ///
+    /// @tparam T Output vector type which byte size must be less or equal of byte size of Constant's precision.
+    /// @return Vector of N elements of Type T.
+    template <typename T, typename std::enable_if<!std::is_same<bool, T>::value>::type* = nullptr>
     std::vector<T> get_vector() const {
-        const T* p = get_data_ptr<T>();
-        if (p == nullptr) {
-            OPENVINO_THROW("Cannot create vector! Buffer is not allocated.");
+        const auto p = get_data_ptr<T>();
+        OPENVINO_ASSERT(p != nullptr, "Cannot create vector! Buffer is not allocated.");
+        auto v = std::vector<T>(p, p + (get_byte_size() / sizeof(T)));
+        if (!m_alloc_buffer_on_visit_attributes) {
+            // result vector requires update when Constant share data (e.g read weight from IR binary file)
+            set_unused_bits(v.data());
         }
-        return std::vector<T>(p, p + shape_size(m_shape));
+        return v;
+    }
+
+    template <typename T, typename std::enable_if<std::is_same<bool, T>::value>::type* = nullptr>
+    std::vector<T> get_vector() const {
+        const auto p = get_data_ptr<T>();
+        OPENVINO_ASSERT(p != nullptr, "Cannot create vector! Buffer is not allocated.");
+        auto v = std::vector<T>(p, p + (get_byte_size() / sizeof(T)));
+        return v;
     }
 
     /// \brief Return the Constant's value as a vector cast to type T
@@ -296,10 +326,7 @@ public:
         std::vector<T> rc;
         using Type_t = element::Type_t;
 
-        const auto num_elements_in_constant = shape_size(m_shape);
-        const auto num_elements_to_cast =
-            (num_elements < 0 ? num_elements_in_constant
-                              : std::min(static_cast<size_t>(num_elements), num_elements_in_constant));
+        const auto num_elements_to_cast = get_num_elements_to_cast(num_elements);
         rc.reserve(num_elements_to_cast);
 
         switch (m_element_type) {
@@ -406,7 +433,7 @@ public:
     void alloc_buffer_on_visit_attributes(bool val);
 
     /// @brief Get view on constant data as tensor.
-    /// @return OV::Tensor with constant data.
+    /// @return ov::Tensor with constant data.
     const Tensor get_tensor_view() const;
 
     /// @return Constant's strides in bytes.
@@ -415,17 +442,15 @@ public:
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
 
-    template <
-        element::Type_t Type,
-        class OUT_T,
-        typename std::enable_if<Type != element::string && !std::is_same<OUT_T, std::string>::value>::type* = nullptr>
-    void cast_vector(std::vector<OUT_T>& output_vector, size_t num_elements) const {
-        // this function is workaround for waring during windows building
-        // build complains for vector creation based on iterators
-        // which point on different type than destination vector::value_type
-        using IN_T = fundamental_type_for<Type>;
-        auto first = get_data_ptr<IN_T>();
-        std::transform(first, first + num_elements, std::back_inserter(output_vector), [](IN_T c) {
+    size_t get_num_elements_to_cast(const int64_t n) const;
+
+    /// \brief Sets buffer's not used bits to zero.
+    ///
+    /// In case of low precision there can be some storage area which is not used (not defined state).
+    ///
+    /// \param buffer  Pointer to buffer with Constant values.
+    void set_unused_bits(void* buffer) const;
+
 #ifdef __clang__
 #    pragma clang diagnostic push
 #    ifdef __has_warning
@@ -444,22 +469,21 @@ private:
 #    pragma warning(disable : 4018)
 #    pragma warning(disable : 4804)
 #endif
-            if (!std::is_same<OUT_T, IN_T>::value) {
-                OPENVINO_ASSERT(!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c,
-                                "Cannot cast vector from ",
-                                Type,
-                                " constant to ",
-                                element::from<OUT_T>(),
-                                ". Some values are outside the range. Example: ",
-                                c);
-                OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c,
-                                "Cannot cast vector from ",
-                                Type,
-                                " constant to ",
-                                element::from<OUT_T>(),
-                                ". Some values are outside the range. Example: ",
-                                c);
-            }
+    template <class U,
+              class ConstantT,
+              typename std::enable_if<!std::is_unsigned<ConstantT>::value &&
+                                      !std::is_same<U, ConstantT>::value>::type* = nullptr>
+    static bool in_type_range(const ConstantT v) {
+        return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
+    }
+
+    template <class U,
+              class ConstantT,
+              typename std::enable_if<std::is_unsigned<ConstantT>::value && !std::is_same<U, ConstantT>::value>::type* =
+                  nullptr>
+    static bool in_type_range(const ConstantT v) {
+        return v <= std::numeric_limits<U>::max();
+    }
 #if defined(__clang__)
 #    pragma clang diagnostic pop
 #elif defined(__GNUC__)
@@ -467,7 +491,27 @@ private:
 #elif defined(_MSC_VER)
 #    pragma warning(pop)
 #endif
-            return static_cast<OUT_T>(c);
+
+    template <class U, class ConstantT, typename std::enable_if<std::is_same<U, ConstantT>::value>::type* = nullptr>
+    static constexpr bool in_type_range(const ConstantT) {
+        return true;
+    }
+
+    /// \brief Cast constant data to std::vector of User type.
+    /// This version is for user type which is unknown for OpenVINO.
+    /// The minimum requirement for this type is to support conversion from OV type.
+    ///
+    /// \param output_vector  Output vector with casted data.
+    /// \param num_elements   number of elements to cast from constant.
+    template <
+        element::Type_t Type,
+        class UserT,
+        typename std::enable_if<Type != element::string && !std::is_same<UserT, std::string>::value>::type* = nullptr>
+    void cast_vector(std::vector<UserT>& output_vector, size_t num_elements) const {
+        using T = ov::fundamental_type_for<Type>;
+        const auto first = get_data_ptr<T>();
+        std::transform(first, first + num_elements, std::back_inserter(output_vector), [](const T v) {
+            return static_cast<UserT>(v);
         });
     }
 
@@ -514,39 +558,8 @@ private:
               typename std::enable_if<Type != element::string && !std::is_same<T, std::string>::value>::type* = nullptr>
     void fill_data(const T& value) {
         using StorageDataType = ov::fundamental_type_for<Type>;
-#ifdef __clang__
-#    pragma clang diagnostic push
-#    ifdef __has_warning
-#        if __has_warning("-Wimplicit-const-int-float-conversion")
-#            pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
-#        elif __has_warning("-Wimplicit-int-float-conversion")
-#            pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
-#        endif
-#    endif
-#elif defined(__GNUC__)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wsign-compare"
-#    pragma GCC diagnostic ignored "-Wbool-compare"
-#elif defined(_MSC_VER)
-#    pragma warning(push)
-#    pragma warning(disable : 4018)
-#    pragma warning(disable : 4804)
-#endif
-        if (!std::is_same<T, StorageDataType>::value) {
-            OPENVINO_ASSERT(
-                !std::numeric_limits<T>::is_signed || std::numeric_limits<StorageDataType>::lowest() <= value,
-                "Cannot fill constant data. Values is outside the range.");
-            OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value,
-                            "Cannot fill constant data. Values is outside the range.");
-        }
-#if defined(__clang__)
-#    pragma clang diagnostic pop
-#elif defined(__GNUC__)
-#    pragma GCC diagnostic pop
-#elif defined(_MSC_VER)
-#    pragma warning(pop)
-#endif
-
+        OPENVINO_ASSERT(in_type_range<StorageDataType>(value),
+                        "Cannot fill constant data. Values is outside the range.");
         const auto size = shape_size(m_shape);
         const auto v = static_cast<StorageDataType>(value);
         std::fill_n(get_data_ptr_nc<Type>(), size, v);
@@ -736,7 +749,6 @@ private:
         case Type_t::f8e8m0:
             write_buffer<Type_t::f8e8m0>(source);
             break;
-        case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
         }
@@ -1020,131 +1032,6 @@ CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, double)
 
 #undef CONSTANT_FILL_DATA_SPECIALIZATION
 
-#define CONSTANT_CAST_VECTOR_SPECIALIZATION(ET, DST_TYPE)                                                  \
-    template <>                                                                                            \
-    OPENVINO_API void Constant::cast_lp_vector<element::Type_t::ET>(std::vector<DST_TYPE> & output_vector, \
-                                                                    size_t num_elements) const;
-
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, bool)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, signed char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, unsigned char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, unsigned short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, unsigned int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, unsigned long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, unsigned long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, float16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, bfloat16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, float)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, double)
-
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, bool)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, signed char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, unsigned char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, unsigned short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, unsigned int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, unsigned long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, unsigned long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, float16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, bfloat16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, float)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u2, double)
-
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, bool)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, signed char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, unsigned char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, unsigned short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, unsigned int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, unsigned long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, unsigned long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, float16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, bfloat16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, float)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u3, double)
-
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, bool)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, signed char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, unsigned char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, unsigned short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, unsigned int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, unsigned long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, unsigned long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, float16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, bfloat16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, float)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u4, double)
-
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, bool)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, signed char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, unsigned char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, unsigned short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, unsigned int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, unsigned long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, unsigned long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, float16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, bfloat16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, float)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(u6, double)
-
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, bool)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, signed char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, unsigned char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, unsigned short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, unsigned int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, unsigned long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, unsigned long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, float16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, bfloat16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, float)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, double)
-
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, bool)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, signed char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, unsigned char)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, unsigned short)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, unsigned int)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, unsigned long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, unsigned long long)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, float16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, bfloat16)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, float)
-CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, double)
-#undef CONSTANT_CAST_VECTOR_SPECIALIZATION
-
 #define CONSTANT_WRITE_BUFFER_SPECIALIZATION(ET, SRC_TYPE) \
     template <>                                            \
     OPENVINO_API void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source);
@@ -1310,6 +1197,39 @@ CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, double)
 
 #undef CONSTANT_WRITE_BUFFER_SPECIALIZATION
+
+template <>
+OPENVINO_API std::vector<bool> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<char> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<signed char> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<unsigned char> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<short> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<unsigned short> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<int> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<unsigned int> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<long> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<unsigned long> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<long long> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<unsigned long long> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<float16> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<bfloat16> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<float> Constant::cast_vector(int64_t num_elements) const;
+template <>
+OPENVINO_API std::vector<double> Constant::cast_vector(int64_t num_elements) const;
 
 }  // namespace v0
 }  // namespace op

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 #include "program_node.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include "fully_connected_inst.h"
 #include <impls/onednn/utils.hpp>
 #endif
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ using namespace ov::op;
 OutputVector translate_roll(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     const auto data = context.get_input(0);
-    const auto shifts = context.get_input(1);
+    const auto shifts = get_input_concat_if_list(context, 1);
     Output<Node> axes;
     bool on_flattened = context.input_is_none(2);
     if (!on_flattened) {

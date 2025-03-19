@@ -18,7 +18,7 @@ typedef std::tuple<
 > MaxNumParamsEltwiseParams;
 
 class MaxNumParamsEltwise : public testing::WithParamInterface<ov::test::snippets::MaxNumParamsEltwiseParams>,
-                            virtual public ov::test::SnippetsTestsCommon {
+                            virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MaxNumParamsEltwiseParams> obj);
 

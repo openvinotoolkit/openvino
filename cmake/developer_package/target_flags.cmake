@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Target system specific flags
@@ -120,6 +120,23 @@ get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG
 function(ov_detect_libc_type)
     include(CheckCXXSourceCompiles)
     check_cxx_source_compiles("
+# include <string>
+# ifndef _GLIBCXX_USE_CXX11_ABI
+#  error \"GlibCXX ABI is not defined\"
+# endif
+
+int main() {
+  return 0;
+}"
+    OPENVINO_STDLIB_GNU)
+
+    if(OPENVINO_STDLIB_GNU)
+        set(OPENVINO_STDLIB "GNU" PARENT_SCOPE)
+    else()
+        set(OPENVINO_STDLIB "CPP" PARENT_SCOPE)
+    endif()
+
+    check_cxx_source_compiles("
 # ifndef _GNU_SOURCE
 #   define _GNU_SOURCE
 #   include <features.h>
@@ -140,9 +157,9 @@ function(ov_detect_libc_type)
 int main() {
   return 0;
 }"
-    OPENVINO_MUSL_LIBC)
+    OPENVINO_GLIBC_MUSL)
 
-    if(OPENVINO_MUSL_LIBC)
+    if(OPENVINO_GLIBC_MUSL)
         set(OPENVINO_MUSL_LIBC ON PARENT_SCOPE)
     else()
         set(OPENVINO_GNU_LIBC ON PARENT_SCOPE)
@@ -213,7 +230,7 @@ ov_libc_version()
 # Detects default value for _GLIBCXX_USE_CXX11_ABI for current compiler
 #
 macro(ov_get_glibcxx_use_cxx11_abi)
-    if(LINUX)
+    if(LINUX AND OPENVINO_STDLIB STREQUAL "GNU")
         ov_get_compiler_definition("_GLIBCXX_USE_CXX11_ABI" OV_GLIBCXX_USE_CXX11_ABI)
     endif()
 endmacro()

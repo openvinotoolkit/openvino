@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,9 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
         tpl.add(reorder("reorder", input_info("input"), padded_input_layout));
         reshape_input = "reorder";
     }
-    tpl.add(reshape("reshape", reshape_input, reshape_size, cldnn::reshape::reshape_mode::base, output_padd));
+    auto reshape_prim = reshape("reshape", reshape_input, reshape_size, cldnn::reshape::reshape_mode::base);
+    reshape_prim.output_paddings = {output_padd};
+    tpl.add(reshape_prim);
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{reshape_input, "reshape"}));
@@ -86,15 +88,21 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
 
     //output size should be equal to requested plus output padding
     ASSERT_TRUE(output->get_layout().get_tensor() == reshape_size);
-    ASSERT_TRUE(output->get_layout().get_buffer_size() == reshape_size.add(output_padd.lower_size()).add(output_padd.upper_size()));
+    auto output_fmt = output->get_layout().format;
+    auto default_fmt = format::get_default_format(output_fmt.dimension(), format::is_weights_format(output_fmt), format::is_grouped(output_fmt));
+    std::vector<tensor::value_type> lower_sizes, upper_sizes;
+    lower_sizes.assign(output_padd._lower_size.begin(), output_padd._lower_size.begin() + output_fmt.dimension());
+    upper_sizes.assign(output_padd._upper_size.begin(), output_padd._upper_size.begin() + output_fmt.dimension());
+    ASSERT_TRUE(tensor(default_fmt, output->get_layout().get_padded_dims()) ==
+        reshape_size.add(tensor(default_fmt, lower_sizes, 0)).add(tensor(default_fmt, upper_sizes, 0)));
 
     {
-        cldnn::mem_lock<const ElemType> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<const ElemType, mem_lock_type::read> output_ptr(output, get_test_stream());
         auto output_itr = output_ptr.begin();
 
         auto sizes = reshape_size.sizes(fmt);
-        auto lower = output_padd.lower_size().sizes(fmt);
-        auto upper = output_padd.upper_size().sizes(fmt);
+        auto lower = tensor(default_fmt, lower_sizes, 0).sizes(fmt);
+        auto upper = tensor(default_fmt, upper_sizes, 0).sizes(fmt);
         auto buffer_sizes = sizes;
         int32_t accum = 1;
         for (size_t i = 1; i <= sizes.size(); ++i) {
@@ -543,7 +551,9 @@ void test_basic_bfwzyx(bool is_caching_test) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reshape("reshape", input_info("input"), tensor(batch(1), feature(1), spatial(2, 2, 3, 3)), cldnn::reshape::reshape_mode::base, padding({0, 0, 0, 0, 0, 1}, 0.f)));
+    auto reshape_prim = reshape("reshape", input_info("input"), tensor(batch(1), feature(1), spatial(2, 2, 3, 3)), cldnn::reshape::reshape_mode::base);
+    reshape_prim.output_paddings = {padding({0, 0, 1, 0, 0, 0}, 0.f)};
+    topology.add(reshape_prim);
 
     // clang-format off
     std::vector<float> input_data = {
@@ -1582,11 +1592,13 @@ TEST(reshape_gpu_f32, followed_by_convolution_dynamic) {
         2.0f, 1.0f, 2.0f
     });
 
+    auto reshape_prim = reshape("reshape", input_info("input"), input_info("shape_of_input"), false, ov::PartialShape::dynamic(4),
+                cldnn::reshape::reshape_mode::base);
+    reshape_prim.output_paddings = {padding({0, 0, 1, 1}, {0, 0, 1, 1})};
     topology topology(
         input_layout("input", in0_dyn_layout),
         shape_of("shape_of_input", input_info("input"), data_types::i32),
-        reshape("reshape", input_info("input"), input_info("shape_of_input"), false, ov::PartialShape::dynamic(4),
-                cldnn::reshape::reshape_mode::base, padding({0, 0, 1, 1}, {0, 0, 1, 1})),
+        reshape_prim,
         data("weights", weights),
         convolution("conv", input_info("reshape"), "weights", "", 1, { 2, 1 }, {1, 1}, {0, 0}, {0, 0}, false));
 
@@ -1700,11 +1712,14 @@ TEST(reshape_gpu_f32, followed_by_convolution_dynamic_w_pad) {
         2.0f, 1.0f, 2.0f
     });
 
+    auto reshape_prim = reshape("reshape", input_info("input"), input_info("shape_of_input"), false, ov::PartialShape::dynamic(4),
+                cldnn::reshape::reshape_mode::base);
+    reshape_prim.output_paddings = {padding({0, 0, 1, 1}, {0, 0, 2, 2})};
+
     topology topology(
         input_layout("input", in0_dyn_layout),
         shape_of("shape_of_input", input_info("input"), data_types::i32),
-        reshape("reshape", input_info("input"), input_info("shape_of_input"), false, ov::PartialShape::dynamic(4),
-                cldnn::reshape::reshape_mode::base, padding({0, 0, 1, 1}, {0, 0, 2, 2})),
+        reshape_prim,
         data("weights", weights),
         pooling("pooling", input_info("weights"), pooling_mode::max, ov::Shape{3, 3}, { 1, 1 }, {0, 0}, {0, 0}, tensor(3, 3, 1, 1), data_types::f32),
         convolution("conv", input_info("reshape"), "pooling", "", 1, { 1, 1 }, {1, 1}, {2, 2}, {0, 0}, false)
@@ -1713,7 +1728,7 @@ TEST(reshape_gpu_f32, followed_by_convolution_dynamic_w_pad) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::allow_static_input_reorder(true));
-    
+
     network network(engine, topology, config);
 
     // execute

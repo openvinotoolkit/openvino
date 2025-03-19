@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertMVN1ToMVN6;
  */
 class ov::pass::ConvertMVN1ToMVN6 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertMVN1ToMVN6", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertMVN1ToMVN6");
     ConvertMVN1ToMVN6();
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,8 +41,8 @@ ov::pass::SubtractFusion::SubtractFusion() {
         NodeVector nodes_to_replace{add};
 
         if (pattern_to_output.count(p_mul_const)) {
-            auto minus_one_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                pattern_to_output.at(p_mul_const).get_node_shared_ptr());
+            auto minus_one_const =
+                ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(p_mul_const).get_node_shared_ptr());
             if (!op::util::has_constant_value<float>(minus_one_const, -1.)) {
                 return false;
             }

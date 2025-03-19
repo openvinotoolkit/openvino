@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,14 +27,16 @@ TensorExternalData::TensorExternalData(const TensorProto& tensor) {
             m_sha1_digest = entry.value();
         }
     }
+#ifdef ENABLE_OPENVINO_DEBUG
     if (m_sha1_digest.size() > 0) {
-        OPENVINO_WARN << "SHA1 checksum is not supported";
+        OPENVINO_WARN("SHA1 checksum is not supported");
     }
+#endif
 }
 
 Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,
                                                                      MappedMemoryHandles cache) const {
-    const auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}));
+    const auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
     const int64_t file_size = ov::util::file_size(full_path);
     if (file_size <= 0 || m_offset + m_data_length > static_cast<uint64_t>(file_size)) {
         throw error::invalid_external_data{*this};
@@ -57,7 +59,7 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {
-    auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}));
+    auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     ov::util::convert_path_win_style(full_path);
     std::ifstream external_data_stream(ov::util::string_to_wstring(full_path).c_str(),

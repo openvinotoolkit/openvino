@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,11 @@ namespace frontend {
 namespace onnx {
 namespace common {
 const ov::element::Type& get_ov_element_type(std::int64_t onnx_type);
+
+/// \brief Function does a default checks for a node. Raise an exception if checks are failed
+/// \param[in]  node    Node to check
+/// \param[in]  min_inputs_size  Minimal amount of inputs expected
+void default_op_checks(const Node& node, size_t min_inputs_size);
 
 /// \brief      Return a monotonic sequence.
 ///
@@ -168,6 +173,28 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
                                     std::ostream* output_stream = nullptr,
                                     std::shared_ptr<std::set<std::string>> unsupported_operations = nullptr,
                                     std::shared_ptr<std::set<std::string>> failures = nullptr);
+
+// \brief OpenVINO supports only uint64 seeds with a meaningful 0 value (seed will be auto-generated).
+// Because we use a seed as a just meaningful identifier we may
+// just interpret its value as a 32-bit value (float zero value is same with
+// uint32 zero value).
+// Float -0 value will be interpreted as a valid uint32 value.
+// \param seed Float value for conversion
+// \return Returns a converted uint32_t value
+inline uint32_t convert_float_seed(const float seed) {
+    const void* seed_ptr = &seed;  // To prevent strict-aliasing error
+    return *static_cast<const uint32_t*>(seed_ptr);
+}
+
+/// \brief Tries normalize axis against the rank.
+///
+/// Throws if rank is dynamic or, axis outside rank range [-rank, rank).
+///
+/// \param description  Additional description added to error message.
+/// \param axis         Axis value to be normalized.
+/// \param rank         Rank used for axis normalization.
+/// \return             Normalized axis value.
+int64_t normalize_axis(const std::string& description, const int64_t axis, const Rank& rank);
 }  // namespace  common
 }  // namespace onnx
 }  // namespace frontend

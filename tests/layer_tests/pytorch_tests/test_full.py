@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -85,7 +85,6 @@ class TestFull(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.precommit_torch_export
     def test_full(self, shape, value, ie_device, precision, ir_version):
         self._test(*self.create_model(shape), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'value': value})
@@ -93,10 +92,9 @@ class TestFull(PytorchLayerTest):
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("value", [0, 1, -1, 0.5])
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
-    @pytest.mark.parametrize("with_names", [True, False])
+    @pytest.mark.parametrize("with_names", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.precommit_torch_export
     def test_full_dtype(self, shape, value, dtype, with_names, ie_device, precision, ir_version):
         self._test(*self.create_model(shape, dtype=dtype, use_dtype=True, with_names=with_names), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'value': value})
@@ -104,7 +102,7 @@ class TestFull(PytorchLayerTest):
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("value", [0, 1, -1, 0.5])
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
-    @pytest.mark.parametrize("with_names", [True, False])
+    @pytest.mark.parametrize("with_names", [skip_if_export(True), False])
     @pytest.mark.nightly
     def test_full_out(self, shape, value, dtype, with_names, ie_device, precision, ir_version):
         self._test(*self.create_model(shape, dtype=dtype, use_out=True, with_names=with_names), ie_device, precision,
@@ -285,7 +283,6 @@ class TestFullLike(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.precommit_torch_export
     def test_full_like(self, shape, value, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={'value': value, 'shape': shape})
@@ -294,7 +291,6 @@ class TestFullLike(PytorchLayerTest):
     @pytest.mark.parametrize("value", [0, 1, -1, 0.5])
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
     @pytest.mark.nightly
-    @pytest.mark.precommit_torch_export
     def test_full_like_dtype(self, shape, value, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype, use_dtype=True), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={'value': value, 'shape': shape})
@@ -355,7 +351,6 @@ class TestNewFull(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.precommit_torch_export
     def test_new_full(self, shape, value, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={'value': value, 'input_dtype': input_dtype}, use_convert_model=True)
@@ -364,7 +359,6 @@ class TestNewFull(PytorchLayerTest):
     @pytest.mark.parametrize("value,input_dtype", [(0, np.uint8), (1, np.int32), (-1, np.float32), (0.5, np.float64)])
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
     @pytest.mark.nightly
-    @pytest.mark.precommit_torch_export
     def test_new_full_with_dtype(self, value, shape, dtype, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape, dtype=dtype, used_dtype=True), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={'value': value, 'input_dtype': input_dtype}, use_convert_model=True)
@@ -496,7 +490,7 @@ class TestZerosAndOnes(PytorchLayerTest):
     @pytest.mark.parametrize("shape", [(1, 1), (1, 2), (1, 2, 3), (1, 2, 3, 4), (2, 3, 4, 5, 6)])
     @pytest.mark.parametrize("op_type", ["aten::zeros", "aten::ones"])
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
-    @pytest.mark.parametrize("with_names", [True, False])
+    @pytest.mark.parametrize("with_names", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit_fx_backend
     @pytest.mark.precommit_torch_export
@@ -508,7 +502,7 @@ class TestZerosAndOnes(PytorchLayerTest):
     @pytest.mark.parametrize("shape", [(1, 1), (1, 2), (1, 2, 3), (1, 2, 3, 4), (2, 3, 4, 5, 6)])
     @pytest.mark.parametrize("op_type", ["aten::zeros", "aten::ones"])
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
-    @pytest.mark.parametrize("with_names", [True, False])
+    @pytest.mark.parametrize("with_names", [skip_if_export(True), False])
     @pytest.mark.nightly
     def test_zeros_ones_with_out(self, op_type, shape, dtype, with_names, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, dtype=dtype, with_out=True, with_names=with_names), ie_device, precision,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,3 +9,4 @@
 using Type = ::testing::Types<ov::op::v13::BitwiseAnd>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_and, BitwiseOperator, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_and, BitwiseOperatorBoolean, Type);

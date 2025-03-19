@@ -2,35 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "register.hpp"
 #include "eltwise_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-
+#include "impls/cpu/cpu_impl_helpers.hpp"
+#include "registry/implementation_map.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/subtract.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
+#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/squared_difference.hpp"
 #include "openvino/op/equal.hpp"
-#include "openvino/op/not_equal.hpp"
-#include "openvino/op/less.hpp"
-#include "openvino/op/less_eq.hpp"
+#include "openvino/op/floor_mod.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
-#include "openvino/op/logical_and.hpp"
-#include "openvino/op/logical_or.hpp"
-#include "openvino/op/logical_xor.hpp"
-#include "openvino/op/xor.hpp"
-#include "openvino/op/power.hpp"
-#include "openvino/op/floor_mod.hpp"
-#include "openvino/op/mod.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/xor.hpp"
+#include "register.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -47,7 +50,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::eltwise_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<eltwise_impl>(*this);
+        return std::make_unique<eltwise_impl>(*this);
     }
 
     eltwise_impl() : parent("eltwise_cpu_impl") {}
@@ -79,12 +82,10 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "eltwise::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
-            for (auto e : events) {
-                e->wait();
-            }
+            stream.wait_for_events(events);
         }
 
         auto params = instance.get_impl_params();
@@ -168,6 +169,21 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
             case eltwise_mode::is_nan:
                 op = std::make_shared<ov::op::v10::IsNaN>();
                 break;
+            case eltwise_mode::right_shift:
+                op = std::make_shared<ov::op::v15::BitwiseRightShift>();
+                break;
+            case eltwise_mode::left_shift:
+                op = std::make_shared<ov::op::v15::BitwiseLeftShift>();
+                break;
+            case eltwise_mode::bitwise_and:
+                op = std::make_shared<ov::op::v13::BitwiseAnd>();
+                break;
+            case eltwise_mode::bitwise_or:
+                op = std::make_shared<ov::op::v13::BitwiseOr>();
+                break;
+            case eltwise_mode::bitwise_xor:
+                op = std::make_shared<ov::op::v13::BitwiseXor>();
+                break;
             default:
                 OPENVINO_THROW("[GPU] Couldn't create eltwise operation: unsupported eltwise operation (", static_cast<size_t>(mode), ")");
             }
@@ -193,23 +209,19 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
             input_mem_ptrs[i]->unlock(stream);
 
         if (pass_through_events) {
-            if (events.size() > 1) {
-                return stream.group_events(events);
-            } else if (events.size() == 1) {
-                return events[0];
-            }
+            return stream.group_events(events);
         }
 
-        return stream.create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const eltwise_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<eltwise_impl>();
+        return std::make_unique<eltwise_impl>();
     }
 };
 

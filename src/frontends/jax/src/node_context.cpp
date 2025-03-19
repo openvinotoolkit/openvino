@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/jax/node_context.hpp"
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "jax_framework_node.hpp"
 #include "openvino/core/except.hpp"
@@ -129,6 +131,54 @@ int64_t NodeContext::const_named_param<int64_t>(const std::string& name) const {
     return get_constant_from_params(*this, name)->cast_vector<int64_t>()[0];
 }
 
+template <>
+std::vector<int64_t> NodeContext::const_named_param<std::vector<int64_t>>(const std::string& name) const {
+    return get_constant_from_params(*this, name)->cast_vector<int64_t>();
+}
+
+template <>
+std::vector<std::vector<int64_t>> NodeContext::const_named_param<std::vector<std::vector<int64_t>>>(
+    const std::string& name) const {
+    auto c = get_constant_from_params(*this, name);
+    auto shape = c->get_shape();
+    auto flatten_vector = c->cast_vector<int64_t>();
+    FRONT_END_GENERAL_CHECK(shape.size() == 2, "Expected 2D vector, got ", shape.size(), "D vector.");
+    std::vector<std::vector<int64_t>> result(shape[0]);
+    for (size_t i = 0; i < shape[0]; ++i) {
+        result[i].resize(shape[1]);
+        for (size_t j = 0; j < shape[1]; ++j) {
+            result[i][j] = flatten_vector[i * shape[1] + j];
+        }
+    }
+    return result;
+    // return get_constant_from_params(*this, name)->cast_vector<std::vector<int64_t>>();
+}
+
+template <>
+Strides NodeContext::const_named_param<Strides>(const std::string& name) const {
+    auto c = get_constant_from_params(*this, name);
+    if (c)
+        return c->cast_vector<Strides::value_type>();
+    else
+        return {};
+}
+
+template <>
+CoordinateDiff NodeContext::const_named_param<CoordinateDiff>(const std::string& name) const {
+    auto c = get_constant_from_params(*this, name);
+    if (c)
+        return c->cast_vector<CoordinateDiff::value_type>();
+    else
+        return {};
+}
+
+template <>
+std::shared_ptr<v0::Constant> NodeContext::const_named_param<std::shared_ptr<v0::Constant>>(
+    const std::string& name) const {
+    auto c = get_constant_from_params(*this, name);
+    return c;
+}
+
 namespace {
 template <typename T>
 Any get_constant_data(const std::shared_ptr<v0::Constant>& constant) {
@@ -147,7 +197,7 @@ Any NodeContext::get_values_from_const_input(int index) const {
                             index,
                             " does not exist.");
     auto input_val = get_input(index);
-    if (auto input = std::dynamic_pointer_cast<JaxFrameworkNode>(input_val.get_node_shared_ptr())) {
+    if (auto input = ov::as_type_ptr<JaxFrameworkNode>(input_val.get_node_shared_ptr())) {
         const auto& attrs = input->get_attrs();
         if (attrs.find("none_value") != attrs.end()) {
             return {};

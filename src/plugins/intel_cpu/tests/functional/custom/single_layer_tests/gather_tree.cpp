@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,8 +155,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUStatic,
                          ::testing::Combine(::testing::ValuesIn(inputStaticShapes),
                                             ::testing::ValuesIn(secondaryInputTypes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::element::undefined),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatherTreeLayerCPUTest::getTestCaseName);
 
@@ -165,8 +165,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicParameter,
                          ::testing::Combine(::testing::ValuesIn(inputDynamicShapesParameter),
                                             ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::element::undefined),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatherTreeLayerCPUTest::getTestCaseName);
 
@@ -175,8 +175,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicConstant,
                          ::testing::Combine(::testing::ValuesIn(inputDynamicShapesConstant),
                                             ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::element::undefined),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatherTreeLayerCPUTest::getTestCaseName);
 

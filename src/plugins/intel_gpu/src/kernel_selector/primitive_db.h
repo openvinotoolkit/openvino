@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,9 @@ using primitive_id = std::string;
 struct primitive_db {
     primitive_db();
 
-    std::vector<code> get(const primitive_id& id) const;
+    std::vector<code> get(const primitive_id& id, bool is_cm = false) const;
     std::map<std::string, code> get_batch_headers() const { return std::move(batch_headers); }
+    std::map<std::string, code> get_cm_batch_headers() const { return std::move(cm_batch_headers); }
 
 private:
     struct case_insensitive_compare {
@@ -35,7 +36,9 @@ private:
         }
     };
     std::multimap<primitive_id, code, case_insensitive_compare> primitives;
+    std::multimap<primitive_id, code, case_insensitive_compare> cm_primitives;
     std::map<std::string, code> batch_headers;
+    std::map<std::string, code> cm_batch_headers;
 };
 
 }  // namespace cache

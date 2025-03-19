@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,11 +25,11 @@ using namespace ov::conformance;
 class InputInfoUnitTest : public SubgraphsDumperBaseTest {};
 
 TEST_F(InputInfoUnitTest, constructor) {
-    ASSERT_NO_THROW(auto in_info = InputInfo());
-    ASSERT_NO_THROW(auto in_info = InputInfo({10}));
-    ASSERT_NO_THROW(auto in_info = InputInfo({}, 0));
-    ASSERT_NO_THROW(auto in_info = InputInfo({}, 0, 1));
-    ASSERT_NO_THROW(auto in_info = InputInfo({}, 0, 1, true));
+    OV_ASSERT_NO_THROW(auto in_info = InputInfo());
+    OV_ASSERT_NO_THROW(auto in_info = InputInfo({10}));
+    OV_ASSERT_NO_THROW(auto in_info = InputInfo({}, 0));
+    OV_ASSERT_NO_THROW(auto in_info = InputInfo({}, 0, 1));
+    OV_ASSERT_NO_THROW(auto in_info = InputInfo({}, 0, 1, true));
 }
 
 TEST_F(InputInfoUnitTest, update_ranges) {
@@ -63,11 +63,11 @@ TEST_F(InputInfoUnitTest, update_shapes) {
 class ModelInfoFuncTest : public ::testing::Test {};
 
 TEST_F(ModelInfoFuncTest, constructor) {
-    ASSERT_NO_THROW(auto model_info = ModelInfo());
-    ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml"));
-    ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml", 1));
-    ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml", 1, 2));
-    ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml", 1, 2, 3));
+    OV_ASSERT_NO_THROW(auto model_info = ModelInfo());
+    OV_ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml"));
+    OV_ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml", 1));
+    OV_ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml", 1, 2));
+    OV_ASSERT_NO_THROW(auto model_info = ModelInfo("model.xml", 1, 2, 3));
 }
 
 // ======================== Meta Info Functional tests =============================================
@@ -86,7 +86,7 @@ protected:
         test_model_name = ov::util::replace_extension(test_model_path, "");
         test_in_info = {{ "test_in_0", InputInfo({10}, DEFAULT_MIN_VALUE, 1, true) }};
         test_model_info = {{ test_model_name, ModelInfo(test_model_path, 5) }};
-        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
+        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"}).string();
         ov::util::create_directory_recursive(test_artifacts_dir);
     }
 
@@ -96,29 +96,29 @@ protected:
 };
 
 TEST_F(MetaInfoFuncTest, constructor) {
-    ASSERT_NO_THROW(auto meta = MetaInfo());
-    ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name));
-    ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info));
-    ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info, 2));
-    ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info, 3, 1, test_extractor_name));
-    ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info, 3, 5, test_extractor_name, 5));
+    OV_ASSERT_NO_THROW(auto meta = MetaInfo());
+    OV_ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name));
+    OV_ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info));
+    OV_ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info, 2));
+    OV_ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info, 3, 1, test_extractor_name));
+    OV_ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info, 3, 5, test_extractor_name, 5));
 }
 
 TEST_F(MetaInfoFuncTest, get_input_info) {
     auto test_meta = MetaInfo(test_model_name, test_in_info);
-    ASSERT_NO_THROW(test_meta.get_input_info());
+    OV_ASSERT_NO_THROW(test_meta.get_input_info());
     ASSERT_EQ(test_meta.get_input_info(), test_in_info);
 }
 
 TEST_F(MetaInfoFuncTest, get_model_info) {
     auto test_meta = MetaInfo(test_model_path, test_in_info, 5);
-    ASSERT_NO_THROW(test_meta.get_model_info());
+    OV_ASSERT_NO_THROW(test_meta.get_model_info());
     ASSERT_EQ(test_meta.get_model_info(), test_model_info);
 }
 
 TEST_F(MetaInfoFuncTest, get_any_extractor) {
     auto test_meta = MetaInfo(test_model_path, test_in_info, 5, 3, test_extractor_name);
-    ASSERT_NO_THROW(test_meta.get_any_extractor());
+    OV_ASSERT_NO_THROW(test_meta.get_any_extractor());
     ASSERT_EQ(test_meta.get_any_extractor(), test_extractor_name);
 }
 
@@ -129,21 +129,21 @@ TEST_F(MetaInfoFuncTest, update) {
     ASSERT_EQ(test_meta.get_input_info().at("test_in_0").max_shape, ov::PartialShape({10}));
     std::map<std::string, InputInfo> test_input_info_1 = {{ "test_in_0", InputInfo({50}, 0, 1, true) }};
     std::string test_model_1 = "test_model_1";
-    std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"});
+    std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"}).string();
     ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {}));
     ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_1", InputInfo({10}) }}));
     ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_0", InputInfo({10}, 0, 1, false) }}));
-    ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1));
+    OV_ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1));
     ASSERT_EQ(test_meta.get_input_info().at("test_in_0").min_shape, ov::PartialShape({10}));
     ASSERT_EQ(test_meta.get_input_info().at("test_in_0").max_shape, ov::PartialShape({50}));
-    ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 1, 2, "test_extractor_1"));
-    ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 2));
-    ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 2, 4, "test"));
+    OV_ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 1, 2, "test_extractor_1"));
+    OV_ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 2));
+    OV_ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 2, 4, "test"));
 }
 
 TEST_F(MetaInfoFuncTest, serialize) {
     auto test_meta = MetaInfo(test_model_name, test_in_info);
-    std::string seriliazation_path(ov::util::path_join({test_artifacts_dir, "test_meta.meta"}));
+    std::string seriliazation_path(ov::util::path_join({test_artifacts_dir, "test_meta.meta"}).string());
     test_meta.serialize(seriliazation_path);
     ASSERT_TRUE(ov::util::file_exists(seriliazation_path));
 }
@@ -161,7 +161,7 @@ protected:
 };
 
 TEST_F(MetaInfoUnitTest, serialize) {
-    std::string seriliazation_path(ov::util::path_join({test_artifacts_dir, "test_meta.meta"}));
+    std::string seriliazation_path(ov::util::path_join({test_artifacts_dir, "test_meta.meta"}).string());
     this->extractors = { "extractor_0", "extractor_1" };
     this->serialize(seriliazation_path);
     ASSERT_TRUE(ov::util::file_exists(seriliazation_path));
@@ -215,7 +215,7 @@ TEST_F(MetaInfoUnitTest, serialize) {
 }
 
 TEST_F(MetaInfoUnitTest, read_meta_from_file) {
-    std::string seriliazation_path(ov::util::path_join({test_artifacts_dir, "test_meta.meta"}));
+    std::string seriliazation_path(ov::util::path_join({test_artifacts_dir, "test_meta.meta"}).string());
     this->extractors = { "extractor_0", "extractor_1" };
     this->serialize(seriliazation_path);
     auto new_meta = MetaInfo::read_meta_from_file(seriliazation_path);
@@ -228,20 +228,20 @@ TEST_F(MetaInfoUnitTest, update) {
     auto test_meta = MetaInfo(test_model_name, test_in_info);
     std::map<std::string, InputInfo> test_meta_1 = {{ "test_in_0", InputInfo({20}, 0, 1, true) }};
     std::string test_model_1 = "test_model_1";
-    std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"});
-    ASSERT_NO_THROW(this->update(test_model_path_1, test_meta_1));
+    std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"}).string();
+    OV_ASSERT_NO_THROW(this->update(test_model_path_1, test_meta_1));
     ASSERT_NE(this->model_info.find(test_model_1), this->model_info.end());
     ASSERT_EQ(*this->model_info[test_model_1].model_paths.begin(), test_model_path_1);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 1);
     ASSERT_EQ(this->input_info.begin()->second.min_shape, ov::PartialShape({10}));
     ASSERT_EQ(this->input_info.begin()->second.max_shape, ov::PartialShape({20}));
-    ASSERT_NO_THROW(this->update(test_model_path_1, test_meta_1));
+    OV_ASSERT_NO_THROW(this->update(test_model_path_1, test_meta_1));
     ASSERT_EQ(this->model_info[test_model_1].model_paths.size(), 1);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 2);
     ASSERT_EQ(this->input_info.begin()->second.min_shape, ov::PartialShape({10}));
     ASSERT_EQ(this->input_info.begin()->second.max_shape, ov::PartialShape({20}));
-    test_model_path_1 = ov::util::path_join({ "path", "to", "test", test_model_1 + ".xml"});
-    ASSERT_NO_THROW(this->update(test_model_path_1, test_meta_1, 0, 1, "test_extractor"));
+    test_model_path_1 = ov::util::path_join({ "path", "to", "test", test_model_1 + ".xml"}).string();
+    OV_ASSERT_NO_THROW(this->update(test_model_path_1, test_meta_1, 0, 1, "test_extractor"));
     ASSERT_EQ(this->model_info[test_model_1].model_paths.size(), 2);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 3);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 3);
@@ -249,7 +249,7 @@ TEST_F(MetaInfoUnitTest, update) {
 }
 
 TEST_F(MetaInfoUnitTest, get_model_name_by_path) {
-    ASSERT_NO_THROW(this->get_model_name_by_path(test_model_path));
+    OV_ASSERT_NO_THROW(this->get_model_name_by_path(test_model_path));
     auto name = this->get_model_name_by_path(test_model_path);
     ASSERT_EQ(name, test_model_name);
 }
@@ -257,14 +257,14 @@ TEST_F(MetaInfoUnitTest, get_model_name_by_path) {
 TEST_F(MetaInfoUnitTest, get_graph_priority) {
     auto meta = MetaInfo(test_model_name, test_in_info);
     this->update(test_model_name, meta.get_input_info());
-    ASSERT_NO_THROW(this->get_abs_graph_priority());
-    ASSERT_NO_THROW(this->get_graph_priority());
+    OV_ASSERT_NO_THROW(this->get_abs_graph_priority());
+    OV_ASSERT_NO_THROW(this->get_graph_priority());
     ASSERT_TRUE(this->get_graph_priority() >= 0 && this->get_graph_priority() <= 1);
 }
 
 TEST_F(MetaInfoUnitTest, get_any_extractor) {
     auto meta = MetaInfo(test_model_name, test_in_info, 1, 1, "test_extractor");
-    ASSERT_NO_THROW(meta.get_any_extractor());
+    OV_ASSERT_NO_THROW(meta.get_any_extractor());
     ASSERT_EQ(meta.get_any_extractor(), "test_extractor");
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,10 @@
 
 namespace ov {
 namespace op {
+
+#define SUPPORTED_ET                                                                                                 \
+    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2, \
+        f4e2m1, f8e8m0
 
 template <class TContainer>
 TContainer convert_values_to(std::vector<int64_t>&& values, const Shape& shape) {
@@ -68,6 +72,47 @@ std::vector<T> from_string_vector(const std::vector<std::string>& str_values) {
     });
     return values;
 }
+
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    ifdef __has_warning
+#        if __has_warning("-Wimplicit-const-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#        elif __has_warning("-Wimplicit-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+#        endif
+#    endif
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wsign-compare"
+#    pragma GCC diagnostic ignored "-Wbool-compare"
+#elif defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4018)
+#    pragma warning(disable : 4804)
+#endif
+template <
+    class U,
+    class ConstantT,
+    typename std::enable_if<!std::is_unsigned<ConstantT>::value && !std::is_same<U, ConstantT>::value>::type* = nullptr>
+static bool in_type_range(const ConstantT v) {
+    return std::numeric_limits<U>::lowest() <= v && v <= std::numeric_limits<U>::max();
+}
+
+template <
+    class U,
+    class ConstantT,
+    typename std::enable_if<std::is_unsigned<ConstantT>::value && !std::is_same<U, ConstantT>::value>::type* = nullptr>
+static bool in_type_range(const ConstantT v) {
+    return v <= std::numeric_limits<U>::max();
+}
+#if defined(__clang__)
+#    pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 
 template <element::Type_t ET, class U, typename std::enable_if<ET == element::u1>::type* = nullptr>
 fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
@@ -134,14 +179,6 @@ fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
 template <element::Type_t ET, class T>
 void fill_buffer(void* buffer, const Shape& shape, const T& value) {
     std::fill_n(element::iterator<ET>(buffer), shape_size(shape), convert_if_in_element_range<ET>(value));
-}
-
-template <element::Type_t ET, class U>
-void cast_buffer(const void* buffer, size_t num_elements, std::vector<U>& output) {
-    const auto first = element::iterator<ET>(buffer);
-    using StorageType = fundamental_type_for<ET>;
-
-    std::transform(first, first + num_elements, std::back_inserter(output), reference::detail::convert<StorageType, U>);
 }
 
 template <element::Type_t ET, class T>
@@ -221,9 +258,42 @@ void Constant::allocate_buffer(bool memset_allocation) {
     if (m_element_type == ov::element::string) {
         m_data = std::make_shared<StringAlignedBuffer>(num_elements, byte_size, host_alignment(), memset_allocation);
     } else {
+        constexpr uint8_t init_value = 0;
         m_data = std::make_shared<AlignedBuffer>(byte_size, host_alignment());
-        if (memset_allocation) {
-            std::memset(m_data->get_ptr(), 0, m_data->size());
+
+        // AlignedBuffer allocates 1 byte for empty constants, and we set it to zero
+        if (memset_allocation || byte_size == 0) {
+            std::memset(m_data->get_ptr(), init_value, m_data->size());
+        } else {
+            set_unused_bits(m_data->get_ptr());
+        }
+    }
+}
+
+void Constant::set_unused_bits(void* buffer) const {
+    const auto byte_size = m_data->size();
+
+    if (byte_size > 0) {
+        const auto num_elements = shape_size(m_shape);
+
+        if (element::is_bit_type(m_element_type)) {
+            constexpr size_t storage_unit_byte_size = 1;
+            const auto not_aligned_elements = num_elements % (8 / m_element_type.bitwidth());
+            const uint8_t not_used_bits_mask = 0xff >> (m_element_type.bitwidth() * not_aligned_elements);
+            reinterpret_cast<uint8_t*>(buffer)[byte_size - storage_unit_byte_size] &= ~not_used_bits_mask;
+        } else if (element::is_nibble_type(m_element_type) && (num_elements % 2)) {
+            constexpr size_t storage_unit_byte_size = 1;
+            reinterpret_cast<uint8_t*>(buffer)[byte_size - storage_unit_byte_size] &= 0x0FU;
+        } else if (element::is_split_bit_type(m_element_type)) {
+            constexpr size_t storage_unit_byte_size = 3;
+            const auto num_values = (24U / m_element_type.bitwidth());
+            const auto not_aligned_elements = num_elements % num_values;
+            const uint16_t not_used_upper_mask = ~(0xffff >> (not_aligned_elements * (16U / num_values)));
+
+            auto ptr = reinterpret_cast<uint8_t*>(buffer) + (byte_size - storage_unit_byte_size);
+            ptr[0] &= not_used_upper_mask >> 8U;
+            ptr[1] &= not_used_upper_mask & 0x00ff;
+            ptr[2] &= ~(0xff >> (not_aligned_elements * (8U / num_values)));
         }
     }
 }
@@ -253,7 +323,8 @@ Constant::Constant(const Constant& other)
       m_byte_strides{other.m_byte_strides},
       m_data{other.m_data},
       m_all_elements_bitwise_identical{other.m_all_elements_bitwise_identical.load()},
-      m_all_elements_bitwise_identical_checked{other.m_all_elements_bitwise_identical_checked.load()} {
+      m_all_elements_bitwise_identical_checked{other.m_all_elements_bitwise_identical_checked.load()},
+      m_alloc_buffer_on_visit_attributes{other.m_alloc_buffer_on_visit_attributes} {
     constructor_validate_and_infer_types();
 }
 
@@ -269,6 +340,15 @@ Constant::Constant(const Constant& other, const Shape& new_shape)
     OPENVINO_ASSERT(other_size == new_size, "ov::Shape size ", new_size, " is not equal to ", other_size);
     constructor_validate_and_infer_types();
 }
+
+Constant::Constant(const element::Type& type, const Shape& shape, const void* data, std::shared_ptr<void> so)
+    : Constant(
+          type,
+          shape,
+          // Note: const_cast used to store pointer only
+          std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(reinterpret_cast<char*>(const_cast<void*>(data)),
+                                                                    element::get_memory_size(type, shape_size(shape)),
+                                                                    so)) {}
 
 Constant::~Constant() = default;
 
@@ -578,18 +658,27 @@ bool Constant::has_evaluate() const {
 }
 
 bool Constant::evaluate_lower(TensorVector& outputs) const {
-    return evaluate(outputs, {});
-}
-bool Constant::evaluate_upper(TensorVector& outputs) const {
-    return evaluate(outputs, {});
+    if (!outputs.empty() && outputs[0].get_element_type() != m_element_type)
+        return evaluate(outputs, {});  // for TypeRelaxed<Constant>
+    outputs.resize(1);
+    outputs[0] = get_tensor_view();
+    return get_data_ptr() != nullptr;
 }
 
-bool Constant::constant_fold(OutputVector&, const OutputVector&) {
+bool Constant::evaluate_upper(TensorVector& outputs) const {
+    if (!outputs.empty() && outputs[0].get_element_type() != m_element_type)
+        return evaluate(outputs, {});  // for TypeRelaxed<Constant>
+    outputs.resize(1);
+    outputs[0] = get_tensor_view();
+    return get_data_ptr() != nullptr;
+}
+
+bool Constant::can_constant_fold(const OutputVector& input_values) const {
     return false;
 }
 
 const Tensor Constant::get_tensor_view() const {
-    return m_data ? Tensor{m_element_type, m_shape, m_data->get_ptr(), m_byte_strides} : Tensor{};
+    return get_data_ptr() ? Tensor{m_element_type, m_shape, m_data->get_ptr(), m_byte_strides} : Tensor{};
 }
 
 const Strides& Constant::get_strides() const {
@@ -597,6 +686,11 @@ const Strides& Constant::get_strides() const {
                     "Could not get strides for types with bit widths less then 8 bit. Type: ",
                     m_element_type);
     return m_byte_strides;
+}
+
+size_t Constant::get_num_elements_to_cast(const int64_t n) const {
+    auto num_elements_in_shape = shape_size(m_shape);
+    return (n < 0 ? num_elements_in_shape : std::min(static_cast<size_t>(n), num_elements_in_shape));
 }
 
 template <>
@@ -927,134 +1021,6 @@ CONSTANT_FILL_DATA(f4e2m1, double)
 
 #undef CONSTANT_FILL_DATA
 
-#define CONSTANT_CAST_VECTOR(ET, DST_TYPE)                                                              \
-    template <>                                                                                         \
-    void Constant::cast_lp_vector<element::Type_t::ET, DST_TYPE>(std::vector<DST_TYPE> & output_vector, \
-                                                                 size_t num_elements) const {           \
-        ov::op::cast_buffer<element::ET>(get_data_ptr(), num_elements, output_vector);                  \
-    }
-
-CONSTANT_CAST_VECTOR(u1, bool)
-CONSTANT_CAST_VECTOR(u1, char)
-CONSTANT_CAST_VECTOR(u1, signed char)
-CONSTANT_CAST_VECTOR(u1, unsigned char)
-CONSTANT_CAST_VECTOR(u1, short)
-CONSTANT_CAST_VECTOR(u1, unsigned short)
-CONSTANT_CAST_VECTOR(u1, int)
-CONSTANT_CAST_VECTOR(u1, unsigned int)
-CONSTANT_CAST_VECTOR(u1, long)
-CONSTANT_CAST_VECTOR(u1, unsigned long)
-CONSTANT_CAST_VECTOR(u1, long long)
-CONSTANT_CAST_VECTOR(u1, unsigned long long)
-CONSTANT_CAST_VECTOR(u1, float16)
-CONSTANT_CAST_VECTOR(u1, bfloat16)
-CONSTANT_CAST_VECTOR(u1, float)
-CONSTANT_CAST_VECTOR(u1, double)
-
-CONSTANT_CAST_VECTOR(u2, bool)
-CONSTANT_CAST_VECTOR(u2, char)
-CONSTANT_CAST_VECTOR(u2, signed char)
-CONSTANT_CAST_VECTOR(u2, unsigned char)
-CONSTANT_CAST_VECTOR(u2, short)
-CONSTANT_CAST_VECTOR(u2, unsigned short)
-CONSTANT_CAST_VECTOR(u2, int)
-CONSTANT_CAST_VECTOR(u2, unsigned int)
-CONSTANT_CAST_VECTOR(u2, long)
-CONSTANT_CAST_VECTOR(u2, unsigned long)
-CONSTANT_CAST_VECTOR(u2, long long)
-CONSTANT_CAST_VECTOR(u2, unsigned long long)
-CONSTANT_CAST_VECTOR(u2, float16)
-CONSTANT_CAST_VECTOR(u2, bfloat16)
-CONSTANT_CAST_VECTOR(u2, float)
-CONSTANT_CAST_VECTOR(u2, double)
-
-CONSTANT_CAST_VECTOR(u3, bool)
-CONSTANT_CAST_VECTOR(u3, char)
-CONSTANT_CAST_VECTOR(u3, signed char)
-CONSTANT_CAST_VECTOR(u3, unsigned char)
-CONSTANT_CAST_VECTOR(u3, short)
-CONSTANT_CAST_VECTOR(u3, unsigned short)
-CONSTANT_CAST_VECTOR(u3, int)
-CONSTANT_CAST_VECTOR(u3, unsigned int)
-CONSTANT_CAST_VECTOR(u3, long)
-CONSTANT_CAST_VECTOR(u3, unsigned long)
-CONSTANT_CAST_VECTOR(u3, long long)
-CONSTANT_CAST_VECTOR(u3, unsigned long long)
-CONSTANT_CAST_VECTOR(u3, float16)
-CONSTANT_CAST_VECTOR(u3, bfloat16)
-CONSTANT_CAST_VECTOR(u3, float)
-CONSTANT_CAST_VECTOR(u3, double)
-
-CONSTANT_CAST_VECTOR(u4, bool)
-CONSTANT_CAST_VECTOR(u4, char)
-CONSTANT_CAST_VECTOR(u4, signed char)
-CONSTANT_CAST_VECTOR(u4, unsigned char)
-CONSTANT_CAST_VECTOR(u4, short)
-CONSTANT_CAST_VECTOR(u4, unsigned short)
-CONSTANT_CAST_VECTOR(u4, int)
-CONSTANT_CAST_VECTOR(u4, unsigned int)
-CONSTANT_CAST_VECTOR(u4, long)
-CONSTANT_CAST_VECTOR(u4, unsigned long)
-CONSTANT_CAST_VECTOR(u4, long long)
-CONSTANT_CAST_VECTOR(u4, unsigned long long)
-CONSTANT_CAST_VECTOR(u4, float16)
-CONSTANT_CAST_VECTOR(u4, bfloat16)
-CONSTANT_CAST_VECTOR(u4, float)
-CONSTANT_CAST_VECTOR(u4, double)
-
-CONSTANT_CAST_VECTOR(u6, bool)
-CONSTANT_CAST_VECTOR(u6, char)
-CONSTANT_CAST_VECTOR(u6, signed char)
-CONSTANT_CAST_VECTOR(u6, unsigned char)
-CONSTANT_CAST_VECTOR(u6, short)
-CONSTANT_CAST_VECTOR(u6, unsigned short)
-CONSTANT_CAST_VECTOR(u6, int)
-CONSTANT_CAST_VECTOR(u6, unsigned int)
-CONSTANT_CAST_VECTOR(u6, long)
-CONSTANT_CAST_VECTOR(u6, unsigned long)
-CONSTANT_CAST_VECTOR(u6, long long)
-CONSTANT_CAST_VECTOR(u6, unsigned long long)
-CONSTANT_CAST_VECTOR(u6, float16)
-CONSTANT_CAST_VECTOR(u6, bfloat16)
-CONSTANT_CAST_VECTOR(u6, float)
-CONSTANT_CAST_VECTOR(u6, double)
-
-CONSTANT_CAST_VECTOR(i4, bool)
-CONSTANT_CAST_VECTOR(i4, char)
-CONSTANT_CAST_VECTOR(i4, signed char)
-CONSTANT_CAST_VECTOR(i4, unsigned char)
-CONSTANT_CAST_VECTOR(i4, short)
-CONSTANT_CAST_VECTOR(i4, unsigned short)
-CONSTANT_CAST_VECTOR(i4, int)
-CONSTANT_CAST_VECTOR(i4, unsigned int)
-CONSTANT_CAST_VECTOR(i4, long)
-CONSTANT_CAST_VECTOR(i4, unsigned long)
-CONSTANT_CAST_VECTOR(i4, long long)
-CONSTANT_CAST_VECTOR(i4, unsigned long long)
-CONSTANT_CAST_VECTOR(i4, float16)
-CONSTANT_CAST_VECTOR(i4, bfloat16)
-CONSTANT_CAST_VECTOR(i4, float)
-CONSTANT_CAST_VECTOR(i4, double)
-
-CONSTANT_CAST_VECTOR(f4e2m1, bool)
-CONSTANT_CAST_VECTOR(f4e2m1, char)
-CONSTANT_CAST_VECTOR(f4e2m1, signed char)
-CONSTANT_CAST_VECTOR(f4e2m1, unsigned char)
-CONSTANT_CAST_VECTOR(f4e2m1, short)
-CONSTANT_CAST_VECTOR(f4e2m1, unsigned short)
-CONSTANT_CAST_VECTOR(f4e2m1, int)
-CONSTANT_CAST_VECTOR(f4e2m1, unsigned int)
-CONSTANT_CAST_VECTOR(f4e2m1, long)
-CONSTANT_CAST_VECTOR(f4e2m1, unsigned long)
-CONSTANT_CAST_VECTOR(f4e2m1, long long)
-CONSTANT_CAST_VECTOR(f4e2m1, unsigned long long)
-CONSTANT_CAST_VECTOR(f4e2m1, float16)
-CONSTANT_CAST_VECTOR(f4e2m1, bfloat16)
-CONSTANT_CAST_VECTOR(f4e2m1, float)
-CONSTANT_CAST_VECTOR(f4e2m1, double)
-
-#undef CONSTANT_CAST_VECTOR
-
 #define CONSTANT_WRITE_BUFFER(ET, SRC_TYPE)                                                    \
     template <>                                                                                \
     void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source) { \
@@ -1222,6 +1188,92 @@ CONSTANT_WRITE_BUFFER(f4e2m1, float)
 CONSTANT_WRITE_BUFFER(f4e2m1, double)
 
 #undef CONSTANT_WRITE_BUFFER
+
+template <class U>
+struct ElementConvert : element::NotSupported<void> {
+    using element::NotSupported<void>::visit;
+
+    template <element::Type_t ET,
+              class InputIt,
+              class OutputIt,
+              typename std::enable_if<ET != element::string>::type* = nullptr>
+    static result_type visit(const InputIt src, OutputIt dst, const size_t n) {
+        auto first = element::iterator<ET>(src);
+        reference::convert(first, dst, n);
+    }
+
+    template <element::Type_t ET,
+              class InputIt,
+              class OutputIt,
+              typename std::enable_if<ET == element::string>::type* = nullptr>
+    [[noreturn]] static result_type visit(const InputIt, OutputIt, const size_t) {
+        OPENVINO_THROW("'cast_vector' does not support casting Constant of type ",
+                       ET,
+                       " into std::vector of ",
+                       element::from<U>());
+    }
+};
+
+template <>
+struct ElementConvert<bool> : element::NotSupported<void> {
+    using element::NotSupported<void>::visit;
+
+    template <element::Type_t ET,
+              class InputIt,
+              class OutputIt,
+              typename std::enable_if<ET != element::string>::type* = nullptr>
+    static result_type visit(InputIt src, OutputIt dst, const size_t n) {
+        auto first = element::iterator<ET>(src);
+        using T = ov::fundamental_type_for<ET>;
+        std::transform(first, first + n, dst, [](const T v) {
+            return static_cast<bool>(v);
+        });
+    }
+
+    template <element::Type_t ET,
+              class InputIt,
+              class OutputIt,
+              typename std::enable_if<ET == element::string>::type* = nullptr>
+    [[noreturn]] static result_type visit(InputIt, OutputIt, const size_t) {
+        OPENVINO_THROW("'cast_vector' does not support casting Constant of type ", ET, " into std::vector of boolean");
+    }
+};
+
+#define CONSTANT_CAST_VECTOR(DTYPE)                                                     \
+    template <>                                                                         \
+    OPENVINO_API std::vector<DTYPE> Constant::cast_vector(int64_t num_elements) const { \
+        std::vector<DTYPE> output(get_num_elements_to_cast(num_elements));              \
+        using namespace ov::element;                                                    \
+        IfTypeOf<SUPPORTED_ET>::apply<ElementConvert<DTYPE>>(m_element_type,            \
+                                                             get_data_ptr(),            \
+                                                             output.data(),             \
+                                                             output.size());            \
+        return output;                                                                  \
+    }
+
+template <>
+OPENVINO_API std::vector<bool> Constant::cast_vector(int64_t num_elements) const {
+    std::vector<bool> output(get_num_elements_to_cast(num_elements));
+    using namespace ov::element;
+    IfTypeOf<SUPPORTED_ET>::apply<ElementConvert<bool>>(m_element_type, get_data_ptr(), output.begin(), output.size());
+    return output;
+}
+
+CONSTANT_CAST_VECTOR(char)
+CONSTANT_CAST_VECTOR(signed char)
+CONSTANT_CAST_VECTOR(unsigned char)
+CONSTANT_CAST_VECTOR(short)
+CONSTANT_CAST_VECTOR(unsigned short)
+CONSTANT_CAST_VECTOR(int)
+CONSTANT_CAST_VECTOR(unsigned int)
+CONSTANT_CAST_VECTOR(long)
+CONSTANT_CAST_VECTOR(unsigned long)
+CONSTANT_CAST_VECTOR(long long)
+CONSTANT_CAST_VECTOR(unsigned long long)
+CONSTANT_CAST_VECTOR(float16)
+CONSTANT_CAST_VECTOR(bfloat16)
+CONSTANT_CAST_VECTOR(float)
+CONSTANT_CAST_VECTOR(double)
 
 }  // namespace v0
 }  // namespace op

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,6 +7,8 @@ include (CMakeDependentOption)
 if(POLICY CMP0127)
     cmake_policy(SET CMP0127 NEW)
 endif()
+
+unset(OV_OPTIONS CACHE)
 
 macro(ov_option variable description value)
     option(${variable} "${description}" ${value})

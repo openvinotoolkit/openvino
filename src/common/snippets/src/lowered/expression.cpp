@@ -5,7 +5,7 @@
 #include "snippets/lowered/expression.hpp"
 
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
@@ -25,22 +25,6 @@ Expression::Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ISh
     for (const auto& output : n->outputs()) {
         m_output_port_descriptors.push_back(PortDescriptorUtils::get_port_descriptor_ptr(output));
     }
-}
-
-Expression::Expression(const Expression& other) :
-    std::enable_shared_from_this<Expression>(other), m_source_node(other.m_source_node), m_emitter(other.m_emitter),
-    m_loop_ids(other.m_loop_ids), m_shapeInference(other.m_shapeInference), m_need_shape_infer(other.m_need_shape_infer) {
-    auto clone_ports_descriptors = [](const std::vector<PortDescriptorPtr>& src, std::vector<PortDescriptorPtr>& dst) {
-        dst.resize(src.size());
-        for (size_t i = 0; i < src.size(); i++)
-            dst[i] = src[i]->clone();
-    };
-    clone_ports_descriptors(other.m_input_port_descriptors, m_input_port_descriptors);
-    clone_ports_descriptors(other.m_output_port_descriptors, m_output_port_descriptors);
-    // Note that connectors are not filled on purpose, since you need a shared pointer to this to initialize them,
-    // which is not available in constructor. Also, an expression copy is rarely expected to use the same connectors.
-    m_input_port_connectors = {};
-    m_output_port_connectors = {};
 }
 
 const PortConnectorPtr& Expression::get_input_port_connector(size_t i) const {
@@ -96,12 +80,12 @@ void Expression::set_reg_info(const RegInfo& rinfo) {
 }
 
 void Expression::validate() const {
+    OPENVINO_ASSERT(m_source_node != nullptr,
+                    "The expression has null source node");
     OPENVINO_ASSERT(m_input_port_descriptors.size() == m_input_port_connectors.size(),
                     "The count of input ports and input port connectors must be equal");
     OPENVINO_ASSERT(m_output_port_descriptors.size() == m_output_port_connectors.size(),
                     "The count of output ports and output port connectors must be equal");
-    OPENVINO_ASSERT(m_source_node != nullptr,
-                    "The expression has null source node");
 }
 
 void Expression::set_input_port_connector(size_t port, PortConnectorPtr to) {
@@ -129,31 +113,39 @@ void Expression::set_loop_ids(const std::vector<size_t>& loops) {
     m_loop_ids = loops;
 }
 
-void Expression::update_node_and_connectors(const std::vector<PortConnectorPtr>& new_inputs,
-                                            const std::shared_ptr<Node>& new_node) {
+ExpressionPtr Expression::clone_with_new_inputs(const std::shared_ptr<Node>& new_node,
+                                                const std::vector<PortConnectorPtr>& new_inputs,
+                                                const std::vector<PortDescriptorPtr>& new_in_descs) const {
+    auto clone_ports_descriptors = [](const std::vector<PortDescriptorPtr>& src) {
+        std::vector<PortDescriptorPtr> dst(src.size());
+        for (size_t i = 0; i < src.size(); i++)
+            dst[i] = src[i]->clone();
+        return dst;
+    };
+    const auto& cloned = clone();
     OPENVINO_ASSERT(m_source_node->get_type_info() == new_node->get_type_info(),
                     "Can't clone expression for a new node with incompatible type");
-    m_source_node = new_node;
-    OPENVINO_ASSERT(new_inputs.size() == m_input_port_descriptors.size(),
+    cloned->m_source_node = new_node;
+
+    // Initialize Port Attributes: PortConnectors and PortDescriptors
+    OPENVINO_ASSERT(new_in_descs.empty() || new_inputs.size() == new_in_descs.size(),
                     "Can't create Expression with new inputs: invalid number of input port connectors passed");
-    m_input_port_connectors = new_inputs;
-    for (size_t i = 0; i < m_input_port_descriptors.size(); i++) {
-        const auto& i_con = new_inputs[i];
-        const auto& i_port = get_input_port(i);
+    cloned->m_input_port_descriptors = !new_in_descs.empty() ? new_in_descs : clone_ports_descriptors(m_input_port_descriptors);
+    cloned->m_input_port_connectors = new_inputs;
+    for (size_t i = 0; i < cloned->m_input_port_connectors.size(); i++) {
+        const auto& i_con = cloned->m_input_port_connectors[i];
+        const auto& i_port = cloned->get_input_port(i);
         if (!i_con->found_consumer(i_port))
             i_con->add_consumer(i_port);
     }
-    m_output_port_connectors.resize(m_output_port_descriptors.size());
-    for (size_t i = 0; i < m_output_port_descriptors.size(); i++) {
-        m_output_port_connectors[i] = std::make_shared<PortConnector>(get_output_port(i));
-    }
-}
+    cloned->m_output_port_descriptors = clone_ports_descriptors(m_output_port_descriptors);
+    OPENVINO_ASSERT(cloned->m_output_port_connectors.size() == cloned->m_output_port_descriptors.size(),
+                    "Can't create Expression with new inputs: output port attributes are not compatible");
+    for (size_t i = 0; i < cloned->m_output_port_descriptors.size(); i++)
+        cloned->m_output_port_connectors[i] = std::make_shared<PortConnector>(cloned->get_output_port(i));
 
-ExpressionPtr Expression::clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
-                                                const std::shared_ptr<Node>& new_node) const {
-    const auto& expr = std::shared_ptr<Expression>(new Expression(*this));
-    expr->update_node_and_connectors(new_inputs, new_node);
-    return expr;
+    cloned->validate();
+    return cloned;
 }
 
 ExpressionPtr Expression::clone_with_new_inputs(const ExpressionMap& expr_map,
@@ -170,15 +162,77 @@ ExpressionPtr Expression::clone_with_new_inputs(const ExpressionMap& expr_map,
             new_inputs.emplace_back(input);
         }
     }
-    return clone_with_new_inputs(new_inputs, new_node);
+    return clone_with_new_inputs(new_node, new_inputs);
+}
+
+ExpressionPtr Expression::clone() const {
+    return std::shared_ptr<Expression>(new Expression(*this));
+}
+
+bool Expression::visit_attributes(AttributeVisitor &visitor) {
+    std::ostringstream in_regs, out_regs;
+    std::vector<std::pair<std::string, ov::PartialShape>> shapes;
+    std::vector<std::pair<std::string, std::string>> subtensors;
+    std::vector<std::pair<std::string, std::vector<size_t>>> layouts;
+    for (size_t i = 0; i < get_input_count(); i++) {
+        const auto& desc = m_input_port_descriptors[i];
+        const auto& shape = desc->get_shape();
+        if (!shape.empty())
+            shapes.emplace_back("in_shape_" + std::to_string(i), ov::PartialShape(shape));
+
+        const auto& subtensor = desc->get_subtensor();
+        if (!subtensor.empty())
+            subtensors.emplace_back("in_subtensor_" + std::to_string(i), utils::tensor2str(subtensor));
+
+        const auto& layout = desc->get_layout();
+        if (!layout.empty() && !utils::is_planar_layout(layout))
+            layouts.emplace_back("in_layout_" + std::to_string(i), layout);
+
+        in_regs << desc->get_reg() << " ";
+    }
+    for (size_t i = 0; i < get_output_count(); i++) {
+        const auto& desc = m_output_port_descriptors[i];
+        const auto& shape = desc->get_shape();
+        if (!shape.empty())
+            shapes.emplace_back("out_shape_" + std::to_string(i), ov::PartialShape(shape));
+
+        const auto& subtensor = desc->get_subtensor();
+        if (!subtensor.empty())
+            subtensors.emplace_back("out_subtensor_" + std::to_string(i), utils::tensor2str(subtensor));
+
+        const auto& layout = desc->get_layout();
+        if (!layout.empty() && !utils::is_planar_layout(layout))
+            layouts.emplace_back("out_layout_" + std::to_string(i), layout);
+
+        out_regs << desc->get_reg() << " ";
+    }
+
+    if (!in_regs.str().empty()) {
+        std::vector<std::string> tmp {in_regs.str()};
+        visitor.on_attribute("in_regs", tmp);
+    }
+    if (!out_regs.str().empty()) {
+        std::vector<std::string> tmp {out_regs.str()};
+        visitor.on_attribute("out_regs", tmp);
+    }
+    for (auto& s : shapes)
+        visitor.on_attribute(s.first, s.second);
+    for (auto& s : subtensors)
+        visitor.on_attribute(s.first, s.second);
+    for (auto& s : layouts)
+        visitor.on_attribute(s.first, s.second);
+    visitor.on_attribute("loop_ids", m_loop_ids);
+    visitor.on_attribute("execution_number", m_exec_num);
+    m_source_node->visit_attributes(visitor);
+    return true;
 }
 
 ExpressionPort Expression::get_input_port(size_t i) {
-    return ExpressionPort(this->shared_from_this(), ExpressionPort::Type::Input, i);
+    return ExpressionPort(shared_from_this(), ExpressionPort::Type::Input, i);
 }
 
 ExpressionPort Expression::get_output_port(size_t i) {
-    return ExpressionPort(this->shared_from_this(), ExpressionPort::Type::Output, i);
+    return ExpressionPort(shared_from_this(), ExpressionPort::Type::Output, i);
 }
 
 std::vector<ExpressionPort> Expression::get_input_ports() {

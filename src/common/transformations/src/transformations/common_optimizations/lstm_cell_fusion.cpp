@@ -51,11 +51,11 @@ void generate_gate_pattern(const std::shared_ptr<ov::Node>& x,
         return pattern::has_static_shape()(output) && pattern::rank_equals(1)(output);
     });
 
-    x_by_wi = pattern::wrap_type<op::v0::MatMul>({x, wi});
-    auto x_by_wi_biased = pattern::wrap_type<op::v1::Add>({x_by_wi, bi});
-    h_by_ri = pattern::wrap_type<op::v0::MatMul>({h, ri});
-    it = pattern::wrap_type<op::v1::Add>({x_by_wi_biased, h_by_ri});
-    it = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({it});
+    x_by_wi = pattern::wrap_type<ov::op::v0::MatMul>({x, wi});
+    auto x_by_wi_biased = pattern::wrap_type<ov::op::v1::Add>({x_by_wi, bi});
+    h_by_ri = pattern::wrap_type<ov::op::v0::MatMul>({h, ri});
+    it = pattern::wrap_type<ov::op::v1::Add>({x_by_wi_biased, h_by_ri});
+    it = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({it});
 }
 
 bool check_weights_format(const ov::Output<ov::Node>& w,
@@ -82,7 +82,7 @@ bool check_weights_format(const ov::Output<ov::Node>& w,
     }
 
     // check transpose attributes for MatMul operations
-    if (const auto& matmul = ov::as_type_ptr<op::v0::MatMul>(pattern_map.at(x_by_w_label).get_node_shared_ptr())) {
+    if (const auto& matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(x_by_w_label).get_node_shared_ptr())) {
         if (matmul->get_transpose_a() || matmul->get_transpose_b()) {
             return false;
         }
@@ -90,7 +90,7 @@ bool check_weights_format(const ov::Output<ov::Node>& w,
         return false;
     }
 
-    if (const auto& matmul = ov::as_type_ptr<op::v0::MatMul>(pattern_map.at(h_by_r_label).get_node_shared_ptr())) {
+    if (const auto& matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(h_by_r_label).get_node_shared_ptr())) {
         if (matmul->get_transpose_a() || matmul->get_transpose_b()) {
             return false;
         }
@@ -213,27 +213,27 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
 
     auto x_label = pattern::any_input(pattern::rank_equals(2));
     auto h_label = pattern::any_input(pattern::rank_equals(2));
-    auto concat_label = pattern::wrap_type<op::v0::Concat>({x_label, h_label});
+    auto concat_label = pattern::wrap_type<ov::op::v0::Concat>({x_label, h_label});
     auto weights_label = pattern::any_input([](const Output<Node>& output) {
         return pattern::has_static_shape()(output) && pattern::rank_equals(2)(output);
     });
-    auto matmul_label = pattern::wrap_type<op::v0::MatMul>({concat_label, weights_label});
+    auto matmul_label = pattern::wrap_type<ov::op::v0::MatMul>({concat_label, weights_label});
     auto bias_label = pattern::any_input(pattern::has_static_shape());
-    auto bias_add_label = pattern::wrap_type<op::v1::Add>({matmul_label, bias_label});
-    auto axis_label = pattern::wrap_type<op::v0::Constant>();
-    auto split_label = pattern::wrap_type<op::v1::Split>({bias_add_label, axis_label});
-    auto it_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
-    auto ct_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
-    auto ft_additional_bias_label = pattern::wrap_type<op::v0::Constant>();
-    auto add_label = pattern::wrap_type<op::v1::Add>({split_label, ft_additional_bias_label});
-    auto ft_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({add_label});
-    auto ot_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
-    auto mul_label = pattern::wrap_type<op::v1::Multiply>({it_label, ct_label});
+    auto bias_add_label = pattern::wrap_type<ov::op::v1::Add>({matmul_label, bias_label});
+    auto axis_label = pattern::wrap_type<ov::op::v0::Constant>();
+    auto split_label = pattern::wrap_type<ov::op::v1::Split>({bias_add_label, axis_label});
+    auto it_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
+    auto ct_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
+    auto ft_additional_bias_label = pattern::wrap_type<ov::op::v0::Constant>();
+    auto add_label = pattern::wrap_type<ov::op::v1::Add>({split_label, ft_additional_bias_label});
+    auto ft_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({add_label});
+    auto ot_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label});
+    auto mul_label = pattern::wrap_type<ov::op::v1::Multiply>({it_label, ct_label});
     auto c_label = pattern::any_input();
-    auto mul1_label = pattern::wrap_type<op::v1::Multiply>({ft_label, c_label});
-    auto Co_label = pattern::wrap_type<op::v1::Add>({mul_label, mul1_label});
-    auto Co_activation_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({Co_label});
-    auto Ho_label = pattern::wrap_type<op::v1::Multiply>({Co_activation_label, ot_label});
+    auto mul1_label = pattern::wrap_type<ov::op::v1::Multiply>({ft_label, c_label});
+    auto Co_label = pattern::wrap_type<ov::op::v1::Add>({mul_label, mul1_label});
+    auto Co_activation_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({Co_label});
+    auto Ho_label = pattern::wrap_type<ov::op::v1::Multiply>({Co_activation_label, ot_label});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -246,7 +246,7 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
         const auto& ft_additional_bias = pattern_map.at(ft_additional_bias_label);
         auto Ho = pattern_map.at(Ho_label);
         auto Co = pattern_map.at(Co_label);
-        const auto matmul = ov::as_type_ptr<op::v0::MatMul>(pattern_map.at(matmul_label).get_node_shared_ptr());
+        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul_label).get_node_shared_ptr());
         if (!matmul)
             return false;
         if (matmul->get_transpose_a())
@@ -297,7 +297,7 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
         if (!C_shape[1].compatible(hidden_size))
             return false;
 
-        const auto split_axis = ov::as_type_ptr<op::v0::Constant>(pattern_map.at(axis_label).get_node_shared_ptr());
+        const auto split_axis = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(axis_label).get_node_shared_ptr());
         int64_t split_axis_value = split_axis->cast_vector<int64_t>()[0];
         if (split_axis_value != 1 && split_axis_value != -1)
             return false;
@@ -328,7 +328,7 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
 
         std::string f_activation_name = ft->get_type_name();
 
-        if (f_activation_name != it->get_type_name() || f_activation_name != ot->get_type_name())
+        if (!it || f_activation_name != it->get_type_name() || !ot || f_activation_name != ot->get_type_name())
             return false;
 
         f_activation_name[0] = std::tolower(f_activation_name[0]);
@@ -338,7 +338,7 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
         std::string h_activation_name = get_activation_name(Co_activation);
 
         if (!weights_transposed) {
-            WR = std::make_shared<op::v1::Transpose>(WR, op::v0::Constant::create(element::i32, Shape{0}, {}));
+            WR = std::make_shared<ov::op::v1::Transpose>(WR, ov::op::v0::Constant::create(element::i32, Shape{0}, {}));
         }
         // Split WR to W, R and convert to the layout that OpenVino supports
         //
@@ -369,14 +369,14 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
         //  o |       |   o |   |
         //    +-------+     +---+
         //
-        auto zero_axis = op::v0::Constant::create(element::i32, Shape{}, {0});
-        auto WR_split = std::make_shared<op::v1::Split>(WR, zero_axis, 4);
-        auto WR_fico = std::make_shared<op::v0::Concat>(
+        auto zero_axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+        auto WR_split = std::make_shared<ov::op::v1::Split>(WR, zero_axis, 4);
+        auto WR_fico = std::make_shared<ov::op::v0::Concat>(
             OutputVector{WR_split->output(2), WR_split->output(0), WR_split->output(1), WR_split->output(3)},
             0);
-        auto vsplit_axis = op::v0::Constant::create(element::i32, Shape{}, {1});
-        auto split_lengths = op::v0::Constant::create(element::i32, Shape{2}, {input_size, hidden_size});
-        auto vsplit = std::make_shared<op::v1::VariadicSplit>(WR_fico, vsplit_axis, split_lengths);
+        auto vsplit_axis = ov::op::v0::Constant::create(element::i32, Shape{}, {1});
+        auto split_lengths = ov::op::v0::Constant::create(element::i32, Shape{2}, {input_size, hidden_size});
+        auto vsplit = std::make_shared<ov::op::v1::VariadicSplit>(WR_fico, vsplit_axis, split_lengths);
         Output<Node> W = vsplit->output(0);
         if (auto constant = ov::util::constantfold_subgraph(W))
             W = constant;
@@ -385,20 +385,20 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
             R = constant;
 
         if (B_shape.size() > 1)
-            B = std::make_shared<op::v0::Squeeze>(B, zero_axis);
+            B = std::make_shared<ov::op::v0::Squeeze>(B, zero_axis);
 
         // Convert B layout from icfo to fico
-        auto B_split = std::make_shared<op::v1::Split>(B, zero_axis, 4);
-        auto B_f =
-            std::make_shared<op::v1::Add>(B_split->output(2), std::make_shared<op::v0::Squeeze>(ft_additional_bias));
+        auto B_split = std::make_shared<ov::op::v1::Split>(B, zero_axis, 4);
+        auto B_f = std::make_shared<ov::op::v1::Add>(B_split->output(2),
+                                                     std::make_shared<ov::op::v0::Squeeze>(ft_additional_bias));
 
-        Output<Node> B_fico = std::make_shared<op::v0::Concat>(
+        Output<Node> B_fico = std::make_shared<ov::op::v0::Concat>(
             OutputVector{B_f, B_split->output(0), B_split->output(1), B_split->output(3)},
             0);
         if (auto constant = ov::util::constantfold_subgraph(B_fico))
             B_fico = constant;
 
-        auto lstm_cell = std::make_shared<op::v4::LSTMCell>(
+        auto lstm_cell = std::make_shared<ov::op::v4::LSTMCell>(
             X,
             H,
             C,
@@ -547,12 +547,12 @@ ov::pass::LSTMCellFusionWithSplitWeights::LSTMCellFusionWithSplitWeights() {
     std::shared_ptr<Node> c1t_label, wc_label, rc_label, bc_label, x_by_wc_label, h_by_rc_label;
     generate_gate_pattern(x_label, h_label, c1t_label, wc_label, rc_label, bc_label, x_by_wc_label, h_by_rc_label);
 
-    auto it_mul_c1t_label = pattern::wrap_type<op::v1::Multiply>({it_label, c1t_label});
-    auto ft_mul_c_label = pattern::wrap_type<op::v1::Multiply>({ft_label, c_label});
-    auto ct_label = pattern::wrap_type<op::v1::Add>({ft_mul_c_label, it_mul_c1t_label});
+    auto it_mul_c1t_label = pattern::wrap_type<ov::op::v1::Multiply>({it_label, c1t_label});
+    auto ft_mul_c_label = pattern::wrap_type<ov::op::v1::Multiply>({ft_label, c_label});
+    auto ct_label = pattern::wrap_type<ov::op::v1::Add>({ft_mul_c_label, it_mul_c1t_label});
 
-    auto ct_activated_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({ct_label});
-    auto ht_label = pattern::wrap_type<op::v1::Multiply>({ct_activated_label, ot_label});
+    auto ct_activated_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({ct_label});
+    auto ht_label = pattern::wrap_type<ov::op::v1::Multiply>({ct_activated_label, ot_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         NodeRegistry rg;
@@ -621,7 +621,7 @@ ov::pass::LSTMCellFusionWithSplitWeights::LSTMCellFusionWithSplitWeights() {
         if (const auto& constant = ov::util::constantfold_subgraph(B))
             B = constant;
 
-        auto lstm_cell = rg.make<op::v4::LSTMCell>(
+        auto lstm_cell = rg.make<ov::op::v4::LSTMCell>(
             x,
             h,
             c,

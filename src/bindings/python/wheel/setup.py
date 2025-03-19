@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
@@ -66,9 +66,9 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
-    "ie_libs_с": {
+    "ie_libs_c": {
         "name": "core_c",
-        "prefix": f"{BUILD_BASE}/libs.core_с",
+        "prefix": f"{BUILD_BASE}/libs.core_c",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
@@ -120,6 +120,12 @@ LIB_INSTALL_CFG = {
         "prefix": f"{BUILD_BASE}/libs.tbb",
         "install_dir": TBB_LIBS_DIR,
         "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
+    "intel_openmp_libs": {
+        "name": "intel_omp",
+        "prefix": f"{BUILD_BASE}/libs.intel_omp",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "pugixml_libs": {
@@ -191,6 +197,13 @@ DATA_INSTALL_CFG = {
         "name": "core_c_dev",
         "prefix": f"{BUILD_BASE}/libs.core_c.dev",
         "install_dir": "runtime",
+        "binary_dir": OPENVINO_BINARY_DIR,
+        "source_dir": OPENVINO_SOURCE_DIR
+    },
+    "tbb_dev": {
+        "name": "tbb_dev",
+        "prefix": f"{BUILD_BASE}/libs.tbb.dev",
+        "install_dir": "runtime/3rdparty/tbb",
         "binary_dir": OPENVINO_BINARY_DIR,
         "source_dir": OPENVINO_SOURCE_DIR
     }
@@ -266,7 +279,7 @@ class CustomBuild(build):
         self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
 
         if self.cmake_args is None:
-            self.cmake_args = ""
+            self.cmake_args = os.getenv("CMAKE_ARGS", "")
 
     def cmake_build_and_install(self, install_cfg):
         """Runs cmake (configure, build and install) if artfiacts are not already built / installed."""
@@ -297,6 +310,7 @@ class CustomBuild(build):
                                 f"-DPython3_EXECUTABLE={sys.executable}",
                                 f"-DCMAKE_BUILD_TYPE={CONFIG}",
                                 f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
+                                "-DENABLE_PYTHON=ON",
                                 "-DENABLE_WHEEL=OFF",
                                 self.cmake_args,
                                 "-S", source_dir,
@@ -433,27 +447,22 @@ class PrepareLibs(build_clib):
         package_clibs_dir = os.path.join(PACKAGE_DIR, WHEEL_LIBS_INSTALL_DIR)
         os.makedirs(package_clibs_dir, exist_ok=True)
 
-        for src_dir in src_dirs:
-            # additional blacklist filter, just to fix cmake install issues
-            blacklist_patterns = [  # static libraries and PBD files
-                                    "^.*\\.a$", "^.*\\.pdb$",
-                                    # TBB debug libraries
-                                    "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$",
-                                    # hwloc static libs on Windows
-                                    "^.*\\.la$"]
+        # additional blacklist filter, just to fix cmake install issues
+        blacklist_patterns = [  # static libraries and PBD files
+                                "^.*\\.a$", "^.*\\.pdb$",
+                                # TBB debug libraries
+                                "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$",
+                                # hwloc static libs on Windows
+                                "^.*\\.la$"]
 
+        for src_dir in src_dirs:
             # copy so / dylib files to WHEEL_LIBS_INSTALL_DIR (clibs) inside python package
             for file_path in Path(src_dir).rglob("*"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
                     # sanity check for self.resolve_symlinks
                     sys.exit(f"Wheel package content must not contain symlinks {file_path}")
-                blacklisted = False
-                for pattern in blacklist_patterns:
-                    if re.match(pattern, file_name) is not None:
-                        blacklisted = True
-                        break
-                if file_path.is_file() and not blacklisted:
+                if file_path.is_file() and not is_blacklisted(file_name, blacklist_patterns):
                     dst_file = os.path.join(package_clibs_dir, file_name)
                     copyfile(file_path, dst_file)
                     self.announce(f"Copy {file_path} to {dst_file}", level=3)
@@ -469,15 +478,36 @@ class PrepareLibs(build_clib):
         os.makedirs(package_dir, exist_ok=True)
         package_clibs_dir = os.path.join(PACKAGE_DIR, WHEEL_LIBS_INSTALL_DIR)
         os.makedirs(package_clibs_dir, exist_ok=True)
+        package_cmake_dir = os.path.join(package_dir, "cmake")
+        os.makedirs(package_cmake_dir, exist_ok=True)
 
-        replacements = {
+        openvino_replacements = {
+            # change the location of TBBConfig.cmake (runtime/3rdparty/tbb -> openvino/cmake)
+            r"(\{PACKAGE_PREFIX_DIR\})\/runtime\/3rdparty\/tbb": rf"\1/{WHEEL_PACKAGE_DIR}/cmake",
             # change the path where the libraries are installed (runtime/lib/intel64/Release -> openvino/libs)
-            r"({_IMPORT_PREFIX})\/(.*)\/(.*.[lib|dylib|so|dll])": rf"\1/{WHEEL_LIBS_INSTALL_DIR}/\3",
+            r"(\{_IMPORT_PREFIX\})\/(.*)\/(.+\.[lib|dylib|so|dll])": rf"\1/{WHEEL_LIBS_INSTALL_DIR}/\3",
             # change the path where the include files are installed (runtime/include -> openvino/include)
-            r"({_IMPORT_PREFIX})\/(.*)\/(include)": rf"\1/{WHEEL_PACKAGE_DIR}/\3",
-            # change the libs versions (so.2024.3.0 -> so.2430 or 2024.3.0.dylib -> 2430.dylib)
-            r"(.so)?.(\d\d)(\d\d).(\d+).(\d+)(.dylib)?": r"\1.\3\4\5\6",
+            r"(\{_IMPORT_PREFIX\})\/(.*)\/(include)": rf"\1/{WHEEL_PACKAGE_DIR}/\3",
+            # change the OpenVINO libs versions (so.2024.3.0 -> so.2430 or 2024.3.0.dylib -> 2430.dylib)
+            r"\.(\d\d)(\d\d)\.(\d+)\.(\d+)\.dylib": r".\2\3\4.dylib",
+            r"\.so\.(\d\d)(\d\d)\.(\d+)\.(\d+)": r".so.\2\3\4",
         }
+
+        tbb_replacements = {
+            # change the path where the TBBConfig.cmake is installed (<root>/lib/cmake/TBB -> openvino/cmake)
+            r"(_IMPORT_PREFIX \"\$\{CMAKE_CURRENT_LIST_FILE\})": r"\1/fake_dir",
+            # change the path where the libraries are installed (<root>/lib -> openvino/libs)
+            r"(\{_IMPORT_PREFIX\})\/(.*)\/(.+\.[lib|dylib|so|dll])": rf"\1/{WHEEL_LIBS_INSTALL_DIR}/\3",
+            # change the path where the include files are installed (<root>/include -> openvino/include)
+            r"(\{_IMPORT_PREFIX\})\/(.*)(include)": rf"\1/{WHEEL_PACKAGE_DIR}/\3",
+            # change the TBB libs versions (.12.13.dylib -> .12.dylib)
+            r"\.(\d+)\.(\d+)\.dylib": r".\1.dylib",
+            r"\.so\.(\d+)\.(\d+)": r".so.\1",
+        }
+
+        # additional blacklist filter, just to fix cmake install issues
+        blacklist_patterns = [  # TBB cmake files describing debug libraries
+                                "^.*TBBTargets-debug\\.cmake$"]
 
         for src_dir in src_dirs:
             src, dst = Path(src_dir), Path(package_dir)
@@ -485,19 +515,32 @@ class PrepareLibs(build_clib):
             # move the static libs to the directory with the shared libraries
             for file_path in Path(src).rglob("*.lib"):
                 file_name = os.path.basename(file_path)
-                if file_path.is_file():
+                if file_path.is_file() and not is_blacklisted(file_name, blacklist_patterns):
                     dst_file = os.path.join(package_clibs_dir, file_name)
                     move(file_path, dst_file)
                     self.announce(f"Move {file_path} to {dst_file}", level=3)
+
+            # collect all cmake files in one directory
+            for file_path in Path(src).rglob("*.cmake"):
+                file_name = os.path.basename(file_path)
+                if file_path.is_file() and not is_blacklisted(file_name, blacklist_patterns):
+                    dst_file = os.path.join(package_cmake_dir, file_name)
+                    self.announce(f"Move {file_path} to {dst_file}", level=3)
+                    move(file_path, dst_file)
+                    self.announce("Patch cmake configurations", level=3)
+                    replace_strings_in_file(dst_file,
+                                            openvino_replacements if file_name.startswith("OpenVINO") else tbb_replacements)
 
             if os.path.isdir(src) and os.listdir(src):
                 # copy the rest of the files to the package directly
                 shutil.copytree(src, dst, dirs_exist_ok=True)
 
-                # patch cmake configurations
-                for file_path in Path(dst).rglob("*.cmake"):
-                    if file_path.is_file():
-                        replace_strings_in_file(file_path, replacements)
+
+def is_blacklisted(file_name, blacklist_patterns):
+    for pattern in blacklist_patterns:
+        if re.match(pattern, file_name) is not None:
+            return True
+    return False
 
 
 def copy_file(src, dst, verbose=False, dry_run=False):
@@ -749,7 +792,7 @@ if os.getenv("CI_BUILD_DEV_TAG"):
     long_description_md = WORKING_DIR / "build" / "pypi-openvino-rt.md"
     long_description_md.parent.mkdir(exist_ok=True)
     concat_files(md_files, long_description_md)
-    docs_url = "https://docs.openvino.ai/nightly/index.html"
+    docs_url = "https://docs.openvino.ai/2025/index.html"
     OPENVINO_VERSION = WHEEL_VERSION[0:8]
 
 setup(

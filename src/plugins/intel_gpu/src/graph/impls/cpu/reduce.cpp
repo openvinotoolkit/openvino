@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "reduce_inst.h"
-#include "implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -42,7 +43,7 @@ struct reduce_impl : public typed_primitive_impl<reduce> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::reduce_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reduce_impl>(*this);
+        return std::make_unique<reduce_impl>(*this);
     }
 
     reduce_impl() : parent("reduce_cpu_impl") {}
@@ -77,12 +78,10 @@ struct reduce_impl : public typed_primitive_impl<reduce> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "reduce::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
-            for (auto e : events) {
-                e->wait();
-            }
+            stream.wait_for_events(events);
         }
 
         auto params = instance.get_impl_params();
@@ -137,23 +136,19 @@ struct reduce_impl : public typed_primitive_impl<reduce> {
                         "[GPU] Couldn't execute reduce primitive with id ", instance.id());
 
         if (pass_through_events) {
-            if (events.size() > 1) {
-                return stream.group_events(events);
-            } else if (events.size() == 1) {
-                return events[0];
-            }
+            return stream.group_events(events);
         }
 
-        return stream.create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const reduce_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<reduce_impl>();
+        return std::make_unique<reduce_impl>();
     }
 };
 

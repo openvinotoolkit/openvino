@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ OutputVector translate_any(const NodeContext& context) {
         out_id = 3;
     }
 
-    auto result = translate_any_common(context, input_tensor, axes, keep_dims);
+    const auto& result = translate_any_common(context, input_tensor, axes, keep_dims);
     if (!context.input_is_none(out_id)) {
         context.mutate_input(out_id, result);
     }
@@ -75,7 +75,7 @@ OutputVector translate_any_fx(const NodeContext& context) {
     bool keep_dims = false;
     if (!context.input_is_none(2))
         keep_dims = context.const_input<bool>(2);
-    auto any = translate_any_common(context, x, dims, keep_dims);
+    const auto& any = translate_any_common(context, x, dims, keep_dims);
     return {any};
 };
 

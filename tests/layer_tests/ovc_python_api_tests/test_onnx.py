@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import io
@@ -82,13 +82,13 @@ def create_bytes_io():
 
 
 class TestMoConvertONNX(CommonMOConvertTest):
-    test_data = [create_bytes_io]
+    test_data = ['create_bytes_io']
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_onnx(self, create_model, ie_device, precision, ir_version,
                                              temp_dir):
-        fw_model, graph_ref, mo_params = create_model()
+        fw_model, graph_ref, mo_params = eval(create_model)()
 
         test_params = {'input_model': fw_model}
         if mo_params is not None:
@@ -115,9 +115,14 @@ class TestUnicodePathsONNX(unittest.TestCase):
 
             assert os.path.exists(model_path), "Could not create a directory with unicode path."
 
-            from openvino import convert_model
+            from openvino import convert_model, save_model, Core
             res_model = convert_model(model_path)
             flag, msg = compare_functions(res_model, model_ref, False)
+            assert flag, msg
+
+            save_model(res_model, model_path + ".xml")
+            res_model_after_saving = Core().read_model(model_path + ".xml")
+            flag, msg = compare_functions(res_model_after_saving, create_ref_model([2, 3, 4]), False)
             assert flag, msg
 
             from openvino.frontend import FrontEndManager
@@ -125,3 +130,5 @@ class TestUnicodePathsONNX(unittest.TestCase):
             fe = fm.load_by_framework("onnx")
 
             assert fe.supported(model_path)
+
+            del res_model_after_saving

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_normalization_MVN_6}
-
 MVN
 ===
 

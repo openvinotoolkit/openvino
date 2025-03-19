@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_movement_Unique_10}
-
 Unique
 ======
 
 
 .. meta::
-  :description: Learn about Unique-10 - a data movement operation, which can be 
+  :description: Learn about Unique-10 - a data movement operation, which can be
                 performed on one required and one optional input tensor.
 
 **Versioned name**: *Unique-10*
@@ -54,7 +52,7 @@ The operator can either work in elementwise mode searching for unique values in 
 
 **Outputs**
 
-* **1**: The output tensor containing unique elements (individual values or subtensors). This tensor's type matches the type of the first input tensor: *T*. The values in this tensor are either sorted ascendingly or maintain the same order as in the input tensor. The shape of this output depends on the values of the input tensor and will very often be dynamic. Please refer to the article describing how :doc:`Dynamic Shapes <../../../../../openvino-workflow/running-inference/dynamic-shapes>` are handled in OpenVINO.
+* **1**: The output tensor containing unique elements (individual values or subtensors). This tensor's type matches the type of the first input tensor: *T*. The values in this tensor are either sorted ascendingly or maintain the same order as in the input tensor. The shape of this output depends on the values of the input tensor and will very often be dynamic. Please refer to the article describing how :doc:`Dynamic Shapes <../../../../../openvino-workflow/running-inference/model-input-output/dynamic-shapes>` are handled in OpenVINO.
 * **2**: The output tensor containing indices of the locations of unique elements. The indices map the elements in the first output tensor to their locations in the input tensor. The index always points to the first occurrence of a given unique output element in the input tensor. This is a 1D tensor with type controlled by the ``index_element_type`` attribute.
 * **3**: The output tensor containing indices of the locations of elements of the input tensor in the first output tensor. This means that for each element of the input tensor this output will point to the unique value in the first output tensor of this operator. This is a 1D tensor with type controlled by the ``index_element_type`` attribute.
 * **4**: The output tensor containing the number of occurrences of each unique value produced by this operator in the first output tensor. This is a 1D tensor with type controlled by the ``count_element_type`` attribute.

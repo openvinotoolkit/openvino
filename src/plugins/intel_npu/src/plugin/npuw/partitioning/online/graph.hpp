@@ -46,6 +46,7 @@ namespace detail {
     }
 }  // anonymous namespace
 
+namespace own {
 namespace ade {
 
 namespace detail {
@@ -73,16 +74,18 @@ struct CreateIdx {
 
 }  // namespace detail
 }  // namespace ade
+}  // namespace own
 
 namespace std {
 template <typename T>
-struct hash<ade::detail::WeakHandle<T>> {
-    uint64_t operator()(const ade::detail::WeakHandle<T>& handle) const {
+struct hash<own::ade::detail::WeakHandle<T>> {
+    uint64_t operator()(const own::ade::detail::WeakHandle<T>& handle) const {
         return std::hash<T*>()(handle.get());
     }
 };
 }  // namespace std
 
+namespace own {
 namespace ade {
 
 class Graph;
@@ -118,7 +121,7 @@ class Edge {
     using Ptr = std::shared_ptr<Edge>;
 
 public:
-    Edge(NodeHandle src, NodeHandle dst) : m_src(src), m_dst(dst) {}
+    Edge(NodeHandle src, NodeHandle dst) : m_src(std::move(src)), m_dst(std::move(dst)) {}
     NodeHandle srcNode() const {
         return m_src;
     }
@@ -217,3 +220,4 @@ private:
 };
 
 }  // namespace ade
+}  // namespace own

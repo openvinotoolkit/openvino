@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,8 +46,7 @@ OutputVector create_argmax_argmin_op(const NodeContext& context, TopKMode mode) 
             std::make_shared<v11::TopK>(flatten_input, k, axis, mode, TopKSortType::SORT_VALUES, element::i64, true));
         indices = topk->output(1);
         if (keep_dims) {
-            auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
-            auto input_rank = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape, element::i32));
+            auto input_rank = std::get<1>(get_shape_rank(context, input));
             auto new_shape = context.mark_node(std::make_shared<v3::Broadcast>(k, input_rank));
             indices =
                 context.mark_node(std::make_shared<v3::Broadcast>(indices, new_shape, BroadcastType::BIDIRECTIONAL));
@@ -56,7 +55,7 @@ OutputVector create_argmax_argmin_op(const NodeContext& context, TopKMode mode) 
             indices = context.mark_node(std::make_shared<v0::Squeeze>(indices, zero));
         }
     }
-    return {indices};
+    return {std::move(indices)};
 }
 
 };  // namespace

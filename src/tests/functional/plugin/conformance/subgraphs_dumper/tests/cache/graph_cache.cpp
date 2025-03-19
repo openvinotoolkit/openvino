@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
 
+#include "openvino/core/visibility.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -32,8 +33,8 @@ protected:
     void SetUp() override {
         SubgraphsDumperBaseTest::SetUp();
         test_model_name = "test_model_name";
-        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
-        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});
+        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"}).string();
+        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"}).string();
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
             Model_0 test;
@@ -61,16 +62,21 @@ TEST_F(GraphCacheFuncTest, get_graph_cache_twice) {
     ASSERT_EQ(graph_cache_0, graph_cache_1);
 }
 
+#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
+// Ticket: 153168
+TEST_F(GraphCacheFuncTest, DISABLED_update_cache) {
+#else
 TEST_F(GraphCacheFuncTest, update_cache) {
+#endif
     auto graph_cache = ov::tools::subgraph_dumper::GraphCache::get();
     graph_cache->update_cache(test_model, test_model_path, true);
-    ASSERT_NO_THROW(graph_cache->update_cache(test_model, test_model_path, true));
+    OV_ASSERT_NO_THROW(graph_cache->update_cache(test_model, test_model_path, true));
 }
 
 TEST_F(GraphCacheFuncTest, serialize_cache) {
     auto graph_cache = ov::tools::subgraph_dumper::GraphCache::get();
     graph_cache->set_serialization_dir(test_artifacts_dir);
-    ASSERT_NO_THROW(graph_cache->serialize_cache());
+    OV_ASSERT_NO_THROW(graph_cache->serialize_cache());
 }
 
 // ====================== Graph Cache Unit tests ==============================

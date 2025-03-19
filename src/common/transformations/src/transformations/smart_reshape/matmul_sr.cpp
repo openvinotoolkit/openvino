@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -119,17 +119,15 @@ ov::pass::TransposeMatMul::TransposeMatMul() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto matmul =
-            std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
         if (!matmul)
             return false;
 
         auto transpose_is_fusable = [](const std::shared_ptr<ov::Node>& input) {
             const auto& input_rank = input->get_output_partial_shape(0).rank();
             if (input_rank.is_static() && input_rank.get_length() >= 2) {
-                if (auto transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(input)) {
-                    if (auto order =
-                            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1))) {
+                if (auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(input)) {
+                    if (auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1))) {
                         const auto& order_vector = order->cast_vector<int64_t>();
                         std::vector<int64_t> fusable_order(input_rank.get_length());
                         std::iota(fusable_order.begin(), fusable_order.end(), 0);

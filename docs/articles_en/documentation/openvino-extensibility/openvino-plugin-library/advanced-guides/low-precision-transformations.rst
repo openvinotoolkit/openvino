@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_lpt}
-
 OpenVINO™ Low Precision Transformations
 =========================================
 
@@ -12,6 +10,7 @@ OpenVINO™ Low Precision Transformations
    :caption: Low Precision Transformations
    :hidden:
 
+   Quantization Scheme <low-precision-transformations/quantization-scheme>
    Attributes <low-precision-transformations/lpt-attributes>
    Step 1. Prerequisites transformations <low-precision-transformations/step1-prerequisites>
    Step 2. Markup transformations <low-precision-transformations/step2-markup>
@@ -36,7 +35,7 @@ The goal of Low Precision Transformations (LPT) is to transform a quantized mode
 
 As result, operation input tensor precisions will be changed from original to low precision and operations can be inferred by OpenVINO™ plugin in low precision.
 
-For a more detailed description on how to quantize a model, see the `Low precision tools <#low-precision-tools>`__ section below. For more information about model quantization, refer to **Brief History of Lower Precision in Deep Learning** section in `this whitepaper <https://software.intel.com/en-us/articles/lower-numerical-precision-deep-learning-inference-and-training>`__.
+For a more detailed description on how to quantize a model, see the `Low precision tools <#low-precision-tools>`__ section below. For more information about model quantization, refer to **Brief History of Lower Precision in Deep Learning** section in `this whitepaper <https://www.intel.com/content/dam/develop/external/us/en/documents/lower-numerical-precision-deep-learning-jan2018-754765.pdf>`__.
 
 Input model requirements
 ########################
@@ -313,23 +312,17 @@ This step is optional. It modifies the transformation function to a device-speci
 Result model overview
 #####################
 
-Let's explore quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__ model. Use :doc:`Model Downloader <../../../../omz_tools_downloader>` tool to download the ``fp16`` model from `OpenVINO™ Toolkit - Open Model Zoo repository <https://github.com/openvinotoolkit/open_model_zoo>`__:
-
-.. code-block:: sh
-
-   omz_downloader --name resnet-50-tf --precisions FP16-INT8
-
-After that you should quantize model by the :doc:`Model Quantizer <../../../../omz_tools_downloader>` tool.
-
-.. code-block:: sh
-
-   omz_quantizer --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
+Let's explore the resnet-50-tf model, quantized to ``fp16``, which is a TensorFlow
+implementation of `ResNet-50 <https://github.com/tensorflow/models/tree/v2.2.0/official/r1/resnet>`__
+- an image classification model pre-trained on the ImageNet dataset. Originally
+redistributed in the "Saved model" format, converted to a frozen graph using the
+"tf.graph_util" module.
 
 
 Inference
 +++++++++
 
-The simplest way to infer the model and collect performance counters is :doc:`Benchmark Application <../../../../learn-openvino/openvino-samples/benchmark-tool>`.
+The simplest way to infer the model and collect performance counters is :doc:`Benchmark Application <../../../../get-started/learn-openvino/openvino-samples/benchmark-tool>`.
 
 .. code-block:: sh
 
@@ -347,7 +340,7 @@ Result model depends on different factors:
 
 
 Information about layer precision is stored in the performance counters that are
-available from the OpenVINO Runtime API. For example, the part of performance counters table for quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__  model inference on CPU Plugin looks as follows:
+available from the OpenVINO Runtime API. For example, the part of performance counters table for the resnet-50-tf model inferred on CPU Plugin looks as follows:
 
 .. list-table::
     :header-rows: 1

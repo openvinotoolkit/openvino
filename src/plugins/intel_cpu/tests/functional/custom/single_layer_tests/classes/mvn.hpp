@@ -35,7 +35,6 @@ class MvnLayerCPUTest : public testing::WithParamInterface<MvnLayerCPUTestParamS
                        virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
    static std::string getTestCaseName(testing::TestParamInfo<MvnLayerCPUTestParamSet> obj);
-   bool isSupportedTestCase();
 protected:
    void SetUp() override;
 private:
@@ -58,6 +57,13 @@ namespace MVN {
    const std::vector<bool>& acrossChannels();
    const std::vector<double>& epsilon();
 
+   const std::vector<CPUSpecificParams>& cpuParams_4D();
+   const std::vector<CPUSpecificParams>& cpuParams_5D();
+
+   const std::vector<ElementType>& inpPrc();
+   const std::vector<ElementType>& outPrc();
+
+   const std::vector<fusingSpecificParams>& fusingParamsSet();
    const std::vector<ov::AnyMap>& additionalConfig();
 }  // namespace MVN
 }  // namespace test

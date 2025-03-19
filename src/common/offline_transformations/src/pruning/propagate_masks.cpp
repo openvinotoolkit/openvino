@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,6 +65,7 @@ static ov::Shape broadcast_shape_to_rank(ov::Shape shape_to_broadcast, int64_t d
 
 class ov::pass::mask_propagation::MatMul : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::MatMul");
     MatMul() {
         auto a = pattern::any_input(pattern::has_static_shape());
         auto b = pattern::any_input(pattern::has_static_shape());
@@ -80,17 +81,17 @@ public:
             auto b_mask = getMask(m_b);
 
             if (!a_mask && !b_mask) {
-                OPENVINO_DEBUG << "No mask for any input of " << m_matmul.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG("No mask for any input of ", m_matmul.get_node()->get_friendly_name(), "\n");
                 return false;
             }
             if (!b_mask) {
-                OPENVINO_DEBUG << "No mask for input b of " << m_matmul.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG("No mask for input b of ", m_matmul.get_node()->get_friendly_name(), "\n");
                 return false;
             }
 
             const auto matmul_range = m_matmul.get_shape().size();
             if (matmul_range < 2) {
-                OPENVINO_DEBUG << "Matmul operation with rank = 1 is not supported by pruning algo by now\n";
+                OPENVINO_DEBUG("Matmul operation with rank = 1 is not supported by pruning algo by now\n");
                 return false;
             }
 
@@ -99,7 +100,7 @@ public:
                 a_mask_row = a_mask.get();
             auto b_mask_row = b_mask.get();
 
-            const auto matmul_op = std::dynamic_pointer_cast<opset10::MatMul>(m_matmul.get_node_shared_ptr());
+            const auto matmul_op = ov::as_type_ptr<opset10::MatMul>(m_matmul.get_node_shared_ptr());
             const auto transpose_a = matmul_op->get_transpose_a();
             const auto transpose_b = matmul_op->get_transpose_b();
 
@@ -201,6 +202,7 @@ public:
 
 class ov::pass::mask_propagation::Convolution : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Convolution");
     Convolution() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input(pattern::has_static_shape());
@@ -218,7 +220,7 @@ public:
             // Weights mask for convolution should be initialized in the InitMasks pass (and propagate after it).
             // If mask isn't initialized - this weights (and hence all convolution) can't be pruned for some reason.
             if (!weights_mask) {
-                OPENVINO_DEBUG << "No weights mask for " << m_output.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG("No weights mask for ", m_output.get_node()->get_friendly_name(), "\n");
                 return false;
             }
             auto weights_mask_row = weights_mask.get();
@@ -280,6 +282,7 @@ public:
 
 class ov::pass::mask_propagation::GroupConvolution : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::GroupConvolution");
     GroupConvolution() {
         auto input = pattern::any_input(pattern::has_static_dim(1));
         auto weights = pattern::any_input(pattern::has_static_shape());
@@ -311,8 +314,9 @@ public:
                     weights_mask = std::make_shared<ov::Mask>(weights_shape.size());
                     setMask(m_weights, weights_mask);
                 } else {
-                    OPENVINO_DEBUG << "GroupConvolution: No weights mask and weights aren't constant for "
-                                   << *m_output.get_node() << "\n";
+                    OPENVINO_DEBUG("GroupConvolution: No weights mask and weights aren't constant for ",
+                                   *m_output.get_node(),
+                                   "\n");
                     return false;
                 }
             }
@@ -365,6 +369,7 @@ public:
 
 class ov::pass::mask_propagation::GroupConvolutionReshape : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::GroupConvolutionReshape");
     GroupConvolutionReshape() {
         auto input = pattern::any_input(pattern::has_static_shape());
         auto shape = pattern::any_input();
@@ -401,7 +406,7 @@ public:
 
             const auto constant = ov::util::get_constant_from_source(m_shape.get_node_shared_ptr());
             if (!constant) {
-                OPENVINO_DEBUG << "Can't get constant from source node " << m_shape.get_node()->get_friendly_name();
+                OPENVINO_DEBUG("Can't get constant from source node ", m_shape.get_node()->get_friendly_name());
                 return false;
             }
             auto input_mask_row = input_mask.get();
@@ -455,6 +460,7 @@ public:
 
 class ov::pass::mask_propagation::Elementwise : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Elementwise");
     Elementwise() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
@@ -479,8 +485,9 @@ public:
                 return false;
 
             if (m_output.get_node_shared_ptr()->get_autob() != op::AutoBroadcastType::NUMPY) {
-                OPENVINO_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
-                               << " because node is using unsupported broadcast mode." << std::endl;
+                OPENVINO_DEBUG("Can't propagate mask through ",
+                               m_output.get_node()->get_friendly_name(),
+                               " because node is using unsupported broadcast mode.\n");
                 return false;
             }
             // Case when input masks should be united instead of intersection
@@ -541,8 +548,9 @@ public:
 
             // Prevent case when input_shape and weights_shape both has broadcasted dims
             if (input_shape_broadcasted_dims.size() && weights_shape_broadcasted_dims.size()) {
-                OPENVINO_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
-                               << " because both input shapes contains broadcasted dims." << std::endl;
+                OPENVINO_DEBUG("Can't propagate mask through ",
+                               m_output.get_node()->get_friendly_name(),
+                               " because both input shapes contains broadcasted dims.\n");
                 return false;
             }
 
@@ -562,14 +570,14 @@ public:
             }
 
             if (!input_mask) {
-                OPENVINO_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                OPENVINO_DEBUG("No input mask for: ", m_output.get_node()->get_friendly_name(), "\n");
                 return false;
             }
             if (!weights_mask) {
                 // Set dummy mask to weight input in case this input has no mask
                 // and has broadcastable dimentions
                 if (!weights_shape_broadcasted_dims.size()) {
-                    OPENVINO_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                    OPENVINO_DEBUG("No weights mask for: ", m_output.get_node()->get_friendly_name(), "\n");
                     return false;
                 }
                 weights_mask = std::make_shared<ov::Mask>(m_weights.get_partial_shape().rank().get_length());
@@ -643,6 +651,7 @@ private:
 
 class ov::pass::mask_propagation::FakeQuantize : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::FakeQuantize");
     FakeQuantize() {
         auto input = pattern::any_input(pattern::has_static_shape());
         auto input_low = pattern::any_input(pattern::has_static_shape());
@@ -664,7 +673,7 @@ public:
 
             // Input mask is the only source of pruning in FQ
             if (!input_mask) {
-                OPENVINO_DEBUG << "FakeQuantize: No input mask for " << *m_output.get_node() << "\n";
+                OPENVINO_DEBUG("FakeQuantize: No input mask for ", *m_output.get_node(), "\n");
                 return false;
             }
 
@@ -708,13 +717,13 @@ public:
                                        m_input_high.get_node_shared_ptr(),
                                        m_output_low.get_node_shared_ptr(),
                                        m_output_high.get_node_shared_ptr()};
-            auto fq_node = std::dynamic_pointer_cast<opset10::FakeQuantize>(m_output.get_node_shared_ptr());
+            auto fq_node = ov::as_type_ptr<opset10::FakeQuantize>(m_output.get_node_shared_ptr());
             if (!fq_node)
                 return false;
             size_t idx = 0;
             if (fq_node->get_auto_broadcast() != ov::op::AutoBroadcastType::NONE) {
                 for (const auto& node : fq_params_nodes) {
-                    auto const_node = std::dynamic_pointer_cast<op::v0::Constant>(node);
+                    auto const_node = ov::as_type_ptr<op::v0::Constant>(node);
                     if (!const_node)
                         OPENVINO_THROW("Unexpected operation type.");
                     auto new_shape = broadcast_shape_to_rank(const_node->get_shape(),
@@ -755,13 +764,14 @@ public:
 
 class ov::pass::mask_propagation::Concat : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Concat");
     Concat() {
         auto concat = pattern::wrap_type<opset10::Concat>(pattern::has_static_shape());
 
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_output = pattern_map.at(concat);
-            auto concat_ptr = std::dynamic_pointer_cast<opset10::Concat>(m_output.get_node_shared_ptr());
+            auto concat_ptr = ov::as_type_ptr<opset10::Concat>(m_output.get_node_shared_ptr());
             if (!concat_ptr) {
                 return false;
             }
@@ -861,6 +871,7 @@ public:
 
 class ov::pass::mask_propagation::PassThrough : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::PassThrough");
     PassThrough() {
         auto unary_op = pattern::wrap_type<op::util::UnaryElementwiseArithmetic,
                                            opset10::Clamp,
@@ -903,6 +914,7 @@ public:
 
 class ov::pass::mask_propagation::Reduce : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Reduce");
     Reduce() {
         auto inputs = pattern::any_input();
         auto weights = pattern::wrap_type<opset10::Constant>();
@@ -918,7 +930,7 @@ public:
             // Check reduce operation reduces only dimension without masks
             if (auto input_mask = getMask(m_input)) {
                 auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
-                const auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
+                const auto constant = ov::as_type_ptr<opset10::Constant>(m_weights.get_node_shared_ptr());
                 OPENVINO_ASSERT(!!constant, "Dynamic cast returned a nullptr");
                 const auto reduce_dims = constant->cast_vector<int64_t>();
 
@@ -1114,6 +1126,7 @@ static std::vector<DimsAttr> collect_dims_attrs(const std::vector<dims_vec> dims
 
 class ov::pass::mask_propagation::Reshape : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Reshape");
     Reshape() {
         auto inputs = pattern::any_input(pattern::has_static_shape());
         auto weights = pattern::any_input();
@@ -1131,13 +1144,15 @@ public:
                 if (is_type<opset10::GroupConvolution>(inp.get_node()))
                     return true;
 
-            auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
+            auto constant = ov::as_type_ptr<opset10::Constant>(m_weights.get_node_shared_ptr());
             if (!constant) {
                 constant = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
                 if (!constant) {
-                    OPENVINO_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
-                                   << " with no constant node " << m_weights.get_node()->get_friendly_name()
-                                   << " as shape input.";
+                    OPENVINO_DEBUG("Can't process reshape node ",
+                                   m_output.get_node()->get_friendly_name(),
+                                   " with no constant node ",
+                                   m_weights.get_node()->get_friendly_name(),
+                                   " as shape input.");
                     return false;
                 }
             }
@@ -1368,6 +1383,7 @@ public:
 
 class ov::pass::mask_propagation::Transpose : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Transpose");
     Transpose() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
@@ -1380,19 +1396,21 @@ public:
 
             const auto input_order_node = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
             if (!input_order_node) {
-                OPENVINO_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
-                               << " with no constant node " << m_weights.get_node()->get_friendly_name()
-                               << " as input_order input.";
+                OPENVINO_DEBUG("Can't process transpose node ",
+                               m_output.get_node()->get_friendly_name(),
+                               " with no constant node ",
+                               m_weights.get_node()->get_friendly_name(),
+                               " as input_order input.");
                 return false;
             }
 
             const auto input_mask = getMask(m_input);
             if (!input_mask) {
-                OPENVINO_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                OPENVINO_DEBUG("No input mask for: ", m_output.get_node()->get_friendly_name(), "\n");
                 return false;
             }
             if (static_cast<int64_t>(input_mask->size()) != m_output.get_partial_shape().rank().get_length()) {
-                OPENVINO_DEBUG << "Transpose which change tensor rank is not supported yet.";
+                OPENVINO_DEBUG("Transpose which change tensor rank is not supported yet.");
                 return false;
             }
 
@@ -1473,6 +1491,7 @@ static ov::Mask::Ptr create_connect_split_output_mask(ov::Mask::Ptr input_mask,
 
 class ov::pass::mask_propagation::VariadicSplit : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::VariadicSplit");
     VariadicSplit() {
         auto input_pattern = pattern::any_input(pattern::has_static_rank());
         auto axis_pattern = pattern::wrap_type<ov::opset10::Constant>();
@@ -1540,6 +1559,7 @@ public:
 
 class ov::pass::mask_propagation::Split : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Split");
     Split() {
         auto input_pattern = pattern::any_input(pattern::has_static_rank());
         auto axis_pattern = pattern::wrap_type<ov::opset10::Constant>();
@@ -1590,6 +1610,7 @@ public:
 
 class ov::pass::mask_propagation::StopPropagation : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::StopPropagation");
     StopPropagation() {
         auto any_node = pattern::any_input();
 
@@ -1621,8 +1642,11 @@ public:
 
                     // Invalidate current mask and its parent masks
                     output_mask->apply_callback(input_mask);
-                    OPENVINO_DEBUG << "Invalidate masks for " << *input.get_node() << " because " << node
-                                   << " is in scope of stop ops.\n";
+                    OPENVINO_DEBUG("Invalidate masks for ",
+                                   *input.get_node(),
+                                   " because ",
+                                   node,
+                                   " is in scope of stop ops.\n");
                     any_input_with_masks = true;
                 }
             }
@@ -1644,6 +1668,7 @@ public:
 
 class ov::pass::mask_propagation::SkipPropagation : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::SkipPropagation");
     SkipPropagation() {
         // Skip mask propagation for ShapeOf operation to prevent this opearation to be
         // processed as stop op.

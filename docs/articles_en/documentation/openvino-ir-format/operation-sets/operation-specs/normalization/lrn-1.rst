@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_normalization_LRN_1}
-
 LRN
 ===
 
