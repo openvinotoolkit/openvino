@@ -70,7 +70,8 @@ ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& 
     - https://github.com/onnx/onnx/blob/main/docs/Operators.md
     - https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md
    Strange, but a SkipSimplifiedLayerNormalization is a part of com.microsoft domain:
-    - https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.SkipSimplifiedLayerNormalization
+    -
+   https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.SkipSimplifiedLayerNormalization
    Same time SimplifiedLayerNormalization is described here and in some models it is found as a part of ai.onnx domain:
     - https://github.com/microsoft/onnxruntime/blob/main/js/web/docs/webgpu-operators.md
    To align with actual behavior and some documentation - decided to register it as a ai.onnx, but leave
