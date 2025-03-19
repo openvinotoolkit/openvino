@@ -404,18 +404,16 @@ ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
     return return_value;
 }
 
-template <typename... Args, std::size_t... I>
-std::tuple<Args...> tuple_from_py_tuple_impl(const py::tuple& py_tuple, std::index_sequence<I...>) {
-    return std::make_tuple(py_tuple[I].cast<Args>()...);
-}
-
 template <typename... Args>
 std::tuple<Args...> tuple_from_py_tuple(const py::tuple& py_tuple) {
     if (py_tuple.size() != sizeof...(Args)) {
         OPENVINO_THROW(false, "Size of py::tuple does not match size of std::tuple");
     }
-
-    return tuple_from_py_tuple_impl<Args...>(py_tuple, std::index_sequence_for<Args...>{});
+    auto tuple_from_py_tuple_impl = []<std::size_t... I>(const py::tuple& py_tuple,
+                                                         std::index_sequence<I...>) -> std::tuple<Args...> {
+        return std::make_tuple(py_tuple[I].cast<Args>()...);
+    };
+    return tuple_from_py_tuple_impl(py_tuple, std::index_sequence_for<Args...>{});
 }
 
 ov::Any py_object_to_any(const py::object& py_obj) {
