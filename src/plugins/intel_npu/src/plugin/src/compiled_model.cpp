@@ -58,7 +58,15 @@ CompiledModel::~CompiledModel() {
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
+    // sanity check
+    if (_device == nullptr) {
+        OPENVINO_THROW("No available devices. Failed to create infer request!");
+    }
+
     if (!_config.get<CREATE_EXECUTOR>() || _config.get<DEFER_WEIGHTS_LOAD>()) {
+        if (_graph == nullptr) {
+            OPENVINO_THROW("Invalid graph handle! Failed to create infer request!");
+        }
         _graph->initialize(_config);
     }
 
