@@ -30,15 +30,15 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     if (is_type<ov::intel_cpu::BrgemmCPU>(expr->get_node())) {
-        const auto& gemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-        const auto& brg0Prc = gemm_node->get_input_element_type(0);
-        const auto& brg1Prc = gemm_node->get_input_element_type(1);
-        const auto brgemm_type = gemm_node->get_type();
+        const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
+        const auto& brg0Prc = brgemm_node->get_input_element_type(0);
+        const auto& brg1Prc = brgemm_node->get_input_element_type(1);
+        const auto brgemm_type = brgemm_node->get_type();
         m_is_with_amx = brgemm_utils::with_amx(brgemm_type);
         if (m_is_with_amx) {
             BrgemmAMXBatchedKernelConfig kernel_config(brg0Prc,
                                                        brg1Prc,
-                                                       gemm_node->get_iter_count(),
+                                                       brgemm_node->get_iter_count(),
                                                        brgemm_utils::get_primitive_isa(brg0Prc, true));
             m_kernel_executor = kernel_table->register_kernel<BrgemmAMXBatchedKernelExecutor>(expr,
                                                                                               compiled_kernel_cache,
@@ -46,26 +46,26 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
         } else {
             BrgemmBatchedKernelConfig kernel_config(brg0Prc,
                                                     brg1Prc,
-                                                    gemm_node->get_iter_count(),
+                                                    brgemm_node->get_iter_count(),
                                                     with_compensations(brgemm_type),
                                                     brgemm_utils::get_primitive_isa(brg0Prc, false));
             m_kernel_executor =
                 kernel_table->register_kernel<BrgemmBatchedKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
         }
 
-        m_memory_offsets = {gemm_node->get_offset_a(), gemm_node->get_offset_b(), gemm_node->get_offset_c()};
+        m_memory_offsets = {brgemm_node->get_offset_a(), brgemm_node->get_offset_b(), brgemm_node->get_offset_c()};
         m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
                         utils::get_buffer_cluster_id(expr->get_input_port(1)),
                         utils::get_buffer_cluster_id(expr->get_output_port(0))};
         if (with_scratchpad(brgemm_type)) {
-            m_memory_offsets.push_back(gemm_node->get_offset_scratch());
+            m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
             m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
         }
     } else if (is_type<ov::intel_cpu::GemmCPU>(expr->get_node())) {
-        const auto& brgemm_node = as_type_ptr<ov::intel_cpu::GemmCPU>(expr->get_node());
-        const auto& brg0Prc = brgemm_node->get_input_element_type(0);
-        const auto& brg1Prc = brgemm_node->get_input_element_type(1);
-        const auto brgemm_type = brgemm_node->get_type();
+        const auto& gemm_node = as_type_ptr<ov::intel_cpu::GemmCPU>(expr->get_node());
+        const auto& brg0Prc = gemm_node->get_input_element_type(0);
+        const auto& brg1Prc = gemm_node->get_input_element_type(1);
+        const auto brgemm_type = gemm_node->get_type();
         m_is_with_amx = brgemm_utils::with_amx(brgemm_type);
         if (m_is_with_amx) {
             BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_utils::get_primitive_isa(brg0Prc, true));
@@ -87,12 +87,12 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
                 !snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(1)->get_shape()),
             "Jit emitter is called when the shapes are unknown");
 
-        m_memory_offsets = {brgemm_node->get_offset_a(), brgemm_node->get_offset_b(), brgemm_node->get_offset_c()};
+        m_memory_offsets = {gemm_node->get_offset_a(), gemm_node->get_offset_b(), gemm_node->get_offset_c()};
         m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
                         utils::get_buffer_cluster_id(expr->get_input_port(1)),
                         utils::get_buffer_cluster_id(expr->get_output_port(0))};
         if (with_scratchpad(brgemm_type)) {
-            m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
+            m_memory_offsets.push_back(gemm_node->get_offset_scratch());
             m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
         }
     } else {
