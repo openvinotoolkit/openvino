@@ -73,7 +73,7 @@ OP_CONVERTER(translate_copy_);
 OP_CONVERTER(translate_cross);
 OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_deform_conv);
-OP_CONVERTER(translate_delete);
+
 OP_CONVERTER(translate_derive_index);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
@@ -198,6 +198,7 @@ OP_CONVERTER(translate_quantized_hardswish);
 OP_CONVERTER(translate_quantized_mul);
 OP_CONVERTER(translate_range_length);
 OP_CONVERTER(translate_rand);
+OP_CONVERTER(translate_randperm);
 OP_CONVERTER(translate_randn);
 OP_CONVERTER(translate_randint);
 OP_CONVERTER(translate_rand_like);
@@ -233,7 +234,7 @@ OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_std);
 OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_stft);
-OP_CONVERTER(translate_str);
+
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
@@ -460,7 +461,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cross", op::translate_cross},
         {"aten::cumsum", op::translate_cumsum},
-        {"aten::delete", op::translate_delete},
+       
         {"aten::detach", op::skip_node},
         {"aten::dequantize", op::skip_node},  // we convert model to fp32 using FQ, so dequantization is not needed
         {"aten::dim", op::translate_dim},
@@ -622,6 +623,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
         {"aten::rand", op::translate_rand},
+        {"aten::rand", op::translate_randperm},
         {"aten::rand_like", op::translate_rand_like},
         {"aten::randint", op::translate_randint},
         {"aten::randn", op::translate_randn},
@@ -683,14 +685,14 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::std", op::translate_std},
         {"aten::std_mean", op::translate_std_mean},
         {"aten::stft", op::translate_stft},
-        {"aten::stft", op::translate_str},
+       
         {"aten::sub", op::translate_sub},
         {"aten::sub_", op::translate_sub_},
         {"aten::sum", op::translate_sum},
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
         {"aten::take_along_dim", op::translate_take_along_dim},
-        {"aten::take", op::translate_take_op},
+
         {"aten::tan", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>, 1>},
         {"aten::tan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tan>>},
         {"aten::tanh", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tanh>, 1>},
