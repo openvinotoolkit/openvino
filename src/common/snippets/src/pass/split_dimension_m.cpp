@@ -8,9 +8,6 @@
 #include "snippets/utils/utils.hpp"
 
 namespace {
-size_t get_dim_M(const ov::Shape& shape) {
-    return *(shape.rbegin() + 1);
-}
 bool is_prime_number(size_t value) {
     if (ov::snippets::utils::one_of(value, 2lu, 3lu)) return true;
     if (value == 1 || value % 2 == 0 || value % 3 == 0) return false;
@@ -28,6 +25,7 @@ namespace snippets {
 namespace pass {
 
 const size_t SplitDimensionM::min_kernel_m = 32;
+const size_t SplitDimensionM::dim_M_index = 1;
 
 bool SplitDimensionM::is_supported_matmul(const std::shared_ptr<const ov::Node>& node) {
     const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(node);
@@ -194,6 +192,7 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
     };
 
     auto get_updated_shape = [&](const ov::snippets::VectorDims& shape, size_t m_index, bool split_m_dim) {
+        OPENVINO_ASSERT(m_index < shape.size(), "Dimension index must be less than shape rank");
         const auto current_m_dim = shape[m_index];
         OPENVINO_ASSERT(!split_m_dim || current_m_dim == 1 || current_m_dim == m_dim, "Incorrect shape for splitting!");
         const auto new_shape = split_m_dim ? reshape_m_dim(shape, m_index, batch_m_dim, new_m_dim) : unsqueeze_m_dim(shape, m_index);
@@ -205,7 +204,8 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
         const auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
         OPENVINO_ASSERT(order_constant != nullptr, "Transpose must have Constant order");
         const auto order = order_constant->cast_vector<size_t>();
-        const auto m_index = is_input ? order[order.size() - 2] : order.size() - 2;  // Index of M dimension in the previous order
+        const auto forward_index = order.size() - 1 - dim_M_index;
+        const auto m_index = is_input ? order[forward_index] : forward_index;  // Index of M dimension in the previous order
         const auto new_order = get_updated_order(order, m_index);
         transpose->set_argument(1, std::make_shared<ov::op::v0::Constant>(order_constant->get_element_type(), ov::Shape{new_order.size()}, new_order));
         return m_index;
@@ -217,9 +217,13 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
             return;
 
         const auto shape = param->get_partial_shape().get_shape();
+        // if Shape rank is less than index of dimension M, no need to reshape it.
+        if (shape.size() <= dim_M_index)
+            return;
+
         const auto consumers = param->get_output_target_inputs(0);
         const auto shared_consumer = consumers.begin()->get_node()->shared_from_this();
-        auto m_index = shape.size() - 2;
+        auto m_index = shape.size() - 1 - dim_M_index;
         if (ov::is_type<ov::op::v1::Transpose>(shared_consumer)) {
             m_index = reshape_transpose(shared_consumer, true);
         }
