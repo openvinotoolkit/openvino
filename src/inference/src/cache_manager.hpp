@@ -140,7 +140,6 @@ private:
         if (ov::util::file_exists(blob_file_name)) {
             auto compiled_blob =
                 read_tensor_data(blob_file_name, element::u8, PartialShape::dynamic(1), 0, enable_mmap);
-            std::cout << std::endl;
             SharedStreamBuffer buf{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
             std::istream stream(&buf);
             reader(stream, compiled_blob);

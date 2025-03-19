@@ -168,7 +168,6 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
         auto _properties = properties;
         // remove not supported properties which are consumed by compile_model
         _properties.erase(ov::loaded_from_cache.name());
-        _properties.erase(ov::hint::model.name());
         _properties.erase(ov::hint::compiled_blob.name());
         fullConfig = Configuration{_properties, m_cfg};
     }
@@ -216,7 +215,6 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
         loaded_from_cache = it->second.as<bool>();
         _properties.erase(it);
     }
-    _properties.erase(ov::hint::model.name());
     _properties.erase(ov::hint::compiled_blob.name());
 
     auto fullConfig = Configuration{_properties, m_cfg};
