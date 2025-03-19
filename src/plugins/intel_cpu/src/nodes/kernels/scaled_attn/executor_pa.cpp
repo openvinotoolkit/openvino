@@ -681,10 +681,10 @@ static void dot_product_block_by_channel(TA* a, uint8_t* b, float* c, const size
             auto va2 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2 * 2);
             auto va3 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2 * 3);
 
-            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i));
-            auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2));
-            auto vb2_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2 * 2));
-            auto vb3_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2 * 3));
+            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + params_offset + i));
+            auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + params_offset + i + vec_len_f32_avx2));
+            auto vb2_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + params_offset + i + vec_len_f32_avx2 * 2));
+            auto vb3_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + params_offset + i + vec_len_f32_avx2 * 3));
 
             auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
             auto vb1_256 = _mm256_cvtepu8_epi32(vb1_128);
