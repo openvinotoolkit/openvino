@@ -179,7 +179,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[op::v1::Minimum::get_type_info_static()] = CREATE_CPU_EMITTER(jit_minimum_emitter);
     jitters[op::v1::Mod::get_type_info_static()] = CREATE_CPU_EMITTER(jit_mod_emitter);
     jitters[op::v1::Multiply::get_type_info_static()] = CREATE_CPU_EMITTER(jit_multiply_emitter);
-    jitters[op::v1::Power::get_type_info_static()] = CREATE_CPU_EMITTER(jit_power_static_emitter);
+    jitters[snippets::op::PowerStatic::get_type_info_static()] = CREATE_CPU_EMITTER(jit_power_static_emitter);
     jitters[op::v1::Subtract::get_type_info_static()] = CREATE_CPU_EMITTER(jit_subtract_emitter);
     jitters[op::v0::Xor::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_xor_emitter);
 
