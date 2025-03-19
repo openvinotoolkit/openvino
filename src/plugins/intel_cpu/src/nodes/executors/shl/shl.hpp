@@ -169,7 +169,7 @@ private:
 struct IShlParams {
 public:
     virtual ~IShlParams() = default;
-    [[nodiscard]] virtual void* get(bool allow_empty) const = 0;
+    [[nodiscard]] virtual void* get() const = 0;
 };
 
 template <typename T, typename traits = ShlStructureTraits<T>>
@@ -190,8 +190,8 @@ struct ShlParams : public ShlStructure<T>, public IShlParams {
         setAPI(api);
     }
 
-    [[nodiscard]] void* get(bool allow_empty) const override {
-        return this->ShlStructure<T, traits>::get(allow_empty);
+    [[nodiscard]] void* get() const override {
+        return this->ShlStructure<T, traits>::get();
     }
 
 private:
