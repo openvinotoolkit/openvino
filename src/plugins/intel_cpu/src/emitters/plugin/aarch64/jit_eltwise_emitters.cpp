@@ -2230,19 +2230,20 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
         const std::unordered_set<size_t> exclude = {src().getIdx(), dst.getIdx()};
         store_context(exclude);
+        h->str(Xbyak_aarch64::QReg(src().getIdx()), pre_ptr(h->sp, -32));
         h->ldr(s1, table_val("power"));
         h->str(s1, pre_ptr(h->sp, -16));
-        h->str(Xbyak_aarch64::QReg(src().getIdx()), pre_ptr(h->sp, -32));
         for (auto i = 0; i < 4; i++) {
             const int offset = i * sizeof(float);
-            h->ldr(s1, ptr(h->sp, 32));
-            h->ldr(s0, ptr(h->sp, offset));
+            h->ldr(s1, ptr(h->sp));
+            h->ldr(s0, ptr(h->sp, 16 + offset));
             h->mov(func_reg, pow_f32_addr);
             h->blr(func_reg);
-            h->str(s0, ptr(h->sp, 16 + offset));
+            h->str(s0, ptr(h->sp, 32 + offset));
         }
+        h->add(h->sp, h->sp, 16);
         h->ldr(Xbyak_aarch64::QReg(src().getIdx()), post_ptr(h->sp, 16));
-        h->ldr(Xbyak_aarch64::QReg(dst.getIdx()), post_ptr(h->sp, 32));
+        h->ldr(Xbyak_aarch64::QReg(dst.getIdx()), post_ptr(h->sp, 16));
         restore_context(exclude);
     }
 }
