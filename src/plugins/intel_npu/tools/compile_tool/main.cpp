@@ -417,6 +417,14 @@ using TimeDiff = std::chrono::milliseconds;
 
 int main(int argc, char* argv[]) {
     try {
+        // Steps in compiling
+        // 1. Parse command line arguments
+        // 2. Read model
+        // 3. Configure model pre & post processing
+        // 4. Reshape model (reshape will only be done if either shape or override_model_batch_size is specified)
+        // 5. Parse configuration file
+        // 6. Compile model
+        // 7. Export model to file
         TimeDiff loadNetworkTimeElapsed{0};
 
         const auto& version = ov::get_openvino_version();
@@ -446,13 +454,6 @@ int main(int argc, char* argv[]) {
         auto inputs_info = std::const_pointer_cast<ov::Model>(model)->inputs();
         InputsInfo info_map;
 
-        try {
-            ov::Dimension modelBatchBefore = ov::get_batch(model);
-            std::cout << "Model Batch [Before] --->>> " << modelBatchBefore.to_string() << std::endl;
-        } catch (const ov::AssertFailure& e) {
-            std::cout << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
-        }
-
         std::cout << "Configuring model pre & post processing" << std::endl;
         configurePrePostProcessing(model,
                                    FLAGS_ip,
@@ -465,20 +466,8 @@ int main(int argc, char* argv[]) {
                                    FLAGS_oml,
                                    FLAGS_ioml);
 
-        std::cout << "Performing reshape" << std::endl;
         reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
 
-        try {
-            ov::Dimension modelBatchAfter = ov::get_batch(model);
-            std::cout << "Model Batch [After]  --->>> " << modelBatchAfter.to_string() << std::endl;
-        } catch (const ov::AssertFailure& e) {
-            std::cout << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
-        }
-
-        // TODO: Temporarily removing setting model batch here
-        // if (FLAGS_shape.empty()) {
-        //     setModelBatch(model, FLAGS_override_model_batch_size);
-        // }
         std::cout << "Printing Input and Output Info from model" << std::endl;
         printInputAndOutputsInfoShort(*model);
         auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
