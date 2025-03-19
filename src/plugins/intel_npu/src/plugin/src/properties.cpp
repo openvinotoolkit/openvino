@@ -474,9 +474,14 @@ void Properties::set_property(const ov::AnyMap& properties) {
 
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
     if (_pType == PropertiesType::PLUGIN) {
-        // Only accepting unknown config keys in plugin
-        CompilerAdapterFactory compilerAdapterFactory;
-        compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
+        try {
+            // Only accepting unknown config keys in plugin
+            CompilerAdapterFactory compilerAdapterFactory;
+            compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
+        } catch (...) {
+            // nothing to do here. we will just throw exception bellow in case unknown property check is called
+            // if its not called, nothing to do
+        }
     }
 
     for (auto&& value : properties) {
