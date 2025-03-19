@@ -66,7 +66,6 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
-#include "plugin/transformations/convert_precision_lrope.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
@@ -1210,9 +1209,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             });
             manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size, asymmetric_dyn_quant);
         }
-
-        // Force f32 since f16 loses precision on long contexts for LongRoPE
-        manager.register_pass<ov::intel_gpu::ConvertPrecisionLRoPE>();
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
         manager.register_pass<ov::pass::EliminatePad>();

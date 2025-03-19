@@ -8,16 +8,34 @@
 
 namespace ov::intel_gpu {
 
+class IncreasePositionIdsPrecision: public ov::pass::GraphRewrite {
+public:
+    OPENVINO_GRAPH_REWRITE_RTTI("IncreasePositionIdsPrecision");
+    IncreasePositionIdsPrecision();
+};
+
 /**
  * @brief This pass adds additional convert nodes on the position_ids input branch (around MatMul operation),
  *        targeting to improve runtime rotary position embeddings calculation for FP16 models.
  *        Lack of these converts leads to lower accuracy in case if long input sequences (larger than 2048)
  *        due to position_ids representation in the FP16 data type.
  */
-class IncreasePositionIdsPrecision : public ov::pass::MatcherPass {
+class IncreasePositionIdsPrecisionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecision");
-    IncreasePositionIdsPrecision();
+    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionMatcher");
+    IncreasePositionIdsPrecisionMatcher();
+};
+
+/**
+ * @brief This pass adds additional convert nodes on the position_ids input branch (around MatMul operation),
+ *        targeting to avoid losing precision of positional encodings especially for LongRoPE
+ *        Lack of these converts leads to lower accuracy in case if long input sequences (larger than 2048)
+ *        due to position_ids representation in the FP16 data type.
+ */
+class IncreasePositionIdsPrecisionLRoPEMatcher: public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionLRoPEMatcher");
+    IncreasePositionIdsPrecisionLRoPEMatcher();
 };
 
 }   // namespace ov::intel_gpu
