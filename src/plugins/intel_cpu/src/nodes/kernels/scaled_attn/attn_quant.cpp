@@ -290,11 +290,11 @@ static void quant_u8_by_channel_kernel(const T* src,
         }
     }
 #endif
-    for (size_t i = 0; i < seq_dim; ++i) {
-        for (; j < hidden_dims; j++) {
+    for (; j < hidden_dims; j++) {
+        for (size_t i = 0; i < seq_dim; ++i) {
             float tmp = src[i * src_stride + j];
             tmp = std::max(tmp / scale[j] + zp[j], 0.0f);
-            dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp));
+            dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp / scale[j] + zp[j]));
         }
     }
 }
@@ -589,7 +589,9 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const size_t key_group_size,
                                 const size_t value_group_size) {
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3];
-    size_t block_size = quant_key_by_channel ? k_dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(KEY_DST_PREC) : k_dst.m_dims[2];
+    size_t block_size = quant_key_by_channel
+                            ? k_dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(KEY_DST_PREC)
+                            : k_dst.m_dims[2];
     if (quant_key_by_channel) {
         parallel_for2d(past_lens.size(0), H, [&](size_t sub_seq_id, size_t h) {
             // scale f32[S] zp f32[S] offset in bytes

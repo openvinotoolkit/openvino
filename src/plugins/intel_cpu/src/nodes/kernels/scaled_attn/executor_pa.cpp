@@ -679,10 +679,10 @@ static void dot_product_block_quantized_by_channel(TA* a,
             auto va2 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2 * 2);
             auto va3 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2 * 3);
 
-            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i));
-            auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2));
-            auto vb2_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2 * 2));
-            auto vb3_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2 * 3));
+            auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + params_offset + i));
+            auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + params_offset + i + vec_len_f32_avx2));
+            auto vb2_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + params_offset + i + vec_len_f32_avx2 * 2));
+            auto vb3_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + params_offset + i + vec_len_f32_avx2 * 3));
 
             auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
             auto vb1_256 = _mm256_cvtepu8_epi32(vb1_128);
@@ -812,7 +812,7 @@ static void dot_product_block_quantized_by_channel(TA* a,
         auto vsum0 = _mm256_set1_ps(0.0f);
         auto vsum1 = _mm256_set1_ps(0.0f);
         __m256 v256_b0, v256_b1;
-        for (; i + 2 * vec_len_f32_avx512 <= n; i += vec_len_f32_avx512 * 2) {
+        for (; i + 2 * vec_len_f32_avx2 <= n; i += vec_len_f32_avx2 * 2) {
             auto v0_zp = _mm256_loadu_ps(p_zps + i);
             auto v1_zp = _mm256_loadu_ps(p_zps + i + vec_len_f32_avx2);
             auto v0_scale = _mm256_loadu_ps(p_scales + i);
