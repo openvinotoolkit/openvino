@@ -79,7 +79,7 @@ static const char shape_message[] =
         " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
         " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
 
-static const char override_model_batch_size_message[] = "Optional. Enforce a model to be compiled for batch size";
+static constexpr char override_model_batch_size_message[] = "Enforce a model to be compiled for batch size";
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(m, "", model_message);
