@@ -15,14 +15,11 @@ updates:
       timezone: "Poland"
     open-pull-requests-limit: 3
     assignees:
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
       - "ceciliapeng2011"
       - "meiyang-intel"
-      - "mbencer"
-      - "tomdol"
       - "jane-intel"
     versioning-strategy: increase-if-necessary
 

@@ -1381,7 +1381,11 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& arguments) const {
-    return plugin.supports_model_caching(arguments);
+    ov::AnyMap properties;
+    if (arguments.count(ov::device::priorities.name())) {
+        properties[ov::device::priorities.name()] = arguments.at(ov::device::priorities.name()).as<std::string>();
+    }
+    return plugin.supports_model_caching(properties);
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
@@ -1474,16 +1478,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
 
+                if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::model) &&
+                    cacheContent.model) {
+                    update_config[ov::hint::model.name()] = cacheContent.model;
+                }
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
-                    if (cacheContent.model) {
-                        update_config[ov::hint::model.name()] = cacheContent.model;
-                    } else {
-                        std::filesystem::path weights_path = cacheContent.modelPath;
-                        weights_path.replace_extension(".bin");
+                    std::filesystem::path weights_path = cacheContent.modelPath;
+                    weights_path.replace_extension(".bin");
 
-                        if (ov::util::file_exists(weights_path)) {
-                            update_config[ov::weights_path.name()] = weights_path.string();
-                        }
+                    if (ov::util::file_exists(weights_path)) {
+                        update_config[ov::weights_path.name()] = weights_path.string();
                     }
                 }
                 if (model_buffer) {
