@@ -106,7 +106,13 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
                                                       const Output<Node>& x,
                                                       bool as_scalar,
                                                       element::Type output_type) {
-    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, output_type));
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
+    Output<Node> shape;
+    if (complex_type_mark) {
+        shape = get_complex_shape(context, complex_type_mark->get_data());
+    } else {
+        shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, output_type));
+    }
     Output<Node> rank = context.mark_node(std::make_shared<v3::ShapeOf>(shape, output_type));
     if (as_scalar) {
         auto axis_0 = context.mark_node(v0::Constant::create(output_type, Shape{}, {0}));
