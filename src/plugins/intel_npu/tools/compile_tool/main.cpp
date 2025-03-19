@@ -422,6 +422,7 @@ int main(int argc, char* argv[]) {
         // 2. Read model
         // 3. Configure model pre & post processing
         // 4. Reshape model (reshape will only be done if either shape or override_model_batch_size is specified)
+        // 4a. (in reshape) If shape and override_model_batch_size are not given, check for model dynamism
         // 5. Parse configuration file
         // 6. Compile model
         // 7. Export model to file

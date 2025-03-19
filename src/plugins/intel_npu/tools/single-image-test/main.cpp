@@ -1918,6 +1918,19 @@ std::string getRefBlobFilePath(const std::string& netFileName, const std::vector
 static int runSingleImageTest() {
     std::cout << "Run single image test" << std::endl;
     try {
+        // Flow of Single Image Test
+        // 1. Parse input and output precisions (if given)
+        // 2. Parse input and output layouts (if given)
+        // 3. Parse input files (if given)
+        // 4. Parse input files as binaries (if given) according to precision
+        // 5. Setup OpenVINO Core
+        // 6. Load network if possible, else directly load as binary
+        // 7. (For loadable networks) Configure pre-/post-processing (precision and layout)
+        // 8. (For loadable networks) Perform reshape (reshape will only be done if either
+        //    shape or override_model_batch_size is specified)
+        // 9. (For loadable networks) Compile model
+        // 10. Store compile model (if given)
+        // 11. Run inference / tests
         const std::unordered_set<std::string> allowedPrecision = {"U8", "I32", "I64", "FP16", "FP32"};
         if (!FLAGS_ip.empty()) {
             // input precision is U8, I32, I64, FP16 or FP32 only
@@ -2014,7 +2027,7 @@ static int runSingleImageTest() {
         }
 
         if (FLAGS_network.empty()) {
-            std::cout << "Not enough parameters. Check help." << std::endl;
+            std::cout << "Not enough parameters. (Network not specified). Check help." << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -2054,11 +2067,6 @@ static int runSingleImageTest() {
 
             // Input layout
             for (size_t i = 0; i < inputInfo.size(); ++i) {
-                std::cout << "InputInfo Name: " << inputInfo[i].get_any_name() << std::endl;
-
-                ov::Layout modelLayout = ov::layout::get_layout(model->input(i));;
-                std::cout << "Model Layout --->>> " << modelLayout.to_string() << std::endl;
-
                 if (std::optional<ov::Layout> inUserLayout =
                             getRegexSubstitutionIfExist(inputInfo[i].get_any_name(), inUserLayouts);
                     inUserLayout.has_value()) {
@@ -2145,36 +2153,14 @@ static int runSingleImageTest() {
                 }
             }
 
-            // TODO: Temporarily removing setting model batch here
-            // if (FLAGS_shape.empty()) {
-            //     setModelBatch(model, FLAGS_override_model_batch_size);
-            // }
             auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
             InputsInfo infoMap;
 
-            try {
-                ov::Dimension modelBatchBefore = ov::get_batch(model);
-                std::cout << "Model Batch [Before] --->>> " << modelBatchBefore.to_string() << std::endl;
-            } catch (const ov::AssertFailure& e) {
-                std::cout << "Warning: Model has no batch layout / conflicting N dimensions." << std::endl;
-            }
-            std::cout << "Printing Input and Output Info from model" << std::endl;
             printInputAndOutputsInfoShort(*model);
-
-            // Get model shape and batch size
-            std::cout << "Override Model Batch Size -> " << FLAGS_override_model_batch_size << std::endl;
-            std::cout << " ^^^ Default = 1" << std::endl;
 
             std::cout << "Performing reshape" << std::endl;
             reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
                     FLAGS_override_model_batch_size, FLAGS_device);
-
-            try {
-                ov::Dimension modelBatchBefore = ov::get_batch(model);
-                std::cout << "Model Batch [After]  --->>> " << modelBatchBefore.to_string() << std::endl;
-            } catch (const ov::AssertFailure& e) {
-                std::cout << "Warning: Model has no batch layout / conflicting N dimensions." << std::endl;
-            }
 
             std::cout << "Compile model" << std::endl;
             model = ppp.build();
