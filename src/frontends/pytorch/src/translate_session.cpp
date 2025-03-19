@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -211,7 +211,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                         fw_tensor_id);
 
 #ifdef ENABLE_OPENVINO_DEBUG
-                const auto out_type = context.get_output_type(i);
+                const auto out_type = simplified_type_interpret(context.get_output_type(i));
                 if (out_type.is<element::Type>()) {
                     if (!converted_outputs[i].get_element_type().compatible(out_type.as<element::Type>())) {
                         OPENVINO_DEBUG("[WARNING] Produced output type for operation ",

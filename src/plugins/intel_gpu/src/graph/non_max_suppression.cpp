@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "non_max_suppression_inst.h"
@@ -154,6 +154,12 @@ void non_max_suppression_gather_inst::update_output_memory() {
         if (output_memory_ptr(i) != nullptr && _network.get_engine().is_the_same_buffer(output_memory(i), input_memory(i)))
             return;
 
+        // Can_be_optimized nodes are allocating from memory_pool too. In this case,
+        // we need release the legacy output memory from memory pool explicitly.
+        if (static_cast<bool>(_outputs[i]) &&
+            _node->get_program().get_config().get_enable_memory_pool()) {
+            _network.get_memory_pool().release_memory(_outputs[i].get(), _node->get_unique_id(), _node->id(), _network.get_id());
+        }
         _outputs[i] = {_network.get_engine().reinterpret_buffer(input_memory(i), _impl_params->get_output_layout(i))};
     }
 }

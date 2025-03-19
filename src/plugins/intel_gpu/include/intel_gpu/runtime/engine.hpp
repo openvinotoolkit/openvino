@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "device.hpp"
 #include "event.hpp"
+#include "kernel.hpp"
 #include "memory_caps.hpp"
 #include "memory_pool.hpp"
 #include "layout.hpp"
@@ -55,6 +56,9 @@ public:
 
     /// Created memory object from memory @p params and reinterpred the data using specified @p layout
     virtual memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) = 0;
+
+    /// Created subbuffer memory object from the other @p memory and reinterpred the data using specified @p new_layout
+    virtual memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) = 0;
 
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;
@@ -148,6 +152,10 @@ public:
     /// Returns onednn engine object which shares device and context with current engine
     virtual dnnl::engine& get_onednn_engine() const = 0;
 #endif
+
+    /// This method is intended to create kernel handle for current engine from handle from arbitrary engine
+    /// For instance, source kernel can be compiled using ocl engine, and then we can build L0 kernel object based on that
+    virtual kernel::ptr prepare_kernel(const kernel::ptr kernel) const = 0;
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type

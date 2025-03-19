@@ -1,20 +1,18 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
-#include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 
@@ -38,7 +36,7 @@ struct network_output {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
         if (do_sync) {
-            if (_stream->get_queue_type() == QueueTypes::in_order) {
+            if (_stream->get_queue_type() == QueueTypes::in_order || !_event) {
                 _stream->finish();
             } else {
                 _event->wait();
@@ -113,38 +111,14 @@ public:
     engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
-    event::ptr set_input_data(const primitive_id& id, memory::ptr data);
-    std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem);
+    event::ptr set_input_data(const primitive_id& id, memory::ptr data, bool need_to_check_memory_to_set = true);
+    std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem, bool is_remote = false);
 
     std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
 
-    const std::vector<std::shared_ptr<const primitive_inst>>& get_outputs() const {
-        return reinterpret_cast<const std::vector<std::shared_ptr<const primitive_inst>>&>(_outputs);
-    }
-
-    network_output get_output(const primitive_id& output_id) {
-        event::ptr evt;
-        if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling)
-            evt = get_primitive_event(output_id);
-        return network_output(evt, get_output_memory(output_id), get_stream_ptr(), get_output_layout(output_id));
-    }
-    layout get_node_output_layout(const primitive_id& output_id) const;
     memory::ptr get_output_memory(const primitive_id& output_id);
     layout get_output_layout(const primitive_id& output_id) const;
     std::vector<layout> get_input_layouts() const;
-
-    /// @brief Returns the list of primitive ids before and after graph optimization.
-    /// @details If primitive was not optimized, the old and actual id will be the same.
-    /// @n If primitive was optimized during graph optimization, the actual id will be "_optimized_".
-    std::map<primitive_id, primitive_id> get_all_primitives() const {
-        auto primitive_ids = get_all_primitive_ids();
-        auto primitive_org_ids = get_all_primitive_org_ids();
-        std::map<primitive_id, primitive_id> result;
-        for (decltype(primitive_org_ids.size()) i = 0; i < primitive_org_ids.size(); i++) {
-            result.emplace(primitive_org_ids[i], primitive_ids[i]);
-        }
-        return result;
-    }
 
     /// @brief Returns the list of @ref event for the primitives that were executed in network.
     std::map<primitive_id, event::ptr> get_executed_primitives() const {
@@ -186,6 +160,7 @@ public:
     std::map<primitive_id, network_output> execute(const std::vector<event::ptr>& dependencies = {});
 
     void validate_primitives();
+    void preallocate_shape_info_buffers();
     void set_arguments();
     // Implementation specific calls
     bool does_node_need_lockable_output(const primitive_id& id) const;
@@ -193,25 +168,26 @@ public:
     std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
     std::string get_implementation_info(const primitive_id& id) const;
-    const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
-    bool has_event(const primitive_id& id) const { return _events.count(id); }
+    const event::ptr& get_primitive_event(const primitive_id& id) const;
+    bool has_event(const primitive_id& id) const;
     std::vector<primitive_inst*> get_primitives(const std::vector<primitive_id>& ids);
     std::vector<std::pair<primitive_inst*, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
-    void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
-                           const std::vector<event::ptr>& events);
     void allocate_primitives();
     void configure_primitives_second_output();
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }
-    uint32_t get_local_id() const { return _local_net_id; }
     stream& get_stream() const { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
     bool is_internal() const { return _internal; }
     bool is_primary_stream() const { return _is_primary_stream; }
     bool is_dynamic() const { return _is_dynamic; }
     size_t get_weights_cache_capacity() const { return _weights_cache_capacity; }
+    bool contains_state(const std::string& variable_id);
+    memory& get_output_remote_memory(const primitive_id& id) const;
+    bool has_output_remote_memory_ptr(const primitive_id& id) const;
+    void reset_output_remote_memory_ptrs();
 
-    memory_pool& get_memory_pool() {
+    memory_pool& get_memory_pool() const {
         return *_memory_pool;
     }
 
@@ -221,9 +197,10 @@ public:
     const ov::intel_gpu::VariableStateInfo& get_variable_info(const std::string &variable_id) const;
     const ov::intel_gpu::VariablesMap& get_variables() const;
     const ov::intel_gpu::VariablesInfoMap& get_variables_info() const;
-    std::vector<primitive_id> get_kv_cache_ids() const { return kv_cache_ids; }
+    void set_reuse_variable_mem(bool reuse = false);
+    bool is_reuse_variable_mem() { return _reuse_variable_mem; }
 
-    const ExecutionConfig& get_config() const { return _config; }
+    const ExecutionConfig& get_config() const { return _program->get_config(); }
 
     std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
@@ -236,7 +213,6 @@ private:
     using output_chains_map = std::map<primitive_id, std::vector<primitive_inst*>>;
     uint32_t net_id = 0;
     program::ptr _program;
-    ExecutionConfig _config;
     engine& _engine;
     stream::ptr _stream;
     std::unique_ptr<memory_pool> _memory_pool;
@@ -245,8 +221,12 @@ private:
     bool _is_dynamic = false;
     bool _enable_profiling = false;
     bool _reset_arguments;
-    uint32_t _local_net_id = 0;     // This is for thread-safe deserialization. 'net_id' is globally unique,
-                                    // but '_local_net_id' is unique only in each intel_gpu::Graph.
+    bool _reuse_variable_mem = false;
+
+    /* Common memory pointer for shape_info */
+    memory::ptr _shape_info_ptr;
+
+    std::unordered_map<primitive_id, memory::ptr> _output_remote_mem_ptrs;
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
     std::vector<shared_mem_type> _in_out_shared_mem_types;
@@ -257,15 +237,12 @@ private:
 
     ov::intel_gpu::VariablesMap _variables_states;
     ov::intel_gpu::VariablesInfoMap _variables_state_info;
-    std::vector<primitive_id> kv_cache_ids;
+    std::vector<std::shared_ptr<primitive_inst>> _read_values;
+    std::unordered_map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>> _state_initializers;
 
     program::primitives_info _prims_info;
-    std::map<primitive_id, primitive_id> _ext_id_mapping;
     size_t _weights_cache_capacity = 1;
 
-    std::unordered_map<primitive_id, event::ptr> _events;
-    // This map is used to temporarily hold events that will be deallocated later
-    std::unordered_map<primitive_id, event::ptr> _old_events;
     output_chains_map _output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
@@ -274,9 +251,7 @@ private:
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
     void add_to_exec_order(const primitive_id& id);
-    std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id) const;
     std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;
-    void check_names();
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
@@ -284,7 +259,9 @@ private:
     void dump_memory_pool(std::string dump_path, int64_t curr_iter);
 
 #ifdef GPU_DEBUG_CONFIG
-    int64_t iteration = 0;
+    mutable int64_t iteration = 0;
+    friend class NetworkDebugHelper;
+    friend class NodeDebugHelper;
 #endif
 };
 }  // namespace cldnn

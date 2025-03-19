@@ -20,7 +20,7 @@ typedef std::tuple<
 > ThreeInputsEltwiseParams;
 
 class ThreeInputsEltwise : public testing::WithParamInterface<ov::test::snippets::ThreeInputsEltwiseParams>,
-                   virtual public ov::test::SnippetsTestsCommon {
+                           virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::ThreeInputsEltwiseParams> obj);
 

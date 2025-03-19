@@ -9,6 +9,7 @@
 
 namespace ov {
 namespace test {
+namespace snippets {
 void SnippetsTestsCommon::validateNumSubgraphs() {
     bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
     if (isCurrentTestDisabled)
@@ -59,5 +60,6 @@ void SnippetsTestsCommon::setInferenceType(ov::element::Type type) {
     configuration.emplace(ov::hint::inference_precision(type));
 }
 
+}  // namespace snippets
 }  // namespace test
 }  // namespace ov

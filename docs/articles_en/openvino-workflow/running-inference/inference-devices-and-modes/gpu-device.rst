@@ -19,9 +19,9 @@ For an in-depth description of the GPU plugin, see:
 
 - `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
 - `OpenVINO Runtime GPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/>`__
-- `Accelerate Deep Learning Inference with Intel® Processor Graphics <https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics>`__
+- `Start AI Development with Intel <https://www.intel.com/content/www/us/en/developer/topic-technology/artificial-intelligence/overview.html>`__
 
-The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For more information on how to configure a system to use it, see the :doc:`GPU configuration <../../../get-started/configurations/configurations-intel-gpu>`.
+The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For more information on how to configure a system to use it, see the :doc:`GPU configuration <../../../get-started/install-openvino/configurations/configurations-intel-gpu>`.
 
 Device Naming Convention
 #######################################
@@ -33,7 +33,7 @@ Device Naming Convention
 * If the system does not have an integrated GPU, devices are enumerated, starting from 0.
 * For GPUs with multi-tile architecture (multiple sub-devices in OpenCL terms), a specific tile may be addressed as ``GPU.X.Y``, where ``X,Y={0, 1, 2,...}``, ``X`` - id of the GPU device, ``Y`` - id of the tile within device ``X``
 
-For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>` that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
+For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <../../../get-started/learn-openvino/openvino-samples/hello-query-device>` that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
 
 .. code-block:: sh
 
@@ -124,14 +124,14 @@ Selected precision of each primitive depends on the operation precision in IR, q
 The ``u1``/``u8``/``i8`` data types are used for quantized operations only, which means that they are not selected automatically for non-quantized operations.
 For more details on how to get a quantized model, refer to the :doc:`Model Optimization guide <../../model-optimization>`.
 
-Floating-point precision of a GPU primitive is selected based on operation precision in the OpenVINO IR, except for the :doc:`<compressed f16 OpenVINO IR form <../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-compressing-model-to-fp16>`, which is executed in the ``f16`` precision.
+Floating-point precision of a GPU primitive is selected based on operation precision in the OpenVINO IR, except for the :doc:`<compressed f16 OpenVINO IR form <../../../openvino-workflow/model-preparation/conversion-parameters>`, which is executed in the ``f16`` precision.
 
 .. note::
 
    The newer generation Intel Iris Xe and Xe MAX GPUs provide accelerated performance for i8/u8 models. Hardware acceleration for ``i8``/``u8`` precision may be unavailable on older generation platforms. In such cases, a model is executed in the floating-point precision taken from IR.
    Hardware support of ``u8``/``i8`` acceleration can be queried via the ``ov::device::capabilities`` property.
 
-:doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>` can be used to print out the supported data types for all detected devices.
+:doc:`Hello Query Device C++ Sample <../../../get-started/learn-openvino/openvino-samples/hello-query-device>` can be used to print out the supported data types for all detected devices.
 
 
 Supported Features
@@ -244,7 +244,7 @@ Dynamic Shapes
    - Dynamic rank is not supported.
 
 The general description of what dynamic shapes are and how they are used can be found in
-:doc:`dynamic shapes guide <../dynamic-shapes>`.
+:doc:`dynamic shapes guide <../model-input-output/dynamic-shapes>`.
 To support dynamic shape execution, the following basic infrastructures are implemented:
 
 - Runtime shape inference: infers output shapes of each primitive for a new input shape at runtime.
@@ -474,7 +474,7 @@ Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many gen
 Additional Resources
 #######################################
 
-* `Working with GPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/gpu-device/gpu-device.ipynb>`__
+* `Working with GPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/gpu-device/>`__
 * :doc:`Inference Devices and Modes <../inference-devices-and-modes>`.
 * :doc:`Optimization guide <../optimize-inference>`.
 * `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__

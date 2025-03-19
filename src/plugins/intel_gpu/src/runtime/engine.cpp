@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,8 +71,7 @@ const device::ptr engine::get_device() const {
 }
 
 bool engine::use_unified_shared_memory() const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_usm) {
+    GPU_DEBUG_IF(ExecutionConfig::get_disable_usm()) {
         return false;
     }
     if (_device->get_mem_caps().supports_usm()) {

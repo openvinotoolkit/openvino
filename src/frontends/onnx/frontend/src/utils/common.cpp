@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,10 +42,8 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::f16;
     case TensorProto_DataType::TensorProto_DataType_FLOAT:
         return ov::element::f32;
-#ifdef ONNX_VERSION_116
     case TensorProto_DataType::TensorProto_DataType_INT4:
         return ov::element::i4;
-#endif
     case TensorProto_DataType::TensorProto_DataType_INT8:
         return ov::element::i8;
     case TensorProto_DataType::TensorProto_DataType_INT16:
@@ -54,10 +52,8 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::i32;
     case TensorProto_DataType::TensorProto_DataType_INT64:
         return ov::element::i64;
-#ifdef ONNX_VERSION_116
     case TensorProto_DataType::TensorProto_DataType_UINT4:
         return ov::element::u4;
-#endif
     case TensorProto_DataType::TensorProto_DataType_UINT8:
         return ov::element::u8;
     case TensorProto_DataType::TensorProto_DataType_UINT16:
@@ -77,15 +73,19 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     case TensorProto_DataType::TensorProto_DataType_STRING:
         return ov::element::string;
     }
-#ifdef ONNX_VERSION_116
     ONNX_UNSUPPORTED_DATA_TYPE(onnx_type,
                                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, "
                                "INT32, INT64, UINT4, UINT8, UINT16, UINT32, UINT64, STRING, UNDEFINED");
-#else
-    ONNX_UNSUPPORTED_DATA_TYPE(onnx_type,
-                               "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT8, INT16, "
-                               "INT32, INT64, UINT8, UINT16, UINT32, UINT64, STRING, UNDEFINED");
-#endif
+}
+
+void default_op_checks(const Node& node, size_t min_inputs_size) {
+    const auto& inputs = node.get_ov_inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs_size,
+                                  node.op_type(),
+                                  " expected at least ",
+                                  std::to_string(min_inputs_size),
+                                  " inputs, got: ",
+                                  inputs.size());
 }
 
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
@@ -127,8 +127,10 @@ void validate_scalar_input(const char* input_name,
 
 template <typename T>
 ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node) {
-    const ov::Output<ov::Node> lhs_node = node.get_ov_inputs().at(0);
-    ov::Output<ov::Node> rhs_node = node.get_ov_inputs().at(1);
+    default_op_checks(node, 2);
+    const auto& inputs = node.get_ov_inputs();
+    const ov::Output<ov::Node> lhs_node = inputs[0];
+    ov::Output<ov::Node> rhs_node = inputs[1];
     const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
     if (broadcast) {
         if (node.has_attribute("axis")) {
@@ -219,7 +221,7 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
     };
 
     for (const auto& node : partially_converted->get_ordered_ops()) {
-        if (const auto& fw_node = std::dynamic_pointer_cast<ov::frontend::onnx::ONNXFrameworkNode>(node)) {
+        if (const auto& fw_node = ov::as_type_ptr<ov::frontend::onnx::ONNXFrameworkNode>(node)) {
             const auto& attrs = fw_node->get_attrs();
             auto node_name = attrs.get_opset_name() + "." + attrs.get_type_name();
             if (unsupported_operations->count(node_name) > 0) {
@@ -228,7 +230,7 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
 
             print_unsupported(fw_node);
             unsupported_operations->insert(node_name);
-        } else if (const auto& fw_node = std::dynamic_pointer_cast<ov::frontend::onnx::NotSupportedONNXNode>(node)) {
+        } else if (const auto& fw_node = ov::as_type_ptr<ov::frontend::onnx::NotSupportedONNXNode>(node)) {
             const auto& attrs = fw_node->get_attrs();
 
             if (fw_node->additional_error_message().empty()) {
@@ -246,7 +248,7 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
                 failures->insert(node_fail);
             }
 
-        } else if (const auto& if_node = std::dynamic_pointer_cast<ov::op::v8::If>(node)) {
+        } else if (const auto& if_node = ov::as_type_ptr<ov::op::v8::If>(node)) {
             collect_translation_exceptions(if_node->get_then_body(),
                                            telemetry,
                                            output_stream,
@@ -257,7 +259,7 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
                                            output_stream,
                                            unsupported_operations,
                                            failures);
-        } else if (const auto& loop_node = std::dynamic_pointer_cast<ov::op::v5::Loop>(node)) {
+        } else if (const auto& loop_node = ov::as_type_ptr<ov::op::v5::Loop>(node)) {
             collect_translation_exceptions(loop_node->get_function(),
                                            telemetry,
                                            output_stream,

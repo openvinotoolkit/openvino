@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,6 +92,36 @@ void onednn_add_fusing_helpers::for_eltwise(
     }
 }
 
+static bool is_direct_ancestor(const program_node& child, const program_node& target) {
+    // is_direct_ancestor function is added to detect pattern like below from get_add_fusing_type.
+    // It is necessary to use onednn sum post operation in such case for better performance.
+    // In such case, 'A' can have two connections.
+    //   ┌───────┐
+    //   │   A   │
+    //   └──┬──┬─┘
+    //      │  └────────────┐
+    //      │           ┌───┴───┐
+    //      │post_op    │   B   │
+    //      │           └───┬───┘
+    //      │  ┌────────────┘
+    //   ┌──┴──┴─┐
+    //   │   C   │
+    //   └───────┘
+    if (target.get_users().size() != 2)
+        return false;
+
+    // Limit the iteration depth to 5 for performance reason
+    auto iter = &child;
+    for (int i = 0; i < 5; i++) {
+        if (iter == &target)
+            return true;
+        if (iter->get_dependencies().size() == 0)
+            break;
+        iter = &iter->get_dependency(0);
+    }
+    return false;
+}
+
 add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     const program_node& p_node, const fused_primitive_desc& desc) {
     if (!desc.is_type<eltwise>()) {
@@ -115,9 +145,10 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
         if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
             && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
             && p_layout.data_padding == d_layout.data_padding
-            && dep_node.get_users().size() == 1
+            && (dep_node.get_users().size() == 1 || is_direct_ancestor(p_node, dep_node))
             && !dep_node.is_constant()
-            && !p_node.is_type<pooling>()) {
+            && !p_node.is_type<pooling>()
+            && !(dep_node.get_program().is_body_program() && dep_node.is_type<input_layout>())) {
             return add_fusing_type::sum;
         } else if (p_layout.get_tensor() == d_layout.get_tensor()) {
             return add_fusing_type::binary_per_tensor;

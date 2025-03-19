@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ public:
     MOCK_METHOD(const VectorDims&, getStaticDims, (), (const, override));
 
     MOCK_METHOD(void, redefineDesc, (MemoryDescPtr), (override));
-    MOCK_METHOD(void, load, (const IMemory&, bool), (const, override));
+    MOCK_METHOD(void, load, (const IMemory&, bool, bool), (const, override));
     MOCK_METHOD(MemoryBlockPtr, getMemoryBlock, (), (const, override));
 
     MOCK_METHOD(dnnl::memory, getPrimitive, (), (const, override));

@@ -58,7 +58,6 @@ body:
         - Caffe
         - ONNX
         - PyTorch
-        - mxnet
         - PaddlePaddle
     validations:
       required: false

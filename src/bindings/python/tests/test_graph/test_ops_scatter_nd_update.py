@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
 from openvino import PartialShape, Type
-from openvino.runtime import opset4, opset15
+from openvino import opset4, opset15
 
 scatter_version_opset = pytest.mark.parametrize("opset", [opset4, opset15])
 

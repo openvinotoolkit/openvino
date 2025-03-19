@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <base/ov_behavior_test_utils.hpp>
 #include <string>
 #include <vector>
+
 #include "common/functions.h"
-#include "common/utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "npu_private_properties.hpp"
+#include "common/utils.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
@@ -44,12 +45,12 @@ TEST_P(CompileWithDummy_NPU3720, CompilationForSpecificPlatform) {
     }
 }
 
-const std::vector<ov::AnyMap> configs = {
-        {{ov::intel_npu::platform(ov::intel_npu::Platform::NPU3720)},
-         {ov::intel_npu::compilation_mode_params("dummy-op-replacement=true")}}};
+const std::vector<ov::AnyMap> configs = {{{ov::intel_npu::platform(ov::intel_npu::Platform::NPU3720)},
+                                          {ov::intel_npu::compilation_mode_params("dummy-op-replacement=true")}}};
 // Must be successfully compiled with dummy-op-replacement=true
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_BehaviorTest_Dummy, CompileWithDummy_NPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_BehaviorTest_Dummy,
+                         CompileWithDummy_NPU3720,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          CompileWithDummy_NPU3720::getTestCaseName);

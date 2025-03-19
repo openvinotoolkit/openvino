@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,15 +20,18 @@
 
 using namespace ov::op;
 
-ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_block_indices_inputs, bool use_score_outputs)
-    : m_use_block_indices_inputs(use_block_indices_inputs),
-      m_use_score_outputs(use_score_outputs) {}
+ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,
+                                                     bool use_score_outputs,
+                                                     bool allow_cache_rotation)
+    : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
+      m_use_score_outputs(use_score_outputs),
+      m_allow_cache_rotation(allow_cache_rotation) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
     // given single name)
     node->set_friendly_name(name);
-    OPENVINO_ASSERT(node->get_output_size() == 1);  // Should I use assert here?
+    OPENVINO_ASSERT(node->get_output_size() == 1);
     node->get_output_tensor(0).set_names({name});
     return node;
 }
@@ -37,7 +40,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
 
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
-                    "No ScaledDotProductAttention operation observed in the graph, cannot perform"
+                    "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
 
     auto max_context_len = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "max_context_len");
@@ -46,60 +49,86 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
     };
-    if (!m_use_block_indices_inputs) {
+    if (!m_use_per_layer_block_indices_inputs) {
         auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
         model_remaining_params.insert(model_remaining_params.begin() + 2, block_indices);
     }
 
-    auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
+    std::shared_ptr<v0::Parameter> model_rotation_trig_lut;
 
-    std::shared_ptr<v0::Parameter> input_ids_node =
-        std::dynamic_pointer_cast<v0::Parameter>(model->input("input_ids").get_node_shared_ptr());
-    input_ids_node->set_partial_shape(PartialShape{-1});
-    auto unsqueezed_input_ids =
-        std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
-    replace_node(input_ids_node, unsqueezed_input_ids);
+    if (m_allow_cache_rotation) {
+        model_rotation_trig_lut =
+            setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}), "rotation_trig_lut");
+    }
 
-    auto cur_seq_len = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(unsqueezed_input_ids),
-                                                    v0::Constant::create(element::i64, Shape{}, {1}),
-                                                    v0::Constant::create(element::i64, Shape{}, {0}));
-    auto prev_max_seq_len =
-        std::make_shared<v1::Subtract>(max_context_len, std::make_shared<v0::Convert>(cur_seq_len, element::i32));
+    auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
 
-    auto has_parameter = [=](const std::shared_ptr<ov::Model>& model, const std::string& name) -> bool {
-        for (auto& t : model->inputs()) {
-            const auto& names = t.get_names();
-            if (names.find(name) != names.end()) {
-                return true;
+    auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
+                             const std::string& name) -> std::shared_ptr<v0::Parameter> {
+        for (const auto& param : model->inputs()) {
+            const auto& names = param.get_names();
+            if (names.count(name)) {
+                if (auto casted_param = ov::as_type_ptr<v0::Parameter>(param.get_node_shared_ptr())) {
+                    return casted_param;
+                } else {
+                    OPENVINO_THROW("The model is in the inconsistent state. Found input '",
+                                   name,
+                                   "', but couldn't cast it to v0::Parameter.");
+                }
             }
         }
 
-        return false;
+        return nullptr;
     };
+
+    std::shared_ptr<v0::Parameter> input_ids_node;
+    for (const auto& name : {"input_ids", "inputs_embeds"}) {
+        if ((input_ids_node = get_parameter(model, name))) {
+            break;
+        }
+    }
+
+    OPENVINO_ASSERT(input_ids_node, "The model doesn't contain input_ids or input_embeds input. Aborting.");
+
+    if (input_ids_node->get_friendly_name() == "input_ids") {
+        input_ids_node->set_partial_shape(PartialShape{-1});
+    } else if (input_ids_node->get_friendly_name() == "inputs_embeds") {
+        input_ids_node->set_partial_shape(PartialShape{-1, -1});
+    }
+
+    auto input_ids_target_inputs = input_ids_node->get_output_target_inputs(0);
+    auto processed_input_ids =
+        std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
+    for (const auto& target : input_ids_target_inputs) {
+        target.replace_source_output(processed_input_ids);
+    }
 
     ParameterVector kv_parameters;
     ParameterVector parameters_to_remove;
     ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
-    ParameterVector block_indices_inputs;
+    ParameterVector block_indices_inputs_for_each_layer;
+    ParameterVector rotated_block_indices_inputs_for_each_layer;
+    ParameterVector rotation_deltas_inputs_for_each_layer;
+
     ResultVector score_results;
 
     std::shared_ptr<v0::Parameter> position_ids;
-    if (!has_parameter(model, "position_ids")) {
+    if (!get_parameter(model, "position_ids")) {
         position_ids = setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "position_ids");
         model->add_parameters({position_ids});
     } else {
-        position_ids = std::dynamic_pointer_cast<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
+        position_ids = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
         position_ids->set_partial_shape(PartialShape{-1});
         position_ids->validate_and_infer_types();
     }
+    auto position_ids_target_inputs = position_ids->get_output_target_inputs(0);
     auto unsqueezed_position_ids =
         std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {1}));
-    replace_node(position_ids, unsqueezed_position_ids);
+    for (const auto& target : position_ids_target_inputs) {
+        target.replace_source_output(unsqueezed_position_ids);
+    }
 
     int layer_index = 0;
-
-    auto batch_dim =
-        std::make_shared<v3::ShapeOf>(position_ids);  // it is not always required, so will be disposed if not needed
 
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
@@ -109,13 +138,19 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   parameters_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0),
-                                                  block_indices_inputs,
+                                                  block_indices_inputs_for_each_layer,
                                                   score_results,
-                                                  m_use_block_indices_inputs,
-                                                  m_use_score_outputs);
-    manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
+                                                  m_use_per_layer_block_indices_inputs,
+                                                  m_use_score_outputs,
+                                                  m_allow_cache_rotation,
+                                                  rotated_block_indices_inputs_for_each_layer,
+                                                  rotation_deltas_inputs_for_each_layer,
+                                                  model_rotation_trig_lut);
+    manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
-    manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids->output(0));
+    manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
+    manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
+    manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
     manager.run_passes(model);
 
     {
@@ -136,30 +171,22 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     for (auto& param_name : {"beam_idx", "attention_mask"}) {
-        if (has_parameter(model, param_name)) {
-            if (const auto& param =
-                    std::dynamic_pointer_cast<v0::Parameter>(model->input(param_name).get_node_shared_ptr())) {
-                model->remove_parameter(param);
+        if (auto param = get_parameter(model, param_name)) {
+            model->remove_parameter(param);
 
-                if (param->output(0).get_target_inputs().size() == 0) {
-                    std::stringstream consumers;
-                    consumers << std::endl;
-                    for (auto& input : param->output(0).get_target_inputs()) {
-                        consumers << *input.get_node() << std::endl;
-                    }
-                    OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
-                                    "PagedAttention transformation failed: couldn't remove ",
-                                    param->output(0).get_target_inputs().size(),
-                                    " inputs of ",
-                                    param_name,
-                                    " input: ",
-                                    consumers.str());
+            if (param->output(0).get_target_inputs().size() == 0) {
+                std::stringstream consumers;
+                consumers << std::endl;
+                for (auto& input : param->output(0).get_target_inputs()) {
+                    consumers << *input.get_node() << std::endl;
                 }
-            } else {
-                OPENVINO_THROW("The model is in the inconsistent state. Found input '",
-                               param_name,
-                               "', but couldn't cast it to v0::Parameter.");
-                return false;
+                OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
+                                "PagedAttention transformation failed: couldn't remove ",
+                                param->output(0).get_target_inputs().size(),
+                                " inputs of ",
+                                param_name,
+                                " input: ",
+                                consumers.str());
             }
         }
     }
@@ -168,12 +195,18 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->remove_parameter(parameter);
     }
 
-    if (m_use_block_indices_inputs) {
-        model->add_parameters(block_indices_inputs);
+    if (m_use_per_layer_block_indices_inputs) {
+        model->add_parameters(block_indices_inputs_for_each_layer);
     }
 
     if (m_use_score_outputs) {
         model->add_results(score_results);
+    }
+
+    if (m_allow_cache_rotation) {
+        model->add_parameters(rotated_block_indices_inputs_for_each_layer);
+        model->add_parameters(rotation_deltas_inputs_for_each_layer);
+        model->add_parameters({model_rotation_trig_lut});
     }
 
     model->add_parameters(kv_parameters);

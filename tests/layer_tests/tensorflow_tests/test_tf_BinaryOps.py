@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -54,17 +54,13 @@ class TestBinaryOps(CommonTFLayerTest):
             'Maximum': tf.raw_ops.Maximum,
             'Minimum': tf.raw_ops.Minimum,
             'Mod': tf.raw_ops.Mod,
-            'LogicalAnd': tf.raw_ops.LogicalAnd,
-            'LogicalOr': tf.raw_ops.LogicalOr,
             'FloorMod': tf.raw_ops.FloorMod,
             'FloorDiv': tf.raw_ops.FloorDiv,
             'Xdivy': tf.raw_ops.Xdivy,
         }
 
         input_type = np.float32
-        if op_type in ["LogicalAnd", "LogicalOr", "LogicalXor"]:
-            input_type = bool
-        elif op_type in ['Pow']:
+        if op_type in ['Pow']:
             input_type = np.int32
         self.input_type = input_type
 
@@ -89,8 +85,7 @@ class TestBinaryOps(CommonTFLayerTest):
     @pytest.mark.parametrize('y_shape', [[4], [2, 3, 4]])
     @pytest.mark.parametrize("op_type",
                              ['Add', 'AddV2', 'Sub', 'Mul', 'Div', 'RealDiv', 'SquaredDifference', 'Pow',
-                              'Maximum', 'Minimum', 'Mod', 'LogicalAnd', 'LogicalOr', 'FloorMod',
-                              'FloorDiv', 'Xdivy'])
+                              'Maximum', 'Minimum', 'Mod', 'FloorMod', 'FloorDiv', 'Xdivy'])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',

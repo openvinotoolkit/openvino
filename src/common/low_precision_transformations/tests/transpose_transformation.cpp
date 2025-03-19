@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,8 +100,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
     // U8: per-tensor quantization
     {{0, 1, 3, 2},
      LayerTransformation::createParamsU8I8(),
-     {ov::element::u8,
-      {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}},
+     {ov::element::u8, {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,
@@ -130,13 +129,13 @@ const std::vector<TransposeTransformationTestValues> testValues = {
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8,
       {{ov::element::f32},
-       {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+       {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true},
        {{0.1f}, ov::element::f32, {1, 3, 1, 1}}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,
       {{ov::element::f32},
-       {{128.f}, element::undefined, {1, 1, 3, 1}, false, 1ul, element::u8, true},
+       {{128.f}, element::dynamic, {1, 1, 3, 1}, false, 1ul, element::u8, true},
        {{0.1f}, ov::element::f32, {1, 1, 3, 1}}}}},
     // U8: per-tensor quantization, transpose channel dimension
     {{0, 3, 1, 2},

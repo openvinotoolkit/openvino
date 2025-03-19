@@ -17,7 +17,7 @@ OpenVINO Core API contains two folders:
 
 ## Main structures for model representation
 
-* `ov::Model` is located in [openvino/core/model.hpp](../include/openvino/core/model.hpp) and provides API for model representation. For more details, read [OpenVINO Model Representation Guide](https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation.html).
+* `ov::Model` is located in [openvino/core/model.hpp](../include/openvino/core/model.hpp) and provides API for model representation. For more details, read [OpenVINO Model Representation Guide](https://docs.openvino.ai/2025/openvino-workflow/running-inference/model-representation.html).
 * `ov::Node` is a base class for all OpenVINO operations, the class is located in the [openvino/core/node.hpp](../include/openvino/core/node.hpp).
 * `ov::Shape` and `ov::PartialShape` classes represent shapes in OpenVINO, these classes are located in the [openvino/core/shape.hpp](../include/openvino/core/shape.hpp) and [openvino/core/partial_shape.hpp](../include/openvino/core/partial_shape.hpp) respectively. For more information, read [OpenVINO Shapes representation](./shape_propagation.md#openvino-shapes-representation).
 * `ov::element::Type` class represents element type for OpenVINO Tensors and Operations. The class is located in the [openvino/core/type/element_type.hpp](../include/openvino/core/type/element_type.hpp).

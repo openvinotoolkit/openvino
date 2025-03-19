@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -41,9 +41,14 @@ if(POLICY CMP0149)
     cmake_policy(SET CMP0149 NEW)
 endif()
 
+if(POLICY CMP0177)
+    # install() DESTINATION paths are normalized.
+    cmake_policy(SET CMP0177 NEW)
+endif()
+
 project(OpenVINO
         DESCRIPTION "OpenVINO toolkit"
-        HOMEPAGE_URL "https://docs.openvino.ai/2024/home.html"
+        HOMEPAGE_URL "https://docs.openvino.ai/2025/index.html"
         LANGUAGES C CXX)
 
 find_package(OpenVINODeveloperScripts REQUIRED
@@ -58,6 +63,11 @@ include(cmake/dependencies.cmake)
 
 if(ENABLE_COVERAGE)
     include(cmake/coverage.cmake)
+endif()
+
+if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET AND
+    CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.15)
+    message(FATAL_ERROR "OpenVINO requires MACOSX_DEPLOYMENT_TARGET at least 10.15, specified ${CMAKE_OSX_DEPLOYMENT_TARGET}")
 endif()
 
 # resolving dependencies for the project
@@ -133,7 +143,7 @@ function(ov_developer_package_export_targets)
             endforeach()
         endif()
     else()
-        message(FATAL_ERROR "Internal error: ${target_name} does not represent a cmake target")
+        message(FATAL_ERROR "Internal error: '${EXPORT_TARGET}' does not represent a cmake target")
     endif()
 
     list(REMOVE_DUPLICATES _OPENVINO_DEVELOPER_PACKAGE_TARGETS)

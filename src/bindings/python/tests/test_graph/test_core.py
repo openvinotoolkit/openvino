@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -9,7 +9,7 @@ import pytest
 
 from openvino import Dimension, Model, PartialShape, Shape
 
-import openvino.runtime.opset8 as ov
+import openvino.opset13 as ov
 
 
 def test_dimension():
@@ -203,7 +203,7 @@ def test_partial_shape():
         PartialShape([range(10)])
     assert (
         "Incorrect type <class 'range'> for dimension. Expected types are: "
-        "int, str, openvino.runtime.Dimension, list/tuple with lower "
+        "int, str, openvino.Dimension, list/tuple with lower "
         "and upper values for dynamic dimension." in str(e.value)
     )
 
@@ -408,6 +408,8 @@ def test_repr_dynamic_shape():
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
     param_sum = parameter_a + parameter_b
+    # set tensor name to have deterministic output name of model (default use unique node name)
+    param_sum.output(0).set_names({"sum"})
     model = Model(param_sum, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
     assert (
@@ -415,7 +417,7 @@ def test_repr_dynamic_shape():
         == "<Model: 'simple_dyn_shapes_graph'\ninputs["
         + "\n<ConstOutput: names[A] shape[?,2] type: f32>,"
         + "\n<ConstOutput: names[B] shape[?,2] type: f32>\n]"
-        + "\noutputs[\n<ConstOutput: names[] shape[?,2] type: f32>\n]>"
+        + "\noutputs[\n<ConstOutput: names[sum] shape[?,2] type: f32>\n]>"
     )
 
     ops = model.get_ordered_ops()

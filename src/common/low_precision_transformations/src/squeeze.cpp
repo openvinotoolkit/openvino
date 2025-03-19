@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,15 +26,15 @@ SqueezeTransformation::SqueezeTransformation(const Params& params) : LayerTransf
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool SqueezeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+bool SqueezeTransformation::transform(ov::pass::pattern::Matcher &m) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -66,7 +66,7 @@ bool SqueezeTransformation::transform(TransformationContext& context, ov::pass::
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    const auto newOperation = moveDequantizationAfter(context, squeeze, NetworkHelper::getDequantization(squeeze, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(squeeze, NetworkHelper::getDequantization(squeeze, defaultPrecisions));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
@@ -76,8 +76,8 @@ bool SqueezeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) co
     return true;
 }
 
-bool SqueezeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    return (!NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) && LayerTransformation::canBeTransformed(context, layer);
+bool SqueezeTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
+    return (!NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) && LayerTransformation::canBeTransformed(layer);
 }
 
 } // namespace low_precision

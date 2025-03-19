@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ public:
     /// \brief type info enables identification of the value accessor, as well as is_type and
     /// as_type.
     virtual const DiscreteTypeInfo& get_type_info() const = 0;
-    virtual ~ValueAccessor() = default;
+    virtual ~ValueAccessor();
     virtual void set_as_any(const ov::Any& x) {
         OPENVINO_NOT_IMPLEMENTED;
     }
@@ -232,7 +232,7 @@ template <>
 class OPENVINO_API AttributeAdapter<float> : public IndirectScalarValueAccessor<float, double> {
 public:
     AttributeAdapter(float& value) : IndirectScalarValueAccessor<float, double>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<float>");
 };
 
@@ -241,7 +241,7 @@ template <>
 class OPENVINO_API AttributeAdapter<double> : public DirectValueAccessor<double> {
 public:
     AttributeAdapter(double& value) : DirectValueAccessor<double>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<double>");
 };
 
@@ -250,7 +250,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::string> : public DirectValueAccessor<std::string> {
 public:
     AttributeAdapter(std::string& value) : DirectValueAccessor<std::string>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::string>");
 };
 
@@ -259,7 +259,7 @@ template <>
 class OPENVINO_API AttributeAdapter<bool> : public DirectValueAccessor<bool> {
 public:
     AttributeAdapter(bool& value) : DirectValueAccessor<bool>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<bool>");
 };
 
@@ -268,7 +268,7 @@ template <>
 class OPENVINO_API AttributeAdapter<int8_t> : public IndirectScalarValueAccessor<int8_t, int64_t> {
 public:
     AttributeAdapter(int8_t& value) : IndirectScalarValueAccessor<int8_t, int64_t>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<int8_t>");
 };
 
@@ -277,7 +277,7 @@ template <>
 class OPENVINO_API AttributeAdapter<int16_t> : public IndirectScalarValueAccessor<int16_t, int64_t> {
 public:
     AttributeAdapter(int16_t& value) : IndirectScalarValueAccessor<int16_t, int64_t>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<int16_t>");
 };
 
@@ -286,7 +286,7 @@ template <>
 class OPENVINO_API AttributeAdapter<int32_t> : public IndirectScalarValueAccessor<int32_t, int64_t> {
 public:
     AttributeAdapter(int32_t& value) : IndirectScalarValueAccessor<int32_t, int64_t>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<int32_t>");
 };
 
@@ -295,7 +295,7 @@ template <>
 class OPENVINO_API AttributeAdapter<int64_t> : public DirectValueAccessor<int64_t> {
 public:
     AttributeAdapter(int64_t& value) : DirectValueAccessor<int64_t>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<int64_t>");
 };
 
@@ -304,7 +304,7 @@ template <>
 class OPENVINO_API AttributeAdapter<uint8_t> : public IndirectScalarValueAccessor<uint8_t, int64_t> {
 public:
     AttributeAdapter(uint8_t& value) : IndirectScalarValueAccessor<uint8_t, int64_t>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<uint8_t>");
 };
 
@@ -313,7 +313,7 @@ template <>
 class OPENVINO_API AttributeAdapter<uint16_t> : public IndirectScalarValueAccessor<uint16_t, int64_t> {
 public:
     AttributeAdapter(uint16_t& value) : IndirectScalarValueAccessor<uint16_t, int64_t>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<uint16_t>");
 };
 
@@ -322,7 +322,7 @@ template <>
 class OPENVINO_API AttributeAdapter<uint32_t> : public IndirectScalarValueAccessor<uint32_t, int64_t> {
 public:
     AttributeAdapter(uint32_t& value) : IndirectScalarValueAccessor<uint32_t, int64_t>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<uint32_t>");
 };
 
@@ -331,7 +331,7 @@ template <>
 class OPENVINO_API AttributeAdapter<uint64_t> : public IndirectScalarValueAccessor<uint64_t, int64_t> {
 public:
     AttributeAdapter(uint64_t& value) : IndirectScalarValueAccessor<uint64_t, int64_t>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<uint64_t>");
 };
 
@@ -341,7 +341,7 @@ template <>
 class OPENVINO_API AttributeAdapter<size_t> : public IndirectScalarValueAccessor<size_t, int64_t> {
 public:
     AttributeAdapter(size_t& value) : IndirectScalarValueAccessor<size_t, int64_t>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<size_t>");
 };
 
@@ -351,7 +351,7 @@ class OPENVINO_API AttributeAdapter<std::vector<size_t>>
 public:
     AttributeAdapter(std::vector<size_t>& value)
         : IndirectVectorValueAccessor<std::vector<size_t>, std::vector<int64_t>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<size_t>");
 };
 #endif
@@ -364,7 +364,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::vector<int8_t>> : public DirectValueAccessor<std::vector<int8_t>> {
 public:
     AttributeAdapter(std::vector<int8_t>& value) : DirectValueAccessor<std::vector<int8_t>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<int8_t>");
 };
 
@@ -373,7 +373,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::vector<int16_t>> : public DirectValueAccessor<std::vector<int16_t>> {
 public:
     AttributeAdapter(std::vector<int16_t>& value) : DirectValueAccessor<std::vector<int16_t>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<int16_t>");
 };
 
@@ -382,7 +382,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::vector<int32_t>> : public DirectValueAccessor<std::vector<int32_t>> {
 public:
     AttributeAdapter(std::vector<int32_t>& value) : DirectValueAccessor<std::vector<int32_t>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<int32_t>");
 };
 
@@ -391,7 +391,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::vector<int64_t>> : public DirectValueAccessor<std::vector<int64_t>> {
 public:
     AttributeAdapter(std::vector<int64_t>& value) : DirectValueAccessor<std::vector<int64_t>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<int64_t>");
 };
 
@@ -400,7 +400,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::vector<uint8_t>> : public DirectValueAccessor<std::vector<uint8_t>> {
 public:
     AttributeAdapter(std::vector<uint8_t>& value) : DirectValueAccessor<std::vector<uint8_t>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<uint8_t>");
 };
 
@@ -409,7 +409,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::vector<uint16_t>> : public DirectValueAccessor<std::vector<uint16_t>> {
 public:
     AttributeAdapter(std::vector<uint16_t>& value) : DirectValueAccessor<std::vector<uint16_t>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<uint16_t>");
 };
 
@@ -418,7 +418,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::vector<uint32_t>> : public DirectValueAccessor<std::vector<uint32_t>> {
 public:
     AttributeAdapter(std::vector<uint32_t>& value) : DirectValueAccessor<std::vector<uint32_t>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<uint32_t>");
 };
 
@@ -427,7 +427,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::vector<uint64_t>> : public DirectValueAccessor<std::vector<uint64_t>> {
 public:
     AttributeAdapter(std::vector<uint64_t>& value) : DirectValueAccessor<std::vector<uint64_t>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<uint64_t>");
 };
 
@@ -436,7 +436,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::vector<float>> : public DirectValueAccessor<std::vector<float>> {
 public:
     AttributeAdapter(std::vector<float>& value) : DirectValueAccessor<std::vector<float>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<float>");
 };
 
@@ -445,7 +445,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::vector<double>> : public DirectValueAccessor<std::vector<double>> {
 public:
     AttributeAdapter(std::vector<double>& value) : DirectValueAccessor<std::vector<double>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<double>");
 };
 
@@ -454,7 +454,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::vector<std::string>> : public DirectValueAccessor<std::vector<std::string>> {
 public:
     AttributeAdapter(std::vector<std::string>& value) : DirectValueAccessor<std::vector<std::string>>(value) {}
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::string>");
 };
 
@@ -463,5 +463,6 @@ class OPENVINO_API AttributeAdapter<std::set<std::string>> : public DirectValueA
 public:
     OPENVINO_RTTI("AttributeAdapter<set<string>>");
     AttributeAdapter(std::set<std::string>& value) : DirectValueAccessor<std::set<std::string>>(value) {}
+    ~AttributeAdapter() override;
 };
 }  // namespace ov

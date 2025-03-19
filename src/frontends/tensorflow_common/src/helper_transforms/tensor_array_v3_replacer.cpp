@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ ov::frontend::tensorflow::pass::TensorArrayV3Replacer::TensorArrayV3Replacer() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         NodeRegistry rg;
 
-        auto tensor_array_v3 = dynamic_pointer_cast<TensorArrayV3>(m.get_match_root());
+        auto tensor_array_v3 = ov::as_type_ptr<TensorArrayV3>(m.get_match_root());
         if (!tensor_array_v3) {
             return false;
         }

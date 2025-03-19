@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/config/runtime.hpp"
 
 #include <sstream>
 
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/config/common.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using namespace intel_npu;
@@ -21,11 +21,15 @@ void intel_npu::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<PROFILING_TYPE>();
     desc.add<MODEL_PRIORITY>();
     desc.add<CREATE_EXECUTOR>();
+    desc.add<DEFER_WEIGHTS_LOAD>();
     desc.add<NUM_STREAMS>();
     desc.add<ENABLE_CPU_PINNING>();
     desc.add<WORKLOAD_TYPE>();
     desc.add<TURBO>();
+    desc.add<WEIGHTS_PATH>();
     desc.add<BYPASS_UMD_CACHING>();
+    desc.add<RUN_INFERENCES_SEQUENTIALLY>();
+    desc.add<DISABLE_VERSION_CHECK>();
 }
 
 // Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT

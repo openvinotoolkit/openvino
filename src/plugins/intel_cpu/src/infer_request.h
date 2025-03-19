@@ -1,25 +1,24 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "graph.h"
+#include "compiled_model.h"
 #include "cpu_tensor.h"
+#include "graph.h"
+#include "memory_state.h"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
-#include "memory_state.h"
 
 namespace ov {
 namespace intel_cpu {
 
-class CompiledModel;
 class AsyncInferRequest;
 
 class SyncInferRequest : public ov::ISyncInferRequest {
 public:
-    SyncInferRequest(std::shared_ptr<const CompiledModel> compiled_model);
-    virtual ~SyncInferRequest();
+    SyncInferRequest(CompiledModelHolder compiled_model);
 
     void infer() override;
 
@@ -29,7 +28,8 @@ public:
 
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
-    void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
+    void set_tensors_impl(const ov::Output<const ov::Node> port,
+                          const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& _port) const override;
@@ -96,11 +96,10 @@ private:
     void create_infer_request();
     void init_tensor(const std::size_t& port_index, const ov::ISyncInferRequest::FoundPort::Type& type);
 
-    void push_input_data();
-    void redefine_memory_for_input_nodes();
-    void assign_states();
+    void push_input_data(Graph& graph);
+    void redefine_memory_for_input_nodes(Graph& graph);
     void update_external_tensor_ptrs();
-    void change_default_ptr();
+    void change_default_ptr(Graph& graph);
 
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
 
@@ -109,14 +108,13 @@ private:
 private:
     std::unordered_map<std::size_t, OutputControlBlock> m_outputControlBlocks;
 
-    Graph* m_graph = nullptr;
     std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_input_external_ptr;
     std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_output_external_ptr;
 
-    std::shared_ptr<const CompiledModel> m_compiled_model;
     openvino::itt::handle_t m_profiling_task;
     std::vector<MemStatePtr> m_memory_states;
     AsyncInferRequest* m_asyncRequest = nullptr;
+    CompiledModelHolder m_compiled_model;
 
     std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_input_ports_map;
     std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_output_ports_map;

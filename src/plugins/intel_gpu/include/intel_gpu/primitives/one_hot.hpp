@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,6 +51,21 @@ struct one_hot : public primitive_base<one_hot> {
         , shape(shape)
         , one_hot_axis(one_hot_axis)
         , depth(depth)
+        , on_value(on_value)
+        , off_value(off_value) {}
+
+    /// @brief onehot with depth from Select node
+    one_hot(const primitive_id& id,
+            const input_info& input,
+            const input_info& input_depth,
+            const tensor& shape,
+            const data_types output_dt,
+            const int64_t& one_hot_axis,
+            const float& on_value = 1.0f,
+            const float& off_value = 0.0f)
+        : primitive_base(id, {input, input_depth}, 1, {optional_data_type{output_dt}})
+        , shape(shape)
+        , one_hot_axis(one_hot_axis)
         , on_value(on_value)
         , off_value(off_value) {}
 

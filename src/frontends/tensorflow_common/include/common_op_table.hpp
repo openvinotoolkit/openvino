@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,6 +74,9 @@ OP_CONVERTER(translate_mul_op);
 OP_CONVERTER(translate_dynamic_partition_op);
 OP_CONVERTER(translate_einsum_op);
 OP_CONVERTER(translate_elu_op);
+OP_CONVERTER(translate_equal_op);
+OP_CONVERTER(translate_erfc_op);
+OP_CONVERTER(translate_expm1_op);
 OP_CONVERTER(translate_expand_dims_op);
 OP_CONVERTER(translate_extract_image_patches_op);
 OP_CONVERTER(translate_fake_quant_op);
@@ -176,6 +179,7 @@ OP_CONVERTER(translate_tensor_list_set_item_op);
 OP_CONVERTER(translate_tensor_list_stack_op);
 OP_CONVERTER(translate_tensor_list_resize_op);
 OP_CONVERTER(translate_tensor_list_concat_v2_op);
+OP_CONVERTER(translate_tensor_scatter_add_op);
 OP_CONVERTER(translate_tensor_scatter_update_op);
 OP_CONVERTER(translate_tile_op);
 OP_CONVERTER(translate_tobool_op);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -150,7 +150,7 @@ public:
             testValues.actual.dequantization2,
             true,
             {},
-            ov::element::undefined,
+            ov::element::dynamic,
             {},
             testValues.axis,
             testValues.addNotPrecisionPreservedOperation);

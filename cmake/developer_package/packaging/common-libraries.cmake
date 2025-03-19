@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,7 +11,6 @@ include(GNUInstallDirs)
 #
 macro(ov_common_libraries_cpack_set_dirs)
     # override default locations for common libraries
-    set(OV_CPACK_TOOLSDIR ${CMAKE_INSTALL_BINDIR}) # only C++ tools are here
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR})
     if(WIN32)
@@ -31,7 +30,7 @@ macro(ov_common_libraries_cpack_set_dirs)
 
     ov_get_pyversion(pyversion)
     if(pyversion)
-        # should not be used in production; only by setup.py install
+        # should not be used in production; only by pip install
         set(OV_CPACK_PYTHONDIR lib/${pyversion}/site-packages)
     endif()
 
@@ -42,7 +41,7 @@ macro(ov_common_libraries_cpack_set_dirs)
     unset(OV_CPACK_SHAREDIR)
 
     # skipped during common libraries packaging
-    set(OV_CPACK_WHEELSDIR "tools")
+    set(OV_CPACK_WHEELSDIR "wheels")
 endmacro()
 
 ov_common_libraries_cpack_set_dirs()
@@ -95,17 +94,15 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
     set(OV_CPACK_COMP_OVC_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
-    # we don't pack artifacts of setup.py install, because it's called explicitly in conda / brew
+    # we don't pack artifacts of pip install, because it's called explicitly in conda / brew
     # or not used at all like in cases with conan / vcpkg
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
-    # we don't need wheels in package, it's used installed only in open source distribution
+    # we don't need wheels in the distribution packages
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # we don't need requirements.txt in package, because dependencies are installed by packages managers like conda
     set(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # nodejs
     set(OV_CPACK_COMP_NPM_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    # tools
-    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL EXCLUDE_FROM_ALL)

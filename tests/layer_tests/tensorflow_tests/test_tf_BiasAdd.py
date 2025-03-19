@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -126,6 +126,8 @@ class TestBiasAdd(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_bias_add_2_consts_4D(self, params, ie_device, precision, ir_version, temp_dir,
                                   use_legacy_frontend):
+        if ie_device == 'CPU':
+            pytest.skip('155622: OpenVINO runtime timeout on CPU')
         self._test(*self.create_bias_add_2_consts_net(**params, ir_version=ir_version,
                                                       use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,

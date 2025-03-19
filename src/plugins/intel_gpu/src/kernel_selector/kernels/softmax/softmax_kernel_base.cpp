@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,6 @@ SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_para
     dispatchData.normIndex = 0;
     dispatchData.dataSetsCount = 0;
     dispatchData.dataSetSize = 0;
-    dispatchData.maxSlmSize = 0;
 
     return dispatchData;
 }

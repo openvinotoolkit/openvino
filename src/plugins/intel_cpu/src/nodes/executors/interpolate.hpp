@@ -1,51 +1,26 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <utility>
+
 #include "node.h"
 
-#define MAX_INPUT_INTERPOLATE 8
+enum { MAX_INPUT_INTERPOLATE = 8 };
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-enum InterpolateLayoutType {
-    planar,
-    block,
-    by_channel
-};
+enum InterpolateLayoutType { planar, block, by_channel };
 
-enum InterpolateMode {
-    nearest,
-    linear,
-    linear_onnx,
-    cubic,
-    bilinear_pillow,
-    bicubic_pillow
-};
+enum InterpolateMode { nearest, linear, linear_onnx, cubic, bilinear_pillow, bicubic_pillow };
 
-enum InterpolateCoordTransMode {
-    half_pixel,
-    pytorch_half_pixel,
-    asymmetric,
-    tf_half_pixel_for_nn,
-    align_corners
-};
+enum InterpolateCoordTransMode { half_pixel, pytorch_half_pixel, asymmetric, tf_half_pixel_for_nn, align_corners };
 
-enum class InterpolateNearestMode {
-    round_prefer_floor,
-    round_prefer_ceil,
-    floor,
-    ceil,
-    simple
-};
+enum class InterpolateNearestMode { round_prefer_floor, round_prefer_ceil, floor, ceil, simple };
 
-enum class InterpolateShapeCalcMode {
-    sizes,
-    scales
-};
+enum class InterpolateShapeCalcMode { sizes, scales };
 
 struct InterpolateAttrs {
     InterpolateShapeCalcMode shapeCalcMode = InterpolateShapeCalcMode::sizes;
@@ -63,9 +38,9 @@ struct InterpolateAttrs {
     bool hasPad = false;
 };
 
-inline VectorDims getPaddedInputShape(const VectorDims &srcDims,
-                                const std::vector<int> &padBegin,
-                                const std::vector<int> &padEnd) {
+inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
+                                      const std::vector<int>& padBegin,
+                                      const std::vector<int>& padEnd) {
     VectorDims paddedShape;
     int dataRank = srcDims.size();
     for (int i = 0; i < dataRank; i++) {
@@ -80,16 +55,16 @@ inline int clipCoord(int pos, int length) {
 
 inline size_t getSpatialDimsNum(const Dim rank) {
     switch (rank) {
-        case 1:
-        case 3:
-            return 1;
-        case 2:
-        case 4:
-            return 2;
-        case 5:
-            return 3;
-        default:
-            OPENVINO_THROW("Can't define number spatial");
+    case 1:
+    case 3:
+        return 1;
+    case 2:
+    case 4:
+        return 2;
+    case 5:
+        return 3;
+    default:
+        OPENVINO_THROW("Can't define number spatial");
     }
 }
 
@@ -128,32 +103,54 @@ public:
     static constexpr size_t SCALES_ID = 2;
     static constexpr size_t AXES_ID = 3;
     static constexpr int CUBIC_GRID_LEN = 4;
-    InterpolateExecutor(const ExecutorContext::CPtr context) : _context(context) {}
+    InterpolateExecutor(ExecutorContext::CPtr context) : _context(std::move(context)) {}
 
     virtual bool init(const InterpolateAttrs& interpolateAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
-                      const dnnl::primitive_attr &attr);
-    virtual void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) = 0;
-    virtual impl_desc_type getImplType() const = 0;
+                      const dnnl::primitive_attr& attr);
+    virtual void exec(const std::vector<MemoryCPtr>& src,
+                      const std::vector<MemoryPtr>& dst,
+                      const void* post_ops_data_) = 0;
+    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
 
     virtual ~InterpolateExecutor() = default;
-    VectorDims getSrcDimPad5d() const { return srcDimPad5d; }
+    [[nodiscard]] VectorDims getSrcDimPad5d() const {
+        return srcDimPad5d;
+    }
     const uint8_t* padPreprocess(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst);
 
 private:
-    void buildTblNN(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
-                    InterpolateLayoutType layout, InterpolateNearestMode nearestMode);
-    void buildTblLinearOnnx(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
+    void buildTblNN(const VectorDims& srcDimPad5d,
+                    const VectorDims& dstDim5d,
+                    const std::vector<float>& dataScales,
+                    InterpolateLayoutType layout,
+                    InterpolateNearestMode nearestMode);
+    void buildTblLinearOnnx(const VectorDims& srcDimPad5d,
+                            const VectorDims& dstDim5d,
+                            const std::vector<float>& dataScales,
                             InterpolateLayoutType layout);
-    void buildTblLinear(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales, int kernel_width,
+    void buildTblLinear(const VectorDims& srcDimPad5d,
+                        const VectorDims& dstDim5d,
+                        const std::vector<float>& dataScales,
+                        int kernel_width,
                         bool antialias);
-    void buildTblCubic(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales, float cubicCoeff,
+    void buildTblCubic(const VectorDims& srcDimPad5d,
+                       const VectorDims& dstDim5d,
+                       const std::vector<float>& dataScales,
+                       float cubicCoeff,
                        InterpolateLayoutType layout);
 
-    float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-    int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
-    void linearOnnxCF(int outCoord, float scale, int inShape, int outShape, int& index0, int& index1, float& weight0, float& weight1);
+    [[nodiscard]] float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
+    [[nodiscard]] int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+    void linearOnnxCF(int outCoord,
+                      float scale,
+                      int inShape,
+                      int outShape,
+                      int& index0,
+                      int& index1,
+                      float& weight0,
+                      float& weight1);
     std::vector<float> getCubicCoeffs(float mantissa, float a);
 
 protected:
@@ -172,13 +169,12 @@ using InterpolateExecutorCPtr = std::shared_ptr<const InterpolateExecutor>;
 class InterpolateExecutorBuilder {
 public:
     ~InterpolateExecutorBuilder() = default;
-    virtual bool isSupported(const InterpolateAttrs& InterpolateAttrs,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual InterpolateExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual bool isSupported(const InterpolateAttrs& InterpolateAttrs,
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+    [[nodiscard]] virtual InterpolateExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using InterpolateExecutorBuilderPtr = std::shared_ptr<InterpolateExecutorBuilder>;
 using InterpolateExecutorBuilderCPtr = std::shared_ptr<const InterpolateExecutorBuilder>;
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace ov::intel_cpu

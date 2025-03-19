@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "common/permute_kernel.h"
-#include "executors/transpose_list.hpp"
-
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "common/permute_kernel.h"
+#include "executors/transpose_list.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -18,13 +18,13 @@ namespace node {
 
 class Transpose : public Node {
 public:
-    Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -34,6 +34,7 @@ public:
         return order;
     }
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;
@@ -43,7 +44,7 @@ public:
     }
 
 protected:
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     std::shared_ptr<ExecutorContext> transpose_context;
 
 private:
@@ -63,6 +64,6 @@ private:
     bool isOptimized = false;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

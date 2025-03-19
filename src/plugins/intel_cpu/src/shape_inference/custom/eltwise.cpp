@@ -1,22 +1,20 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "eltwise.hpp"
+
 #include "utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 /**
  * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes
  * according to the NUMPY broadcast rule. This implementation is more lightweight than the ngraph one.
  *
  */
-Result EltwiseShapeInfer::infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+Result EltwiseShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                                const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     size_t max_rank = 0;
     size_t max_rank_idx = 0;
     for (size_t i = 0; i < input_shapes.size(); ++i) {
@@ -29,8 +27,9 @@ Result EltwiseShapeInfer::infer(
     auto output_shape = input_shapes[max_rank_idx].get();
     // use NUMPY broadcast rule
     for (size_t i = 0; i < input_shapes.size(); i++) {
-        if (i == max_rank_idx)
+        if (i == max_rank_idx) {
             continue;
+        }
 
         auto& input_shape = input_shapes[i].get();
         if (input_shape.size() > output_shape.size()) {
@@ -42,14 +41,14 @@ Result EltwiseShapeInfer::infer(
                 if (output_shape[offset + j] == 1) {
                     output_shape[offset + j] = input_shape[j];
                 } else {
-                    if (input_shape[j] != 1) OPENVINO_THROW("Eltwise shape infer input shapes dim index: ", j, " mismatch");
+                    if (input_shape[j] != 1) {
+                        OPENVINO_THROW("Eltwise shape infer input shapes dim index: ", j, " mismatch");
+                    }
                 }
             }
         }
     }
-    return { { std::move(output_shape) }, ShapeInferStatus::success };
+    return {{std::move(output_shape)}, ShapeInferStatus::success};
 }
 
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace ov::intel_cpu::node

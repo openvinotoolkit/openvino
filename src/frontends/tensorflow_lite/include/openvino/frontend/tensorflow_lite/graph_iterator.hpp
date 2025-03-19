@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,18 @@ namespace frontend {
 namespace tensorflow_lite {
 
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class GraphIterator : ::ov::RuntimeAttribute {
+/// It returns decoders for model inputs and outputs (DecoderBaseTensor objects) and for operation nodes
+/// (DecoderBaseOperation objects) DecoderBaseOperation objects for operation nodes must be sorted in topological order
+/// from producing nodes to consumer nodes when `get_decoder()` is called. DecoderBaseTensor objects for inputs and
+/// outputs must be returned first by `get_decoder()` method. Order of DecoderBaseTensor objects for inputs and outputs
+/// defines their order in the original model, i.e. model input index and model output index.
+/// For example, calling `get_decoder()` during iterating GraphIterator returns
+/// DecoderBaseTensor (for input 0), ..., DecoderBaseTensor (for input n-1),
+/// DecoderBaseTensor (for output 0), ..., DecoderBaseTensor (for output m-1),
+/// DecoderBaseOperation (for op 1), ..., DecoderBaseOperation (for op k),
+/// where n - number of inputs in the model, m - number of outputs in the model k - number of operation nodes.
+/// NOTE: constants are ignored and no decoder object is returned for constant.
+class TENSORFLOW_LITE_FRONTEND_API GraphIterator : ::ov::RuntimeAttribute {
 public:
     using Ptr = std::shared_ptr<GraphIterator>;
 

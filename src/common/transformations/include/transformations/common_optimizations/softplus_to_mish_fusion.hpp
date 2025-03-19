@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API SoftPlusToMishFusion;
  */
 class ov::pass::SoftPlusToMishFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SoftPlusToMishFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SoftPlusToMishFusion");
     SoftPlusToMishFusion();
 };

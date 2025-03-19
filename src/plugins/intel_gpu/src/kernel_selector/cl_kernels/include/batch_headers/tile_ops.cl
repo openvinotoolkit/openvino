@@ -194,6 +194,21 @@ DEF_BLOCK2D_LOAD_STORE(half, ushort, 16, 16, u16_m8k32v1, 32, 8)
 #define xlane_tile_access(t, i, j, sg, br, bc, nbr) \
     sub_group_broadcast(tile_access(t, i, j, sg, br, bc, nbr), i % sg)
 
+#define tile_predicated_assignment_t( \
+        t, sg_offset_r, sg_offset_c, predicate, value, sg, br, bc, nbr, nbc) \
+    do { \
+        for (int j = 0; j < (bc * nbc); j++) { \
+            for (int i0 = 0; i0 < (br * nbr); i0 += sg) { \
+                int i = i0 + get_sub_group_local_id(); \
+                int offset_r = sg_offset_r + j; \
+                int offset_c = sg_offset_c + i; \
+                if (predicate(offset_r, offset_c)) { \
+                    tile_access(t, i0, j, sg, br, bc, nbr) = value; \
+                } \
+            } \
+        } \
+    } while (0)
+
 #define DECLARE_2D_TILE_OPS(tile_type, element_type, sg, br, bc, nbr, nbc) \
     __attribute__((overloadable)) void tile_load_full(tile_type *t, \
             const global element_type *ptr, int ld, int offset_r, \

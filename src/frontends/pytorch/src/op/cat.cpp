@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ OutputVector translate_cat_common(const NodeContext& context,
         "<aten/quantized>::cat is located inside body while inputs are located outside of the body. "
         "This case is not supported.");
     if (list_elems.size() == 1 &&
-        !std::dynamic_pointer_cast<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr()) && !is_fx) {
+        !ov::as_type_ptr<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr()) && !is_fx) {
         // Case when list was merged into tensor. // This case doesn't work with torchfx
         auto tensor = list_elems[0];
         auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
@@ -104,18 +104,11 @@ OutputVector translate_cat(const NodeContext& context) {
 };
 
 OutputVector translate_cat_fx(const NodeContext& context) {
-    // This translator is only needed to get axis as constant from external scope
-    num_inputs_check(context, 1, context.get_input_size());
-    std::deque<Output<Node>> list_elems;
-    for (size_t i = 0; i < context.get_input_size() - 1; i++) {
-        list_elems.push_back(context.get_input(static_cast<int>(i)));
-    }
+    num_inputs_check(context, 1, 2);
+    const auto&& list_elems = get_list_as_outputs(context.get_input(0));
     int64_t axis = 0;
-    if (!context.get_input_type(context.get_input_size() - 1).is<type::List>()) {
-        // axis can be not present and that means that last input will have List type
-        axis = context.const_input<int64_t>(context.get_input_size() - 1);
-    } else {
-        list_elems.push_back(context.get_input(static_cast<int>(context.get_input_size() - 1)));
+    if (!context.input_is_none(1)) {
+        axis = context.const_input<int64_t>(1);
     }
     return translate_cat_common(context, list_elems, axis, true);
 };
@@ -146,9 +139,17 @@ OutputVector translate_stack_fx(const NodeContext& context) {
         num_elements -= 1;
     }
 
+    OutputVector stack_inputs;
     for (size_t i = 0; i < num_elements; i++) {
-        auto stack_input =
-            context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(static_cast<int>(i)), dim));
+        stack_inputs.push_back(context.get_input(static_cast<int>(i)));
+    }
+
+    // returns the u4 constant if the stack operation is a part of the decompression pattern
+    if (const auto& u4_const = u4_compression_stack(stack_inputs, axis))
+        return {u4_const};
+
+    for (size_t i = 0; i < num_elements; i++) {
+        auto stack_input = context.mark_node(std::make_shared<v0::Unsqueeze>(stack_inputs[i], dim));
         list_elems.push_back(stack_input);
     }
     return translate_cat_common(context, list_elems, axis, true);

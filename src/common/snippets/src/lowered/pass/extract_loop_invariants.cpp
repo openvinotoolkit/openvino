@@ -24,8 +24,8 @@ std::vector<size_t> get_reordered_loop_ids(const LoopManagerPtr& loop_manager) {
         loop_ids_need_extract.push_back(p.first);
 
     auto sorter = [&](size_t lhs, size_t rhs) {
-        const auto lhs_last_expr = loop_manager->get_loop_info(lhs)->get_output_ports().back().expr_port->get_expr();
-        const auto rhs_last_expr = loop_manager->get_loop_info(rhs)->get_output_ports().back().expr_port->get_expr();
+        const auto lhs_last_expr = loop_manager->get_loop_info(lhs)->get_output_ports().back().get_expr_port()->get_expr();
+        const auto rhs_last_expr = loop_manager->get_loop_info(rhs)->get_output_ports().back().get_expr_port()->get_expr();
         // If last output loop ports are the same expressions - first executive Loop has inner ID in expression loop IDs.
         if (lhs_last_expr == rhs_last_expr) {
             for (const auto& id : lhs_last_expr->get_loop_ids()) {
@@ -50,9 +50,9 @@ void remove_last_loop_id(const std::shared_ptr<Expression>& expr) {
 }
 
 int64_t get_stride_after_move_outer(const LoopPort& loop_port) {
-    const auto& expr_port = loop_port.expr_port;
+    const auto& expr_port = loop_port.get_expr_port();
     const auto& shape = expr_port->get_descriptor_ptr()->get_shape();
-    size_t shape_dim_idx = utils::get_dim_idx(*expr_port, loop_port.dim_idx);
+    size_t shape_dim_idx = utils::get_dim_idx(*expr_port, loop_port.get_dim_idx());
     int64_t stride = utils::get_stride(shape_dim_idx, shape);
     if (utils::is_dynamic_value(stride) || utils::is_dynamic_value(shape[shape_dim_idx])) {
         return utils::get_dynamic_value<int64_t>();
@@ -61,7 +61,14 @@ int64_t get_stride_after_move_outer(const LoopPort& loop_port) {
     }
 }
 
-bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPtr& inner_loop_info) {
+bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPtr& inner_loop_info, size_t loop_id) {
+    // Extraction is possible only from the innermost Loop!
+    // We cannot extract Expression from the outermost or any intermediate Loop with other Loops inside
+    const auto& loop_ids = expr->get_loop_ids();
+    OPENVINO_ASSERT(!loop_ids.empty(), "Expression must be in a Loop");
+    if (loop_ids.back() != loop_id)
+        return false;
+
     const auto& expr_input_ports = expr->get_input_ports();
     const auto& input_port_size = expr_input_ports.size();
     if (input_port_size == 0)
@@ -82,7 +89,7 @@ bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPt
         if (is_loop_port) {
             // stride is not 1 after move to outside, then should not extract.
             const auto& loop_port = inner_loop_info->get_loop_port(expr_input_ports[i]);
-            if (get_stride_after_move_outer(loop_port) != 1) {
+            if (!loop_port.is_processed() || get_stride_after_move_outer(loop_port) != 1) {
                 return false;
             }
         }
@@ -143,7 +150,7 @@ std::vector<ExpressionPtr> get_loop_input_exprs(const std::vector<LoopPort>& loo
     std::vector<ExpressionPtr> input_exprs;
     std::unordered_set<ExpressionPtr> seen_exprs;
     for (size_t port_num = 0; port_num < loop_in_ports.size(); ++port_num) {
-        const auto& expr = loop_in_ports[port_num].expr_port->get_expr();
+        const auto& expr = loop_in_ports[port_num].get_expr_port()->get_expr();
         if (seen_exprs.count(expr) == 0) {
             input_exprs.push_back(expr);
             seen_exprs.insert(expr);
@@ -162,7 +169,7 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
         const auto& potential_extractable_exprs = get_loop_input_exprs(inner_loop_input_ports);
         bool expr_extracted = false;
         for (const auto& port_expr : potential_extractable_exprs) {
-            if (is_extraction_applicable(port_expr, inner_loop_info)) {
+            if (is_extraction_applicable(port_expr, inner_loop_info, inner_loop_id)) {
                 status = true;
                 LinearIR::constExprIt inner_loop_begin_pos, inner_loop_end_pos;
                 std::tie(inner_loop_begin_pos, inner_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, inner_loop_id);

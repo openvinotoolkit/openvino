@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,13 +22,13 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API MultiplyToGroupConvolutionTransformation : public CleanupTransformation {
 public:
-    OPENVINO_RTTI("MultiplyToGroupConvolutionTransformation", "0");
+    OPENVINO_RTTI("MultiplyToGroupConvolutionTransformation", "0", CleanupTransformation);
     MultiplyToGroupConvolutionTransformation(
         const Params& params = Params(),
         const PrecisionsRestriction::PrecisionsByPorts& restrictions = {});
     ~MultiplyToGroupConvolutionTransformation() override {}
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
+    bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool isQuantized(const std::shared_ptr<const Node>& layer,
         const std::vector<ov::element::Type>& defaultPrecisions) const override;

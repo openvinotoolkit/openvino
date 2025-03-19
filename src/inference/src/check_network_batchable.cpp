@@ -19,7 +19,7 @@ bool model_has_suitable_do(const std::shared_ptr<const ov::Model>& model) {
             convert_node = do_node;
             do_node = convert_node->get_input_node_shared_ptr(0);
         }
-        auto detectionOutputBase = std::dynamic_pointer_cast<ov::op::util::DetectionOutputBase>(do_node);
+        auto detectionOutputBase = ov::as_type_ptr<ov::op::util::DetectionOutputBase>(do_node);
         if (detectionOutputBase) {
             bDetectionOutput = true;
         }
@@ -83,7 +83,7 @@ std::shared_ptr<const ov::Model> apply_batch_affinity(const std::shared_ptr<cons
         }
         // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
         // so base class  check is enough
-        auto detectionOutputBase = std::dynamic_pointer_cast<ov::op::util::DetectionOutputBase>(do_node);
+        auto detectionOutputBase = ov::as_type_ptr<ov::op::util::DetectionOutputBase>(do_node);
         if (detectionOutputBase) {
             result_node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
             do_node->get_rt_info()["affinity"] = deviceNameWithoutBatch;

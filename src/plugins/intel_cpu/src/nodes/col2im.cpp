@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "col2im.h"
-#include "openvino/reference/col2im.hpp"
-#include "openvino/op/col2im.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
-Col2Im::Col2Im(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2))) {
+#include "openvino/op/col2im.hpp"
+#include "openvino/reference/col2im.hpp"
+
+namespace ov::intel_cpu::node {
+Col2Im::Col2Im(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -39,8 +38,9 @@ void Col2Im::getSupportedDescriptors() {
 }
 
 void Col2Im::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(0);
     addSupportedPrimDesc(
         {{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
@@ -56,48 +56,48 @@ bool Col2Im::needPrepareParams() const {
     return false;
 }
 
-void Col2Im::executeDynamicImpl(dnnl::stream strm) {
+void Col2Im::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
 template <class T, class T_idx>
 void Col2Im::executeImpl() {
-    ov::reference::col2im<T, T_idx>(
-        getSrcDataAtPortAs<const T>(0),
-        ov::Shape{getSrcMemoryAtPort(0)->getStaticDims()},
-        getSrcDataAtPortAs<const T_idx>(1),
-        getSrcDataAtPortAs<const T_idx>(2),
-        getDstDataAtPortAs<T>(0),
-        strides,
-        dilations,
-        padsBegin,
-        padsEnd);
+    ov::reference::col2im<T, T_idx>(getSrcDataAtPortAs<const T>(0),
+                                    ov::Shape{getSrcMemoryAtPort(0)->getStaticDims()},
+                                    getSrcDataAtPortAs<const T_idx>(1),
+                                    getSrcDataAtPortAs<const T_idx>(2),
+                                    getDstDataAtPortAs<T>(0),
+                                    strides,
+                                    dilations,
+                                    padsBegin,
+                                    padsEnd);
 }
 
 namespace {
 struct Col2ImContext {
-    Col2Im &node;
+    Col2Im& node;
 };
-}
+}  // namespace
 
-template<typename T>
+template <typename T>
 struct Col2Im::Col2ImExecute {
     using TData = typename std::tuple_element<0, T>::type;
     using TIndex = typename std::tuple_element<1, T>::type;
 
-    void operator()(Col2ImContext & ctx) {
-            ctx.node.executeImpl<TData, TIndex>();
-        }
+    void operator()(Col2ImContext& ctx) {
+        ctx.node.executeImpl<TData, TIndex>();
+    }
 };
-void Col2Im::execute(dnnl::stream strm) {
+void Col2Im::execute(const dnnl::stream& strm) {
     auto dataPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto indexPrecision = getParentEdgeAt(1)->getMemory().getDesc().getPrecision();
 
-    Col2ImContext ctx = {
-            *this
-    };
+    Col2ImContext ctx = {*this};
 
-    OV_SWITCH(intel_cpu, Col2ImExecute, ctx, std::tie(dataPrecision, indexPrecision),
+    OV_SWITCH(intel_cpu,
+              Col2ImExecute,
+              ctx,
+              std::tie(dataPrecision, indexPrecision),
               OV_CASE2(ov::element::f32, ov::element::i32, float, int32_t),
               OV_CASE2(ov::element::f16, ov::element::i32, ov::float16, int32_t),
               OV_CASE2(ov::element::bf16, ov::element::i32, ov::bfloat16, int32_t),
@@ -105,6 +105,4 @@ void Col2Im::execute(dnnl::stream strm) {
               OV_CASE2(ov::element::i8, ov::element::i32, int8_t, int32_t),
               OV_CASE2(ov::element::u8, ov::element::i32, uint8_t, int32_t))
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

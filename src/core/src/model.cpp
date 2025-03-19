@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,7 @@ ov::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr<ov:
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::auto_detect_parameters");
     ov::ParameterVector parameter_vector;
     for (const auto& op : ordered_ops) {
-        if (const auto& param = dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
+        if (const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
             parameter_vector.push_back(param);
         }
     }
@@ -220,6 +220,8 @@ ov::Model::Model(const ov::OutputVector& results, const ov::SinkVector& sinks, c
 }
 
 ov::Model::Model(const OutputVector& results, const string& name) : Model(results, ov::SinkVector{}, name) {}
+
+ov::Model::~Model() = default;
 
 void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::prerequirements");
@@ -949,8 +951,8 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
             return input.get_node()->output(0);
         }
     }
-    auto result = std::make_shared<ov::op::v0::Result>(port);
-    m_results.push_back(result);
+    m_results.emplace_back(std::make_shared<ov::op::v0::Result>(port, true));
+    auto& result = m_results.back();
     if (m_shared_rt_info->get_use_topological_cache()) {
         if (cache_valid()) {
             // Full update of topological cache is not needed, 'result' can be just inserted to the end
@@ -1182,3 +1184,5 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         OPENVINO_ASSERT(false, stream.str());
     }
 }
+
+ov::AttributeAdapter<std::shared_ptr<ov::Model>>::~AttributeAdapter() = default;

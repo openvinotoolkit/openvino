@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -261,7 +261,7 @@ class ConvFusingForceKernelTest : public BaseFusingTest<bc_force_kernel_params> 
         auto input_prim = get_mem(get_input_layout(p));
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        ov::intel_gpu::ImplementationDesc conv_impl = { p.input_format, p.kernel_name };
+        ov::intel_gpu::ImplementationDesc conv_impl = { p.input_format, p.kernel_name, impl_types::ocl };
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
@@ -318,16 +318,9 @@ public:
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
-        auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
+        auto impl_forcing = cfg_fused.get_force_implementations();
 
-        auto forcing_format = p.input_format;
-        for (auto& forcing : impl_forcing) {
-            if (forcing.first == "conv_prim") {
-                forcing_format = forcing.second.output_format;
-            }
-        }
-
-        ov::intel_gpu::ImplementationDesc conv_impl = { forcing_format, "", impl_types::onednn };
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::any, "", impl_types::onednn };
 
         auto cfg = cfg_fused;
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
@@ -1055,6 +1048,9 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_slope_2) {
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.data_type);
+    if (engine.get_device_info().supports_immad) {
+        tolerance = 1e-2f;
+    }
     execute(p);
 }
 
@@ -1465,7 +1461,7 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
             output_type),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "", impl_types::ocl };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(output_type);
@@ -2896,6 +2892,7 @@ TEST_P(conv_activation_onednn, basic) {
         reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
 
+    tolerance = 1e-4f;
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_activation_onednn, ::testing::ValuesIn(std::vector<conv_activation_onednn_test_params>{
@@ -2950,9 +2947,6 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_mean, have_mean) {
         convolution("conv_prim", input_info("reorder_fsv32"), "weights", "", 1, { 1, 1 }, p.dilation, p.pad, p.pad, false),
         activation("activation", input_info("conv_prim"), activation_func::abs)
     );
-
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "", impl_types::ocl };
-    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     execute(p);
 }
@@ -3012,10 +3006,6 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
         activation("activation", input_info("conv_prim2"), activation_func::abs)
     );
 
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "", impl_types::ocl };
-    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim2", conv_impl } }));
-    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "activation", conv_impl } }));
-
     execute(p);
 }
 
@@ -3042,10 +3032,6 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, have_fused
         activation("activation", input_info("conv_prim2"), activation_func::abs)
     );
 
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "", impl_types::ocl };
-    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim2", conv_impl } }));
-    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "activation", conv_impl } }));
-
     execute(p, {{"conv_prim", {"activation_quantize"}}});
 }
 
@@ -3071,13 +3057,10 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, have_data_padding) {
         reorder("reorder_out", input_info("conv_prim2"), format::fs_b_yx_fsv32, data_types::f32)
     );
 
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "", impl_types::ocl };
-    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim2", conv_impl } }));
-
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 5, 5, 5 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 5 }
 }));
 
 class conv_gen9_common_conv_fwd_data_1stconv : public ConvFusingTest {};

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,7 +116,6 @@ public:
         if (!testValues.actual.dequantization2.multiply.empty()) {
             testValues.actual.dequantization2.multiply.outPrecision = precision;
         }
-
         actualFunction = ov::builder::subgraph::ConcatFunction::get(precision,
                                                                         shape,
                                                                         testValues.actual.fakeQuantize1,
@@ -126,7 +125,7 @@ public:
                                                                         testValues.actual.convert2,
                                                                         testValues.actual.dequantization2,
                                                                         {},
-                                                                        ov::element::undefined,
+                                                                        ov::element::dynamic,
                                                                         {},
                                                                         testValues.axis,
                                                                         testValues.addNotPrecisionPreservedOperation);

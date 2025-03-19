@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "ocl_common.hpp"
 #include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/optionals.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -25,8 +24,8 @@ private:
     bool _profiling;
     bool _out_of_order;
     bool _supports_queue_families;
-    optional_value<ov::hint::Priority> _priority_mode;
-    optional_value<ov::intel_gpu::hint::ThrottleLevel> _throttle_mode;
+    std::optional<ov::hint::Priority> _priority_mode;
+    std::optional<ov::intel_gpu::hint::ThrottleLevel> _throttle_mode;
 #if CL_TARGET_OPENCL_VERSION >= 200
     std::vector<cl_queue_properties> get_properties(const cl::Device& device, uint16_t stream_id = 0);
 #else

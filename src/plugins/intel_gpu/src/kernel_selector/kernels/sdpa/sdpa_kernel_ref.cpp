@@ -12,6 +12,7 @@ namespace kernel_selector {
 ParamsKey SDPAKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F32);
     // beam table input
     k.EnableInputDataType(Datatype::INT32);
@@ -74,13 +75,31 @@ KernelsData SDPAKernelRef::GetKernelsData(const Params& params) const {
                      "", false, false, static_cast<int>(prim_params.inputs.size()),
                      GetFusedPrimitiveInputsCount(params), 1, prim_params.is_shape_agnostic);
 
-    if (prim_params.indirect_axis != -1)
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(prim_params.inputs.size())});
+    auto beam_table_idx = prim_params.inputs.size();
+    if (prim_params.conf.is_kv_compressed) {
+        auto key_cache_compression_scale_idx = static_cast<uint32_t>(prim_params.inputs.size());
+        auto value_cache_compression_scale_idx = static_cast<uint32_t>(prim_params.inputs.size() + 1);
+
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, key_cache_compression_scale_idx});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, value_cache_compression_scale_idx});
+
+        if (prim_params.conf.use_asymmetric_quantization && !prim_params.conf.combine_scales_and_zp) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, key_cache_compression_scale_idx + 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, value_cache_compression_scale_idx + 2});
+            beam_table_idx += 2;
+        }
+
+        beam_table_idx += 2;
+    }
+
+    if (prim_params.indirect_axis != -1) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(beam_table_idx)});
+    }
 
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
 
-    kd.internalBufferSizes.clear();
-    kd.internalBufferSizes.push_back(prim_params.inputs[0].ElementSize());
+    kd.internalBuffers.clear();
+    kd.internalBuffers.push_back(prim_params.inputs[0].ElementSize());
     kd.internalBufferDataType = prim_params.inputs[0].GetDType();
 
     return { kd };
@@ -102,8 +121,8 @@ void SDPAKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
         auto elem_size = in_q.ElementSize();
         auto batch_size = in_q.LogicalSize() / dims_q.x_dim().v / dims_q.y_dim().v;
-        kernel_data.internalBufferSizes.clear();
-        kernel_data.internalBufferSizes.push_back(batch_size * dims_q.y_dim().v * dims_k.y_dim().v * elem_size);
+        kernel_data.internalBuffers.clear();
+        kernel_data.internalBuffers.push_back(batch_size * dims_q.y_dim().v * dims_k.y_dim().v * elem_size);
 
         kernel_data.internalBufferDataType = in_q.GetDType();
     };

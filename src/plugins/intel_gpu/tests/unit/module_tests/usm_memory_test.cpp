@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -299,13 +299,11 @@ TEST_P(copy_between_gpu_buffer_and_gpu_usm, basic) {
         case allocation_type::usm_shared:
         case allocation_type::usm_device:
         {
-            auto ev = mem_dst->copy_from(stream, *usm_host_src, true);
-            ev->wait();
+            mem_dst->copy_from(stream, *usm_host_src, true);
             break;
         }
         case allocation_type::cl_mem: {
-            auto ev = mem_dst->copy_from(stream, *usm_host_src, true);
-            ev->wait();
+            mem_dst->copy_from(stream, *usm_host_src, true);
             break;
         }
         default:

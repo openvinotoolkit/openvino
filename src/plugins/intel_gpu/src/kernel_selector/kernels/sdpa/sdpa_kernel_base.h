@@ -83,18 +83,25 @@ struct sdpa_configuration {
     int64_t kv_heads_num = -1;
 
     // GQA configuration
-    int64_t group_size = -1;
+    int64_t kv_group_size = 1;
     int64_t broadcast_axis = -1;
 
     bool is_causal = false;
     bool has_alibi_input = false;
+    bool is_kv_compressed = false;
+    bool use_asymmetric_quantization = false;
+    bool combine_scales_and_zp = false;
+    bool per_head_quantization = false;
 
     // Paged Attention configuration
     bool is_paged_attention = false;
+    size_t paged_attention_sliding_window = 0;
     int64_t paged_attention_aligned_seq_len = -1;
     int64_t paged_attention_block_size = 0;
-    bool has_scale_val = false;
+    int64_t paged_attention_max_len = 0;
+    bool has_const_scale_val = false;
     float scale_val = 0.f;
+    bool has_rotated_blocks = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -110,8 +117,13 @@ struct sdpa_params : public base_params {
     int64_t indirect_axis = -1;
 
     DataTensor beam_table;
+    DataTensor key_cache_comp_scale;
+    DataTensor key_cache_comp_zp;
+    DataTensor value_cache_comp_scale;
+    DataTensor value_cache_comp_zp;
 
     sdpa_configuration conf;
+    bool should_use_sdpa_opt = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

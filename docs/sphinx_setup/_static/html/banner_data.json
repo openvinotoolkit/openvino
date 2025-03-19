@@ -1,5 +1,6 @@
 {
-    "p": "",
+    "p": "This page is a nightly version. It may be incomplete or faulty in both content and functionality. <a href='https://docs.openvino.ai/'>Go to the most recent official documentation version, 2024.</a>",
     "version": "1",
-    "style": "warning"
+    "style": "warning",
+    "_styles": "warning info critical"
 }

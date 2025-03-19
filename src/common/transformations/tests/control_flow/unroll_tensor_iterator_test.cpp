@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -491,14 +491,12 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
     ASSERT_TRUE(res.first) << res.second;
 }
 
-void collect_legacy_tensor_names(const std::shared_ptr<ov::Model>& model, std::vector<std::string>& holder) {
+void collect_tensor_names(const std::shared_ptr<ov::Model>& model,
+                          std::vector<std::unordered_set<std::string>>& holder) {
     for (const auto& op : model->get_ordered_ops()) {
         for (const auto& out : op->outputs()) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(out.get_tensor());
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            if (!tensor_name.empty() && ov::as_type_ptr<opset8::Result>(op))
-                holder.emplace_back(tensor_name);
+            if (!out.get_tensor().get_names().empty() && ov::as_type_ptr<opset8::Result>(op))
+                holder.emplace_back(out.get_tensor().get_names());
         }
     }
 }
@@ -538,8 +536,8 @@ TEST(TransformationTests, CheckTensorNamesAfterConvertToTIAndUnrolling) {
         f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho}, ParameterVector{X, Y});
     }
 
-    std::vector<std::string> names_before;
-    collect_legacy_tensor_names(f, names_before);
+    std::vector<std::unordered_set<std::string>> names_before;
+    collect_tensor_names(f, names_before);
 
     pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
@@ -548,8 +546,8 @@ TEST(TransformationTests, CheckTensorNamesAfterConvertToTIAndUnrolling) {
     m.run_passes(f);
     OV_ASSERT_NO_THROW(check_rt_info(f));
 
-    std::vector<std::string> names_after;
-    collect_legacy_tensor_names(f, names_after);
+    std::vector<std::unordered_set<std::string>> names_after;
+    collect_tensor_names(f, names_after);
 
     EXPECT_EQ(names_before, names_after);
 }
@@ -605,8 +603,8 @@ TEST(TransformationTests, CheckTensorNamesAfterUnrolling) {
         f = std::make_shared<ov::Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, Y, Z});
     }
 
-    std::vector<std::string> names_before;
-    collect_legacy_tensor_names(f, names_before);
+    std::vector<std::unordered_set<std::string>> names_before;
+    collect_tensor_names(f, names_before);
 
     pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
@@ -614,11 +612,9 @@ TEST(TransformationTests, CheckTensorNamesAfterUnrolling) {
     m.run_passes(f);
     OV_ASSERT_NO_THROW(check_rt_info(f));
 
-    std::vector<std::string> names_after;
-    collect_legacy_tensor_names(f, names_after);
+    std::vector<std::unordered_set<std::string>> names_after;
+    collect_tensor_names(f, names_after);
 
-    EXPECT_NE(names_before, names_after);
-    EXPECT_EQ(names_after.size(), 2);
-    EXPECT_EQ(names_after[0], "TensorIterator.0");
-    EXPECT_EQ(names_after[1], "TensorIterator.1");
+    ASSERT_EQ(names_after.size(), 0);
+    EXPECT_EQ(names_before, names_after);
 }

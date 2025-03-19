@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include <intel_gpu/plugin/common_utils.hpp>
 #include <intel_gpu/primitives/range.hpp>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateRangeOp(ProgramBuilder &p, const std::shared_ptr<ov::op::v4::Range> &op) {
     validate_inputs_count(op, { 3 });
@@ -32,5 +31,4 @@ static void CreateRangeOp(ProgramBuilder &p, const std::shared_ptr<ov::op::v4::R
 
 REGISTER_FACTORY_IMPL(v4, Range);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

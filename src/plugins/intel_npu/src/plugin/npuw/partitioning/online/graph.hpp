@@ -46,6 +46,7 @@ namespace detail {
     }
 }  // anonymous namespace
 
+namespace own {
 namespace ade {
 
 namespace detail {
@@ -73,16 +74,18 @@ struct CreateIdx {
 
 }  // namespace detail
 }  // namespace ade
+}  // namespace own
 
 namespace std {
 template <typename T>
-struct hash<ade::detail::WeakHandle<T>> {
-    uint64_t operator()(const ade::detail::WeakHandle<T>& handle) const {
+struct hash<own::ade::detail::WeakHandle<T>> {
+    uint64_t operator()(const own::ade::detail::WeakHandle<T>& handle) const {
         return std::hash<T*>()(handle.get());
     }
 };
 }  // namespace std
 
+namespace own {
 namespace ade {
 
 class Graph;
@@ -217,3 +220,4 @@ private:
 };
 
 }  // namespace ade
+}  // namespace own

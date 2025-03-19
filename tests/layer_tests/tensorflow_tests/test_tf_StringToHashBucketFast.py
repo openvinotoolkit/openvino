@@ -1,7 +1,5 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import platform
 
 import numpy as np
 import pytest
@@ -45,10 +43,6 @@ class TestStringToHashBucketFast(CommonTFLayerTest):
                               ['', '  ', '12345 ']])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
-                                                                                                     'aarch64',
-                                                                                                     'arm64', 'ARM64'],
-                       reason='Ticket - 126314, 132699')
     def test_string_to_hash_bucket_fast(self, input_shape, num_buckets, strings_dictionary, ie_device, precision,
                                         ir_version, temp_dir,
                                         use_legacy_frontend):

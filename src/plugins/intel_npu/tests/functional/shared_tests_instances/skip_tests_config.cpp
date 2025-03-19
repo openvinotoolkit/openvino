@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,8 @@
 #include "common/utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/npu_private_properties.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 
 class BackendName {
 public:
@@ -37,10 +38,6 @@ public:
 
     bool isZero() const {
         return _name == "LEVEL0";
-    }
-
-    bool isVpual() const {
-        return _name == "VPUAL";
     }
 
     bool isIMD() const {
@@ -91,6 +88,32 @@ public:
 private:
     std::vector<std::string> _availableDevices;
     intel_npu::Logger _log = intel_npu::Logger("AvailableDevices", ov::log::Level::INFO);
+};
+
+class CurrentOS {
+public:
+    CurrentOS() {
+#ifdef WIN32
+        _name = "windows";
+#elif defined(__linux__)
+        _name = "linux";
+#endif
+    }
+
+    std::string getName() const {
+        return _name;
+    }
+
+    bool isLinux() const {
+        return _name == "linux";
+    }
+
+    bool isWindows() const {
+        return _name == "windows";
+    }
+
+private:
+    std::string _name;
 };
 
 class SkipRegistry {
@@ -147,6 +170,70 @@ std::string getCurrentTestName() {
     return currentTestName;
 }
 
+/** Checks if string containing rule has a "!" character
+ * If "!" is found a flag will be set and the rule will
+ * have the character erased to be used in further conditions
+ *
+ * @param rule Input string
+ * @return true if "!" is found
+ */
+bool isRuleInverted(std::string& rule);
+
+bool isRuleInverted(std::string& rule) {
+    auto pos = rule.find("!");
+    if (pos != std::string::npos) {
+        // Delete negation character from rule string
+        rule.erase(pos, 1);
+        return true;
+    }
+    return false;
+}
+
+/** Reads multiple rules from specified categories:
+ *      - "Backend" rule category
+ *      - "Device" rule category
+ *      - "Operating System" rule category
+ *
+ *  When a rule is found it will get inverted if it starts with "!"
+ *  it will then be checked agains the current system config
+ *
+ *  If the rule is true,then the skip will be enabled and the test will not run.
+ *  If the rule is false, then the skip will be disabled and the test will run.
+ *
+ *  No rule means skip remains enabled
+ *
+ * @param category Input category that will be searched for rules
+ * @param localSettings Input current system setting, by category
+ * @param enableRules xml node to the category that will be checked and read
+ * @return true if a rule is found to match current system config
+ */
+bool categoryRuleEnabler(const std::string& category,
+                         const std::vector<std::string>& localSettings,
+                         const pugi::xml_node& enableRules);
+
+bool categoryRuleEnabler(const std::string& category,
+                         const std::vector<std::string>& localSettings,
+                         const pugi::xml_node& enableRules) {
+    if (enableRules.child(category.c_str()).empty()) {
+        return true;
+    }
+
+    FOREACH_CHILD (enableRule, enableRules, category.c_str()) {
+        auto categoryRule = enableRule.text().get();
+
+        std::string categoryRuleString(categoryRule);
+        bool invert = isRuleInverted(categoryRuleString);
+        for (auto& localSetting : localSettings) {
+            // Perform logical XOR to invert condition
+            if (!(categoryRuleString == localSetting) != !invert) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 std::vector<std::string> disabledTestPatterns();
 
 std::vector<std::string> disabledTestPatterns() {
@@ -154,8 +241,65 @@ std::vector<std::string> disabledTestPatterns() {
     static const auto skipRegistry = []() {
         SkipRegistry _skipRegistry;
 
+        intel_npu::Logger _log = intel_npu::Logger("SkipConfig", ov::log::Level::INFO);
+
         const BackendName backendName;
         const AvailableDevices devices;
+        const CurrentOS currentOS;
+
+        try {
+            const auto& filePath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_SKIP_CONFIG_FILE;
+            // Check if skip xml path is set and read it
+            if (filePath.empty()) {
+                _log.warning("OV_NPU_TESTS_SKIP_CONFIG_FILE not set");
+                throw std::runtime_error("Using legacy skip config");
+            } else {
+                _log.info("Using %s as skip config", filePath.c_str());
+            }
+
+            auto xmlResult = ov::util::pugixml::parse_xml(filePath.c_str());
+            // Error returned from pugixml, fallback to legacy skips
+            if (!xmlResult.error_msg.empty()) {
+                _log.error(xmlResult.error_msg.c_str());
+                throw std::runtime_error("Using legacy skip config");
+            }
+
+            pugi::xml_document& xmlSkipConfig = *xmlResult.xml;
+
+            // Select the parent node
+            pugi::xml_node skipConfigsList = xmlSkipConfig.child("skip_configs");
+
+            // Iterate through each skip rule
+            FOREACH_CHILD (skipConfigRule, skipConfigsList, "skip_config") {
+                // Extract skip message, it will get printed in the test logs
+                auto skipMessageEntry = skipConfigRule.child("message").text().get();
+
+                // Read enable/disable conditions
+                // There can be multiple rules for each category
+                // If "!" is found, then rule is inverted
+                pugi::xml_node enableRules = skipConfigRule.child("enable_rules");
+                bool ruleFlag = true;
+                if (!enableRules.empty()) {
+                    // Accumulate rule for each category
+                    ruleFlag &= categoryRuleEnabler("backend", {backendName.getName()}, enableRules);
+                    ruleFlag &= categoryRuleEnabler("device", devices.getAvailableDevices(), enableRules);
+                    ruleFlag &= categoryRuleEnabler("operating_system", {currentOS.getName()}, enableRules);
+                }
+
+                // Select individual filters and add them to the skipRegistry
+                pugi::xml_node skipFiltersList = skipConfigRule.child("filters");
+                FOREACH_CHILD (skipFilter, skipFiltersList, "filter") {
+                    auto skipFilterEntry = skipFilter.text().get();
+                    // Add skip to registry
+                    _skipRegistry.addPatterns(ruleFlag, skipMessageEntry, {skipFilterEntry});
+                }
+            }
+            return _skipRegistry;
+
+        } catch (const std::runtime_error& e) {
+            // Fallback to legacy skips
+            _log.warning(e.what());
+        }
 
         // clang-format off
 
@@ -266,8 +410,8 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(
                 "Tests with unsupported precision", {
                 ".*InferRequestCheckTensorPrecision.*type=boolean.*",
-                ".*InferRequestCheckTensorPrecision.*type=bf16.*",
                 ".*InferRequestCheckTensorPrecision.*type=f64.*",
+                ".*InferRequestCheckTensorPrecision.*type=bf16.*",
                 ".*InferRequestCheckTensorPrecision.*type=u1\\D.*",
                 // [Track number: E#97469]
                 ".*InferRequestCheckTensorPrecision.*type=i64.*",
@@ -293,13 +437,6 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(
                 "compiler: Unsupported arch kind: NPUX311X", {
                 ".*CompilationForSpecificPlatform.*(3800|3900).*",
-        });
-
-        // [Track number: E#67741]
-        _skipRegistry.addPatterns(
-                "Cannot call setShape for Blobs", {
-                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
-                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*InferStaticNetworkSetChangedInputTensorThrow.*targetDevice=(NPU_|MULTI_configItem=MULTI_DEVICE_PRIORITIES_NPU).*)"
         });
 
         // [Track number: E#67749]
@@ -480,13 +617,6 @@ std::vector<std::string> disabledTestPatterns() {
                 "Tests fail with: ZE_RESULT_ERROR_DEVICE_LOST, code 0x70000001", {
                 // [Tracking number: E#111369]
                 ".*OVInferRequestMultithreadingTests.canRun3SyncRequestsConsistently.*"
-        });
-
-        // [Tracking number: E#107154]
-        _skipRegistry.addPatterns(
-                "Can't disable ELF Backend since Graphfile does not work on linux", {
-                ".*NPU_USE_ELF_COMPILER_BACKEND:NO.*",
-                ".*USE_ELF_COMPILER_BACKEND_NO.*"
         });
 #endif
 
@@ -703,18 +833,9 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*"
         });
 
-        // [Tracking number: E#116494]
         _skipRegistry.addPatterns(
-                "NPU plugin doesn't implement `set_tensors` function", {
-                ".*OVInferRequestBatchedTests.SetInputTensorsBase.*",
-                ".*OVInferRequestBatchedTests.SetInputTensorsAsync.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_override_with_set.*",
-                ".*OVInferRequestBatchedTests.SetInputTensorsBase_Caching.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Multiple_Infer.*",
+                "NPU plugin doesn't support infer dynamic", {
                 ".*OVInferRequestBatchedTests.SetInputTensors_Can_Infer_Dynamic.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Get_Tensor_Not_Allowed.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Correct_all.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Cache_CheckDeepCopy.*"
         });
 
         // [Tracking number: E#118381]
@@ -776,6 +897,10 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
         });
 
+        // get_runtime_model method is not supported on NPU
+        _skipRegistry.addPatterns("get_runtime_model method is not supported on NPU", {
+                ".*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*",
+        });
         return _skipRegistry;
     }();
     // clang-format on

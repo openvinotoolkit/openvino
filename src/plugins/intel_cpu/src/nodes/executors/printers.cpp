@@ -4,25 +4,25 @@
 
 #ifdef CPU_DEBUG_CAPS
 
-#include <ostream>
-#include "printers.hpp"
-#include "post_ops.hpp"
-#include "fullyconnected_config.hpp"
+#    include "printers.hpp"
 
-namespace ov {
-namespace intel_cpu {
+#    include <ostream>
 
-std::ostream & operator<<(std::ostream & os, const FCAttrs& attrs) {
+#    include "fullyconnected_config.hpp"
+#    include "post_ops.hpp"
+
+namespace ov::intel_cpu {
+
+std::ostream& operator<<(std::ostream& os, const FCAttrs& attrs) {
     // @todo print Attrs
     return os;
 }
 
-std::ostream & operator<<(std::ostream & os, const PostOps& postOps) {
+std::ostream& operator<<(std::ostream& os, const PostOps& postOps) {
     // @todo print PostOps
     return os;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu
 
-#endif // CPU_DEBUG_CAPS
+#endif  // CPU_DEBUG_CAPS

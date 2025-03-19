@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ struct CPUStreamsExecutor::Impl {
                                                 _impl->_usedNumaNodes.size()))
                     : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (is_cpu_map_available() && _impl->_config.get_streams_info_table().size() > 0) {
+            if (_impl->_config.get_streams_info_table().size() > 0) {
                 init_stream();
             }
 #elif OV_THREAD == OV_THREAD_OMP
@@ -92,14 +92,6 @@ struct CPUStreamsExecutor::Impl {
                 _impl->_streamIdQueue.push(_streamId);
             }
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (_impl->_config.get_name().find("StreamsExecutor") == std::string::npos) {
-                try {
-                    set_cpu_used(_cpu_ids, NOT_USED);
-                } catch (const ov::Exception&) {
-                    // Destructor should not throw - catch needed for static analysis.
-                    // CPU::CPU() won't throw here as cpu_info() is called from Stream constructor.
-                }
-            }
             if (nullptr != _observer) {
                 _observer->observe(false);
             }
@@ -112,10 +104,11 @@ struct CPUStreamsExecutor::Impl {
                                    const int concurrency,
                                    const int core_type,
                                    const int numa_node_id,
+                                   const int socket_id,
                                    const int max_threads_per_core) {
             auto stream_processors = _impl->_config.get_stream_processor_ids();
-            _numaNodeId = std::max(0, numa_node_id);
-            _socketId = get_socket_by_numa_node(_numaNodeId);
+            _numaNodeId = numa_node_id;
+            _socketId = socket_id;
             if (stream_type == STREAM_WITHOUT_PARAM) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_max_concurrency(concurrency)
@@ -167,6 +160,7 @@ struct CPUStreamsExecutor::Impl {
             int concurrency;
             int cpu_core_type;
             int numa_node_id;
+            int socket_id;
             int max_threads_per_core;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
@@ -181,6 +175,7 @@ struct CPUStreamsExecutor::Impl {
                                 concurrency,
                                 cpu_core_type,
                                 numa_node_id,
+                                socket_id,
                                 max_threads_per_core);
             if (concurrency <= 0) {
                 return;
@@ -190,6 +185,7 @@ struct CPUStreamsExecutor::Impl {
                                   concurrency,
                                   cpu_core_type,
                                   numa_node_id,
+                                  socket_id,
                                   max_threads_per_core);
         }
 #endif
@@ -345,6 +341,7 @@ struct CPUStreamsExecutor::Impl {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
         int streams_num = _config.get_streams();
+        auto processor_ids = _config.get_stream_processor_ids();
         if (streams_num != 0) {
             std::copy_n(std::begin(numaNodes),
                         std::min<std::size_t>(streams_num, numaNodes.size()),
@@ -353,6 +350,10 @@ struct CPUStreamsExecutor::Impl {
             _usedNumaNodes = std::move(numaNodes);
         }
         for (auto streamId = 0; streamId < streams_num; ++streamId) {
+            if (_config.get_cpu_reservation()) {
+                std::lock_guard<std::mutex> lock(_cpu_ids_mutex);
+                _cpu_ids_all.insert(_cpu_ids_all.end(), processor_ids[streamId].begin(), processor_ids[streamId].end());
+            }
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config.get_name() + "_" + std::to_string(streamId));
                 for (bool stopped = false; !stopped;) {
@@ -457,6 +458,8 @@ struct CPUStreamsExecutor::Impl {
     CustomThreadLocal _streams;
     std::shared_ptr<ExecutorManager> _exectorMgr;
     bool _isExit = false;
+    std::vector<int> _cpu_ids_all;
+    std::mutex _cpu_ids_mutex;
 };
 
 int CPUStreamsExecutor::get_stream_id() {
@@ -490,6 +493,16 @@ int CPUStreamsExecutor::get_socket_id() {
 std::vector<int> CPUStreamsExecutor::get_rank() {
     auto stream = _impl->_streams.local();
     return stream->_rank;
+}
+
+void CPUStreamsExecutor::cpu_reset() {
+    {
+        std::lock_guard<std::mutex> lock(_impl->_cpu_ids_mutex);
+        if (!_impl->_cpu_ids_all.empty()) {
+            set_cpu_used(_impl->_cpu_ids_all, NOT_USED);
+            _impl->_cpu_ids_all.clear();
+        }
+    }
 }
 
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "common_op_table.hpp"
+#include "common_translators.hpp"
 #include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
@@ -618,6 +619,7 @@ ov::Output<ov::Node> atan2_op(const ov::Output<ov::Node>& y, const ov::Output<ov
 }
 
 std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_rectangular_to_polar(
+    const ov::frontend::NodeContext& node_context,
     const ov::Output<ov::Node>& real_part,
     const ov::Output<ov::Node>& imag_part) {
     // r = sqrt(a^2 + b^2)
@@ -627,9 +629,9 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_rectangular_to_pol
     auto r = std::make_shared<v0::Sqrt>(sum_sq);
 
     // theta = atan2(b, a)
-    auto theta = atan2_op(imag_part, real_part);
+    auto theta = common_translators::translate_atan2_util(node_context, imag_part, real_part);
 
-    return std::make_pair(r, theta);
+    return std::make_pair(r, theta[0]);
 };
 
 std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_polar_to_rectangular(const ov::Output<ov::Node>& r,

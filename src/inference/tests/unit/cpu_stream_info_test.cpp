@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,7 @@ public:
             int test_concurrency;
             int test_core_type;
             int test_numa_node_id;
+            int test_socket_id = 0;
             int test_max_threads_per_core;
             get_cur_stream_info(i,
                                 test_data._cpu_pinning,
@@ -72,6 +73,7 @@ public:
                                 test_concurrency,
                                 test_core_type,
                                 test_numa_node_id,
+                                test_socket_id,
                                 test_max_threads_per_core);
             test_stream_types.push_back(test_stream_type);
             test_concurrencys.push_back(test_concurrency);
@@ -281,7 +283,6 @@ LinuxCpuStreamTypeCase _2sockets_72cores_binding_9streams = {
      {1, ALL_PROC, 4, -1, -1},
      {0, MAIN_CORE_PROC, 2, 0, 0},
      {0, MAIN_CORE_PROC, 2, 1, 1}},
-#    if defined(__linux__)
     {
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
@@ -293,19 +294,6 @@ LinuxCpuStreamTypeCase _2sockets_72cores_binding_9streams = {
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
     },
-#    else
-    {
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITHOUT_PARAM,
-    },
-#    endif
     {4, 4, 4, 4, 4, 4, 4, 4, 4},
     {
         MAIN_CORE_PROC,

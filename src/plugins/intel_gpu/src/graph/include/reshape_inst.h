@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ public:
             return false;
 
         // TODO: If user is RoPE or MVN and dynamic padding exists, ouput padding propagation is not supported in the base mode
-        if (get_users().size() == 1 && (get_users().front()->is_type<rope>() || get_users().front()->is_type<mvn>()))
+        if (get_users().size() == 1 && get_users().front()->is_type<mvn>())
             return false;
 
         auto axis = input().as<crop>().get_primitive()->axis;
@@ -73,14 +73,17 @@ public:
         const auto& output_pshape = prim->output_partial_shape;
         // TODO: If the reshape's output shape is non constant, issue occurs
         // during shape inference due to execution order at runtime
-        if ((output_pshape.size() != input_rank + 1) || prim->output_pattern.empty())
+        if (prim->output_pattern.empty())
             return false;
 
+        // Iteratively check the total product of all static innermost dimensions
+        // until the crop dimension value matches or the first dynamic dimension is encountered
         int64_t mul = 1;
-        for (size_t i = input_rank - 1; i < output_pshape.size() ; i++) {
-            if (output_pshape[i].is_dynamic())
-                return false;
-            mul *= output_pshape[i].get_length();
+        for (size_t i = output_pshape.size(); i > 1 ; i--) {
+            if (output_pshape[i - 1].is_dynamic() || mul == input_last_dim_val)
+                break;
+
+            mul *= output_pshape[i - 1].get_length();
         }
         if (input_last_dim_val != mul)
             return false;

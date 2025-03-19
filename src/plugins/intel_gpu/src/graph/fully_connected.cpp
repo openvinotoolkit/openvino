@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "fully_connected_inst.h"
@@ -7,8 +7,10 @@
 #include <string>
 #include <algorithm>
 #include "utils.hpp"
+#include "swiglu_inst.h"
 
 #include "matmul_shape_inference.hpp"
+#include "glu_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(fully_connected)
@@ -64,25 +66,27 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
     }
 
     if (input_layout.data_type == data_types::f32 &&
-        input_layout.format == format::bfyx &&
+        (input_layout.format == format::bfyx || input_layout.format == format::bfzyx) &&
         no_spatial_padding &&
         input_layout.batch() != 8)
-        return format::bfyx;
+        return input_layout.format;
 
     auto input_pitches = input_layout.get_pitches();
     if (input_layout.data_type == data_types::f16 &&
-        input_layout.format == format::bfyx &&
+        (input_layout.format == format::bfyx || input_layout.format == format::bfzyx) &&
         no_spatial_padding &&
         input_pitches[0] % 2 == 0 &&
         input_layout.batch() != 16)
-        return format::bfyx;
+        return input_layout.format;
 
     // this condition tests whether our input is batch>1 in bfyx format, if yes there will be
     // extra reorder between input and this fc from bfyx to yxfb format (so
     // "is_batch_after_spatial" should return true)
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         input_layout.format == format::bfyx &&
-        input_layout.batch() > 1)
+        input_layout.batch() > 1 &&
+        input_pitches[2] == 1 &&
+        input_pitches[3] == 1)
         return format::yxfb;
 
     return format::bfyx;
@@ -105,6 +109,8 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         output_type = impl_param.get_output_element_type();
     }
 
+    const auto supports_immad = node.get_program().get_engine().get_device_info().supports_immad;
+
     auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
         auto staticShape = shape.to_shape();
         size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
@@ -113,23 +119,43 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     };
 
     int64_t feature = input_pshape[std::min(desc->input_size, static_cast<size_t>(4)) - 1].get_length();
+
     if (desc->input_size == 3) {
         feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
     }
 
-    if (desc->input_size > 4) {
-       input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
-    }
     if (weights_pshape.size() != 2) {
         weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
     }
 
-    auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
-    if (desc->input_size == 3) {
-        output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
-    } else if (desc->input_size == 4) {
-        output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1));
+    auto output_size = tensor();
+
+    // If immad is supported, spatial dimensions are reshaped to 2d in order to select oneDnn impl,
+    // because oneDnn doesn't support spatial dimensions for output.
+    if (supports_immad) {
+        if (desc->input_size > 3) {
+            input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+        }
+
+        output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
+        if (desc->input_size == 3) {
+            output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+        }
+    } else {
+        if (desc->input_size > 5) {
+            input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+        }
+
+        output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
+        if (desc->input_size == 3) {
+            output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+        } else if (desc->input_size == 4) {
+            output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1));
+        } else if (desc->input_size == 5) {
+            output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1), input_layout.spatial(2));
+        }
     }
+
     format output_format = get_preferred_format(node, impl_param);
 
     return layout(output_type, output_format, output_size);
@@ -149,14 +175,32 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
         output_type = impl_param.get_output_element_type();
     }
 
-    ov::op::v0::MatMul op;
-    op.set_transpose_b(true);
+    ov::op::v0::MatMul matmul_op;
+    matmul_op.set_transpose_b(true);
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()
     };
 
-    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&matmul_op, input_shapes);
+    bool has_swiglu = false;
+    auto& fused_prims = node.get_fused_primitives();
+    for (auto f : fused_prims) {
+        if (f.is_type<swiglu>()) {
+            has_swiglu = true;
+            OPENVINO_ASSERT(fused_prims.size() == 1, "Other operation is fused in addition to swiglu!");
+        }
+    }
+    if (has_swiglu) {
+        ov::op::internal::GLU swiglu_op;
+        OPENVINO_ASSERT(fused_prims.size() == 1);
+        OPENVINO_ASSERT(fused_prims[0].typed_desc<swiglu>()->glu_type == ov::op::internal::GLU::GluType::Swish);
+        swiglu_op.set_axis(fused_prims[0].typed_desc<swiglu>()->axis);
+        swiglu_op.set_split_lengths(fused_prims[0].typed_desc<swiglu>()->split_lengths);
+        swiglu_op.set_glu_type(fused_prims[0].typed_desc<swiglu>()->glu_type);
+        std::vector<ShapeType> input_shapes = { output_shapes[0] };
+        output_shapes = shape_infer(&swiglu_op, input_shapes);
+    }
 
     bool is_static = input_layout.is_static() && weights_layout.is_static();
     bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
@@ -206,8 +250,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         }
     }
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_fake_alignment) {
+    GPU_DEBUG_IF(orig_impl_param.get_program().get_config().get_disable_fake_alignment()) {
         can_apply_fake_alignment = false;
     }
 
@@ -222,17 +265,13 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
             return std::move(orig_impl_param);
         }
 
-        if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu &&
-            batch_size <= 91 && input_shape.back() >= 512) {
-            return std::move(orig_impl_param);
-        }
-
         size_t fake_align_base = 8;
         if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
             auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
             auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
+            auto is_8bit = weights_layout_dt == data_types::i8 || weights_layout_dt == data_types::u8;
             auto is_extra_alignment_needed = batch_size >= 256;
-            fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
+            fake_align_base = (is_4bit || is_8bit) && is_extra_alignment_needed ? 64 : 16;
         }
 
         std::fill(input_shape.begin(), input_shape.end() - 1, 1);

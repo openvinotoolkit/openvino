@@ -6,7 +6,7 @@
 
 #include "rope_inst.h"
 #include "rope/rope_kernel_selector.h"
-#include "rope/rope_kernel_ref.h"
+#include "rope/rope_kernel_opt.h"
 
 namespace cldnn {
 namespace ocl {
@@ -20,12 +20,12 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::rope_impl);
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<rope_impl>(*this);
+        return make_deep_copy<rope_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -45,7 +45,7 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
         params.slice_stop = primitive->config.slice_stop;
 
         params.axis = primitive->config.is_qwen || primitive->config.is_chatglm ? 2 : 3;
-        params.num_of_inputs = primitive->config.is_chatglm || primitive->config.is_interleaved ? 2 : 3;
+        params.num_of_inputs = primitive->config.is_chatglm || (primitive->config.output_trans0213 && primitive->config.is_interleaved)  ? 2 : 3;
 
         if (params.gather_rank > 0) {
             params.num_of_inputs++;
@@ -53,6 +53,8 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
 
         params.is_qwen = primitive->config.is_qwen;
         params.is_chatglm = primitive->config.is_chatglm;
+        params.is_interleaved = primitive->config.is_interleaved;
+        params.support_2d_rope = primitive->config.support_2d_rope;
         params.transposed_input = primitive->config.input_trans0213;
 
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {

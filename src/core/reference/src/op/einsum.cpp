@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -413,7 +413,7 @@ void transpose_input(ov::TensorVector& inputs,
 }
 
 /// \brief      Broadcast input to a new shape. The MatMul operation requires the
-/// same shape of both operands in the common (or batch) dimensionsy.
+/// same shape of both operands in the common (or batch) dimensions.
 ///
 template <typename T>
 void broadcast_input(ov::TensorVector& inputs,
@@ -425,7 +425,7 @@ void broadcast_input(ov::TensorVector& inputs,
     OPENVINO_ASSERT(input_ind < inputs.size());
     ov::Tensor& input = inputs[input_ind];
     const Shape old_shape = input.get_shape();
-    Shape new_shape;
+    PartialShape new_shape;
     new_shape.insert(new_shape.end(), new_common_shape.begin(), new_common_shape.end());
     if (is_separate_first) {
         new_shape.insert(new_shape.end(), separate_shape.begin(), separate_shape.end());
@@ -435,15 +435,15 @@ void broadcast_input(ov::TensorVector& inputs,
         new_shape.insert(new_shape.end(), separate_shape.begin(), separate_shape.end());
     }
 
-    if (input.get_shape() == new_shape) {
+    if (input.get_shape() == new_shape.to_shape()) {
         return;
     }
     OPENVINO_ASSERT(old_shape.size() <= new_shape.size());
 
-    auto output = ov::Tensor(input.get_element_type(), new_shape);
-
     std::vector<size_t> broadcast_axes(old_shape.size());
     std::iota(broadcast_axes.begin(), broadcast_axes.end(), new_shape.size() - old_shape.size());
+    OPENVINO_ASSERT(PartialShape::broadcast_merge_into(new_shape, old_shape, ov::op::AutoBroadcastType::NUMPY));
+    auto output = ov::Tensor(input.get_element_type(), new_shape.to_shape());
 
     reference::broadcast(reinterpret_cast<const char*>(input.data<T>()),
                          reinterpret_cast<char*>(output.data<T>()),
@@ -650,6 +650,48 @@ ov::Tensor reshape_input_for_matmul(const ov::Tensor& input,
     return output;
 }
 
+/// \brief Adjusts the rank of two input tensors by unsqueezing ellipses to the same rank.
+///
+/// This function takes two input tensors and their corresponding subscripts, and ensures that
+/// the ellipses ("...") in the subscripts have the same rank by unsqueezing dimensions as needed.
+/// It modifies the input tensors in place.
+///
+/// \param inputs A vector of input tensors.
+/// \param input_subscripts A vector of strings representing the subscripts for each input tensor.
+/// \param input_ind1 The index of the first input tensor in the inputs vector.
+/// \param input_ind2 The index of the second input tensor in the inputs vector.
+template <typename T>
+void unsqueeze_ellipses_to_same_rank(ov::TensorVector& inputs,
+                                     std::vector<std::string>& input_subscripts,
+                                     size_t input_ind1,
+                                     size_t input_ind2) {
+    constexpr char ellipsis[] = "...";
+    const auto& input1 = inputs[input_ind1];
+    const auto& input2 = inputs[input_ind2];
+    auto label_to_dim_map1 = compute_label_dim_map(input1.get_shape().size(), input_subscripts[input_ind1]);
+    auto label_to_dim_map2 = compute_label_dim_map(input2.get_shape().size(), input_subscripts[input_ind2]);
+    if (label_to_dim_map1.find(ellipsis) != label_to_dim_map1.end() &&
+        label_to_dim_map2.find(ellipsis) != label_to_dim_map2.end()) {
+        std::vector<int64_t> unsqueeze_axis1, unsqueeze_axis2;
+        const auto& ellipsis_dims1 = label_to_dim_map1[ellipsis];
+        const auto& ellipsis_dims2 = label_to_dim_map2[ellipsis];
+        if (ellipsis_dims2.size() > ellipsis_dims1.size()) {
+            for (size_t i = 0; i < ellipsis_dims2.size() - ellipsis_dims1.size(); ++i) {
+                unsqueeze_axis1.push_back(ellipsis_dims1[0] + i);
+            }
+        } else if (ellipsis_dims1.size() > ellipsis_dims2.size()) {
+            for (size_t i = 0; i < ellipsis_dims1.size() - ellipsis_dims2.size(); ++i) {
+                unsqueeze_axis2.push_back(ellipsis_dims2[0] + i);
+            }
+        }
+        ov::Tensor unsqueeze_output1 = unsqueeze_input<T>(input1, unsqueeze_axis1);
+        ov::Tensor unsqueeze_output2 = unsqueeze_input<T>(input2, unsqueeze_axis2);
+        inputs[input_ind1] = std::move(unsqueeze_output1);
+        inputs[input_ind2] = std::move(unsqueeze_output2);
+        return;
+    }
+}
+
 /// \brief      Contract two inputs of Einsum operation according to equation.
 /// The result of the contraction is appended into inputs along with its
 /// subscript. The inputs with indices input_ind1 and input_ind2 are removed from
@@ -674,6 +716,9 @@ void contract_two_inputs(ov::TensorVector& inputs,
 
     const auto& input1 = inputs[input_ind1];
     const auto& input2 = inputs[input_ind2];
+
+    // unsqueeze inputs to have same rank of ellipsis for correct broadcasting
+    unsqueeze_ellipses_to_same_rank<T>(inputs, input_subscripts, input_ind1, input_ind2);
 
     // extract diagonals in case repeated labels in the corresponding input
     // subscripts
@@ -853,8 +898,8 @@ void contract_two_inputs(ov::TensorVector& inputs,
     PartialShape common_sub_shape1 = compute_sub_shape(input_shape1, common_dims_begin, common_dims_end);
     PartialShape common_sub_shape2 = compute_sub_shape(input_shape2, common_dims_begin2, common_dims_end2);
 
-    Shape reduced_sub_shape_prod = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end, true);
-    Shape reduced_sub_shape = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end);
+    PartialShape reduced_sub_shape = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end);
+    Shape reduced_sub_shape2 = compute_sub_shape(input_shape2, reduced_dims_begin2, reduced_dims_end2);
     Shape separate1_sub_shape = compute_sub_shape(input_shape1, separate1_dims_begin, separate1_dims_end);
     Shape separate2_sub_shape = compute_sub_shape(input_shape2, separate2_dims_begin, separate2_dims_end);
 
@@ -862,18 +907,20 @@ void contract_two_inputs(ov::TensorVector& inputs,
     // in case of ellipsis among the common labels
     // reference::broadcast()
     PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, op::AutoBroadcastType::NUMPY);
+    PartialShape::broadcast_merge_into(reduced_sub_shape, reduced_sub_shape2, op::AutoBroadcastType::NUMPY);
+    Shape reduced_sub_shape_prod = {shape_size(reduced_sub_shape.get_shape())};
     Shape common_sub_shape = common_sub_shape1.get_shape();
     broadcast_input<T>(inputs,
                        input_ind1,
                        common_sub_shape,
                        separate1_sub_shape,
-                       reduced_sub_shape,
+                       reduced_sub_shape.get_shape(),
                        is_separate_first1);
     broadcast_input<T>(inputs,
                        input_ind2,
                        common_sub_shape,
                        separate2_sub_shape,
-                       reduced_sub_shape,
+                       reduced_sub_shape.get_shape(),
                        is_separate_first2);
 
     ov::Tensor matmul_operand1 = reshape_input_for_matmul<T>(input1,
@@ -881,6 +928,7 @@ void contract_two_inputs(ov::TensorVector& inputs,
                                                              separate1_sub_shape,
                                                              reduced_sub_shape_prod,
                                                              is_separate_first1);
+
     ov::Tensor matmul_operand2 = reshape_input_for_matmul<T>(input2,
                                                              common_sub_shape,
                                                              separate2_sub_shape,
@@ -924,6 +972,58 @@ void contract_two_inputs(ov::TensorVector& inputs,
     update_operands(inputs, input_subscripts, input_ind1, input_ind2, contract_output, resultant_subscript);
 }
 
+/// \brief Adjusts input subscripts and nodes to handle 0-dimensional ellipsis in Einsum operations.
+///
+/// Handle ellipses labels that do not represent any dimensions:
+/// 1. If there is no ellipsis in the input subscripts, remove ellipsis from the output subscript.
+/// 2. If all ellipses in the input subscripts do not represent any dimensions, remove ellipses from all subscripts.
+/// 3. If there is at least one ellipsis that represents dimension, unsqueeze ellipses that do not represent any,
+///
+/// \param input_nodes A vector of input tensors for the Einsum operation.
+/// \param input_subscripts A vector of input subscripts corresponding to the input nodes.
+/// \param output_subscript The output subscript for the Einsum operation.
+template <typename T>
+void fix_inputs_with_0d_ellipsis(ov::TensorVector& input_nodes,
+                                 std::vector<std::string>& input_subscripts,
+                                 std::string& output_subscript) {
+    static const std::string ellipsis = "...";
+    bool has_ellipsis = false;
+    bool all_no_ellipsis_or_empty = true;
+
+    for (size_t i = 0; i < input_nodes.size(); ++i) {
+        const auto& labels = ov::op::v7::Einsum::extract_labels(input_subscripts[i]);
+        bool has_ellipsis_in_input = std::find(labels.begin(), labels.end(), ellipsis) != labels.end();
+        has_ellipsis |= has_ellipsis_in_input;
+        all_no_ellipsis_or_empty &=
+            !has_ellipsis_in_input || (input_nodes[i].get_shape().size() == (labels.size() - 1));
+    }
+
+    if (!has_ellipsis) {
+        if (output_subscript.find(ellipsis) != std::string::npos) {
+            output_subscript.erase(output_subscript.find(ellipsis), ellipsis.size());
+        }
+    } else if (all_no_ellipsis_or_empty) {
+        for (auto& subscript : input_subscripts) {
+            if (subscript.find(ellipsis) != std::string::npos) {
+                subscript.erase(subscript.find(ellipsis), ellipsis.size());
+            }
+        }
+        if (output_subscript.find(ellipsis) != std::string::npos) {
+            output_subscript.erase(output_subscript.find(ellipsis), ellipsis.size());
+        }
+    } else {
+        for (size_t i = 0; i < input_nodes.size(); ++i) {
+            const auto& labels = ov::op::v7::Einsum::extract_labels(input_subscripts[i]);
+            if (std::find(labels.begin(), labels.end(), ellipsis) != labels.end() &&
+                input_nodes[i].get_shape().size() == (labels.size() - 1)) {
+                std::vector<int64_t> ellipsis_idx{
+                    std::distance(labels.begin(), std::find(labels.begin(), labels.end(), ellipsis))};
+                input_nodes[i] = unsqueeze_input<T>(input_nodes[i], ellipsis_idx);
+            }
+        }
+    }
+}
+
 template <typename T>
 void einsum_impl(const ov::TensorVector& inputs, ov::TensorVector& outputs, const std::string& equation) {
     std::vector<std::string> input_subscripts;
@@ -934,8 +1034,10 @@ void einsum_impl(const ov::TensorVector& inputs, ov::TensorVector& outputs, cons
     // in more optimal order
     size_t num_inputs = inputs.size();
     auto einsum_path = compute_einsum_path(num_inputs);
-
     ov::TensorVector int_inputs = inputs;
+
+    // fix inputs where ellipsis does not contain any dimensions
+    fix_inputs_with_0d_ellipsis<T>(int_inputs, input_subscripts, output_subscript);
 
     // contract inputs by Einsum until just one is remained
     for (auto const& inds_pair : einsum_path) {

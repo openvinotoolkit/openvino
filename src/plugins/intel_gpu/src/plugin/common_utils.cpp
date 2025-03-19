@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,22 +83,23 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
 
     // For state conversions
     CASE(ov::element::f32, ov::element::f32, float, float);
-    CASE(ov::element::f16, ov::element::f16, ov::float16, ov::float16);
     CASE(ov::element::f32, ov::element::f16, float, ov::float16);
     CASE(ov::element::f16, ov::element::f32, ov::float16, float);
+    CASE(ov::element::f16, ov::element::f16, ov::float16, ov::float16);
+    CASE(ov::element::bf16, ov::element::f32, ov::bfloat16, float);
+    CASE(ov::element::bf16, ov::element::f16, ov::bfloat16, ov::float16);
+    CASE(ov::element::boolean, ov::element::u8, bool, uint8_t);
 
     OPENVINO_THROW("[GPU] Unsupported element types combination for copy: ", src_et, " -> ", dst_et);
 }
 
 }  // namespace
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 bool is_supported(ov::element::Type_t et) {
     switch (et) {
-        case ov::element::Type_t::undefined: return true;
-        case ov::element::Type_t::dynamic: return false;
+        case ov::element::Type_t::dynamic: return true;
         case ov::element::Type_t::boolean: return true; // converted to u8
         case ov::element::Type_t::bf16: return false;
         case ov::element::Type_t::f16: return true;
@@ -231,13 +232,24 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::str
         dst_ptr = dst_lock->data();
     } else if (auto remote = dynamic_cast<ov::IRemoteTensor*>(dst)) {
         tmp_tensor = ov::Tensor(dst_et, src->get_shape());
-        ::convert_and_copy(src_ptr, src_et, tmp_tensor.data(), dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
+        ::convert_and_copy(src_ptr,
+                           src_et,
+                           tmp_tensor.data(),
+                           dst_et,
+                           size,
+                           cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
         remote->copy_from(get_tensor_impl(tmp_tensor)._ptr);
+        return;
     } else {
         dst_ptr = dst->data();
     }
 
-    return ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
+    return ::convert_and_copy(src_ptr,
+                              src_et,
+                              dst_ptr,
+                              dst_et,
+                              size,
+                              cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
 }
 
 std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map) {
@@ -251,5 +263,4 @@ std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op,
     return output_data_types;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

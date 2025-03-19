@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -376,3 +376,5 @@ ov::Dimension& ov::PartialShape::operator[](std::ptrdiff_t i) {
     m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
     return m_dimensions[util::normalize_shape_index(i, m_dimensions.size())];
 }
+
+ov::AttributeAdapter<ov::PartialShape>::~AttributeAdapter() = default;

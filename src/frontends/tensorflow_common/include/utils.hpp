@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,9 +166,8 @@ ov::Output<ov::Node> create_dense_tensor(const ov::Output<ov::Node>& indices,
                                          const ov::Output<ov::Node>& shape,
                                          const ov::Output<ov::Node>& values);
 
-ov::Output<ov::Node> atan2_op(const ov::Output<ov::Node>& y, const ov::Output<ov::Node>& x);
-
 std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_rectangular_to_polar(
+    const ov::frontend::NodeContext& node_context,
     const ov::Output<ov::Node>& real_part,
     const ov::Output<ov::Node>& imag_part);
 

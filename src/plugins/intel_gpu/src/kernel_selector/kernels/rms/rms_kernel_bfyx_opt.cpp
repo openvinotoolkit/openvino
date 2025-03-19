@@ -74,12 +74,18 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         }
 
         const std::string lws_0 = "get_local_size(0)";
-        auto item_num_and_lws = get_item_num_and_lws(params, stoi(data_size));
+        // data_size string starts digit when it has static dim.
+        bool is_static_data_size = std::isdigit(data_size[0]);
+        size_t stack_size = 33;
+        if (is_static_data_size) {
+            auto item_num_and_lws = get_item_num_and_lws(params, stoi(data_size));
+            stack_size = cldnn::ceil_div(std::stoi(data_size), item_num_and_lws.second);
+        }
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", data_size),
             MakeJitConstant("LWS", lws_0),
             MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
-            MakeJitConstant("STACK_SIZE", cldnn::ceil_div(std::stoi(data_size), item_num_and_lws.second))
+            MakeJitConstant("STACK_SIZE", stack_size)
         });
     } else {
         jit.AddConstants({
@@ -91,6 +97,35 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
     }
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
+    if (!params.fused_ops.empty()) {
+        jit.AddConstant(MakeJitConstant("INPUT_RANK", params.ov_input_rank));
+        switch (params.ov_input_rank) {
+            case 1 :
+                jit.AddConstant(MakeJitConstant("LAST_DIM", "b"));
+                break;
+            case 2 :
+                jit.AddConstant(MakeJitConstant("LAST_DIM", "f"));
+                break;
+            case 3 :
+                jit.AddConstant(MakeJitConstant("LAST_DIM", "y"));
+                break;
+            default:
+                jit.AddConstant(MakeJitConstant("LAST_DIM", "x"));
+                break;
+        }
+
+        std::vector<std::string> idx_order;
+        if (params.inputs[0].GetDims().size() == 5) {
+            idx_order = { "(b)", "(f)", "(z)", "(y)", "(x)" };
+        } else if (params.inputs[0].GetDims().size() <= 4) {
+            idx_order = { "(b)", "(f)", "(y)", "(x)" };
+        } else {
+            OPENVINO_THROW("rms_bfyx_opt doesn't support 5D or higher dims.");
+        }
+
+        auto conf = FusedOpsConfiguration("", idx_order, "normalized", params.outputs[0].GetDType(), 1);
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
 
     return jit;
 }

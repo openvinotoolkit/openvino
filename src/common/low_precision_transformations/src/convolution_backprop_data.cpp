@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(con
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -74,10 +74,10 @@ size_t ConvolutionBackpropDataTransformation::getInputChannels(const std::shared
     return channels.get_length();
 }
 
-bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool ConvolutionBackpropDataTransformation::transform(ov::pass::pattern::Matcher &m) {
     auto convolutionBackpropData = m.get_match_root();
 
-    if (!canBeTransformed(context, convolutionBackpropData)) {
+    if (!canBeTransformed(convolutionBackpropData)) {
         auto weightsInput = convolutionBackpropData->get_input_node_shared_ptr(1);
         std::shared_ptr<ov::opset1::Reshape> reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(weightsInput);
         FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
@@ -149,7 +149,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         auto newFQ = std::get<1>(res_tuple);
         auto dequantize = std::get<2>(res_tuple);
         if (newFQ != nullptr && dequantize != nullptr)
-            updateOutput(context, dequantize, newFQ);
+            updateOutput(dequantize, newFQ);
 
         dequantization = NetworkHelper::getDequantization(convolutionBackpropData, defaultPrecisions, 1ul);
 
@@ -225,7 +225,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 
     const auto finalDequantization = NetworkHelper::optimizeMultipliesAfter(newMultiplyAfter);
     ov::copy_runtime_info({ convolutionBackpropData, finalDequantization }, finalDequantization);
-    updateOutput(context, finalDequantization, convolutionBackpropData);
+    updateOutput(finalDequantization, convolutionBackpropData);
 
     const auto onActiviation = convolutionBackpropData->get_input_node_shared_ptr(0);
     if (ov::is_type<ov::opset1::Subtract>(onActiviation)) {
@@ -245,8 +245,8 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
     return true;
 }
 
-bool ConvolutionBackpropDataTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    return canConvolutionBeTransformed(context, op, defaultPrecisions);
+bool ConvolutionBackpropDataTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    return canConvolutionBeTransformed(op, defaultPrecisions);
 }
 
 } // namespace low_precision

@@ -6,20 +6,9 @@
 #include "shl_utils.hpp"
 #include "csinn/csi_nn.h"
 #include "utils/debug_capabilities.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 
-namespace ov {
-namespace intel_cpu {
-
-inline void log_unsupported_prec(const std::vector<MemoryDescPtr>& srcDescs,
-                                 const std::vector<MemoryDescPtr>& dstDescs,
-                                 const Algorithm eltwiseAlgorithm) {
-    std::string srcPrec;
-    for (size_t i = 0; i < srcDescs.size(); i++) {
-        srcPrec += srcDescs[i]->getPrecision().to_string() + " ";
-    }
-    DEBUG_LOG(algToString(eltwiseAlgorithm), ": provided combination of src precisions: [", srcPrec,
-                          "] and dst precision: ", dstDescs[0]->getPrecision().to_string(), " is not supported");
-}
+namespace ov::intel_cpu {
 
 bool ShlEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
     if (one_of(algorithm, Algorithm::EltwiseAdd,
@@ -50,6 +39,27 @@ bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
     if (!(std::all_of(srcDescs.cbegin(), srcDescs.cend(), is_precision_supported) &&
           std::all_of(dstDescs.cbegin(), dstDescs.cend(), is_precision_supported))) {
         DEBUG_LOG("ShlEltwise supports only f32");
+        return false;
+    }
+
+    // check whether input and output layouts are equal
+    if(srcDescs.front()->hasLayoutType(LayoutType::nCsp16c) || srcDescs.front()->hasLayoutType(LayoutType::nCsp8c)) {
+        DEBUG_LOG("ShlEltwise does not support 'nCsp16c' or 'nCsp8c' layouts");
+        return false;
+    }
+    const auto unifiedLayout = srcDescs.front()->hasLayoutType(LayoutType::ncsp) ? LayoutType::ncsp : LayoutType::nspc;
+    const auto unifiedRank = srcDescs.front()->as<BlockedMemoryDesc>()->getBlockDims().size();
+    auto has_unified_layout = [unifiedLayout, unifiedRank](const MemoryDescPtr& desc) {
+        if (desc->hasLayoutType(LayoutType::nspc)) {    // ensure the same rank
+            if (desc->as<BlockedMemoryDesc>()->getBlockDims().size() != unifiedRank) {
+                return false;
+            }
+        }
+        return desc->hasLayoutType(unifiedLayout);
+    };
+    if (!(std::all_of(srcDescs.cbegin(), srcDescs.cend(), has_unified_layout) &&
+          std::all_of(dstDescs.cbegin(), dstDescs.cend(), has_unified_layout))) {
+        DEBUG_LOG("ShlEltwise needs to ensure all inputs and outputs are in the same 'ncsp' or 'nspc' layouts");
         return false;
     }
 
@@ -93,14 +103,11 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs,
     srcTensors = std::vector<ShlTensor>(srcDescs.size());
     dstTensors = std::vector<ShlTensor>(dstDescs.size());
 
-    // Allocate Shl session
-    sess = ShlSession();
-
     for (size_t i = 0; i < srcDescs.size(); i++) {
-        srcTensors[i] = ShlTensor(sess, precisionToShlDataType(srcDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(srcDescs[i]), srcDescs[i]->getShape().getStaticDims());
+        srcTensors[i] = ShlTensor(sess, precisionToShlDataType(srcDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(srcDescs[i]), srcDescs[i]->as<BlockedMemoryDesc>()->getBlockDims());
     }
     for (size_t i = 0; i < dstDescs.size(); i++) {
-        dstTensors[i] = ShlTensor(sess, precisionToShlDataType(dstDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(dstDescs[i]), dstDescs[i]->getShape().getStaticDims());
+        dstTensors[i] = ShlTensor(sess, precisionToShlDataType(dstDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(dstDescs[i]), dstDescs[i]->as<BlockedMemoryDesc>()->getBlockDims());
     }
 
     std::function<int()> initFunc = nullptr;
@@ -230,5 +237,4 @@ void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
     return;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,6 +73,8 @@ OPENVINO_API EnumNames<ov::op::MVNEpsMode>& EnumNames<ov::op::MVNEpsMode>::get()
         {{"OUTSIDE_SQRT", ov::op::MVNEpsMode::OUTSIDE_SQRT}, {"INSIDE_SQRT", ov::op::MVNEpsMode::INSIDE_SQRT}});
     return enum_names;
 }
+
+AttributeAdapter<op::MVNEpsMode>::~AttributeAdapter() = default;
 }  // namespace ov
 
 std::ostream& ov::op::operator<<(std::ostream& s, const ov::op::MVNEpsMode& type) {

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "primitive_base.hpp"
 
+#include "scatter_update.hpp"
 #include "scatter_update_inst.h"
 #include "scatter_update/scatter_update_kernel_selector.h"
 #include "scatter_update/scatter_update_kernel_ref.h"
@@ -45,12 +46,12 @@ struct scatter_update_impl : typed_primitive_impl_ocl<scatter_update> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::scatter_update_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<scatter_update_impl>(*this);
+        return make_deep_copy<scatter_update_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -80,47 +81,12 @@ public:
     }
 };
 
-namespace detail {
 
-attach_scatter_update_impl::attach_scatter_update_impl() {
-    auto types = {data_types::f32, data_types::f16, data_types::i32};
-    auto formats = {
-        format::bfyx,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::bfzyx,
-        format::b_fs_zyx_fsv16,
-        format::b_fs_zyx_fsv32,
-        format::bs_fs_zyx_bsv16_fsv16,
-        format::bs_fs_zyx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv32_fsv16,
-        format::bs_fs_zyx_bsv32_fsv32,
-        format::bfwzyx
-    };
-
-    implementation_map<scatter_update>::add(impl_types::ocl,
-                                            shape_types::static_shape,
-                                            typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>,
-                                            types,
-                                            formats);
-
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx
-    };
-
-    implementation_map<scatter_update>::add(impl_types::ocl,
-                                            shape_types::dynamic_shape,
-                                            typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>,
-                                            types,
-                                            dyn_formats);
+std::unique_ptr<primitive_impl> ScatterUpdateImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<scatter_update>());
+    return typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>(static_cast<const scatter_update_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 

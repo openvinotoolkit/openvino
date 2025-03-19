@@ -23,14 +23,14 @@ public:
 };
 
 TEST_F(EyeV9StaticShapeInferenceTest, parameters_as_constant) {
-    const auto rows = Constant::create(element::i32, Shape{1}, {5});
-    const auto cols = Constant::create(element::i32, Shape{1}, {4});
-    const auto diag = Constant::create(element::i32, Shape{}, {1});
-    const auto batch = Constant::create(element::i32, Shape{1}, {2});
+    const auto rows = Constant::create(element::i32, ov::Shape{1}, {5});
+    const auto cols = Constant::create(element::i32, ov::Shape{1}, {4});
+    const auto diag = Constant::create(element::i32, ov::Shape{}, {1});
+    const auto batch = Constant::create(element::i32, ov::Shape{1}, {2});
 
     const auto op = make_op(rows, cols, diag, batch, element::f64);
 
-    input_shapes = ShapeVector{rows->get_shape(), cols->get_shape(), diag->get_shape(), batch->get_shape()};
+    input_shapes = StaticShapeVector{rows->get_shape(), cols->get_shape(), diag->get_shape(), batch->get_shape()};
     const auto output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -47,11 +47,11 @@ TEST_F(EyeV9StaticShapeInferenceTest, parameters_in_const_data_map) {
 
     int32_t rows = 3, cols = 8;
     auto batch = std::array<int32_t, 3>{2, 4, 1};
-    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, Shape{}, &rows}},
-                                                                   {1, {element::i32, Shape{1}, &cols}},
-                                                                   {3, {element::i32, Shape{3}, batch.data()}}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, ov::Shape{}, &rows}},
+                                                                   {1, {element::i32, ov::Shape{1}, &cols}},
+                                                                   {3, {element::i32, ov::Shape{3}, batch.data()}}};
 
-    input_shapes = ShapeVector{{}, {1}, {1}, {3}};
+    input_shapes = StaticShapeVector{{}, {1}, {1}, {3}};
     const auto output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -69,11 +69,11 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_negative_rows) {
     int64_t rows = -3, cols = 8;
     auto batch = std::array<int32_t, 3>{2, 4, 1};
     const auto const_data =
-        std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, Shape{}, &rows}},
-                                               {1, {element::i32, Shape{1}, &cols}},
-                                               {3, {element::i32, Shape{batch.size()}, batch.data()}}};
+        std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, ov::Shape{}, &rows}},
+                                               {1, {element::i32, ov::Shape{1}, &cols}},
+                                               {3, {element::i32, ov::Shape{batch.size()}, batch.data()}}};
 
-    input_shapes = ShapeVector{{}, {1}, {1}, {3}};
+    input_shapes = StaticShapeVector{{}, {1}, {1}, {3}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, const_data),
                     AssertFailure,
@@ -91,11 +91,11 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_negative_columns) {
     int64_t rows = 3, cols = -8;
     auto batch = std::array<int32_t, 3>{2, 4, 1};
     const auto const_data =
-        std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, Shape{}, &rows}},
-                                               {1, {element::i32, Shape{1}, &cols}},
-                                               {3, {element::i32, Shape{batch.size()}, batch.data()}}};
+        std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, ov::Shape{}, &rows}},
+                                               {1, {element::i32, ov::Shape{1}, &cols}},
+                                               {3, {element::i32, ov::Shape{batch.size()}, batch.data()}}};
 
-    input_shapes = ShapeVector{{}, {1}, {1}, {3}};
+    input_shapes = StaticShapeVector{{}, {1}, {1}, {3}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, const_data),
                     AssertFailure,
@@ -114,11 +114,11 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_rows_not_1D) {
     auto rows = std::array<int64_t, 2>{2, 1};
     auto batch = std::array<int32_t, 3>{2, 4, 1};
     const auto const_data =
-        std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, Shape{rows.size()}, &rows}},
-                                               {1, {element::i32, Shape{1}, &cols}},
-                                               {3, {element::i32, Shape{batch.size()}, batch.data()}}};
+        std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, ov::Shape{rows.size()}, &rows}},
+                                               {1, {element::i32, ov::Shape{1}, &cols}},
+                                               {3, {element::i32, ov::Shape{batch.size()}, batch.data()}}};
 
-    input_shapes = ShapeVector{{}, {1}, {1}, {3}};
+    input_shapes = StaticShapeVector{{}, {1}, {1}, {3}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, const_data),
                     NodeValidationFailure,
@@ -137,11 +137,11 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_columns_not_1D) {
     auto cols = std::array<int64_t, 2>{2, 1};
     auto batch = std::array<int32_t, 3>{2, 4, 1};
     const auto const_data =
-        std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, Shape{}, &rows}},
-                                               {1, {element::i32, Shape{cols.size()}, &cols}},
-                                               {3, {element::i32, Shape{batch.size()}, batch.data()}}};
+        std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, ov::Shape{}, &rows}},
+                                               {1, {element::i32, ov::Shape{cols.size()}, &cols}},
+                                               {3, {element::i32, ov::Shape{batch.size()}, batch.data()}}};
 
-    input_shapes = ShapeVector{{1}, {}, {1}, {3}};
+    input_shapes = StaticShapeVector{{1}, {}, {1}, {3}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, const_data),
                     NodeValidationFailure,
@@ -159,11 +159,11 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_batch_shape_not_match_shape_in_c
     int64_t rows = 8, cols = 5;
     auto batch = std::array<int32_t, 3>{2, 4, 1};
     const auto const_data =
-        std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, Shape{}, &rows}},
-                                               {1, {element::i32, Shape{}, &cols}},
-                                               {3, {element::i32, Shape{batch.size()}, batch.data()}}};
+        std::unordered_map<size_t, ov::Tensor>{{0, {element::i32, ov::Shape{}, &rows}},
+                                               {1, {element::i32, ov::Shape{}, &cols}},
+                                               {3, {element::i32, ov::Shape{batch.size()}, batch.data()}}};
 
-    input_shapes = ShapeVector{{}, {}, {}, {2}};
+    input_shapes = StaticShapeVector{{}, {}, {}, {2}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, const_data),
                     NodeValidationFailure,

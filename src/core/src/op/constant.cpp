@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -261,7 +261,8 @@ void Constant::allocate_buffer(bool memset_allocation) {
         constexpr uint8_t init_value = 0;
         m_data = std::make_shared<AlignedBuffer>(byte_size, host_alignment());
 
-        if (memset_allocation) {
+        // AlignedBuffer allocates 1 byte for empty constants, and we set it to zero
+        if (memset_allocation || byte_size == 0) {
             std::memset(m_data->get_ptr(), init_value, m_data->size());
         } else {
             set_unused_bits(m_data->get_ptr());
@@ -339,6 +340,15 @@ Constant::Constant(const Constant& other, const Shape& new_shape)
     OPENVINO_ASSERT(other_size == new_size, "ov::Shape size ", new_size, " is not equal to ", other_size);
     constructor_validate_and_infer_types();
 }
+
+Constant::Constant(const element::Type& type, const Shape& shape, const void* data, std::shared_ptr<void> so)
+    : Constant(
+          type,
+          shape,
+          // Note: const_cast used to store pointer only
+          std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(reinterpret_cast<char*>(const_cast<void*>(data)),
+                                                                    element::get_memory_size(type, shape_size(shape)),
+                                                                    so)) {}
 
 Constant::~Constant() = default;
 
@@ -648,13 +658,22 @@ bool Constant::has_evaluate() const {
 }
 
 bool Constant::evaluate_lower(TensorVector& outputs) const {
-    return evaluate(outputs, {});
-}
-bool Constant::evaluate_upper(TensorVector& outputs) const {
-    return evaluate(outputs, {});
+    if (!outputs.empty() && outputs[0].get_element_type() != m_element_type)
+        return evaluate(outputs, {});  // for TypeRelaxed<Constant>
+    outputs.resize(1);
+    outputs[0] = get_tensor_view();
+    return get_data_ptr() != nullptr;
 }
 
-bool Constant::constant_fold(OutputVector&, const OutputVector&) {
+bool Constant::evaluate_upper(TensorVector& outputs) const {
+    if (!outputs.empty() && outputs[0].get_element_type() != m_element_type)
+        return evaluate(outputs, {});  // for TypeRelaxed<Constant>
+    outputs.resize(1);
+    outputs[0] = get_tensor_view();
+    return get_data_ptr() != nullptr;
+}
+
+bool Constant::can_constant_fold(const OutputVector& input_values) const {
     return false;
 }
 

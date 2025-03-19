@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -773,6 +773,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
     auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
     auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segments_num = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
     auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
@@ -789,6 +790,8 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     set_values<int32_t>(segment_ids, {
             0, 0, 2, 2
     });
+    set_values<int32_t>(segments_num, { 4 });
+
     set_values(per_sample_weights, {
             ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
     });
@@ -798,9 +801,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     topology.add(input_layout("Input0", emb_table->get_layout()));
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(input_layout("Input2", segment_ids->get_layout()));
-    topology.add(data("Input3", per_sample_weights));
+    topology.add(input_layout("Input3", segments_num->get_layout()));
+    topology.add(data("Input4", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 0)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3"), input_info("Input4") }, type, output_shape, 0)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -808,6 +812,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
     network.set_input_data("Input2", segment_ids);
+    network.set_input_data("Input3", segments_num);
 
     auto outputs = network.execute();
 
@@ -838,6 +843,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
     auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
     auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segments_num = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
     auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
@@ -854,6 +860,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     set_values<int32_t>(segment_ids, {
             1, 1, 2, 2
     });
+    set_values<int32_t>(segments_num, { 4 });
     set_values(per_sample_weights, {
             ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
     });
@@ -863,9 +870,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     topology.add(input_layout("Input0", emb_table->get_layout()));
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(input_layout("Input2", segment_ids->get_layout()));
-    topology.add(data("Input3", per_sample_weights));
+    topology.add(input_layout("Input3", segments_num->get_layout()));
+    topology.add(data("Input4", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 2)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3"), input_info("Input4") }, type, output_shape, 2)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -873,6 +881,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
     network.set_input_data("Input2", segment_ids);
+    network.set_input_data("Input3", segments_num);
 
     auto outputs = network.execute();
 
@@ -903,6 +912,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
     auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
     auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segments_num = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
     auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
@@ -919,6 +929,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     set_values<int32_t>(segment_ids, {
             0, 0, 1, 1
     });
+    set_values<int32_t>(segments_num, { 4 });
     set_values(per_sample_weights, {
             ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
     });
@@ -928,9 +939,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     topology.add(input_layout("Input0", emb_table->get_layout()));
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(input_layout("Input2", segment_ids->get_layout()));
-    topology.add(data("Input3", per_sample_weights));
+    topology.add(input_layout("Input3", segments_num->get_layout()));
+    topology.add(data("Input4", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 2)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3"), input_info("Input4") }, type, output_shape, 2)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -938,6 +950,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
     network.set_input_data("Input2", segment_ids);
+    network.set_input_data("Input3", segments_num);
 
     auto outputs = network.execute();
 
@@ -966,6 +979,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
     auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
     auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segments_num = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -981,14 +995,16 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     set_values<int32_t>(segment_ids, {
             0, 0, 2, 2
     });
+    set_values<int32_t>(segments_num, { 4 });
 
     auto type = embedding_bag::segments_sum;
     topology topology;
     topology.add(input_layout("Input0", emb_table->get_layout()));
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(input_layout("Input2", segment_ids->get_layout()));
+    topology.add(input_layout("Input3", segments_num->get_layout()));
     topology.add(
-            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -996,6 +1012,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
     network.set_input_data("Input2", segment_ids);
+    network.set_input_data("Input3", segments_num);
 
     auto outputs = network.execute();
 
@@ -1026,6 +1043,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 3, 2 } });
     auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
     auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segments_num = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
     auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 3, 2};
 
@@ -1091,6 +1109,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     set_values<int32_t>(segment_ids, {
             0, 0, 2, 2
     });
+    set_values<int32_t>(segments_num, { 4 });
     set_values(per_sample_weights, {
             ov::float16(0.5f), ov::float16(0.5f),
             ov::float16(0.5f), ov::float16(0.5f)
@@ -1101,9 +1120,10 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     topology.add(input_layout("Input0", emb_table->get_layout()));
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(input_layout("Input2", segment_ids->get_layout()));
-    topology.add(data("Input3", per_sample_weights));
+    topology.add(input_layout("Input3", segments_num->get_layout()));
+    topology.add(data("Input4", per_sample_weights));
     topology.add(
-            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 0)
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3"), input_info("Input4") }, type, output_shape, 0)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1111,6 +1131,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
     network.set_input_data("Input2", segment_ids);
+    network.set_input_data("Input3", segments_num);
 
     auto outputs = network.execute();
 

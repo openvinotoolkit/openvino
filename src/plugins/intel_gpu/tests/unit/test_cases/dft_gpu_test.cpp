@@ -1963,7 +1963,7 @@ const std::vector<dft_params> IRDFT_params_4d = {
     {{2, 10, 6, 2}, {2, 10, 10}, {1, 2}, {}, expected_rdft2d_results, rinput_data},
     {{2, 10, 6, 2}, {2, 10, 10}, {1, 2}, {10, 10}, expected_rdft2d_results, rinput_data},
     {{2, 5, 7, 2}, {2, 5, 12}, {1, 2}, {5, 12}, expected_rdft2d_results_2, expected_irdft2d_results_2},
-    {{2, 10, 6, 2}, {2, 10, 10}, {0, 1, 2}, {10, 10}, expected_rdft3d_results, rinput_data},
+    {{2, 10, 6, 2}, {2, 10, 10}, {0, 1, 2}, {10, 10, 10}, expected_rdft3d_results, rinput_data},
     {{2, 10, 6, 2}, {4, 5, 12}, {0, 1, 2}, {4, 5, 12}, expected_rdft3d_results, expected_irdft3d_results_2},
 };
 const std::vector<dft_params> IRDFT_params_5d = extendByOneDimension(IRDFT_params_4d);

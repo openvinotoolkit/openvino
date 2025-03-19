@@ -65,7 +65,7 @@ The supported by decomposition Transpose orders are defined by `TokenizeMHASnipp
 
 [SplitDimensionM](../src/pass/split_dimension_m.cpp) splits M dimension of MHA in 2 parts (`batch_m` and `new_m`) by inserting Reshape on A input of the first Matmul and output of the second Matmul (the rest Subgraph's inputs are reshaped by Unsqueeze-like reshapes in order not to break subgraph semantic).
 This optimization increases parallel work amount by `batch_m` times thus enabling a more efficient parallel execution in some cases.
-The splitting is performed based on heuristic algorithm which can be found in `SplitDimensionM::get_splited_dimensions` method.
+The splitting is performed based on heuristic algorithm which can be found in `SplitDimensionM::split` method.
 
 Let's consider an example of the transformation:
 
@@ -129,7 +129,7 @@ The heuristics for determining the optimal block sizes can be found in [BrgemmCP
 
 ### Blocking Order
 
-The lowered pass [BrgemmBlocking](../../../plugins/intel_cpu/src/transformations/snippets/x64/pass/lowered/brgemm_blocking.cpp) performs blocking loops creation on LinearIR.
+The lowered pass [BrgemmBlocking](../../../common/snippets/src/lowered/pass/brgemm_blocking.cpp) performs blocking loops creation on LinearIR.
 Currently, the order of blocking loops is following (from outer to inner): `M->N->K`.
 
 ## MHA Performance Tuning Recommendations

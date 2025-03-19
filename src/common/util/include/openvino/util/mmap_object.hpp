@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -49,5 +50,4 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path);
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
 }  // namespace ov

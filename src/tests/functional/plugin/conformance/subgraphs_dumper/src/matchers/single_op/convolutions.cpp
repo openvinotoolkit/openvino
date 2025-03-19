@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,8 +47,8 @@ bool ConvolutionsMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
     if (!SingleOpMatcher::match_inputs(node, ref)) {
         return false;
     }
-    bool has_groups = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||
-                      std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(node);
+    bool has_groups = ov::as_type_ptr<ov::op::v1::GroupConvolution>(node) ||
+                      ov::as_type_ptr<ov::op::v1::GroupConvolutionBackpropData>(node);
     size_t kernel_size_offset = has_groups ? 3 : 2;
     auto ref_weights_shape = ref->get_input_partial_shape(1).get_shape();
     auto cur_weights_shape = node->get_input_partial_shape(1).get_shape();

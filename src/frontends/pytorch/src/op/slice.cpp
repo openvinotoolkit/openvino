@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <climits>
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
@@ -32,6 +33,9 @@ OutputVector translate_slice_common(const NodeContext& context,
         dim = context.get_input(1);
         if (dim.get_partial_shape().rank().is_dynamic() || dim.get_partial_shape().rank().get_length() == 0) {
             dim = context.mark_node(std::make_shared<v1::Reshape>(dim, dims_1d_shape, false));
+            if (const auto axis_const = ov::util::get_constant_from_source(dim)) {
+                dim = axis_const;
+            }
         }
         start_idx = 2;
         end_idx = 3;
@@ -51,6 +55,9 @@ OutputVector translate_slice_common(const NodeContext& context,
         if (start.get_partial_shape().rank().is_dynamic() || start.get_partial_shape().rank().get_length() == 0) {
             start = context.mark_node(std::make_shared<v1::Reshape>(start, dims_1d_shape, false));
         }
+        if (const auto start_const = ov::util::get_constant_from_source(start)) {
+            start = start_const;
+        }
     } else {
         start = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     }
@@ -63,6 +70,9 @@ OutputVector translate_slice_common(const NodeContext& context,
             (!(end.get_partial_shape().rank().is_dynamic()) && end.get_partial_shape().rank().get_length() == 0)) {
             end = context.mark_node(std::make_shared<v1::Reshape>(end, dims_1d_shape, false));
         }
+        if (const auto end_const = ov::util::get_constant_from_source(end)) {
+            end = end_const;
+        }
     } else {
         end = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {INT_MAX}));
     }
@@ -71,6 +81,9 @@ OutputVector translate_slice_common(const NodeContext& context,
         step = context.get_input(step_idx);
         if (step.get_partial_shape().rank().is_dynamic() || step.get_partial_shape().rank().get_length() == 0) {
             step = context.mark_node(std::make_shared<v1::Reshape>(step, dims_1d_shape, false));
+        }
+        if (const auto step_const = ov::util::get_constant_from_source(step)) {
+            step = step_const;
         }
     } else {
         step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,4 +90,6 @@ EnumNames<op::v0::DepthToSpace::DepthToSpaceMode>::get() {
          {"depth_first", op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST}});
     return enum_names;
 }
+
+AttributeAdapter<op::v0::DepthToSpace::DepthToSpaceMode>::~AttributeAdapter() = default;
 }  // namespace ov

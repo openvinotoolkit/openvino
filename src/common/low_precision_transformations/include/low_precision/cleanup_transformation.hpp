@@ -17,9 +17,8 @@ namespace low_precision {
 class LP_TRANSFORMATIONS_API CleanupTransformation : public LayerTransformation {
 public:
     CleanupTransformation(const Params& params);
-    virtual ~CleanupTransformation() = default;
 
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+    bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
     static bool canBeTransformedStatic(
         const std::shared_ptr<Node>& layer,
         const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());

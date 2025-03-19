@@ -375,7 +375,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | Enter                                                   | YES                           |                               |
 | Equal                                                   | YES                           |                               |
 | Erf                                                     | YES                           |                               |
-| Erfc                                                    | NO                            |                               |
+| Erfc                                                    | YES                           |                               |
 | Erfinv                                                  | NO                            |                               |
 | EuclideanNorm                                           | YES                           |                               |
 | Exit                                                    | YES                           |                               |
@@ -419,7 +419,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ExperimentalUnbatchDataset                              | NO                            |                               |
 | ExperimentalUniqueDataset                               | NO                            |                               |
 | Expint                                                  | NO                            |                               |
-| Expm1                                                   | NO                            |                               |
+| Expm1                                                   | YES                           |                               |
 | ExtractGlimpse                                          | NO                            |                               |
 | ExtractGlimpseV2                                        | NO                            |                               |
 | ExtractImagePatches                                     | YES                           |                               |
@@ -1314,7 +1314,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | TensorListSetItem                                       | YES                           |                               |
 | TensorListSplit                                         | NO                            |                               |
 | TensorListStack                                         | YES                           |                               |
-| TensorScatterAdd                                        | NO                            |                               |
+| TensorScatterAdd                                        | YES                           |                               |
 | TensorScatterMax                                        | NO                            |                               |
 | TensorScatterMin                                        | NO                            |                               |
 | TensorScatterSub                                        | NO                            |                               |

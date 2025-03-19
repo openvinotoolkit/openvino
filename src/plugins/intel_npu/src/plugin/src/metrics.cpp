@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 // Plugin
 #include "metrics.hpp"
 
-#include "device_helpers.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {
@@ -91,6 +91,17 @@ IDevice::Uuid Metrics::GetDeviceUuid(const std::string& specifiedDeviceName) con
     return IDevice::Uuid{};
 }
 
+ov::device::LUID Metrics::GetDeviceLUID(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device) {
+        return device->getLUID();
+    }
+    return ov::device::LUID{{
+        0,
+    }};
+}
+
 std::vector<ov::PropertyName> Metrics::GetCachingProperties() const {
     return _cachingProperties;
 }
@@ -160,13 +171,12 @@ uint64_t Metrics::GetDeviceTotalMemSize(const std::string& specifiedDeviceName) 
 }
 
 std::string Metrics::getDeviceName(const std::string& specifiedDeviceName) const {
-    std::vector<std::string> devNames;
-    if (_backends == nullptr || (devNames = _backends->getAvailableDevicesNames()).empty()) {
-        OPENVINO_THROW("No available devices");
-    }
-
     // In case of single device and empty input from user we should use the first element from the device list
     if (specifiedDeviceName.empty()) {
+        std::vector<std::string> devNames;
+        if (_backends == nullptr || (devNames = _backends->getAvailableDevicesNames()).empty()) {
+            OPENVINO_THROW("No available devices");
+        }
         if (devNames.size() == 1) {
             return devNames[0];
         } else {

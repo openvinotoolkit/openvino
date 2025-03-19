@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,22 @@ TEST(TransformationTests, TestModelTensorsConsistencyUseShapesTrue) {
 
     model->validate_nodes_and_infer_types();
     EXPECT_TRUE(model->outputs()[0].get_names() == new_tensors);
+}
+
+TEST(TransformationTests, MOCConvertElimination) {
+    auto input = std::make_shared<opset12::Parameter>(element::f32, Shape{1});
+    auto const_val = opset12::Constant::create(element::f32, Shape{1}, {2});
+
+    auto add1 = std::make_shared<opset12::Add>(input, const_val);
+    auto convert_fp32 = std::make_shared<opset12::Convert>(const_val, element::f32);
+    auto mul = std::make_shared<opset12::MatMul>(add1, convert_fp32);
+
+    auto model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input});
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::MOCTransformations>(false);
+    m.run_passes(model);
+
+    EXPECT_EQ(count_ops_of_type<opset12::Constant>(model), 1);
 }
 
 TEST(TransformationTests, TestModelTensorsConsistencyUseShapesFalse) {

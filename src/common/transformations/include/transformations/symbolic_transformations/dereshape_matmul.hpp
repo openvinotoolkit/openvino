@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@ class TRANSFORMATIONS_API DeReshapeFullyConnected;
  */
 class ov::pass::DeReshapeMatMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DeReshapeMatMul", "0");
+    OPENVINO_MATCHER_PASS_RTTI("DeReshapeMatMul");
     DeReshapeMatMul();
 };
 
@@ -87,6 +87,6 @@ public:
  */
 class ov::pass::DeReshapeFullyConnected : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DeReshapeFullyConnected", "0");
+    OPENVINO_MATCHER_PASS_RTTI("DeReshapeFullyConnected");
     DeReshapeFullyConnected();
 };
