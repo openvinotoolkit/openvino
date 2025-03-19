@@ -22,7 +22,11 @@ arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm,
                                                         float gamma = 0.0) {
     switch (algorithm) {
     case Algorithm::EltwiseRelu:
-        return {arm_compute::ActivationLayerInfo::ActivationFunction::RELU, alpha};
+        if (alpha == 0) {
+            return arm_compute::ActivationLayerInfo::ActivationFunction::RELU;
+        } else {
+            return {arm_compute::ActivationLayerInfo::ActivationFunction::LEAKY_RELU, alpha};
+        }
     case Algorithm::EltwiseGeluErf:
         return arm_compute::ActivationLayerInfo::ActivationFunction::GELU;
     case Algorithm::EltwiseElu:
