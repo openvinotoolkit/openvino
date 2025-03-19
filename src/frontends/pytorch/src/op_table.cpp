@@ -304,6 +304,7 @@ OP_CONVERTER(translate_new_ones_fx);
 OP_CONVERTER(translate_new_zeros_fx);
 OP_CONVERTER(translate_ones_fx);
 OP_CONVERTER(translate_ones_like_fx);
+OP_CONVERTER(translate_rad2deg);
 OP_CONVERTER(translate_reflection_pad_nd_fx);
 OP_CONVERTER(translate_repeat_fx);
 OP_CONVERTER(translate_rsub_fx);
@@ -611,6 +612,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::prod", op::translate_prod},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
+        {"aten::rad2deg", op::translate_rad2deg},
         {"aten::rand", op::translate_rand},
         {"aten::rand_like", op::translate_rand_like},
         {"aten::randint", op::translate_randint},
