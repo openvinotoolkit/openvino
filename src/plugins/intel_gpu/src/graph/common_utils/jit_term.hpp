@@ -9,6 +9,8 @@
 #include <string>
 #include <utility>
 
+#include "openvino/core/except.hpp"
+
 namespace ov::intel_gpu {
 
 template <typename T>
@@ -62,12 +64,10 @@ public:
     }
 
     JitTerm operator[](const JitTerm& idx) const {
-        JitTerm jit_term{text + "[" + idx.str() + "]"};
-        return jit_term;
+        return JitTerm{text + "[" + idx.str() + "]"};
     }
     JitTerm operator[](size_t idx) const {
-        JitTerm jit_term{text + "[" + to_code_string(idx) + "]"};
-        return jit_term;
+        return JitTerm{text + "[" + to_code_string(idx) + "]"};
     }
 
     template <typename T1, typename... Args>
@@ -149,6 +149,7 @@ inline JitTerm operator*(const JitTerm& lhs, const JitTerm& rhs) {
     return JitTerm{"(" + lhs.str() + " * " + rhs.str() + ")"};
 }
 inline JitTerm operator/(const JitTerm& lhs, const JitTerm& rhs) {
+    OPENVINO_ASSERT(rhs.str() != "0");
     if (rhs.str() == "1") {
         return lhs;
     }
@@ -158,6 +159,15 @@ inline JitTerm operator/(const JitTerm& lhs, const JitTerm& rhs) {
     return JitTerm{"(" + lhs.str() + " / " + rhs.str() + ")"};
 }
 inline JitTerm operator%(const JitTerm& lhs, const JitTerm& rhs) {
+    OPENVINO_ASSERT(rhs.str() != "0");
+    if (rhs.str() == "1") {
+        return JitTerm{"0"};
+    }
+
+    if (is_number(lhs) && is_number(rhs)) {
+        return JitTerm{std::to_string(as_number<int64_t>(lhs) % as_number<int64_t>(rhs))};
+    }
+
     return JitTerm{"(" + lhs.str() + " % " + rhs.str() + ")"};
 }
 inline JitTerm operator++(JitTerm& t, int) {

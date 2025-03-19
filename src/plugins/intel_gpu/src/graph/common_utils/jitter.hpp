@@ -15,8 +15,7 @@
 namespace ov::intel_gpu {
 
 class CodeBuilder {
-    std::ostringstream oss;
-    std::string code;
+    std::ostringstream code;
     std::vector<std::string> defined_macroses;
 
     CodeBuilder& register_macro(const std::string& name) {
@@ -37,14 +36,8 @@ class CodeBuilder {
     }
 
 public:
-    CodeBuilder& set_code(const std::string& c) {
-        assert(code.empty());
-        code = c;
-        return *this;
-    }
-
     CodeBuilder& add_line(const std::string& line) {
-        oss << line << "\n";
+        code << line << "\n";
         return *this;
     }
 
@@ -52,23 +45,23 @@ public:
                                   const std::string& prefix,
                                   const std::string& postfix,
                                   const std::string& name_prefix = std::string()) {
-        oss << "#define " << name << "(name) " << prefix << " " + name_prefix + "_##" + "name" << (postfix.empty() ? "" : "##_") << postfix << '\n';
+        code << "#define " << name << "(name) " << prefix << " " + name_prefix + "_##" + "name" << (postfix.empty() ? "" : "##_") << postfix << '\n';
         return register_macro(name);
     }
 
     CodeBuilder& value_macro(const std::string& name, const std::string& value) {
-        oss << "#define " << name << " " << value << '\n';
+        code << "#define " << name << " " << value << '\n';
         return register_macro(name.substr(0, name.find('(')));
     }
 
     CodeBuilder& undef_macro(const std::string& name) {
-        oss << "#undef " << name.substr(0, name.find('(')) << '\n';
+        code << "#undef " << name.substr(0, name.find('(')) << '\n';
         return unregister_macro(name.substr(0, name.find('(')));
     }
 
     std::string str() {
-        oss << '\n';
-        return oss.str();
+        code << '\n';
+        return code.str();
     }
 };
 

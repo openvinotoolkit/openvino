@@ -260,7 +260,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
         for (const auto& i : _order) {
-            kernel_strings.push_back(_stages[i]->kd.code.kernel_string);
+            kernel_strings.push_back(_stages[i]->kd.code);
             OPENVINO_ASSERT(kernel_strings.back() != nullptr);
         }
         return kernel_strings;
@@ -268,7 +268,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
 
     void reset_kernels_source() override {
         for (auto& stage : _stages) {
-            stage->kd.code.kernel_string.reset();
+            stage->kd.code.reset();
         }
     }
 

@@ -34,15 +34,15 @@ KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     auto jit = get_jit_constants(params);
 
     KernelData kd;
-    kd.code.kernel_string = std::make_shared<KernelString>();
-    kd.code.kernel_string->language = KernelLanguage::CM;
-    kd.code.kernel_string->entry_point = get_entry_point(params);
-    kd.code.kernel_string->jit = "";
-    kd.code.kernel_string->undefs = "";
-    kd.code.kernel_string->options = get_build_options(params);
-    kd.code.kernel_string->batch_compilation = true;
-    kd.code.kernel_string->has_microkernels = false;
-    kd.code.kernel_string->str = build_code(m_kernel_name, jit, kd.code.kernel_string->entry_point);
+    kd.code = std::make_shared<KernelString>();
+    kd.code->language = KernelLanguage::CM;
+    kd.code->entry_point = get_entry_point(params);
+    kd.code->jit = "";
+    kd.code->undefs = "";
+    kd.code->options = get_build_options(params);
+    kd.code->batch_compilation = true;
+    kd.code->has_microkernels = false;
+    kd.code->str = build_code(m_kernel_name, jit, kd.code->entry_point);
 
     kd.params.arguments = get_arguments_desc(params);
     kd.update_dispatch_data_func = get_dispatch_data_func();

@@ -28,10 +28,6 @@ using Arguments = cldnn::arguments_desc;
 using cldnn::WeightsReorderParams;
 using KernelLanguage = cldnn::kernel_language;
 
-struct KernelCode {
-    std::shared_ptr<KernelString> kernel_string;
-};
-
 struct KernelData;
 struct ImplRuntimeParams {};
 
@@ -49,7 +45,7 @@ struct DispatchDataFunc {
 };
 
 struct KernelData {
-    KernelCode code;
+    std::shared_ptr<KernelString> code;
     KernelParams params;
     std::vector<std::shared_ptr<micro::MicroKernelPackage>> micro_kernels;
     DispatchDataFunc update_dispatch_data_func{nullptr};

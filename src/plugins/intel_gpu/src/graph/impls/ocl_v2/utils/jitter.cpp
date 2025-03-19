@@ -128,7 +128,7 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
                     }
                 }
             } else {
-                m_strides[i] = JitTerm{"NOT_IMPLEMENTED"};
+                m_strides[i] = JitTerm{"NOT_IMPLEMENTED_DYNAMIC_STRIDE"};
             }
         }
     }
@@ -369,9 +369,9 @@ JitConstants make_indexing_jit_functions(const std::string& name, const layout& 
     }
 
     const JitTerm tensor_name{name};
-    bool simple_format = format::is_simple_data_format(fmt);
+    const bool simple_format = format::is_simple_data_format(fmt);
 
-    const JitTerm layout_suffix{format::is_simple_data_format(fmt) ? "" : "_" + format_string(fmt)};
+    const JitTerm layout_suffix{simple_format ? "" : "_" + format_string(fmt)};
     if (!simple_format) {
         rank_suffix = JitTerm{""};
     }
@@ -400,7 +400,7 @@ JitConstants make_indexing_jit_functions(const std::string& name, const layout& 
             // Otherwise, dimensions should be equal and using "f" should be safe.
             const JitTerm f_size{to_code_string(l.feature())};
             const JitTerm f{"(f)"};
-            if (l.data_padding && format::is_simple_data_format(fmt)) {
+            if (l.data_padding && simple_format) {
                 const JitTerm f_pitch{to_code_string(0 /* _tensor.Feature().pitch */)};
                 safe_index_func_val = offset + (f % f_size) * f_pitch;
                 index_func_val = offset + (f * f_pitch);
@@ -748,7 +748,7 @@ std::string to_ocl_type(ov::element::Type_t et) {
     case ov::element::Type_t::i64:
         return get_ocl_type_name<int64_t>();
     case ov::element::Type_t::f16:
-        return "half";
+        return get_ocl_type_name<ov::float16>();
     case ov::element::Type_t::f32:
         return get_ocl_type_name<float>();
     default:
