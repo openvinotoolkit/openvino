@@ -182,6 +182,18 @@ inline void mm512_loadu_u4_to_f32(uint8_t* src_data, __m512& first_half, __m512&
     second_half = _mm512_permutex2var_ps(v_f32_low_half, idx2, v_f32_high_half);
 }
 
+inline void mm512_storeu_u4(uint8_t* dst_data, __m512i& v0, __m512i& v1) {
+    __m512i idx1 = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m512i idx2 = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
+    auto first_half = _mm512_permutex2var_epi32(v0, idx1, v1);
+    auto second_half = _mm512_permutex2var_epi32(v0, idx2, v1);
+    first_half = _mm512_slli_epi32(first_half, 4);
+    auto mask = _mm512_set1_epi32(0x0F);
+    second_half = _mm512_and_epi32(second_half, mask);
+    auto combined = _mm512_or_epi32(first_half, second_half);
+    _mm512_mask_cvtepi32_storeu_epi8(dst_data, 0xffff, combined);
+}
+
 #endif
 
 #ifdef HAVE_AVX2
@@ -317,6 +329,32 @@ inline void mm256_loadu_u4_to_f32(uint8_t* src, __m256& first_half, __m256& seco
     first_half = _mm256_permutevar8x32_ps(first_half, idx1);
     second_half = _mm256_permute2f128_ps(v_f32_low_half, v_f32_high_half, 0x31);
     second_half = _mm256_permutevar8x32_ps(second_half, idx1);
+}
+
+inline void mm256_storeu_u4(uint8_t* dst_data, __m256i& v0_i32, __m256i& v1_i32) {
+    auto idx1 = _mm256_set_epi32(7, 5, 3, 1, 6, 4, 2, 0);
+    v0_i32 = _mm256_permutevar8x32_epi32(v0_i32, idx1);
+    v1_i32 = _mm256_permutevar8x32_epi32(v1_i32, idx1);
+    //    0,1,2,3,4,5,6,7 | 8,9,10,11,12,13,14,15
+    //       _mm256_permutevar8x32_epi32
+    //    0,2,4,6,1,3,5,7 | 8,10,12,14,9,11,13,15
+    //       _mm256_permute2x128_si256
+    // 0,2,4,6,8,10,12,14 | 1,3,5,7,9,11,13,15
+    //          shift + mask + or
+    //     [0,1],[2,3], ..., [12,13], [14,15]
+    auto first_half = _mm256_permute2x128_si256(v0_i32, v1_i32, 0x20);
+    auto second_half = _mm256_permute2x128_si256(v0_i32, v1_i32, 0x31);
+    first_half = _mm256_slli_epi32(first_half, 4);
+    auto mask = _mm256_set1_epi32(0x0F);
+    second_half = _mm256_and_si256(second_half, mask);
+    auto combined = _mm256_or_si256(first_half, second_half);
+
+    auto high4 = _mm256_extractf128_si256(combined, 1);
+    auto low4 = _mm256_castsi256_si128(combined);
+    // ignore sign bit for u4 case
+    auto packed = _mm_packus_epi32(low4, high4);
+    packed = _mm_packus_epi16(packed, packed);
+    _mm_storel_epi64(reinterpret_cast<__m128i*>(dst_data), packed);
 }
 
 inline void hsum(__m256& x) {

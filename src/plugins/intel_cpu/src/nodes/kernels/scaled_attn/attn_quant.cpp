@@ -242,15 +242,15 @@ static void find_params_by_channel(const T* src,
     }
 }
 
-template <typename T>
-static void quant_u8_by_channel_kernel(const T* src,
-                                       uint8_t* dst,
-                                       size_t seq_dim,
-                                       size_t hidden_dims,
-                                       size_t src_stride,
-                                       size_t dst_stride,
-                                       float* scale,
-                                       float* zp) {
+template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u8, bool> = true>
+static void quantize_by_channel(const T* src,
+                                uint8_t* dst,
+                                size_t seq_dim,
+                                size_t hidden_dims,
+                                size_t src_stride,
+                                size_t dst_stride,
+                                float* scale,
+                                float* zp) {
     find_params_by_channel(src, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp, 8);
     // quantize
     size_t j = 0;
@@ -299,17 +299,79 @@ static void quant_u8_by_channel_kernel(const T* src,
     }
 }
 
-template <typename T>
-static void quant_u4_by_channel_kernel(const T* src,
-                                       uint8_t* dst,
-                                       size_t seq_dim,
-                                       size_t hidden_dims,
-                                       size_t src_stride,
-                                       size_t dst_stride,
-                                       float* scale,
-                                       float* zp) {
+// static void quantize_u4_kernel() {
+
+// }
+
+template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u4, bool> = true>
+static void quantize_by_channel(const T* src,
+                                uint8_t* dst,
+                                size_t seq_dim,
+                                size_t hidden_dims,
+                                size_t src_stride,
+                                size_t dst_stride,
+                                float* scale,
+                                float* zp) {
     find_params_by_channel(src, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp, 4);
-    for (size_t j = 0; j < hidden_dims; j++) {
+    size_t j = 0;
+#if defined(HAVE_AVX512F)
+    for (; j + vec_len_f32_avx512 * 2 <= hidden_dims; j += vec_len_f32_avx512 * 2) {
+        auto v_scale0 = mm512_uni_loadu_ps(scale + j);
+        v_scale0 = _mm512_div_ps(_mm512_set1_ps(1.0f), v_scale0);
+        auto v_scale1 = mm512_uni_loadu_ps(scale + j + vec_len_f32_avx512);
+        v_scale1 = _mm512_div_ps(_mm512_set1_ps(1.0f), v_scale1);
+
+        auto v_zero = _mm512_setzero_epi32();
+        auto v_upper = _mm512_set1_epi32(15);
+
+        auto v_zp0 = mm512_uni_loadu_ps(zp + j);
+        auto v_zp1 = mm512_uni_loadu_ps(zp + j + vec_len_f32_avx512);
+        for (size_t i = 0; i < seq_dim; i++) {
+            auto v0 = mm512_uni_loadu_ps(src + i * src_stride + j);
+            auto v1 = mm512_uni_loadu_ps(src + i * src_stride + j + vec_len_f32_avx512);
+            v0 = _mm512_fmadd_ps(v0, v_scale0, v_zp0);
+            v1 = _mm512_fmadd_ps(v1, v_scale1, v_zp1);
+            auto v0_i32 = _mm512_cvt_roundps_epi32(v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            auto v1_i32 = _mm512_cvt_roundps_epi32(v1, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            v0_i32 = _mm512_max_epi32(v0_i32, v_zero);
+            v1_i32 = _mm512_max_epi32(v1_i32, v_zero);
+            v0_i32 = _mm512_min_epi32(v0_i32, v_upper);
+            v1_i32 = _mm512_min_epi32(v1_i32, v_upper);
+            mm512_storeu_u4(dst + i * dst_stride + j / 2, v0_i32, v1_i32);
+        }
+    }
+#endif
+#if defined(HAVE_AVX2)
+    for (; j + vec_len_f32_avx2 * 2 <= hidden_dims; j += vec_len_f32_avx2 * 2) {
+        auto v_scale0 = mm256_uni_loadu_ps(scale + j);
+        v_scale0 = _mm256_div_ps(_mm256_set1_ps(1.0f), v_scale0);
+        auto v_scale1 = mm256_uni_loadu_ps(scale + j + vec_len_f32_avx2);
+        v_scale1 = _mm256_div_ps(_mm256_set1_ps(1.0f), v_scale1);
+
+        auto v_zero = _mm256_setzero_si256();
+        auto v_upper = _mm256_set1_epi32(15);
+
+        auto v_zp0 = mm256_uni_loadu_ps(zp + j);
+        auto v_zp1 = mm256_uni_loadu_ps(zp + j + vec_len_f32_avx2);
+        for (size_t i = 0; i < seq_dim; i++) {
+            auto v0 = mm256_uni_loadu_ps(src + i * src_stride + j);
+            auto v1 = mm256_uni_loadu_ps(src + i * src_stride + j + vec_len_f32_avx2);
+            v0 = _mm256_fmadd_ps(v0, v_scale0, v_zp0);
+            v0 = _mm256_round_ps(v0, _MM_ROUND_NEAREST);
+            v1 = _mm256_fmadd_ps(v1, v_scale1, v_zp1);
+            v1 = _mm256_round_ps(v1, _MM_ROUND_NEAREST);
+
+            auto v0_i32 = _mm256_cvtps_epi32(v0);
+            auto v1_i32 = _mm256_cvtps_epi32(v1);
+            v0_i32 = _mm256_max_epi32(v0_i32, v_zero);
+            v1_i32 = _mm256_max_epi32(v1_i32, v_zero);
+            v0_i32 = _mm256_min_epi32(v0_i32, v_upper);
+            v1_i32 = _mm256_min_epi32(v1_i32, v_upper);
+            mm256_storeu_u4(dst + i * dst_stride + j / 2, v0_i32, v1_i32);
+        }
+    }
+#endif
+    for (; j < hidden_dims; j++) {
         for (size_t i = 0; i < seq_dim; i++) {
             float tmp = src[i * src_stride + j];
             tmp = std::round(tmp / scale[j] + zp[j]);
@@ -350,15 +412,7 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
         v1_i32 = _mm512_max_epi32(v1_i32, v_zero);
         v0_i32 = _mm512_min_epi32(v0_i32, v_upper);
         v1_i32 = _mm512_min_epi32(v1_i32, v_upper);
-        __m512i idx1 = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-        __m512i idx2 = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
-        auto first_half = _mm512_permutex2var_epi32(v0_i32, idx1, v1_i32);
-        auto second_half = _mm512_permutex2var_epi32(v0_i32, idx2, v1_i32);
-        first_half = _mm512_slli_epi32(first_half, 4);
-        auto mask = _mm512_set1_epi32(0x0F);
-        second_half = _mm512_and_epi32(second_half, mask);
-        auto combined = _mm512_or_epi32(first_half, second_half);
-        _mm512_mask_cvtepi32_storeu_epi8(dst_ptr + i / 2, 0xffff, combined);
+        mm512_storeu_u4(dst_ptr + i / 2, v0_i32, v1_i32);
     }
 #endif
 #if defined(HAVE_AVX2)
@@ -426,7 +480,7 @@ static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
 }
 
 template <typename T, ov::element::Type_t DST_PREC>
-static inline void quantize_by_dims(const ov::intel_cpu::PlainTensor& src,
+static inline void quantize_block_by_dims(const ov::intel_cpu::PlainTensor& src,
                                     const ov::intel_cpu::PlainTensor& dst,
                                     size_t b,
                                     size_t h,
@@ -449,28 +503,99 @@ static inline void quantize_by_dims(const ov::intel_cpu::PlainTensor& src,
     }
 }
 
-template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u8, bool> = true>
-static void quantize_by_channel(const T* src,
-                                uint8_t* dst,
-                                size_t seq_dim,
-                                size_t hidden_dims,
-                                size_t src_stride,
-                                size_t dst_stride,
-                                float* scale,
-                                float* zp) {
-    quant_u8_by_channel_kernel(src, dst, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp);
-}
-
-template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u4, bool> = true>
-static void quantize_by_channel(const T* src,
-                                uint8_t* dst,
-                                size_t seq_dim,
-                                size_t hidden_dims,
-                                size_t src_stride,
-                                size_t dst_stride,
-                                float* scale,
-                                float* zp) {
-    quant_u4_by_channel_kernel(src, dst, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp);
+template <typename T, ov::element::Type_t DST_PREC>
+static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
+                                      const ov::intel_cpu::PlainTensor& dst,
+                                      const ov::intel_cpu::PlainTensor& past_lens,
+                                      const ov::intel_cpu::PlainTensor& subsequence_begins,
+                                      const ov::intel_cpu::PlainTensor& block_indices,
+                                      const ov::intel_cpu::PlainTensor& block_indices_begins,
+                                      float* buffer,
+                                      size_t sub_seq_id,
+                                      size_t h) {
+    // scale f32[S] zp f32[S] offset in bytes
+    auto S = src.m_dims[3];
+    size_t params_offset = 2 * sizeof(float) * S;
+    auto past_len = past_lens.ptr<int32_t>()[sub_seq_id];
+    auto q_len = subsequence_begins.ptr<int32_t>()[sub_seq_id + 1] - subsequence_begins.ptr<int32_t>()[sub_seq_id];
+    auto block_number_start = block_indices_begins.ptr<int32_t>()[sub_seq_id];
+    size_t block_size = dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(DST_PREC);
+    size_t m = 0;
+    // Quantized cache is either u8/u4, the plain memory is both uint8,
+    // Here we use stride_bytes instead of stride which consider divide sub_byte_multiplier automatically.
+    if (past_len == 0) {
+        auto total_blocks =
+            block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_indices_begins.ptr<int32_t>()[sub_seq_id];
+        parallel_for(total_blocks, [&](int32_t block_count) {
+            auto block_id = block_number_start + block_count;
+            auto block_number = block_indices.ptr<int32_t>()[block_id];
+            auto token_num = (block_id == (block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - 1))
+                                 ? (q_len - block_count * block_size)
+                                 : block_size;
+            size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
+            auto base = dst.ptr<uint8_t>(block_number, h, 0, 0);
+            auto p_scales = reinterpret_cast<float*>(base);
+            auto p_zps = p_scales + S;
+            auto p_data = base + params_offset;
+            quantize_by_channel<T, DST_PREC>(src.ptr<T>(b_in_tokens, h, m),
+                                             p_data,
+                                             token_num,
+                                             S,
+                                             src.stride(0),
+                                             dst.stride_bytes(2),
+                                             p_scales,
+                                             p_zps);
+        });
+    } else {
+        auto prev_nums = past_len % block_size;
+        size_t block_offset = block_number_start + past_len / block_size;
+        auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_offset;
+        for (size_t block_id = 0; block_id < total_blocks; block_id++) {
+            size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id];
+            auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
+            auto base = dst.ptr<uint8_t>(block_number, h, 0, 0);
+            auto p_scales = reinterpret_cast<float*>(base);
+            auto p_zps = p_scales + S;
+            auto p_data = base + params_offset;
+            size_t valid_length = 0;
+            bool is_first_block = block_id == 0;
+            if (is_first_block) {
+                valid_length = std::min(static_cast<size_t>(q_len), block_size - prev_nums);
+            } else {
+                // first block may have pre-filled data, the offset of first block is prev_nums, following
+                // blocks have offset = block_size
+                valid_length = std::min(static_cast<size_t>(q_len) - block_size * block_id - prev_nums, block_size);
+            }
+            if (is_first_block && prev_nums) {
+                attn_dequant_by_channel_kernel<float, DST_PREC>(p_data,
+                                                                buffer,
+                                                                prev_nums,
+                                                                S,
+                                                                dst.stride_bytes(2),
+                                                                S,
+                                                                p_scales,
+                                                                p_zps);
+                cvt_copy(buffer + prev_nums * S, src.ptr<T>(b_in_tokens, h, m), valid_length, S, src.stride(0), S);
+                quantize_by_channel<float, DST_PREC>(buffer,
+                                                     p_data,
+                                                     prev_nums + valid_length,
+                                                     S,
+                                                     S,
+                                                     dst.stride_bytes(2),
+                                                     p_scales,
+                                                     p_zps);
+            } else {
+                quantize_by_channel<T, DST_PREC>(src.ptr<T>(b_in_tokens, h, m),
+                                                 p_data,
+                                                 valid_length,
+                                                 S,
+                                                 src.stride(0),
+                                                 dst.stride_bytes(2),
+                                                 p_scales,
+                                                 p_zps);
+            }
+        }
+    }
 }
 
 template <typename T, typename T2>
@@ -487,17 +612,18 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const size_t value_group_size) {
     // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
+    constexpr auto DST_TYPE = intel_cpu::precision_of<T2>::value;
     if (quant_key_by_channel) {
         if (L0 == 0) {
             parallel_for3d(ov::intel_cpu::div_up(L1, key_group_size), B, H, [&](size_t group_id, size_t b, size_t h) {
-                quant_u8_by_channel_kernel(k_src.ptr<T>(b, h, group_id * key_group_size),
-                                           k_dst.ptr<T2>(b, h, group_id * key_group_size),
-                                           std::min(key_group_size, L1 - group_id * key_group_size),
-                                           S,
-                                           k_src.m_strides[2],
-                                           k_dst.m_strides[2],
-                                           k_scale_zp.ptr<float>(group_id * 2, b, h),
-                                           k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                quantize_by_channel<T, DST_TYPE>(k_src.ptr<T>(b, h, group_id * key_group_size),
+                                                 k_dst.ptr<T2>(b, h, group_id * key_group_size),
+                                                 std::min(key_group_size, L1 - group_id * key_group_size),
+                                                 S,
+                                                 k_src.m_strides[2],
+                                                 k_dst.m_strides[2],
+                                                 k_scale_zp.ptr<float>(group_id * 2, b, h),
+                                                 k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
             });
         } else {
             size_t group_id = L0 / key_group_size;
@@ -507,15 +633,14 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                 float* thread_temp_buffer = temp_buffer + thread_id * key_group_size * S;
                 size_t remaining_group_size = prev_nums ? (key_group_size - prev_nums) : 0;
                 if (prev_nums) {
-                    attn_dequant_by_channel_kernel<float, ov::element::u8>(
-                        k_dst.ptr<uint8_t>(b, h, group_id * key_group_size),
-                        thread_temp_buffer,
-                        prev_nums,
-                        S,
-                        k_dst.stride_bytes(2),
-                        S,
-                        k_scale_zp.ptr<float>(group_id * 2, b, h),
-                        k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                    attn_dequant_by_channel_kernel<float, DST_TYPE>(k_dst.ptr<uint8_t>(b, h, group_id * key_group_size),
+                                                                    thread_temp_buffer,
+                                                                    prev_nums,
+                                                                    S,
+                                                                    k_dst.stride_bytes(2),
+                                                                    S,
+                                                                    k_scale_zp.ptr<float>(group_id * 2, b, h),
+                                                                    k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
                     remaining_group_size = std::min(remaining_group_size, L1);
                     cvt_copy(thread_temp_buffer + prev_nums * S,
                              k_src.ptr<T>(b, h),
@@ -523,14 +648,14 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                              S,
                              k_src.m_strides[2],
                              S);
-                    quant_u8_by_channel_kernel(thread_temp_buffer,
-                                               k_dst.ptr<T2>(b, h, group_id * key_group_size),
-                                               remaining_group_size + prev_nums,
-                                               S,
-                                               S,
-                                               k_dst.m_strides[2],
-                                               k_scale_zp.ptr<float>(group_id * 2, b, h),
-                                               k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                    quantize_by_channel<float, DST_TYPE>(thread_temp_buffer,
+                                                         k_dst.ptr<T2>(b, h, group_id * key_group_size),
+                                                         remaining_group_size + prev_nums,
+                                                         S,
+                                                         S,
+                                                         k_dst.m_strides[2],
+                                                         k_scale_zp.ptr<float>(group_id * 2, b, h),
+                                                         k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
                 }
 
                 if (L1 > remaining_group_size) {
@@ -538,14 +663,14 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                     for (size_t new_group_id = prev_nums ? group_id + 1 : group_id, src_offset = 0;
                          new_group_id < ov::intel_cpu::div_up(L0 + L1, key_group_size);
                          new_group_id++, src_offset += key_group_size) {
-                        quant_u8_by_channel_kernel(k_src.ptr<T>(b, h, remaining_group_size + src_offset),
-                                                   k_dst.ptr<T2>(b, h, new_group_id * key_group_size),
-                                                   std::min(key_group_size, new_seq - src_offset),
-                                                   S,
-                                                   k_src.m_strides[2],
-                                                   k_dst.m_strides[2],
-                                                   k_scale_zp.ptr<float>(new_group_id * 2, b, h),
-                                                   k_scale_zp.ptr<float>(new_group_id * 2 + 1, b, h));
+                        quantize_by_channel<T, DST_TYPE>(k_src.ptr<T>(b, h, remaining_group_size + src_offset),
+                                                         k_dst.ptr<T2>(b, h, new_group_id * key_group_size),
+                                                         std::min(key_group_size, new_seq - src_offset),
+                                                         S,
+                                                         k_src.m_strides[2],
+                                                         k_dst.m_strides[2],
+                                                         k_scale_zp.ptr<float>(new_group_id * 2, b, h),
+                                                         k_scale_zp.ptr<float>(new_group_id * 2 + 1, b, h));
                     }
                 }
             });
@@ -588,101 +713,22 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const bool quant_key_by_channel,
                                 const size_t key_group_size,
                                 const size_t value_group_size) {
-    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3];
-    size_t block_size = quant_key_by_channel
-                            ? k_dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(KEY_DST_PREC)
-                            : k_dst.m_dims[2];
+    const size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2];
+    const size_t block_size = quant_key_by_channel
+                                  ? k_dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(KEY_DST_PREC)
+                                  : k_dst.m_dims[2];
     if (quant_key_by_channel) {
         parallel_for2d(past_lens.size(0), H, [&](size_t sub_seq_id, size_t h) {
-            // scale f32[S] zp f32[S] offset in bytes
-            size_t params_offset = 2 * sizeof(float) * S;
-            auto past_len = past_lens.ptr<int32_t>()[sub_seq_id];
             float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
-            auto q_len =
-                subsequence_begins.ptr<int32_t>()[sub_seq_id + 1] - subsequence_begins.ptr<int32_t>()[sub_seq_id];
-            auto block_number_start = block_indices_begins.ptr<int32_t>()[sub_seq_id];
-            size_t m = 0;
-            // Quantized cache is either u8/u4, the plain memory is both uint8,
-            // Here we use stride_bytes instead of stride which consider divide sub_byte_multiplier automatically.
-            if (past_len == 0) {
-                auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] -
-                                    block_indices_begins.ptr<int32_t>()[sub_seq_id];
-                parallel_for(total_blocks, [&](int32_t block_count) {
-                    auto block_id = block_number_start + block_count;
-                    auto block_number = block_indices.ptr<int32_t>()[block_id];
-                    auto token_num = (block_id == (block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - 1))
-                                         ? (q_len - block_count * block_size)
-                                         : block_size;
-                    size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
-                    auto k_base = k_dst.ptr<uint8_t>(block_number, h, 0, 0);
-                    auto p_scales = reinterpret_cast<float*>(k_base);
-                    auto p_zps = p_scales + S;
-                    auto p_k = k_base + params_offset;
-                    quantize_by_channel<T, KEY_DST_PREC>(k_src.ptr<T>(b_in_tokens, h, m),
-                                                         p_k,
-                                                         token_num,
-                                                         S,
-                                                         k_src.stride(0),
-                                                         k_dst.stride_bytes(2),
-                                                         p_scales,
-                                                         p_zps);
-                });
-            } else {
-                auto prev_nums = past_len % block_size;
-                size_t block_offset = block_number_start + past_len / block_size;
-                auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_offset;
-                for (size_t block_id = 0; block_id < total_blocks; block_id++) {
-                    size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id];
-                    auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
-                    auto k_base = k_dst.ptr<uint8_t>(block_number, h, 0, 0);
-                    auto p_scales = reinterpret_cast<float*>(k_base);
-                    auto p_zps = p_scales + S;
-                    auto p_k = k_base + params_offset;
-                    size_t valid_length = 0;
-                    bool is_first_block = block_id == 0;
-                    if (is_first_block) {
-                        valid_length = std::min(static_cast<size_t>(q_len), block_size - prev_nums);
-                    } else {
-                        // first block may have pre-filled data, the offset of first block is prev_nums, following
-                        // blocks have offset = block_size
-                        valid_length =
-                            std::min(static_cast<size_t>(q_len) - block_size * block_id - prev_nums, block_size);
-                    }
-                    if (is_first_block && prev_nums) {
-                        attn_dequant_by_channel_kernel<float, KEY_DST_PREC>(p_k,
-                                                                            buffer,
-                                                                            prev_nums,
-                                                                            S,
-                                                                            k_dst.stride_bytes(2),
-                                                                            S,
-                                                                            p_scales,
-                                                                            p_zps);
-                        cvt_copy(buffer + prev_nums * S,
-                                 k_src.ptr<T>(b_in_tokens, h, m),
-                                 valid_length,
-                                 S,
-                                 k_src.stride(0),
-                                 S);
-                        quantize_by_channel<float, KEY_DST_PREC>(buffer,
-                                                                 p_k,
-                                                                 prev_nums + valid_length,
-                                                                 S,
-                                                                 S,
-                                                                 k_dst.stride_bytes(2),
-                                                                 p_scales,
-                                                                 p_zps);
-                    } else {
-                        quantize_by_channel<T, KEY_DST_PREC>(k_src.ptr<T>(b_in_tokens, h, m),
-                                                             p_k,
-                                                             valid_length,
-                                                             S,
-                                                             k_src.stride(0),
-                                                             k_dst.stride_bytes(2),
-                                                             p_scales,
-                                                             p_zps);
-                    }
-                }
-            }
+            quantize_block_by_channel<T, KEY_DST_PREC>(k_src,
+                                                       k_dst,
+                                                       past_lens,
+                                                       subsequence_begins,
+                                                       block_indices,
+                                                       block_indices_begins,
+                                                       buffer,
+                                                       sub_seq_id,
+                                                       h);
         });
     } else {
         parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
@@ -691,7 +737,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                 return;
             auto block_number = slot / block_size;
             auto block_offset = slot % block_size;
-            quantize_by_dims<T, KEY_DST_PREC>(k_src, k_dst, b, h, m, block_number, block_offset, key_group_size);
+            quantize_block_by_dims<T, KEY_DST_PREC>(k_src, k_dst, b, h, m, block_number, block_offset, key_group_size);
         });
     }
     // quant value
@@ -702,7 +748,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         }
         auto block_number = slot / block_size;
         auto block_offset = slot % block_size;
-        quantize_by_dims<T, VALUE_DST_PREC>(v_src, v_dst, b, h, m, block_number, block_offset, value_group_size);
+        quantize_block_by_dims<T, VALUE_DST_PREC>(v_src, v_dst, b, h, m, block_number, block_offset, value_group_size);
     });
 }
 
@@ -874,7 +920,7 @@ void attn_quant_by_channel_u8(const float* src,
                               size_t dst_stride,
                               float* scale,
                               float* zp) {
-    quant_u8_by_channel_kernel(src, dst, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp);
+    quantize_by_channel<float, ov::element::u8>(src, dst, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp);
 }
 
 void attn_dequant_by_channel_u8(const uint8_t* src,
