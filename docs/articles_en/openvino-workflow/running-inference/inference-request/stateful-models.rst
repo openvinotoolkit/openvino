@@ -14,7 +14,7 @@ output. In contrast, for a "stateless" model to pass data between runs, all prod
 returned as output and needs to be handled by the application itself for reuse at the next
 execution.
 
-.. image:: ../../assets/images/stateful_model_example.svg
+.. image:: ../../../assets/images/stateful_model_example.svg
    :alt: example comparison between stateless and stateful model implementations
    :align: center
    :scale: 90 %
@@ -55,9 +55,9 @@ OpenVINO Stateful Model Representation
 To make a model stateful, OpenVINO replaces looped pairs of `Parameter` and `Result` with its
 own two operations:
 
-* ``ReadValue`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/read-value-6>`)
+* ``ReadValue`` (:doc:`see specs <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/read-value-6>`)
   reads the data from the state and returns it as output.
-* ``Assign`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/assign-6>`)
+* ``Assign`` (:doc:`see specs <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/assign-6>`)
   accepts the data as input and saves it in the state for the next inference call.
 
 Each pair of these operations works with **state**, which is automatically saved between
@@ -66,7 +66,7 @@ from the application code to OpenVINO and all related internal work is hidden fr
 
 There are three methods of turning an OpenVINO model into a stateful one:
 
-* :doc:`Optimum-Intel <../../openvino-workflow-generative/inference-with-optimum-intel>` - the most user-friendly option. All necessary optimizations
+* :doc:`Optimum-Intel <../../../openvino-workflow-generative/inference-with-optimum-intel>` - the most user-friendly option. All necessary optimizations
   are recognized and applied automatically. The drawback is, the tool does not work with all
   models.
 
@@ -111,7 +111,7 @@ states.
   each run performed in a different infer request than the previous one would require the state
   to be set "manually", using the ``ov::VariableState::set_state`` method.
 
-.. image:: ../../assets/images/stateful_model_init_subgraph.svg
+.. image:: ../../../assets/images/stateful_model_init_subgraph.svg
    :alt: diagram of how initial state value is set or reset
    :align: center
    :scale: 100 %
@@ -140,4 +140,6 @@ sequences.
 You can find more examples demonstrating how to work with states in other articles:
 
 * `LLaVA-NeXT Multimodal Chatbot notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llava-next-multimodal-chatbot>`__
-* :doc:`Serving Stateful Models with OpenVINO Model Server <../../model-server/ovms_docs_stateful_models>`
+* :doc:`Serving Stateful Models with OpenVINO Model Server <../../../../model-server/ovms_docs_stateful_models>`
+
+

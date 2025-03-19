@@ -25,7 +25,7 @@ Working with Model
 ##################
 
 Before moving to the transformation part, it is important to say a few words about the functions which allow modifying ``ov::Model``.
-This section extends the :doc:`model representation guide <../../openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation>`
+This section extends the :doc:`model representation guide <../../openvino-workflow/running-inference/model-representation>`
 and introduces an API for ``ov::Model`` manipulation.
 
 Working with node input and output ports
@@ -244,6 +244,6 @@ additional debug capabilities by using the following environment variables:
 See Also
 ########
 
-* :doc:`OpenVINO™ Model Representation <../../openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation>`
+* :doc:`OpenVINO™ Model Representation <../../openvino-workflow/running-inference/model-representation>`
 * :doc:`OpenVINO™ Extensions <../openvino-extensibility>`
 
