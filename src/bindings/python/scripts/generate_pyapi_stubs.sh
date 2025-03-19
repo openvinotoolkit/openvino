@@ -136,7 +136,7 @@ for file in $changed_files; do
             close("sort");
         }
     }
-    ' "$file" > "$file.sorted"
+    ' "$file" > "$file.sorted" 
     mv "$file.sorted" "$file"
 
 done
