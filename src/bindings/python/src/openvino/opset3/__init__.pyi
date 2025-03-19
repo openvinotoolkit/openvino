@@ -1,5 +1,6 @@
+# type: ignore
 from __future__ import annotations
-from openvino._pyopenvino.op import tensor_iterator
+from . import ops
 from openvino.opset1.ops import absolute
 from openvino.opset1.ops import absolute as abs
 from openvino.opset1.ops import acos
@@ -52,8 +53,8 @@ from openvino.opset1.ops import logical_xor
 from openvino.opset1.ops import lrn
 from openvino.opset1.ops import lstm_cell
 from openvino.opset1.ops import matmul
-from openvino.opset1.ops import max_pool
 from openvino.opset1.ops import maximum
+from openvino.opset1.ops import max_pool
 from openvino.opset1.ops import minimum
 from openvino.opset1.ops import mod
 from openvino.opset1.ops import multiply
@@ -128,5 +129,5 @@ from openvino.opset3.ops import scatter_update
 from openvino.opset3.ops import shape_of
 from openvino.opset3.ops import shuffle_channels
 from openvino.opset3.ops import topk
-from . import ops
+from openvino._pyopenvino.op import tensor_iterator
 __all__ = ['abs', 'absolute', 'acos', 'add', 'asin', 'assign', 'atan', 'avg_pool', 'batch_norm_inference', 'batch_to_space', 'binary_convolution', 'broadcast', 'bucketize', 'ceil', 'ceiling', 'clamp', 'concat', 'constant', 'convert', 'convert_like', 'convolution', 'convolution_backprop_data', 'cos', 'cosh', 'ctc_greedy_decoder', 'cum_sum', 'cumsum', 'deformable_convolution', 'deformable_psroi_pooling', 'depth_to_space', 'detection_output', 'divide', 'elu', 'embedding_bag_offsets_sum', 'embedding_bag_packed_sum', 'embedding_segments_sum', 'equal', 'erf', 'exp', 'extract_image_patches', 'fake_quantize', 'floor', 'floor_mod', 'gather', 'gather_tree', 'gelu', 'greater', 'greater_equal', 'grn', 'group_convolution', 'group_convolution_backprop_data', 'gru_cell', 'hard_sigmoid', 'interpolate', 'less', 'less_equal', 'log', 'logical_and', 'logical_not', 'logical_or', 'logical_xor', 'lrn', 'lstm_cell', 'matmul', 'max_pool', 'maximum', 'minimum', 'mod', 'multiply', 'mvn', 'negative', 'non_max_suppression', 'non_zero', 'normalize_l2', 'not_equal', 'one_hot', 'ops', 'pad', 'parameter', 'power', 'prelu', 'prior_box', 'prior_box_clustered', 'proposal', 'psroi_pooling', 'range', 'read_value', 'reduce_logical_and', 'reduce_logical_or', 'reduce_max', 'reduce_mean', 'reduce_min', 'reduce_prod', 'reduce_sum', 'region_yolo', 'relu', 'reorg_yolo', 'reshape', 'result', 'reverse_sequence', 'rnn_cell', 'roi_align', 'roi_pooling', 'scatter_elements_update', 'scatter_update', 'select', 'selu', 'shape_of', 'shuffle_channels', 'sigmoid', 'sign', 'sin', 'sinh', 'softmax', 'space_to_batch', 'space_to_depth', 'split', 'sqrt', 'squared_difference', 'squeeze', 'strided_slice', 'subtract', 'tan', 'tanh', 'tensor_iterator', 'tile', 'topk', 'transpose', 'unsqueeze', 'variadic_split']

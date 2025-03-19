@@ -1,17 +1,18 @@
+# type: ignore
 """
 Factory functions for all openvino ops.
 """
-from __future__ import annotations
-import functools
 from functools import partial
-import numpy as np
-import openvino._pyopenvino
+from __future__ import annotations
 from openvino._pyopenvino import Node
 from openvino.utils.decorators import nameable_op
 from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
 from openvino.utils.types import make_constant_node
+import functools
+import numpy as np
+import openvino._pyopenvino
 import typing
 __all__ = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'eye', 'generate_proposals', 'grid_sample', 'irdft', 'make_constant_node', 'multiclass_nms', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'rdft', 'roi_align', 'softsign']
 def eye(*args, **kwargs) -> openvino._pyopenvino.Node:
@@ -179,4 +180,4 @@ def softsign(node: typing.Union[openvino._pyopenvino.Node, int, float, numpy.nda
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
-_get_node_factory_opset9: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f7ac6e11d00>, 'opset9')
+_get_node_factory_opset9: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset9')

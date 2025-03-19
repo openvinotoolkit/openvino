@@ -1,13 +1,14 @@
-from __future__ import annotations
-import enum
+# type: ignore
 from enum import Enum
-import numpy
-import numpy as np
-import openvino._pyopenvino
+from __future__ import annotations
 from openvino._pyopenvino import InputModel
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Place
 from openvino.tools.ovc.error import Error
+import enum
+import numpy
+import numpy as np
+import openvino._pyopenvino
 import re as re
 import typing
 __all__ = ['Enum', 'Error', 'IOType', 'InputModel', 'PartialShape', 'Place', 'convert_params_lists_to_dicts', 'decode_name_with_port', 'fe_input_user_data_repack', 'fe_output_user_data_repack', 'fe_user_data_repack', 'find_first_unused_input', 'np', 'raise_no_node', 'raise_node_name_collision', 're']

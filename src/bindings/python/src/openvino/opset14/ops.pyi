@@ -1,16 +1,17 @@
+# type: ignore
 """
 Factory functions for ops added to openvino opset14.
 """
-from __future__ import annotations
-import functools
 from functools import partial
-import openvino._pyopenvino
+from __future__ import annotations
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Type
 from openvino.utils.decorators import nameable_op
 from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
+import functools
+import openvino._pyopenvino
 import typing
 __all__ = ['Node', 'NodeInput', 'TensorShape', 'Type', 'as_node', 'as_nodes', 'avg_pool', 'convert_promote_types', 'inverse', 'max_pool', 'nameable_op', 'partial']
 def avg_pool(*args, **kwargs) -> openvino._pyopenvino.Node:
@@ -84,4 +85,4 @@ def max_pool(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
 TensorShape: typing._GenericAlias  # value = typing.List[int]
-_get_node_factory_opset14: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f7ac6e11d00>, 'opset14')
+_get_node_factory_opset14: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset14')

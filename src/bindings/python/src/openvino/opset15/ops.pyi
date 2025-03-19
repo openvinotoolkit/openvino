@@ -1,19 +1,20 @@
+# type: ignore
 """
 Factory functions for ops added to openvino opset15.
 """
-from __future__ import annotations
-import functools
 from functools import partial
-import numpy as np
-import openvino._pyopenvino
+from __future__ import annotations
+from openvino.opset1.ops import convert_like
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Type
-from openvino.opset1.ops import convert_like
-import openvino.utils.decorators
 from openvino.utils.decorators import binary_op
 from openvino.utils.decorators import nameable_op
 from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_nodes
+import functools
+import numpy as np
+import openvino._pyopenvino
+import openvino.utils.decorators
 import typing
 __all__ = ['Node', 'NodeInput', 'Type', 'as_nodes', 'binary_op', 'bitwise_left_shift', 'bitwise_right_shift', 'col2im', 'constant', 'convert_like', 'embedding_bag_offsets', 'embedding_bag_packed', 'nameable_op', 'np', 'partial', 'roi_align_rotated', 'scatter_nd_update', 'search_sorted', 'slice_scatter', 'squeeze', 'stft', 'string_tensor_pack', 'string_tensor_unpack']
 def bitwise_left_shift(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
@@ -202,5 +203,5 @@ def string_tensor_unpack(*args, **kwargs) -> openvino._pyopenvino.Node:
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
-_get_node_factory_opset15: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f7ac6e11d00>, 'opset15')
+_get_node_factory_opset15: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset15')
 constant: openvino.utils.decorators.MultiMethod  # value = <openvino.utils.decorators.MultiMethod object>

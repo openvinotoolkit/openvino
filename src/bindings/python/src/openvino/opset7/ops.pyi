@@ -1,11 +1,9 @@
+# type: ignore
 """
 Factory functions for all openvino ops.
 """
-from __future__ import annotations
-import functools
 from functools import partial
-import numpy as np
-import openvino._pyopenvino
+from __future__ import annotations
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino.op import Constant
@@ -17,14 +15,17 @@ from openvino.utils.input_validation import assert_list_of_ints
 from openvino.utils.input_validation import check_valid_attributes
 from openvino.utils.input_validation import is_non_negative_value
 from openvino.utils.input_validation import is_positive_value
-from openvino.utils.node_factory import NodeFactory
 from openvino.utils.node_factory import _get_node_factory
+from openvino.utils.node_factory import NodeFactory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
 from openvino.utils.types import get_dtype
 from openvino.utils.types import get_element_type
 from openvino.utils.types import get_element_type_str
 from openvino.utils.types import make_constant_node
+import functools
+import numpy as np
+import openvino._pyopenvino
 import typing
 __all__ = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'as_node', 'as_nodes', 'assert_list_of_ints', 'binary_op', 'check_valid_attributes', 'dft', 'einsum', 'gather', 'gelu', 'get_dtype', 'get_element_type', 'get_element_type_str', 'idft', 'is_non_negative_value', 'is_positive_value', 'make_constant_node', 'nameable_op', 'np', 'partial', 'roll', 'unary_op']
 def dft(data: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], axes: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], signal_size: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray, NoneType] = None, name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
@@ -97,4 +98,4 @@ NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]
 TensorShape: typing._GenericAlias  # value = typing.List[int]
-_get_node_factory_opset7: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f7ac6e11d00>, 'opset7')
+_get_node_factory_opset7: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset7')

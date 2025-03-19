@@ -1,13 +1,14 @@
-from __future__ import annotations
-import collections.abc
+# type: ignore
 from collections.abc import Mapping
 from functools import singledispatchmethod
-import numpy
-import numpy as np
-import openvino._pyopenvino
+from __future__ import annotations
 from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import InferRequest as InferRequestBase
 from openvino._pyopenvino import Tensor
+import collections.abc
+import numpy
+import numpy as np
+import openvino._pyopenvino
 import typing
 __all__ = ['ConstOutput', 'InferRequestBase', 'Mapping', 'OVDict', 'Tensor', 'np', 'singledispatchmethod', 'tensor_from_file']
 class OVDict(collections.abc.Mapping):

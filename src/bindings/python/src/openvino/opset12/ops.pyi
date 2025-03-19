@@ -1,15 +1,16 @@
+# type: ignore
 """
 Factory functions for all ngraph ops.
 """
-from __future__ import annotations
-import functools
 from functools import partial
-import openvino._pyopenvino
+from __future__ import annotations
 from openvino._pyopenvino import Node
 from openvino.utils.decorators import nameable_op
 from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
+import functools
+import openvino._pyopenvino
 import typing
 __all__ = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'group_normalization', 'nameable_op', 'pad', 'partial', 'scatter_elements_update']
 def group_normalization(*args, **kwargs) -> openvino._pyopenvino.Node:
@@ -64,4 +65,4 @@ def scatter_elements_update(*args, **kwargs) -> openvino._pyopenvino.Node:
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
-_get_node_factory_opset12: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f7ac6e11d00>, 'opset12')
+_get_node_factory_opset12: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset12')
