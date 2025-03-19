@@ -35,6 +35,7 @@ def absolute(input_value, *args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return node which applies f(x) = abs(x) to the input node element-wise.
     
+        :param name: Optional new name for output node.
         
     """
 def acos(input_value, *args, **kwargs) -> openvino._pyopenvino.Node:
