@@ -6,7 +6,6 @@
 
 #include <loader/ze_loader.h>
 #include <ze_api.h>
-#include <zes_api.h>
 
 #include <memory>
 
@@ -55,7 +54,6 @@ namespace intel_npu {
     symbol_statement(zeFenceDestroy)                          \
     symbol_statement(zeFenceHostSynchronize)                  \
     symbol_statement(zeFenceReset)                            \
-    symbol_statement(zesDeviceEnumEngineGroups)               \
     symbol_statement(zeInit)                                  \
     symbol_statement(zeMemAllocDevice)                        \
     symbol_statement(zeMemAllocHost)                          \

@@ -6,9 +6,6 @@
 
 #include <ze_api.h>
 #include <ze_graph_ext.h>
-#include <zes_api.h>
-
-#include <chrono>
 
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"

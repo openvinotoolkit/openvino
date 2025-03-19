@@ -283,29 +283,6 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_ClassPluginProperties
                                             ::testing::ValuesIn(plugin_public_mutable_properties)),
                          ClassPluginPropertiesTestNPU::getTestCaseName);
 
-using ClassPluginInternalImmutablePropertiesTestSuite3NPU = ClassPluginPropertiesTestNPU;
-TEST_P(ClassPluginInternalImmutablePropertiesTestSuite3NPU, CanGetInternalImmutablePropertyViaCore) {
-    std::vector<ov::PropertyName> properties;
-    OV_ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::supported_properties));
-
-    auto it = find(properties.cbegin(), properties.cend(), configKey);
-    ASSERT_TRUE(it == properties.cend());
-
-    ASSERT_THROW(ie.set_property(deviceName, {{configKey, configValue}}), ov::Exception);
-    ov::Any retrieved_value;
-    OV_ASSERT_NO_THROW(retrieved_value = ie.get_property(deviceName, configKey));
-}
-
-std::vector<std::pair<std::string, ov::Any>> plugin_internal_immutable_properties = {
-    {ov::internal::device_utilization.name(), ov::Any(std::map<std::string, double>({{"0000000", 12.3}}))},
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassPluginInternalImmutablePropertiesTest4NPU,
-                         ClassPluginInternalImmutablePropertiesTestSuite3NPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
-                                            ::testing::ValuesIn(plugin_internal_immutable_properties)),
-                         ClassPluginPropertiesTestNPU::getTestCaseName);
-
 using ClassPluginPropertiesTestSuite4NPU = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(ClassPluginPropertiesTestSuite4NPU, CanNotSetGetInexistentProperty) {

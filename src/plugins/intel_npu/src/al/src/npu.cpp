@@ -50,10 +50,6 @@ uint64_t IDevice::getTotalMemSize() const {
     OPENVINO_THROW("Get TotalMemSize is not supported");
 }
 
-double IDevice::getUtilization() const {
-    OPENVINO_THROW("Get Utilization is not supported");
-}
-
 ov::device::PCIInfo IDevice::getPciInfo() const {
     OPENVINO_THROW("Get PCIInfo is not supported");
 }

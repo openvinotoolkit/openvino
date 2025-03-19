@@ -27,17 +27,6 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
                                 zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
 
-    // Query activity for calculating device utilization
-    uint32_t engine_count = 0;
-    zeroUtils::throwOnFail("zesDeviceEnumEngineGroups",
-                           zesDeviceEnumEngineGroups(_initStructs->getDevice(), &engine_count, nullptr));
-    if (engine_count > 0) {
-        engine_handles.resize(engine_count);
-        zeroUtils::throwOnFail(
-            "zesDeviceEnumEngineGroups",
-            zesDeviceEnumEngineGroups(_initStructs->getDevice(), &engine_count, engine_handles.data()));
-    }
-
     // Query PCI information
     // Older drivers do not have this implementend. Linux driver returns NOT_IMPLEMENTED, while windows driver returns
     // zero values. If this is detected, we populate only device with ID from device_properties for backwards
@@ -180,22 +169,6 @@ std::map<ov::element::Type, float> ZeroDevice::getGops() const {
 
 ov::device::Type ZeroDevice::getDeviceType() const {
     return ov::device::Type::INTEGRATED;
-}
-
-double ZeroDevice::getUtilization() const {
-    if (engine_handles.empty())
-        return 0.0;
-    double utilization = 0.0;
-    auto engin_handle = engine_handles[0];
-    int monitor_duration = 500;
-    zes_engine_stats_t engine_start = {};
-    zes_engine_stats_t engine_end = {};
-    zeroUtils::throwOnFail("zesEngineGetActivity", zesEngineGetActivity(engin_handle, &engine_start));
-    std::this_thread::sleep_for(std::chrono::milliseconds(monitor_duration));
-    zeroUtils::throwOnFail("zesEngineGetActivity", zesEngineGetActivity(engin_handle, &engine_end));
-    utilization = (static_cast<double>(engine_end.activeTime) - static_cast<double>(engine_start.activeTime)) /
-                  (static_cast<double>(engine_end.timestamp) - static_cast<double>(engine_start.timestamp)) * 100;
-    return utilization;
 }
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(

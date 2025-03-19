@@ -421,12 +421,6 @@ Plugin::Plugin()
           [&](const Config&) {
               return _metrics->GetInternalSupportedProperties();
           }}},
-        {ov::internal::device_utilization.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return _metrics->GetUtilization(get_specified_device_name(config));
-          }}},
         // NPU Public
         // =========
         {ov::intel_npu::device_alloc_mem_size.name(),
