@@ -40,6 +40,7 @@ SDPAScaleFusion::SDPAScaleFusion() {
     auto sdpa_simple =
         makePattern<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
     auto sdpa = sdpa_simple | sdpa_mask | sdpa_mask_scale;
+    // test2
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
