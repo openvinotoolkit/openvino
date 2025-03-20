@@ -27,61 +27,60 @@ SDPAFusion::SDPAFusion() {
     using namespace ov::gen_pattern;
 
     auto q_base = makePattern(ov::Rank(4));
-    auto q_shape = ov::pass::pattern::any_input();
-    auto q_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({q_base, q_shape});
+    auto q_shape = any_input();
+    auto q_reshaped = wrap_type<ov::op::v1::Reshape>({q_base, q_shape});
     auto q = q_reshaped | q_base;
 
     auto k_base = makePattern(ov::Rank(4));
-    auto k_shape = ov::pass::pattern::any_input();
-    auto k_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({k_base, k_shape});
+    auto k_shape = any_input();
+    auto k_reshaped = wrap_type<ov::op::v1::Reshape>({k_base, k_shape});
     auto k = k_reshaped | k_base;
 
     auto v_base = makePattern(ov::Rank(4));
-    auto v_proj_shape_m = ov::pass::pattern::any_input();
-    auto v_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({v_base, v_proj_shape_m});
+    auto v_proj_shape_m = any_input();
+    auto v_reshaped = wrap_type<ov::op::v1::Reshape>({v_base, v_proj_shape_m});
     auto v = v_reshaped | v_base;
 
     // Optional k scale
-    auto attn_scale = ov::pass::pattern::any_input();
-    // auto k_opt_scaled = optional<ov::op::v1::Multiply>({k, attn_scale});
+    auto attn_scale = any_input();
     // K transpose + optional scale
-    auto k_trans_dims = ov::pass::pattern::any_input();
+    auto k_trans_dims = any_input();
     auto k_opt_transposed = optional<ov::op::v1::Transpose>({k, k_trans_dims});
     // auto k_transposed_opt_scaled = optional<ov::op::v1::Multiply>({_optk_transposed, attn_scale});
-    auto k_opt_transposed_scaled = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({k_opt_transposed, attn_scale});
+    auto k_opt_transposed_scaled = wrap_type<ov::op::v1::Multiply>({k_opt_transposed, attn_scale});
     auto k_opt_transposed_opt_scaled = k_opt_transposed_scaled | k_opt_transposed;
     
     // No transpose check here, there are scenarios where k is not transposed and that uses equation (A*B)^T = B^T * A^T
-    auto qk = makePattern<ov::op::v0::MatMul>({q, k_opt_transposed_opt_scaled});
+    auto qk = wrap_type<ov::op::v0::MatMul>({q, k_opt_transposed_opt_scaled});
 
     // Optional unsqueeze that is converted to Reshape
-    auto unsqueeze_axis = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto qk_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk, unsqueeze_axis});
+    auto unsqueeze_axis = wrap_type<ov::op::v0::Constant>();
+    auto qk_unsqueeze = wrap_type<ov::op::v1::Reshape>({qk, unsqueeze_axis});
     auto qk_opt_unsqueeze = qk_unsqueeze | qk;
 
-    auto qk_scaled = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({qk_opt_unsqueeze, attn_scale});
+    auto qk_scaled = wrap_type<ov::op::v1::Multiply>({qk_opt_unsqueeze, attn_scale});
     auto qk_opt_scaled = qk_scaled | qk_opt_unsqueeze;
 
     // optional mask add, there are patterns where before or/and after mask add buffer is reshaped
     auto mask = makePattern();
     // Optional reshape befor adding mask
-    auto qk_opt_scaled_pre_mask_shape = ov::pass::pattern::any_input();
-    auto qk_opt_scaled_pre_mask_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk_opt_scaled, qk_opt_scaled_pre_mask_shape});
+    auto qk_opt_scaled_pre_mask_shape = any_input();
+    auto qk_opt_scaled_pre_mask_reshaped = wrap_type<ov::op::v1::Reshape>({qk_opt_scaled, qk_opt_scaled_pre_mask_shape});
     auto qk_opt_scaled_pre_mask_opt_reshaped = qk_opt_scaled_pre_mask_reshaped | qk_opt_scaled;
     // Optional mask add
-    auto qk_opt_scaled_mask_added = makePattern<ov::op::v1::Add>({qk_opt_scaled_pre_mask_opt_reshaped, mask});
+    auto qk_opt_scaled_mask_added = wrap_type<ov::op::v1::Add>({qk_opt_scaled_pre_mask_opt_reshaped, mask});
     auto qk_opt_scaled_opt_mask_added = qk_opt_scaled_mask_added | qk_opt_scaled_pre_mask_opt_reshaped;
     // Optional reshape after adding mask
-    auto qk_post_mask_shape = ov::pass::pattern::any_input();
+    auto qk_post_mask_shape = any_input();
     auto qk_post_mask_opt_reshaped = optional<ov::op::v1::Reshape>({qk_opt_scaled_opt_mask_added, qk_post_mask_shape});
 
     auto softmax = makePattern<ov::op::v8::Softmax>({qk_post_mask_opt_reshaped}, {{"axis", "-1"}});
-    auto softmax_shape = ov::pass::pattern::any_input();
+    auto softmax_shape = any_input();
     auto softmax_opt_reshaped = optional<ov::op::v1::Reshape>({softmax, softmax_shape});
 
     auto qkv_base = makePattern<ov::op::v0::MatMul>({softmax_opt_reshaped, v}, {{"transpose_a", false}, {"transpose_b", false}});
-    auto qkv_shape = ov::pass::pattern::any_input();
-    auto qkv_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qkv_base, qkv_shape});
+    auto qkv_shape = any_input();
+    auto qkv_reshaped = wrap_type<ov::op::v1::Reshape>({qkv_base, qkv_shape});
     auto qkv = qkv_reshaped | qkv_base;
 
     auto valid_qk_shapes = [](const std::shared_ptr<ov::op::v0::MatMul>& qk_matmul) {
@@ -99,7 +98,7 @@ SDPAFusion::SDPAFusion() {
                q_pshape[q_head_size_idx].get_length() == k_pshape[k_head_size_idx].get_length();
     };
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;
@@ -146,7 +145,7 @@ SDPAFusion::SDPAFusion() {
         // make sure that if inputs are reshaped the output is reshaped back
         bool inputs_reshaped = pattern_map.count(q_reshaped) > 0 && pattern_map.count(k_reshaped) > 0 && pattern_map.count(v_reshaped) > 0;
         bool output_reshaped = pattern_map.count(qkv_reshaped) > 0;
-        if (inputs_reshaped && !output_reshaped || !inputs_reshaped && output_reshaped)
+        if ((inputs_reshaped && !output_reshaped) || (!inputs_reshaped && output_reshaped))
             return false;
         
         if (!valid_qk_shapes(ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(qk).get_node_shared_ptr()))) {
@@ -240,7 +239,7 @@ SDPAFusion::SDPAFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(qkv, "SDPAFusion");
+    auto m = std::make_shared<Matcher>(qkv, "SDPAFusion");
     this->register_matcher(m, callback);
 }
 
