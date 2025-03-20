@@ -129,6 +129,8 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
         results.push_back(std::move(result));
     }
 
+    _logger.warning("Returning a dummy ov::Model object that contains only the given parameter and result nodes");
+
     return std::make_shared<ov::Model>(results, parameters);
 }
 
