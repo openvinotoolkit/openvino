@@ -4,6 +4,8 @@
 
 add_subdirectory(common)
 
+add_subdirectory(common_translators)
+
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()

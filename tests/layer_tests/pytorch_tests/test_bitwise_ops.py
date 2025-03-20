@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 import torch
-from packaging import version
+from packaging.version import parse as parse_version
 
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
@@ -171,8 +171,10 @@ class TestBitwiseInplaceOp(PytorchLayerTest):
 
         return aten_bitwise(op), None, op
 
+    @pytest.mark.skipif(PytorchLayerTest.use_torch_export() and parse_version(torch.__version__) < parse_version("2.6.0"), reason="unsupported on pytorch before 2.6 with torch.export")
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("dtype", ["bool", "int32"])
     @pytest.mark.parametrize(
         ("lhs_shape", "rhs_shape"),

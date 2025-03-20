@@ -7,7 +7,6 @@
 #include "eltwise.hpp"
 #include "executor.hpp"
 #if defined(OV_CPU_WITH_ACL)
-#    include "aarch64/jit_eltwise.hpp"
 #    include "acl/acl_eltwise.hpp"
 #endif
 #if defined(OV_CPU_WITH_SHL)
@@ -40,7 +39,7 @@ public:
         }
     }
 
-    ~EltwiseExecutorFactory() = default;
+    ~EltwiseExecutorFactory() override = default;
     virtual EltwiseExecutorPtr makeExecutor(const EltwiseAttrs& eltwiseAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs,

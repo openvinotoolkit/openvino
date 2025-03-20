@@ -44,18 +44,30 @@ namespace {
  * @return A set of unique tensor names.
  */
 std::unordered_set<std::string> deserialize_tensor_names(const std::string_view& tensor_names) {
-    // tensor names are separated by comma, but ignore escaped comma
-    static const auto splitter = std::regex(R"((?:[^\\,\n]|\\.)+)");
+    static const auto escaped_delim = std::regex(R"(\\,)");
+    constexpr auto delim = ",";
+    constexpr auto esc_char = '\\';
 
     auto output_names = std::unordered_set<std::string>();
-    std::transform(std::cregex_token_iterator{tensor_names.data(), tensor_names.data() + tensor_names.size(), splitter},
-                   std::cregex_token_iterator{},
-                   std::inserter(output_names, output_names.end()),
-                   [](const auto& token) {
-                       // If tensor name contains escaped comma, replace it with comma
-                       static const auto escaped_delim = std::regex(R"(\\,)");
-                       return std::regex_replace(token.str(), escaped_delim, ",");
-                   });
+    auto name_inserter = std::inserter(output_names, output_names.end());
+    for (size_t pos = tensor_names.find(delim), start = 0; start != std::string::npos;
+         pos = tensor_names.find(delim, pos)) {
+        if (pos == std::string::npos) {
+            if (auto name_view = tensor_names.substr(start); name_view.size() > 0) {
+                *name_inserter = std::regex_replace(std::string(name_view), escaped_delim, delim);
+            }
+            start = pos;
+        } else if (auto delim_pos = pos - 1; delim_pos != std::string::npos && tensor_names[delim_pos] == esc_char) {
+            ++pos;
+        } else {
+            if (auto length = pos - start; length > 0) {
+                *name_inserter =
+                    std::regex_replace(std::string(tensor_names.substr(start, length)), escaped_delim, delim);
+            }
+            start = ++pos;
+        }
+    }
+
     return output_names;
 }
 }  // namespace
@@ -561,6 +573,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
         id_to_node[layer_id] = node;
 
         if (const auto& parameter_node = ov::as_type_ptr<ov::op::v0::Parameter>(node)) {
+            OPENVINO_ASSERT(!p.xml.child("data").empty(), "Layer data must be defined for: ", parameter_node);
             io_map.inputs.insert({layer_id, func_nodes.parameters.size()});
             func_nodes.parameters.emplace_back(parameter_node);
         }
@@ -783,7 +796,7 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
             port.dims.emplace_back(dim);
         }
 
-        ov::element::Type type(ov::element::Type_t::undefined);
+        ov::element::Type type(ov::element::Type_t::dynamic);
         // Input port hasn't precision
         if (!input) {
             const std::string& preStr = pugixml::get_str_attr(parentNode, "precision");
@@ -846,17 +859,6 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                            " with id: ",
                            params.layerId,
                            " has incorrect input with index ",
-                           i,
-                           "!");
-
-        if (is_type<op::v0::Parameter>(inputs[i].get_node_shared_ptr()) &&
-            ov::element::Type_t::undefined == inputs[i].get_element_type())
-            OPENVINO_THROW(params.type,
-                           " layer ",
-                           params.name,
-                           " with id: ",
-                           params.layerId,
-                           " has undefined element type for input with index ",
                            i,
                            "!");
     }
@@ -1044,11 +1046,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         // assume all names from parent node are Result's (model's) tensor names.
         if (auto result = ov::as_type<ov::op::v0::Result>(ovNode.get())) {
             if (const auto names = node.attribute("output_names"); names.empty()) {
-                if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
-                    // Copy names if parent node is not parameter, model's input names should not be dedicated
-                    // output names as they could be removed from Parameter's tensor during model transformations.
-                    result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
-                }
+                descriptor::add_not_parameter_names(result->get_output_tensor(0), result->get_input_tensor(0));
             } else {
                 result->get_output_tensor(0).set_names(deserialize_tensor_names(names.value()));
             }

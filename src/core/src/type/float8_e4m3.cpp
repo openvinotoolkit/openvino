@@ -8,8 +8,8 @@
 #include <cmath>
 #include <limits>
 
-#include "openvino/core/type/float_util.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/core/type/float_util.hpp"
 
 namespace ov {
 

@@ -166,6 +166,22 @@ std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Outp
 };
 
 Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& rank) {
+    if (const auto axis_const = ov::util::get_constant_from_source(axis)) {
+        // if axis is already a constant and all values are non-negative, return it
+        auto data = axis_const->cast_vector<int64_t>();
+        bool all_non_negative = std::all_of(data.begin(), data.end(), [](int64_t v) {
+            return v >= 0;
+        });
+        if (all_non_negative) {
+            Output<Node> res = axis_const;
+            if (axis_const->get_shape() == Shape({}) && rank.get_partial_shape() == PartialShape({1})) {
+                // Unsqueeze scalar const if rank is 1d
+                auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+                res = std::make_shared<v0::Unsqueeze>(res, zero);
+            }
+            return res;
+        }
+    }
     auto axis_rank = std::make_shared<v1::Add>(axis, rank);
     auto new_axis = std::make_shared<v1::Mod>(axis_rank, rank);
 
@@ -193,12 +209,17 @@ const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{
     {5, element::f16},
     {6, element::f32},
     {7, element::f64},
+    {8, element::f16},   // complex32
+    {9, element::f32},   // complex64
+    {10, element::f64},  // complex128
     {11, element::boolean},
     {12, element::i8},   // quantized i8
     {13, element::u8},   // quantized u8
     {14, element::i32},  // quantized i32
     {15, element::bf16},
 };
+
+const std::vector<int64_t> COMPLEX_TYPE = {8, 9, 10};
 
 const std::unordered_map<std::string, PadType> TORCH_AUTO_PAD_TO_OV{{"valid", PadType::VALID},
                                                                     {"same", PadType::SAME_UPPER}};
@@ -207,6 +228,10 @@ const std::unordered_map<std::string, PadType> TORCH_AUTO_PAD_TO_OV{{"valid", Pa
 element::Type convert_dtype(int64_t pt_type) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type: ", pt_type);
     return TORCH_TO_OV_TYPE.at(pt_type);
+};
+
+bool is_complex_dtype(int64_t pt_type) {
+    return std::find(COMPLEX_TYPE.begin(), COMPLEX_TYPE.end(), pt_type) != COMPLEX_TYPE.end();
 };
 
 Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
@@ -456,6 +481,15 @@ void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& rhs,
                                const bool& is_lhs_python_scalar,
                                const bool& is_rhs_python_scalar) {
+    auto lhs_complex = as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr());
+    auto rhs_complex = as_type_ptr<ComplexTypeMark>(rhs.get_node_shared_ptr());
+    if (lhs_complex) {
+        lhs = lhs_complex->input_value(0);
+    }
+    if (rhs_complex) {
+        rhs = rhs_complex->input_value(0);
+    }
+
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
     auto const_0 = v0::Constant::create(element::i32, Shape{}, {1});
@@ -490,6 +524,14 @@ void align_eltwise_input_types(const NodeContext& context,
             rhs = context.mark_node(std::make_shared<v0::Convert>(rhs, dst_type));
         }
     }
+
+    if (lhs_complex) {
+        lhs = ComplexTypeMark::convert_like(context, lhs_complex, lhs);
+    }
+    if (rhs_complex) {
+        rhs = ComplexTypeMark::convert_like(context, rhs_complex, rhs);
+    }
+
     return;
 }
 
@@ -728,7 +770,7 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
         auto id_dtype = indices[i].get_element_type();
         if (id_dtype == element::boolean || id_dtype == element::u8) {
             auto idx = rg.make<v0::Convert>(indices[i], element::u8);
-            auto nonzero = rg.make<v3::NonZero>(idx, element::i32);
+            auto nonzero = rg.make<v3::NonZero>(idx);
             auto input_order = rg.make<v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 0});
             auto masked_id = rg.make<v1::Transpose>(nonzero, input_order);
             masked_indicies.push_back(masked_id);

@@ -24,7 +24,7 @@ OutputVector translate_size(const NodeContext& context) {
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
     if (complex_type_mark) {
-        data = complex_type_mark->input_value(0);
+        data = complex_type_mark->get_data();
         shape = context.mark_node(std::make_shared<v3::ShapeOf>(data, element::i64));
 
         auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));

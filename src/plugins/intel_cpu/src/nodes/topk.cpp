@@ -5,6 +5,7 @@
 #include "topk.h"
 
 #include <algorithm>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -17,6 +18,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/topk.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/ngraph_utils.hpp"
 
 using namespace dnnl;
@@ -264,7 +266,7 @@ private:
                           const int offset = 0) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_load_emitter>(this, isa, src_prc, dst_prc, elt_num);
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), static_cast<size_t>(offset)},
@@ -281,7 +283,7 @@ private:
                            const int offset = 0) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, src_prc, dst_prc, elt_num);
         }
 
         // for cases when Store emitter need 2 aux vmm we can use vmm_dst as second aux vmm
@@ -1984,11 +1986,9 @@ void TopK::initSupportedPrimitiveDescriptors() {
                                                            ov::element::u8};
 
     ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
-    if (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core)) {
-        THROW_CPU_NODE_ERR("gets incorrect isa for BF16! AVX512 must be supported!");
-    }
     bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision) !=
                               std::end(supportedPrecision);
+    precisionSupported = (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core)) ? false : precisionSupported;
     if (!precisionSupported) {
         if (dataPrecision.is_real()) {
             dataPrecision = ov::element::f32;
@@ -2039,15 +2039,15 @@ void TopK::preset_params() {
         blk_size = 8;
     }
 
+    bool can_use_heap_sort =
+        (layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost;
+    bool use_bubble_sort = stable || !can_use_heap_sort;
     if (isDynamicNode()) {
-        if (stable) {
+        if (use_bubble_sort) {
             algorithm = TopKAlgorithm::topk_bubble_sort;
             bubble_inplace = false;
-        } else if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
-            algorithm = TopKAlgorithm::topk_heap_sort;
         } else {
-            algorithm = TopKAlgorithm::topk_bubble_sort;
-            bubble_inplace = false;
+            algorithm = TopKAlgorithm::topk_heap_sort;
         }
     }
 }
@@ -2119,7 +2119,7 @@ void TopK::prepareParams() {
                 algorithm = TopKAlgorithm::topk_heap_sort;
             } else {
                 auto log_axis_dim = log2(axis_dim);
-                size_t alg_cost_bitonic = static_cast<size_t>((axis_dim / 4.0f) * log_axis_dim * (log_axis_dim + 1));
+                auto alg_cost_bitonic = static_cast<size_t>((axis_dim / 4.0f) * log_axis_dim * (log_axis_dim + 1));
                 size_t alg_cost_bubble = top_k * (top_k - 1) / 2 + (axis_dim - top_k) * top_k;
                 if (alg_cost_bitonic < alg_cost_bubble) {
                     algorithm = TopKAlgorithm::topk_bitonic_sort;
@@ -2200,11 +2200,11 @@ void TopK::createPrimitive() {
         }
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
-            topk_kernel.reset(new jit_uni_topk_kernel_f32<cpu::x64::avx512_core>(jcp));
+            topk_kernel = std::make_shared<jit_uni_topk_kernel_f32<cpu::x64::avx512_core>>(jcp);
         } else if (mayiuse(cpu::x64::avx2)) {
-            topk_kernel.reset(new jit_uni_topk_kernel_f32<cpu::x64::avx2>(jcp));
+            topk_kernel = std::make_shared<jit_uni_topk_kernel_f32<cpu::x64::avx2>>(jcp);
         } else if (mayiuse(cpu::x64::sse41)) {
-            topk_kernel.reset(new jit_uni_topk_kernel_f32<cpu::x64::sse41>(jcp));
+            topk_kernel = std::make_shared<jit_uni_topk_kernel_f32<cpu::x64::sse41>>(jcp);
         }
 
         if (topk_kernel) {
@@ -2223,9 +2223,9 @@ void TopK::execute(const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(TOPK_DATA);
     auto dstIndexesMemPtr = getDstMemoryAtPort(TOPK_INDEX);
 
-    const uint8_t* src_data = srcMemPtr->getDataAs<const uint8_t>();
-    uint8_t* dst_data = dstMemPtr->getDataAs<uint8_t>();
-    uint8_t* dst_idx = dstIndexesMemPtr->getDataAs<uint8_t>();
+    const auto* src_data = srcMemPtr->getDataAs<const uint8_t>();
+    auto* dst_data = dstMemPtr->getDataAs<uint8_t>();
+    auto* dst_idx = dstIndexesMemPtr->getDataAs<uint8_t>();
 
     if (jit_mode) {
         topk_process(src_data, dst_data, dst_idx);
@@ -2255,7 +2255,7 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
                 uint8_t* out_ptr_a = out_ptr + (o * OA * I + i) * blk_size * data_size;
                 uint8_t* out_idx_ptr_a = out_idx_ptr + (o * OA * I + i) * blk_size * sizeof(int32_t);
                 size_t work_amount = 1;
-                topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, NULL, NULL, work_amount);
+                topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, nullptr, nullptr, work_amount);
             });
         } else if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
             parallel_for(O, [&](size_t o) {
@@ -2372,7 +2372,7 @@ inline void TopK::prepare_original_idx() {
 //   empty tail: p-n elements in the rear don't need sorting,
 inline void TopK::bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt, bool cmp_val) {
     // memory stride of adjacent elements in sorting
-    int sort_stride = static_cast<int>(I);
+    auto sort_stride = static_cast<int>(I);
     cnt = 0;
     for (int len = 2; len < p; len <<= 1) {
         for (int start = 0; start < p; start += len) {
@@ -2520,7 +2520,7 @@ void TopK::topk_ref_process(const float* src_data,
         if (sort_index) {
             for (int i2 = 0; i2 < top_k - 1; i2++) {
                 for (int i3 = top_k - 1; i3 > i2; i3--) {
-                    if (std::greater<int>()(max_indexes[i3 - 1], max_indexes[i3])) {
+                    if (std::greater<>()(max_indexes[i3 - 1], max_indexes[i3])) {
                         swap_func(i3, i3 - 1);
                     }
                 }

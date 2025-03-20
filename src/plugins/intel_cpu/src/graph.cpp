@@ -241,19 +241,19 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         const auto& inputNode = input.second;
         const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
         const auto childEdges = inputNode->getChildEdgesAtPort(0);
-        for (size_t i = 0; i < childEdges.size(); i++) {
-            const auto child = childEdges[i]->getChild();
-            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
+        for (const auto& childEdge : childEdges) {
+            const auto child = childEdge->getChild();
+            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdge->getOutputNum());
             if (!one_of(child_prec, ov::element::bf16, ov::element::f16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child)) {
-                child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
+                child->setOriginalInputPrecisionAtPort(childEdge->getOutputNum(), precToSet);
             }
         }
     }
 
     // update output precisions of producers to avoid extra reorders
-    // do this only in case output configration is not provided explicitly
+    // do this only in case output configuration is not provided explicitly
     if (outputConfigs.empty()) {
         for (auto& output : outputNodesMap) {
             const auto& outputNode = output.second;
@@ -631,9 +631,9 @@ void Graph::ResolveEdgeConflicts() {
 
     /* When inserting convert / reorder, two new edges are added (pushed to the end) to the graphEdges.
        So use a plain for loop, to handle newly inserted edges as well */
-    for (size_t i = 0; i < graphEdges.size(); i++) {
+    for (size_t i = 0; i < graphEdges.size(); i++) {  // NOLINT(modernize-loop-convert)
         auto& edge = graphEdges[i];
-        auto reorderStatus = edge->needReorder();
+        auto reorderStatus = edge->needReorder();  // NOLINT(modernize-loop-convert)
         DEBUG_LOG(*edge, " reorderStatus = ", reorderStatus);
 
         switch (reorderStatus) {
@@ -664,7 +664,7 @@ void Graph::ResolveEdgeConflicts() {
 void Graph::ResolveComplexInplaceConflicts() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveComplexInplaceConflicts");
 
-    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
+    auto numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
     std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
@@ -713,13 +713,12 @@ void Graph::ResolveComplexInplaceConflicts() {
  * Partition the \clusters of Edges, by moving to the end and allocating at the same time
  * the clusters that cannot be handled as part of the generic memory solver algorithm.
  * Such clusters meet one of the following criteria:
- * - base edge of a cluster is already Allocated
  * - base edge of a cluster is a "ov::element::string" type of edge
  * - base edge of a cluster is a Constant edge
  *
  * @return a remaining number of clusters to process (left partition)
  */
-static size_t AllocateStringsAndConstants(EdgeClusters& clusters, const GraphContext::CPtr& context) {
+static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaining, const GraphContext::CPtr& context) {
     auto allocateConstantEdge = [&context](const EdgePtr& edge) {
         if (edge->getParent()->getType() == Type::Input) {
             auto constNode = std::static_pointer_cast<node::Input>(edge->getParent());
@@ -737,22 +736,9 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, const GraphCon
 
     auto notAllocatedPartitionEnd = std::partition(
         clusters.begin(),
-        clusters.end(),
+        clusters.begin() + remaining,
         [&allocateStringMemory, &allocateConstantEdge, &context](const EdgeCluster& cluster) {
-            if (cluster.empty()) {
-                return false;
-            }
-
-            auto baseEdgeIt = std::find_if(cluster.begin(), cluster.end(), [](const EdgePtr& edge) {
-                return one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::NeedAllocation);
-            });
-
-            OPENVINO_ASSERT(baseEdgeIt != cluster.end(), "Unexpected cluster state");
-
-            const auto& baseEdge = *baseEdgeIt;
-            if (baseEdge->getStatus() == Edge::Status::Allocated) {
-                return false;
-            }
+            const auto& baseEdge = cluster.at(0);
 
             // Allocate a cluster of the constants
             if (baseEdge->getParent()->isConstant()) {
@@ -769,11 +755,11 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, const GraphCon
                                             }),
                                 "All edges in the string cluster must be strings.");
                 auto memBlock = allocateStringMemory(baseEdge);
-                for (auto& edge : cluster) {
-                    if (edge->getStatus() == Edge::Status::NotAllocated) {
-                        edge->reuse(
-                            std::make_shared<StringMemory>(context->getEngine(), edge->getOriginalDesc(), memBlock));
-                    }
+                // reuse starting from second edge (skip the base edge)
+                for (size_t i = 1; i < cluster.size(); i++) {
+                    const auto& edge = cluster.at(i);
+                    edge->reuse(
+                        std::make_shared<StringMemory>(context->getEngine(), edge->getOriginalDesc(), memBlock));
                 }
                 return false;
             }
@@ -784,55 +770,90 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, const GraphCon
     return std::distance(clusters.begin(), notAllocatedPartitionEnd);
 }
 
-static void AllocateBaseEdges(const EdgeClusters& edgeClusters, const MemoryControl::MemorySolution& memorySolution) {
-    // attach all the not yet allocated edges to the memory control
-    for (auto&& item : memorySolution) {
-        int count = 0;
-        for (auto&& edge : edgeClusters[item.first]) {
-            if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                edge->allocate(item.second);
-                // TODO: WA for some test (like strided_slice_test) which use tensors with
-                //       shapes {0}. And it is implicitly converted into {1} tensor.
-                //       Zeroing of input data allow pass tests.
-                if (edge->getParent()->getType() == Type::Input && edge->getMemory().getDesc().hasDefinedMaxSize()) {
-                    edge->getMemoryPtr()->nullify();
-                }
+/**
+ * Partition the \clusters of Edges, by moving to the end and allocating at the same time
+ * the clusters that have dynamic output edge as a base edge.
+ * Also collect the memory blocks associated with dynamic output nodes, allowing infer requests to access them.
+ *
+ * @return a tuple of remaining number of clusters to process (left partition) and the output memory blocks
+ */
+static std::tuple<size_t, Graph::OutputMemoryBlocks> AllocateDynamicOutputEdges(
+    EdgeClusters& clusters,
+    size_t remaining,
+    const std::map<std::size_t, NodePtr>& outputNodes) {
+    Graph::OutputMemoryBlocks outputMemBlocks;
 
+    auto collectDynamicOutputMemBlocks = [&outputMemBlocks, &outputNodes](const EdgeCluster& cluster) {
+        const auto& baseEdge = cluster.at(0);
+        const auto& desc = baseEdge->getOriginalDesc();
+        const auto& child = baseEdge->getChild();
+        const bool dynamicOutputEdge = child->getType() == Type::Output && !desc.isDefined();
+
+        if (!dynamicOutputEdge) {
+            return true;
+        }
+
+        auto proxyMemBlock = std::make_shared<ProxyMemoryBlock>();
+        DEBUG_LOG("ProxyMemoryBlock ", proxyMemBlock);
+
+        baseEdge->allocate(proxyMemBlock);
+
+        int count = 0;
+        for (auto& output : outputNodes) {
+            if (output.second == child) {
+                outputMemBlocks[output.first] = proxyMemBlock;
                 count++;
             }
         }
-        OPENVINO_ASSERT(count == 1, "Expected exactly one allocation. Actual number of allocations: ", count);
+        // sometimes there are unused output ports.
+        OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
+        return false;
+    };
+
+    auto notAllocatedPartitionEnd =
+        std::partition(clusters.begin(), clusters.begin() + remaining, collectDynamicOutputMemBlocks);
+
+    remaining = std::distance(clusters.begin(), notAllocatedPartitionEnd);
+
+    return {remaining, outputMemBlocks};
+}
+
+static void AllocateBaseEdges(const EdgeClusters& edgeClusters, const MemoryControl::MemorySolution& memorySolution) {
+    // attach all the not yet allocated edges to the memory control
+    for (const auto& [regionId, memoryBlock] : memorySolution) {
+        const auto& cluster = edgeClusters.at(regionId);
+        const auto& baseEdge = cluster.at(0);
+
+        baseEdge->allocate(memoryBlock);
+        // TODO: WA for some test (like strided_slice_test) which use tensors with
+        //       shapes {0}. And it is implicitly converted into {1} tensor.
+        //       Zeroing of input data allow pass tests.
+        if (baseEdge->getParent()->getType() == Type::Input && baseEdge->getMemory().getDesc().hasDefinedMaxSize()) {
+            baseEdge->getMemoryPtr()->nullify();
+        }
     }
 }
 
 static void AllocatedReferencingEdges(const EdgeClusters& clusters) {
-    for (auto& cluster : clusters) {
-        for (auto& edge : cluster) {
-            if (edge->getStatus() != Edge::Status::NotAllocated) {
+    for (const auto& cluster : clusters) {
+        // reuse starting from second edge (skip the base edge)
+        for (size_t i = 1; i < cluster.size(); i++) {
+            const auto& edge = cluster.at(i);
+            // child edges on the same port are in the same cluster
+            // and allocated in scope of single resolveInPlaceEdges call
+            if (edge->getStatus() == Edge::Status::Allocated) {
                 continue;
             }
 
-            std::vector<EdgePtr> edges_to_process;
-            edges_to_process.push_back(edge);
-            for (auto next_edge = edge->getSharedEdge(std::nothrow); next_edge;
-                 next_edge = next_edge->getSharedEdge(std::nothrow)) {
-                edges_to_process.push_back(next_edge);
+            if (edge->inPlace(Edge::LOOK_DOWN)) {
+                edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
+            } else if (edge->inPlace(Edge::LOOK_UP)) {
+                edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
+            } else {
+                auto sharedEdge = edge->getSharedEdge();
+                edge->allocate(sharedEdge->getMemoryPtr()->getMemoryBlock());
+                DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
             }
-
-            std::for_each(edges_to_process.rbegin(), edges_to_process.rend(), [](const EdgePtr& edge) {
-                if (edge->getStatus() == Edge::Status::NotAllocated) {
-                    if (edge->inPlace(Edge::LOOK_DOWN)) {
-                        edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
-                    } else if (edge->inPlace(Edge::LOOK_UP)) {
-                        edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
-                    } else {
-                        auto sharedEdge = edge->getSharedEdge();
-                        auto sharedEdgeParent = sharedEdge->getParent();
-                        edge->allocate(sharedEdge->getMemoryPtr()->getMemoryBlock());
-                        DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
-                    }
-                }
-            });
         }
     }
 }
@@ -919,56 +940,75 @@ static void ValidateEdgeStatus(const std::vector<EdgePtr>& edges) {
  * Forms clusters of edges.
  * An edge cluster is a collection of edges, with the following properties:
  * - base edge is an edge with a Memory which other edges point to by means of inplace logic
- * - first edge of a cluster is a base edge with a status either NeedAllocation or Allocated
- * - rest of the edges in a cluster are NotAllocated ones, since they point to another edge
+ * - first edge of a cluster is a base edge with a status NeedAllocation
+ * - rest of the edges in a cluster are NotAllocated ones and they point to the base edge
+ *
+ * A cluster essentially looks like:
+ * - std::vector<EdgePtr> cluster{base, edge1, edge2, edge3, ...}
  */
 static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
     using EdgeClusterIdxMap = std::unordered_map<EdgePtr, size_t>;
     EdgeClusters edgeClusters;
     EdgeClusterIdxMap edgeClusterIndices;
 
+    std::function<size_t(EdgePtr)> addToCluster;
+    addToCluster = [&addToCluster, &edgeClusterIndices, &edgeClusters](const EdgePtr& edge) {
+        // cluster is already created for the edge
+        if (auto it = edgeClusterIndices.find(edge); it != edgeClusterIndices.end()) {
+            return it->second;
+        }
+        // create an edge cluster when the base edge is visited for the first time
+        // so the base edge is always the first edge in the cluster
+        if (edge == nullptr) {
+            edgeClusters.emplace_back();
+            return edgeClusters.size() - 1;
+        }
+
+        auto clusterIdx = addToCluster(edge->getSharedEdge(std::nothrow));
+
+        edgeClusterIndices[edge] = clusterIdx;
+        edgeClusters[clusterIdx].push_back(edge);
+
+        return clusterIdx;
+    };
+
     for (auto& edge : graphEdges) {
-        if (edgeClusterIndices.count(edge)) {
-            continue;  // edge is visited
-        }
-
-        size_t clusterIdx = edgeClusters.size();
-        EdgePtr lastSharedEdge = nullptr;
-
-        // find cluster index
-        for (auto shared_edge = edge->getSharedEdge(std::nothrow); shared_edge;
-             shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
-            auto shared_edge_it = edgeClusterIndices.find(shared_edge);
-            if (shared_edge_it != edgeClusterIndices.end()) {
-                clusterIdx = shared_edge_it->second;
-                lastSharedEdge = shared_edge;
-                break;
-            }
-        }
-
-        if (clusterIdx == edgeClusters.size()) {
-            edgeClusters.emplace_back(EdgeCluster{edge});
-        }
-
-        // use recursive approach to ensure that the base edge is placed as a first entry of a cluster
-        std::function<void(EdgePtr)> addToCluster;
-        addToCluster =
-            [&addToCluster, &edgeClusterIndices, &clusterIdx, &edgeClusters, &lastSharedEdge](const EdgePtr& edge) {
-                if (edge == lastSharedEdge) {
-                    return;
-                }
-
-                addToCluster(edge->getSharedEdge(std::nothrow));
-
-                if (edgeClusterIndices.emplace(edge, clusterIdx).second) {
-                    edgeClusters[clusterIdx].push_back(edge);
-                }
-            };
-
-        addToCluster(edge);
+        const auto clusterIdx = addToCluster(edge);
+        MAYBE_UNUSED(clusterIdx);
+        DEBUG_LOG("Added edge: ", *edge, " to cluster: ", clusterIdx);
     }
 
     return edgeClusters;
+}
+
+/**
+ * @brief Validates the correctness of edge clusters.
+ *
+ * This function ensures that each edge cluster follows the expected structure:
+ * - The cluster must not be empty.
+ * - The first edge in the cluster (base edge) must have the status `NeedAllocation`.
+ * - All subsequent edges in the cluster must have the status `NotAllocated`.
+ *
+ * @param clusters   collection of edges.
+ * @param remaining  number of clusters to process (not allocated yet).
+ *
+ * @throws If any of the required conditions are violated
+ */
+static void ValidateEdgeClusters(const EdgeClusters& clusters, size_t remaining) {
+    for (size_t i = 0; i < remaining; i++) {
+        const auto& cluster = clusters.at(i);
+        OPENVINO_ASSERT(!cluster.empty(), "Unexpected empty edge cluster");
+
+        const auto& baseEdge = cluster.at(0);
+        OPENVINO_ASSERT(baseEdge->getStatus() == Edge::Status::NeedAllocation,
+                        "Unexpected status of edge: ",
+                        *baseEdge);
+
+        for (size_t i = 1; i < cluster.size(); ++i) {
+            const auto& edge = cluster.at(i);
+            OPENVINO_ASSERT(edge->getStatus() == Edge::Status::NotAllocated, "Unexpected status of edge: ", *edge);
+        }
+    }
 }
 
 static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
@@ -1057,48 +1097,18 @@ static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
     return memoryRegions;
 }
 
-static Graph::OutputMemoryBlocks FilterOutDynamicOutputEdges(MemoryRegions& memoryRegions,
-                                                             const EdgeClusters& clusters,
-                                                             const std::map<std::size_t, NodePtr>& outputNodes) {
-    Graph::OutputMemoryBlocks outputMemBlocks;
-    memoryRegions.erase(
-        std::remove_if(memoryRegions.begin(),
-                       memoryRegions.end(),
-                       [&](const MemoryRegion& region) {
-                           if (region.size >= 0 ||
-                               !one_of(region.type, MemoryRegion::RegionType::OUTPUT, MemoryRegion::RegionType::IO)) {
-                               return false;
-                           }
-                           bool result = false;
-                           for (auto& edge : clusters[region.id]) {
-                               auto child = edge->getChild();
-                               if (child->getType() == Type::Output &&
-                                   edge->getStatus() == Edge::Status::NeedAllocation) {
-                                   auto proxyMemBlock = std::make_shared<ProxyMemoryBlock>();
-                                   DEBUG_LOG("ProxyMemoryBlock ", proxyMemBlock);
+static size_t SkipAllocatedClusters(EdgeClusters& clusters) {
+    auto notAllocatedPartitionEnd = std::partition(clusters.begin(), clusters.end(), [](const EdgeCluster& cluster) {
+        const auto& baseEdge = cluster.at(0);
 
-                                   edge->allocate(proxyMemBlock);
+        if (baseEdge->getStatus() == Edge::Status::Allocated) {
+            return false;
+        }
 
-                                   // Store the output memory blocks.
-                                   // So that, the infer requests can be able to access them.
-                                   // @todo Can we just get them from outputNodesMap instead?
-                                   int count = 0;
-                                   for (auto& output : outputNodes) {
-                                       if (output.second == child) {
-                                           outputMemBlocks[output.first] = proxyMemBlock;
-                                           count++;
-                                       }
-                                   }
-                                   // sometimes there are unused output ports.
-                                   OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
-                                   result = true;
-                               }
-                           }
-                           return result;
-                       }),
-        memoryRegions.end());
+        return true;
+    });
 
-    return outputMemBlocks;
+    return std::distance(clusters.begin(), notAllocatedPartitionEnd);
 }
 
 /**
@@ -1117,11 +1127,17 @@ static std::tuple<MemoryControl::MemorySolution, EdgeClusters, Graph::OutputMemo
 
     auto edgeClusters = FormEdgeClusters(edges);
 
-    const size_t remainingEdgeClustersCount = AllocateStringsAndConstants(edgeClusters, graphContext);
+    size_t remaining = SkipAllocatedClusters(edgeClusters);
 
-    auto memoryRegions = FormMemoryRegions(edgeClusters, remainingEdgeClustersCount, allocationContext.execIndex);
+    ValidateEdgeClusters(edgeClusters, remaining);
+    // strings and constant are allocated bypassing the memory control
+    // @todo allocate constants using dedicated memory control
+    remaining = AllocateStringsAndConstants(edgeClusters, remaining, graphContext);
+    // dynamic output edges are allocated bypassing the memory control
+    Graph::OutputMemoryBlocks outputNodesMemBlocks;
+    std::tie(remaining, outputNodesMemBlocks) = AllocateDynamicOutputEdges(edgeClusters, remaining, outputNodesMap);
 
-    auto outputNodesMemBlocks = FilterOutDynamicOutputEdges(memoryRegions, edgeClusters, outputNodesMap);
+    auto memoryRegions = FormMemoryRegions(edgeClusters, remaining, allocationContext.execIndex);
 
     memoryControl->insert(memoryRegions, allocationContext.syncPoints);
     auto memoryBlocks = memoryControl->solve();
@@ -1142,7 +1158,9 @@ void Graph::Allocate() {
     const auto& edges = allocationContext.edges;
     InitEdgeStatus(edges);
 
-    auto [solution, edgeClusters, m_outputNodesMemBlocks] =
+    MemoryControl::MemorySolution solution;
+    EdgeClusters edgeClusters;
+    std::tie(solution, edgeClusters, m_outputNodesMemBlocks) =
         SolveMemoryReuse(memoryControl, allocationContext, m_context, outputNodesMap);
 
     AllocateBaseEdges(edgeClusters, solution);
@@ -1183,10 +1201,10 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
 
             if (actualDesc->getPrecision() == element::string) {
                 StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
-                edgeMemory->load(ext_mem, false);
+                edgeMemory->load(ext_mem, false, false);
             } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
                 Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
-                edgeMemory->load(ext_mem, false);
+                edgeMemory->load(ext_mem, false, false);
             } else {
                 size_t size_to_copy = ext_tensor_desc->getCurrentMemSize();
                 cpu_parallel_memcpy(inter_data_ptr, ext_data_ptr, size_to_copy);
@@ -1224,10 +1242,9 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
         bool isScalarOutput = false;
         if (ext_blob->get_shape().empty() && ext_blob->get_size() == 1) {
             const auto& actualDims = expected_desc_ptr->getShape().getStaticDims();
-            isScalarOutput = !actualDims.empty() && std::accumulate(actualDims.begin(),
-                                                                    actualDims.end(),
-                                                                    static_cast<size_t>(1),
-                                                                    std::multiplies<size_t>()) == 1;
+            isScalarOutput =
+                !actualDims.empty() &&
+                std::accumulate(actualDims.begin(), actualDims.end(), static_cast<size_t>(1), std::multiplies<>()) == 1;
         }
 
         auto outDims = intr_blob.getStaticDims();
@@ -1293,10 +1310,10 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 
         if (actualDesc->getPrecision() == element::string) {
             StringMemory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr);
-            outBloMem.load(intr_blob, false);
+            outBloMem.load(intr_blob, false, false);
         } else if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
-            outBloMem.load(intr_blob, false);
+            outBloMem.load(intr_blob, false, false);
         } else {
             OPENVINO_ASSERT(srcPrec == dstPrec,
                             "The precision of the CPU output tensor index",
@@ -1356,16 +1373,6 @@ using UpdateNodes = UpdateNodesSeq;
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
 
-#    if (defined(_MSVC_LANG) && (_MSVC_LANG > 201703L)) || (defined(__cplusplus) && (__cplusplus > 201703L))
-#        define ov_memory_order_release std::memory_order_release
-#        define ov_memory_order_relaxed std::memory_order_relaxed
-#        define ov_memory_order_acquire std::memory_order_acquire
-#    else
-#        define ov_memory_order_release std::memory_order::memory_order_release
-#        define ov_memory_order_relaxed std::memory_order::memory_order_relaxed
-#        define ov_memory_order_acquire std::memory_order::memory_order_acquire
-#    endif
-
 class UpdateNodesBase {
 public:
     explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes)
@@ -1377,21 +1384,21 @@ public:
                 if (node->isDynamicNode()) {
                     node->updateShapes();
                 }
-                m_prepareCounter.store(i, ov_memory_order_release);
+                m_prepareCounter.store(i, std::memory_order_release);
             }
         } catch (...) {
-            m_completion.store(true, ov_memory_order_relaxed);
+            m_completion.store(true, std::memory_order_relaxed);
             throw;
         }
-        m_prepareCounter.store(stop_indx, ov_memory_order_relaxed);
-        m_completion.store(true, ov_memory_order_release);
+        m_prepareCounter.store(stop_indx, std::memory_order_relaxed);
+        m_completion.store(true, std::memory_order_release);
     }
 
     void updateDynParams(size_t node_indx, size_t /*unused*/) {
         size_t local_counter = node_indx;
         while (true) {
-            const bool completion = m_completion.load(ov_memory_order_acquire);
-            const size_t prepareCounter = m_prepareCounter.load(ov_memory_order_relaxed);
+            const bool completion = m_completion.load(std::memory_order_acquire);
+            const size_t prepareCounter = m_prepareCounter.load(std::memory_order_relaxed);
             if (completion && local_counter == prepareCounter) {
                 break;
             }
@@ -1571,11 +1578,11 @@ public:
 /* group all the profiling macros into a single one
  * to avoid cluttering a core logic */
 #define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
-    VERBOSE(node, config.debugCaps.verbose);                    \
-    PERF(node, config.collectPerfCounters);                     \
-    DUMP(node, config.debugCaps, infer_count);                  \
-    OV_ITT_SCOPED_TASK(ittScope, node->profiling.execute);      \
-    DEBUG_LOG(*node);
+    VERBOSE(node, (config).debugCaps.verbose);                  \
+    PERF(node, (config).collectPerfCounters);                   \
+    DUMP(node, (config).debugCaps, infer_count);                \
+    OV_ITT_SCOPED_TASK(ittScope, (node)->profiling.execute);    \
+    DEBUG_LOG(*(node));
 
 inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
     if (request) {
@@ -1652,7 +1659,7 @@ void Graph::Infer(SyncInferRequest* request) {
 void Graph::SortTopologically() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::SortTopologically");
 
-    // Set execIndex of all nodes to default invaild value
+    // Set execIndex of all nodes to default invalid value
     for (auto& node : graphNodes) {
         node->execIndex = -1;
     }
@@ -1739,11 +1746,11 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
             }
         };
 
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        if (graphNodes[i]->isConstant()) {
+    for (const auto& graphNode : graphNodes) {
+        if (graphNode->isConstant()) {
             continue;
         }
-        getPerfMapFor(perfMap, graphNodes[i]);
+        getPerfMapFor(perfMap, graphNode);
     }
 }
 
@@ -1775,7 +1782,8 @@ void Graph::DropNode(const NodePtr& node) {
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
-    for (size_t i = 0; i < parents.size(); i++) {
+    // The collections are being updated while iterating. So, range based for loops cannot be used.
+    for (size_t i = 0; i < parents.size(); i++) {  // NOLINT(modernize-loop-convert)
         auto p_edge = parents[i].lock();
         if (!p_edge) {
             continue;
@@ -1788,7 +1796,8 @@ void Graph::DropNode(const NodePtr& node) {
         const int inNum = p_edge->getInputNum();
         RemoveEdge(p_edge);
 
-        for (size_t j = 0; j < children.size(); j++) {
+        // The collections are being updated while iterating. So, range based for loops cannot be used.
+        for (size_t j = 0; j < children.size(); j++) {  // NOLINT(modernize-loop-convert)
             auto c_edge = children[j].lock();
             if (!c_edge) {
                 continue;
@@ -1833,7 +1842,8 @@ void Graph::DropDWConvNode(const NodePtr& node) {
         const int inNum = p_edge->getInputNum();
         RemoveEdge(p_edge);
 
-        for (size_t j = 0; j < children.size(); j++) {
+        // The collections are being updated while iterating. So, range based for loops cannot be used.
+        for (size_t j = 0; j < children.size(); j++) {  // NOLINT(modernize-loop-convert)
             auto c_edge = children[j].lock();
             if (!c_edge) {
                 continue;
@@ -1913,8 +1923,8 @@ NodePtr Graph::InsertReorder(const EdgePtr& edge,
     InsertNode(edge, reorder, true);
 
     // Using the method Edge::getDesc() we can check that input and output tensor descriptors are equal.
-    // Due to the specificity of GraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't do
-    // these checks.
+    // Due to the specificity of GraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't
+    // do these checks.
     if (!isOptimized) {
         reorder->getParentEdgeAt(0)->getOriginalDesc();
         reorder->getChildEdgeAt(0)->getOriginalDesc();
@@ -1967,8 +1977,7 @@ void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(EnforceInferPrcDebug inferPrecDebug);
 
     const auto inferPrec = getConfig().inferencePrecision;
-
-    if (one_of(inferPrec, element::f32, element::undefined, ov::element::f16)) {
+    if (one_of(inferPrec, element::f32, element::dynamic, ov::element::f16, element::dynamic)) {
         return;  // nothing to do, only precision reduction is currently allowed
     }
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
@@ -1985,8 +1994,8 @@ void Graph::EnforceInferencePrecision() {
                 if (one_of(parent->getType(),
                            Type::Convolution,     // conv nets
                            Type::FullyConnected,  // conv / bert nets
-                           Type::RNNCell,         // recurent nets
-                           Type::RNNSeq,          // recurent nets
+                           Type::RNNCell,         // recurrent nets
+                           Type::RNNSeq,          // recurrent nets
                            Type::MatMul,          // bert nets
                            Type::ROIPooling,      // object detection nets
                            Type::Interpolate,     // super resolution nets
@@ -2019,7 +2028,7 @@ void Graph::EnforceInferencePrecision() {
 
     /* Skip low-precision float point enforcement for tail of the graph by forming set of nodes to skip.
      * Necessary to maintain accuracy.
-     * Experiments show zero peformance impact on average */
+     * Experiments show zero performance impact on average */
     std::unordered_set<NodePtr> nodesToSkip;
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
@@ -2074,7 +2083,7 @@ void Graph::EnforceInferencePrecision() {
                     return true;
                 }
 
-                // exclude Convert after Range since it may cause precision loss when integter type to LP.
+                // exclude Convert after Range since it may cause precision loss when integer type to LP.
                 if (parent->getType() == Type::Range && node->getType() == Type::Convert) {
                     return true;
                 }
@@ -2105,7 +2114,7 @@ void Graph::EnforceInferencePrecision() {
                 continue;
             }
 
-            // exclude Convert before Range since it may cause precision loss when integter type to LP.
+            // exclude Convert before Range since it may cause precision loss when integer type to LP.
             // TODO: Incorrect subgraph is generated by ONNX FE + ticket 117861.
             const auto& child = node->getChildEdgeAt(i)->getChild();
             if (child->getType() == Type::Range && node->getType() == Type::Convert) {

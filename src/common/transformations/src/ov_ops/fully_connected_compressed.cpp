@@ -35,7 +35,7 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& X,
                                W,
                                bias,
                                weight_scales,
-                               std::make_shared<v0::Constant>(element::undefined, Shape{0}),
+                               std::make_shared<v0::Constant>(element::dynamic, Shape{0}),
                                output_type) {}
 
 std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const ov::OutputVector& new_args) const {

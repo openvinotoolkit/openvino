@@ -4,6 +4,8 @@
 
 #include "jit_conversion_emitters.hpp"
 
+#include <memory>
+
 #include "utils/bfloat16.hpp"
 
 using namespace dnnl::impl::utils;
@@ -21,7 +23,7 @@ jit_convert_emitter::jit_convert_emitter(jit_generator* host,
       input_type(node->get_input_element_type(0)),
       output_type(node->get_output_element_type(0)) {
     if (output_type == ov::element::bf16) {
-        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(host, host_isa);
     }
 }
 
@@ -55,8 +57,8 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_emitter::float2bfloat(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_src = Vmm(in_vec_idxs[0]);
-    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
     if (!uni_vcvtneps2bf16) {
         OV_CPU_JIT_EMITTER_THROW("Converter from float to bf16 isn't initialized!");
     }
@@ -95,11 +97,11 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                               const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_src = Vmm(in_vec_idxs[0]);
-    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
 
-    Xmm xmm_dst = Xmm(out_vec_idxs[0]);
-    Ymm ymm_dst = Ymm(out_vec_idxs[0]);
+    auto xmm_dst = Xmm(out_vec_idxs[0]);
+    auto ymm_dst = Ymm(out_vec_idxs[0]);
 
     // For Truncation behavior we can just move data from src to dst if we want convert i8 -> u8 or u8 -> i8
     if ((input_type == output_type) || is_i8_and_u8_case()) {
@@ -208,11 +210,11 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_truncation_emitter::dword2int8(const std::vector<size_t>& in_vec_idxs,
                                                 const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
 
-    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
-    Xmm xmm_dst = Xmm(out_vec_idxs[0]);
-    Ymm ymm_dst = Ymm(out_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto xmm_dst = Xmm(out_vec_idxs[0]);
+    auto ymm_dst = Ymm(out_vec_idxs[0]);
 
     if (isa == dnnl::impl::cpu::x64::avx512_core) {
         h->vpmovdb(xmm_dst, vmm_src);
@@ -250,11 +252,11 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                               const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_src = Vmm(in_vec_idxs[0]);
-    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
 
-    Xmm xmm_dst = Xmm(out_vec_idxs[0]);
-    Ymm ymm_dst = Ymm(out_vec_idxs[0]);
+    auto xmm_dst = Xmm(out_vec_idxs[0]);
+    auto ymm_dst = Ymm(out_vec_idxs[0]);
 
     if (input_type == output_type) {
         h->uni_vmovups(vmm_dst, vmm_src);
@@ -358,17 +360,17 @@ void jit_convert_saturation_emitter::dword2int8(const std::vector<size_t>& in_ve
                                                 const std::vector<size_t>& out_vec_idxs,
                                                 bool is_signed) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_src = Vmm(in_vec_idxs[0]);
 
-    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
-    Xmm xmm_dst = Xmm(out_vec_idxs[0]);
-    Ymm ymm_dst = Ymm(out_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto xmm_dst = Xmm(out_vec_idxs[0]);
+    auto ymm_dst = Ymm(out_vec_idxs[0]);
 
     if (isa == dnnl::impl::cpu::x64::avx512_core) {
         if (is_signed) {
             h->vpmovsdb(xmm_dst, vmm_src);
         } else {
-            Vmm vmm_zero = Vmm(aux_vec_idxs[0]);
+            auto vmm_zero = Vmm(aux_vec_idxs[0]);
             h->vpxord(vmm_zero, vmm_zero, vmm_zero);
             h->vpmaxsd(vmm_dst, vmm_src, vmm_zero);
             h->vpmovusdb(xmm_dst, vmm_dst);

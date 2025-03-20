@@ -12,9 +12,9 @@ namespace paddle {
 namespace op {
 NamedOutputs fill_any_like(const NodeContext& node) {
     auto x = node.get_input("X");
-    auto dtype = node.get_attribute<ov::element::Type>("dtype", element::undefined);
+    auto dtype = node.get_attribute<ov::element::Type>("dtype", element::dynamic);
     const auto value = node.get_attribute<float>("value");
-    if (dtype == element::undefined) {
+    if (dtype.is_dynamic()) {
         // when type does not define, use the input type
         dtype = x.get_element_type();
     }

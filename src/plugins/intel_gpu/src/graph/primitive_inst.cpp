@@ -9,7 +9,6 @@
 #include "primitive_inst.h"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
-#include "reorder_inst.h"
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
@@ -40,8 +39,8 @@
 #include "dynamic_quantize_inst.h"
 #include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "impls/registry/implementation_manager.hpp"
-#include "impls/registry/registry.hpp"
+#include "registry/implementation_manager.hpp"
+#include "registry/registry.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -271,6 +270,7 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
         ev = mem_new->copy_from(_network.get_stream(), *_outputs[idx], false);
     } else {
         _outputs[idx] = mem_new;
+        _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
     }
     return ev;
 }
@@ -516,7 +516,7 @@ kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_im
     const auto &dev_info = get_node().get_program().get_engine().get_device_info();
 
     // The target HW of this patch is limited because of performance concern
-    if (dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) {
+    if ((dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) || dev_info.gfx_ver.major >= 20) {
         // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
         // i.e. predecessor node was supposed be increased already
         if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
@@ -579,6 +579,23 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
 
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
+
+    if (users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
+        auto reorder_inst = users.front();
+        if (reorder_inst->is_output()
+            && reorder_inst->output_memory_ptr()
+            && get_network().has_output_remote_memory_ptr(reorder_inst->id())
+            && get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {
+            if (actual_layouts[0].get_linear_size() <= reorder_inst->get_max_output_layout_count()) {
+                this->_outputs[0] = reorder_inst->_outputs[0];
+                GPU_DEBUG_TRACE_DETAIL << id() << ": use reorder user's remote tensor memory " << this->_outputs[0]->buffer_ptr() << std::endl;
+                return;
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
+                reorder_inst->set_can_be_optimized(false);
+            }
+        }
+    }
 
     // input_layout node is supposed to always use external memory in dynamic case
     if (_node->is_type<input_layout>())
@@ -803,7 +820,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             reset_user_output_memory(this, dep_memory_ptr(0));
         } else {
             // when this inst was not executed at the previous iteration,
-            // Reset output memory becuase current output memory is invalid.
+            // Reset output memory because current output memory is invalid.
             if (prev_execution_skipped) {
                 if (_outputs[0]) {
                     reset_user_output_memory(this, _outputs[0]);
@@ -1046,25 +1063,33 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     {
         if (_impl == nullptr)
             return;
-        const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
-        if (ibuf_layouts.empty())
+        const auto& buffer_descs = _impl->get_internal_buffer_descs(*_impl_params);
+        if (buffer_descs.empty())
             return;
         GPU_DEBUG_CODE(std::string memalloc_info = "");
-        for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
-            if (i < _intermediates_memory.size() && ibuf_layouts[i].bytes_count() <= max_intermediates_memory_sizes[i]) {
-                // can reuse
-                _intermediates_memory[i] = _network.get_engine().reinterpret_buffer(*_intermediates_memory[i], ibuf_layouts[i]);
+        for (size_t i = 0; i < buffer_descs.size(); ++i) {
+            auto need_lockable = buffer_descs[i].m_lockable;
+            auto alloc_type = i < _intermediates_memory.size() ? _intermediates_memory[i]->get_allocation_type()
+                                                               : allocation_type::unknown;
+            bool can_reuse = true;
+            can_reuse &= alloc_type != allocation_type::unknown &&
+                         buffer_descs[i].m_layout.bytes_count() <= max_intermediates_memory_sizes[i];
+            can_reuse &= (need_lockable && alloc_type != cldnn::allocation_type::usm_device) ||
+                         (!need_lockable && alloc_type != cldnn::allocation_type::usm_host);
+
+            if (can_reuse) {
+                _intermediates_memory[i] = _network.get_engine().reinterpret_buffer(*_intermediates_memory[i], buffer_descs[i].m_layout);
                GPU_DEBUG_CODE(memalloc_info += ((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") + "reuse_buffer");
             } else {
                 // TODO: If there is a kernel which requires reset internal buffer in the future,
                 // we'll need additional handle for that purpose like need_reset_output_memory
-                bool need_reset = false;
+                const bool need_reset = false;
                 if (i < _intermediates_memory.size()) {
-                    _intermediates_memory[i] = allocate_internal_buffer(i, need_reset);
+                    _intermediates_memory[i] = allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable);
                     max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
                 } else {
                     // i-th layout has not been allocated yet
-                    _intermediates_memory.push_back(allocate_internal_buffer(i, need_reset));
+                    _intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable));
                     max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
                 }
                 GPU_DEBUG_CODE(memalloc_info +=
@@ -1423,13 +1448,13 @@ void primitive_inst::do_runtime_skip_gather() {
     auto idx_rank = idx_shape.size();
 
     if (_impl_params->get_input_layout(0).count() == 0) {
-        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of input is empty " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize because input is empty " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
         set_can_be_optimized(false);
         return;
     }
 
     if (idx_rank != 1) {
-        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of its indices rank " << idx_rank << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize because of its indices rank " << idx_rank << std::endl;
         set_can_be_optimized(false);
         return;
     }
@@ -1444,7 +1469,7 @@ void primitive_inst::do_runtime_skip_gather() {
     // If the overhead for checking the index is bigger than doing gather itself, it does not make sense for skipping
     const int MAX_INDICES_SIZE = 10*1024;
     if (input_shape[axis] > MAX_INDICES_SIZE) {
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize becuase data length along with the axis is too big" << input_shape[axis] << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because data length along with the axis is too big" << input_shape[axis] << std::endl;
         set_can_be_optimized(false);
         return;
     }
@@ -1460,6 +1485,11 @@ void primitive_inst::do_runtime_skip_gather() {
                 GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
                 if (_impl_params->output_layouts[0].data_padding.is_dynamic())
                     _impl_params->output_layouts[0].data_padding = padding();
+                // for runtime skippable nodes, if previous iter is skipped while this iter not, its output memory needs to be revalidate
+                // as memory opt/release may be applied for these nodes to reduce memory footprint in previous iters
+                if (can_be_optimized()) {
+                    set_flag(ExecutionFlags::SHAPE_CHANGED);
+                }
                 set_can_be_optimized(false);
                 return;
             }
@@ -1655,17 +1685,20 @@ void primitive_inst::do_runtime_skip_scatter_update() {
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_scatter_update] " << id() << " : check optimizability" << std::endl;
+    const auto& input_layout = _impl_params->get_input_layout(0);
+    const auto& output_layout = _impl_params->get_output_layout(0);
     const auto& idx_layout = _impl_params->get_input_layout(1);
     const auto& update_layout = _impl_params->get_input_layout(2);
 
-    if (idx_layout.count() > 0 && update_layout.count() > 0) {
+    if ((idx_layout.count() > 0 && update_layout.count() > 0) || (get_node().is_type<scatter_elements_update>() && input_layout != output_layout)) {
         // set shape_change to realloc memory for same input shapes
         if (can_be_optimized()) {
             set_flag(ExecutionFlags::SHAPE_CHANGED);
         }
         set_can_be_optimized(false);
         GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_layout (" << idx_layout.to_short_string()
-                        << ") and update_layout(" << update_layout.to_short_string() << ") are not zero" << std::endl;
+                        << ") and update_layout(" << update_layout.to_short_string() << ") are not zero"
+                        "or input layout is different than output layout" << std::endl;
         return;
     }
 
@@ -2112,11 +2145,8 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     OPENVINO_ASSERT(_max_output_layout_count.size() == get_node().get_output_layouts().size());
 }
 
-memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
+memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
-        return nullptr;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
-    if (ibuf_layouts.empty())
         return nullptr;
 
     auto device_mem_acc = [&](size_t a, std::pair<primitive_inst*, int32_t> b) {
@@ -2156,14 +2186,11 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
         }
     }
     // allocate intermediate memory for the updated layout of buffer
-    auto layout = ibuf_layouts[idx];
     auto alloc_type = allocation_type::unknown;
-    const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers();
-    auto need_lockable_allocation = lockable_buffers_indexes.find(idx) != lockable_buffers_indexes.end();
     GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "] "
-                  << layout.to_short_string() << " need_lockable_allocation=" << need_lockable_allocation << std::endl;
+                  << layout.to_short_string() << " lockable=" << lockable << std::endl;
     if ((int64_t)available_device_mem_size - (int64_t)layout.bytes_count() >= 0 &&
-        (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn) && !need_lockable_allocation) {
+        (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn) && !lockable) {
         // scratchpad memory type enforces to device mem.
         GPU_DEBUG_LOG << " input is device mem and available device mem size (" << available_device_mem_size
                       << ") > requested memory (" << layout.bytes_count() << " )" << std::endl;
@@ -2196,16 +2223,16 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
 void primitive_inst::allocate_internal_buffers(bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
-    if (ibuf_layouts.empty())
+    const auto& buffer_descs = _impl->get_internal_buffer_descs(*_impl_params);
+    if (buffer_descs.empty())
         return;
 
     // allocate intermediate memory for the updated layout of buffer
     std::vector<memory::ptr> intermediates_memory;
-    for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
-        if (ibuf_layouts[i].get_linear_size() == 0)
+    for (size_t i = 0; i < buffer_descs.size(); ++i) {
+        if (buffer_descs[i].m_layout.get_linear_size() == 0)
             continue;
-        intermediates_memory.push_back(allocate_internal_buffer(i, reset));
+        intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, reset));
         max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
     }
     _intermediates_memory = intermediates_memory;
@@ -2664,33 +2691,10 @@ bool primitive_inst::is_valid_fusion() const {
         const auto& outer_dep = _deps[outer_dep_idx];
 
         const auto& outer_dep_pshape = outer_dep.first->_impl_params->get_output_layout().get_partial_shape();
-        size_t outer_dep_pshape_count = outer_dep_pshape.is_static() ? ov::shape_size(outer_dep_pshape.to_shape()) : 0;
         auto merged_shape = out_pshape;
         bool can_broadcast = true;
         if (fd.is_type<eltwise>())
             can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
-
-        // Check if broadcast happens more than single axis.
-        // Current gemm_tiled_opt kernel FUSED_OP_LOAD macro cannot support broadcast on dynamic dimension.
-        if (_node->is_type<gemm>() && can_broadcast == true && merged_shape.rank().get_length() >= outer_dep_pshape.rank().get_length() &&
-            outer_dep_pshape_count != 1) {
-            uint8_t broadcast_more_than_single_axis = 0;
-            auto updated_outer_dep_pshape = ov::PartialShape(outer_dep_pshape);
-
-            // Update outer_dep_pshape to merged_shape rank
-            if (merged_shape.rank().get_length() > outer_dep_pshape.rank().get_length()) {
-                updated_outer_dep_pshape.insert(updated_outer_dep_pshape.begin(),
-                                                merged_shape.rank().get_length() - outer_dep_pshape.rank().get_length(), ov::Dimension(1));
-            }
-
-            for (int64_t i = 0; i < merged_shape.rank().get_length(); i++) {
-                if (merged_shape[i] != updated_outer_dep_pshape[i])
-                    broadcast_more_than_single_axis++;
-            }
-
-            if (broadcast_more_than_single_axis > 1)
-                can_broadcast = false;
-        }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
@@ -2709,7 +2713,7 @@ bool primitive_inst::is_valid_fusion() const {
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
 
-            if (gemm_dims[0] != data_dims[0] && outer_dep_pshape_count != 1)
+            if (gemm_dims[0] != data_dims[0] && gemm_dims[1] != 1)
                 return false;
         } else if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
             const auto& fc_layout = _impl_params->get_output_layout();
