@@ -482,6 +482,9 @@ class gemm_2in_dynamic_add : public gemm_2in_add {};
 TEST_P(gemm_2in_dynamic_add, add) {
     auto p = GetParam();
 
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
+
     cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
