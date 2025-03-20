@@ -95,10 +95,8 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
             continue;
         }
 
-        std::shared_ptr<ov::op::v0::Parameter> parameter = std::make_shared<ov::op::v0::Parameter>(
-            inputDescriptor.precision,
-            inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
-                                                         : inputDescriptor.shapeFromCompiler);
+        std::shared_ptr<ov::op::v0::Parameter> parameter =
+            std::make_shared<ov::op::v0::Parameter>(inputDescriptor.precision, inputDescriptor.shapeFromCompiler);
 
         parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
         parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
@@ -114,14 +112,15 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
             continue;
         }
 
-        std::shared_ptr<ov::Node> constantDummy =
-            std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
-
-        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = std::make_shared<ov::descriptor::Tensor>(
+        std::shared_ptr<ov::Node> constantDummy = std::make_shared<ov::op::v0::Constant>(
             outputDescriptor.precision,
-            outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
-                                                          : outputDescriptor.shapeFromCompiler,
-            outputDescriptor.outputTensorNames);
+            outputDescriptor.shapeFromCompiler.to_shape().empty() ? CONSTANT_NODE_DUMMY_SHAPE
+                                                                  : outputDescriptor.shapeFromCompiler.to_shape());
+
+        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
+            std::make_shared<ov::descriptor::Tensor>(outputDescriptor.precision,
+                                                     outputDescriptor.shapeFromCompiler,
+                                                     outputDescriptor.outputTensorNames);
 
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
         result->output(0).set_tensor_ptr(tensorDummy);
