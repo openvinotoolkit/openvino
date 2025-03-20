@@ -8,16 +8,67 @@
 #define GET_UPDATES_INDEX(idx_order) INPUT2_GET_INDEX(idx_order)
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
 #define GET_INPUT_INDEX(idx_order) INPUT0_GET_INDEX(idx_order)
+
+#if AXIS_VALUE == 0
+    #define SIZE INPUT0_BATCH_NUM
+#elif AXIS_VALUE == 1
+    #define SIZE INPUT0_FEATURE_NUM
+#endif
+
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
     #define IDX_ORDER idx_b,idx_f,idx_y,idx_x
+    #if AXIS_VALUE == 0
+        #define SCATTER_ORDER index, idx_f, idx_y, idx_x
+    #elif AXIS_VALUE == 1
+        #define SCATTER_ORDER idx_b, index, idx_y, idx_x
+    #elif AXIS_VALUE == 2
+        #define SIZE INPUT0_SIZE_Y
+        #define SCATTER_ORDER idx_b, idx_f, index, idx_x
+    #elif AXIS_VALUE == 3
+        #define SIZE INPUT0_SIZE_X
+        #define SCATTER_ORDER idx_b, idx_f, idx_y, index
+    #endif 
 #elif OUTPUT_DIMS == 5
     #define ORDER b,f,z,y,x
     #define IDX_ORDER idx_b,idx_f,idx_z,idx_y,idx_x
+    #if AXIS_VALUE == 0
+        # define SCATTER_ORDER index, idx_f, idx_z, idx_y, idx_x
+    #elif   AXIS_VALUE == 1
+        # define SCATTER_ORDER idx_b, index, idx_z, idx_y, idx_x
+    #elif   AXIS_VALUE == 2
+        # define SIZE INPUT0_SIZE_Z
+        # define SCATTER_ORDER idx_b, idx_f, index, idx_y, idx_x
+    #elif   AXIS_VALUE == 3
+        #define SIZE INPUT0_SIZE_Y
+        # define SCATTER_ORDER idx_b, idx_f, idx_z, index, idx_x
+    #elif   AXIS_VALUE == 4
+        #define SIZE INPUT0_SIZE_X
+        # define SCATTER_ORDER idx_b, idx_f, idx_z, idx_y, index
+    #endif
 #elif OUTPUT_DIMS == 6
     #define ORDER b,f,w,z,y,x
     #define IDX_ORDER idx_b,idx_f,idx_w,idx_z,idx_y,idx_x
+    #if AXIS_VALUE == 0
+        # define SCATTER_ORDER index, idx_f, idx_w, idx_z, idx_y, idx_x
+    #elif   AXIS_VALUE == 1
+        # define SCATTER_ORDER idx_b, index, idx_w, idx_z, idx_y, idx_x
+    #elif   AXIS_VALUE == 2
+        # define SIZE INPUT0_SIZE_W
+        # define SCATTER_ORDER idx_b, idx_f, index, idx_z, idx_y, idx_x
+    #elif   AXIS_VALUE == 3
+        #define SIZE INPUT0_SIZE_Z
+        # define SCATTER_ORDER idx_b, idx_f, idx_w, index, idx_y, idx_x
+    #elif   AXIS_VALUE == 4
+        #define SIZE INPUT0_SIZE_Y
+        # define SCATTER_ORDER idx_b, idx_f, idx_w, idx_z, index, idx_x
+    #elif AXIS_VALUE == 5
+        #define SIZE INPUT0_SIZE_X
+        # define SCATTER_ORDER idx_b, idx_f, idx_w, idx_z, idx_y, index
+    #endif
 #endif
+
+#define ADJUST_INDEX(index) if (index < 0) { index += SIZE; }
 
 #if OUTPUT_DIMS != INPUT2_DIMS
     #error "OUTPUT_DIMS is supposed to be same as INPUT2_DIMS"
@@ -102,7 +153,6 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 )
 {
-
     const uint dim0 = get_global_id(0);
     const uint dim1 = get_global_id(1);
     const uint dim2 = get_global_id(2);
@@ -164,9 +214,9 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         const uint input2_length = tgx * tgy * tgz > COUNT_LENGTH ? COUNT_LENGTH : tgx * tgy * tgz;
     #endif
     #if USE_INIT_VAL == 0
-    for (uint gx = 0; gx < tgx; gx++) {
+    for (uint gz = 0; gz < tgz; gz++) {
         for (uint gy = 0; gy < tgy; gy++) {
-            for (uint gz = 0; gz < tgz; gz++) {
+            for (uint gx = 0; gx < tgx; gx++) {
                 #if OUTPUT_DIMS == 4
                     const uint idx_x = gx;
                     const uint idx_y = gy;
@@ -185,70 +235,18 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 
     const uint indices_idx = GET_INDICES_INDEX(IDX_ORDER);
     INPUT1_TYPE index = indices[(int)indices_idx];
-
-    #if OUTPUT_DIMS == 4
-    #if     AXIS_VALUE == 0
-        if (index < 0) { index += INPUT0_BATCH_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint f = idx_f; const uint b = index;
-    #elif   AXIS_VALUE == 1
-        if (index < 0) { index += INPUT0_FEATURE_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint f = index; const uint b = idx_b;
-    #elif   AXIS_VALUE == 2
-        if (index < 0) { index += INPUT0_SIZE_Y; }
-        const uint x = idx_x; const uint y = index; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 3
-        if (index < 0) { index += INPUT0_SIZE_X; }
-        const uint x = index; const uint y = idx_y; const uint f = idx_f; const uint b = idx_b;
-    #endif  // AXIS_VALUE
-    #elif OUTPUT_DIMS == 5
-    #if     AXIS_VALUE == 0
-        if (index < 0) { index += INPUT0_BATCH_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint f = idx_f; const uint b = index;
-    #elif   AXIS_VALUE == 1
-        if (index < 0) { index += INPUT0_FEATURE_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint f = index; const uint b = idx_b;
-    #elif   AXIS_VALUE == 2
-        if (index < 0) { index += INPUT0_SIZE_Z; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = index; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 3
-        if (index < 0) { index += INPUT0_SIZE_Y; }
-        const uint x = idx_x; const uint y = index; const uint z = idx_z; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 4
-        if (index < 0) { index += INPUT0_SIZE_X; }
-        const uint x = index; const uint y = idx_y; const uint z = idx_z; const uint f = idx_f; const uint b = idx_b;
-    #endif  // AXIS_VALUE
-    #elif OUTPUT_DIMS == 6
-    #if     AXIS_VALUE == 0
-        if (index < 0) { index += INPUT0_BATCH_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = index;
-    #elif   AXIS_VALUE == 1
-        if (index < 0) { index += INPUT0_FEATURE_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = index; const uint b = idx_b;
-    #elif   AXIS_VALUE == 2
-        if (index < 0) { index += INPUT0_SIZE_W; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = index; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 3
-        if (index < 0) { index += INPUT0_SIZE_Z; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = index; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 4
-        if (index < 0) { index += INPUT0_SIZE_Y; }
-        const uint x = idx_x; const uint y = index; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 5
-        if (index < 0) { index += INPUT0_SIZE_X; }
-        const uint x = index; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
-    #endif  // AXIS_VALUE
-    #endif
-    const uint output_idx = GET_OUTPUT_INDEX(ORDER);
+    if (index < 0) { index += SIZE; }
+    const uint output_idx = GET_OUTPUT_INDEX(SCATTER_ORDER);
     output[output_idx] = REDUCTION_NEUTRAL_VALUE;
             }
         }
     }
-    #endif
-    #endif
-    #ifdef REDUCE_MODE
-    for (uint gx = 0; gx < tgx; gx++) {
+    #endif // USE_INIT_VAL
+    #endif // REDUCE_MODE
+    #ifdef REDUCE_MODE // A loop is needed for a single worker item in reduce mode
+    for (uint gz = 0; gz < tgz; gz++) {
         for (uint gy = 0; gy < tgy; gy++) {
-            for (uint gz = 0; gz < tgz; gz++) {
+            for (uint gx = 0; gx < tgx; gx++) {
                 #if OUTPUT_DIMS == 4
                     const uint idx_x = gx;
                     const uint idx_y = gy;
@@ -264,7 +262,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                 #endif
                 const uint idx_f = gz % INPUT2_FEATURE_NUM;
                 const uint idx_b = gz / INPUT2_FEATURE_NUM;
-    #else
+    #else // Multiple worker items do not need a loop.
         #if OUTPUT_DIMS == 4
             const uint idx_x = dim0;
             const uint idx_y = dim1;
@@ -288,60 +286,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 
     const uint indices_idx = GET_INDICES_INDEX(IDX_ORDER);
     INPUT1_TYPE index = indices[(int)indices_idx];
-
-    #if OUTPUT_DIMS == 4
-    #if     AXIS_VALUE == 0
-        if (index < 0) { index += INPUT0_BATCH_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint f = idx_f; const uint b = index;
-    #elif   AXIS_VALUE == 1
-        if (index < 0) { index += INPUT0_FEATURE_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint f = index; const uint b = idx_b;
-    #elif   AXIS_VALUE == 2
-        if (index < 0) { index += INPUT0_SIZE_Y; }
-        const uint x = idx_x; const uint y = index; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 3
-        if (index < 0) { index += INPUT0_SIZE_X; }
-        const uint x = index; const uint y = idx_y; const uint f = idx_f; const uint b = idx_b;
-    #endif  // AXIS_VALUE
-    #elif OUTPUT_DIMS == 5
-    #if     AXIS_VALUE == 0
-        if (index < 0) { index += INPUT0_BATCH_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint f = idx_f; const uint b = index;
-    #elif   AXIS_VALUE == 1
-        if (index < 0) { index += INPUT0_FEATURE_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint f = index; const uint b = idx_b;
-    #elif   AXIS_VALUE == 2
-        if (index < 0) { index += INPUT0_SIZE_Z; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = index; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 3
-        if (index < 0) { index += INPUT0_SIZE_Y; }
-        const uint x = idx_x; const uint y = index; const uint z = idx_z; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 4
-        if (index < 0) { index += INPUT0_SIZE_X; }
-        const uint x = index; const uint y = idx_y; const uint z = idx_z; const uint f = idx_f; const uint b = idx_b;
-    #endif  // AXIS_VALUE
-    #elif OUTPUT_DIMS == 6
-    #if     AXIS_VALUE == 0
-        if (index < 0) { index += INPUT0_BATCH_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = index;
-    #elif   AXIS_VALUE == 1
-        if (index < 0) { index += INPUT0_FEATURE_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = index; const uint b = idx_b;
-    #elif   AXIS_VALUE == 2
-        if (index < 0) { index += INPUT0_SIZE_W; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = index; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 3
-        if (index < 0) { index += INPUT0_SIZE_Z; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = index; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 4
-        if (index < 0) { index += INPUT0_SIZE_Y; }
-        const uint x = idx_x; const uint y = index; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 5
-        if (index < 0) { index += INPUT0_SIZE_X; }
-        const uint x = index; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
-    #endif  // AXIS_VALUE
-    #endif
-    const uint output_idx = GET_OUTPUT_INDEX(ORDER);
+    const uint output_idx = GET_OUTPUT_INDEX(SCATTER_ORDER);
 
     const uint updates_idx = GET_UPDATES_INDEX(IDX_ORDER);
     INPUT2_TYPE val = updates[(int)updates_idx];
@@ -367,7 +312,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
             output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
         #endif
     #endif
-    #ifdef REDUCE_MODE
+    #ifdef REDUCE_MODE // The closing bracket of the single worker item's loop
             }
         }
     }
@@ -406,5 +351,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 #undef GET_INDICES_INDEX
 #undef GET_UPDATES_INDEX
 #undef GET_OUTPUT_INDEX
+#undef GET_OUTPUT_INDEX_SECOND
+#undef SIZE
 #undef IDX_ORDER
 #undef ORDER
