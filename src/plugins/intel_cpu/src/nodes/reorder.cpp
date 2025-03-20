@@ -443,8 +443,8 @@ void Reorder::execute(const dnnl::stream& strm) {
         optimizedNcsp2Nspc();
     } else {
         if (prim) {
-            primArgs[DNNL_ARG_SRC].set_data_handle(getDstMemoryAtPort(0)->getData());
-            primArgs[DNNL_ARG_DST].set_data_handle(getSrcMemoryAtPort(0)->getData());
+            primArgs[DNNL_ARG_SRC].set_data_handle(getSrcDataAtPort(0));
+            primArgs[DNNL_ARG_DST].set_data_handle(getDstDataAtPort(0));
             prim.execute(strm, primArgs);
         } else {
             THROW_CPU_NODE_ERR("doesn't have an initialized primitive.");

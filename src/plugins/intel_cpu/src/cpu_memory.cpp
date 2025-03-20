@@ -175,7 +175,7 @@ void Memory::redefineDesc(MemoryDescPtr desc) {
 
 void* Memory::getData() const {
     void* data = getDataNoThrow();
-    if (data == nullptr && m_pMemDesc->getShape().isStatic() && m_pMemDesc->getShape().getElementsCount() != 0) {
+    if (data == nullptr && m_pMemDesc->isDefined() && m_pMemDesc->getCurrentMemSize() != 0) {
         OPENVINO_THROW("Memory has not been allocated");
     }
     return data;
