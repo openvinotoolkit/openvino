@@ -2368,11 +2368,11 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
         const TReg vtemp1(aux_vec_idxs[0]);
         const TReg vtemp2(aux_vec_idxs[1]);
 
-        h->ld1r(vtemp1.s, table_val2("alpha"));  // load alpha
-        h->fmul(vtemp2.s, vsrc.s, vtemp1.s);  // vtemp = alpha * x
-        h->fcmle(vtemp1.s, vsrc.s, 0.0f);  // vmask = (x > 0) ? 1 : 0
+        h->ld1r(vtemp1.s, table_val2("alpha"));    // load alpha
+        h->fmul(vtemp2.s, vsrc.s, vtemp1.s);       // vtemp = alpha * x
+        h->fcmle(vtemp1.s, vsrc.s, 0.0f);          // vmask = (x > 0) ? 1 : 0
         h->bif(vtemp2.b16, vsrc.b16, vtemp1.b16);  // vtemp2 = (x > 0) ? x : alpha * x
-        h->mov(vdst.b16, vtemp2.b16);  // dst = (x > 0) ? x : alpha * x
+        h->mov(vdst.b16, vtemp2.b16);              // dst = (x > 0) ? x : alpha * x
     }
 }
 

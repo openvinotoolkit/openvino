@@ -934,7 +934,7 @@ class jit_relu_emitter : public jit_emitter {
 public:
     jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                     const float alpha, 
+                     const float alpha,
                      const ov::element::Type exec_prc = ov::element::f32);
 
     jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,

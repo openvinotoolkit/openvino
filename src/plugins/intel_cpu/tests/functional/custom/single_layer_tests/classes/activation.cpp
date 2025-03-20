@@ -205,6 +205,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
         (activation_type == utils::ActivationTypes::RoundHalfToEven) ||
         (activation_type == utils::ActivationTypes::LeakyRelu) ||
+        (activation_type == utils::ActivationTypes::PReLu) ||
         (activation_type == utils::ActivationTypes::SoftPlus))) {
         return "jit";
     }

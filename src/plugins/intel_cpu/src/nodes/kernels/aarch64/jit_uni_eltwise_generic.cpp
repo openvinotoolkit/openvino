@@ -619,7 +619,7 @@ struct EltwiseEmitter<jit_elu_emitter> {
 };
 
 template <>
-struct EltwiseEmitter<jit_relu_emitter>{
+struct EltwiseEmitter<jit_relu_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
         ctx.emitter = std::make_shared<jit_relu_emitter>(ctx.host, ctx.host_isa, ctx.opData.alpha, ctx.exec_prc);
     }
