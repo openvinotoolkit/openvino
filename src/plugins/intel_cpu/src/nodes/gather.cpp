@@ -1002,7 +1002,13 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
 }
 
 bool Gather::canFuse(const NodePtr& node) const {
-    return node->getType() == Type::Convert && node->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
+    if (node->getType() != Type::Convert) {
+        return false;
+    }
+    if (node->getOriginalOutputPrecisionAtPort(0) != ov::element::f32) {
+        return false;
+    }
+    return true;
 }
 
 }  // namespace ov::intel_cpu::node
