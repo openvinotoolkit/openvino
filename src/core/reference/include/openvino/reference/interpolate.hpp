@@ -803,7 +803,7 @@ void interpolate(const T* input_data,
 }
 
 template <typename T>
-void interpolate(T* input_data,
+void interpolate(const T* input_data,
                  const PartialShape& input_data_shape,
                  T* out,
                  const Shape& out_shape,
@@ -817,7 +817,7 @@ void interpolate(T* input_data,
     size_t bytes_in_padded_input = shape_size(padded_input_shape) * sizeof(T);
     std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
     uint8_t* padded_data_ptr = padded_input_data.data();
-    pad_input_data(reinterpret_cast<uint8_t*>(input_data),
+    pad_input_data(reinterpret_cast<const uint8_t*>(input_data),
                    padded_data_ptr,
                    sizeof(T),
                    input_data_shape.to_shape(),

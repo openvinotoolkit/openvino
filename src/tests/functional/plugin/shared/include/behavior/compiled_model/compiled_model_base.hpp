@@ -61,8 +61,8 @@ public:
     }
 
     bool compareTensors(const ov::Tensor& t1, const ov::Tensor& t2) {
-        void* data1;
-        void* data2;
+        const void* data1;
+        const void* data2;
         try {
             data1 = t1.data();
         } catch (const ov::Exception&) {
