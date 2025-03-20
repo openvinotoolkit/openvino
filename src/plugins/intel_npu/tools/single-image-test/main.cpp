@@ -2075,6 +2075,9 @@ static int runSingleImageTest() {
 
                 for (size_t i = 0; i < outputInfo.size(); ++i) {
                     ppp.output(i).tensor().set_element_type(prc_out);
+                    if (prc_out = ov::element::u8) {
+                        ppp.output(i).postprocess().clamp(0.0, 255.0);
+                    }
                 }
             }
 
