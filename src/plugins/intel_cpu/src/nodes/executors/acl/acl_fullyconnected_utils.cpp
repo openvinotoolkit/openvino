@@ -88,7 +88,8 @@ std::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr
                 weightPrecision,
                 input->getSize() / input->getDesc().getPrecision().size());
 
-    return std::optional<MemoryPtr>(std::make_shared<Memory>(tmpBuff.data()));
+    return std::optional<MemoryPtr>(
+        std::make_shared<Memory>(output->getDesc().cloneWithNewPrecision(weightPrecision), tmpBuff.data()));
 }
 
 std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& input,
@@ -150,8 +151,8 @@ MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
     const auto& engine = context->getEngine();
     dnnl::reorder directReorder = getReorderPrim(context->getRuntimeCache(),
                                                  engine,
-                                                 input->getMemoryDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
-                                                 output->getMemoryDescWithType<DnnlMemoryDesc>()->getDnnlDesc());
+                                                 input->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(),
+                                                 output->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc());
 
     if (!directReorder || parse_impl_name(directReorder.get_primitive_desc()->impl()->name()) == ref_any) {
         // try precision conversion then do the reorder
