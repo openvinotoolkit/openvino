@@ -154,8 +154,7 @@ ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
     auto elements_to_read = file_size_to_read * 8 / element_type.bitwidth();
 
     auto new_dimension = ov::Dimension(elements_to_read) / slice_size;
-    OPENVINO_ASSERT(dynamic_dimension.compatible(new_dimension),
-                    "Cannot fit file size into requested PartialShape");
+    OPENVINO_ASSERT(dynamic_dimension.compatible(new_dimension), "Cannot fit file size into requested PartialShape");
 
     dynamic_dimension = new_dimension;
     return partial_shape_copy.get_shape();
