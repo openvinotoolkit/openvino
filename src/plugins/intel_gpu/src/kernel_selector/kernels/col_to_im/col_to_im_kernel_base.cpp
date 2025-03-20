@@ -28,17 +28,27 @@ bool ColToImKernelBase::Validate(const Params& p) const {
 
 JitConstants ColToImKernelBase::GetJitConstants(const col_to_im_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
+    auto input = params.inputs[0];
     const auto& output_size = params.output_size;
     const auto& stride = params.stride;
     const auto& dilation = params.dilation;
     const auto& pads_begin = params.padding_begin;
     const auto& pads_end = params.padding_begin;
 
-    // Get original dimension
-    const uint orig_height = (output_size.x + pads_begin.x + pads_end.x - (dilation.x * (params.kernel_size.x - 1) + 1)) / stride.x + 1;
-    const uint orig_width = (output_size.y + pads_begin.y + pads_end.y - (dilation.y * (params.kernel_size.y - 1) + 1)) / stride.y + 1;
+    const auto orig_height = (output_size.x + pads_begin.x + pads_end.x - (dilation.x * (params.kernel_size.x - 1) + 1)) / stride.x + 1;
+    const auto orig_width = (output_size.y + pads_begin.y + pads_end.y - (dilation.y * (params.kernel_size.y - 1) + 1)) / stride.y + 1;
     jit.AddConstant(MakeJitConstant("ORIG_HEIGHT", orig_height));
     jit.AddConstant(MakeJitConstant("ORIG_WIDTH", orig_width));
+
+    // Consider input tensor : (N, C * Product(kernel_size), L)
+    const auto num_elements_for_block = input.Feature().v;
+    const auto num_blocks = input.Y().v;
+    const auto kernel_product = params.kernel_size.x * params.kernel_size.y;
+    const auto num_channels = num_elements_for_block / kernel_product;
+    jit.AddConstant(MakeJitConstant("NUM_ELEMENTS_FOR_BLOCK", num_elements_for_block));
+    jit.AddConstant(MakeJitConstant("KERNEL_PRODUCT", kernel_product));
+    jit.AddConstant(MakeJitConstant("NUM_CHANNELS", num_channels));
+    jit.AddConstant(MakeJitConstant("NUM_BLOCKS", num_blocks));
 
     jit.AddConstant(MakeJitConstant("OUT", params.output_size));
     jit.AddConstant(MakeJitConstant("KERNEL", params.kernel_size));
