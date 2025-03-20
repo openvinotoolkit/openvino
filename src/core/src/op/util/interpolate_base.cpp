@@ -130,6 +130,11 @@ EnumNames<op::util::InterpolateBase::NearestMode>::get() {
     return enum_names;
 }
 
+AttributeAdapter<op::util::InterpolateBase::InterpolateMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::util::InterpolateBase::CoordinateTransformMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::util::InterpolateBase::NearestMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::util::InterpolateBase::ShapeCalcMode>::~AttributeAdapter() = default;
+
 std::ostream& operator<<(std::ostream& s, const op::util::InterpolateBase::InterpolateMode& type) {
     return s << as_string(type);
 }

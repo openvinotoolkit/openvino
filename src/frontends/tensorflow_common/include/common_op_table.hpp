@@ -74,6 +74,8 @@ OP_CONVERTER(translate_mul_op);
 OP_CONVERTER(translate_dynamic_partition_op);
 OP_CONVERTER(translate_einsum_op);
 OP_CONVERTER(translate_elu_op);
+OP_CONVERTER(translate_equal_op);
+OP_CONVERTER(translate_erfc_op);
 OP_CONVERTER(translate_expm1_op);
 OP_CONVERTER(translate_expand_dims_op);
 OP_CONVERTER(translate_extract_image_patches_op);

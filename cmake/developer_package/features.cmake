@@ -44,6 +44,8 @@ ov_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_COMPILER_
 
 ov_dependent_option (ENABLE_API_VALIDATOR "Enables API Validator usage" ON "WIN32" OFF)
 
+ov_dependent_option (ENABLE_PDB_IN_RELEASE "Enables PDB files for Release build" OFF "WIN32" OFF)
+
 # Defines CPU capabilities
 
 ov_dependent_option (ENABLE_SSE42 "Enable SSE4.2 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)

@@ -49,7 +49,7 @@ public:
     }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    std::string to_string() const override;
+    virtual std::string to_string() const override;
 #endif
 
 protected:

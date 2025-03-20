@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -34,6 +34,8 @@
 #include "custom_gpu_primitive_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "ctc_loss_inst.hpp"
+#include "group_normalization_inst.h"
 #include "quantize_inst.h"
 #include "activation_inst.h"
 #include "depth_to_space_inst.h"
@@ -68,6 +70,7 @@
 #include "reverse_inst.h"
 #include "unique_inst.hpp"
 #include "condition_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 #include "to_string_utils.h"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 
@@ -226,8 +229,7 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_headers(),
-                                                                      kernel_selector::KernelBase::get_db().get_cm_batch_headers()));
+                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
 
     _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
 
@@ -1848,11 +1850,18 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 void program::load(cldnn::BinaryInputBuffer& ib) {
     init_program();
 
-    std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
+    std::shared_ptr<WeightsMemory> weights_memory = nullptr;
     std::string weights_path = _config.get_weights_path();
-    if (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE &&
-        ov::util::validate_weights_path(weights_path)) {
-        mapped_memory = ov::load_mmap_object(weights_path);
+    auto model_ptr = _config.get_model();
+    if (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
+        if (model_ptr) {
+            weights_memory = std::make_shared<WeightsMemory>(model_ptr);
+        } else if (!weights_path.empty()) {
+            ov::util::validate_weights_path(weights_path);
+            weights_memory = std::make_shared<WeightsMemory>(ov::load_mmap_object(weights_path));
+        } else {
+            OPENVINO_THROW("Weights path or model is required for cache mode OPTIMIZE_SIZE");
+        }
     }
 
     size_t num_nodes;
@@ -1866,7 +1875,7 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
-            data_prim->load_weights(ib, mapped_memory);
+            data_prim->load_weights(ib, weights_memory);
         }
         get_or_create(prim);
     }

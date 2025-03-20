@@ -48,7 +48,7 @@ If you intend to generate PDB files and debug your build or run some tools, whic
 You should utilize one of the following CMake build type options:
   * `-DCMAKE_BUILD_TYPE=RelWithDebInfo`: This option generates PDB files with release information, making it suitable for debugging optimized builds.
   * `-DCMAKE_BUILD_TYPE=Debug`: This option generates PDB files optimized for debugging, providing comprehensive debugging information.
-  * `-DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=/Zi -DCMAKE_C_FLAGS=/Zi -DCMAKE_EXE_LINKER_FLAGS=/DEBUG -DCMAKE_MODULE_LINKER_FLAGS=/DEBUG -DCMAKE_SHARED_LINKER_FLAGS=/DEBUG` to build in Release mode, but with debug symbols generated.
+  * `-DCMAKE_BUILD_TYPE=Release -DENABLE_PDB_IN_RELEASE=ON` to build in Release mode, but with debug symbols generated.
 
 Note, that PDB symbols files are supported for both dynamic and static builds.
 
@@ -64,7 +64,7 @@ To pack PDB files, it's essential to run cmake command to create a dedicated arc
     ```sh
     -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
     ```
-2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
+2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 3), and install requirements:
     ```sh
     pip install -r <openvino source tree>\src\bindings\python\wheel\requirements-dev.txt
     ```
