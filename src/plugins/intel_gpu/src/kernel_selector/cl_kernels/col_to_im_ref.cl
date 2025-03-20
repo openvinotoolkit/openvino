@@ -16,41 +16,30 @@ KERNEL(col_to_im_ref)(const __global INPUT0_TYPE* input,
     const uint strides[2] = {STRIDE_SIZE_X, STRIDE_SIZE_Y};
     const uint dilations[2] = {DILATION_SIZE_X, DILATION_SIZE_Y};
     const uint pads_begin[2] = {PAD_BEGIN_SIZE_X, PAD_BEGIN_SIZE_Y};
-    const uint pads_end[2] = {PAD_END_SIZE_X, PAD_END_SIZE_Y};
 
-    const uint batch_count = INPUT0_BATCH_NUM;
     const uint num_blocks = INPUT0_SIZE_Y;
     const uint kernel_product = KERNEL_SIZE_X * KERNEL_SIZE_Y;
     const uint channels_per_column = INPUT0_FEATURE_NUM;
-    const uint channel_count = channels_per_column / kernel_product;
+    const uint channel_count = channels_per_column / KERNEL_PRODUCT;
 
-    // calculate the original height and width
-    // uint get_image_dimension_index = [&](const uint column_dim_idx, const uint dim_offset, const uint idx) {
-    //     return column_dim_idx * strides[idx] - pads_begin[idx] + dim_offset * dilations[idx];
-    // };
+    const uint batch = get_global_id(2);
 
-    for (uint batch = 0; batch < batch_count; ++batch) {
-        for (uint column = 0; column < channels_per_column; ++column) {
-            const uint width_offset = column % kernel_size[1];
-            const uint height_offset = (column / kernel_size[1]) % kernel_size[0];
-            const uint channel_idx = column / kernel_product;
+    for (int column = 0; column < channels_per_column; ++column) {
+        const int width_offset = column % kernel_size[1];
+        const int height_offset = (column / kernel_size[1]) % kernel_size[0];
+        const int channel_idx = column / kernel_product;
 
-            for (uint column_height_idx = 0; column_height_idx < ORIG_HEIGHT; ++column_height_idx) {
-                // get_image_dimension_index(column_height_idx, height_offset, 0);
-                const uint image_height_idx = column_height_idx * strides[0] - pads_begin[0] + height_offset * dilations[0];
-                if (image_height_idx >= 0 && image_height_idx < output_size[0]) {
-                    for (uint column_width_idx = 0; column_width_idx < ORIG_WIDTH; ++column_width_idx) {
-                        // get_image_dimension_index(column_width_idx, width_offset, 1);
-                        const uint image_width_idx = column_width_idx * strides[1] - pads_begin[1] + width_offset * dilations[1];
-                        if (image_width_idx >= 0 && image_width_idx < output_size[1]) {
-                            const uint img_idx =
-                                ((batch * channel_count + channel_idx) * output_size[0] + image_height_idx) * image_width_idx;
-                            const uint data_idx =
-                                ((batch * channels_per_column + column) * ORIG_HEIGHT + column_height_idx) * ORIG_WIDTH + column_width_idx;
+        for (int column_height_idx = 0; column_height_idx < ORIG_HEIGHT; ++column_height_idx) {
+            const int image_height_idx = column_height_idx * strides[0] - pads_begin[0] + height_offset * dilations[0];
+            if (image_height_idx >= 0 && image_height_idx < output_size[0]) {
+                for (int column_width_idx = 0; column_width_idx < ORIG_WIDTH; ++column_width_idx) {
+                    const int image_width_idx = column_width_idx * strides[1] - pads_begin[1] + width_offset * dilations[1];
+                    if (image_width_idx >= 0 && image_width_idx < output_size[1]) {
+                        const int img_idx = ((batch * channel_count + channel_idx) * output_size[0] + image_height_idx) * output_size[1] + image_width_idx;
+                        const int data_idx = ((batch * channels_per_column + column) * ORIG_HEIGHT + column_height_idx) * ORIG_WIDTH + column_width_idx;
 
-                            // sum the overlapping values
-                            output[img_idx] += input[data_idx];
-                        }
+                        // sum the overlapping values
+                        output[img_idx] += input[data_idx];
                     }
                 }
             }

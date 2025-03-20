@@ -31,7 +31,7 @@ ParamsKey ColToImKernelRef::GetSupportedKey() const {
 CommonDispatchData ColToImKernelRef::SetDefault(const col_to_im_params& params) const {
     CommonDispatchData dispatchData;
 
-    dispatchData.gws = {1, 1, 1};
+    dispatchData.gws = {1, 1, params.outputs[0].Batch().v};
     dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
@@ -50,7 +50,6 @@ JitConstants ColToImKernelRef::GetJitConstants(const col_to_im_params& params) c
     auto input = params.inputs[0];
     auto input_dt = input.GetDType();
 
-    // TODO : implement for col_to_im_gpu_ref
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
         if (input.Dimentions() == 5) {
