@@ -18,6 +18,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/topk.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/ngraph_utils.hpp"
 
 using namespace dnnl;
@@ -1985,11 +1986,9 @@ void TopK::initSupportedPrimitiveDescriptors() {
                                                            ov::element::u8};
 
     ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
-    if (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core)) {
-        THROW_CPU_NODE_ERR("gets incorrect isa for BF16! AVX512 must be supported!");
-    }
     bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision) !=
                               std::end(supportedPrecision);
+    precisionSupported = (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core)) ? false : precisionSupported;
     if (!precisionSupported) {
         if (dataPrecision.is_real()) {
             dataPrecision = ov::element::f32;
