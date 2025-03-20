@@ -771,7 +771,7 @@ void Deconvolution::execute(const dnnl::stream& strm) {
 
     primArgs[DNNL_ARG_SRC].set_data_handle(getSrcDataAtPort(0));
     primArgs[DNNL_ARG_DST].set_data_handle(getDstDataAtPort(0));
-    if (weightIsConst) {
+    if (!weightIsConst) {
         primArgs[DNNL_ARG_WEIGHTS].set_data_handle(dnnlCompatibleWeights->getData());
     }
     if (withBiases) {
