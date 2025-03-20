@@ -76,7 +76,17 @@ public:
               entry_point_to_id({}),
               language(_language) {
             if (language == kernel_language::OCLC) {
+                static const std::vector<std::string> micro_kernel_include_names {
+                    "generic_vector_ops",
+                    "tile_ops",
+                    "sdpa_utils"
+                };
                 for (const auto& kv : batch_headers) {
+                    if (std::find(micro_kernel_include_names.begin(), micro_kernel_include_names.end(), kv.first) == micro_kernel_include_names.end()) {
+                        source.push_back(kv.second);
+                    } else {
+                        micro_headers.push_back(kv.second);
+                    }
                     source.push_back(kv.second);
                 }
             }
