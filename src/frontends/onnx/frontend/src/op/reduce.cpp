@@ -225,8 +225,8 @@ namespace opset_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
-ov::OutputVector reduce_l1(const None& node){
-    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v2, false)}
+ov::OutputVector reduce_l1(const Node& node){
+    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
 ov::OutputVector reduce_l2(const Node& node) {
     return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2)};
@@ -279,8 +279,8 @@ ov::OutputVector reduce_l2(const Node& node) {
     return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
 
-ov::OutputVector reduce_l1(const None& node){
-    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v2, false)}
+ov::OutputVector reduce_l1(const Node& node){
+    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
 
 ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
@@ -316,9 +316,6 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v2, false)};
 }
 
-ov::OutputVector reduce_l1(const ov::frontend::onnx::Node& node) {
-    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
-}
 
 static bool register_multiple_translators(void) {
     ONNX_OP_M("ReduceLogSum", OPSET_SINCE(18), ai_onnx::opset_18::reduce_log_sum);
