@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/random_uniform.hpp"
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/random_uniform.hpp"
 #include "openvino/op/shape_of.hpp"
 
 using namespace std;

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/type_prop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/op/parameter.hpp"
 
 using namespace std;

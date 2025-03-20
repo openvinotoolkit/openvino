@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/rnn_sequence.hpp"
+
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/rnn_sequence.hpp"
 
 using namespace std;
 using namespace ov;

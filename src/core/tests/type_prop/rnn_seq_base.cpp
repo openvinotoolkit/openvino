@@ -7,7 +7,6 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
-#include "openvino/openvino.hpp"
 #include "openvino/opsets/opset12.hpp"
 
 namespace rnn_seq_test {

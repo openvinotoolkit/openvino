@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/group_normalization.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/openvino.hpp"
-#include "openvino/op/group_normalization.hpp"
 #include "openvino/op/parameter.hpp"
 
 using namespace ov;

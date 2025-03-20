@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/scaled_dot_product_attention.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/openvino.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
 
 using namespace ov;
 using namespace testing;

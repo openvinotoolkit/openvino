@@ -8,9 +8,26 @@
 #include "layout_utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/i420_to_bgr.hpp"
+#include "openvino/op/i420_to_rgb.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/nv12_to_bgr.hpp"
 #include "openvino/op/nv12_to_rgb.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/rt_info/preprocessing_attribute.hpp"
 
@@ -53,19 +70,21 @@ static std::string vector_to_string(const std::vector<T>& values) {
 }
 namespace {
 std::shared_ptr<ov::Node> grey_from_yuv_single_plane(const std::vector<Output<Node>>& nodes) {
-    using namespace ov::opset8;
-    const auto axis = Constant::create(element::i32, {1}, {1});
-    const auto yuv_shape_of = std::make_shared<ShapeOf>(nodes[0]);
-    const auto get_height = std::make_shared<Gather>(yuv_shape_of, axis, Constant::create(element::i32, {}, {0}));
+    const auto axis = op::v0::Constant::create(element::i32, {1}, {1});
+    const auto yuv_shape_of = std::make_shared<op::v3::ShapeOf>(nodes[0]);
+    const auto get_height =
+        std::make_shared<op::v8::Gather>(yuv_shape_of, axis, op::v0::Constant::create(element::i32, {}, {0}));
 
-    const auto start = Constant::create(element::i32, {1}, {0});
+    const auto start = op::v0::Constant::create(element::i32, {1}, {0});
     // slice stop is input height * (2/3)
     auto mul_height =
-        std::make_shared<Multiply>(get_height, Constant::create(get_height->get_element_type(), {1}, {2}));
-    auto stop = std::make_shared<Divide>(mul_height, Constant::create(get_height->get_element_type(), {1}, {3}));
-    const auto step = Constant::create(element::i32, {1}, {1});
+        std::make_shared<op::v1::Multiply>(get_height,
+                                           op::v0::Constant::create(get_height->get_element_type(), {1}, {2}));
+    auto stop = std::make_shared<op::v1::Divide>(mul_height,
+                                                 op::v0::Constant::create(get_height->get_element_type(), {1}, {3}));
+    const auto step = op::v0::Constant::create(element::i32, {1}, {1});
     //
-    return std::make_shared<ov::op::v8::Slice>(nodes[0], start, stop, step, axis);
+    return std::make_shared<op::v8::Slice>(nodes[0], start, stop, step, axis);
 }
 }  // namespace
 
@@ -185,13 +204,13 @@ void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin,
                             "'convert_element_type' before padding. Current type is: ",
                             element_type);
 
-            auto pad_value = opset8::Constant::create(node.get_element_type(), Shape{}, pad_values);
+            auto pad_value = op::v0::Constant::create(node.get_element_type(), Shape{}, pad_values);
 
-            auto npads_begin = opset8::Constant::create(element::i64, Shape{pads_begin.size()}, pads_begin);
-            auto npads_end = opset8::Constant::create(element::i64, Shape{pads_end.size()}, pads_end);
-            auto npad_value = opset8::Constant::create(element_type, Shape{}, pad_values);
+            auto npads_begin = op::v0::Constant::create(element::i64, Shape{pads_begin.size()}, pads_begin);
+            auto npads_end = op::v0::Constant::create(element::i64, Shape{pads_end.size()}, pads_end);
+            auto npad_value = op::v0::Constant::create(element_type, Shape{}, pad_values);
 
-            auto pad = std::make_shared<opset8::Pad>(node, npads_begin, npads_end, npad_value, mode);
+            auto pad = std::make_shared<op::v1::Pad>(node, npads_begin, npads_end, npad_value, mode);
             return std::make_tuple(std::vector<Output<Node>>{pad}, true);
         },
         name);
@@ -309,10 +328,10 @@ void PreStepsList::add_crop_impl(const std::vector<int>& begin, const std::vecto
                             "Can't crop multi-plane input. Suggesting to convert current image to "
                             "RGB/BGR color format using 'PreProcessSteps::convert_color'");
             auto node = nodes.front();
-            auto start = opset8::Constant::create(element::i32, {begin.size()}, begin);
-            auto stop = opset8::Constant::create(element::i32, {end.size()}, end);
-            auto step = opset8::Constant::create(element::i32, {begin.size()}, std::vector<int32_t>(begin.size(), 1));
-            auto slice = std::make_shared<opset8::Slice>(node, start, stop, step);
+            auto start = op::v0::Constant::create(element::i32, {begin.size()}, begin);
+            auto stop = op::v0::Constant::create(element::i32, {end.size()}, end);
+            auto step = op::v0::Constant::create(element::i32, {begin.size()}, std::vector<int32_t>(begin.size(), 1));
+            auto slice = std::make_shared<op::v8::Slice>(node, start, stop, step);
             return std::make_tuple(std::vector<Output<Node>>{slice}, true);
         },
         name_str.str());
@@ -355,7 +374,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
                 }
                 auto axes = op::v0::Constant::create<int64_t>(element::i64, const_shape, vals);
                 // Add unsqueeze on top
-                node = std::make_shared<opset8::Unsqueeze>(node, axes);
+                node = std::make_shared<op::v0::Unsqueeze>(node, axes);
             }
             auto permutation = layout::utils::find_permutation(unsqueeze_layout, shape, dst_layout);
             if (permutation.empty()) {
@@ -562,18 +581,17 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                                         : std::vector<float>{0.114f, 0.587f, 0.299f};
                 auto weights_shape = ov::Shape(shape.size(), 1);
                 weights_shape[1] = 3;  // Set kernel layout to [1, 3, 1, ...]
-                auto weights_node = std::make_shared<ov::op::v0::Constant>(element::f32, weights_shape, weights_data);
-                node = std::make_shared<ov::op::v1::Convolution>(node,
-                                                                 weights_node,
-                                                                 ov::Strides(weights_shape.size() - 2, 1),
-                                                                 ov::CoordinateDiff(weights_shape.size() - 2, 0),
-                                                                 ov::CoordinateDiff(weights_shape.size() - 2, 0),
-                                                                 ov::Strides(weights_shape.size() - 2, 1));
+                auto weights_node = std::make_shared<op::v0::Constant>(element::f32, weights_shape, weights_data);
+                node = std::make_shared<op::v1::Convolution>(node,
+                                                             weights_node,
+                                                             ov::Strides(weights_shape.size() - 2, 1),
+                                                             ov::CoordinateDiff(weights_shape.size() - 2, 0),
+                                                             ov::CoordinateDiff(weights_shape.size() - 2, 0),
+                                                             ov::Strides(weights_shape.size() - 2, 1));
 
                 if (is_converted) {
                     // Roundp values according to OpenCV rule before converting to integral values
-                    auto round_val =
-                        std::make_shared<ov::op::v5::Round>(node, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+                    auto round_val = std::make_shared<op::v5::Round>(node, op::v5::Round::RoundMode::HALF_TO_EVEN);
                     node = std::make_shared<op::v0::Convert>(round_val, elem_type);
                 }
                 if (is_transposed) {
@@ -666,7 +684,7 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const
 
     auto channels_idx = ov::layout::channels_idx(context.layout());
     // Get shape of user's input tensor (e.g. Tensor[1, 3, 224, 224] -> {1, 3, 224, 224})
-    auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(nodes[0]);  // E.g. {1, 3, 224, 224}
+    auto shape_of = std::make_shared<op::v0::ShapeOf>(nodes[0]);  // E.g. {1, 3, 224, 224}
 
     auto constant_chan_idx = op::v0::Constant::create(element::i32, {}, {channels_idx});  // E.g. 1
     auto constant_chan_axis = op::v0::Constant::create(element::i32, {}, {0});
@@ -698,11 +716,11 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::cut_last_channel(const
                     " doesn't have `channels` dimension");
     auto channels_idx = ov::layout::channels_idx(context.layout());
 
-    auto start = opset8::Constant::create(element::i32, {1}, {0});
-    auto stop = opset8::Constant::create(element::i32, {1}, {-1});  // Everything except last channel
-    auto step = opset8::Constant::create(element::i32, {1}, {1});
-    auto axis = opset8::Constant::create(element::i32, {1}, {channels_idx});  // E.g. 3
-    auto slice = std::make_shared<ov::op::v8::Slice>(nodes[0], start, stop, step, axis);
+    auto start = op::v0::Constant::create(element::i32, {1}, {0});
+    auto stop = op::v0::Constant::create(element::i32, {1}, {-1});  // Everything except last channel
+    auto step = op::v0::Constant::create(element::i32, {1}, {1});
+    auto axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});  // E.g. 3
+    auto slice = std::make_shared<op::v8::Slice>(nodes[0], start, stop, step, axis);
     return std::make_tuple(std::vector<Output<Node>>{slice}, false);
 }
 
@@ -823,7 +841,7 @@ std::tuple<Output<Node>, bool> PostStepsList::reverse_channels(const Output<Node
 
     auto channels_idx = ov::layout::channels_idx(context.layout());
     // Get shape of user's input tensor (e.g. Tensor[1, 3, 224, 224] -> {1, 3, 224, 224})
-    auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(node);  // E.g. {1, 3, 224, 224}
+    auto shape_of = std::make_shared<op::v0::ShapeOf>(node);  // E.g. {1, 3, 224, 224}
 
     auto constant_chan_idx = op::v0::Constant::create(element::i32, {}, {channels_idx});  // E.g. 1
     auto constant_chan_axis = op::v0::Constant::create(element::i32, {}, {0});

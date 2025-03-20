@@ -1,13 +1,14 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "openvino/op/unique.hpp"
+
 #include <array>
 
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/unique.hpp"
 
 using namespace std;
 using namespace ov;

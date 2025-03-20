@@ -13,6 +13,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
