@@ -299,7 +299,8 @@ void Plugin::recheck_compiler_support(FilteredConfig& cfg) const {
         if (opt.mode() == OptionMode::RunTime) {
             isEnabled = true;
         } else {
-            if (nocompiler) {
+            if (nocompiler && (opt.mode() == OptionMode::CompileTime)) {
+                // we do not register compileTime options if there is no compiler
                 isEnabled = false;
             } else if (legacy) {
                 if (compiler_version >= opt.compilerSupportVersion()) {
