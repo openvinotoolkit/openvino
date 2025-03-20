@@ -2315,6 +2315,10 @@ jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host
     prepare_table();
 }
 
+bool jit_relu_emitter::is_relu() const {
+    return alpha == 0.f;
+}
+
 jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                    float alpha,
@@ -2329,11 +2333,11 @@ size_t jit_relu_emitter::get_inputs_count() const {
 }
 
 size_t jit_relu_emitter::get_aux_vecs_count() const {
-    return (alpha != 0.0f) ? 2 : 1;
+    return (!is_relu()) ? 2 : 1;
 }
 
 size_t jit_relu_emitter::get_aux_gprs_count() const {
-    return (alpha != 0.0f) ? 1 : 0;
+    return (!is_relu()) ? 1 : 0;
 }
 
 std::set<std::vector<element::Type>> jit_relu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
@@ -2357,7 +2361,7 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     const TReg vsrc(in_vec_idxs[0]);
     const TReg vdst(out_vec_idxs[0]);
 
-    if (alpha == 0.0f) {
+    if (is_relu()) {
         // ReLU case: dst = max(src, 0)
         const TReg vzero(aux_vec_idxs[0]);
 
@@ -2377,7 +2381,7 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
 }
 
 void jit_relu_emitter::register_table_entries() {
-    if (alpha != 0.0f) {
+    if (!is_relu()) {
         push_arg_entry_of("alpha", dnnl::impl::float2int(alpha), true);
     }
 }
