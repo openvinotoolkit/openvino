@@ -1,6 +1,8 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "include/batch_headers/fetch_data.cl"
 
 #define BATCH_NUM          INPUT0_BATCH_NUM
 #define MAX_TIME           INPUT0_FEATURE_NUM
