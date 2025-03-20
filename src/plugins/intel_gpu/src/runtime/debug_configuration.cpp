@@ -9,6 +9,7 @@
 
 namespace ov::intel_gpu {
 std::ostream& get_verbose_stream() {
+    // test
 #ifdef GPU_DEBUG_CONFIG
     if (ExecutionConfig::get_log_to_file().length() > 0) {
         static std::ofstream fout;
