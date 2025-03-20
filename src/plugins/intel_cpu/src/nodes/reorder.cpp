@@ -489,8 +489,7 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
             cpu_memcpy(dstPtr, srcPtr, copySize);
         }
     } else {
-        auto engine = dnnl::engine(dnnl::engine::kind::cpu, 0);
-
+        const auto& engine = GraphContext::getEngine();
         dnnl::reorder reorder;
         std::vector<uint8_t> tmpBuff;
 
