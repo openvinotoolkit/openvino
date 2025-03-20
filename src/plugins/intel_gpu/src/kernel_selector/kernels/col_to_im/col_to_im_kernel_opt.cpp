@@ -31,33 +31,13 @@ ParamsKey ColToImKernelOpt::GetSupportedKey() const {
 CommonDispatchData ColToImKernelOpt::SetDefault(const col_to_im_params& params) const {
     CommonDispatchData dispatchData;
 
-    auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.outputs[0].GetLayout();
-    {
-        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-                                                                         { Tensor::DataChannelName::FEATURE },
-                                                                         { Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z }};
+    auto input = params.inputs[0];
+    const auto num_elements_for_block = input.Feature().v;
+    const auto kernel_product = params.kernel_size.x * params.kernel_size.y;
+    const auto num_channels = num_elements_for_block / kernel_product;
 
-        dispatchData.gws = { params.outputs[0].Batch().v,
-                             1,
-                             1}; // params.outputs[0].Feature().v * params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
-
-        // // The reason why reverse input/output of GetOptimalLocalWorkGroupSizes():
-        // Large X*Y*Z lws size is better than large batch lws, but current GetOptimalLocalWorkGroupSizes not work like that.
-        reverse(dims_by_gws.begin(), dims_by_gws.end());
-        reverse(dispatchData.gws.begin(), dispatchData.gws.end());
-
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
-
-        // reverse(dispatchData.lws.begin(), dispatchData.lws.end());
-        // reverse(dispatchData.gws.begin(), dispatchData.gws.end());
-    }
-
-    // dispatchData.gws = {1, 1, 1};
+    dispatchData.gws = {num_channels, 1, params.outputs[0].Batch().v};
     dispatchData.lws = {1, 1, 1};
-
-    std::cout << " Select ColToImKernelOpt : gws(" << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", " << dispatchData.gws[2] << ")" << std::endl;
-    std::cout << " Select ColToImKernelOpt : lws(" << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2] << ")" << std::endl;
 
     return dispatchData;
 }
