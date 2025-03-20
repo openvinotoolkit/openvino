@@ -25,13 +25,11 @@
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
 #include "intel_gpu/primitives/gather_tree.hpp"
 #include "intel_gpu/primitives/gemm.hpp"
 #include "intel_gpu/primitives/grid_sample.hpp"
 #include "intel_gpu/primitives/grn.hpp"
-#include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/multinomial.hpp"
@@ -67,7 +65,6 @@
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
-#include "intel_gpu/primitives/rope.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -103,12 +100,10 @@ REGISTER_OCL(experimental_detectron_topk_rois);
 REGISTER_OCL(eltwise);
 REGISTER_OCL(embed);
 REGISTER_OCL(fully_connected);
-REGISTER_OCL(gather);
 REGISTER_OCL(gather_elements);
 REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
-REGISTER_OCL(group_normalization);
 REGISTER_OCL(kv_cache);
 REGISTER_OCL(paged_attention);
 REGISTER_OCL(lrn);
@@ -158,7 +153,6 @@ REGISTER_OCL(eye);
 REGISTER_OCL(unique_count);
 REGISTER_OCL(unique_gather);
 REGISTER_OCL(scaled_dot_product_attention);
-REGISTER_OCL(rope);
 REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
 

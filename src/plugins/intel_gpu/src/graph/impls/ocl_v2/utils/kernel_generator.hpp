@@ -9,6 +9,7 @@
 
 #include "common_utils/jitter.hpp"
 #include "common_utils/kernel_generator_base.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -32,6 +33,9 @@ protected:
     [[nodiscard]] JitConstants make_base_jit_constants(const RuntimeParams& params) const;
     [[nodiscard]] static JitConstants make_tensors_jit_constants(const RuntimeParams& params);
     [[nodiscard]] static std::string build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& entry_point);
+    static void add_fused_ops_arguments(Arguments& args, const RuntimeParams& params);
+
+    [[nodiscard]] const std::string& get_kernel_name() const { return m_kernel_name; }
 
 private:
     std::string m_kernel_name;
