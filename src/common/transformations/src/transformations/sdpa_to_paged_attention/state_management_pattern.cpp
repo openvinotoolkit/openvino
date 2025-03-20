@@ -344,6 +344,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     auto sdpa_variants = std::make_shared<pattern::op::Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs});
 
     ov::matcher_pass_callback callback = [=,
+                                          phi3_offset = phi3_offset,
                                           &kv_parameters,
                                           &model_remaining_params,
                                           &parameters_to_remove,
