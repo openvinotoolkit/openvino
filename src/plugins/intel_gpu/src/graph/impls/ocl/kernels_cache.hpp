@@ -87,7 +87,6 @@ public:
                     } else {
                         micro_headers.push_back(kv.second);
                     }
-                    source.push_back(kv.second);
                 }
             }
         }
