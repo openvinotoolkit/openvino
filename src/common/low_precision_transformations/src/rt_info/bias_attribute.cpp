@@ -7,10 +7,10 @@
 
 #include <iterator>
 #include <memory>
-#include "openvino/opsets/opset1.hpp"
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "openvino/op/add.hpp"
 
 void ov::mark_as_bias(const std::shared_ptr<ov::Node>& node) {
     auto& rt = node->get_rt_info();
@@ -23,5 +23,5 @@ bool ov::marked_as_bias(const std::shared_ptr<const ov::Node>& node) {
 }
 
 bool ov::BiasAttribute::is_copyable(const std::shared_ptr<ov::Node>& to) const {
-    return ov::is_type<ov::opset1::Add>(to) && ov::pass::low_precision::NetworkHelper::getConstantInput(to) != nullptr;
+    return ov::is_type<ov::op::v1::Add>(to) && ov::pass::low_precision::NetworkHelper::getConstantInput(to) != nullptr;
 }

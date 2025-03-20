@@ -6,7 +6,7 @@
 
 #include <memory>
 #include "layer_transformation.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 namespace ov {
 namespace pass {
@@ -59,7 +59,7 @@ protected:
     virtual size_t getInputChannels(const std::shared_ptr<ov::Node> conv) const = 0;
 
 public:
-    static std::shared_ptr<ov::opset1::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node);
+    static std::shared_ptr<ov::op::v0::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node);
     static DataPrecision getDataPrecisionOnWeights(const std::shared_ptr<Node>& node, const std::vector<ov::element::Type>& defaultPrecisions);
     static bool isAsymmetricOnWeights(const std::shared_ptr<const Node>& node,
         const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());

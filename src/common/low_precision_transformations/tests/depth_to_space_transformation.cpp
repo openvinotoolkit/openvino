@@ -17,6 +17,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "ov_lpt_models/depth_to_space.hpp"
+#include "openvino/op/depth_to_space.hpp"
 
 namespace {
 using namespace ov::pass;
@@ -65,7 +66,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ov::pass::low_precision::DepthToSpaceTransformation, ov::opset1::DepthToSpace>(testValues.params);
+        transform.add<ov::pass::low_precision::DepthToSpaceTransformation, ov::op::v0::DepthToSpace>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = DepthToSpaceFunction::getReference(

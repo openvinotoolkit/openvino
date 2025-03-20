@@ -18,6 +18,8 @@
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace pass {
@@ -26,7 +28,7 @@ namespace low_precision {
 MultiplyTransformation::MultiplyTransformation(const Params& params) :
     WeightableLayerTransformation(params, CanBeTransformedParams(false, false, false, true)) {
     MATCHER_SCOPE(MultiplyTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
+    auto matcher = pattern::wrap_type<ov::op::v1::Multiply>();
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -59,11 +61,11 @@ bool MultiplyTransformation::transform(ov::pass::pattern::Matcher& m) {
     // before: y = (deq_scales1 * (x1 - zero_point1)) * (deq_scales2 * (x2 - zero_point2))
     // after : y = deq_scales1 * deq_scales2 * (x1 - zero_point1) * (x2 - zero_point2)
 
-    auto new_scales_values = fold<ov::opset1::Multiply>(
+    auto new_scales_values = fold<ov::op::v1::Multiply>(
         dequantization1.empty() ? dequantization1.data : dequantization1.multiplyConstant,
         dequantization2.empty() ? dequantization2.data : dequantization2.multiplyConstant);
 
-    if (!ov::is_type<ov::opset1::Constant>(new_scales_values)) {
+    if (!ov::is_type<ov::op::v0::Constant>(new_scales_values)) {
         return false;
     }
 
@@ -84,16 +86,16 @@ bool MultiplyTransformation::transform(ov::pass::pattern::Matcher& m) {
         return subtract == nullptr ? dequantization.data : subtract;
     };
 
-    if ((dequantization1.empty() && (ov::is_type<ov::opset1::Constant>(dequantization1.data.get_node()))) ||
-        (dequantization2.empty() && (ov::is_type<ov::opset1::Constant>(dequantization2.data.get_node())))) {
+    if ((dequantization1.empty() && (ov::is_type<ov::op::v0::Constant>(dequantization1.data.get_node()))) ||
+        (dequantization2.empty() && (ov::is_type<ov::op::v0::Constant>(dequantization2.data.get_node())))) {
         // one input is constant
         const Output<Node> in1 = init_input(dequantization1);
         const Output<Node> in2 = init_input(dequantization2);
 
         const auto new_multiply = (in1.get_element_type() == multiply->get_output_element_type(0)) &&
                                   (in2.get_element_type() == multiply->get_output_element_type(0)) ?
-            std::make_shared<ov::opset1::Multiply>(in1, in2) :
-            std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+            std::make_shared<ov::op::v1::Multiply>(in1, in2) :
+            std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
                 std::vector<ov::element::Type>{ deqPrecision, deqPrecision },
                 std::vector<ov::element::Type>{ multiply->get_output_element_type(0) },
                 ov::op::TemporaryReplaceOutputType(in1, deqPrecision).get(),
@@ -111,8 +113,8 @@ bool MultiplyTransformation::transform(ov::pass::pattern::Matcher& m) {
     // in1 & in2 can have different input types
     const auto new_multiply = (in1.get_element_type() == deqPrecision) &&
                               (in2.get_element_type() == deqPrecision) ?
-        std::make_shared<ov::opset1::Multiply>(in1, in2) :
-        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+        std::make_shared<ov::op::v1::Multiply>(in1, in2) :
+        std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
             std::vector<ov::element::Type>{ deqPrecision, deqPrecision },
             std::vector<ov::element::Type>{ deqPrecision },
             ov::op::TemporaryReplaceOutputType(in1, deqPrecision).get(),
@@ -122,9 +124,9 @@ bool MultiplyTransformation::transform(ov::pass::pattern::Matcher& m) {
 
     auto new_scales = (new_multiply->get_output_element_type(0) == multiply->get_output_element_type(0)) &&
                       (new_scales_values->get_output_element_type(0) == multiply->get_output_element_type(0)) ?
-        std::make_shared<ov::opset1::Multiply>(new_multiply, new_scales_values) :
-        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-            ov::opset1::Multiply(new_multiply, new_scales_values),
+        std::make_shared<ov::op::v1::Multiply>(new_multiply, new_scales_values) :
+        std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
+            ov::op::v1::Multiply(new_multiply, new_scales_values),
             multiply->get_output_element_type(0));
 
     replace_node(multiply, new_scales);

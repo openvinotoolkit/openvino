@@ -9,8 +9,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "openvino/opsets/opset1.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 using namespace ov;
 using namespace ov;
@@ -39,16 +41,16 @@ ov::Any QuantizationAlignmentAttribute::create(
 
         const auto dequantization = NetworkHelper::getDequantization(node, params.defaultPrecisions, index);
         if (!dequantization.empty() &&
-            (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
-            ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+            (ov::is_type<op::v0::Convert>(dequantization.data.get_node())) &&
+            ov::is_type<op::v0::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
             inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
         }
 
-        if (ov::is_type<opset1::Constant>(inputNode)) {
+        if (ov::is_type<op::v0::Constant>(inputNode)) {
             continue;
         }
 
-        if (!ov::is_type<opset1::FakeQuantize>(inputNode)) {
+        if (!ov::is_type<op::v0::FakeQuantize>(inputNode)) {
             leastOneOperationIsNotFakeQuantize = true;
             break;
         }

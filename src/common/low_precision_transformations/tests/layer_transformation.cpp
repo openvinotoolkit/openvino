@@ -4,7 +4,6 @@
 
 #include "layer_transformation.hpp"
 
-#include "openvino/opsets/opset1.hpp"
 #include "low_precision/network_helper.hpp"
 #include "simple_low_precision_transformer.hpp"
 

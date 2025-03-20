@@ -7,6 +7,9 @@
 #include <memory>
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 namespace ov {
 namespace pass {
@@ -20,7 +23,7 @@ bool FuseElementwiseToFakeQuantizeTransformation::canBeTransformed(const std::sh
         return false;
     }
 
-    if (!ov::is_type<ov::opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
+    if (!ov::is_type<ov::op::v0::Constant>(operation->get_input_node_shared_ptr(1))) {
         return false;
     }
 
@@ -29,11 +32,11 @@ bool FuseElementwiseToFakeQuantizeTransformation::canBeTransformed(const std::sh
     }
 
     const auto parent = operation->get_input_node_shared_ptr(0);
-    auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(parent);
-    const auto convert = ov::as_type_ptr<ov::opset1::Convert>(parent);
+    auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(parent);
+    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(parent);
 
     if (convert) {
-        fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     if (!fq) {

@@ -14,6 +14,8 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "low_precision/network_helper.hpp"
 #include "lpt_itt.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 namespace ov {
 namespace pass {
@@ -48,7 +50,7 @@ public:
 
             ov::op::util::process_subgraph(*this, node);
 
-            if (ov::is_type<opset1::FakeQuantize>(node)) {
+            if (ov::is_type<op::v0::FakeQuantize>(node)) {
                 assert(node->get_output_size() == 1ul);
                 auto& outputRtInfo = node->output(0).get_rt_info();
                 outputRtInfo[AttributeType::get_type_info_static()] = AttributeType{std::set<element::Type>{element::u8, element::i8}};
@@ -64,7 +66,7 @@ public:
 
                         auto node = nodeInput.get_source_output().get_node_shared_ptr();
                         std::vector<ov::Any> attributes;
-                        if (ov::is_type<opset1::FakeQuantize>(node)) {
+                        if (ov::is_type<op::v0::FakeQuantize>(node)) {
                             // output
                             auto& rt = nodeInput.get_source_output().get_rt_info();
                             auto it = rt.find(name);
@@ -115,8 +117,8 @@ private:
 
             const auto dequantization = NetworkHelper::getDequantization(node, index);
             if (!dequantization.empty() &&
-                (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
-                 ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+                (ov::is_type<op::v0::Convert>(dequantization.data.get_node())) &&
+                 ov::is_type<op::v0::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
                 inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
             }
 
@@ -126,7 +128,7 @@ private:
                 if (inputAttributeIt != inputRtInfo.end()) {
                     parentAttributes.push_back(inputAttributeIt->second);
                 }
-            } else if (ov::is_type<opset1::FakeQuantize>(inputNode)) {
+            } else if (ov::is_type<op::v0::FakeQuantize>(inputNode)) {
                 const auto& outputPortRtInfo = inputNode->outputs()[0].get_rt_info();
                 auto attributeIt = outputPortRtInfo.find(PrecisionsAttribute::get_type_info_static());
                 if (attributeIt != outputPortRtInfo.end()) {
@@ -164,4 +166,3 @@ private:
         }
     }
 };
-

@@ -10,6 +10,11 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/split.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
 
 namespace ov {
 namespace pass {
@@ -17,7 +22,7 @@ namespace low_precision {
 
 SplitTransformation::SplitTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(SplitTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::Split>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::op::v1::Split>({ pattern::wrap_type<ov::op::v1::Multiply>(), pattern::wrap_type<ov::op::v0::Constant>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -46,7 +51,7 @@ bool SplitTransformation::transform(ov::pass::pattern::Matcher& m) {
     newSplit->set_friendly_name(split->get_friendly_name());
     ov::copy_runtime_info(split, newSplit);
 
-    const int64_t axis = ov::as_type_ptr<ov::opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
+    const int64_t axis = ov::as_type_ptr<ov::op::v0::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
     const size_t normalizedAxis = ov::util::try_normalize_axis(axis, split->get_input_partial_shape(0).rank(), *split);
     const size_t outputSize = newSplit->get_output_size();
 
@@ -96,7 +101,7 @@ bool SplitTransformation::transform(ov::pass::pattern::Matcher& m) {
             parent = subtract;
         }
 
-        const auto multiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(parent, splitedMul[i]);
+        const auto multiply = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(parent, splitedMul[i]);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
         copy_runtime_info({ newSplit, multiply }, multiply);
 
@@ -113,7 +118,7 @@ bool SplitTransformation::transform(ov::pass::pattern::Matcher& m) {
     // We do it to avoid dequantization propagation to the shapeOf subgraphs
     for (size_t i = 0; i < replacement.size(); ++i) {
         for (const auto& input : replacement[i].get_target_inputs()) {
-            if (const auto shapeOf = as_type_ptr<ov::opset1::ShapeOf>(input.get_node()->shared_from_this())) {
+            if (const auto shapeOf = as_type_ptr<ov::op::v0::ShapeOf>(input.get_node()->shared_from_this())) {
                 const auto newShapeOf = shapeOf->clone_with_new_inputs({ newSplit->output(i) });
                 replace_node_update_name(shapeOf, newShapeOf);
             }
@@ -138,7 +143,7 @@ void SplitTransformation::updateOutputs(
             const auto lastNode = lastNodes[i];
             for (auto output : lastNodes[i]->outputs()) {
                 for (auto input : output.get_target_inputs()) {
-                    if (ov::is_type<ov::opset1::Result>(input.get_node())) {
+                    if (ov::is_type<ov::op::v0::Result>(input.get_node())) {
                         originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                         lastNode->set_friendly_name(originalName + "." + std::to_string(i));
                         break;

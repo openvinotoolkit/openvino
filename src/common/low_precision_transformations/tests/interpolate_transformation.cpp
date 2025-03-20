@@ -10,7 +10,6 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/opsets/opset4.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations/init_node_info.hpp"
 #include "low_precision/interpolate.hpp"
@@ -19,6 +18,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "ov_lpt_models/interpolate.hpp"
+#include "openvino/op/interpolate.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -139,7 +139,7 @@ public:
                 testValues.actual.dequantization);
 
             SimpleLowPrecisionTransformer transformer;
-            transformer.add<ov::pass::low_precision::InterpolateTransformation, ov::opset4::Interpolate>(testValues.params);
+            transformer.add<ov::pass::low_precision::InterpolateTransformation, ov::op::v4::Interpolate>(testValues.params);
             transformer.transform(actualFunction);
 
             referenceFunction = ov::builder::subgraph::InterpolateFunction::getReference(

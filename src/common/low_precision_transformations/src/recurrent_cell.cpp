@@ -7,16 +7,34 @@
 #include <memory>
 
 #include "openvino/core/node.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace ov {
 namespace pass {
@@ -25,16 +43,16 @@ namespace low_precision {
 RecurrentCellTransformation::RecurrentCellTransformation(const Params& params) : LayerTransformation(params) {
     const auto C = ov::pass::pattern::any_input();
     const auto S = ov::pass::pattern::any_input();
-    const auto B = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
+    const auto B = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
     auto X_in = ov::pass::pattern::any_input();
     auto H_in = ov::pass::pattern::any_input();
     auto W_in = ov::pass::pattern::any_input();
     auto R_in = ov::pass::pattern::any_input();
 
-    const auto lstm_seq = ov::pass::pattern::wrap_type<ov::opset5::LSTMSequence>(
+    const auto lstm_seq = ov::pass::pattern::wrap_type<ov::op::v5::LSTMSequence>(
         {X_in, H_in, C, S, W_in, R_in, B});
-    const auto gru_seq  = ov::pass::pattern::wrap_type<ov::opset5::GRUSequence>(
+    const auto gru_seq  = ov::pass::pattern::wrap_type<ov::op::v5::GRUSequence>(
         {X_in, H_in,    S, W_in, R_in, B});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -59,8 +77,8 @@ RecurrentCellTransformation::RecurrentCellTransformation(const Params& params) :
 
 namespace {
 
-std::shared_ptr<ov::opset1::FakeQuantize> find_fake_quantize_upper(const std::shared_ptr<Node>& parent) {
-    if (auto fq = as_type_ptr<ov::opset1::FakeQuantize>(parent)) {
+std::shared_ptr<ov::op::v0::FakeQuantize> find_fake_quantize_upper(const std::shared_ptr<Node>& parent) {
+    if (auto fq = as_type_ptr<ov::op::v0::FakeQuantize>(parent)) {
         return fq;
     }
 
@@ -78,24 +96,24 @@ std::string name() {
 
 bool isSupportedForPerChannelQuantization(const std::shared_ptr<Node>& node) {
     static const std::unordered_set<std::string> supportedForPerChannelQuantization = {
-        { name<opset1::DepthToSpace>() },
-        { name<opset1::Interpolate>() },
-        { name<opset1::MaxPool>() },
-        { name<opset1::ReduceMax>() },
-        { name<opset1::ReduceMin>() },
-        { name<opset1::Relu>() },
-        { name<opset2::BatchToSpace>() },
-        { name<opset1::Broadcast>() },
-        { name<opset3::Broadcast>() },
-        { name<opset1::Pad>() },
-        { name<opset12::Pad>() },
-        { name<opset1::Reshape>() },
-        { name<opset1::Squeeze>() },
-        { name<opset2::SpaceToBatch>() },
-        { name<opset1::StridedSlice>() },
-        { name<opset1::ShuffleChannels>() },
-        { name<opset1::Transpose>() },
-        { name<opset1::Unsqueeze>() }
+        { name<op::v0::DepthToSpace>() },
+        { name<op::v0::Interpolate>() },
+        { name<op::v1::MaxPool>() },
+        { name<op::v1::ReduceMax>() },
+        { name<op::v1::ReduceMin>() },
+        { name<op::v0::Relu>() },
+        { name<op::v1::BatchToSpace>() },
+        { name<op::v1::Broadcast>() },
+        { name<op::v3::Broadcast>() },
+        { name<op::v1::Pad>() },
+        { name<op::v12::Pad>() },
+        { name<op::v1::Reshape>() },
+        { name<op::v0::Squeeze>() },
+        { name<op::v1::SpaceToBatch>() },
+        { name<op::v1::StridedSlice>() },
+        { name<op::v0::ShuffleChannels>() },
+        { name<op::v1::Transpose>() },
+        { name<op::v0::Unsqueeze>() }
     };
 
     return supportedForPerChannelQuantization.find(node->get_type_name()) != supportedForPerChannelQuantization.end();
@@ -105,12 +123,12 @@ std::vector<std::pair<size_t, element::Type>> get_supported_precisions(std::shar
     // pair fields:
     // 0 - input number,
     // 1 - input type, `element::dynamic` - any precision
-    if (is_type<ov::opset5::LSTMSequence>(lstm)) {
+    if (is_type<ov::op::v5::LSTMSequence>(lstm)) {
         return std::vector<std::pair<size_t, element::Type>>{{0, element::u8},
                                                              {1, element::u8},
                                                              {4, element::dynamic},
                                                              {5, element::dynamic}};
-    } else if (is_type<ov::opset5::GRUSequence>(lstm)) {
+    } else if (is_type<ov::op::v5::GRUSequence>(lstm)) {
         return std::vector<std::pair<size_t, element::Type>>{{0, element::u8},
                                                              {1, element::u8},
                                                              {3, element::dynamic},
@@ -198,10 +216,10 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
 
     for (size_t parentIndex = 0ul; parentIndex < lstm->get_input_size(); parentIndex++) {
         auto lstm_parent = lstm->get_input_node_shared_ptr(parentIndex);
-        if (is_type<ov::opset1::FakeQuantize>(lstm_parent)) {
+        if (is_type<ov::op::v0::FakeQuantize>(lstm_parent)) {
             auto fq_parent = lstm_parent->get_input_node_shared_ptr(0);
-            if (is_type<ov::opset5::Constant>(fq_parent)) {
-                auto fq_node = as_type_ptr<ov::opset1::FakeQuantize>(lstm_parent);
+            if (is_type<ov::op::v0::Constant>(fq_parent)) {
+                auto fq_node = as_type_ptr<ov::op::v0::FakeQuantize>(lstm_parent);
                 const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq_node);
                 const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(lstm_parent);
                 const auto precisions = precisionsAttribute.empty()
@@ -226,7 +244,7 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
 
                 std::shared_ptr<ov::Node> convert;
                 auto multiply_parent = deq_multiply->get_input_node_shared_ptr(0);
-                if (is_type<ov::opset1::Subtract>(multiply_parent)) {
+                if (is_type<ov::op::v1::Subtract>(multiply_parent)) {
                     convert = multiply_parent->get_input_node_shared_ptr(0);
                 } else {
                     convert = multiply_parent;
@@ -240,7 +258,7 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
                 continue;
             }
         } else {
-            if (is_type<ov::opset1::Multiply>(lstm_parent)) {
+            if (is_type<ov::op::v1::Multiply>(lstm_parent)) {
                 auto multiply = lstm_parent->get_input_node_shared_ptr(0);
                 ov::disable_constant_folding(multiply);
                 propagateSkipCleanupAttribute(lstm_parent);
@@ -256,7 +274,7 @@ bool RecurrentCellTransformation::canBeTransformed(const std::shared_ptr<Node>& 
     const auto inputs = get_supported_precisions(lstm);
     for (const auto& index : inputs) {
         const auto& input = lstm->get_input_node_ptr(index.first);
-        if (as_type<ov::opset1::Constant>(input) || as_type<ov::opset1::FakeQuantize>(input)) {
+        if (as_type<ov::op::v0::Constant>(input) || as_type<ov::op::v0::FakeQuantize>(input)) {
             continue;
         }
 
@@ -279,7 +297,7 @@ void RecurrentCellTransformation::propagateSkipCleanupAttribute(std::shared_ptr<
     DisableCleanupAttribute::create(multiply);
     auto multiply_parent = multiply->get_input_node_shared_ptr(0);
     DisableCleanupAttribute::create(multiply_parent);
-    if (is_type<ov::opset1::Subtract>(multiply_parent)) {
+    if (is_type<ov::op::v1::Subtract>(multiply_parent)) {
         auto subtract_parent = multiply_parent->get_input_node_shared_ptr(0);
         DisableCleanupAttribute::create(subtract_parent);
     }
@@ -287,11 +305,11 @@ void RecurrentCellTransformation::propagateSkipCleanupAttribute(std::shared_ptr<
 
 std::shared_ptr<ov::Node> RecurrentCellTransformation::wrap_fake_quantize(
     const std::shared_ptr<ov::Node> parameter) {
-    const auto input_low = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto input_high = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto output_low = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto output_high = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    return ov::pass::pattern::wrap_type<opset1::FakeQuantize>({
+    const auto input_low = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto input_high = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto output_low = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto output_high = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    return ov::pass::pattern::wrap_type<op::v0::FakeQuantize>({
         parameter,
         input_low,
         input_high,
@@ -302,7 +320,7 @@ std::shared_ptr<ov::Node> RecurrentCellTransformation::wrap_fake_quantize(
 std::shared_ptr<ov::Node> RecurrentCellTransformation::wrap_quantization(
     const std::shared_ptr<ov::Node> parameter) {
     const auto quantization_fake_quantize = wrap_fake_quantize(parameter);
-    const auto quantization_convert = ov::pass::pattern::wrap_type<ov::opset1::Convert>(
+    const auto quantization_convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>(
         {quantization_fake_quantize});
     return quantization_convert;
 }
@@ -310,13 +328,13 @@ std::shared_ptr<ov::Node> RecurrentCellTransformation::wrap_quantization(
 std::shared_ptr<ov::Node> RecurrentCellTransformation::wrap_dequantization(
     const std::shared_ptr<ov::Node> parameter,
     const bool with_subtract) {
-    const auto dequantization_convert = ov::pass::pattern::wrap_type<ov::opset1::Convert>({parameter});
-    const auto subtract_constant = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto dequantization_subtract = ov::pass::pattern::wrap_type<ov::opset1::Subtract>(
+    const auto dequantization_convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({parameter});
+    const auto subtract_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto dequantization_subtract = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>(
         {dequantization_convert, subtract_constant});
-    const auto multiply_constant = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
+    const auto multiply_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto multiply_parent = with_subtract ? dequantization_subtract : dequantization_convert;
-    const auto dequantization_multiply = ov::pass::pattern::wrap_type<ov::opset1::Multiply>(
+    const auto dequantization_multiply = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(
         {multiply_parent, multiply_constant});
     return dequantization_multiply;
 }

@@ -6,6 +6,7 @@
 
 #include <memory>
 #include "layer_transformation.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 namespace ov {
 namespace pass {
@@ -28,9 +29,9 @@ public:
 
     static bool checkElementwise(const std::shared_ptr<Node>& eltwise);
 
-    static std::shared_ptr<ov::opset1::FakeQuantize> fuseElementwise(
+    static std::shared_ptr<ov::op::v0::FakeQuantize> fuseElementwise(
         MatcherPass* matcherPass,
-        const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuantize,
+        const std::shared_ptr<ov::op::v0::FakeQuantize>& fakeQuantize,
         const bool updatePrecisions);
 };
 

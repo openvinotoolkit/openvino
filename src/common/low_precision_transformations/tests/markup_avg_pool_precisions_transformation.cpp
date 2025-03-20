@@ -22,6 +22,9 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/markup_avg_pool_precisions.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/max_pool.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -81,7 +84,7 @@ public:
         pass.run_on_model(actualFunction);
 
         auto supportedPrecisionsOnActivation = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
-            {ov::pass::low_precision::PrecisionsRestriction::create<ov::opset1::Convolution>(
+            {ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>(
                 {{{0}, {ov::element::u8}}, {{1}, {ov::element::i8}}})});
 
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation);

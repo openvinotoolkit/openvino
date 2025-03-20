@@ -15,8 +15,13 @@
 #include "low_precision/concat.hpp"
 #include "low_precision/network_helper.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace pass {
@@ -24,7 +29,7 @@ namespace low_precision {
 
 ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(ConcatTransformation);
-    auto matcher = ov::pass::pattern::wrap_type<opset1::Concat>();
+    auto matcher = ov::pass::pattern::wrap_type<op::v0::Concat>();
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -44,7 +49,7 @@ bool ConcatTransformation::transform(ov::pass::pattern::Matcher &m) {
         return false;
     }
 
-    const auto concat = ov::as_type_ptr<ov::opset1::Concat>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
+    const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
     std::vector<FakeQuantizeDequantization> layerDequantizations;
     layerDequantizations.reserve(concat->get_input_size());
     for (size_t parentIndex = 0ul; parentIndex < concat->get_input_size(); parentIndex++) {
@@ -87,14 +92,14 @@ bool ConcatTransformation::transform(ov::pass::pattern::Matcher &m) {
     const bool scalar_equal_constants_requested = concat_out_shape[axis].is_dynamic();
 
     auto adaptConstForConcatenation = [scalar_equal_constants_requested](
-                                          const std::shared_ptr<opset1::Constant>& constant,
+                                          const std::shared_ptr<op::v0::Constant>& constant,
                                           const Shape& targetShape) {
         if (scalar_equal_constants_requested) {
             OPENVINO_ASSERT(targetShape.empty(), "scalar_equal_constants_requested implies targetShape is empty");
-            return std::make_shared<opset1::Constant>(*constant, ov::Shape{});
+            return std::make_shared<op::v0::Constant>(*constant, ov::Shape{});
         } else {
-            auto targetShapeConst = std::make_shared<opset1::Constant>(element::i64, Shape{ targetShape.size() }, targetShape);
-            auto bcastedConst = ov::as_type_ptr<opset1::Constant>(fold<ov::opset1::Broadcast>(constant, targetShapeConst));
+            auto targetShapeConst = std::make_shared<op::v0::Constant>(element::i64, Shape{ targetShape.size() }, targetShape);
+            auto bcastedConst = ov::as_type_ptr<op::v0::Constant>(fold<ov::op::v1::Broadcast>(constant, targetShapeConst));
             OPENVINO_ASSERT(bcastedConst, "adaptConstForConcatenation must return constant");
             return bcastedConst;
         }
@@ -115,10 +120,10 @@ bool ConcatTransformation::transform(ov::pass::pattern::Matcher &m) {
     OutputVector dataNodes;
     NodeVector convertNodes;
 
-    using ConstVector = std::vector<std::shared_ptr<opset1::Constant>>;
+    using ConstVector = std::vector<std::shared_ptr<op::v0::Constant>>;
     ConstVector subConstants;
     ConstVector mulConstants;
-    std::shared_ptr<opset1::Convert> subtractConvert = nullptr;
+    std::shared_ptr<op::v0::Convert> subtractConvert = nullptr;
     for (size_t i = 0; i < layerDequantizations.size(); ++i) {
         const auto& dequantization = layerDequantizations[i];
 
@@ -142,7 +147,7 @@ bool ConcatTransformation::transform(ov::pass::pattern::Matcher &m) {
 
         if (!allDequantizationShiftAreZero) {
             auto subtractInput = dequantization.subtract == nullptr ?
-                    std::make_shared<ov::opset1::Constant>(
+                    std::make_shared<ov::op::v0::Constant>(
                         (allDequantizationShiftConvertAreNotZero ?
                             PrecisionBeforeConvert :
                             deqPrecision),
@@ -155,7 +160,7 @@ bool ConcatTransformation::transform(ov::pass::pattern::Matcher &m) {
                 }
             } else if (dequantization.subtractConvert != nullptr) {
                 const auto& dstType = dequantization.subtractConvert->get_convert_element_type();
-                subtractInput = ov::as_type_ptr<opset1::Constant>(foldConvert(subtractInput, dstType));
+                subtractInput = ov::as_type_ptr<op::v0::Constant>(foldConvert(subtractInput, dstType));
                 OPENVINO_ASSERT(subtractInput, "foldConvert must finish successfully for the concatenated subtract constant");
                 NetworkHelper::copyInfo(dequantization.subtractConvert, subtractInput);
             }
@@ -164,7 +169,7 @@ bool ConcatTransformation::transform(ov::pass::pattern::Matcher &m) {
 
         if (!allDequantizationMultiplyAreZero) {
             mulConstants.push_back(dequantization.multiply == nullptr ?
-                std::make_shared<ov::opset1::Constant>(deqPrecision, targetShape, std::vector<float>({ 1.0f })) :
+                std::make_shared<ov::op::v0::Constant>(deqPrecision, targetShape, std::vector<float>({ 1.0f })) :
                 adaptConstForConcatenation(dequantization.multiplyConstant, targetShape));
         }
     }
@@ -200,14 +205,14 @@ bool ConcatTransformation::transform(ov::pass::pattern::Matcher &m) {
         std::transform(constants.begin(), constants.end(), std::back_inserter(concatInputs), [](const auto& constant) {
             return constant->output(0);
         });
-        return fold<ov::opset1::Concat>(concatInputs, axis);
+        return fold<ov::op::v0::Concat>(concatInputs, axis);
     };
 
     if (!subConstants.empty()) {
         auto subtractNode = concat_constants_if_needed(subConstants);
         if (subtractConvert != nullptr)
             subtractNode = subtractConvert->clone_with_new_inputs({subtractNode});
-        const auto subtract = std::make_shared<opset1::Subtract>(
+        const auto subtract = std::make_shared<op::v1::Subtract>(
             lastDequantization,
             NetworkHelper::toScalarIfPossible(subtractNode));
 
@@ -217,8 +222,8 @@ bool ConcatTransformation::transform(ov::pass::pattern::Matcher &m) {
     }
 
     if (!mulConstants.empty()) {
-        const auto multiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
-            opset1::Multiply(
+        const auto multiply = std::make_shared<ov::op::TypeRelaxed<op::v1::Multiply>>(
+            op::v1::Multiply(
                 lastDequantization,
                 NetworkHelper::toScalarIfPossible(concat_constants_if_needed(mulConstants))),
             layerDequantizations[0].multiply->get_output_element_type(0));
@@ -241,7 +246,7 @@ bool ConcatTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noe
 }
 
 bool ConcatTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
-    std::shared_ptr<opset1::Concat> concat = ov::as_type_ptr<opset1::Concat>(layer);
+    std::shared_ptr<op::v0::Concat> concat = ov::as_type_ptr<op::v0::Concat>(layer);
     if (concat == nullptr) {
         return false;
     }
@@ -281,7 +286,7 @@ bool ConcatTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) 
         return true;
     }
 
-    auto checkConstShape = [&normalizedAxis, &outRank](const std::shared_ptr<opset1::Constant>& constant) {
+    auto checkConstShape = [&normalizedAxis, &outRank](const std::shared_ptr<op::v0::Constant>& constant) {
         const size_t rankValue = outRank.get_length();
         Shape constantShape = constant->get_shape();
 
@@ -336,7 +341,7 @@ bool ConcatTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) 
 }
 
 bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
-    const auto concat = as_type_ptr<const opset1::Concat>(layer);
+    const auto concat = as_type_ptr<const op::v0::Concat>(layer);
     if (concat == nullptr)
         return false;
     return concat->get_output_partial_shape(0).rank().is_static();

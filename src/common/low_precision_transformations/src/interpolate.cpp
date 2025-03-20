@@ -12,11 +12,12 @@
 #include "itt.hpp"
 #include "openvino/util/log.hpp"
 
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -24,22 +25,22 @@ using namespace ov::pass::low_precision;
 
 InterpolateTransformation::InterpolateTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(InterpolateTransformation);
-    auto mul = pattern::wrap_type<opset1::Multiply>();
+    auto mul = pattern::wrap_type<op::v1::Multiply>();
 
-    auto interpolate1 = pattern::wrap_type<opset1::Interpolate>({
+    auto interpolate1 = pattern::wrap_type<op::v0::Interpolate>({
         mul,
-        pattern::wrap_type<opset1::Constant>() });
+        pattern::wrap_type<op::v0::Constant>() });
 
-    auto interpolate4 = pattern::wrap_type<opset4::Interpolate>({
+    auto interpolate4 = pattern::wrap_type<op::v4::Interpolate>({
         mul,
-        pattern::wrap_type<opset1::Constant>(),
-        pattern::wrap_type<opset1::Constant>() });
+        pattern::wrap_type<op::v0::Constant>(),
+        pattern::wrap_type<op::v0::Constant>() });
 
-    auto interpolate4_2 = pattern::wrap_type<opset4::Interpolate>({
+    auto interpolate4_2 = pattern::wrap_type<op::v4::Interpolate>({
         mul,
-        pattern::wrap_type<opset1::Constant>(),
-        pattern::wrap_type<opset1::Constant>(),
-        pattern::wrap_type<opset1::Constant>() });
+        pattern::wrap_type<op::v0::Constant>(),
+        pattern::wrap_type<op::v0::Constant>(),
+        pattern::wrap_type<op::v0::Constant>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -69,13 +70,13 @@ bool InterpolateTransformation::transform(ov::pass::pattern::Matcher &m) {
 }
 
 bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
-    std::shared_ptr<opset1::Interpolate> interpolate1 = ov::as_type_ptr<opset1::Interpolate>(layer);
+    std::shared_ptr<op::v0::Interpolate> interpolate1 = ov::as_type_ptr<op::v0::Interpolate>(layer);
     if (interpolate1) {
         const auto attrs = interpolate1->get_attrs();
         return attrs.mode == "nearest";
     }
 
-    std::shared_ptr<opset4::Interpolate> interpolate4 = ov::as_type_ptr<opset4::Interpolate>(layer);
+    std::shared_ptr<op::v4::Interpolate> interpolate4 = ov::as_type_ptr<op::v4::Interpolate>(layer);
     if (interpolate4) {
         const auto attrs = interpolate4->get_attrs();
         return attrs.mode == op::v4::Interpolate::InterpolateMode::NEAREST;
@@ -96,7 +97,7 @@ bool InterpolateTransformation::canBeTransformed(const std::shared_ptr<Node>& la
         return false;
     }
 
-    const auto interpolate1 = ov::as_type_ptr<opset1::Interpolate>(layer);
+    const auto interpolate1 = ov::as_type_ptr<op::v0::Interpolate>(layer);
     if (interpolate1) {
         const auto interpAttrs = interpolate1->get_attrs();
         if (interpAttrs.axes.count(0) || interpAttrs.axes.count(1)) {
@@ -110,7 +111,7 @@ bool InterpolateTransformation::canBeTransformed(const std::shared_ptr<Node>& la
         }
     }
 
-    const auto interpolate4 = ov::as_type_ptr<opset4::Interpolate>(layer);
+    const auto interpolate4 = ov::as_type_ptr<op::v4::Interpolate>(layer);
     if (interpolate4) {
         const auto interpAttrs = interpolate4->get_attrs();
 

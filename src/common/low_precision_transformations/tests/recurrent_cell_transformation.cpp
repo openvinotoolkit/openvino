@@ -4,26 +4,25 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/common/precisions_restriction.hpp"
-#include "low_precision/recurrent_cell.hpp"
-#include "low_precision/fold_convert.hpp"
-#include "low_precision/fuse_convert.hpp"
-#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
-#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
-#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
-#include "low_precision/rt_info/precision_preserved_attribute.hpp"
-#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include <memory>
 #include <sstream>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/common/precisions_restriction.hpp"
+#include "low_precision/fold_convert.hpp"
+#include "low_precision/fuse_convert.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/recurrent_cell.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/recurrent_cell.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "openvino/opsets/opset5.hpp"
 
 using namespace testing;
 using namespace ov;

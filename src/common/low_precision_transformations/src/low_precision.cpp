@@ -9,9 +9,6 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
 #include "transformations/utils/utils.hpp"
@@ -88,6 +85,23 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/subtract.hpp"
 
 ov::pass::low_precision::LowPrecision::LowPrecision(
     const std::vector<PrecisionsRestriction>& precisionRestrictions,
@@ -161,24 +175,24 @@ void make_matcher_type_relaxed(ov::pass::GraphRewrite* transformation) {
 }
 
 ov::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
-    make_matcher_type_relaxed<opset1::Add>(this);
-    make_matcher_type_relaxed<opset1::AvgPool>(this);
-    make_matcher_type_relaxed<opset1::Clamp>(this);
-    make_matcher_type_relaxed<opset1::Convolution>(this);
-    make_matcher_type_relaxed<opset1::ConvolutionBackpropData>(this);
-    make_matcher_type_relaxed<opset1::DepthToSpace>(this);
-    make_matcher_type_relaxed<opset1::FakeQuantize>(this);
-    make_matcher_type_relaxed<opset1::GroupConvolution>(this);
-    make_matcher_type_relaxed<opset1::PRelu>(this);
-    make_matcher_type_relaxed<opset1::ReduceMean>(this);
-    make_matcher_type_relaxed<opset1::ReduceSum>(this);
-    make_matcher_type_relaxed<opset1::Subtract>(this);
-    make_matcher_type_relaxed<opset1::Interpolate>(this);
-    make_matcher_type_relaxed<opset1::Multiply>(this);
+    make_matcher_type_relaxed<op::v1::Add>(this);
+    make_matcher_type_relaxed<op::v1::AvgPool>(this);
+    make_matcher_type_relaxed<op::v0::Clamp>(this);
+    make_matcher_type_relaxed<op::v1::Convolution>(this);
+    make_matcher_type_relaxed<op::v1::ConvolutionBackpropData>(this);
+    make_matcher_type_relaxed<op::v0::DepthToSpace>(this);
+    make_matcher_type_relaxed<op::v0::FakeQuantize>(this);
+    make_matcher_type_relaxed<op::v1::GroupConvolution>(this);
+    make_matcher_type_relaxed<op::v0::PRelu>(this);
+    make_matcher_type_relaxed<op::v1::ReduceMean>(this);
+    make_matcher_type_relaxed<op::v1::ReduceSum>(this);
+    make_matcher_type_relaxed<op::v1::Subtract>(this);
+    make_matcher_type_relaxed<op::v0::Interpolate>(this);
+    make_matcher_type_relaxed<op::v1::Multiply>(this);
     make_matcher_type_relaxed<op::v0::MVN>(this);
-    make_matcher_type_relaxed<opset6::MVN>(this);
-    make_matcher_type_relaxed<opset1::NormalizeL2>(this);
-    make_matcher_type_relaxed<opset4::Interpolate>(this);
+    make_matcher_type_relaxed<op::v6::MVN>(this);
+    make_matcher_type_relaxed<op::v0::NormalizeL2>(this);
+    make_matcher_type_relaxed<op::v4::Interpolate>(this);
 }
 
 MarkupOptimizations::MarkupOptimizations(
@@ -200,11 +214,11 @@ bool ov::pass::low_precision::MarkupOptimizations::run_on_model(const std::share
     if (!quantizationRestrictions.empty()) {
         markup.register_pass<low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
     }
-    if (ov::op::util::has_op_with_type<ov::opset1::AvgPool>(f)) {
+    if (ov::op::util::has_op_with_type<ov::op::v1::AvgPool>(f)) {
         markup.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
     }
     markup.register_pass<low_precision::PropagatePrecisions>(params);
-    if (ov::op::util::has_op_with_type<ov::opset1::Concat>(f)) {
+    if (ov::op::util::has_op_with_type<ov::op::v0::Concat>(f)) {
         markup.register_pass<low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
         markup.register_pass<low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
     }
@@ -292,7 +306,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(cleanup,
                 MultiplyToGroupConvolutionTransformation,
                 params,
-                PrecisionsRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions))
+                PrecisionsRestriction::getPrecisionsByOperationType<op::v1::GroupConvolution>(precisionRestrictions))
 
     REGISTER_PASS(manager, FoldFakeQuantizeTransformation, params)
     REGISTER_PASS(manager, ConstantFolding)
@@ -320,7 +334,7 @@ bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(
                 continue;
             }
 
-            if (const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(parent)) {
+            if (const auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(parent)) {
                 if (QuantizationDetails::outputLayoutIsSupported(fakeQuantize, true) &&
                     QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels(), supported_levels)) {
                     return true;
@@ -347,7 +361,7 @@ bool ov::pass::low_precision::LowPrecision::isFQLevelsPresent(
         const std::set<size_t>& levels) {
     std::vector<std::shared_ptr<ov::Node>> nodes = model->get_ops();
     for (auto& node : nodes) {
-        const auto fakeQuantize = as_type_ptr<ov::opset1::FakeQuantize>(node);
+        const auto fakeQuantize = as_type_ptr<ov::op::v0::FakeQuantize>(node);
         if (fakeQuantize != nullptr) {
             if (levels.count(fakeQuantize->get_levels()) == 1) {
                 return true;

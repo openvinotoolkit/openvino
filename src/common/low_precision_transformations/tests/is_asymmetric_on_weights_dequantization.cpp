@@ -13,6 +13,8 @@
 
 #include "layer_transformation.hpp"
 #include "ov_lpt_models/convolution.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -67,7 +69,7 @@ public:
 TEST_P(IsAsymmetricOnWeightsDequantizationTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
 
-    const auto convolutions = LayerTransformation::get<opset1::Convolution>(actualFunction);
+    const auto convolutions = LayerTransformation::get<op::v1::Convolution>(actualFunction);
     ASSERT_TRUE(convolutions.size() == 1ul) << "convolution was not found";
 
     IsAsymmetricOnWeightsDequantizationTestValues testValues = std::get<2>(GetParam());

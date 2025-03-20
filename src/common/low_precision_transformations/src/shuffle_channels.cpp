@@ -6,12 +6,14 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/shuffle_channels.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shuffle_channels.hpp"
 
 namespace ov {
 namespace pass {
@@ -19,7 +21,7 @@ namespace low_precision {
 
 ShuffleChannelsTransformation::ShuffleChannelsTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(ShuffleChannelsTransformation);
-    auto matcher = pattern::wrap_type<opset1::ShuffleChannels>({ pattern::wrap_type<opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<op::v0::ShuffleChannels>({ pattern::wrap_type<op::v1::Multiply>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -38,7 +40,7 @@ bool ShuffleChannelsTransformation::transform(ov::pass::pattern::Matcher& m) {
         return false;
     }
 
-    const auto shuffleChannels = ov::as_type_ptr<opset1::ShuffleChannels>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
+    const auto shuffleChannels = ov::as_type_ptr<op::v0::ShuffleChannels>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
     auto dequantization = NetworkHelper::getDequantization(shuffleChannels, defaultPrecisions);
 
     const auto shuffleDequantizationConstant = [&](const std::shared_ptr<Node>& eltwise) {
@@ -57,8 +59,8 @@ bool ShuffleChannelsTransformation::transform(ov::pass::pattern::Matcher& m) {
                 return normalizedConst;
             } else {
                 const auto group = shuffleChannels->get_group();
-                const auto shuffledConst = fold<ov::opset1::ShuffleChannels>(normalizedConst, normalizedAxis, group);
-                return ov::as_type_ptr<opset1::Constant>(shuffledConst);
+                const auto shuffledConst = fold<ov::op::v0::ShuffleChannels>(normalizedConst, normalizedAxis, group);
+                return ov::as_type_ptr<op::v0::Constant>(shuffledConst);
             }
         }
     };
@@ -84,7 +86,7 @@ bool ShuffleChannelsTransformation::canBeTransformed(const std::shared_ptr<Node>
         return false;
     }
 
-    const auto shuffleChannels = ov::as_type_ptr<opset1::ShuffleChannels>(op);
+    const auto shuffleChannels = ov::as_type_ptr<op::v0::ShuffleChannels>(op);
     if (shuffleChannels == nullptr) {
         return false;
     }

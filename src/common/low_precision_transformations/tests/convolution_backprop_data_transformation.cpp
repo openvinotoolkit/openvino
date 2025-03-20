@@ -18,6 +18,9 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "ov_lpt_models/convolution_backprop_data.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
 
 namespace {
 using namespace testing;
@@ -121,7 +124,7 @@ public:
         bool channelsIsDynamic = inputShape.rank().is_dynamic() || inputShape[1].is_dynamic();
         const size_t inputChannels = channelsIsDynamic ? 8ul : static_cast<size_t>(inputShape[1].get_length());
 
-        std::shared_ptr<Node> actualWeights = ov::pass::low_precision::fold<opset1::Broadcast>(
+        std::shared_ptr<Node> actualWeights = ov::pass::low_precision::fold<op::v1::Broadcast>(
                 testValues.actual.weights,
                 ov::op::v0::Constant::create(
                         element::i64,
@@ -157,11 +160,11 @@ public:
                 actualWeights);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ov::pass::low_precision::ConvolutionBackpropDataTransformation, opset1::ConvolutionBackpropData>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionBackpropDataTransformation, op::v1::ConvolutionBackpropData>(testValues.params);
         transform.get_pass_config()->set_callback<ov::pass::low_precision::ConvolutionBackpropDataTransformation>(testValues.actual.callback);
         transform.transform(actualFunction);
 
-        std::shared_ptr<Node> refWeights = ov::pass::low_precision::fold<opset1::Broadcast>(
+        std::shared_ptr<Node> refWeights = ov::pass::low_precision::fold<op::v1::Broadcast>(
                 testValues.expected.weights,
                 ov::op::v0::Constant::create(
                         element::i64,

@@ -8,10 +8,11 @@
 
 #include "itt.hpp"
 #include "openvino/util/log.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace pass {
@@ -19,7 +20,7 @@ namespace low_precision {
 
 MaxPoolTransformation::MaxPoolTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(MaxPoolTransformation);
-    auto matcher = pattern::wrap_type<opset1::MaxPool>({ pattern::wrap_type<opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<op::v1::MaxPool>({ pattern::wrap_type<op::v1::Multiply>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

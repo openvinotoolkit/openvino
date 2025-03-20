@@ -17,6 +17,8 @@
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "ov_lpt_models/group_convolution.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -81,7 +83,7 @@ public:
                                                                      testValues.addReshape);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ov::pass::low_precision::GroupConvolutionTransformation, ov::opset1::GroupConvolution>(
+        transform.add<ov::pass::low_precision::GroupConvolutionTransformation, ov::op::v1::GroupConvolution>(
             testValues.params);
         if (testValues.params.supportAsymmetricQuantization == false) {
             transform.get_pass_config()->set_callback<ov::pass::low_precision::GroupConvolutionTransformation>(

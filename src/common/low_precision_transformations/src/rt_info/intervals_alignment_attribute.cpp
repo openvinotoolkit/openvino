@@ -10,6 +10,9 @@
 
 #include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov;
 using namespace ov;
@@ -34,11 +37,11 @@ IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
 ov::Any IntervalsAlignmentAttribute::create(
     const std::shared_ptr<ov::Node>& node,
     const AttributeParameters& params) {
-    if (!ov::is_type<opset1::FakeQuantize>(node)) {
+    if (!ov::is_type<op::v0::FakeQuantize>(node)) {
         return nullptr;
     }
 
-    auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(node);
+    auto fakeQuantize = ov::as_type_ptr<op::v0::FakeQuantize>(node);
     if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize) || !QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
         return nullptr;
     }
@@ -56,8 +59,8 @@ ov::Any IntervalsAlignmentAttribute::create(
             }
         }
 
-        const auto outLow = ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(3));
-        const auto outHigh = ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(4));
+        const auto outLow = ov::as_type_ptr<op::v0::Constant>(node->get_input_node_shared_ptr(3));
+        const auto outHigh = ov::as_type_ptr<op::v0::Constant>(node->get_input_node_shared_ptr(4));
         if (!NetworkHelper::isScalarLike(outLow) || !NetworkHelper::isScalarLike(outHigh)) {
             return nullptr;
         }
@@ -72,11 +75,11 @@ ov::Any IntervalsAlignmentAttribute::create(
             {
                 auto multiplyResult = dequantization.multiplyConstant == nullptr ?
                     node->get_input_node_ptr(3)->shared_from_this() :
-                    fold<opset1::Multiply>(
+                    fold<op::v1::Multiply>(
                         foldConvert(node->input_value(3), params.deqPrecision),
                         dequantization.multiplyConstant);
 
-                auto multiplyResultConstant = ov::as_type_ptr<opset1::Constant>(multiplyResult);
+                auto multiplyResultConstant = ov::as_type_ptr<op::v0::Constant>(multiplyResult);
                 auto intervals = multiplyResultConstant->cast_vector<float>();
                 lowInterval = *std::min_element(intervals.begin(), intervals.end());
             }
@@ -84,11 +87,11 @@ ov::Any IntervalsAlignmentAttribute::create(
             {
                 auto multiplyResult = dequantization.multiplyConstant == nullptr ?
                     node->get_input_node_ptr(4)->shared_from_this() :
-                    fold<opset1::Multiply>(
+                    fold<op::v1::Multiply>(
                         foldConvert(node->input_value(4), params.deqPrecision),
                         dequantization.multiplyConstant);
 
-                auto multiplyResultConstant = ov::as_type_ptr<opset1::Constant>(multiplyResult);
+                auto multiplyResultConstant = ov::as_type_ptr<op::v0::Constant>(multiplyResult);
                 auto intervals = multiplyResultConstant->cast_vector<float>();
                 highInterval = *std::max_element(intervals.begin(), intervals.end());
             }
@@ -112,8 +115,8 @@ ov::Any IntervalsAlignmentAttribute::create(
                 fakeQuantize->get_levels());
         auto& result = (rtInfo[IntervalsAlignmentAttribute::get_type_info_static()] = attribute);
 
-        const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3))->cast_vector<float>();
-        const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4))->cast_vector<float>();
+        const std::vector<float> outputLowValues = ov::as_type_ptr<op::v0::Constant>(fakeQuantize->get_input_node_shared_ptr(3))->cast_vector<float>();
+        const std::vector<float> outputHighValues = ov::as_type_ptr<op::v0::Constant>(fakeQuantize->get_input_node_shared_ptr(4))->cast_vector<float>();
         LayerTransformation::PrecisionDetails preferablePrecision = LayerTransformation::getPrecisionDetails(
             fakeQuantize->get_levels(),
             outputLowValues,

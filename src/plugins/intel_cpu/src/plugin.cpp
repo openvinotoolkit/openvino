@@ -9,6 +9,7 @@
 #include "itt.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"

@@ -12,6 +12,9 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/lpt_itt.hpp"
 #include "low_precision/lpt_visibility.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace pass {
@@ -45,14 +48,14 @@ public:
             const bool needToCheckExpectedAttributeType = !std::is_same<ExpectedAttributeType, AttributeType>::value;
             if (!needToCheckExpectedAttributeType) {
                 // expected attribute is ignored, set attributes for node inputs except Result & FakeQuantize operations
-                if (ov::is_type<ov::opset1::Result>(node) ||
-                    ov::is_type<ov::opset1::FakeQuantize>(node) ||
+                if (ov::is_type<ov::op::v0::Result>(node) ||
+                    ov::is_type<ov::op::v0::FakeQuantize>(node) ||
                     transformation_callback(node)) {
                     return false;
                 }
             }
 
-            if (ov::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) || ov::is_type<ov::opset1::FakeQuantize>(node)) {
+            if (ov::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) || ov::is_type<ov::op::v0::FakeQuantize>(node)) {
                 return false;
             }
 
@@ -100,8 +103,8 @@ private:
     Input<Node> getDequantizationInput(const Input<Node>& input, const std::vector<ov::element::Type>& defaultPrecisions) {
         const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), defaultPrecisions, input.get_index());
         if (!dequantization.empty() &&
-            (ov::is_type<ov::opset1::Convert>(dequantization.data.get_node())) &&
-            ov::is_type<ov::opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+            (ov::is_type<ov::op::v0::Convert>(dequantization.data.get_node())) &&
+            ov::is_type<ov::op::v0::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
             assert(dequantization.data.get_target_inputs().size() == 1ul);
             return *dequantization.data.get_target_inputs().begin();
         }

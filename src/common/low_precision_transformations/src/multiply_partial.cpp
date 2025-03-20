@@ -18,6 +18,9 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace pass {
@@ -25,7 +28,7 @@ namespace low_precision {
 
 MultiplyPartialTransformation::MultiplyPartialTransformation(const Params& params) : EltwiseBaseTransformation(params) {
     MATCHER_SCOPE(MultiplyPartialTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
+    auto matcher = pattern::wrap_type<ov::op::v1::Multiply>();
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -49,10 +52,10 @@ bool MultiplyPartialTransformation::transform(ov::pass::pattern::Matcher& m) {
     auto newMultiply = multiply;
 
     auto fold_fake_quantizes = [](std::shared_ptr<Node>& multiply, const size_t index) {
-        auto fakeQuantizeOnWeights = ov::as_type_ptr<ov::opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
+        auto fakeQuantizeOnWeights = ov::as_type_ptr<ov::op::v0::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
         if (fakeQuantizeOnWeights != nullptr) {
             auto result = NetworkHelper::fold_fake_quantize(fakeQuantizeOnWeights);
-            if (ov::is_type<ov::opset1::Constant>(result)) {
+            if (ov::is_type<ov::op::v0::Constant>(result)) {
                 replace_node(fakeQuantizeOnWeights, result);
             }
         }
@@ -81,12 +84,12 @@ bool MultiplyPartialTransformation::transform(ov::pass::pattern::Matcher& m) {
         auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second == 0 ? 1 : 0);
         auto inputDataType = scalingMode ? multiply->get_output_element_type(0) : element::f32;
 
-        newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+        newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
             std::vector<ov::element::Type>{ inputDataType, inputDataType },
             std::vector<ov::element::Type>{ multiply->get_output_element_type(0) },
             ov::op::TemporaryReplaceOutputType(multiplyParentParent, inputDataType).get(),
             ov::op::TemporaryReplaceOutputType(
-                fold<ov::opset1::Multiply>(
+                fold<ov::op::v1::Multiply>(
                     foldConvert(multiplyParentConst, inputDataType),
                     foldConvert(constParent, inputDataType)),
                 inputDataType).get());
@@ -140,7 +143,7 @@ bool MultiplyPartialTransformation::transform(ov::pass::pattern::Matcher& m) {
         // else
         //     after : Y = ((X1 - SH1) * X2) * SC1' ,  where :
         //             SC1' = SC1 * SC2
-        auto newMultiplyValuesFullPath = fold<ov::opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
+        auto newMultiplyValuesFullPath = fold<ov::op::v1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         OutputVector inputs{ {}, {} };
         inputs[emptyPathIndex] = scalingMode ? newMultiplyValuesFullPath : dequantizationEmptyPath.data;
         auto input_for_fullPath = scalingMode ? dequantizationEmptyPath.data.get_node_shared_ptr() :
@@ -152,14 +155,14 @@ bool MultiplyPartialTransformation::transform(ov::pass::pattern::Matcher& m) {
 
         inputs[fullPathIndex] =
             parent0.get_node()->get_output_element_type(0) == input_for_fullPath->get_output_element_type(0) ?
-                std::make_shared<ov::opset1::Multiply>(parent0, input_for_fullPath) :
-                std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+                std::make_shared<ov::op::v1::Multiply>(parent0, input_for_fullPath) :
+                std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
                       std::vector<element::Type>{element::f32, element::f32},
                       std::vector<element::Type>{element::f32},
                       ov::op::TemporaryReplaceOutputType(parent0, element::f32).get(),
                       ov::op::TemporaryReplaceOutputType(input_for_fullPath, element::f32).get());
 
-        newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+        newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},
                 std::vector<element::Type>{ multiply->get_output_element_type(0) },
                 ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
@@ -186,8 +189,8 @@ bool MultiplyPartialTransformation::canBeTransformed(const std::shared_ptr<Node>
         return false;
     }
 
-    const bool nonConstantData = !ov::is_type<ov::opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
-                                 !ov::is_type<ov::opset1::Constant>(dequantization2.data.get_node_shared_ptr());
+    const bool nonConstantData = !ov::is_type<ov::op::v0::Constant>(dequantization1.data.get_node_shared_ptr()) &&
+                                 !ov::is_type<ov::op::v0::Constant>(dequantization2.data.get_node_shared_ptr());
 
     if (((dequantization1.empty() || dequantization2.empty()) && nonConstantData)) {
         return false;

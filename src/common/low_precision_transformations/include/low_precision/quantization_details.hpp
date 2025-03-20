@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "low_precision/lpt_visibility.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 namespace ov {
 namespace pass {
@@ -45,19 +45,19 @@ public:
             const std::vector<float>& outputLowValues,
             const std::vector<float>& outputHighValues);
 
-    static bool outputLayoutIsSupported(std::shared_ptr<ov::opset1::FakeQuantize> quantize, bool isConvertExpected = false);
+    static bool outputLayoutIsSupported(std::shared_ptr<ov::op::v0::FakeQuantize> quantize, bool isConvertExpected = false);
 
     static void getInputIntervals(
-            std::shared_ptr<ov::opset1::FakeQuantize> quantize,
+            std::shared_ptr<ov::op::v0::FakeQuantize> quantize,
             std::vector<float>& inputLowValues,
             std::vector<float>& inputHighValues);
 
     static void getOutputIntervals(
-            std::shared_ptr<ov::opset1::FakeQuantize> quantize,
+            std::shared_ptr<ov::op::v0::FakeQuantize> quantize,
             std::vector<float>& outputLowValues,
             std::vector<float>& outputHighValues);
 
-    static QuantizationDetails getDetails(std::shared_ptr<ov::opset1::FakeQuantize>);
+    static QuantizationDetails getDetails(std::shared_ptr<ov::op::v0::FakeQuantize>);
     bool hasNegativeOutput() const;
     float maxOutput(const size_t channel) const;
     float maxInput(const size_t channel) const;

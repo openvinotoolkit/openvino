@@ -5,25 +5,56 @@
 #include "low_precision/markup_precisions.hpp"
 
 #include <memory>
-#include <unordered_set>
 #include <set>
+#include <unordered_set>
 #include <vector>
 
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset8.hpp"
-#include "openvino/opsets/opset12.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "low_precision/network_helper.hpp"
-#include "low_precision/rt_info/precisions_attribute.hpp"
-#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "itt.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/precisions_attribute.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
 
@@ -94,7 +125,7 @@ bool ov::pass::low_precision::MarkupPrecisions::run_on_model(const std::shared_p
 
         // TODO: don't need to set restrictions for not supported operations
         // if don't set restrictions for not supported operations then accuracy drop appears, issue #59197
-        const bool supported = ov::is_type<opset1::Result>(node) || isSupported(node);
+        const bool supported = ov::is_type<op::v0::Result>(node) || isSupported(node);
         if (!supported && restrictionsByOperation.find(node->get_type_info().name) != restrictionsByOperation.end())
             THROW_IE_LPT_EXCEPTION(*node) << "Restriction is set for unsupported operation";
         if (!supported || !LayerTransformation::canBeTransformedStatic(node, defaultPrecisions)) {
@@ -146,32 +177,32 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
     // TODO: think how to handle conditions <= not mandatory for PoC
     // TODO: operation set version is not affected <= not mandatory for PoC
     static std::unordered_set<std::string> precisionPreservedOps = {
-        { name<opset1::Concat>() },
-        { name<opset1::DepthToSpace>() },
-        { name<opset1::Interpolate>() },
-        { name<opset1::MaxPool>() },
-        { name<opset1::ReduceMax>() },
-        { name<opset1::ReduceMin>() },
-        { name<opset1::Relu>() },
+        { name<op::v0::Concat>() },
+        { name<op::v0::DepthToSpace>() },
+        { name<op::v0::Interpolate>() },
+        { name<op::v1::MaxPool>() },
+        { name<op::v1::ReduceMax>() },
+        { name<op::v1::ReduceMin>() },
+        { name<op::v0::Relu>() },
         // TODO: there are conditions
-        { name<opset2::BatchToSpace>() },
-        { name<opset1::Broadcast>() },
-        { name<opset3::Broadcast>() },
-        { name<opset1::Pad>() },
-        { name<ov::opset12::Pad>() },
-        { name<opset1::Reshape>() },
-        { name<opset8::Slice>() },
-        { name<opset1::Squeeze>() },
-        { name<opset2::SpaceToBatch>() },
-        { name<opset1::Split>() },
-        { name<opset1::StridedSlice>() },
-        { name<opset1::ShuffleChannels>() },
-        { name<opset1::Transpose>() },
-        { name<opset1::Unsqueeze>() },
-        { name<opset1::VariadicSplit>() },
-        { name<opset1::Gather>() },
-        { name<opset7::Gather>() },
-        { name<opset8::Gather>() },
+        { name<op::v1::BatchToSpace>() },
+        { name<op::v1::Broadcast>() },
+        { name<op::v3::Broadcast>() },
+        { name<op::v1::Pad>() },
+        { name<ov::op::v12::Pad>() },
+        { name<op::v1::Reshape>() },
+        { name<op::v8::Slice>() },
+        { name<op::v0::Squeeze>() },
+        { name<op::v1::SpaceToBatch>() },
+        { name<op::v1::Split>() },
+        { name<op::v1::StridedSlice>() },
+        { name<op::v0::ShuffleChannels>() },
+        { name<op::v1::Transpose>() },
+        { name<op::v0::Unsqueeze>() },
+        { name<op::v1::VariadicSplit>() },
+        { name<op::v1::Gather>() },
+        { name<op::v7::Gather>() },
+        { name<op::v8::Gather>() },
     };
 
     const bool precisionPreserved = precisionPreservedOps.find(node->get_type_name()) != precisionPreservedOps.end();
@@ -179,14 +210,14 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
         return precisionPreserved;
     }
 
-    if (ov::is_type<opset1::Interpolate>(node)) {
-        std::shared_ptr<opset1::Interpolate> interpolate1 = ov::as_type_ptr<opset1::Interpolate>(node);
+    if (ov::is_type<op::v0::Interpolate>(node)) {
+        std::shared_ptr<op::v0::Interpolate> interpolate1 = ov::as_type_ptr<op::v0::Interpolate>(node);
         if (interpolate1) {
             const auto attrs = interpolate1->get_attrs();
             return attrs.mode == "nearest";
         }
 
-        std::shared_ptr<opset4::Interpolate> interpolate4 = ov::as_type_ptr<opset4::Interpolate>(node);
+        std::shared_ptr<op::v4::Interpolate> interpolate4 = ov::as_type_ptr<op::v4::Interpolate>(node);
         if (interpolate4) {
             const auto attrs = interpolate4->get_attrs();
             return attrs.mode == op::v4::Interpolate::InterpolateMode::NEAREST;
@@ -198,54 +229,54 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
 
 bool ov::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_ptr<Node>& node) {
     static std::unordered_set<std::string> supportedOps = {
-        { name<opset1::Add>() },
-        { name<opset1::AvgPool>() },
-        { name<opset2::BatchToSpace>() },
-        { name<opset1::Broadcast>() },
-        { name<opset3::Broadcast>() },
-        { name<opset1::Clamp>() },
-        { name<opset1::Concat>() },
+        { name<op::v1::Add>() },
+        { name<op::v1::AvgPool>() },
+        { name<op::v1::BatchToSpace>() },
+        { name<op::v1::Broadcast>() },
+        { name<op::v3::Broadcast>() },
+        { name<op::v0::Clamp>() },
+        { name<op::v0::Concat>() },
         // ?
-        { name<opset1::Convert>() },
-        { name<opset1::Convolution>() },
-        { name<opset1::ConvolutionBackpropData>() },
-        { name<opset1::DepthToSpace>() },
-        { name<opset1::FakeQuantize>() },
-        { name<opset1::Interpolate>() },
-        { name<opset4::Interpolate>() },
-        { name<opset1::GroupConvolution>() },
-        { name<opset1::MatMul>() },
-        { name<opset1::MaxPool>() },
-        { name<opset1::Multiply>() },
+        { name<op::v0::Convert>() },
+        { name<op::v1::Convolution>() },
+        { name<op::v1::ConvolutionBackpropData>() },
+        { name<op::v0::DepthToSpace>() },
+        { name<op::v0::FakeQuantize>() },
+        { name<op::v0::Interpolate>() },
+        { name<op::v4::Interpolate>() },
+        { name<op::v1::GroupConvolution>() },
+        { name<op::v0::MatMul>() },
+        { name<op::v1::MaxPool>() },
+        { name<op::v1::Multiply>() },
         { name<ov::op::v0::MVN>() },
-        { name<opset6::MVN>() },
-        { name<opset1::NormalizeL2>() },
-        { name<opset1::Pad>() },
-        { name<ov::opset12::Pad>() },
-        { name<opset1::PRelu>() },
-        { name<opset1::ReduceMax>() },
-        { name<opset1::ReduceMean>() },
-        { name<opset1::ReduceMin>() },
-        { name<opset1::ReduceSum>() },
-        { name<opset1::Relu>() },
+        { name<op::v6::MVN>() },
+        { name<op::v0::NormalizeL2>() },
+        { name<op::v1::Pad>() },
+        { name<ov::op::v12::Pad>() },
+        { name<op::v0::PRelu>() },
+        { name<op::v1::ReduceMax>() },
+        { name<op::v1::ReduceMean>() },
+        { name<op::v1::ReduceMin>() },
+        { name<op::v1::ReduceSum>() },
+        { name<op::v0::Relu>() },
         // TODO: there are conditions
-        { name<opset1::Reshape>() },
-        { name<opset8::Slice>() },
-        { name<opset2::SpaceToBatch>() },
-        { name<opset1::Squeeze>() },
-        { name<opset1::ShuffleChannels>() },
-        { name<opset1::Split>() },
-        { name<opset1::StridedSlice>() },
+        { name<op::v1::Reshape>() },
+        { name<op::v8::Slice>() },
+        { name<op::v1::SpaceToBatch>() },
+        { name<op::v0::Squeeze>() },
+        { name<op::v0::ShuffleChannels>() },
+        { name<op::v1::Split>() },
+        { name<op::v1::StridedSlice>() },
         // ?
-        { name<opset1::Subtract>() },
-        { name<opset1::Transpose>() },
-        { name<opset1::Unsqueeze>() },
-        { name<opset1::VariadicSplit>() },
-        { name<opset5::LSTMSequence>() },
-        { name<opset6::GRUSequence>() },
-        { name<opset1::Gather>() },
-        { name<opset7::Gather>() },
-        { name<opset8::Gather>() },
+        { name<op::v1::Subtract>() },
+        { name<op::v1::Transpose>() },
+        { name<op::v0::Unsqueeze>() },
+        { name<op::v1::VariadicSplit>() },
+        { name<op::v5::LSTMSequence>() },
+        { name<op::v5::GRUSequence>() },
+        { name<op::v1::Gather>() },
+        { name<op::v7::Gather>() },
+        { name<op::v8::Gather>() },
     };
 
     return supportedOps.find(node->get_type_name()) != supportedOps.end();

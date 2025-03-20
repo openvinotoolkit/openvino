@@ -13,6 +13,7 @@
 #include "low_precision/broadcast.hpp"
 #include "ov_lpt_models/broadcast.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/broadcast.hpp"
 
 namespace {
 using namespace ov::pass;
@@ -62,7 +63,7 @@ public:
             testValues.actual.dequantizationAfter);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ov::pass::low_precision::BroadcastTransformation, ov::opset1::Broadcast>(testValues.params);
+        transform.add<ov::pass::low_precision::BroadcastTransformation, ov::op::v1::Broadcast>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = BroadcastFunction::get(

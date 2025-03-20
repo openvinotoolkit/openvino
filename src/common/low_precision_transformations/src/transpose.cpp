@@ -12,6 +12,10 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace ov {
 namespace pass {
@@ -19,7 +23,7 @@ namespace low_precision {
 
 TransposeTransformation::TransposeTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(TransposeTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::Transpose>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::op::v1::Transpose>({ pattern::wrap_type<ov::op::v1::Multiply>(), pattern::wrap_type<ov::op::v0::Constant>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -45,7 +49,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std
     }
 
     auto transposeDeqConstant = [](
-        const std::shared_ptr<ov::opset1::Constant>& dequantizationConstant,
+        const std::shared_ptr<ov::op::v0::Constant>& dequantizationConstant,
         const PartialShape& transposeOutputPShape,
         const std::shared_ptr<Node>& transposeConstant) -> std::shared_ptr<Node> {
             const auto constantShape = dequantizationConstant->get_shape();
@@ -56,11 +60,11 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std
             assert(transposeOutputPShape.rank().is_static());
             const size_t transposeOutRank = transposeOutputPShape.rank().get_length();
             if (constantShape.size() != transposeOutRank) {
-                const auto unsqueezeConst = ov::opset1::Constant::create(element::i32, Shape{ 1 }, std::vector<size_t>{ 0 });
-                const auto deqConstantWithBatch = fold<ov::opset1::Unsqueeze>(dequantizationConstant, unsqueezeConst);
-                return fold<ov::opset1::Transpose>(deqConstantWithBatch, transposeConstant);
+                const auto unsqueezeConst = ov::op::v0::Constant::create(element::i32, Shape{ 1 }, std::vector<size_t>{ 0 });
+                const auto deqConstantWithBatch = fold<ov::op::v0::Unsqueeze>(dequantizationConstant, unsqueezeConst);
+                return fold<ov::op::v1::Transpose>(deqConstantWithBatch, transposeConstant);
             } else {
-                return fold<ov::opset1::Transpose>(dequantizationConstant, transposeConstant);
+                return fold<ov::op::v1::Transpose>(dequantizationConstant, transposeConstant);
             }
     };
 
@@ -106,7 +110,7 @@ bool TransposeTransformation::canBeTransformed(const std::shared_ptr<Node>& op) 
         return false;
     }
 
-    const std::shared_ptr<ov::opset1::Constant> constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(1));
+    const std::shared_ptr<ov::op::v0::Constant> constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     if (constant == nullptr) {
         return false;
     }
@@ -135,7 +139,7 @@ bool TransposeTransformation::canBeTransformed(const std::shared_ptr<Node>& op) 
         }
     }
 
-    auto checkShape = [](const std::shared_ptr<ov::opset1::Constant>& dequantizationConstant, const PartialShape& transposeOutputShape) -> bool {
+    auto checkShape = [](const std::shared_ptr<ov::op::v0::Constant>& dequantizationConstant, const PartialShape& transposeOutputShape) -> bool {
         const auto dequantizationShape = dequantizationConstant->get_shape();
         const auto rank = transposeOutputShape.rank();
         if (rank.is_dynamic()) {

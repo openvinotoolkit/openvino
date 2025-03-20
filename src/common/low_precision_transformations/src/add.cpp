@@ -18,6 +18,13 @@
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace pass {
@@ -25,29 +32,29 @@ namespace low_precision {
 
 namespace {
 
-std::shared_ptr<ov::opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>& op) {
+std::shared_ptr<ov::op::v1::Subtract> replaceToSubtract(const std::shared_ptr<Node>& op) {
     // TODO: separate this part to standalone transformation: AddToSubtractTransformation
     // motivation:
     //    - single responsibility
     //    - keep AddTransformation and AddToSubtractTransformation transformations independent and optional
-    const auto add = ov::as_type_ptr<ov::opset1::Add>(op);
+    const auto add = ov::as_type_ptr<ov::op::v1::Add>(op);
     if (add == nullptr || ov::marked_as_bias(add)) {
         return nullptr;
     }
 
     // TODO: use general way from getDequantization: is eltwise with Constant
-    const int constBranchIndex = ov::is_type<ov::opset1::Constant>(add->get_input_node_ptr(0)) ?
+    const int constBranchIndex = ov::is_type<ov::op::v0::Constant>(add->get_input_node_ptr(0)) ?
         0 :
-        (ov::is_type<ov::opset1::Constant>(add->get_input_node_ptr(1)) ? 1 : -1);
+        (ov::is_type<ov::op::v0::Constant>(add->get_input_node_ptr(1)) ? 1 : -1);
     if (constBranchIndex == -1) {
         return nullptr;
     }
 
     const size_t dataBranchIndex = constBranchIndex == 0 ? 1ul : 0;
-    auto constant = fold<ov::opset1::Negative>(add->input_value(constBranchIndex));
+    auto constant = fold<ov::op::v0::Negative>(add->input_value(constBranchIndex));
     auto constOutput = constant->output(0);
 
-    const auto subtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
+    const auto subtract = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Subtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
         ov::op::TemporaryReplaceOutputType(add->input_value(dataBranchIndex), element::f32).get(),
@@ -60,20 +67,20 @@ std::shared_ptr<ov::opset1::Subtract> replaceToSubtract(const std::shared_ptr<No
     return subtract;
 }
 
-std::shared_ptr<ov::opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& op) {
-    const auto add = ov::as_type_ptr<ov::opset1::Add>(op);
+std::shared_ptr<ov::op::v1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& op) {
+    const auto add = ov::as_type_ptr<ov::op::v1::Add>(op);
     if ((add == nullptr) ||
-        !ov::is_type<ov::opset1::Subtract>(add->get_input_node_shared_ptr(0)) ||
+        !ov::is_type<ov::op::v1::Subtract>(add->get_input_node_shared_ptr(0)) ||
         // TODO: use general way from getDequantization: is eltwise with Constant
-        !ov::is_type<ov::opset1::Constant>(add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {
+        !ov::is_type<ov::op::v0::Constant>(add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {
         return nullptr;
     }
 
-    const auto newSubConst = fold<ov::opset1::Subtract>(
+    const auto newSubConst = fold<ov::op::v1::Subtract>(
         add->get_input_node_shared_ptr(0)->input_value(1),
         add->input_value(1));
 
-    const auto newSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
+    const auto newSubtract = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Subtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
         ov::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->input_value(0), element::f32).get(),
@@ -88,7 +95,7 @@ std::shared_ptr<ov::opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Nod
 
 AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransformation(params) {
     MATCHER_SCOPE(AddTransformation);
-    auto matcher = ov::pass::pattern::wrap_type<ov::opset1::Add>();
+    auto matcher = ov::pass::pattern::wrap_type<ov::op::v1::Add>();
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -103,13 +110,13 @@ AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransfor
 }
 
 bool AddTransformation::transform(ov::pass::pattern::Matcher &m) {
-    std::shared_ptr<ov::opset1::Add> op = ov::as_type_ptr<ov::opset1::Add>(m.get_match_root());
+    std::shared_ptr<ov::op::v1::Add> op = ov::as_type_ptr<ov::op::v1::Add>(m.get_match_root());
     if ((op == nullptr) || (!canBeTransformed(op))) {
         return false;
     }
 
     std::shared_ptr<Node> addNode = NetworkHelper::separateInStandaloneBranch(op, defaultPrecisions);
-    std::shared_ptr<ov::opset1::Add> add = ov::as_type_ptr<ov::opset1::Add>(addNode);
+    std::shared_ptr<ov::op::v1::Add> add = ov::as_type_ptr<ov::op::v1::Add>(addNode);
 
     const int fullPathIndex = getNotEmpty(add);
     std::shared_ptr<Node> newMultiply;
@@ -129,7 +136,7 @@ bool AddTransformation::transform(ov::pass::pattern::Matcher &m) {
 
         newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
         ov::copy_runtime_info({ add, newMultiply }, newMultiply);
-        if (ov::is_type<ov::opset1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
+        if (ov::is_type<ov::op::v1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
             newAddOrSubtract = newMultiply->get_input_node_shared_ptr(0);
 
             auto subtract = fuseWithSubtract(newAddOrSubtract);
@@ -170,13 +177,13 @@ bool AddTransformation::transform(ov::pass::pattern::Matcher &m) {
         // after : Y = SC2 * ( SC1' * (X1 - SH1') + X2 ) , where :
         //         SC1' = SC1 / SC2
         //         SH1' = SH1 + SC2 * SH2 / SC1
-        auto newSubtractFullPathValues = fold<ov::opset1::Add>(
+        auto newSubtractFullPathValues = fold<ov::op::v1::Add>(
             subtractFullPathValues,
-            fold<ov::opset1::Divide>(
-                fold<ov::opset1::Multiply>(subtractEmptyPathValues, multiplyEmptyPathValues),
+            fold<ov::op::v1::Divide>(
+                fold<ov::op::v1::Multiply>(subtractEmptyPathValues, multiplyEmptyPathValues),
                 multiplyFullPathValues));
 
-        auto newMultiplyFullPathValues = fold<ov::opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
+        auto newMultiplyFullPathValues = fold<ov::op::v1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
 
         // Transformation can't be applied if new full path values brake accuracy because of Inf values
         if (!NetworkHelper::checkConstantNotInf(newSubtractFullPathValues) ||
@@ -200,26 +207,26 @@ bool AddTransformation::transform(ov::pass::pattern::Matcher &m) {
         //     newMultiply
 
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
-        inputs[fullPathIndex] = std::make_shared<ov::opset1::Multiply>(
+        inputs[fullPathIndex] = std::make_shared<ov::op::v1::Multiply>(
             newSubtractFullPathValues == nullptr ?
                 (fullPathInput.get_element_type() != newMultiplyFullPathValues->get_element_type() ?
-                     std::make_shared<ov::opset1::Convert>(fullPathInput, newMultiplyFullPathValues->get_element_type()) :
+                     std::make_shared<ov::op::v0::Convert>(fullPathInput, newMultiplyFullPathValues->get_element_type()) :
                      fullPathInput) :
-                std::make_shared<ov::opset1::Subtract>(
+                std::make_shared<ov::op::v1::Subtract>(
                     // precision on branch with dequantization operations can be different with dequantization precision,
                     // for example: FP16 model with FP32 dequantization
                     fullPathInput.get_element_type() != newSubtractFullPathValues->get_element_type() ?
-                        std::make_shared<ov::opset1::Convert>(fullPathInput, newSubtractFullPathValues->get_element_type()) :
+                        std::make_shared<ov::op::v0::Convert>(fullPathInput, newSubtractFullPathValues->get_element_type()) :
                         fullPathInput,
                     newSubtractFullPathValues),
             newMultiplyFullPathValues);
 
         auto output_type = scalingMode ? add->get_output_element_type(0) : element::f32;
-        newAddOrSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
+        newAddOrSubtract = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(
             std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{output_type},
             ov::op::TemporaryReplaceOutputType(inputs[0], output_type).get(),
             ov::op::TemporaryReplaceOutputType(inputs[1], output_type).get());
-        newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+        newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
             std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{add->get_output_element_type(0)},
             ov::op::TemporaryReplaceOutputType(newAddOrSubtract, output_type).get(),
             ov::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, output_type).get());

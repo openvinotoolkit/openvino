@@ -19,6 +19,8 @@
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "ov_lpt_models/convolution.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 namespace {
 class ConvolutionWithIncorrectWeightsTestValues {
@@ -60,7 +62,7 @@ public:
             testValues.isCorrect);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::opset1::Convolution>(
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
             testValues.params);
         transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);

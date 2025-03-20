@@ -8,10 +8,12 @@
 
 #include "itt.hpp"
 #include "openvino/util/log.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/squeeze.hpp"
 
 namespace ov {
 namespace pass {
@@ -19,7 +21,7 @@ namespace low_precision {
 
 SqueezeTransformation::SqueezeTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(SqueezeTransformation);
-    auto matcher = pattern::wrap_type<opset1::Squeeze>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<op::v0::Squeeze>({ pattern::wrap_type<op::v1::Multiply>(), pattern::wrap_type<op::v0::Constant>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -39,7 +41,7 @@ bool SqueezeTransformation::transform(ov::pass::pattern::Matcher &m) {
     }
 
     auto squeezeOnConstant = [](const std::shared_ptr<ov::Node>& squeeze,
-                                const std::shared_ptr<ov::opset1::Constant>& dequantizationOpConstant,
+                                const std::shared_ptr<ov::op::v0::Constant>& dequantizationOpConstant,
                                 const ov::PartialShape& inputShape) {
         const size_t inputRankValue = inputShape.rank().get_length();
         const auto constantShape = dequantizationOpConstant->get_shape();
@@ -47,7 +49,7 @@ bool SqueezeTransformation::transform(ov::pass::pattern::Matcher &m) {
             return NetworkHelper::toScalar(dequantizationOpConstant);
         }
         if (constantShape.size() == inputRankValue) {
-            return ov::as_type_ptr<opset1::Constant>(fold<opset1::Squeeze>(dequantizationOpConstant, squeeze->input_value(1)));
+            return ov::as_type_ptr<op::v0::Constant>(fold<op::v0::Squeeze>(dequantizationOpConstant, squeeze->input_value(1)));
         }
 
         return dequantizationOpConstant;

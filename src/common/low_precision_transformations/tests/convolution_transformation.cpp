@@ -17,6 +17,9 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "ov_lpt_models/convolution.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -69,7 +72,7 @@ public:
             testValues.actual.fakeQuantizeOnWeights);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::opset1::Convolution>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
         if (testValues.params.supportAsymmetricQuantization == false) {
             transform.get_pass_config()->set_callback<ov::pass::low_precision::ConvolutionTransformation>(
                 [](const std::shared_ptr<const ov::Node>& node) -> bool {
@@ -79,7 +82,7 @@ public:
         transform.transform(actualFunction);
 
         if (!testValues.params.updatePrecisions) {
-            const auto convertOnWeights = std::make_shared<opset1::Convert>(testValues.expected.weights, netPrecision);
+            const auto convertOnWeights = std::make_shared<op::v0::Convert>(testValues.expected.weights, netPrecision);
             OutputVector convertedOutput(1);
             convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
             const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
