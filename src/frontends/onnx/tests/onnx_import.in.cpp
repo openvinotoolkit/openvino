@@ -480,8 +480,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset13) {
     auto model = convert_model("relu_opset13.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
-    test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.add_input<bfloat16>({-1.3f, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<bfloat16>({0, 0, 0, 1, 2, 3});
     test_case.run();
 }
 
@@ -490,8 +490,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu_opset14) {
     auto model = convert_model("relu_opset14.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
-    test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
+    test_case.add_input<int16_t>({-1, -2, 0, 1, 2, 3});
+    test_case.add_expected_output<int16_t>({0, 0, 0, 1, 2, 3});
     test_case.run();
 }
 
