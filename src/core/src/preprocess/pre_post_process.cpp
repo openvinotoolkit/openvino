@@ -270,7 +270,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     FunctionGuard guard(function);
     bool need_validate = false;
     auto results = function->get_results();
-    auto parameters_list = std::list<std::shared_ptr<opset8::Parameter>>(function->get_parameters().begin(),
+    auto parameters_list = std::list<std::shared_ptr<op::v0::Parameter>>(function->get_parameters().begin(),
                                                                          function->get_parameters().end());
 
     for (const auto& input_info : m_impl->m_inputs) {

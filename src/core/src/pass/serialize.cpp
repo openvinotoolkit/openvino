@@ -19,9 +19,18 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/util/avg_pool_base.hpp"
+#include "openvino/op/util/deformable_convolution_base.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/util/max_pool_base.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -851,7 +860,7 @@ private:
     void clone_op_and_fix_paddings(const T* op) {
         for (const auto& input : op->inputs()) {
             m_parameters.emplace_back(
-                std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape()));
+                std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_partial_shape()));
         }
         m_cloned_node = op->clone_with_new_inputs(m_parameters);
         auto typed_cloned_node = ov::as_type_ptr<T>(m_cloned_node);
@@ -867,29 +876,29 @@ public:
     }
 
     explicit PaddingsFixer(ov::Node* node) : m_node(node) {
-        if (auto op = ov::as_type<ov::opset1::Convolution>(node)) {
+        if (auto op = ov::as_type<ov::op::v1::Convolution>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::Convolution, ov::CoordinateDiff>(op);
+                clone_op_and_fix_paddings<ov::op::v1::Convolution, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::GroupConvolution>(node)) {
+        } else if (auto op = ov::as_type<ov::op::v1::GroupConvolution>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::GroupConvolution, ov::CoordinateDiff>(op);
+                clone_op_and_fix_paddings<ov::op::v1::GroupConvolution, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::ConvolutionBackpropData>(node)) {
+        } else if (auto op = ov::as_type<ov::op::v1::ConvolutionBackpropData>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::ConvolutionBackpropData, ov::CoordinateDiff>(op);
+                clone_op_and_fix_paddings<ov::op::v1::ConvolutionBackpropData, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::GroupConvolutionBackpropData>(node)) {
+        } else if (auto op = ov::as_type<ov::op::v1::GroupConvolutionBackpropData>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::GroupConvolutionBackpropData, ov::CoordinateDiff>(op);
+                clone_op_and_fix_paddings<ov::op::v1::GroupConvolutionBackpropData, ov::CoordinateDiff>(op);
             }
         } else if (auto op = ov::as_type<ov::op::util::DeformableConvolutionBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
                 clone_op_and_fix_paddings<ov::op::util::DeformableConvolutionBase, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::BinaryConvolution>(node)) {
+        } else if (auto op = ov::as_type<ov::op::v1::BinaryConvolution>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::BinaryConvolution, ov::CoordinateDiff>(op);
+                clone_op_and_fix_paddings<ov::op::v1::BinaryConvolution, ov::CoordinateDiff>(op);
             }
         } else if (auto op = ov::as_type<ov::op::util::AvgPoolBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
@@ -1095,7 +1104,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             pugi::xml_node input = layer.append_child("input");
             for (auto& i : node->inputs()) {
                 // WA for LSTMCellv0, peephole input shall not be serialized
-                if (i.get_index() == 6 && ov::as_type<ov::opset1::LSTMCell>(node)) {
+                if (i.get_index() == 6 && ov::as_type<ov::op::v0::LSTMCell>(node)) {
                     port_id++;
                     continue;
                 }

@@ -8,7 +8,9 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/pass/serialize.hpp"
 
 class SerializationCleanupTest : public ov::test::TestsCommon {
@@ -30,9 +32,9 @@ protected:
 
 namespace {
 std::shared_ptr<ov::Model> create_test_model(const std::string& name, const ov::PartialShape& ps) {
-    const auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ps);
-    const auto convert = std::make_shared<ov::opset8::Convert>(param, ov::element::f32);
-    const auto result = std::make_shared<ov::opset8::Result>(convert);
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ps);
+    const auto convert = std::make_shared<ov::op::v0::Convert>(param, ov::element::f32);
+    const auto result = std::make_shared<ov::op::v0::Result>(convert);
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, name);
 }
 }  // namespace
