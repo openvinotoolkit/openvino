@@ -136,7 +136,7 @@ ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
             slice_size *= partial_shape_copy[id].get_min_length();
         }
     }
-    OPENVINO_ASSERT(slice_size, "Cannot fit file size into requested PartialShape");
+    OPENVINO_ASSERT(slice_size > 0, "Cannot fit file size into requested PartialShape");
 
     OPENVINO_ASSERT(dynamic_dimension_numbers.size() == 1,
                     "Only one dynamic dimension in input shape is supported but got: ",
@@ -153,11 +153,11 @@ ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
                     " bytes");
     auto elements_to_read = file_size_to_read * 8 / element_type.bitwidth();
 
-    auto new_dimension = elements_to_read / slice_size;
-    OPENVINO_ASSERT((new_dimension * slice_size == elements_to_read) && dynamic_dimension.compatible(new_dimension),
+    auto new_dimension = ov::Dimension(elements_to_read) / slice_size;
+    OPENVINO_ASSERT(dynamic_dimension.compatible(new_dimension),
                     "Cannot fit file size into requested PartialShape");
 
-    dynamic_dimension = Dimension(new_dimension);
+    dynamic_dimension = new_dimension;
     return partial_shape_copy.get_shape();
 }
 
