@@ -18,8 +18,8 @@
 #define convert_float8_sat  convert_float8
 #define convert_half8_sat   convert_half8
 
-#define vload1(OFFSET, PTR)        *(OFFSET + PTR)
-#define vstore1(TENSOR, OFFSET, PTR) *(OFFSET + PTR) = TENSOR
+#define vload1(OFFSET, PTR)        (*((PTR) + (OFFSET)))
+#define vstore1(TENSOR, OFFSET, PTR)  (*((PTR) + (OFFSET)) = (TENSOR))
 
 #define vstore_partial_1(TENSOR, OFFSET, PTR) vstore1(TENSOR.s0, OFFSET, PTR);
 #define vstore_partial_2(TENSOR, OFFSET, PTR) vstore2(TENSOR.s01, OFFSET, PTR);
