@@ -1055,9 +1055,7 @@ MemStatePtr MemoryInputSingle::makeState() const {
         state_name = state_name.substr(0, suffix_idx);
     }
 
-    return std::make_shared<VariableStateSingleBuffer>(state_name,
-                                                       std::make_shared<Memory>(mem_desc),
-                                                       original_desc);
+    return std::make_shared<VariableStateSingleBuffer>(state_name, std::make_shared<Memory>(mem_desc), original_desc);
 }
 
 void MemoryInputSingle::runStatic(dnnl::stream strm) {

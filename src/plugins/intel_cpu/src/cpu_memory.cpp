@@ -107,9 +107,7 @@ Memory::Memory(MemoryDescPtr desc, const void* data, bool pads_zeroing)
 Memory::Memory(const MemoryDesc& desc, const void* data, bool pads_zeroing)
     : Memory::Memory(desc.clone(), data, pads_zeroing) {}
 
-Memory::Memory(MemoryDescPtr desc, MemoryBlockPtr block)
-    : m_pMemDesc(std::move(desc)),
-      m_memBlock(std::move(block)) {
+Memory::Memory(MemoryDescPtr desc, MemoryBlockPtr block) : m_pMemDesc(std::move(desc)), m_memBlock(std::move(block)) {
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
     }
@@ -118,8 +116,7 @@ Memory::Memory(MemoryDescPtr desc, MemoryBlockPtr block)
     create(m_pMemDesc, nullptr, !memAllocated);
 }
 
-Memory::Memory(const MemoryDesc& desc, MemoryBlockPtr block)
-    : Memory::Memory(desc.clone(), std::move(block)) {}
+Memory::Memory(const MemoryDesc& desc, MemoryBlockPtr block) : Memory::Memory(desc.clone(), std::move(block)) {}
 
 size_t Memory::getSize() const {
     auto size = getDesc().getCurrentMemSize();
@@ -237,8 +234,7 @@ void MemoryBlockWithReuse::destroy(void* ptr) {
 
 /////////////// StringMemory ///////////////
 
-StringMemory::StringMemory(MemoryDescPtr desc, const void* data)
-    : m_mem_desc(std::move(desc)) {
+StringMemory::StringMemory(MemoryDescPtr desc, const void* data) : m_mem_desc(std::move(desc)) {
     if (m_mem_desc->getPrecision() != element::string) {
         OPENVINO_THROW("[CPU] StringMemory supports String type only.");
     }
@@ -348,8 +344,7 @@ void* StringMemory::StringMemoryBlock::getRawPtr() const noexcept {
     return reinterpret_cast<void*>(m_data.get());
 }
 
-StaticMemory::StaticMemory(MemoryDescPtr desc, const void* data, bool pads_zeroing)
-    : m_pMemDesc(std::move(desc)) {
+StaticMemory::StaticMemory(MemoryDescPtr desc, const void* data, bool pads_zeroing) : m_pMemDesc(std::move(desc)) {
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] StaticMemory object cannot be created for string data.");
     }
@@ -509,11 +504,7 @@ bool mbind_move(const dnnl::memory& mem, int numaNodeID) {
     return mbind_move(data, size, numaNodeID);
 }
 
-MemoryPtr split_horizontal(const MemoryPtr& src,
-                           int dim,
-                           int w_rank,
-                           int w_size,
-                           bool need_fill) {
+MemoryPtr split_horizontal(const MemoryPtr& src, int dim, int w_rank, int w_size, bool need_fill) {
     auto desc = src->getDescPtr();
     auto shape = src->getShape();
     const auto& dims = shape.getDims();
@@ -571,11 +562,7 @@ MemoryPtr split_horizontal(const MemoryPtr& src,
     return ptr;
 }
 
-MemoryPtr split_vertical(const MemoryPtr& src,
-                         int dim,
-                         int w_rank,
-                         int w_size,
-                         bool need_fill) {
+MemoryPtr split_vertical(const MemoryPtr& src, int dim, int w_rank, int w_size, bool need_fill) {
     auto desc = src->getDescPtr();
     const auto& shape = src->getShape();
     const auto& dims = shape.getDims();

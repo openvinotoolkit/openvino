@@ -481,8 +481,7 @@ void Input::cloneBlobIfRequired() {
         // in that case we make a copy to avoid overflow
         if (m_constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
             if (m_constOp->get_element_type() == element::string) {
-                memory =
-                    std::make_shared<StringMemory>(memDesc, m_constOp->get_data_ptr<element::string>());
+                memory = std::make_shared<StringMemory>(memDesc, m_constOp->get_data_ptr<element::string>());
             } else {
                 memory = std::make_shared<Memory>(memDesc, m_constOp->get_data_ptr());
             }

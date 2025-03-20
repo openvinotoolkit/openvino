@@ -341,8 +341,7 @@ void Edge::externalAllocate(const WeightsSharing::Ptr& weightsCache) {
         auto alloc = [this]() {
             auto allocateFunc = [this](const MemoryDesc& inputDesc) -> MemoryPtr {
                 auto parentPtr = getParent();
-                return std::make_shared<StaticMemory>(inputDesc,
-                                                      nullptr,
+                return std::make_shared<StaticMemory>(inputDesc, nullptr,
                                                       false);  // no pads zeroing
             };
 
@@ -657,12 +656,9 @@ NodePtr Edge::modifiedInPlace() const {
 }
 
 std::ostream& operator<<(std::ostream& os, const Edge& edge) {
-    return os << "(" << edge.getParent()->getName() << ")"
-              << "[" << edge.getInputNum() << "] "
-              << "<->"
-              << "(" << edge.getChild()->getName() << ")"
-              << "[" << edge.getOutputNum() << "]"
-              << ":" << Edge::statusToString(edge.getStatus());
+    return os << "(" << edge.getParent()->getName() << ")" << "[" << edge.getInputNum() << "] " << "<->" << "("
+              << edge.getChild()->getName() << ")" << "[" << edge.getOutputNum() << "]" << ":"
+              << Edge::statusToString(edge.getStatus());
 }
 
 }  // namespace ov::intel_cpu

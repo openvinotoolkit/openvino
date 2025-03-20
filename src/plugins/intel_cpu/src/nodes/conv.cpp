@@ -1099,8 +1099,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
         attr.set_input_zero_points(legacyInputZeroPoints.size(), 1 << 1 /*through C dim*/);
         if (!legacyInputZeroPointsMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(ov::element::u8, {legacyInputZeroPoints.size()});
-            legacyInputZeroPointsMemPtr =
-                std::make_shared<Memory>(memoryDesc, legacyInputZeroPoints.data());
+            legacyInputZeroPointsMemPtr = std::make_shared<Memory>(memoryDesc, legacyInputZeroPoints.data());
         }
     }
 
@@ -1110,8 +1109,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 
         if (!legacyWeightsZeroPointsMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {legacyWeightsZeroPoints.size()});
-            legacyWeightsZeroPointsMemPtr =
-                std::make_shared<Memory>(memoryDesc, legacyWeightsZeroPoints.data());
+            legacyWeightsZeroPointsMemPtr = std::make_shared<Memory>(memoryDesc, legacyWeightsZeroPoints.data());
         }
     }
 
@@ -1121,8 +1119,7 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 
         if (!legacyOutputCompensationMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(ov::element::i32, {legacyOutputCompensation.size()});
-            legacyOutputCompensationMemPtr =
-                std::make_shared<Memory>(memoryDesc, legacyOutputCompensation.data());
+            legacyOutputCompensationMemPtr = std::make_shared<Memory>(memoryDesc, legacyOutputCompensation.data());
         }
     }
 }

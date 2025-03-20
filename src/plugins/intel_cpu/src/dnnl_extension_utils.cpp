@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "cpu_memory.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
 #include "utils/general_utils.h"
 

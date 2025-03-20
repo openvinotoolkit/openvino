@@ -158,7 +158,10 @@ private:
 
 class BackEdgePortHelper : public PortMapHelper {
 public:
-    BackEdgePortHelper(const MultiCachePtr& cache, const MemoryPtr& from, const MemoryPtr& to, const dnnl::engine& eng) {
+    BackEdgePortHelper(const MultiCachePtr& cache,
+                       const MemoryPtr& from,
+                       const MemoryPtr& to,
+                       const dnnl::engine& eng) {
         src = from;
         mem_holder_src = DnnlExtensionUtils::createMemoryPrimitive(src, eng);
 
@@ -384,8 +387,7 @@ void DynamicBuffer::transfer(const Node* node) {
 
         auto dims = from->getStaticDims();
         dims[axis] = abs_stride * num_execs;
-        const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)
-                              ->cloneWithNewDims(dims);
+        const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(dims);
 
         redefineToMemories(to, desc);
 
@@ -732,8 +734,9 @@ void TensorIterator::prepareInputPorts() {
             input_mems[map_rule.to].front();  // first memory is enough to access the shared underlying physical memory
 
         if (map_rule.axis == -1) {
-            first_mappers.emplace(std::make_pair(map_rule.from, map_rule.to),
-                                  std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem, eng));
+            first_mappers.emplace(
+                std::make_pair(map_rule.from, map_rule.to),
+                std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem, eng));
         } else {
             before_mappers.emplace_back(
                 std::make_shared<PortIteratorHelper>(context->getParamsCache(), from_mem, to_mem, true, map_rule, eng));

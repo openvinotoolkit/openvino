@@ -12,8 +12,8 @@
 #include <string>
 
 #include "common/c_types_map.hpp"
-#include "cpu_types.h"
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"

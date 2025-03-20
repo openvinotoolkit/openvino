@@ -1009,11 +1009,7 @@ void RNN::fillBiases() {
             ie_b_vec.resize(ie_b_vec_size);
             ie_b_ptr = ie_b_vec.data();
 
-            cpu_convert(b_const_blob->getData(),
-                        ie_b_ptr,
-                        b_const_blob->getPrecision(),
-                        ET,
-                        ie_b_vec_size);
+            cpu_convert(b_const_blob->getData(), ie_b_ptr, b_const_blob->getPrecision(), ET, ie_b_vec_size);
         } else {
             ie_b_ptr = reinterpret_cast<DataType*>(b_const_blob->getData());
         }

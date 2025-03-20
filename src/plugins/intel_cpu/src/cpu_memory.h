@@ -281,15 +281,13 @@ public:
 
     StringMemory(MemoryDescPtr desc, const void* data = nullptr);
 
-    StringMemory(const MemoryDesc& desc, const void* data = nullptr)
-        : StringMemory(desc.clone(), data) {}
+    StringMemory(const MemoryDesc& desc, const void* data = nullptr) : StringMemory(desc.clone(), data) {}
 
     StringMemory(MemoryDescPtr desc, StringMemoryBlockPtr block)
         : m_mem_desc(std::move(desc)),
           m_memoryBlock(std::move(block)) {}
 
-    StringMemory(const MemoryDesc& desc, StringMemoryBlockPtr block)
-        : StringMemory(desc.clone(), std::move(block)) {}
+    StringMemory(const MemoryDesc& desc, StringMemoryBlockPtr block) : StringMemory(desc.clone(), std::move(block)) {}
 
     const MemoryDesc& getDesc() const override {
         return *m_mem_desc;
@@ -336,16 +334,8 @@ bool mbind_move(void* data, size_t size, int numaNodeID);
 bool mbind_move(const MemoryCPtr& mem, int numaNodeID);
 bool mbind_move(const dnnl::memory& mem, int numaNodeID);
 
-MemoryPtr split_horizontal(const MemoryPtr& src,
-                           int dim,
-                           int w_rank,
-                           int w_size,
-                           bool need_fill = true);
-MemoryPtr split_vertical(const MemoryPtr& src,
-                         int dim,
-                         int w_rank,
-                         int w_size,
-                         bool need_fill = true);
+MemoryPtr split_horizontal(const MemoryPtr& src, int dim, int w_rank, int w_size, bool need_fill = true);
+MemoryPtr split_vertical(const MemoryPtr& src, int dim, int w_rank, int w_size, bool need_fill = true);
 
 }  // namespace intel_cpu
 }  // namespace ov
