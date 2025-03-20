@@ -6,8 +6,8 @@
 
 #include "eltwise.hpp"
 #include "libxsmm_typedefs.h"
-#include "modifiers.hpp"
 #include "snippets/op/reduce.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 

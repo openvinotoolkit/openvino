@@ -949,8 +949,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
 }
 
 template <typename T,
-          typename = typename std::
-              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+          typename = std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
 inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t size) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)

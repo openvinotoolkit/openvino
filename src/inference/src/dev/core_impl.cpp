@@ -774,9 +774,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     // Skip caching for proxy plugin. HW plugin will load network from the cache
-    if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
+    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
@@ -808,10 +809,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     // Skip caching for proxy plugin. HW plugin will load network from the cache
-    if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
+    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
         });
@@ -832,7 +834,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
 
-    if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
+    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CoreConfig::remove_core_skip_cache_dir(parsed._config);
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap(), model_path};
@@ -860,7 +862,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     // Skip caching for proxy plugin. HW plugin will load network from the cache
-    if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
+    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
@@ -1378,8 +1380,12 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
     return util::contains(plugin.get_property(ov::internal::supported_properties), key);
 }
 
-bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const {
-    return plugin.supports_model_caching();
+bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& arguments) const {
+    ov::AnyMap properties;
+    if (arguments.count(ov::device::priorities.name())) {
+        properties[ov::device::priorities.name()] = arguments.at(ov::device::priorities.name()).as<std::string>();
+    }
+    return plugin.supports_model_caching(properties);
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
@@ -1472,15 +1478,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
 
+                if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::model) &&
+                    cacheContent.model) {
+                    update_config[ov::hint::model.name()] = cacheContent.model;
+                }
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
-                    std::string weights_path = cacheContent.modelPath;
-                    auto pos = weights_path.rfind('.');
-                    if (pos != weights_path.npos && weights_path.substr(pos) == ".xml") {
-                        weights_path = weights_path.substr(0, pos);
-                        weights_path += ".bin";
-                    }
+                    std::filesystem::path weights_path = cacheContent.modelPath;
+                    weights_path.replace_extension(".bin");
+
                     if (ov::util::file_exists(weights_path)) {
-                        update_config[ov::weights_path.name()] = weights_path;
+                        update_config[ov::weights_path.name()] = weights_path.string();
                     }
                 }
                 if (model_buffer) {

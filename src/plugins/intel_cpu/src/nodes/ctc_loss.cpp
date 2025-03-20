@@ -63,11 +63,11 @@ void CTCLoss::executeDynamicImpl(const dnnl::stream& strm) {
 void CTCLoss::execute(const dnnl::stream& strm) {
     int32_t returnCode = 0;
 
-    const float* logits = getSrcDataAtPortAs<const float>(0);
-    const int* logitsLength = getSrcDataAtPortAs<const int>(1);
-    const int* labels = getSrcDataAtPortAs<const int>(2);
-    const int* labelsLength = getSrcDataAtPortAs<const int>(3);
-    float* dstData = getDstDataAtPortAs<float>(0);
+    const auto* logits = getSrcDataAtPortAs<const float>(0);
+    const auto* logitsLength = getSrcDataAtPortAs<const int>(1);
+    const auto* labels = getSrcDataAtPortAs<const int>(2);
+    const auto* labelsLength = getSrcDataAtPortAs<const int>(3);
+    auto* dstData = getDstDataAtPortAs<float>(0);
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const size_t batchNum = inDims[0];
@@ -221,15 +221,14 @@ void CTCLoss::execute(const dnnl::stream& strm) {
     auto sumLogs = [&float_inf](float log1, float log2) {
         if (log1 == -float_inf) {
             return log2;
-        } else if (log2 == -float_inf) {
-            return log1;
-        } else {
-            if (log1 > log2) {
-                return log1 + std::log1pf(std::exp(log2 - log1));
-            } else {
-                return log2 + std::log1pf(std::exp(log1 - log2));
-            }
         }
+        if (log2 == -float_inf) {
+            return log1;
+        }
+        if (log1 > log2) {
+            return log1 + std::log1pf(std::exp(log2 - log1));
+        }
+        return log2 + std::log1pf(std::exp(log1 - log2));
     };
 
     auto threadBody_3 = [&](const int ithr, const int nthr) {

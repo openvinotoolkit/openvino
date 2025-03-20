@@ -41,12 +41,12 @@ protected:
     virtual void validate();
     virtual void configure_model();
     virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
+    virtual void init_thresholds();
 
     void compare_models_param_res(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref);
     void compare_nodes(const std::shared_ptr<ov::Node>& node1, const std::shared_ptr<ov::Node>& node2, std::ostream& err_log);
     void update_ref_model();
     void match_parameters(const ov::ParameterVector& params, const ov::ParameterVector& ref_params);
-    void init_thresholds();
     void init_input_shapes(const std::vector<InputShape>& shapes);
     void set_callback_exception(std::function<void(const std::exception& exp)> callback) { callback_exception = callback; }
 

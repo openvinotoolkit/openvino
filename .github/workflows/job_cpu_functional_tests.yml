@@ -16,6 +16,11 @@ on:
         description: 'Python version to setup. E.g., "3.11"'
         type: string
         required: true
+      scope:
+        description: 'Defines tests scope {nightly | smoke}'
+        type: string
+        required: false
+        default: 'smoke'
 
 permissions: read-all
 
@@ -35,15 +40,16 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
+      GTEST_FILTER: ${{ inputs.scope == 'nightly' && '' || '--gtest_filter=*smoke*' }}
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -90,7 +96,7 @@ jobs:
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        uses: actions/cache/restore@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -106,11 +112,11 @@ jobs:
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 25
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 ${{ env.GTEST_FILTER }}
+        timeout-minutes: ${{ inputs.scope == 'nightly' && 125 || 25 }}
 
       - name: Save tests execution time
-        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        uses: actions/cache/save@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}

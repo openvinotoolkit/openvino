@@ -6,24 +6,13 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
+#include "emitters/tpp/common/utils.hpp"
 #include "libxsmm.h"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
 namespace ov::intel_cpu {
-// Note: The macro allows to automatically set appropriate environment variables for TPP/Libxsmm kernel compilation
-// All TPP kernels must be compiled using this macro.
-// * LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX enables more accurate exp approximation and exact division in TPP
-// * LIBXSMM_GEMM_K_A_PF_DIST allows to tweak prefetching for GEMM kernels
-#define COMPILE_TPP_KERNEL(...)                                          \
-    [&]() {                                                              \
-        setenv("LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX", "1", 1); \
-        setenv("LIBXSMM_GEMM_K_A_PF_DIST", "4", 1);                      \
-        auto res = reinterpret_cast<const uintptr_t>(__VA_ARGS__);       \
-        unsetenv("LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX");       \
-        unsetenv("LIBXSMM_GEMM_K_A_PF_DIST");                            \
-        return res;                                                      \
-    }()
+
 class DebugTppEmitter;
 class TppEmitter : public jit_binary_call_emitter {
     friend DebugTppEmitter;
@@ -32,7 +21,6 @@ public:
     TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                dnnl::impl::cpu::x64::cpu_isa_t isa,
                const ov::snippets::lowered::ExpressionPtr& expr);
-    static libxsmm_datatype ov_to_xsmm_dtype(ov::element::Type_t elemet_type);
 
 protected:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;

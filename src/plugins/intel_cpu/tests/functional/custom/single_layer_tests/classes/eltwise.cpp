@@ -12,6 +12,10 @@
 #include "openvino/runtime/properties.hpp"
 #include "utils/cpu_test_utils.hpp"
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#endif
+
 using namespace CPUTestUtils;
 
 namespace ov {
@@ -154,6 +158,15 @@ void EltwiseLayerCPUTest::SetUp() {
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
+    // issue 163147
+    if (ElementType::f16 == netType && enforceSnippets) {
+        auto fusedOpsNames = postOpMgrPtr ? postOpMgrPtr->getFusedOpsNames() : "";
+        if (fusedOpsNames.find("PerChannel") != std::string::npos) {
+            rel_threshold = 0.01f;
+            abs_threshold = 0.0078125f;
+        }
+    }
+
     shapes.resize(2);
     switch (opType) {
     case ov::test::utils::OpType::SCALAR: {
@@ -271,18 +284,27 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
     } else {
         return "acl";
     }
-#elif defined(OV_CPU_WITH_SHL)
+#endif
+
+#if defined(OPENVINO_ARCH_RISCV64)
+    if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+        if ((eltwise_type == utils::EltwiseTypes::ADD) ||
+            (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
+            (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
+            (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+            return "jit";
+        }
+    }
+#if defined(OV_CPU_WITH_SHL)
     if ((eltwise_type == utils::EltwiseTypes::ADD) ||
         (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
         (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
         (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
         return "shl";
-    } else {
-        return "ref";
     }
-#else
-    return CPUTestsBase::getPrimitiveType();
 #endif
+#endif
+    return CPUTestsBase::getPrimitiveType();
 }
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {

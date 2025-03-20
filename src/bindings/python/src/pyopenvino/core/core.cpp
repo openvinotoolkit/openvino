@@ -213,13 +213,10 @@ void regclass_Core(py::module m) {
     cls.def(
         "compile_model",
         [](ov::Core& self,
-           const py::object& model_buffer,
+           const py::object& model,
            const py::object& weight_buffer,
            const std::string& device_name,
            const std::map<std::string, py::object>& properties) {
-            std::stringstream _stream;
-            _stream << model_buffer.cast<std::string>();
-
             py::buffer_info info;
             if (!py::isinstance<py::none>(weight_buffer)) {
                 auto p = weight_buffer.cast<py::bytes>();
@@ -236,7 +233,7 @@ void regclass_Core(py::module m) {
             }
             auto _properties = Common::utils::properties_to_any_map(properties);
             py::gil_scoped_release release;
-            return self.compile_model(_stream.str(), tensor, device_name, _properties);
+            return self.compile_model(model.cast<std::string>(), tensor, device_name, _properties);
         },
         py::arg("model_buffer"),
         py::arg("weight_buffer"),
@@ -452,16 +449,14 @@ void regclass_Core(py::module m) {
            py::object model_path,
            py::object weights_path,
            const std::map<std::string, py::object>& config) {
-            if (py::isinstance(model_path, pybind11::module::import("io").attr("BytesIO"))) {
-                std::stringstream _stream;
+            if (py::isinstance(model_path, py::module::import("io").attr("BytesIO"))) {
                 model_path.attr("seek")(0);  // Always rewind stream!
-                _stream << model_path
-                               .attr("read")()  // alternative: model_path.attr("get_value")()
-                               .cast<std::string>();
+                py::buffer_info buffer_info = model_path.attr("getbuffer")().cast<py::buffer>().request();
+
                 py::buffer_info info;
                 if (!py::isinstance<py::none>(weights_path)) {
-                    auto p = weights_path.cast<py::bytes>();
-                    info = py::buffer(p).request();
+                    py::object buffer = weights_path.attr("getbuffer")();
+                    info = py::buffer(buffer).request();
                 }
                 size_t bin_size = static_cast<size_t>(info.size);
                 ov::Tensor tensor(ov::element::Type_t::u8, {bin_size});
@@ -471,7 +466,7 @@ void regclass_Core(py::module m) {
                     std::memcpy(tensor.data(), bin, bin_size);
                 }
                 py::gil_scoped_release release;
-                return self.read_model(_stream.str(), tensor);
+                return self.read_model(std::string(static_cast<char*>(buffer_info.ptr), buffer_info.size), tensor);
             } else if (py::isinstance(model_path, py::module_::import("pathlib").attr("Path")) ||
                        py::isinstance<py::str>(model_path)) {
                 const std::string model_path_cpp{py::str(model_path)};
@@ -484,10 +479,8 @@ void regclass_Core(py::module m) {
                 return self.read_model(model_path_cpp, weights_path_cpp, any_map);
             }
 
-            std::stringstream str;
-            str << "Provided python object type " << py::str(model_path.get_type())
-                << " isn't supported as 'model' argument.";
-            OPENVINO_THROW(str.str());
+            throw py::type_error("Provided python object type " + (std::string)(py::str(model_path.get_type())) +
+                                 " isn't supported as 'model' argument.");
         },
         py::arg("model"),
         py::arg("weights") = py::none(),
@@ -506,7 +499,7 @@ void regclass_Core(py::module m) {
                             For PDPD format (*.pdmodel) weights parameter is not used.
                             For TF format (*.pb): weights parameter is not used.
                             For TFLite format (*.tflite) weights parameter is not used.
-            :type weights: pathlib.Path
+            :type weights: Union[pathlib.Path, io.BytesIO]
             :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
             :type config: dict, optional
             :return: A model.

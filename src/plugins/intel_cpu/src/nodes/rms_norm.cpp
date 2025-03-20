@@ -34,7 +34,7 @@ struct RMSNormKey {
     size_t data_size;
     size_t scale_size;
     float eps;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const RMSNormKey& rhs) const;
 };
 
@@ -97,7 +97,7 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
     void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
         auto src = inputs[0]->getDataAs<uint8_t>();
         auto dst = output->getDataAs<uint8_t>();
-        float* scale = inputs[1]->getDataAs<float>();
+        auto* scale = inputs[1]->getDataAs<float>();
 
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dst_strides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
