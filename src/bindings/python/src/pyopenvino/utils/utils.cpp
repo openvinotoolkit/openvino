@@ -464,14 +464,13 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         case PY_TYPE::ModelDistributionPolicy:
             return _set.cast<std::set<ov::hint::ModelDistributionPolicy>>();
         case PY_TYPE::STR:
-            return _set.cast<std::vector<std::string>>();
+            return _set.cast<std::set<std::string>>();
         case PY_TYPE::FLOAT:
-            return _set.cast<std::vector<double>>();
+            return _set.cast<std::set<double>>();
         case PY_TYPE::INT:
-            std::cout << "set int cast\n";
-            return _set.cast<std::vector<int64_t>>();
+            return _set.cast<std::set<int64_t>>();
         case PY_TYPE::BOOL:
-            return _set.cast<std::vector<bool>>();
+            return _set.cast<std::set<bool>>();
         default:
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
