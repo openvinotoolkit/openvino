@@ -244,7 +244,7 @@ public:
      * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
      */
     template <typename T>
-    typename std::enable_if<std::is_base_of<Tensor, T>::value, bool>::type is() const noexcept {
+    std::enable_if_t<std::is_base_of_v<Tensor, T>, bool> is() const noexcept {
         try {
             T::type_check(*this);
         } catch (...) {
@@ -260,7 +260,7 @@ public:
      * @return T object
      */
     template <typename T>
-    const typename std::enable_if<std::is_base_of<Tensor, T>::value, T>::type as() const {
+    const std::enable_if_t<std::is_base_of_v<Tensor, T>, T> as() const {
         T::type_check(*this);
         return *static_cast<const T*>(this);
     }
