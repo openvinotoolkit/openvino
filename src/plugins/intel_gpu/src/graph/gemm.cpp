@@ -132,6 +132,9 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
                                                                           prim->output_transpose_order);
 
     cldnn::format output_format = input0_layout.format;
+    // Format update for rank > 4 case
+    if (output_shapes[0].size() > output_format.dims_order().size())
+        output_format = cldnn::format::get_default_format(output_shapes[0].size());
     if (node.get_preferred_output_fmt() != format::any)
         output_format = node.get_preferred_output_fmt();
 
@@ -188,6 +191,9 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     auto transposed_input1_pshape = get_transposed_input_shape(input1_pshape, weight_rank, output_rank, primitive->transpose_input1, false);
 
     std::vector<layout> layouts = input_layouts;
+    // Format update for rank > 4 case
+    if (layouts[0].format.dimension() < transposed_input0_pshape.size())
+        layouts[0].format = cldnn::format::get_default_format(transposed_input0_pshape.size());
     layouts[0].set_partial_shape(transposed_input0_pshape);
     layouts[1].set_partial_shape(transposed_input1_pshape);
 
