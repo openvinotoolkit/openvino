@@ -676,7 +676,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     // weiScaleMaskPerChannel =  1 << 0 Weight dims in Group CONV:[Group, OC, IC, KH, KW], perchannel weight scale
     // applied on GROUP and OC DIM, weiScaleMaskPerChannel = ( 1 << 0 | 1<< 1) = 0x03
     DnnlPostOpsComposerLegacy
-        dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
+        dnnlpoc(attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 

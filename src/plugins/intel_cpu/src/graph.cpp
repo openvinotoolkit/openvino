@@ -758,8 +758,7 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaini
                 // reuse starting from second edge (skip the base edge)
                 for (size_t i = 1; i < cluster.size(); i++) {
                     const auto& edge = cluster.at(i);
-                    edge->reuse(
-                        std::make_shared<StringMemory>(edge->getOriginalDesc(), memBlock));
+                    edge->reuse(std::make_shared<StringMemory>(edge->getOriginalDesc(), memBlock));
                 }
                 return false;
             }

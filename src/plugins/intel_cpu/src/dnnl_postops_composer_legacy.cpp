@@ -12,8 +12,7 @@
 
 namespace ov::intel_cpu {
 
-DnnlPostOpsComposerLegacy::DnnlPostOpsComposerLegacy(const dnnl::engine& engine,
-                                                     dnnl::primitive_attr& attr,
+DnnlPostOpsComposerLegacy::DnnlPostOpsComposerLegacy(dnnl::primitive_attr& attr,
                                                      dnnl::post_ops& ops,
                                                      std::unordered_map<int, MemoryPtr>& args,
                                                      const VectorDims& outputDims,
@@ -22,8 +21,7 @@ DnnlPostOpsComposerLegacy::DnnlPostOpsComposerLegacy(const dnnl::engine& engine,
                                                      const int weiScaleMaskPerChannel,
                                                      const std::vector<float>& DQScales,
                                                      bool hasBias)
-    : engine(engine),
-      attr(attr),
+    : attr(attr),
       ops(ops),
       args(args),
       outputDims(outputDims),

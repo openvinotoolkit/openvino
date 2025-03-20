@@ -656,9 +656,12 @@ NodePtr Edge::modifiedInPlace() const {
 }
 
 std::ostream& operator<<(std::ostream& os, const Edge& edge) {
-    return os << "(" << edge.getParent()->getName() << ")" << "[" << edge.getInputNum() << "] " << "<->" << "("
-              << edge.getChild()->getName() << ")" << "[" << edge.getOutputNum() << "]" << ":"
-              << Edge::statusToString(edge.getStatus());
+    return os << "(" << edge.getParent()->getName() << ")"
+              << "[" << edge.getInputNum() << "] "
+              << "<->"
+              << "(" << edge.getChild()->getName() << ")"
+              << "[" << edge.getOutputNum() << "]"
+              << ":" << Edge::statusToString(edge.getStatus());
 }
 
 }  // namespace ov::intel_cpu
