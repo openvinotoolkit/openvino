@@ -2,25 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/strides.hpp"
-
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/split.hpp"
-
-#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/opsets/opset13.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
-#include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "openvino/pass/manager.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/common_optimizations/sdpa_fusion.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 namespace {
 // validate the batch axis padding for sdpa_micro kernel.
 class SDPA : virtual public ov::test::SubgraphBaseStaticTest {
@@ -33,7 +31,8 @@ protected:
         auto constant2 = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 4, 8, 16});
         auto constant3 = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 4, 8, 16});
         auto input = std::make_shared<ov::op::v0::Parameter>(inType, inputShape);
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{}, std::vector<int64_t>{0});
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{}, std::vector<int64_t>{0});
         auto split = std::make_shared<ov::op::v1::Split>(input, split_axis_op, 3);
 
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(split->output(0), constant1, false);
@@ -66,20 +65,19 @@ protected:
 };
 
 class SDPAFusion : virtual public ov::test::SubgraphBaseStaticTest,
-public testing::WithParamInterface<std::tuple<ov::PartialShape, // query shape
-                                              ov::Shape, // query reshape shape
-                                              ov::PartialShape, // key shape
-                                              ov::Shape, // key reshape shape
-                                              ov::PartialShape, // value shape
-                                              ov::Shape, // value reshape shape
-                                              ov::PartialShape, // mask shape
-                                              float, // scale value
-                                              float, // abs_threshold
-                                              float> // rel_threshold
-                                              >  {
+                   public testing::WithParamInterface<std::tuple<ov::PartialShape,  // query shape
+                                                                 ov::Shape,         // query reshape shape
+                                                                 ov::PartialShape,  // key shape
+                                                                 ov::Shape,         // key reshape shape
+                                                                 ov::PartialShape,  // value shape
+                                                                 ov::Shape,         // value reshape shape
+                                                                 ov::PartialShape,  // mask shape
+                                                                 float,             // scale value
+                                                                 float,             // abs_threshold
+                                                                 float>             // rel_threshold
+                                                      > {
 protected:
-    void create_model()  {
-
+    void create_model() {
         auto params = GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
         inType = ov::element::f16;
@@ -96,27 +94,29 @@ protected:
 
         const auto query = std::make_shared<ov::op::v0::Parameter>(inType, query_shape);
         std::shared_ptr<ov::op::v1::Reshape> query_reshaped;
-        if (query_shape != query_reshape_shape){
-            const auto query_reshape_params = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{query_reshape_shape.size()}, 
-                query_reshape_shape);
+        if (query_shape != query_reshape_shape) {
+            const auto query_reshape_params = ov::op::v0::Constant::create(ov::element::i64,
+                                                                           ov::Shape{query_reshape_shape.size()},
+                                                                           query_reshape_shape);
             query_reshaped = std::make_shared<ov::op::v1::Reshape>(query, query_reshape_params, true);
             reshape = true;
         }
 
         const auto key = std::make_shared<ov::op::v0::Parameter>(inType, key_shape);
         std::shared_ptr<ov::op::v1::Reshape> key_reshaped;
-        if (key_shape != key_reshape_shape){
-            const auto key_reshape_params = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{key_reshape_shape.size()}, 
-                key_reshape_shape);
+        if (key_shape != key_reshape_shape) {
+            const auto key_reshape_params =
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{key_reshape_shape.size()}, key_reshape_shape);
             key_reshaped = std::make_shared<ov::op::v1::Reshape>(key, key_reshape_params, true);
             reshape = true;
         }
 
         const auto value = std::make_shared<ov::op::v0::Parameter>(inType, value_shape);
         std::shared_ptr<ov::op::v1::Reshape> value_reshaped;
-        if (value_shape != value_reshape_shape){
-            const auto value_reshape_params = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{value_reshape_shape.size()}, 
-                value_reshape_shape);
+        if (value_shape != value_reshape_shape) {
+            const auto value_reshape_params = ov::op::v0::Constant::create(ov::element::i64,
+                                                                           ov::Shape{value_reshape_shape.size()},
+                                                                           value_reshape_shape);
             value_reshaped = std::make_shared<ov::op::v1::Reshape>(value, value_reshape_params, true);
             reshape = true;
         }
@@ -124,9 +124,9 @@ protected:
         const auto mask = std::make_shared<ov::op::v0::Parameter>(inType, attention_mask_shape);
         const auto scale_const = ov::op::v0::Constant::create(inType, {}, std::vector<float>{std::get<7>(params)});
         std::shared_ptr<ov::op::v0::MatMul> qk;
-        if (reshape){
+        if (reshape) {
             qk = std::make_shared<ov::op::v0::MatMul>(query_reshaped, key_reshaped, false, true);
-        } else{
+        } else {
             qk = std::make_shared<ov::op::v0::MatMul>(query, key, false, true);
         }
 
@@ -136,18 +136,20 @@ protected:
         std::shared_ptr<ov::op::v0::MatMul> qkv;
         std::shared_ptr<ov::op::v1::Reshape> qkv_reshaped;
         std::shared_ptr<ov::op::v0::Result> output;
-        if (reshape){
+        if (reshape) {
             qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value_reshaped, false, false);
-            const auto qkv_reshape_params = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{query_shape.size()}, 
-                query_shape.to_shape());
+            const auto qkv_reshape_params =
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{query_shape.size()}, query_shape.to_shape());
             qkv_reshaped = std::make_shared<ov::op::v1::Reshape>(qkv, qkv_reshape_params, true);
             output = std::make_shared<ov::op::v0::Result>(qkv_reshaped->output(0));
-        } else{
+        } else {
             qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
             output = std::make_shared<ov::op::v0::Result>(qkv->output(0));
         }
 
-        function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{query, key, value, mask}, "sdpa_model");
+        function = std::make_shared<ov::Model>(ov::OutputVector{output},
+                                               ov::ParameterVector{query, key, value, mask},
+                                               "sdpa_model");
 
         functionRefs = function->clone();
 
@@ -204,28 +206,36 @@ TEST_P(SDPAFusion, Inference) {
     check_results();
 }
 
-INSTANTIATE_TEST_SUITE_P(SDPAFusionTests, SDPAFusion, ::testing::Values(std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
-                                                                                        ov::Shape{10, 1024, 64},
-                                                                                        ov::PartialShape{1, 10, 77, 64},
-                                                                                        ov::Shape{10, 77, 64},
-                                                                                        ov::PartialShape{1, 10, 77, 64},
-                                                                                        ov::Shape{10, 77, 64},
-                                                                                        ov::PartialShape{10, 1024, 77},
-                                                                                        1.0f, 0.025f, 0.025f),
-                                                                        std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
-                                                                                        ov::Shape{ 10, 1024, 64},
-                                                                                        ov::PartialShape{1, 10, 1024, 64},
-                                                                                        ov::Shape{10, 1024, 64},
-                                                                                        ov::PartialShape{1, 10, 1024, 64},
-                                                                                        ov::Shape{10, 1024, 64},
-                                                                                        ov::PartialShape{10, 1024, 1024},
-                                                                                        1.0f, 0.025f, 0.025f),
-                                                                        std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
-                                                                                        ov::Shape{1, 10, 1024, 64},
-                                                                                        ov::PartialShape{1, 10, 1024, 64},
-                                                                                        ov::Shape{1, 10, 1024, 64},
-                                                                                        ov::PartialShape{1, 10, 1024, 64},
-                                                                                        ov::Shape{1, 10, 1024, 64},
-                                                                                        ov::PartialShape{10, 1024, 1024},
-                                                                                        1.0f, 0.025f, 0.025f)));
+INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
+                         SDPAFusion,
+                         ::testing::Values(std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
+                                                           ov::Shape{10, 1024, 64},
+                                                           ov::PartialShape{1, 10, 77, 64},
+                                                           ov::Shape{10, 77, 64},
+                                                           ov::PartialShape{1, 10, 77, 64},
+                                                           ov::Shape{10, 77, 64},
+                                                           ov::PartialShape{10, 1024, 77},
+                                                           1.0f,
+                                                           0.025f,
+                                                           0.025f),
+                                           std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
+                                                           ov::Shape{10, 1024, 64},
+                                                           ov::PartialShape{1, 10, 1024, 64},
+                                                           ov::Shape{10, 1024, 64},
+                                                           ov::PartialShape{1, 10, 1024, 64},
+                                                           ov::Shape{10, 1024, 64},
+                                                           ov::PartialShape{10, 1024, 1024},
+                                                           1.0f,
+                                                           0.025f,
+                                                           0.025f),
+                                           std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
+                                                           ov::Shape{1, 10, 1024, 64},
+                                                           ov::PartialShape{1, 10, 1024, 64},
+                                                           ov::Shape{1, 10, 1024, 64},
+                                                           ov::PartialShape{1, 10, 1024, 64},
+                                                           ov::Shape{1, 10, 1024, 64},
+                                                           ov::PartialShape{10, 1024, 1024},
+                                                           1.0f,
+                                                           0.025f,
+                                                           0.025f)));
 }  // namespace
