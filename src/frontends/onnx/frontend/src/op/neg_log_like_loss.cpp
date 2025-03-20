@@ -53,7 +53,6 @@ ov::OutputVector negative_log_likelihood_loss(const ov::OutputVector inputs,
     // https://github.com/onnx/onnx/blob/a90ee0519933bd7412b04a3b7472eb550e78fcaf/onnx/defs/math/old.cc#L14
     const auto num_inputs = inputs.size();
     const auto& data = inputs[0];
-    const auto data_type = data.get_element_type();
     const auto& target = inputs[1];
     ov::Output<ov::Node> loss;
 
