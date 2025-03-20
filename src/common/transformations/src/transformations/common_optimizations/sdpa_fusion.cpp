@@ -182,21 +182,11 @@ SDPAFusion::SDPAFusion() {
         }
 
         Output<ov::Node> mask_input;
-        if (pattern_map.count(mask) > 0) {
-            // for some reason line below doesn't work for all cases,
-            // so need to explicitly point to correct qk layer
-            // auto qk_out = pattern_map.at(qk_opt_scaled_pre_mask_opt_reshaped);
-            ov::Output<ov::Node> qk_out;
-            if (pattern_map.count(qk_opt_scaled_pre_mask_reshaped) > 0)
-                qk_out = pattern_map.at(qk_opt_scaled_pre_mask_reshaped);
-            else if (pattern_map.count(qk_unsqueeze) > 0)
-                qk_out = pattern_map.at(qk_unsqueeze);
-            else if (pattern_map.count(qk) > 0)
-                qk_out = pattern_map.at(qk);
-            else
-                return false;
+        if (pattern_map.count(mask) > 0 && pattern_map.count(qk_opt_scaled_mask_added) > 0) {
+            ov::Output<ov::Node> qk_out = pattern_map.at(qk_opt_scaled_mask_added);
+            // Get shape of the first input
+            auto qk_out_ps = qk_out.get_target_inputs().begin()->get_partial_shape();
 
-            auto qk_out_ps = qk_out.get_partial_shape();
             mask_input = pattern_map.at(mask);
             auto mask_input_ps = mask_input.get_partial_shape();
             
