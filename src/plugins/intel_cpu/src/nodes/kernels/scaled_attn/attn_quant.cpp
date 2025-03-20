@@ -459,13 +459,13 @@ static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
 
 template <typename T, ov::element::Type_t DST_PREC>
 static inline void quantize_block_by_dims(const ov::intel_cpu::PlainTensor& src,
-                                    const ov::intel_cpu::PlainTensor& dst,
-                                    size_t b,
-                                    size_t h,
-                                    size_t m,
-                                    size_t block_number,
-                                    size_t block_offset,
-                                    size_t groupe_size) {
+                                          const ov::intel_cpu::PlainTensor& dst,
+                                          size_t b,
+                                          size_t h,
+                                          size_t m,
+                                          size_t block_number,
+                                          size_t block_offset,
+                                          size_t groupe_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)|
@@ -689,6 +689,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const ov::intel_cpu::PlainTensor& slot_mapping,
                                 ov::intel_cpu::PlainTensor& temp_buffer,
                                 const bool quant_key_by_channel,
+                                const bool quant_value_by_channel,
                                 const size_t key_group_size,
                                 const size_t value_group_size) {
     const size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2];
@@ -719,15 +720,31 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         });
     }
     // quant value
-    parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
-        auto slot = slot_mapping.ptr<int32_t>(b)[m];
-        if (slot < 0) {
-            return;
-        }
-        auto block_number = slot / block_size;
-        auto block_offset = slot % block_size;
-        quantize_block_by_dims<T, VALUE_DST_PREC>(v_src, v_dst, b, h, m, block_number, block_offset, value_group_size);
-    });
+    if (quant_value_by_channel) {
+        parallel_for2d(past_lens.size(0), H, [&](size_t sub_seq_id, size_t h) {
+            float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
+            quantize_block_by_channel<T, VALUE_DST_PREC>(v_src,
+                                                         v_dst,
+                                                         past_lens,
+                                                         subsequence_begins,
+                                                         block_indices,
+                                                         block_indices_begins,
+                                                         buffer,
+                                                         sub_seq_id,
+                                                         h);
+        });
+    } else {
+        parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
+            auto slot = slot_mapping.ptr<int32_t>(b)[m];
+            if (slot < 0) {
+                return;
+            }
+            auto block_number = slot / block_size;
+            auto block_offset = slot % block_size;
+            quantize_block_by_dims<T,
+                                   VALUE_DST_PREC>(v_src, v_dst, b, h, m, block_number, block_offset, value_group_size);
+        });
+    }
 }
 
 void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
@@ -797,6 +814,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                         const ov::intel_cpu::PlainTensor& slot_mapping,
                         ov::intel_cpu::PlainTensor& temp_buffer,
                         const bool quant_key_by_channel,
+                        const bool quant_value_by_channel,
                         const size_t key_group_size,
                         const size_t value_group_size) {
     using function_type = void (*)(const ov::intel_cpu::PlainTensor&,
@@ -809,6 +827,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                                    const ov::intel_cpu::PlainTensor&,
                                    const ov::intel_cpu::PlainTensor&,
                                    ov::intel_cpu::PlainTensor&,
+                                   const bool,
                                    const bool,
                                    const size_t,
                                    const size_t);
@@ -849,6 +868,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                              slot_mapping,
                              temp_buffer,
                              quant_key_by_channel,
+                             quant_value_by_channel,
                              key_group_size,
                              value_group_size);
     } else if (k_src.get_precision() == ov::element::bf16) {
@@ -863,6 +883,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                              slot_mapping,
                              temp_buffer,
                              quant_key_by_channel,
+                             quant_value_by_channel,
                              key_group_size,
                              value_group_size);
     } else if (k_src.get_precision() == ov::element::f16) {
@@ -877,6 +898,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                             slot_mapping,
                             temp_buffer,
                             quant_key_by_channel,
+                            quant_value_by_channel,
                             key_group_size,
                             value_group_size);
     }

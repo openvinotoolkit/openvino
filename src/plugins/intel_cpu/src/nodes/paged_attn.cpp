@@ -181,13 +181,15 @@ void PagedAttention::createPrimitive() {
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision);
+        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision);
+        bool quantValuebyChannel = isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision);
         return make_pa_executor(rtPrecision,
                                 kCachePrecision,
                                 vCachePrecision,
                                 cpuConfig.keyCacheGroupSize,
                                 cpuConfig.valueCacheGroupSize,
-                                byChannel);
+                                quantKeybyChannel,
+                                quantValuebyChannel);
 #else
         return nullptr;
 #endif
@@ -258,7 +260,12 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                    ov::element::f32,
                    ov::element::f16,
                    ov::element::bf16)) {
-            if (!one_of(kCachePrecision, ov::element::u4, ov::element::u8, ov::element::f16, ov::element::f32, ov::element::bf16)) {
+            if (!one_of(kCachePrecision,
+                        ov::element::u4,
+                        ov::element::u8,
+                        ov::element::f16,
+                        ov::element::f32,
+                        ov::element::bf16)) {
                 errorMessage = "PageAttn key value cache compression doesn't support key cache prec " +
                                kCachePrecision.to_string() + " value cache prec " + vCachePrecision.to_string();
                 return false;

@@ -329,7 +329,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 keyCachePrecisionSetExplicitly = true;
                 auto const prec = val.as<ov::element::Type>();
-                if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8, ov::element::u4)) {
+                if (one_of(prec,
+                           ov::element::f32,
+                           ov::element::f16,
+                           ov::element::bf16,
+                           ov::element::u8,
+                           ov::element::u4)) {
                     keyCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("keyCachePrecision doesn't support value ", prec);
@@ -396,6 +401,25 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<ov::intel_cpu::CacheQuantMode>(),
                                " for property key ",
                                ov::intel_cpu::key_cache_quant_mode.name(),
+                               ". Expected only unsinged integer numbers");
+            }
+        } else if (key == ov::intel_cpu::value_cache_quant_mode.name()) {
+            try {
+                auto const mode = val.as<ov::intel_cpu::CacheQuantMode>();
+                if (mode == ov::intel_cpu::CacheQuantMode::AUTO) {
+                    valueCacheQuantMode = CacheQuantMode::AUTO;
+                } else if (mode == ov::intel_cpu::CacheQuantMode::BY_CHANNEL) {
+                    valueCacheQuantMode = CacheQuantMode::BY_CHANNEL;
+                } else if (mode == ov::intel_cpu::CacheQuantMode::BY_HIDDEN) {
+                    valueCacheQuantMode = CacheQuantMode::BY_HIDDEN;
+                } else {
+                    OPENVINO_THROW("invalid value");
+                }
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<ov::intel_cpu::CacheQuantMode>(),
+                               " for property key ",
+                               ov::intel_cpu::value_cache_quant_mode.name(),
                                ". Expected only unsinged integer numbers");
             }
         } else if (key == ov::cache_encryption_callbacks.name()) {
