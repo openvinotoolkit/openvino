@@ -79,7 +79,6 @@ template <typename T>
 inline JitConstant make_jit_constant(const JitTerm& name, T value) {
     return JitConstant(name.str(), to_code_string(value));
 }
-
 struct JitConstants : public std::vector<JitConstant> {
     void add(const JitConstant& constant) {
         push_back(constant);

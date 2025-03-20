@@ -361,7 +361,7 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 3, 2, 2, 4, 3} }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 3 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 3 } }); // Indexes
     int64_t axis = 3;
     int64_t batch_dim = -1;
     bool negative_indexes = true;
@@ -394,15 +394,15 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
         ov::float16(137.f), ov::float16(138.f), ov::float16(139.f), ov::float16(140.f), ov::float16(141.f), ov::float16(142.f), ov::float16(143.f), ov::float16(144.f)
     });
 
-    set_values(input2, {
-        0.f, 0.f, 0.f,
-        3.f, -3.f, 0.f,
+    set_values<int32_t>(input2, {
+        0, 0, 0,
+        3, -3, 0,
 
-        1.f, -3.f, 1.f,
-        -2.f, 0.f, 3.f,
+        1, -3, 1,
+        -2, 0, 3,
 
-        -1.f, 1.f, 0.f,
-        2.f, 0.f, 1.f
+        -1, 1, 0,
+        2, 0, 1
     });
 
     topology topology;
@@ -486,7 +486,7 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, tensor{ 2, 2, 2, 2, 2, 2} }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 2 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 2 } }); // Indexes
     int64_t axis = 5;
     int64_t batch_dim = -1;
 
@@ -504,12 +504,12 @@ TEST(gather7_gpu_fp16, d222_axisX_bdim_m1) {
         ov::float16(57.f),  ov::float16(58.f),  ov::float16(59.f),  ov::float16(60.f),  ov::float16(61.f),  ov::float16(62.f),  ov::float16(63.f),  ov::float16(64.f),
     });
 
-    set_values(input2, {
-        0.f, 1.f,
-        0.f, 0.f,
+    set_values<int32_t>(input2, {
+        0, 1,
+        0, 0,
 
-        0.f, 0.f,
-        1.f, 0.f
+        0, 0,
+        1, 0
     });
 
     topology topology;
@@ -580,7 +580,7 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 3, 2, 2, 4, 3} }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 3 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 3 } }); // Indexes
     int64_t axis = 3;
     int64_t batch_dim = -1;
 
@@ -612,15 +612,15 @@ TEST(gather7_gpu_fp16, d323_axisY_bdim_m1) {
         ov::float16(137.f), ov::float16(138.f), ov::float16(139.f), ov::float16(140.f), ov::float16(141.f), ov::float16(142.f), ov::float16(143.f), ov::float16(144.f)
     });
 
-    set_values(input2, {
-        0.f, 0.f, 0.f,
-        3.f, 1.f, 0.f,
+    set_values<int32_t>(input2, {
+        0, 0, 0,
+        3, 1, 0,
 
-        1.f, 1.f, 1.f,
-        2.f, 0.f, 3.f,
+        1, 1, 1,
+        2, 0, 3,
 
-        3.f, 1.f, 0.f,
-        2.f, 0.f, 1.f
+        3, 1, 0,
+        2, 0, 1
     });
 
     topology topology;
@@ -787,7 +787,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
     int64_t axis = 1;
     size_t batch_dim = -1;
 
@@ -797,9 +797,9 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim_m1) {
         ov::float16(5.f), ov::float16(6.f)
     });
 
-    set_values(input2, {
-        0.f, 0.f, 1.f,
-        0.f, 0.f, 0.f
+    set_values<int32_t>(input2, {
+        0, 0, 1,
+        0, 0, 0
     });
 
     topology topology;
@@ -850,7 +850,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
     int64_t axis = 1;
     int64_t batch_dim = 1;
 
@@ -860,9 +860,9 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim1) {
         ov::float16(5.f), ov::float16(6.f)
     });
 
-    set_values(input2, {
-        0.f, 0.f, 1.f,
-        0.f, 0.f, 0.f
+    set_values<int32_t>(input2, {
+        0, 0, 1,
+        0, 0, 0
     });
 
     topology topology;
@@ -912,7 +912,7 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 2, 1, 1 } }); // Indexes
     int64_t axis = 1;
     size_t batch_dim = 0;
 
@@ -922,9 +922,9 @@ TEST(gather7_gpu_fp16, d32_axisF_bdim0) {
         ov::float16(5.f), ov::float16(6.f)
     });
 
-    set_values(input2, {
-        0.f, 0.f, 1.f,
-        0.f, 0.f, 0.f
+    set_values<int32_t>(input2, {
+        0, 0, 1,
+        0, 0, 0
     });
 
     topology topology;
@@ -982,7 +982,7 @@ TEST(gather_gpu_fp16, d14_axisB) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 4, 1, 1 } }); // Indexes
     int64_t axis = 0;
 
     set_values(input1, {
@@ -990,9 +990,9 @@ TEST(gather_gpu_fp16, d14_axisB) {
         ov::float16(3.0f), ov::float16(4.0f)
     });
 
-    set_values(input2, {
-        0.f, 1.f,
-        1.f, 0.f
+    set_values<int32_t>(input2, {
+        0, 1,
+        1, 0
     });
 
     topology topology;
@@ -1041,7 +1041,7 @@ TEST(gather_gpu_fp16, d222_axisB) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     int64_t axis = 0;
 
     set_values(input1, {
@@ -1052,9 +1052,9 @@ TEST(gather_gpu_fp16, d222_axisB) {
         ov::float16(10.f), ov::float16(11.f), ov::float16(12.f)
     });
 
-    set_values(input2, {
-        0.f, 1.f,
-        2.f, 1.f
+    set_values<int32_t>(input2, {
+        0, 1,
+        2, 1
     });
 
     topology topology;
@@ -1103,7 +1103,7 @@ TEST(gather_gpu_fp16, d22_axisY) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     int64_t axis = 2;
 
     set_values(input1, {
@@ -1114,8 +1114,8 @@ TEST(gather_gpu_fp16, d22_axisY) {
         ov::float16(10.f), ov::float16(11.f), ov::float16(12.f)
     });
 
-    set_values(input2, {
-        0.f, 1.f, 2.f, 1.f
+    set_values<int32_t>(input2, {
+        0, 1, 2, 1
     });
 
     topology topology;
@@ -1164,7 +1164,7 @@ TEST(gather_gpu_fp16, d22_axisF) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 3, 1, 2 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     int64_t axis = 1;
 
     set_values(input1, {
@@ -1175,8 +1175,8 @@ TEST(gather_gpu_fp16, d22_axisF) {
             ov::float16(10.f), ov::float16(11.f), ov::float16(12.f)
     });
 
-    set_values(input2, {
-            0.f, 1.f, 2.f, 1.f
+    set_values<int32_t>(input2, {
+            0, 1, 2, 1
     });
 
     topology topology;
@@ -1224,7 +1224,7 @@ TEST(gather_gpu_fp32, d14_axisB) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 4, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1, 4, 1, 1 } }); // Indexes
     int64_t axis = 0;
 
     set_values(input1, {
@@ -1232,9 +1232,9 @@ TEST(gather_gpu_fp32, d14_axisB) {
         3.0f, 4.0f
     });
 
-    set_values(input2, {
-        0.f, 1.f,
-        1.f, 0.f
+    set_values<int32_t>(input2, {
+        0, 1,
+        1, 0
     });
 
     topology topology;
@@ -1283,7 +1283,7 @@ TEST(gather_gpu_fp32, d222_axisB) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     int64_t axis = 0;
 
     set_values(input1, {
@@ -1294,8 +1294,8 @@ TEST(gather_gpu_fp32, d222_axisB) {
         10.f, 11.f, 12.f
     });
 
-    set_values(input2, {
-        0.f, 1.f, 2.f, 1.f
+    set_values<int32_t>(input2, {
+        0, 1, 2, 1
     });
 
     topology topology;
@@ -1344,7 +1344,7 @@ TEST(gather_gpu_fp32, d22_axisY) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     int64_t axis = 2;
 
     set_values(input1, {
@@ -1355,8 +1355,8 @@ TEST(gather_gpu_fp32, d22_axisY) {
         10.f, 11.f, 12.f
     });
 
-    set_values(input2, {
-        0.f, 1.f, 2.f, 1.f
+    set_values<int32_t>(input2, {
+        0, 1, 2, 1
     });
 
     topology topology;
@@ -1405,7 +1405,7 @@ TEST(gather_gpu_fp32, d22_axisF) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 3, 1, 2 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     int64_t axis = 1;
 
     set_values(input1, {
@@ -1416,8 +1416,8 @@ TEST(gather_gpu_fp32, d22_axisF) {
             10.f, 11.f, 12.f
     });
 
-    set_values(input2, {
-            0.f, 1.f, 2.f, 1.f
+    set_values<int32_t>(input2, {
+            0, 1, 2, 1
     });
 
     topology topology;

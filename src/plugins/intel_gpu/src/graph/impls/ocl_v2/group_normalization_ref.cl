@@ -3,6 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 #define NUM_CHANNELS_IN_GROUP (INPUT0_FEATURE_NUM / NUM_GROUPS)
 #define CHANNEL_SIZE (INPUT0_BATCH_PITCH / INPUT0_FEATURE_NUM)
@@ -76,7 +77,7 @@ KERNEL (calc_standard_deviation_ref)(  __global INPUT0_TYPE* input
     const int feature_begin = group * NUM_CHANNELS_IN_GROUP;
     const int feature_end = group * NUM_CHANNELS_IN_GROUP + NUM_CHANNELS_IN_GROUP;
     float variance = 0.f, error = 0.f;
-    
+
     for (int feature = feature_begin; feature < feature_end; feature++)
     {
         if (feature >= INPUT0_FEATURE_NUM)
@@ -133,7 +134,7 @@ KERNEL (normalize_ref)(  __global INPUT0_TYPE* input
     FUSED_OPS;
     output[output_idx] = FUSED_OPS_RESULT;
 #else
-    output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
+    output[output_idx] = res;
 #endif
 }
 

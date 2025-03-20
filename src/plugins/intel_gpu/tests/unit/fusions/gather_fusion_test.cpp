@@ -25,7 +25,6 @@ struct gather_test_params {
     data_types data_type;
     format input_format;
     data_types default_type;
-    format default_format;
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
 };
@@ -62,12 +61,16 @@ public:
     }
 
     layout get_indices_layout(gather_test_params& p) {
-        return layout{ ov::PartialShape(p.indices_shape), p.data_type, format::bfyx };
+        return layout{ ov::PartialShape(p.indices_shape), ov::element::i32, format::get_default_format(p.indices_shape.size()) };
     }
 
     size_t get_axis_dim(gather_test_params& p) {
         auto in_layout = get_input_layout(p);
         return in_layout.get_dims()[p.axis];
+    }
+
+    layout get_single_element_layout(gather_test_params& p) {
+        return layout{ov::PartialShape{1}, p.default_type, format::bfyx };
     }
 
     layout get_per_channel_layout(gather_test_params& p, bool is_dynamic = false) {
@@ -83,7 +86,7 @@ public:
                 }
             }
         }
-        return layout{ ov::PartialShape(dims), p.default_type, p.default_format };
+        return layout{ ov::PartialShape(dims), p.default_type, format::get_default_format(p.out_shape.size()) };
     }
 };
 }  // namespace
@@ -92,34 +95,34 @@ public:
 /* ------------------------------------------ Gather cases --------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
 
-#define CASE_GATHER_FP32_1 { 2, 3, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 4, 1 }, 0, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GATHER_FP32_2 { 3, 2, 2, 1 }, { 2, 3, 1, 1 }, { 2, 3, 2, 2 }, 0, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GATHER_FP32_3 { 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 3, 2, 2, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GATHER_FP32_4 { 5, 3, 2, 2 }, { 3, 1, 1, 1 }, { 5, 2, 3, 2 }, 2, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GATHER_FP32_5 { 2, 3, 2, 1 }, { 3, 1, 1, 1 }, { 2, 3, 3, 1 }, 2, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GATHER_FP32_6 { 2, 3, 4 }, { 4 }, { 4, 3, 4 }, 0, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_1 { 2, 3, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 4, 1 }, 0, data_types::f32, format::bfyx, data_types::f32
+#define CASE_GATHER_FP32_2 { 3, 2, 2, 1 }, { 2, 3, 1, 1 }, { 2, 3, 2, 2 }, 0, data_types::f32, format::bfyx, data_types::f32
+#define CASE_GATHER_FP32_3 { 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 3, 2, 2, 1 }, 1, data_types::f32, format::bfyx, data_types::f32
+#define CASE_GATHER_FP32_4 { 5, 3, 2, 2 }, { 3, 1, 1, 1 }, { 5, 2, 3, 2 }, 2, data_types::f32, format::bfyx, data_types::f32
+#define CASE_GATHER_FP32_5 { 2, 3, 2, 1 }, { 3, 1, 1, 1 }, { 2, 3, 3, 1 }, 2, data_types::f32, format::bfyx, data_types::f32
+#define CASE_GATHER_FP32_6 { 2, 3, 4 }, { 4 }, { 4, 3, 4 }, 0, data_types::f32, format::bfyx, data_types::f32
 
-#define CASE_GATHER_FP16_1 { 2, 3, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 4, 1 }, 0, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_GATHER_FP16_2 { 3, 2, 2, 1 }, { 2, 3, 1, 1 }, { 2, 3, 2, 2 }, 0, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_GATHER_FP16_3 { 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 3, 2, 2, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_GATHER_FP16_4 { 5, 2, 2, 2 }, { 3, 1, 1, 1 }, { 5, 2, 3, 2 }, 2, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_GATHER_FP16_5 { 2, 3, 2, 1 }, { 3, 1, 1, 1 }, { 2, 3, 3, 1 }, 2, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_GATHER_FP16_6 { 3, 2, 2 }, { 2, 3 }, { 2, 3, 2, 2 }, 0, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_GATHER_FP16_7 { 2, 5, 2, 4 }, { 3, 2, 1}, { 2, 3, 2, 1, 2, 4 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_1 { 2, 3, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 4, 1 }, 0, data_types::f16, format::bfyx, data_types::f16
+#define CASE_GATHER_FP16_2 { 3, 2, 2, 1 }, { 2, 3, 1, 1 }, { 2, 3, 2, 2 }, 0, data_types::f16, format::bfyx, data_types::f16
+#define CASE_GATHER_FP16_3 { 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 3, 2, 2, 1 }, 1, data_types::f16, format::bfyx, data_types::f16
+#define CASE_GATHER_FP16_4 { 5, 2, 2, 2 }, { 3, 1, 1, 1 }, { 5, 2, 3, 2 }, 2, data_types::f16, format::bfyx, data_types::f16
+#define CASE_GATHER_FP16_5 { 2, 3, 2, 1 }, { 3, 1, 1, 1 }, { 2, 3, 3, 1 }, 2, data_types::f16, format::bfyx, data_types::f16
+#define CASE_GATHER_FP16_6 { 3, 2, 2 }, { 2, 3 }, { 2, 3, 2, 2 }, 0, data_types::f16, format::bfyx, data_types::f16
+#define CASE_GATHER_FP16_7 { 2, 5, 2, 4 }, { 3, 2, 1}, { 2, 3, 2, 1, 2, 4 }, 1, data_types::f16, format::bfyx, data_types::f16
 
-#define CASE_GATHER_5D_FP32_1 { 2, 3, 1, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 1, 4, 1 }, 0, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_GATHER_5D_FP32_2 { 2, 3, 2, 2, 2 }, { 2, 1, 1, 1 }, { 2, 2, 2, 2, 2 }, 1, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_GATHER_5D_FP32_3 { 5, 3, 2, 2, 2 }, { 3, 1, 1, 1 }, { 5, 3, 2, 3, 2 }, 3, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_GATHER_5D_FP32_4 { 2, 3, 1, 4, 4 }, { 2, 1, 1, 1 }, { 2, 3, 2, 4, 1 }, 2, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_GATHER_5D_FP32_5 { 3, 1, 5, 2, 1 }, { 2, 1, 1, 1 }, { 3, 1, 1, 2, 2 }, 4, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_GATHER_5D_FP32_1 { 2, 3, 1, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 1, 4, 1 }, 0, data_types::f32, format::bfzyx, data_types::f32
+#define CASE_GATHER_5D_FP32_2 { 2, 3, 2, 2, 2 }, { 2, 1, 1, 1 }, { 2, 2, 2, 2, 2 }, 1, data_types::f32, format::bfzyx, data_types::f32
+#define CASE_GATHER_5D_FP32_3 { 5, 3, 2, 2, 2 }, { 3, 1, 1, 1 }, { 5, 3, 2, 3, 2 }, 3, data_types::f32, format::bfzyx, data_types::f32
+#define CASE_GATHER_5D_FP32_4 { 2, 3, 1, 4, 4 }, { 2, 1, 1, 1 }, { 2, 3, 2, 4, 1 }, 2, data_types::f32, format::bfzyx, data_types::f32
+#define CASE_GATHER_5D_FP32_5 { 3, 1, 5, 2, 1 }, { 2, 1, 1, 1 }, { 3, 1, 1, 2, 2 }, 4, data_types::f32, format::bfzyx, data_types::f32
 
-#define CASE_GATHER_5D_FP16_1 { 3, 2, 1, 2, 1 }, { 2, 1, 1, 1 }, { 2, 2, 1, 2, 1 }, 0, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_GATHER_5D_FP16_2 { 1, 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 1, 2, 1, 2, 1 }, 1, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_GATHER_5D_FP16_3 { 2, 3, 3, 3, 1 }, { 1, 2, 1, 1 }, { 2, 3, 3, 1, 2 }, 3, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_GATHER_5D_FP16_4 { 3, 2, 2, 2, 2 }, { 2, 3, 1, 1 }, { 3, 2, 2, 3, 2 }, 2, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_GATHER_5D_FP16_5 { 1, 1, 2, 1, 1 }, { 3, 1, 1, 1 }, { 1, 1, 1, 1, 3 }, 4, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_GATHER_5D_FP16_1 { 3, 2, 1, 2, 1 }, { 2, 1, 1, 1 }, { 2, 2, 1, 2, 1 }, 0, data_types::f16, format::bfzyx, data_types::f16
+#define CASE_GATHER_5D_FP16_2 { 1, 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 1, 2, 1, 2, 1 }, 1, data_types::f16, format::bfzyx, data_types::f16
+#define CASE_GATHER_5D_FP16_3 { 2, 3, 3, 3, 1 }, { 1, 2, 1, 1 }, { 2, 3, 3, 1, 2 }, 3, data_types::f16, format::bfzyx, data_types::f16
+#define CASE_GATHER_5D_FP16_4 { 3, 2, 2, 2, 2 }, { 2, 3, 1, 1 }, { 3, 2, 2, 3, 2 }, 2, data_types::f16, format::bfzyx, data_types::f16
+#define CASE_GATHER_5D_FP16_5 { 1, 1, 2, 1, 1 }, { 3, 1, 1, 1 }, { 1, 1, 1, 1, 3 }, 4, data_types::f16, format::bfzyx, data_types::f16
 
-#define CASE_GATHER_INT8_1    { 2, 3, 4, 1 }, { 4 }, { 4, 3, 4, 1 }, 0, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_INT8_1    { 2, 3, 4, 1 }, { 4 }, { 4, 3, 4, 1 }, 0, data_types::i8, format::bfyx, data_types::f32
 
 class gather_quantize : public GatherPrimitiveFusingTest {};
 TEST_P(gather_quantize, basic) {
@@ -134,7 +137,7 @@ TEST_P(gather_quantize, basic) {
         gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.dictionary_shape.size(), p.out_shape),
         quantize("quantize", input_info("gather_prim"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
-        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
+        reorder("reorder_bfyx", input_info("quantize"), format::get_default_format(p.out_shape.size()), data_types::f32)
     );
 
     tolerance = 1.f;
@@ -177,7 +180,7 @@ TEST_P(gather_eltwise_activation, basic) {
         gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.dictionary_shape.size(), p.out_shape),
         activation("activation", input_info("gather_prim"), activation_func::abs),
         eltwise("eltwise", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::prod),
-        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+        reorder("reorder_bfyx", input_info("eltwise"), format::get_default_format(p.out_shape.size()), data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -220,12 +223,12 @@ TEST_P(gather_eltwise_activation_dynamic, basic) {
 
     create_topologies(
         input_layout("input", get_input_layout(p, true)),
-        input_layout("gather_indices", layout{ ov::PartialShape::dynamic(p.indices_shape.size()), p.data_type, format::bfyx }),
+        input_layout("gather_indices", layout{ ov::PartialShape::dynamic(p.indices_shape.size()), ov::element::i32, format::get_default_format(p.indices_shape.size()) }),
         input_layout("eltwise_data", get_per_channel_layout(p, true)),
         gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.dictionary_shape.size(), p.out_shape),
         activation("activation", input_info("gather_prim"), activation_func::abs),
         eltwise("eltwise", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::prod),
-        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32, std::vector<float>(), cldnn::reorder_mean_mode::subtract, cldnn::padding(), true)
+        reorder("reorder_bfyx", input_info("eltwise"), format::get_default_format(p.out_shape.size()), data_types::f32, std::vector<float>(), cldnn::reorder_mean_mode::subtract, cldnn::padding(), true)
     );
 
     tolerance = 1e-5f;
@@ -234,6 +237,6 @@ TEST_P(gather_eltwise_activation_dynamic, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_eltwise_activation_dynamic, ::testing::ValuesIn(std::vector<gather_test_params>{
     gather_test_params{ CASE_GATHER_FP32_6, 4, 6 },
     gather_test_params{ CASE_GATHER_FP16_6, 4, 7 },
-    gather_test_params{ CASE_GATHER_FP16_7, 5, 8 },
+    gather_test_params{ CASE_GATHER_FP16_7, 4, 7 },
     gather_test_params{ CASE_GATHER_INT8_1, 4, 7 },
 }));
