@@ -112,7 +112,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
         const auto A = std::make_shared<op::v0::Constant>(
             params.inType,
-            params.inputShape.to_shape(),
+            params.inputShape,
             std::vector<std::string>{std::to_string(*reinterpret_cast<const int*>(params.inputData.data()))});
         return std::make_shared<Model>(A, ParameterVector{});
     }
