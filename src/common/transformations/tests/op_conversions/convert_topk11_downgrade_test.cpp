@@ -9,18 +9,18 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset11.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/topk.hpp"
 using namespace ov;
 using namespace testing;
 
 TEST_F(TransformationTestsF, ConvertTopK11ToTopK3) {
     {
-        const auto input = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
-        const auto k = std::make_shared<ov::opset11::Parameter>(ov::element::i8, ov::Shape{});
-        const auto topk = std::make_shared<ov::opset11::TopK>(input,
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
+        const auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::Shape{});
+        const auto topk = std::make_shared<ov::op::v11::TopK>(input,
                                                               k,
                                                               -2,
                                                               ov::op::TopKMode::MAX,
@@ -34,9 +34,9 @@ TEST_F(TransformationTestsF, ConvertTopK11ToTopK3) {
     }
 
     {
-        const auto input = std::make_shared<ov::opset3::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
-        const auto k = std::make_shared<ov::opset3::Parameter>(ov::element::i8, ov::Shape{});
-        const auto topk = std::make_shared<ov::opset3::TopK>(input,
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
+        const auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::Shape{});
+        const auto topk = std::make_shared<ov::op::v3::TopK>(input,
                                                              k,
                                                              -2,
                                                              ov::op::TopKMode::MAX,
@@ -50,9 +50,9 @@ TEST_F(TransformationTestsF, ConvertTopK11ToTopK3) {
 
 TEST_F(TransformationTestsF, ConvertTopK11ToTopK3StableMode) {
     {
-        const auto input = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
-        const auto k = std::make_shared<ov::opset11::Parameter>(ov::element::i8, ov::Shape{});
-        const auto topk = std::make_shared<ov::opset11::TopK>(input,
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
+        const auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::Shape{});
+        const auto topk = std::make_shared<ov::op::v11::TopK>(input,
                                                               k,
                                                               -2,
                                                               ov::op::TopKMode::MAX,
@@ -66,9 +66,9 @@ TEST_F(TransformationTestsF, ConvertTopK11ToTopK3StableMode) {
     }
 
     {
-        const auto input = std::make_shared<ov::opset3::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
-        const auto k = std::make_shared<ov::opset3::Parameter>(ov::element::i8, ov::Shape{});
-        const auto topk = std::make_shared<ov::opset3::TopK>(input,
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
+        const auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::Shape{});
+        const auto topk = std::make_shared<ov::op::v3::TopK>(input,
                                                              k,
                                                              -2,
                                                              ov::op::TopKMode::MAX,

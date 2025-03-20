@@ -12,32 +12,37 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/space_to_batch.hpp"
 
 using namespace testing;
 using namespace ov;
 
 TEST_F(TransformationTestsF, DilatedConvolutionConverter) {
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 3, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto filters = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 3});
         auto space_to_batch =
-            std::make_shared<opset6::SpaceToBatch>(data,
+            std::make_shared<op::v1::SpaceToBatch>(data,
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 2, 2}));
-        auto conv = std::make_shared<opset6::Convolution>(space_to_batch,
+        auto conv = std::make_shared<op::v1::Convolution>(space_to_batch,
                                                           filters,
                                                           Strides{1, 1},
                                                           CoordinateDiff{0, 0},
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
         auto batch_to_space =
-            std::make_shared<opset6::BatchToSpace>(conv,
+            std::make_shared<op::v1::BatchToSpace>(conv,
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}));
@@ -46,9 +51,9 @@ TEST_F(TransformationTestsF, DilatedConvolutionConverter) {
         manager.register_pass<ov::pass::DilatedConvolutionConverter>();
     }
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 3, 3});
-        auto conv = std::make_shared<opset6::Convolution>(data,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto filters = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 3});
+        auto conv = std::make_shared<op::v1::Convolution>(data,
                                                           filters,
                                                           Strides{1, 1},
                                                           CoordinateDiff{1, 1},
@@ -64,21 +69,21 @@ TEST_F(TransformationTestsF, DilatedConvolutionConverter) {
 
 TEST_F(TransformationTestsF, NegativeDilatedConvolutionConverterPadsLessThanCrops) {
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 3, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto filters = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 3});
         auto space_to_batch =
-            std::make_shared<opset6::SpaceToBatch>(data,
+            std::make_shared<op::v1::SpaceToBatch>(data,
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}));
-        auto conv = std::make_shared<opset6::Convolution>(space_to_batch,
+        auto conv = std::make_shared<op::v1::Convolution>(space_to_batch,
                                                           filters,
                                                           Strides{1, 1},
                                                           CoordinateDiff{0, 0},
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
         auto batch_to_space =
-            std::make_shared<opset6::BatchToSpace>(conv,
+            std::make_shared<op::v1::BatchToSpace>(conv,
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 2, 3}));
@@ -90,21 +95,21 @@ TEST_F(TransformationTestsF, NegativeDilatedConvolutionConverterPadsLessThanCrop
 
 TEST_F(TransformationTestsF, NegativeDilatedConvolutionConverterNonZeroPadsForNC) {
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 5, 3, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto filters = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 5, 3, 3});
         auto space_to_batch =
-            std::make_shared<opset6::SpaceToBatch>(data,
+            std::make_shared<op::v1::SpaceToBatch>(data,
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}));
-        auto conv = std::make_shared<opset6::Convolution>(space_to_batch,
+        auto conv = std::make_shared<op::v1::Convolution>(space_to_batch,
                                                           filters,
                                                           Strides{1, 1},
                                                           CoordinateDiff{0, 0},
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
         auto batch_to_space =
-            std::make_shared<opset6::BatchToSpace>(conv,
+            std::make_shared<op::v1::BatchToSpace>(conv,
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}));
@@ -116,21 +121,21 @@ TEST_F(TransformationTestsF, NegativeDilatedConvolutionConverterNonZeroPadsForNC
 
 TEST_F(TransformationTestsF, DilatedGroupConvolutionConverter) {
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{4, 1, 1, 3, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto filters = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 1, 1, 3, 3});
         auto space_to_batch =
-            std::make_shared<opset6::SpaceToBatch>(data,
+            std::make_shared<op::v1::SpaceToBatch>(data,
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 2, 2}));
-        auto conv = std::make_shared<opset6::GroupConvolution>(space_to_batch,
+        auto conv = std::make_shared<op::v1::GroupConvolution>(space_to_batch,
                                                                filters,
                                                                Strides{1, 1},
                                                                CoordinateDiff{0, 0},
                                                                CoordinateDiff{0, 0},
                                                                Strides{1, 1});
         auto batch_to_space =
-            std::make_shared<opset6::BatchToSpace>(conv,
+            std::make_shared<op::v1::BatchToSpace>(conv,
                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}),
                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}));
@@ -139,9 +144,9 @@ TEST_F(TransformationTestsF, DilatedGroupConvolutionConverter) {
         manager.register_pass<ov::pass::DilatedConvolutionConverter>();
     }
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{4, 1, 1, 3, 3});
-        auto conv = std::make_shared<opset6::GroupConvolution>(data,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto filters = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 1, 1, 3, 3});
+        auto conv = std::make_shared<op::v1::GroupConvolution>(data,
                                                                filters,
                                                                Strides{1, 1},
                                                                CoordinateDiff{1, 1},

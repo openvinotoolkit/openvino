@@ -7,9 +7,9 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ts_test_case.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace transpose_sinking {
 namespace testing {
@@ -30,7 +30,7 @@ std::shared_ptr<ov::Node> create_main_node(const ov::OutputVector& inputs, size_
 ov::Output<ov::Node> parameter(ov::element::Type el_type, const ov::PartialShape& ps);
 template <class T>
 ov::Output<ov::Node> constant(ov::element::Type el_type, const ov::Shape& shape, const std::vector<T>& value) {
-    return ov::opset10::Constant::create<T>(el_type, shape, value);
+    return ov::op::v0::Constant::create<T>(el_type, shape, value);
 }
 
 }  // namespace utils

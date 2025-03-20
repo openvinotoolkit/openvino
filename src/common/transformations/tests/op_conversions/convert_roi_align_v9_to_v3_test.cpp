@@ -11,10 +11,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/roi_align.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -31,12 +31,12 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To3) {
         const auto data_shape = Shape{N, C, H, W};
         const auto rois_shape = Shape{num_rois, 4};
 
-        const auto data = std::make_shared<opset9::Parameter>(element::f32, data_shape);
-        const auto rois = std::make_shared<opset9::Parameter>(element::f32, rois_shape);
-        const auto batch_indices = std::make_shared<opset9::Parameter>(element::i32, Shape{num_rois});
-        const auto pooling_mode = EnumNames<opset9::ROIAlign::PoolingMode>::as_enum("avg");
+        const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        const auto rois = std::make_shared<op::v0::Parameter>(element::f32, rois_shape);
+        const auto batch_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{num_rois});
+        const auto pooling_mode = EnumNames<op::v9::ROIAlign::PoolingMode>::as_enum("avg");
 
-        auto roi_align = std::make_shared<opset9::ROIAlign>(data,
+        auto roi_align = std::make_shared<op::v9::ROIAlign>(data,
                                                             rois,
                                                             batch_indices,
                                                             pooled_height,
@@ -60,11 +60,11 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To3) {
         const auto data_shape = Shape{N, C, H, W};
         const auto rois_shape = Shape{num_rois, 4};
 
-        const auto data = std::make_shared<opset9::Parameter>(element::f32, data_shape);
-        const auto rois = std::make_shared<opset9::Parameter>(element::f32, rois_shape);
-        const auto batch_indices = std::make_shared<opset9::Parameter>(element::i32, Shape{num_rois});
+        const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        const auto rois = std::make_shared<op::v0::Parameter>(element::f32, rois_shape);
+        const auto batch_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{num_rois});
 
-        auto roi_align = std::make_shared<opset3::ROIAlign>(data,
+        auto roi_align = std::make_shared<op::v3::ROIAlign>(data,
                                                             rois,
                                                             batch_indices,
                                                             pooled_height,
@@ -89,13 +89,13 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To3_aligned_mode) {
         const auto data_shape = Shape{N, C, H, W};
         const auto rois_shape = Shape{num_rois, 4};
 
-        const auto data = std::make_shared<opset9::Parameter>(element::f32, data_shape);
-        const auto rois = std::make_shared<opset9::Parameter>(element::f32, rois_shape);
-        const auto batch_indices = std::make_shared<opset9::Parameter>(element::i32, Shape{num_rois});
-        const auto pooling_mode = EnumNames<opset9::ROIAlign::PoolingMode>::as_enum("avg");
-        const auto aligned_mode = EnumNames<opset9::ROIAlign::AlignedMode>::as_enum("half_pixel_for_nn");
+        const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        const auto rois = std::make_shared<op::v0::Parameter>(element::f32, rois_shape);
+        const auto batch_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{num_rois});
+        const auto pooling_mode = EnumNames<op::v9::ROIAlign::PoolingMode>::as_enum("avg");
+        const auto aligned_mode = EnumNames<op::v9::ROIAlign::AlignedMode>::as_enum("half_pixel_for_nn");
 
-        auto roi_align = std::make_shared<opset9::ROIAlign>(data,
+        auto roi_align = std::make_shared<op::v9::ROIAlign>(data,
                                                             rois,
                                                             batch_indices,
                                                             pooled_height,

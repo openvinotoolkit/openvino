@@ -13,6 +13,7 @@
 #include "openvino/opsets/opset9.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
 
 using namespace ov;
 using namespace std;
@@ -57,7 +58,7 @@ OutputVector create_cell(RNN_TYPE rnn_type,
             cur_C = cell->output(1);
         } else if (rnn_type == RNN_TYPE::LSTM_v0) {
             cell =
-                make_shared<opset3::LSTMCell>(X, cur_H, cur_C, W, R, B, hidden_size, ov::op::LSTMWeightsFormat::FICO);
+                make_shared<op::v0::LSTMCell>(X, cur_H, cur_C, W, R, B, hidden_size, ov::op::LSTMWeightsFormat::FICO);
             cur_C = cell->output(1);
         } else if (rnn_type == RNN_TYPE::GRU) {
             cell = make_shared<GRUCell>(X, cur_H, W, R, B, hidden_size);

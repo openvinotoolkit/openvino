@@ -11,10 +11,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -29,11 +29,11 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1) {
         const Shape filter_shape{1, 1, 2, 2};
         const Shape offsets_shape{1, 8, 3, 3};
 
-        auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
-        auto filter = std::make_shared<opset8::Parameter>(element::f32, filter_shape);
-        auto offsets = std::make_shared<opset8::Parameter>(element::f32, offsets_shape);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto filter = std::make_shared<op::v0::Parameter>(element::f32, filter_shape);
+        auto offsets = std::make_shared<op::v0::Parameter>(element::f32, offsets_shape);
 
-        auto deformable_conv = std::make_shared<opset8::DeformableConvolution>(data,
+        auto deformable_conv = std::make_shared<op::v8::DeformableConvolution>(data,
                                                                                offsets,
                                                                                filter,
                                                                                strides,
@@ -54,11 +54,11 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1) {
         const Shape filter_shape{1, 1, 2, 2};
         const Shape offsets_shape{1, 8, 3, 3};
 
-        auto data = std::make_shared<opset1::Parameter>(element::f32, input_shape);
-        auto filter = std::make_shared<opset1::Parameter>(element::f32, filter_shape);
-        auto offsets = std::make_shared<opset1::Parameter>(element::f32, offsets_shape);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto filter = std::make_shared<op::v0::Parameter>(element::f32, filter_shape);
+        auto offsets = std::make_shared<op::v0::Parameter>(element::f32, offsets_shape);
 
-        auto deformable_conv = std::make_shared<opset1::DeformableConvolution>(data,
+        auto deformable_conv = std::make_shared<op::v1::DeformableConvolution>(data,
                                                                                offsets,
                                                                                filter,
                                                                                strides,
@@ -81,12 +81,12 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1_mask) {
         const Shape offsets_shape{1, 8, 3, 3};
         const Shape mask_shape{1, 4, 3, 3};
 
-        auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
-        auto filter = std::make_shared<opset8::Parameter>(element::f32, filter_shape);
-        auto offsets = std::make_shared<opset8::Parameter>(element::f32, offsets_shape);
-        auto mask = std::make_shared<opset8::Parameter>(element::f32, mask_shape);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto filter = std::make_shared<op::v0::Parameter>(element::f32, filter_shape);
+        auto offsets = std::make_shared<op::v0::Parameter>(element::f32, offsets_shape);
+        auto mask = std::make_shared<op::v0::Parameter>(element::f32, mask_shape);
 
-        auto deformable_conv = std::make_shared<opset8::DeformableConvolution>(data,
+        auto deformable_conv = std::make_shared<op::v8::DeformableConvolution>(data,
                                                                                offsets,
                                                                                filter,
                                                                                mask,
@@ -112,11 +112,11 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1_bilinear_interpolation_pa
         const Shape filter_shape{1, 1, 2, 2};
         const Shape offsets_shape{1, 8, 3, 3};
 
-        auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
-        auto filter = std::make_shared<opset8::Parameter>(element::f32, filter_shape);
-        auto offsets = std::make_shared<opset8::Parameter>(element::f32, offsets_shape);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto filter = std::make_shared<op::v0::Parameter>(element::f32, filter_shape);
+        auto offsets = std::make_shared<op::v0::Parameter>(element::f32, offsets_shape);
 
-        auto deformable_conv = std::make_shared<opset8::DeformableConvolution>(data,
+        auto deformable_conv = std::make_shared<op::v8::DeformableConvolution>(data,
                                                                                offsets,
                                                                                filter,
                                                                                strides,

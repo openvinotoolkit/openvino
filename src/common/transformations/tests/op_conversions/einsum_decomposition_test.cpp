@@ -7,9 +7,29 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset7.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "transformations/utils/gen_pattern.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/einsum.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace ov;
 namespace {
@@ -20,7 +40,7 @@ std::shared_ptr<ov::Node> extract_subshape_from_shape(const std::shared_ptr<ov::
     auto const_begin = makeConst(element::i64, ov::Shape({1}), {begin});
     auto const_end = makeConst(element::i64, ov::Shape({1}), {end});
     auto const_1 = makeConst(element::i64, ov::Shape({1}), {1});
-    auto subshape = makeOP<opset1::StridedSlice>({shape_node, const_begin, const_end, const_1},
+    auto subshape = makeOP<op::v1::StridedSlice>({shape_node, const_begin, const_end, const_1},
                                                  {{"begin_mask", {0}},
                                                   {"end_mask", {0}},
                                                   {"new_axis_mask", {}},
@@ -31,7 +51,7 @@ std::shared_ptr<ov::Node> extract_subshape_from_shape(const std::shared_ptr<ov::
 
 std::shared_ptr<ov::Node> broadcast_merge_shapes(const std::shared_ptr<ov::Node>& shape_node_lhs,
                                                  const std::shared_ptr<ov::Node>& shape_node_rhs) {
-    auto broadcasted_shapes = makeOP<opset1::Maximum>({shape_node_lhs, shape_node_rhs}, {{"auto_broadcast", "numpy"}});
+    auto broadcasted_shapes = makeOP<op::v1::Maximum>({shape_node_lhs, shape_node_rhs}, {{"auto_broadcast", "numpy"}});
     return broadcasted_shapes;
 }
 ///
@@ -165,7 +185,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul) {
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
-        auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl,mlj->mkj");
+        auto einsum = std::make_shared<op::v7::Einsum>(OutputVector{data_1, data_2}, "kl,mlj->mkj");
         model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
@@ -216,7 +236,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
-        auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl,mlj->mkj");
+        auto einsum = std::make_shared<op::v7::Einsum>(OutputVector{data_1, data_2}, "kl,mlj->mkj");
         model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
@@ -226,10 +246,10 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         // Transpose data_2 so that common labels, separated and reduced labels are grouped for both operands.
         auto Constant_485 = makeConst(element::i64, ov::Shape({3}), {0, 2, 1});
-        auto Transpose_486 = makeOP<opset1::Transpose>({data_2, Constant_485});
+        auto Transpose_486 = makeOP<op::v1::Transpose>({data_2, Constant_485});
         // Get shapes of data_1 and data_2.
-        auto ShapeOf_data_1 = makeOP<opset3::ShapeOf>({data_1}, {{"output_type", "i64"}});
-        auto ShapeOf_data_2 = makeOP<opset3::ShapeOf>({Transpose_486}, {{"output_type", "i64"}});
+        auto ShapeOf_data_1 = makeOP<op::v3::ShapeOf>({data_1}, {{"output_type", "i64"}});
+        auto ShapeOf_data_2 = makeOP<op::v3::ShapeOf>({Transpose_486}, {{"output_type", "i64"}});
 
         // Get reduced subshape for data_1.
         auto reduced1 = extract_subshape_from_shape(ShapeOf_data_1, 1, 2);
@@ -248,11 +268,11 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
 
         // Broadcast data_1 and data_2 based on caluculated subshapes.
         auto Concat_512 =
-            makeOP<opset1::Concat>({separate1_subshape, reduced_subshape_broadcast_merge_shapes}, {{"axis", 0}});
-        auto Broadcast_data_1 = makeOP<opset3::Broadcast>({data_1, Concat_512}, {{"mode", "bidirectional"}});
+            makeOP<op::v0::Concat>({separate1_subshape, reduced_subshape_broadcast_merge_shapes}, {{"axis", 0}});
+        auto Broadcast_data_1 = makeOP<op::v3::Broadcast>({data_1, Concat_512}, {{"mode", "bidirectional"}});
         auto Concat_521 =
-            makeOP<opset1::Concat>({separate2_subshape, reduced_subshape_broadcast_merge_shapes}, {{"axis", 0}});
-        auto Broadcast_data_2 = makeOP<opset3::Broadcast>({Transpose_486, Concat_521}, {{"mode", "bidirectional"}});
+            makeOP<op::v0::Concat>({separate2_subshape, reduced_subshape_broadcast_merge_shapes}, {{"axis", 0}});
+        auto Broadcast_data_2 = makeOP<op::v3::Broadcast>({Transpose_486, Concat_521}, {{"mode", "bidirectional"}});
 
         // Optionally reshape broadcasted data_1 and data_2 so separate and reduced labels are represented by one
         // dimension. Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
@@ -260,29 +280,29 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
         auto Constant_525 = makeConst(element::i64, ov::Shape({1}), {0});
         // Reduce separate and reduced
         auto Separate1_subshape_red =
-            makeOP<opset1::ReduceProd>({separate1_subshape, Constant_525}, {{"keep_dims", true}});
+            makeOP<op::v1::ReduceProd>({separate1_subshape, Constant_525}, {{"keep_dims", true}});
         auto reduced1_subshape_red =
-            makeOP<opset1::ReduceProd>({reduced_subshape_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
+            makeOP<op::v1::ReduceProd>({reduced_subshape_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
         // Merge subshapes
-        auto reshape_subshape1 = makeOP<opset1::Concat>({Separate1_subshape_red, reduced1_subshape_red}, {{"axis", 0}});
-        auto Reshape_1 = makeOP<opset1::Reshape>({Broadcast_data_1, reshape_subshape1}, {{"special_zero", false}});
+        auto reshape_subshape1 = makeOP<op::v0::Concat>({Separate1_subshape_red, reduced1_subshape_red}, {{"axis", 0}});
+        auto Reshape_1 = makeOP<op::v1::Reshape>({Broadcast_data_1, reshape_subshape1}, {{"special_zero", false}});
         // Reshape 2
         auto Constant_569 = makeConst(element::i64, ov::Shape({1}), {0});
         // Reduce separate and reduced
         auto Separate2_subshape_red =
-            makeOP<opset1::ReduceProd>({separate2_subshape, Constant_569}, {{"keep_dims", true}});
+            makeOP<op::v1::ReduceProd>({separate2_subshape, Constant_569}, {{"keep_dims", true}});
         auto Reduced2_subshape_red =
-            makeOP<opset1::ReduceProd>({reduced_subshape_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
+            makeOP<op::v1::ReduceProd>({reduced_subshape_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
         // Merge subshapes
-        auto reshape_subshape2 = makeOP<opset1::Concat>({Separate2_subshape_red, Reduced2_subshape_red}, {{"axis", 0}});
-        auto Reshape_2 = makeOP<opset1::Reshape>({Broadcast_data_2, reshape_subshape2}, {{"special_zero", false}});
+        auto reshape_subshape2 = makeOP<op::v0::Concat>({Separate2_subshape_red, Reduced2_subshape_red}, {{"axis", 0}});
+        auto Reshape_2 = makeOP<op::v1::Reshape>({Broadcast_data_2, reshape_subshape2}, {{"special_zero", false}});
 
         // Apply MatMul operation for formatted inputs.
         auto matmul = std::make_shared<ov::op::v0::MatMul>(Reshape_1, Reshape_2, false, true);
 
         // Optionally reshape back by unrolling dimensions corresponding to separate labels if needed.
         // Target subshapes are calculated broadcast_merge_shapes function and concatenated.
-        auto shape_out = makeOP<opset1::Concat>({separate1_subshape, separate2_subshape}, {{"axis", 0}});
+        auto shape_out = makeOP<op::v0::Concat>({separate1_subshape, separate2_subshape}, {{"axis", 0}});
         auto reshape_out = std::make_shared<ov::op::v1::Reshape>(matmul, shape_out, false);
         // Transpose to the original order of output labels.
         auto order_out = ov::op::v0::Constant::create(element::i64, {3}, {1, 0, 2});
@@ -299,7 +319,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_ellipsis_dynamic) {
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
-        auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl...,m...lj->mkj");
+        auto einsum = std::make_shared<op::v7::Einsum>(OutputVector{data_1, data_2}, "kl...,m...lj->mkj");
         model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
@@ -310,18 +330,18 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_ellipsis_dynamic) {
         // Process data_1
         // data_1 contains no dimensions at ellipsis label, unsqueeze to allow for broadcasting
         auto Constant_1200 = makeConst(element::i64, ov::Shape({1}), {2});
-        auto Unsqueeze_1201 = makeOP<opset1::Unsqueeze>({data_1, Constant_1200});
+        auto Unsqueeze_1201 = makeOP<op::v0::Unsqueeze>({data_1, Constant_1200});
         // Match ranks of dimensions covered by ellipsis labels
         auto Constant_1202 = makeConst(element::i64, ov::Shape({1}), {2});
-        auto data_1_processed = makeOP<opset1::Unsqueeze>({Unsqueeze_1201, Constant_1202});
+        auto data_1_processed = makeOP<op::v0::Unsqueeze>({Unsqueeze_1201, Constant_1202});
         // Process data_2
         // Transpose data_2 so that common labels, separated and reduced labels are grouped for both operands.
         auto Constant_1204 = makeConst(element::i64, ov::Shape({5}), {0, 4, 3, 1, 2});
-        auto data_2_processed = makeOP<opset1::Transpose>({data_2, Constant_1204});
+        auto data_2_processed = makeOP<op::v1::Transpose>({data_2, Constant_1204});
 
         // Get shapes for data_1 and data_2
-        auto ShapeOf_data_1 = makeOP<opset3::ShapeOf>({data_1_processed}, {{"output_type", "i64"}});
-        auto ShapeOf_data_2 = makeOP<opset3::ShapeOf>({data_2_processed}, {{"output_type", "i64"}});
+        auto ShapeOf_data_1 = makeOP<op::v3::ShapeOf>({data_1_processed}, {{"output_type", "i64"}});
+        auto ShapeOf_data_2 = makeOP<op::v3::ShapeOf>({data_2_processed}, {{"output_type", "i64"}});
 
         // Get reduced subshape for data_1.
         auto reduced1 = extract_subshape_from_shape(ShapeOf_data_1, 1, 4);
@@ -340,40 +360,40 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_ellipsis_dynamic) {
 
         // Broadcast data_1 and data_2 based on caluculated subshapes.
         auto Concat_1231 =
-            makeOP<opset1::Concat>({separate1_subshape, reduced_subshape_broadcast_merge_shapes}, {{"axis", 0}});
-        auto Broadcast_data_1 = makeOP<opset3::Broadcast>({data_1_processed, Concat_1231}, {{"mode", "bidirectional"}});
+            makeOP<op::v0::Concat>({separate1_subshape, reduced_subshape_broadcast_merge_shapes}, {{"axis", 0}});
+        auto Broadcast_data_1 = makeOP<op::v3::Broadcast>({data_1_processed, Concat_1231}, {{"mode", "bidirectional"}});
         auto Concat_1240 =
-            makeOP<opset1::Concat>({separate2_subshape, reduced_subshape_broadcast_merge_shapes}, {{"axis", 0}});
-        auto Broadcast_data_2 = makeOP<opset3::Broadcast>({data_2_processed, Concat_1240}, {{"mode", "bidirectional"}});
+            makeOP<op::v0::Concat>({separate2_subshape, reduced_subshape_broadcast_merge_shapes}, {{"axis", 0}});
+        auto Broadcast_data_2 = makeOP<op::v3::Broadcast>({data_2_processed, Concat_1240}, {{"mode", "bidirectional"}});
 
         // Optionally reshape broadcasted data_1 and data_2 so separate and reduced labels are represented by one
         // dimension. Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
         // Reshape 1
         auto Constant_1244 = makeConst(element::i64, ov::Shape({1}), {0});
         auto Separate1_subshape_red =
-            makeOP<opset1::ReduceProd>({separate1_subshape, Constant_1244}, {{"keep_dims", true}});
+            makeOP<op::v1::ReduceProd>({separate1_subshape, Constant_1244}, {{"keep_dims", true}});
         auto reduced1_subshape_red =
-            makeOP<opset1::ReduceProd>({reduced_subshape_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
-        auto reshape1_shape = makeOP<opset1::Concat>({Separate1_subshape_red, reduced1_subshape_red}, {{"axis", 0}});
-        auto Reshape_1 = makeOP<opset1::Reshape>({Broadcast_data_1, reshape1_shape}, {{"special_zero", false}});
+            makeOP<op::v1::ReduceProd>({reduced_subshape_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
+        auto reshape1_shape = makeOP<op::v0::Concat>({Separate1_subshape_red, reduced1_subshape_red}, {{"axis", 0}});
+        auto Reshape_1 = makeOP<op::v1::Reshape>({Broadcast_data_1, reshape1_shape}, {{"special_zero", false}});
 
         // Reshape 2
         auto Constant_1302 = makeConst(element::i64, ov::Shape({1}), {0});
         auto Separate2_subshape_red =
-            makeOP<opset1::ReduceProd>({separate2_subshape, Constant_1302}, {{"keep_dims", true}});
+            makeOP<op::v1::ReduceProd>({separate2_subshape, Constant_1302}, {{"keep_dims", true}});
         auto Reduced2_subshape_red =
-            makeOP<opset1::ReduceProd>({reduced_subshape_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
-        auto reshape2_shape = makeOP<opset1::Concat>({Separate2_subshape_red, Reduced2_subshape_red}, {{"axis", 0}});
-        auto Reshape_2 = makeOP<opset1::Reshape>({Broadcast_data_2, reshape2_shape}, {{"special_zero", false}});
+            makeOP<op::v1::ReduceProd>({reduced_subshape_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
+        auto reshape2_shape = makeOP<op::v0::Concat>({Separate2_subshape_red, Reduced2_subshape_red}, {{"axis", 0}});
+        auto Reshape_2 = makeOP<op::v1::Reshape>({Broadcast_data_2, reshape2_shape}, {{"special_zero", false}});
         // Apply MatMul operation for formatted inputs.
-        auto matmul = makeOP<opset1::MatMul>({Reshape_1, Reshape_2}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto matmul = makeOP<op::v0::MatMul>({Reshape_1, Reshape_2}, {{"transpose_a", false}, {"transpose_b", true}});
         // Optionally reshape back by unrolling dimensions corresponding to separate labels if needed.
         // Target subshapes are calculated broadcast_merge_shapes function and concatenated.
-        auto reshape_outshape = makeOP<opset1::Concat>({separate1_subshape, separate2_subshape}, {{"axis", 0}});
-        auto reshape_out = makeOP<opset1::Reshape>({matmul, reshape_outshape}, {{"special_zero", false}});
+        auto reshape_outshape = makeOP<op::v0::Concat>({separate1_subshape, separate2_subshape}, {{"axis", 0}});
+        auto reshape_out = makeOP<op::v1::Reshape>({matmul, reshape_outshape}, {{"special_zero", false}});
         // Transpose to the original order of output labels.
         auto Constant_1363 = makeConst(element::i64, ov::Shape({3}), {1, 0, 2});
-        auto transpose_out = makeOP<opset1::Transpose>({reshape_out, Constant_1363});
+        auto transpose_out = makeOP<op::v1::Transpose>({reshape_out, Constant_1363});
         model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1, data_2});
     }
 }
@@ -383,7 +403,7 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1}, "ij...iji->j...i");
+        auto einsum = std::make_shared<op::v7::Einsum>(OutputVector{data_1}, "ij...iji->j...i");
         model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1});
         manager.register_pass<ov::pass::EinsumDecomposition>();
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -397,31 +417,31 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
         // Transpose data so repeated labels are grouped and unrepeated labels are moved to back.
         // ij...iji -> iiijj...
         auto transpose_diagonal =
-            makeOP<opset1::Transpose>({data_1, makeConst(element::i64, ov::Shape({6}), {0, 3, 5, 1, 4, 2})});
+            makeOP<op::v1::Transpose>({data_1, makeConst(element::i64, ov::Shape({6}), {0, 3, 5, 1, 4, 2})});
         // Flatten groups of repeated labels (ij...)
         auto flatten_repeated_labels =
-            makeOP<opset1::Reshape>({transpose_diagonal, makeConst(element::i64, ov::Shape({3}), {1, 9, 2})},
+            makeOP<op::v1::Reshape>({transpose_diagonal, makeConst(element::i64, ov::Shape({3}), {1, 9, 2})},
                                     {{"special_zero", false}});
         // Pad begin and end are constant-folded.
         auto pad_begin = makeConst(element::i64, ov::Shape({3}), {0, 0, 0});
         auto pad_end = makeConst(element::i64, ov::Shape({3}), {0, 3, 0});
-        auto pad = makeOP<opset1::Pad>(
+        auto pad = makeOP<op::v1::Pad>(
             {flatten_repeated_labels, pad_begin, pad_end, makeConst(element::f32, ov::Shape({}), {0})},
             {{"pad_mode", "constant"}});
         // unflatten padded groups of repeated labels so i(padded reminder of i)j(padded reminder of j)...
         auto unflatten_repeated_labels =
-            makeOP<opset1::Reshape>({pad, makeConst(element::i64, ov::Shape({5}), {1, 1, 3, 4, 2})},
+            makeOP<op::v1::Reshape>({pad, makeConst(element::i64, ov::Shape({5}), {1, 1, 3, 4, 2})},
                                     {{"special_zero", false}});
         // Reduce padded dimensions to get diagonal.
         auto reduce_first_repeat =
-            makeOP<opset7::Gather>({unflatten_repeated_labels, const_0, const_1}, {{"batch_dims", 0}});
+            makeOP<op::v7::Gather>({unflatten_repeated_labels, const_0, const_1}, {{"batch_dims", 0}});
         auto reduce_second_repeat =
-            makeOP<opset7::Gather>({reduce_first_repeat, const_0, const_3}, {{"batch_dims", 0}});
+            makeOP<op::v7::Gather>({reduce_first_repeat, const_0, const_3}, {{"batch_dims", 0}});
         auto remove_reduced_dims =
-            makeOP<opset1::Squeeze>({reduce_second_repeat, makeConst(element::i64, ov::Shape({2}), {1, 3})});
+            makeOP<op::v0::Squeeze>({reduce_second_repeat, makeConst(element::i64, ov::Shape({2}), {1, 3})});
         // Transpose to the original order of output labels.
         auto Constant_1386 = makeConst(element::i64, ov::Shape({3}), {1, 2, 0});
-        auto transpose_out = makeOP<opset1::Transpose>({remove_reduced_dims, Constant_1386});
+        auto transpose_out = makeOP<op::v1::Transpose>({remove_reduced_dims, Constant_1386});
         model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1});
     }
 }
@@ -431,7 +451,7 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_empty_ellipsis_dynamic) 
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1}, "ij...iji->j...i");
+        auto einsum = std::make_shared<op::v7::Einsum>(OutputVector{data_1}, "ij...iji->j...i");
         model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
@@ -448,7 +468,7 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_empty_ellipsis_dynamic) 
 
         // Transpose to the original order of output labels.
         auto Constant_3027 = makeConst(element::i64, ov::Shape({2}), {1, 0});
-        auto transpose_out = makeOP<opset1::Transpose>({data_1_diagonal, Constant_3027});
+        auto transpose_out = makeOP<op::v1::Transpose>({data_1_diagonal, Constant_3027});
         model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1});
     }
 }
@@ -463,7 +483,7 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_s
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto data_3 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_3);
         auto einsum =
-            std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2, data_3}, "ba...b,bcccdd,...dbcc->c...b");
+            std::make_shared<op::v7::Einsum>(OutputVector{data_1, data_2, data_3}, "ba...b,bcccdd,...dbcc->c...b");
         model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1, data_2, data_3});
         manager.register_pass<ov::pass::EinsumDecomposition>();
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -474,81 +494,81 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_s
         auto node_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto node_4 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto Constant_8230 = makeConst(element::i64, ov::Shape({6}), {1, 2, 3, 4, 5, 0});
-        auto Transpose_8231 = makeOP<opset1::Transpose>({node_2, Constant_8230});
+        auto Transpose_8231 = makeOP<op::v1::Transpose>({node_2, Constant_8230});
         auto Concat_8261 = makeConst(element::i64, ov::Shape({3}), {1, 1, 4});
-        auto Reshape_8264 = makeOP<opset1::Reshape>({Transpose_8231, Concat_8261}, {{"special_zero", false}});
+        auto Reshape_8264 = makeOP<op::v1::Reshape>({Transpose_8231, Concat_8261}, {{"special_zero", false}});
         auto Concat_8263 = makeConst(element::i64, ov::Shape({3}), {0, 0, 0});
         auto Concat_8262 = makeConst(element::i64, ov::Shape({3}), {0, 0, 0});
         auto Pad_8304 =
-            makeOP<opset1::Pad>({Reshape_8264, Concat_8263, Concat_8262, 0.000000f}, {{"pad_mode", "constant"}});
+            makeOP<op::v1::Pad>({Reshape_8264, Concat_8263, Concat_8262, 0.000000f}, {{"pad_mode", "constant"}});
         auto Concat_8381 = makeConst(element::i64, ov::Shape({5}), {1, 1, 1, 1, 4});
-        auto Reshape_8382 = makeOP<opset1::Reshape>({Pad_8304, Concat_8381}, {{"special_zero", false}});
+        auto Reshape_8382 = makeOP<op::v1::Reshape>({Pad_8304, Concat_8381}, {{"special_zero", false}});
         auto Constant_8233 = makeConst(element::i64, ov::Shape({1}), {0});
         auto Constant_8459 = makeConst(element::i64, ov::Shape({1}), {1});
-        auto Gather_8460 = makeOP<opset7::Gather>({Reshape_8382, Constant_8233, Constant_8459}, {{"batch_dims", 0}});
+        auto Gather_8460 = makeOP<op::v7::Gather>({Reshape_8382, Constant_8233, Constant_8459}, {{"batch_dims", 0}});
         auto Constant_8461 = makeConst(element::i64, ov::Shape({1}), {3});
-        auto Gather_8462 = makeOP<opset7::Gather>({Gather_8460, Constant_8233, Constant_8461}, {{"batch_dims", 0}});
+        auto Gather_8462 = makeOP<op::v7::Gather>({Gather_8460, Constant_8233, Constant_8461}, {{"batch_dims", 0}});
         auto Constant_8463 = makeConst(element::i64, ov::Shape({2}), {1, 3});
-        auto Squeeze_8464 = makeOP<opset1::Squeeze>({Gather_8462, Constant_8463});
+        auto Squeeze_8464 = makeOP<op::v0::Squeeze>({Gather_8462, Constant_8463});
         auto Constant_8465 = makeConst(element::i64, ov::Shape({3}), {0, 2, 1});
-        auto Transpose_8466 = makeOP<opset1::Transpose>({Squeeze_8464, Constant_8465});
+        auto Transpose_8466 = makeOP<op::v1::Transpose>({Squeeze_8464, Constant_8465});
         auto Constant_8494 = makeConst(element::i64, ov::Shape({3}), {3, 4, 3});
-        auto Broadcast_8495 = makeOP<opset3::Broadcast>({Transpose_8466, Constant_8494}, {{"mode", "bidirectional"}});
+        auto Broadcast_8495 = makeOP<op::v3::Broadcast>({Transpose_8466, Constant_8494}, {{"mode", "bidirectional"}});
         auto Constant_8528 = makeConst(element::i64, ov::Shape({4}), {3, 4, 1, 3});
-        auto Reshape_8529 = makeOP<opset1::Reshape>({Broadcast_8495, Constant_8528}, {{"special_zero", false}});
+        auto Reshape_8529 = makeOP<op::v1::Reshape>({Broadcast_8495, Constant_8528}, {{"special_zero", false}});
         auto Constant_7971 = makeConst(element::i64, ov::Shape({6}), {0, 5, 1, 2, 3, 4});
-        auto Transpose_7972 = makeOP<opset1::Transpose>({node_4, Constant_7971});
+        auto Transpose_7972 = makeOP<op::v1::Transpose>({node_4, Constant_7971});
         auto Concat_7990 = makeConst(element::i64, ov::Shape({5}), {1, 2, 2, 1, 1});
-        auto Reshape_7993 = makeOP<opset1::Reshape>({Transpose_7972, Concat_7990}, {{"special_zero", false}});
+        auto Reshape_7993 = makeOP<op::v1::Reshape>({Transpose_7972, Concat_7990}, {{"special_zero", false}});
         auto Concat_7992 = makeConst(element::i64, ov::Shape({5}), {0, 0, 0, 0, 0});
         auto Concat_7991 = makeConst(element::i64, ov::Shape({5}), {0, 0, 0, 0, 0});
         auto Pad_8014 =
-            makeOP<opset1::Pad>({Reshape_7993, Concat_7992, Concat_7991, 0.000000f}, {{"pad_mode", "constant"}});
+            makeOP<op::v1::Pad>({Reshape_7993, Concat_7992, Concat_7991, 0.000000f}, {{"pad_mode", "constant"}});
         auto Concat_8053 = makeConst(element::i64, ov::Shape({6}), {1, 1, 2, 2, 1, 1});
-        auto Reshape_8054 = makeOP<opset1::Reshape>({Pad_8014, Concat_8053}, {{"special_zero", false}});
+        auto Reshape_8054 = makeOP<op::v1::Reshape>({Pad_8014, Concat_8053}, {{"special_zero", false}});
         auto Constant_7974 = makeConst(element::i64, ov::Shape({1}), {0});
         auto Constant_8093 = makeConst(element::i64, ov::Shape({1}), {1});
-        auto Gather_8094 = makeOP<opset7::Gather>({Reshape_8054, Constant_7974, Constant_8093}, {{"batch_dims", 0}});
+        auto Gather_8094 = makeOP<op::v7::Gather>({Reshape_8054, Constant_7974, Constant_8093}, {{"batch_dims", 0}});
         auto Constant_8095 = makeConst(element::i64, ov::Shape({1}), {1});
-        auto Squeeze_8096 = makeOP<opset1::Squeeze>({Gather_8094, Constant_8095});
+        auto Squeeze_8096 = makeOP<op::v0::Squeeze>({Gather_8094, Constant_8095});
         auto Constant_8223 = makeConst(element::i64, ov::Shape({1}), {1});
-        auto ReduceSum_8224 = makeOP<opset1::ReduceSum>({Squeeze_8096, Constant_8223}, {{"keep_dims", false}});
+        auto ReduceSum_8224 = makeOP<op::v1::ReduceSum>({Squeeze_8096, Constant_8223}, {{"keep_dims", false}});
         auto Constant_8227 = makeConst(element::i64, ov::Shape({2}), {4, 5});
-        auto Unsqueeze_8228 = makeOP<opset1::Unsqueeze>({ReduceSum_8224, Constant_8227});
+        auto Unsqueeze_8228 = makeOP<op::v0::Unsqueeze>({ReduceSum_8224, Constant_8227});
         auto Constant_7967 = makeConst(element::i64, ov::Shape({1}), {0});
-        auto Unsqueeze_7968 = makeOP<opset1::Unsqueeze>({node_0, Constant_7967});
+        auto Unsqueeze_7968 = makeOP<op::v0::Unsqueeze>({node_0, Constant_7967});
         auto Constant_7969 = makeConst(element::i64, ov::Shape({2}), {0, 1});
-        auto Unsqueeze_7970 = makeOP<opset1::Unsqueeze>({Unsqueeze_7968, Constant_7969});
+        auto Unsqueeze_7970 = makeOP<op::v0::Unsqueeze>({Unsqueeze_7968, Constant_7969});
         auto Constant_8097 = makeConst(element::i64, ov::Shape({7}), {5, 6, 0, 1, 2, 3, 4});
-        auto Transpose_8098 = makeOP<opset1::Transpose>({Unsqueeze_7970, Constant_8097});
+        auto Transpose_8098 = makeOP<op::v1::Transpose>({Unsqueeze_7970, Constant_8097});
         auto Concat_8116 = makeConst(element::i64, ov::Shape({6}), {9, 1, 1, 1, 3, 1});
-        auto Reshape_8119 = makeOP<opset1::Reshape>({Transpose_8098, Concat_8116}, {{"special_zero", false}});
+        auto Reshape_8119 = makeOP<op::v1::Reshape>({Transpose_8098, Concat_8116}, {{"special_zero", false}});
         auto Concat_8118 = makeConst(element::i64, ov::Shape({6}), {0, 0, 0, 0, 0, 0});
         auto Concat_8117 = makeConst(element::i64, ov::Shape({6}), {3, 0, 0, 0, 0, 0});
         auto Pad_8140 =
-            makeOP<opset1::Pad>({Reshape_8119, Concat_8118, Concat_8117, 0.000000f}, {{"pad_mode", "constant"}});
+            makeOP<op::v1::Pad>({Reshape_8119, Concat_8118, Concat_8117, 0.000000f}, {{"pad_mode", "constant"}});
         auto Concat_8179 = makeConst(element::i64, ov::Shape({7}), {3, 4, 1, 1, 1, 3, 1});
-        auto Reshape_8180 = makeOP<opset1::Reshape>({Pad_8140, Concat_8179}, {{"special_zero", false}});
+        auto Reshape_8180 = makeOP<op::v1::Reshape>({Pad_8140, Concat_8179}, {{"special_zero", false}});
         auto Constant_8100 = makeConst(element::i64, ov::Shape({1}), {0});
         auto Constant_8219 = makeConst(element::i64, ov::Shape({1}), {1});
-        auto Gather_8220 = makeOP<opset7::Gather>({Reshape_8180, Constant_8100, Constant_8219}, {{"batch_dims", 0}});
+        auto Gather_8220 = makeOP<op::v7::Gather>({Reshape_8180, Constant_8100, Constant_8219}, {{"batch_dims", 0}});
         auto Constant_8221 = makeConst(element::i64, ov::Shape({1}), {1});
-        auto Squeeze_8222 = makeOP<opset1::Squeeze>({Gather_8220, Constant_8221});
+        auto Squeeze_8222 = makeOP<op::v0::Squeeze>({Gather_8220, Constant_8221});
         auto Constant_8225 = makeConst(element::i64, ov::Shape({6}), {5, 1, 2, 3, 0, 4});
-        auto Transpose_8226 = makeOP<opset1::Transpose>({Squeeze_8222, Constant_8225});
-        auto Multiply_8229 = makeOP<opset1::Multiply>({Unsqueeze_8228, Transpose_8226}, {{"auto_broadcast", "numpy"}});
+        auto Transpose_8226 = makeOP<op::v1::Transpose>({Squeeze_8222, Constant_8225});
+        auto Multiply_8229 = makeOP<op::v1::Multiply>({Unsqueeze_8228, Transpose_8226}, {{"auto_broadcast", "numpy"}});
         auto Constant_8467 = makeConst(element::i64, ov::Shape({6}), {4, 0, 1, 2, 3, 5});
-        auto Transpose_8468 = makeOP<opset1::Transpose>({Multiply_8229, Constant_8467});
+        auto Transpose_8468 = makeOP<op::v1::Transpose>({Multiply_8229, Constant_8467});
         auto Constant_8502 = makeConst(element::i64, ov::Shape({6}), {3, 4, 2, 1, 1, 3});
-        auto Broadcast_8503 = makeOP<opset3::Broadcast>({Transpose_8468, Constant_8502}, {{"mode", "bidirectional"}});
+        auto Broadcast_8503 = makeOP<op::v3::Broadcast>({Transpose_8468, Constant_8502}, {{"mode", "bidirectional"}});
         auto Constant_8573 = makeConst(element::i64, ov::Shape({4}), {3, 4, 2, 3});
-        auto Reshape_8574 = makeOP<opset1::Reshape>({Broadcast_8503, Constant_8573}, {{"special_zero", false}});
+        auto Reshape_8574 = makeOP<op::v1::Reshape>({Broadcast_8503, Constant_8573}, {{"special_zero", false}});
         auto MatMul_8575 =
-            makeOP<opset1::MatMul>({Reshape_8529, Reshape_8574}, {{"transpose_a", false}, {"transpose_b", true}});
+            makeOP<op::v0::MatMul>({Reshape_8529, Reshape_8574}, {{"transpose_a", false}, {"transpose_b", true}});
         auto Constant_8577 = makeConst(element::i64, ov::Shape({5}), {3, 4, 2, 1, 1});
-        auto Reshape_8578 = makeOP<opset1::Reshape>({MatMul_8575, Constant_8577}, {{"special_zero", false}});
+        auto Reshape_8578 = makeOP<op::v1::Reshape>({MatMul_8575, Constant_8577}, {{"special_zero", false}});
         auto Constant_8579 = makeConst(element::i64, ov::Shape({5}), {0, 2, 3, 4, 1});
-        auto node_6 = makeOP<opset1::Transpose>({Reshape_8578, Constant_8579});
+        auto node_6 = makeOP<op::v1::Transpose>({Reshape_8578, Constant_8579});
         model_ref = std::make_shared<Model>(NodeVector{node_6}, ParameterVector{node_4, node_2, node_0});
     }
 }
@@ -563,7 +583,7 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto data_3 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_3);
         auto einsum =
-            std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2, data_3}, "a...b,bcccdd,...dbcc->c...b");
+            std::make_shared<op::v7::Einsum>(OutputVector{data_1, data_2, data_3}, "a...b,bcccdd,...dbcc->c...b");
         model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1, data_2, data_3});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
@@ -576,25 +596,25 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
         // First pair of einsum inputs - data_1 and data_3
         // data_1 - label `a` can be reduced by reduce_input()
         auto indice_of_a_in_data_1 = makeConst(element::i64, ov::Shape({1}), {0});
-        auto data_1_processed = makeOP<opset1::ReduceSum>({data_1, indice_of_a_in_data_1}, {{"keep_dims", false}});
+        auto data_1_processed = makeOP<op::v1::ReduceSum>({data_1, indice_of_a_in_data_1}, {{"keep_dims", false}});
         // data_3 - unsqueeze ellipse labels to allow for broadcasting and handle repeated labels
         auto ellipsis_idx = makeConst(element::i64, ov::Shape({1}), {0});
-        auto data3_insert_missing_ellipsis = makeOP<opset1::Unsqueeze>({data_3, ellipsis_idx});
+        auto data3_insert_missing_ellipsis = makeOP<op::v0::Unsqueeze>({data_3, ellipsis_idx});
         auto align_ellipsis_idx = makeConst(element::i64, ov::Shape({2}), {0, 1});
-        auto data_3_processed = makeOP<opset1::Unsqueeze>({data3_insert_missing_ellipsis, align_ellipsis_idx});
+        auto data_3_processed = makeOP<op::v0::Unsqueeze>({data3_insert_missing_ellipsis, align_ellipsis_idx});
         auto data_3_diagonal = extract_diagonal(data_3_processed, {{5, 6}}, {0, 1, 2, 3, 4});
 
         // No reduced labels - use simplified subgraph that uses Multiply instead Matmul
         // c...db -> ...bcd
         auto convenient_layout = makeConst(element::i64, ov::Shape({6}), {1, 2, 3, 5, 0, 4});
-        auto rhs_convenient_layout = makeOP<opset1::Transpose>({data_3_diagonal, convenient_layout});
+        auto rhs_convenient_layout = makeOP<op::v1::Transpose>({data_3_diagonal, convenient_layout});
         // Optionally unsqueeze both operands for elementwise-multiplication with broadcasting
         // For LHS operand, unsqueeze at RHS separate dimensions indices (placed at end of RHS by transpose)
         auto lhs_unsqueeze_dims = makeConst(element::i64, ov::Shape({2}), {4, 5});
-        auto lhs_unsqueeze = makeOP<opset1::Unsqueeze>({data_1_processed, lhs_unsqueeze_dims});
+        auto lhs_unsqueeze = makeOP<op::v0::Unsqueeze>({data_1_processed, lhs_unsqueeze_dims});
         // Out subscript = LHS_subscript + RHS_separate_part_subscript
         // ...bcd = ...b + cd
-        auto data_1_3 = makeOP<opset1::Multiply>({lhs_unsqueeze, rhs_convenient_layout}, {{"auto_broadcast", "numpy"}});
+        auto data_1_3 = makeOP<op::v1::Multiply>({lhs_unsqueeze, rhs_convenient_layout}, {{"auto_broadcast", "numpy"}});
 
         // Second pair of einsum inputs - data_2 and result of the first pair
         // bcccdd,...bcd->c...b
@@ -609,14 +629,14 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
                                                 });
         // Transpose data_2 so that common labels, separated and reduced labels are grouped for both operands.
         auto data_2_processed =
-            makeOP<opset1::Transpose>({data_2_diagonal, makeConst(element::i64, ov::Shape({3}), {0, 2, 1})});
+            makeOP<op::v1::Transpose>({data_2_diagonal, makeConst(element::i64, ov::Shape({3}), {0, 2, 1})});
         // data_1_3 - transpose to correctly group common, separate and reduced labels
         auto transpose_data_1_3_target = makeConst(element::i64, ov::Shape({6}), {4, 3, 0, 1, 2, 5});
-        auto data_1_3_processed = makeOP<opset1::Transpose>({data_1_3, transpose_data_1_3_target});
+        auto data_1_3_processed = makeOP<op::v1::Transpose>({data_1_3, transpose_data_1_3_target});
         // Extract and broadcast common subshapes (bc)
-        auto shapeof_data_1_3 = makeOP<opset3::ShapeOf>({data_1_3_processed}, {{"output_type", "i64"}});
+        auto shapeof_data_1_3 = makeOP<op::v3::ShapeOf>({data_1_3_processed}, {{"output_type", "i64"}});
         auto common_data_1_3 = extract_subshape_from_shape(shapeof_data_1_3, 0, 2);
-        auto shapeof_data_2 = makeOP<opset3::ShapeOf>({data_2_processed}, {{"output_type", "i64"}});
+        auto shapeof_data_2 = makeOP<op::v3::ShapeOf>({data_2_processed}, {{"output_type", "i64"}});
         auto common_data_2 = extract_subshape_from_shape(shapeof_data_2, 0, 2);
         auto common_broadcast_merge_shapes = broadcast_merge_shapes(common_data_2, common_data_1_3);
 
@@ -630,41 +650,41 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
 
         // Broadcast data_2 and data_1_3 based on calculated subshapes
         auto broadcast_data_2_target =
-            makeOP<opset1::Concat>({common_broadcast_merge_shapes, reduced_broadcast_merge_shapes}, {{"axis", 0}});
+            makeOP<op::v0::Concat>({common_broadcast_merge_shapes, reduced_broadcast_merge_shapes}, {{"axis", 0}});
         auto broadcast_data_2 =
-            makeOP<opset3::Broadcast>({data_2_processed, broadcast_data_2_target}, {{"mode", "bidirectional"}});
+            makeOP<op::v3::Broadcast>({data_2_processed, broadcast_data_2_target}, {{"mode", "bidirectional"}});
         auto broadcast_data_1_3_target =
-            makeOP<opset1::Concat>({common_broadcast_merge_shapes, separate_data_1_3, reduced_broadcast_merge_shapes},
+            makeOP<op::v0::Concat>({common_broadcast_merge_shapes, separate_data_1_3, reduced_broadcast_merge_shapes},
                                    {{"axis", 0}});
         auto broadcast_data_1_3 =
-            makeOP<opset3::Broadcast>({data_1_3_processed, broadcast_data_1_3_target}, {{"mode", "bidirectional"}});
+            makeOP<op::v3::Broadcast>({data_1_3_processed, broadcast_data_1_3_target}, {{"mode", "bidirectional"}});
 
         // Optionally reshape broadcasted data_2 and data_1_3 so separate and reduced labels are represented by one
         // dimension. Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
-        auto reduced_prod = makeOP<opset1::ReduceProd>({reduced_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
+        auto reduced_prod = makeOP<op::v1::ReduceProd>({reduced_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
         // Reshape data_2
         auto separate_data_2_placeholder = makeConst(element::i64, ov::Shape({1}), {1});
         auto reshape_data_2_target =
-            makeOP<opset1::Concat>({common_broadcast_merge_shapes, separate_data_2_placeholder, reduced_prod},
+            makeOP<op::v0::Concat>({common_broadcast_merge_shapes, separate_data_2_placeholder, reduced_prod},
                                    {{"axis", 0}});
         auto reshape_data_2 =
-            makeOP<opset1::Reshape>({broadcast_data_2, reshape_data_2_target}, {{"special_zero", false}});
+            makeOP<op::v1::Reshape>({broadcast_data_2, reshape_data_2_target}, {{"special_zero", false}});
         // Reshape data_1_3
         auto Constant_1904 = makeConst(element::i64, ov::Shape({1}), {0});
         auto separate_data_1_3_prod =
-            makeOP<opset1::ReduceProd>({separate_data_1_3, Constant_1904}, {{"keep_dims", true}});
+            makeOP<op::v1::ReduceProd>({separate_data_1_3, Constant_1904}, {{"keep_dims", true}});
         auto reshape_data_1_3_target =
-            makeOP<opset1::Concat>({common_broadcast_merge_shapes, separate_data_1_3_prod, reduced_prod},
+            makeOP<op::v0::Concat>({common_broadcast_merge_shapes, separate_data_1_3_prod, reduced_prod},
                                    {{"axis", 0}});
         auto reshape_data_1_3 =
-            makeOP<opset1::Reshape>({broadcast_data_1_3, reshape_data_1_3_target}, {{"special_zero", false}});
+            makeOP<op::v1::Reshape>({broadcast_data_1_3, reshape_data_1_3_target}, {{"special_zero", false}});
         auto matmul =
-            makeOP<opset1::MatMul>({reshape_data_2, reshape_data_1_3}, {{"transpose_a", false}, {"transpose_b", true}});
+            makeOP<op::v0::MatMul>({reshape_data_2, reshape_data_1_3}, {{"transpose_a", false}, {"transpose_b", true}});
         auto reshape_out_subshape =
-            makeOP<opset1::Concat>({common_broadcast_merge_shapes, separate_data_1_3}, {{"axis", 0}});
-        auto reshape_out = makeOP<opset1::Reshape>({matmul, reshape_out_subshape}, {{"special_zero", false}});
+            makeOP<op::v0::Concat>({common_broadcast_merge_shapes, separate_data_1_3}, {{"axis", 0}});
+        auto reshape_out = makeOP<op::v1::Reshape>({matmul, reshape_out_subshape}, {{"special_zero", false}});
         auto Constant_1965 = makeConst(element::i64, ov::Shape({5}), {0, 2, 3, 4, 1});
-        auto transpose_out = makeOP<opset1::Transpose>({reshape_out, Constant_1965});
+        auto transpose_out = makeOP<op::v1::Transpose>({reshape_out, Constant_1965});
         model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1, data_2, data_3});
     }
 }

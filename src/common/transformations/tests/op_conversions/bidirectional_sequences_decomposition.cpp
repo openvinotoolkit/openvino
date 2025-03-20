@@ -14,23 +14,29 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset5.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/split.hpp"
 
 using namespace testing;
 using namespace ov;
 
 struct Inputs {
     unsigned long hidden_size;
-    std::shared_ptr<opset5::Parameter> X;
-    std::shared_ptr<opset5::Parameter> H;
-    std::shared_ptr<opset5::Parameter> C;
-    std::shared_ptr<opset5::Constant> S;
-    std::shared_ptr<opset5::Constant> W;
-    std::shared_ptr<opset5::Constant> R;
-    std::shared_ptr<opset5::Constant> B;
+    std::shared_ptr<op::v0::Parameter> X;
+    std::shared_ptr<op::v0::Parameter> H;
+    std::shared_ptr<op::v0::Parameter> C;
+    std::shared_ptr<op::v0::Constant> S;
+    std::shared_ptr<op::v0::Constant> W;
+    std::shared_ptr<op::v0::Constant> R;
+    std::shared_ptr<op::v0::Constant> B;
 };
 
 Inputs getInputs(const unsigned long num_gates) {
@@ -47,18 +53,18 @@ Inputs getInputs(const unsigned long num_gates) {
     const auto r_val = std::vector<float>(num_directions * num_gates * retn.hidden_size * retn.hidden_size, 0);
     const auto b_val = std::vector<float>(num_directions * num_gates * retn.hidden_size, 0);
 
-    retn.X = std::make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_len, input_size});
-    retn.H = std::make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, retn.hidden_size});
-    retn.C = std::make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, retn.hidden_size});
-    retn.S = std::make_shared<opset5::Constant>(element::i32, Shape{batch_size}, seq_len_val);
-    retn.W = std::make_shared<opset5::Constant>(element::f32,
+    retn.X = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, seq_len, input_size});
+    retn.H = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, num_directions, retn.hidden_size});
+    retn.C = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, num_directions, retn.hidden_size});
+    retn.S = std::make_shared<op::v0::Constant>(element::i32, Shape{batch_size}, seq_len_val);
+    retn.W = std::make_shared<op::v0::Constant>(element::f32,
                                                 Shape{num_directions, num_gates * retn.hidden_size, input_size},
                                                 w_val);
-    retn.R = std::make_shared<opset5::Constant>(element::f32,
+    retn.R = std::make_shared<op::v0::Constant>(element::f32,
                                                 Shape{num_directions, num_gates * retn.hidden_size, retn.hidden_size},
                                                 r_val);
     retn.B =
-        std::make_shared<opset5::Constant>(element::f32, Shape{num_directions, num_gates * retn.hidden_size}, b_val);
+        std::make_shared<op::v0::Constant>(element::f32, Shape{num_directions, num_gates * retn.hidden_size}, b_val);
 
     return retn;
 }
@@ -70,7 +76,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTM) {
     auto ins = getInputs(num_gates);
 
     {
-        auto lstm_seq = std::make_shared<opset5::LSTMSequence>(ins.X,
+        auto lstm_seq = std::make_shared<op::v5::LSTMSequence>(ins.X,
                                                                ins.H,
                                                                ins.C,
                                                                ins.S,
@@ -91,15 +97,15 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTM) {
     }
 
     {
-        auto axis_0 = opset5::Constant::create(element::i64, Shape{}, {0});
-        auto axis_1 = opset5::Constant::create(element::i64, Shape{}, {1});
-        auto H_split = std::make_shared<opset5::Split>(ins.H, axis_1, 2);
-        auto C_split = std::make_shared<opset5::Split>(ins.C, axis_1, 2);
-        auto W_split = std::make_shared<opset5::Split>(ins.W, axis_0, 2);
-        auto R_split = std::make_shared<opset5::Split>(ins.R, axis_0, 2);
-        auto B_split = std::make_shared<opset5::Split>(ins.B, axis_0, 2);
+        auto axis_0 = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto axis_1 = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto H_split = std::make_shared<op::v1::Split>(ins.H, axis_1, 2);
+        auto C_split = std::make_shared<op::v1::Split>(ins.C, axis_1, 2);
+        auto W_split = std::make_shared<op::v1::Split>(ins.W, axis_0, 2);
+        auto R_split = std::make_shared<op::v1::Split>(ins.R, axis_0, 2);
+        auto B_split = std::make_shared<op::v1::Split>(ins.B, axis_0, 2);
 
-        auto lstm_seq_forward = std::make_shared<opset5::LSTMSequence>(ins.X,
+        auto lstm_seq_forward = std::make_shared<op::v5::LSTMSequence>(ins.X,
                                                                        H_split->output(0),
                                                                        C_split->output(0),
                                                                        ins.S,
@@ -108,7 +114,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTM) {
                                                                        B_split->output(0),
                                                                        ins.hidden_size,
                                                                        op::RecurrentSequenceDirection::FORWARD);
-        auto lstm_seq_reverse = std::make_shared<opset5::LSTMSequence>(ins.X,
+        auto lstm_seq_reverse = std::make_shared<op::v5::LSTMSequence>(ins.X,
                                                                        H_split->output(1),
                                                                        C_split->output(1),
                                                                        ins.S,
@@ -119,11 +125,11 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTM) {
                                                                        op::RecurrentSequenceDirection::REVERSE);
 
         auto concat_0 =
-            std::make_shared<opset5::Concat>(OutputVector{lstm_seq_forward->output(0), lstm_seq_reverse->output(0)}, 1);
+            std::make_shared<op::v0::Concat>(OutputVector{lstm_seq_forward->output(0), lstm_seq_reverse->output(0)}, 1);
         auto concat_1 =
-            std::make_shared<opset5::Concat>(OutputVector{lstm_seq_forward->output(1), lstm_seq_reverse->output(1)}, 1);
+            std::make_shared<op::v0::Concat>(OutputVector{lstm_seq_forward->output(1), lstm_seq_reverse->output(1)}, 1);
         auto concat_2 =
-            std::make_shared<opset5::Concat>(OutputVector{lstm_seq_forward->output(2), lstm_seq_reverse->output(2)}, 1);
+            std::make_shared<op::v0::Concat>(OutputVector{lstm_seq_forward->output(2), lstm_seq_reverse->output(2)}, 1);
 
         f_ref = std::make_shared<ov::Model>(OutputVector{concat_0, concat_1, concat_2},
                                             ParameterVector{ins.X, ins.H, ins.C});
@@ -140,7 +146,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRU) {
     auto ins = getInputs(num_gates);
 
     {
-        auto gru_seq = std::make_shared<opset5::GRUSequence>(ins.X,
+        auto gru_seq = std::make_shared<op::v5::GRUSequence>(ins.X,
                                                              ins.H,
                                                              ins.S,
                                                              ins.W,
@@ -160,14 +166,14 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRU) {
     }
 
     {
-        auto axis_0 = opset5::Constant::create(element::i64, Shape{}, {0});
-        auto axis_1 = opset5::Constant::create(element::i64, Shape{}, {1});
-        auto H_split = std::make_shared<opset5::Split>(ins.H, axis_1, 2);
-        auto W_split = std::make_shared<opset5::Split>(ins.W, axis_0, 2);
-        auto R_split = std::make_shared<opset5::Split>(ins.R, axis_0, 2);
-        auto B_split = std::make_shared<opset5::Split>(ins.B, axis_0, 2);
+        auto axis_0 = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto axis_1 = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto H_split = std::make_shared<op::v1::Split>(ins.H, axis_1, 2);
+        auto W_split = std::make_shared<op::v1::Split>(ins.W, axis_0, 2);
+        auto R_split = std::make_shared<op::v1::Split>(ins.R, axis_0, 2);
+        auto B_split = std::make_shared<op::v1::Split>(ins.B, axis_0, 2);
 
-        auto gru_seq_forward = std::make_shared<opset5::GRUSequence>(ins.X,
+        auto gru_seq_forward = std::make_shared<op::v5::GRUSequence>(ins.X,
                                                                      H_split->output(0),
                                                                      ins.S,
                                                                      W_split->output(0),
@@ -175,7 +181,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRU) {
                                                                      B_split->output(0),
                                                                      ins.hidden_size,
                                                                      op::RecurrentSequenceDirection::FORWARD);
-        auto gru_seq_reverse = std::make_shared<opset5::GRUSequence>(ins.X,
+        auto gru_seq_reverse = std::make_shared<op::v5::GRUSequence>(ins.X,
                                                                      H_split->output(1),
                                                                      ins.S,
                                                                      W_split->output(1),
@@ -185,9 +191,9 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRU) {
                                                                      op::RecurrentSequenceDirection::REVERSE);
 
         auto concat_0 =
-            std::make_shared<opset5::Concat>(OutputVector{gru_seq_forward->output(0), gru_seq_reverse->output(0)}, 1);
+            std::make_shared<op::v0::Concat>(OutputVector{gru_seq_forward->output(0), gru_seq_reverse->output(0)}, 1);
         auto concat_1 =
-            std::make_shared<opset5::Concat>(OutputVector{gru_seq_forward->output(1), gru_seq_reverse->output(1)}, 1);
+            std::make_shared<op::v0::Concat>(OutputVector{gru_seq_forward->output(1), gru_seq_reverse->output(1)}, 1);
 
         f_ref = std::make_shared<ov::Model>(OutputVector{concat_0, concat_1}, ParameterVector{ins.X, ins.H});
     }
@@ -203,7 +209,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNN) {
     auto ins = getInputs(num_gates);
 
     {
-        auto rnn_seq = std::make_shared<opset5::RNNSequence>(ins.X,
+        auto rnn_seq = std::make_shared<op::v5::RNNSequence>(ins.X,
                                                              ins.H,
                                                              ins.S,
                                                              ins.W,
@@ -223,14 +229,14 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNN) {
     }
 
     {
-        auto axis_0 = opset5::Constant::create(element::i64, Shape{}, {0});
-        auto axis_1 = opset5::Constant::create(element::i64, Shape{}, {1});
-        auto H_split = std::make_shared<opset5::Split>(ins.H, axis_1, 2);
-        auto W_split = std::make_shared<opset5::Split>(ins.W, axis_0, 2);
-        auto R_split = std::make_shared<opset5::Split>(ins.R, axis_0, 2);
-        auto B_split = std::make_shared<opset5::Split>(ins.B, axis_0, 2);
+        auto axis_0 = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto axis_1 = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto H_split = std::make_shared<op::v1::Split>(ins.H, axis_1, 2);
+        auto W_split = std::make_shared<op::v1::Split>(ins.W, axis_0, 2);
+        auto R_split = std::make_shared<op::v1::Split>(ins.R, axis_0, 2);
+        auto B_split = std::make_shared<op::v1::Split>(ins.B, axis_0, 2);
 
-        auto rnn_seq_forward = std::make_shared<opset5::RNNSequence>(ins.X,
+        auto rnn_seq_forward = std::make_shared<op::v5::RNNSequence>(ins.X,
                                                                      H_split->output(0),
                                                                      ins.S,
                                                                      W_split->output(0),
@@ -238,7 +244,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNN) {
                                                                      B_split->output(0),
                                                                      ins.hidden_size,
                                                                      op::RecurrentSequenceDirection::FORWARD);
-        auto rnn_seq_reverse = std::make_shared<opset5::RNNSequence>(ins.X,
+        auto rnn_seq_reverse = std::make_shared<op::v5::RNNSequence>(ins.X,
                                                                      H_split->output(1),
                                                                      ins.S,
                                                                      W_split->output(1),
@@ -248,9 +254,9 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNN) {
                                                                      op::RecurrentSequenceDirection::REVERSE);
 
         auto concat_0 =
-            std::make_shared<opset5::Concat>(OutputVector{rnn_seq_forward->output(0), rnn_seq_reverse->output(0)}, 1);
+            std::make_shared<op::v0::Concat>(OutputVector{rnn_seq_forward->output(0), rnn_seq_reverse->output(0)}, 1);
         auto concat_1 =
-            std::make_shared<opset5::Concat>(OutputVector{rnn_seq_forward->output(1), rnn_seq_reverse->output(1)}, 1);
+            std::make_shared<op::v0::Concat>(OutputVector{rnn_seq_forward->output(1), rnn_seq_reverse->output(1)}, 1);
 
         f_ref = std::make_shared<ov::Model>(OutputVector{concat_0, concat_1}, ParameterVector{ins.X, ins.H});
     }
@@ -266,7 +272,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTMDisabled) {
     auto ins = getInputs(num_gates);
 
     {
-        auto lstm_seq = std::make_shared<opset5::LSTMSequence>(ins.X,
+        auto lstm_seq = std::make_shared<op::v5::LSTMSequence>(ins.X,
                                                                ins.H,
                                                                ins.C,
                                                                ins.S,
@@ -279,7 +285,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTMDisabled) {
                                         ParameterVector{ins.X, ins.H, ins.C});
 
         const auto transformations_callback = [](const std::shared_ptr<const ::Node>& node) -> bool {
-            if (as_type<const opset5::LSTMSequence>(node.get())) {
+            if (as_type<const op::v5::LSTMSequence>(node.get())) {
                 return true;
             }
             return false;
@@ -295,7 +301,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTMDisabled) {
     }
 
     {
-        auto lstm_seq = std::make_shared<opset5::LSTMSequence>(ins.X,
+        auto lstm_seq = std::make_shared<op::v5::LSTMSequence>(ins.X,
                                                                ins.H,
                                                                ins.C,
                                                                ins.S,
@@ -319,7 +325,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRUDisabled) {
     auto ins = getInputs(num_gates);
 
     {
-        auto gru_seq = std::make_shared<opset5::GRUSequence>(ins.X,
+        auto gru_seq = std::make_shared<op::v5::GRUSequence>(ins.X,
                                                              ins.H,
                                                              ins.S,
                                                              ins.W,
@@ -331,7 +337,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRUDisabled) {
                                         ParameterVector{ins.X, ins.H});
 
         const auto transformations_callback = [](const std::shared_ptr<const ::Node>& node) -> bool {
-            if (as_type<const opset5::GRUSequence>(node.get())) {
+            if (as_type<const op::v5::GRUSequence>(node.get())) {
                 return true;
             }
             return false;
@@ -347,7 +353,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRUDisabled) {
     }
 
     {
-        auto gru_seq = std::make_shared<opset5::GRUSequence>(ins.X,
+        auto gru_seq = std::make_shared<op::v5::GRUSequence>(ins.X,
                                                              ins.H,
                                                              ins.S,
                                                              ins.W,
@@ -370,7 +376,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNNDisabled) {
     auto ins = getInputs(num_gates);
 
     {
-        auto rnn_seq = std::make_shared<opset5::RNNSequence>(ins.X,
+        auto rnn_seq = std::make_shared<op::v5::RNNSequence>(ins.X,
                                                              ins.H,
                                                              ins.S,
                                                              ins.W,
@@ -382,7 +388,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNNDisabled) {
                                         ParameterVector{ins.X, ins.H});
 
         const auto transformations_callback = [](const std::shared_ptr<const ::Node>& node) -> bool {
-            if (as_type<const opset5::RNNSequence>(node.get())) {
+            if (as_type<const op::v5::RNNSequence>(node.get())) {
                 return true;
             }
             return false;
@@ -398,7 +404,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNNDisabled) {
     }
 
     {
-        auto rnn_seq = std::make_shared<opset5::RNNSequence>(ins.X,
+        auto rnn_seq = std::make_shared<op::v5::RNNSequence>(ins.X,
                                                              ins.H,
                                                              ins.S,
                                                              ins.W,

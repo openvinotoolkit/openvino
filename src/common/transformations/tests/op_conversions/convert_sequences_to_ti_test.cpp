@@ -10,11 +10,26 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset5.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -22,19 +37,19 @@ using namespace ov;
 TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{1, 512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 512}, b_val);
 
-        auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X,
+        auto rnn_sequence = std::make_shared<op::v5::LSTMSequence>(X,
                                                                    Y,
                                                                    Z,
                                                                    seq_lengths,
@@ -43,9 +58,9 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
                                                                    B,
                                                                    128,
                                                                    op::RecurrentSequenceDirection::FORWARD);
-        auto Y_out = std::make_shared<opset5::Result>(rnn_sequence->output(0));
-        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
-        auto Co = std::make_shared<opset5::Result>(rnn_sequence->output(2));
+        auto Y_out = std::make_shared<op::v0::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<op::v0::Result>(rnn_sequence->output(1));
+        auto Co = std::make_shared<op::v0::Result>(rnn_sequence->output(2));
         Y_out->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
         Co->set_friendly_name("Co");
@@ -60,41 +75,41 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto squeeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
-        auto squeeze_z = std::make_shared<opset5::Squeeze>(Z, squeeze_pattern);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto squeeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_y = std::make_shared<op::v0::Squeeze>(Y, squeeze_pattern);
+        auto squeeze_z = std::make_shared<op::v0::Squeeze>(Z, squeeze_pattern);
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto Zi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Zi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto seq_body_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
 
         // Body
-        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
+        auto squeeze_x = std::make_shared<op::v0::Squeeze>(Xi, squeeze_pattern);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto rnn_cell = std::make_shared<opset5::LSTMCell>(squeeze_x, Yi, Zi, W, R, B, 128);
+        auto rnn_cell = std::make_shared<op::v4::LSTMCell>(squeeze_x, Yi, Zi, W, R, B, 128);
 
-        auto unsqueeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto Ho = std::make_shared<opset5::Result>(rnn_cell->output(0));
+        auto unsqueeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto Ho = std::make_shared<op::v0::Result>(rnn_cell->output(0));
 
-        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
+        auto Co = std::make_shared<op::v0::Result>(rnn_cell->output(1));
 
-        auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
-        auto Y_out = std::make_shared<opset5::Result>(unsqueeze_y);
+        auto unsqueeze_y = std::make_shared<op::v0::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
+        auto Y_out = std::make_shared<op::v0::Result>(unsqueeze_y);
 
         auto body = std::make_shared<Model>(OutputVector{Y_out, Ho, Co}, ParameterVector{Xi, Yi, Zi, seq_body_param});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
@@ -103,18 +118,18 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
         tensor_iterator->set_merged_input(Yi, squeeze_y, Ho);
         tensor_iterator->set_merged_input(Zi, squeeze_z, Co);
 
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
         tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
 
         tensor_iterator->get_iter_value(Ho);
         tensor_iterator->get_iter_value(Co);
 
-        auto res_ti_Y = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
-        auto res_ti_H = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
-        auto res_ti_C = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(2), unsqueeze_pattern));
+        auto res_ti_Y = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
+        auto res_ti_H = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
+        auto res_ti_C = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(2), unsqueeze_pattern));
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
         res_ti_C->set_friendly_name("Co");
@@ -128,19 +143,19 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
 TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 1, 128});
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 1, 128});
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 128});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{1, 512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 512}, b_val);
 
-        auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X,
+        auto rnn_sequence = std::make_shared<op::v5::LSTMSequence>(X,
                                                                    Y,
                                                                    Z,
                                                                    seq_lengths,
@@ -149,9 +164,9 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
                                                                    B,
                                                                    128,
                                                                    op::RecurrentSequenceDirection::FORWARD);
-        auto Y_out = std::make_shared<opset5::Result>(rnn_sequence->output(0));
-        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
-        auto Co = std::make_shared<opset5::Result>(rnn_sequence->output(2));
+        auto Y_out = std::make_shared<op::v0::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<op::v0::Result>(rnn_sequence->output(1));
+        auto Co = std::make_shared<op::v0::Result>(rnn_sequence->output(2));
         Y_out->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
         Co->set_friendly_name("Co");
@@ -166,41 +181,41 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 1, 128});
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 1, 128});
-        auto squeeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
-        auto squeeze_z = std::make_shared<opset5::Squeeze>(Z, squeeze_pattern);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 128});
+        auto squeeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_y = std::make_shared<op::v0::Squeeze>(Y, squeeze_pattern);
+        auto squeeze_z = std::make_shared<op::v0::Squeeze>(Z, squeeze_pattern);
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 1, -1});
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 128});
-        auto Zi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 128});
-        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 1, -1});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 128});
+        auto Zi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 128});
+        auto seq_body_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
 
         // Body
-        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
+        auto squeeze_x = std::make_shared<op::v0::Squeeze>(Xi, squeeze_pattern);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto rnn_cell = std::make_shared<opset5::LSTMCell>(squeeze_x, Yi, Zi, W, R, B, 128);
+        auto rnn_cell = std::make_shared<op::v4::LSTMCell>(squeeze_x, Yi, Zi, W, R, B, 128);
 
-        auto Ho = std::make_shared<opset5::Result>(rnn_cell->output(0));
+        auto Ho = std::make_shared<op::v0::Result>(rnn_cell->output(0));
 
-        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
+        auto Co = std::make_shared<op::v0::Result>(rnn_cell->output(1));
 
-        auto unsqueeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
-        auto Y_out = std::make_shared<opset5::Result>(unsqueeze_y);
+        auto unsqueeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze_y = std::make_shared<op::v0::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
+        auto Y_out = std::make_shared<op::v0::Result>(unsqueeze_y);
 
         auto body = std::make_shared<Model>(OutputVector{Y_out, Ho, Co}, ParameterVector{Xi, Yi, Zi, seq_body_param});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
@@ -209,18 +224,18 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
         tensor_iterator->set_merged_input(Yi, squeeze_y, Ho);
         tensor_iterator->set_merged_input(Zi, squeeze_z, Co);
 
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
         tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
 
         tensor_iterator->get_iter_value(Ho);
         tensor_iterator->get_iter_value(Co);
 
-        auto res_ti_Y = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
-        auto res_ti_H = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
-        auto res_ti_C = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(2), unsqueeze_pattern));
+        auto res_ti_Y = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
+        auto res_ti_H = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
+        auto res_ti_C = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(2), unsqueeze_pattern));
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
         res_ti_C->set_friendly_name("Co");
@@ -235,22 +250,22 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
 TEST(TransformationTests, ConvertQuantizedLSTMSequenceToTensorIterator) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto input_low = opset5::Constant::create(element::f32, Shape{}, {0});
-        auto input_high = opset5::Constant::create(element::f32, Shape{}, {20});
-        auto X_fq = std::make_shared<opset5::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
-        auto H = opset5::Constant::create(element::f32, Shape{1, 1, 128}, {1});
-        auto C = opset5::Constant::create(element::f32, Shape{1, 1, 128}, {2});
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto input_low = op::v0::Constant::create(element::f32, Shape{}, {0});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{}, {20});
+        auto X_fq = std::make_shared<op::v0::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
+        auto H = op::v0::Constant::create(element::f32, Shape{1, 1, 128}, {1});
+        auto C = op::v0::Constant::create(element::f32, Shape{1, 1, 128}, {2});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
 
-        auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, {1});
-        auto W_fq = std::make_shared<opset5::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
-        auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, {2});
-        auto R_fq = std::make_shared<opset5::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
-        auto B = opset5::Constant::create(element::f32, Shape{1, 512}, {3});
-        auto B_abs = std::make_shared<opset5::Abs>(B);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 512, 16}, {1});
+        auto W_fq = std::make_shared<op::v0::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 512, 128}, {2});
+        auto R_fq = std::make_shared<op::v0::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 512}, {3});
+        auto B_abs = std::make_shared<op::v0::Abs>(B);
 
-        auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X_fq,
+        auto rnn_sequence = std::make_shared<op::v5::LSTMSequence>(X_fq,
                                                                    H,
                                                                    C,
                                                                    seq_lengths,
@@ -259,9 +274,9 @@ TEST(TransformationTests, ConvertQuantizedLSTMSequenceToTensorIterator) {
                                                                    B_abs,
                                                                    128,
                                                                    op::RecurrentSequenceDirection::FORWARD);
-        auto Y = std::make_shared<opset5::Result>(rnn_sequence->output(0));
-        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
-        auto Co = std::make_shared<opset5::Result>(rnn_sequence->output(2));
+        auto Y = std::make_shared<op::v0::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<op::v0::Result>(rnn_sequence->output(1));
+        auto Co = std::make_shared<op::v0::Result>(rnn_sequence->output(2));
         Y->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
         Co->set_friendly_name("Co");
@@ -276,47 +291,47 @@ TEST(TransformationTests, ConvertQuantizedLSTMSequenceToTensorIterator) {
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto input_low = opset5::Constant::create(element::f32, Shape{}, {0});
-        auto input_high = opset5::Constant::create(element::f32, Shape{}, {20});
-        auto X_fq = std::make_shared<opset5::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto input_low = op::v0::Constant::create(element::f32, Shape{}, {0});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{}, {20});
+        auto X_fq = std::make_shared<op::v0::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
 
-        auto H = opset5::Constant::create(element::f32, Shape{1, 128}, {1});
-        auto C = opset5::Constant::create(element::f32, Shape{1, 128}, {2});
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto H = op::v0::Constant::create(element::f32, Shape{1, 128}, {1});
+        auto C = op::v0::Constant::create(element::f32, Shape{1, 128}, {2});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
 
-        auto first_axis = opset5::Constant::create(element::i64, Shape{1}, {0});
+        auto first_axis = op::v0::Constant::create(element::i64, Shape{1}, {0});
 
-        auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, {1});
-        auto W_fq = std::make_shared<opset5::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
-        auto W_squeezed = std::make_shared<opset5::Squeeze>(W_fq, first_axis);
-        auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, {2});
-        auto R_fq = std::make_shared<opset5::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
-        auto R_squeezed = std::make_shared<opset5::Squeeze>(R_fq, first_axis);
-        auto B = opset5::Constant::create(element::f32, Shape{1, 512}, {3});
-        auto B_abs = std::make_shared<opset5::Abs>(B);
-        auto B_squeezed = std::make_shared<opset5::Squeeze>(B_abs, first_axis);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 512, 16}, {1});
+        auto W_fq = std::make_shared<op::v0::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
+        auto W_squeezed = std::make_shared<op::v0::Squeeze>(W_fq, first_axis);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 512, 128}, {2});
+        auto R_fq = std::make_shared<op::v0::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
+        auto R_squeezed = std::make_shared<op::v0::Squeeze>(R_fq, first_axis);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 512}, {3});
+        auto B_abs = std::make_shared<op::v0::Abs>(B);
+        auto B_squeezed = std::make_shared<op::v0::Squeeze>(B_abs, first_axis);
 
         // Body
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto seq_body_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
 
-        auto second_axis = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, second_axis);
+        auto second_axis = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_x = std::make_shared<op::v0::Squeeze>(Xi, second_axis);
 
-        auto Hi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto Ci = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto Hi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Ci = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto rnn_cell = std::make_shared<opset5::LSTMCell>(squeeze_x, Hi, Ci, W_squeezed, R_squeezed, B_squeezed, 128);
+        auto rnn_cell = std::make_shared<op::v4::LSTMCell>(squeeze_x, Hi, Ci, W_squeezed, R_squeezed, B_squeezed, 128);
 
-        auto Ho = std::make_shared<opset5::Result>(rnn_cell->output(0));
-        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
-        auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), second_axis);
-        auto Y = std::make_shared<opset5::Result>(unsqueeze_y);
+        auto Ho = std::make_shared<op::v0::Result>(rnn_cell->output(0));
+        auto Co = std::make_shared<op::v0::Result>(rnn_cell->output(1));
+        auto unsqueeze_y = std::make_shared<op::v0::Unsqueeze>(rnn_cell->output(0), second_axis);
+        auto Y = std::make_shared<op::v0::Result>(unsqueeze_y);
 
         auto body = std::make_shared<Model>(OutputVector{Y, Ho, Co}, ParameterVector{Xi, Hi, Ci, seq_body_param});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X_fq, 0, 1, 1, -1, 1);
@@ -328,12 +343,12 @@ TEST(TransformationTests, ConvertQuantizedLSTMSequenceToTensorIterator) {
         tensor_iterator->get_iter_value(Ho);
         tensor_iterator->get_iter_value(Co);
 
-        auto res_ti_Y = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), second_axis));
-        auto res_ti_H = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), second_axis));
-        auto res_ti_C = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(2), second_axis));
+        auto res_ti_Y = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(0), second_axis));
+        auto res_ti_H = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(1), second_axis));
+        auto res_ti_C = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(2), second_axis));
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
         res_ti_C->set_friendly_name("Co");
@@ -347,18 +362,18 @@ TEST(TransformationTests, ConvertQuantizedLSTMSequenceToTensorIterator) {
 TEST(TransformationTests, ConvertRNNSequenceToTensorIterator) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{1, 128, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{1, 128, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{1, 128}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 128, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 128, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 128}, b_val);
 
-        auto rnn_sequence = std::make_shared<opset5::RNNSequence>(X,
+        auto rnn_sequence = std::make_shared<op::v5::RNNSequence>(X,
                                                                   Y,
                                                                   seq_lengths,
                                                                   W,
@@ -366,8 +381,8 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIterator) {
                                                                   B,
                                                                   128,
                                                                   op::RecurrentSequenceDirection::FORWARD);
-        auto Y_out = std::make_shared<opset5::Result>(rnn_sequence->output(0));
-        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
+        auto Y_out = std::make_shared<op::v0::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<op::v0::Result>(rnn_sequence->output(1));
         Y_out->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
 
@@ -381,48 +396,48 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIterator) {
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto squeeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto squeeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_y = std::make_shared<op::v0::Squeeze>(Y, squeeze_pattern);
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto seq_body_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
 
         // Body
-        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
+        auto squeeze_x = std::make_shared<op::v0::Squeeze>(Xi, squeeze_pattern);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{128, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{128, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{128}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{128, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{128, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{128}, b_val);
 
-        auto rnn_cell = std::make_shared<opset5::RNNCell>(squeeze_x, Yi, W, R, B, 128);
-        auto unsqueeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto Ho = std::make_shared<opset5::Result>(rnn_cell);
-        auto unsqueeze = std::make_shared<opset5::Unsqueeze>(rnn_cell, unsqueeze_pattern);
-        auto Y_out = std::make_shared<opset5::Result>(unsqueeze);
+        auto rnn_cell = std::make_shared<op::v0::RNNCell>(squeeze_x, Yi, W, R, B, 128);
+        auto unsqueeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto Ho = std::make_shared<op::v0::Result>(rnn_cell);
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(rnn_cell, unsqueeze_pattern);
+        auto Y_out = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{Y_out, Ho}, ParameterVector{Xi, Yi, seq_body_param});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
         tensor_iterator->get_concatenated_slices(Y_out, 0, 1, 1, -1, 1);
 
         tensor_iterator->set_merged_input(Yi, squeeze_y, Ho);
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
         tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
 
         tensor_iterator->get_iter_value(Ho);
 
-        auto res_ti_Y = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
-        auto res_ti_H = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
+        auto res_ti_Y = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
+        auto res_ti_H = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
 
@@ -436,18 +451,18 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIterator) {
 TEST(TransformationTests, ConvertRNNSequenceToTensorIteratorDynamic) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 1, 128});
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 128});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{1, 128, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{1, 128, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{1, 128}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 128, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 128, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 128}, b_val);
 
-        auto rnn_sequence = std::make_shared<opset5::RNNSequence>(X,
+        auto rnn_sequence = std::make_shared<op::v5::RNNSequence>(X,
                                                                   Y,
                                                                   seq_lengths,
                                                                   W,
@@ -455,8 +470,8 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIteratorDynamic) {
                                                                   B,
                                                                   128,
                                                                   op::RecurrentSequenceDirection::FORWARD);
-        auto Y_out = std::make_shared<opset5::Result>(rnn_sequence->output(0));
-        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
+        auto Y_out = std::make_shared<op::v0::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<op::v0::Result>(rnn_sequence->output(1));
         Y_out->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
 
@@ -470,47 +485,47 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIteratorDynamic) {
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 1, 128});
-        auto axis_1 = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, axis_1);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 128});
+        auto axis_1 = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_y = std::make_shared<op::v0::Squeeze>(Y, axis_1);
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 1, -1});
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 128});
-        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 1, -1});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 128});
+        auto seq_body_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
 
         // Body
-        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, axis_1);
+        auto squeeze_x = std::make_shared<op::v0::Squeeze>(Xi, axis_1);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{128, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{128, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{128}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{128, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{128, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{128}, b_val);
 
-        auto rnn_cell = std::make_shared<opset5::RNNCell>(squeeze_x, Yi, W, R, B, 128);
-        auto Ho = std::make_shared<opset5::Result>(rnn_cell);
-        auto unsqueeze = std::make_shared<opset5::Unsqueeze>(rnn_cell, axis_1);
-        auto Y_out = std::make_shared<opset5::Result>(unsqueeze);
+        auto rnn_cell = std::make_shared<op::v0::RNNCell>(squeeze_x, Yi, W, R, B, 128);
+        auto Ho = std::make_shared<op::v0::Result>(rnn_cell);
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(rnn_cell, axis_1);
+        auto Y_out = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{Y_out, Ho}, ParameterVector{Xi, Yi, seq_body_param});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
         tensor_iterator->get_concatenated_slices(Y_out, 0, 1, 1, -1, 1);
 
         tensor_iterator->set_merged_input(Yi, squeeze_y, Ho);
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
         tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
 
         tensor_iterator->get_iter_value(Ho);
 
         auto res_ti_Y =
-            std::make_shared<opset5::Result>(std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), axis_1));
+            std::make_shared<op::v0::Result>(std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(0), axis_1));
         auto res_ti_H =
-            std::make_shared<opset5::Result>(std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), axis_1));
+            std::make_shared<op::v0::Result>(std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(1), axis_1));
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
 
@@ -524,18 +539,18 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIteratorDynamic) {
 TEST(TransformationTests, ConvertGRUSequenceToTensorIterator) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{1, 384, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{1, 384, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{1, 384}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 384, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 384, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 384}, b_val);
 
-        auto rnn_sequence = std::make_shared<opset5::GRUSequence>(X,
+        auto rnn_sequence = std::make_shared<op::v5::GRUSequence>(X,
                                                                   Y,
                                                                   seq_lengths,
                                                                   W,
@@ -543,8 +558,8 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIterator) {
                                                                   B,
                                                                   128,
                                                                   op::RecurrentSequenceDirection::FORWARD);
-        auto Y_out = std::make_shared<opset5::Result>(rnn_sequence->output(0));
-        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
+        auto Y_out = std::make_shared<op::v0::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<op::v0::Result>(rnn_sequence->output(1));
         Y_out->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
 
@@ -558,48 +573,48 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIterator) {
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto squeeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto squeeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_y = std::make_shared<op::v0::Squeeze>(Y, squeeze_pattern);
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto seq_body_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
 
         // Body
-        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
+        auto squeeze_x = std::make_shared<op::v0::Squeeze>(Xi, squeeze_pattern);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{384, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{384, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{384}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{384, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{384, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{384}, b_val);
 
-        auto rnn_cell = std::make_shared<opset5::GRUCell>(squeeze_x, Yi, W, R, B, 128);
-        auto Ho = std::make_shared<opset5::Result>(rnn_cell);
-        auto unsqueeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto unsqueeze = std::make_shared<opset5::Unsqueeze>(rnn_cell, unsqueeze_pattern);
-        auto Y_out = std::make_shared<opset5::Result>(unsqueeze);
+        auto rnn_cell = std::make_shared<op::v3::GRUCell>(squeeze_x, Yi, W, R, B, 128);
+        auto Ho = std::make_shared<op::v0::Result>(rnn_cell);
+        auto unsqueeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(rnn_cell, unsqueeze_pattern);
+        auto Y_out = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{Y_out, Ho}, ParameterVector{Xi, Yi, seq_body_param});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
         tensor_iterator->get_concatenated_slices(Y_out, 0, 1, 1, -1, 1);
 
         tensor_iterator->set_merged_input(Yi, squeeze_y, Ho);
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
         tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
 
         tensor_iterator->get_iter_value(Ho);
 
-        auto res_ti_Y = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
-        auto res_ti_H = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
+        auto res_ti_Y = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
+        auto res_ti_H = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
 
@@ -613,18 +628,18 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIterator) {
 TEST(TransformationTests, ConvertGRUSequenceToTensorIteratorDynamic) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 1, 128});
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 128});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{1, 384, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{1, 384, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{1, 384}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 384, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 384, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 384}, b_val);
 
-        auto rnn_sequence = std::make_shared<opset5::GRUSequence>(X,
+        auto rnn_sequence = std::make_shared<op::v5::GRUSequence>(X,
                                                                   Y,
                                                                   seq_lengths,
                                                                   W,
@@ -632,8 +647,8 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIteratorDynamic) {
                                                                   B,
                                                                   128,
                                                                   op::RecurrentSequenceDirection::FORWARD);
-        auto Y_out = std::make_shared<opset5::Result>(rnn_sequence->output(0));
-        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
+        auto Y_out = std::make_shared<op::v0::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<op::v0::Result>(rnn_sequence->output(1));
         Y_out->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
 
@@ -647,48 +662,48 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIteratorDynamic) {
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 2, -1});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 1, 128});
-        auto squeeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 128});
+        auto squeeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_y = std::make_shared<op::v0::Squeeze>(Y, squeeze_pattern);
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, 1, -1});
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 128});
-        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 1, -1});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 128});
+        auto seq_body_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
 
         // Body
-        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
+        auto squeeze_x = std::make_shared<op::v0::Squeeze>(Xi, squeeze_pattern);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{384, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{384, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{384}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{384, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{384, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{384}, b_val);
 
-        auto rnn_cell = std::make_shared<opset5::GRUCell>(squeeze_x, Yi, W, R, B, 128);
-        auto Ho = std::make_shared<opset5::Result>(rnn_cell);
-        auto unsqueeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto unsqueeze = std::make_shared<opset5::Unsqueeze>(rnn_cell, unsqueeze_pattern);
-        auto Y_out = std::make_shared<opset5::Result>(unsqueeze);
+        auto rnn_cell = std::make_shared<op::v3::GRUCell>(squeeze_x, Yi, W, R, B, 128);
+        auto Ho = std::make_shared<op::v0::Result>(rnn_cell);
+        auto unsqueeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(rnn_cell, unsqueeze_pattern);
+        auto Y_out = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{Y_out, Ho}, ParameterVector{Xi, Yi, seq_body_param});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
         tensor_iterator->get_concatenated_slices(Y_out, 0, 1, 1, -1, 1);
 
         tensor_iterator->set_merged_input(Yi, squeeze_y, Ho);
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
         tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
 
         tensor_iterator->get_iter_value(Ho);
 
-        auto res_ti_Y = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
-        auto res_ti_H = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
+        auto res_ti_Y = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
+        auto res_ti_H = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
 
@@ -702,22 +717,22 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIteratorDynamic) {
 TEST(TransformationTests, ConvertQuantizedGRUSequenceToTensorIterator) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto input_low = opset5::Constant::create(element::f32, Shape{}, {0});
-        auto input_high = opset5::Constant::create(element::f32, Shape{}, {20});
-        auto X_fq = std::make_shared<opset5::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto input_low = op::v0::Constant::create(element::f32, Shape{}, {0});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{}, {20});
+        auto X_fq = std::make_shared<op::v0::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
 
-        auto H = opset5::Constant::create(element::f32, Shape{1, 1, 128}, {1});
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto H = op::v0::Constant::create(element::f32, Shape{1, 1, 128}, {1});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
 
-        auto W = opset5::Constant::create(element::f32, Shape{1, 384, 16}, {2});
-        auto W_fq = std::make_shared<opset5::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
-        auto R = opset5::Constant::create(element::f32, Shape{1, 384, 128}, {3});
-        auto R_fq = std::make_shared<opset5::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
-        auto B = opset5::Constant::create(element::f32, Shape{1, 384}, {4});
-        auto B_abs = std::make_shared<opset5::Abs>(B);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 384, 16}, {2});
+        auto W_fq = std::make_shared<op::v0::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 384, 128}, {3});
+        auto R_fq = std::make_shared<op::v0::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 384}, {4});
+        auto B_abs = std::make_shared<op::v0::Abs>(B);
 
-        auto rnn_sequence = std::make_shared<opset5::GRUSequence>(X_fq,
+        auto rnn_sequence = std::make_shared<op::v5::GRUSequence>(X_fq,
                                                                   H,
                                                                   seq_lengths,
                                                                   W_fq,
@@ -725,8 +740,8 @@ TEST(TransformationTests, ConvertQuantizedGRUSequenceToTensorIterator) {
                                                                   B_abs,
                                                                   128,
                                                                   op::RecurrentSequenceDirection::FORWARD);
-        auto Y = std::make_shared<opset5::Result>(rnn_sequence->output(0));
-        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
+        auto Y = std::make_shared<op::v0::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<op::v0::Result>(rnn_sequence->output(1));
         Y->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
 
@@ -740,41 +755,41 @@ TEST(TransformationTests, ConvertQuantizedGRUSequenceToTensorIterator) {
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto input_low = opset5::Constant::create(element::f32, Shape{}, {0});
-        auto input_high = opset5::Constant::create(element::f32, Shape{}, {20});
-        auto X_fq = std::make_shared<opset5::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto input_low = op::v0::Constant::create(element::f32, Shape{}, {0});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{}, {20});
+        auto X_fq = std::make_shared<op::v0::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
 
-        auto H = opset5::Constant::create(element::f32, Shape{1, 128}, {1});
-        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto H = op::v0::Constant::create(element::f32, Shape{1, 128}, {1});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
 
-        auto first_axis = opset5::Constant::create(element::i64, Shape{1}, {0});
+        auto first_axis = op::v0::Constant::create(element::i64, Shape{1}, {0});
 
-        auto W = opset5::Constant::create(element::f32, Shape{1, 384, 16}, {2});
-        auto W_fq = std::make_shared<opset5::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
-        auto W_squeezed = std::make_shared<opset5::Squeeze>(W_fq, first_axis);
-        auto R = opset5::Constant::create(element::f32, Shape{1, 384, 128}, {3});
-        auto R_fq = std::make_shared<opset5::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
-        auto R_squeezed = std::make_shared<opset5::Squeeze>(R_fq, first_axis);
-        auto B = opset5::Constant::create(element::f32, Shape{1, 384}, {4});
-        auto B_abs = std::make_shared<opset5::Abs>(B);
-        auto B_squeezed = std::make_shared<opset5::Squeeze>(B_abs, first_axis);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 384, 16}, {2});
+        auto W_fq = std::make_shared<op::v0::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
+        auto W_squeezed = std::make_shared<op::v0::Squeeze>(W_fq, first_axis);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 384, 128}, {3});
+        auto R_fq = std::make_shared<op::v0::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
+        auto R_squeezed = std::make_shared<op::v0::Squeeze>(R_fq, first_axis);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 384}, {4});
+        auto B_abs = std::make_shared<op::v0::Abs>(B);
+        auto B_squeezed = std::make_shared<op::v0::Squeeze>(B_abs, first_axis);
 
         // Body
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Hi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Hi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto seq_body_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
 
-        auto second_axis = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, second_axis);
+        auto second_axis = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_x = std::make_shared<op::v0::Squeeze>(Xi, second_axis);
 
-        auto rnn_cell = std::make_shared<opset5::GRUCell>(squeeze_x, Hi, W_squeezed, R_squeezed, B_squeezed, 128);
-        auto Ho = std::make_shared<opset5::Result>(rnn_cell);
-        auto unsqueeze = std::make_shared<opset5::Unsqueeze>(rnn_cell, second_axis);
-        auto Y_out = std::make_shared<opset5::Result>(unsqueeze);
+        auto rnn_cell = std::make_shared<op::v3::GRUCell>(squeeze_x, Hi, W_squeezed, R_squeezed, B_squeezed, 128);
+        auto Ho = std::make_shared<op::v0::Result>(rnn_cell);
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(rnn_cell, second_axis);
+        auto Y_out = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{Y_out, Ho}, ParameterVector{Xi, Hi, seq_body_param});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X_fq, 0, 1, 1, -1, 1);
@@ -785,10 +800,10 @@ TEST(TransformationTests, ConvertQuantizedGRUSequenceToTensorIterator) {
 
         tensor_iterator->get_iter_value(Ho);
 
-        auto res_ti_Y = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), second_axis));
-        auto res_ti_H = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), second_axis));
+        auto res_ti_Y = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(0), second_axis));
+        auto res_ti_H = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(1), second_axis));
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
 
@@ -836,22 +851,22 @@ TEST(TransformationTests, convert_lstm_seq_to_ti_with_enabled_mask) {
 TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenToTensorIterator) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto indices = opset5::Constant::create(element::i32, {1}, {1});
-        auto axis = opset5::Constant::create(element::i32, {}, {0});
-        auto seq_lengths = std::make_shared<opset5::Gather>(shape_of, indices, axis);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, -1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto shape_of = std::make_shared<op::v3::ShapeOf>(X);
+        auto indices = op::v0::Constant::create(element::i32, {1}, {1});
+        auto axis = op::v0::Constant::create(element::i32, {}, {0});
+        auto seq_lengths = std::make_shared<op::v1::Gather>(shape_of, indices, axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{1, 512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 512}, b_val);
 
-        auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X,
+        auto rnn_sequence = std::make_shared<op::v5::LSTMSequence>(X,
                                                                    Y,
                                                                    Z,
                                                                    seq_lengths,
@@ -860,9 +875,9 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenToTensorIterator) {
                                                                    B,
                                                                    128,
                                                                    op::RecurrentSequenceDirection::FORWARD);
-        auto Y_out = std::make_shared<opset5::Result>(rnn_sequence->output(0));
-        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
-        auto Co = std::make_shared<opset5::Result>(rnn_sequence->output(2));
+        auto Y_out = std::make_shared<op::v0::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<op::v0::Result>(rnn_sequence->output(1));
+        auto Co = std::make_shared<op::v0::Result>(rnn_sequence->output(2));
         Y_out->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
         Co->set_friendly_name("Co");
@@ -877,41 +892,41 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenToTensorIterator) {
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-        auto squeeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
-        auto squeeze_z = std::make_shared<opset5::Squeeze>(Z, squeeze_pattern);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, -1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 128});
+        auto squeeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_y = std::make_shared<op::v0::Squeeze>(Y, squeeze_pattern);
+        auto squeeze_z = std::make_shared<op::v0::Squeeze>(Z, squeeze_pattern);
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto Zi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Zi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto seq_body_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
 
         // Body
-        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
+        auto squeeze_x = std::make_shared<op::v0::Squeeze>(Xi, squeeze_pattern);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto rnn_cell = std::make_shared<opset5::LSTMCell>(squeeze_x, Yi, Zi, W, R, B, 128);
+        auto rnn_cell = std::make_shared<op::v4::LSTMCell>(squeeze_x, Yi, Zi, W, R, B, 128);
 
-        auto unsqueeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
-        auto Ho = std::make_shared<opset5::Result>(rnn_cell->output(0));
+        auto unsqueeze_pattern = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto Ho = std::make_shared<op::v0::Result>(rnn_cell->output(0));
 
-        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
+        auto Co = std::make_shared<op::v0::Result>(rnn_cell->output(1));
 
-        auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
-        auto Y_out = std::make_shared<opset5::Result>(unsqueeze_y);
+        auto unsqueeze_y = std::make_shared<op::v0::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
+        auto Y_out = std::make_shared<op::v0::Result>(unsqueeze_y);
 
         auto body = std::make_shared<Model>(OutputVector{Y_out, Ho, Co}, ParameterVector{Xi, Yi, Zi, seq_body_param});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
@@ -920,21 +935,21 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenToTensorIterator) {
         tensor_iterator->set_merged_input(Yi, squeeze_y, Ho);
         tensor_iterator->set_merged_input(Zi, squeeze_z, Co);
 
-        auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto indices = opset5::Constant::create(element::i32, {1}, {1});
-        auto axis = opset5::Constant::create(element::i32, {}, {0});
-        auto seq_lengths = std::make_shared<opset5::Gather>(shape_of, indices, axis);
+        auto shape_of = std::make_shared<op::v3::ShapeOf>(X);
+        auto indices = op::v0::Constant::create(element::i32, {1}, {1});
+        auto axis = op::v0::Constant::create(element::i32, {}, {0});
+        auto seq_lengths = std::make_shared<op::v1::Gather>(shape_of, indices, axis);
         tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
 
         tensor_iterator->get_iter_value(Ho);
         tensor_iterator->get_iter_value(Co);
 
-        auto res_ti_Y = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
-        auto res_ti_H = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
-        auto res_ti_C = std::make_shared<opset5::Result>(
-            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(2), unsqueeze_pattern));
+        auto res_ti_Y = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
+        auto res_ti_H = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
+        auto res_ti_C = std::make_shared<op::v0::Result>(
+            std::make_shared<op::v0::Unsqueeze>(tensor_iterator->output(2), unsqueeze_pattern));
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
         res_ti_C->set_friendly_name("Co");

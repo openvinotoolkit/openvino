@@ -9,6 +9,8 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_update.hpp"
 
 namespace ov {
 namespace pass {
@@ -20,7 +22,7 @@ class TRANSFORMATIONS_API ConvertScatterElementsToScatter;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief ConvertScatterElementsToScatter convert opset3::ScatterElementsUpdate to opset3::ScatterUpdate.
+ * @brief ConvertScatterElementsToScatter convert op::v3::ScatterElementsUpdate to op::v3::ScatterUpdate.
  */
 class ov::pass::ConvertScatterElementsToScatter : public ov::pass::MatcherPass {
 public:

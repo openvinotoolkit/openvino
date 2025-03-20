@@ -14,6 +14,9 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov;
 
@@ -57,7 +60,7 @@ ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
         // to the list of operations that will be used in additional matching.
         auto new_mul = register_new_node<ov::op::v1::Multiply>(input, mul_const);
 
-        // Add two constants using opset3::Add constant folding and create new Add operation
+        // Add two constants using op::v1::Add constant folding and create new Add operation
         auto new_const = op::util::make_try_fold<ov::op::v1::Multiply>(add_const, mul_const);
         auto new_add = std::make_shared<ov::op::v1::Add>(new_mul, new_const);
 

@@ -12,13 +12,16 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/non_max_suppression.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -77,13 +80,13 @@ TEST_F(TransformationTestsF, ConvertNMS9ToNMSIEInternal) {
         auto iou_threshold = ov::op::v0::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = ov::op::v0::Constant::create(element::f32, Shape{}, {0.7});
         auto soft_nms_sigma = ov::op::v0::Constant::create(element::f32, Shape{}, {0.5});
-        auto nms = std::make_shared<opset9::NonMaxSuppression>(boxes,
+        auto nms = std::make_shared<op::v9::NonMaxSuppression>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
                                                                soft_nms_sigma,
-                                                               opset9::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               op::v9::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true,
                                                                element::i32);
 

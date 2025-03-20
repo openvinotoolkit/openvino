@@ -9,30 +9,37 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/parameter.hpp"
 using namespace ov;
 using namespace testing;
 
 namespace {
 
 std::shared_ptr<ov::Model> create_bitwise_model(std::string op_type, const ov::element::Type input_type) {
-    const auto lhs = std::make_shared<ov::opset13::Parameter>(input_type, ov::Shape{1, 3, 100, 100});
-    const auto rhs = std::make_shared<ov::opset13::Parameter>(input_type, ov::Shape{1, 3, 100, 100});
+    const auto lhs = std::make_shared<ov::op::v0::Parameter>(input_type, ov::Shape{1, 3, 100, 100});
+    const auto rhs = std::make_shared<ov::op::v0::Parameter>(input_type, ov::Shape{1, 3, 100, 100});
 
     std::shared_ptr<ov::Node> bitwise;
     ParameterVector params{lhs, rhs};
     if (op_type == "and") {
-        bitwise = std::make_shared<ov::opset13::BitwiseAnd>(lhs, rhs, op::AutoBroadcastType::NONE);
+        bitwise = std::make_shared<ov::op::v13::BitwiseAnd>(lhs, rhs, op::AutoBroadcastType::NONE);
     } else if (op_type == "not") {
-        bitwise = std::make_shared<ov::opset13::BitwiseNot>(lhs);
+        bitwise = std::make_shared<ov::op::v13::BitwiseNot>(lhs);
         params = {lhs};
     } else if (op_type == "or") {
-        bitwise = std::make_shared<ov::opset13::BitwiseOr>(lhs, rhs, op::AutoBroadcastType::NONE);
+        bitwise = std::make_shared<ov::op::v13::BitwiseOr>(lhs, rhs, op::AutoBroadcastType::NONE);
     } else if (op_type == "xor") {
-        bitwise = std::make_shared<ov::opset13::BitwiseXor>(lhs, rhs, op::AutoBroadcastType::NONE);
+        bitwise = std::make_shared<ov::op::v13::BitwiseXor>(lhs, rhs, op::AutoBroadcastType::NONE);
     }
 
     bitwise->set_friendly_name("bitwise");
@@ -41,19 +48,19 @@ std::shared_ptr<ov::Model> create_bitwise_model(std::string op_type, const ov::e
 }
 
 std::shared_ptr<ov::Model> create_logical_model(std::string op_type) {
-    const auto lhs = std::make_shared<ov::opset1::Parameter>(ov::element::boolean, ov::Shape{1, 3, 100, 100});
-    const auto rhs = std::make_shared<ov::opset1::Parameter>(ov::element::boolean, ov::Shape{1, 3, 100, 100});
+    const auto lhs = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{1, 3, 100, 100});
+    const auto rhs = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{1, 3, 100, 100});
     std::shared_ptr<ov::Node> logical;
     ParameterVector params = {lhs, rhs};
     if (op_type == "and") {
-        logical = std::make_shared<ov::opset1::LogicalAnd>(lhs, rhs, op::AutoBroadcastType::NONE);
+        logical = std::make_shared<ov::op::v1::LogicalAnd>(lhs, rhs, op::AutoBroadcastType::NONE);
     } else if (op_type == "not") {
-        logical = std::make_shared<ov::opset1::LogicalNot>(lhs);
+        logical = std::make_shared<ov::op::v1::LogicalNot>(lhs);
         params = {lhs};
     } else if (op_type == "or") {
-        logical = std::make_shared<ov::opset1::LogicalOr>(lhs, rhs, op::AutoBroadcastType::NONE);
+        logical = std::make_shared<ov::op::v1::LogicalOr>(lhs, rhs, op::AutoBroadcastType::NONE);
     } else if (op_type == "xor") {
-        logical = std::make_shared<ov::opset1::LogicalXor>(lhs, rhs, op::AutoBroadcastType::NONE);
+        logical = std::make_shared<ov::op::v1::LogicalXor>(lhs, rhs, op::AutoBroadcastType::NONE);
     }
 
     logical->set_friendly_name("logical");

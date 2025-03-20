@@ -23,19 +23,16 @@
 #include <utility>
 
 #include "openvino/core/log_util.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace ov {
 namespace gen_pattern {
@@ -785,7 +782,7 @@ public:
             ss << ")";
             if (line_no != -1) {
                 // add the code line no to the log:
-                //   O P752<opset1::Multiply>(P736,P745)@fuse_rotary_positional_embeddings.cpp:551 vs ...
+                //   O P752<op::v1::Multiply>(P736,P745)@fuse_rotary_positional_embeddings.cpp:551 vs ...
                 auto filename = strrchr(file, '/') ? strrchr(file, '/') + 1 : file;
                 ss << "@" << filename << ":" << line_no;
             }
@@ -928,19 +925,19 @@ struct PatternNode {
         // evaluate their predicated values and compare against what observed,
         // and check if they all match.
         // node = ConstVector(std::vector<float>(v), nullptr);
-        node = ov::pass::pattern::wrap_type<opset1::Constant>();
+        node = ov::pass::pattern::wrap_type<op::v0::Constant>();
 
         auto& rt_info = node->get_rt_info();
         rt_info["symbolic_const_value"] = std::vector<Symbol>(v);
     }
     PatternNode(const std::vector<Symbol>& v) {
-        node = ov::pass::pattern::wrap_type<opset1::Constant>();
+        node = ov::pass::pattern::wrap_type<op::v0::Constant>();
         auto& rt_info = node->get_rt_info();
         rt_info["symbolic_const_value"] = v;
     }
 
     PatternNode(Symbol v) {
-        node = ov::pass::pattern::wrap_type<opset1::Constant>();
+        node = ov::pass::pattern::wrap_type<op::v0::Constant>();
         auto& rt_info = node->get_rt_info();
         rt_info["symbolic_const_value"] = std::vector<Symbol>({v});
     }
@@ -1028,7 +1025,7 @@ inline std::shared_ptr<Node> makeConst(const ov::element::Type& type,
                                        const ov::PartialShape& pshape,
                                        std::function<bool(ov::op::v0::Constant& node)> pred) {
     return ov::pass::pattern::wrap_type<ov::op::v0::Constant>([type, pshape, pred](const Output<Node>& value) {
-        auto cnode = ov::as_type_ptr<opset1::Constant>(value.get_node_shared_ptr());
+        auto cnode = ov::as_type_ptr<op::v0::Constant>(value.get_node_shared_ptr());
         if (!cnode)
             return false;
 
@@ -1117,10 +1114,10 @@ std::shared_ptr<Node> makeOP(const std::vector<detail::PatternNode>& inputs,
 
 template <typename T>
 std::shared_ptr<Node> GenConst_tril(values_info vt) {
-    return ov::pass::pattern::wrap_type<opset1::Constant>([vt](const Output<Node>& value) {
-        auto s1 = as_type_ptr<opset1::Constant>(value.get_node_shared_ptr());
+    return ov::pass::pattern::wrap_type<op::v0::Constant>([vt](const Output<Node>& value) {
+        auto s1 = as_type_ptr<op::v0::Constant>(value.get_node_shared_ptr());
         if (!s1) {
-            _VERBOSE_LOG("*mismatched GenConst_tril op type: opset1::Constant vs", value);
+            _VERBOSE_LOG("*mismatched GenConst_tril op type: op::v0::Constant vs", value);
             return false;
         }
 
@@ -1182,7 +1179,7 @@ inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
     begin_mask[axis] = 0;
     end_mask[axis] = 0;
 
-    auto opt2 = makePattern<opset1::StridedSlice>({data, start, stop, step},
+    auto opt2 = makePattern<op::v1::StridedSlice>({data, start, stop, step},
                                                   {{"begin_mask", begin_mask},
                                                    {"end_mask", end_mask},
                                                    {"new_axis_mask", new_axis_mask},
@@ -1202,7 +1199,7 @@ inline std::shared_ptr<Node> GenSlice(detail::PatternNode data,
                                       size_t axis,
                                       int line_no = CURRENT_LINE_NO,
                                       const char* file = CURRENT_FILE) {
-    auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}},
+    auto opt1 = makePattern<op::v8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}},
                                            {},
                                            nullptr,
                                            nullptr,
@@ -1230,7 +1227,7 @@ inline std::shared_ptr<Node> GenSlice(detail::PatternNode data,
     begin_mask[axis] = 0;
     end_mask[axis] = 0;
 
-    auto opt2 = makePattern<opset1::StridedSlice>({data, begin, end, stride},
+    auto opt2 = makePattern<op::v1::StridedSlice>({data, begin, end, stride},
                                                   {{"begin_mask", begin_mask},
                                                    {"end_mask", end_mask},
                                                    {"new_axis_mask", new_axis_mask},

@@ -11,10 +11,16 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset7.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -23,17 +29,17 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusion) {
     size_t num_splits = 4;
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
-        auto split_axis = opset7::Constant::create(element::i64, Shape{}, {2});
-        auto split = std::make_shared<opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
+        auto split_axis = op::v0::Constant::create(element::i64, Shape{}, {2});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis, num_splits);
         OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = opset7::Constant::create(element::i64, Shape{1}, {2});
-            squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
+            auto squeeze_axis = op::v0::Constant::create(element::i64, Shape{1}, {2});
+            squeeze_vec[i] = std::make_shared<op::v0::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
-        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
+        auto concat = std::make_shared<op::v0::Concat>(squeeze_vec, 4);
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
 
@@ -41,12 +47,12 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusion) {
     }
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
-        auto transpose_order = opset7::Constant::create(element::i64, Shape{6}, {0, 1, 3, 4, 2, 5});
-        auto transpose = std::make_shared<opset7::Transpose>(input, transpose_order);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
+        auto transpose_order = op::v0::Constant::create(element::i64, Shape{6}, {0, 1, 3, 4, 2, 5});
+        auto transpose = std::make_shared<op::v1::Transpose>(input, transpose_order);
         auto reshape_shape =
-            opset7::Constant::create<int64_t>(element::i64, Shape{5}, {1, 2, 640, 20, 2 * (int64_t)num_splits});
-        auto reshape = std::make_shared<opset7::Reshape>(transpose, reshape_shape, false);
+            op::v0::Constant::create<int64_t>(element::i64, Shape{5}, {1, 2, 640, 20, 2 * (int64_t)num_splits});
+        auto reshape = std::make_shared<op::v1::Reshape>(transpose, reshape_shape, false);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }
@@ -56,16 +62,16 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionSqueezeWithoutAxesInput) {
     size_t num_splits = 4;
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{3, 2, num_splits, 640, 20, 2});
-        auto split_axis = opset7::Constant::create(element::i64, Shape{}, {2});
-        auto split = std::make_shared<opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 2, num_splits, 640, 20, 2});
+        auto split_axis = op::v0::Constant::create(element::i64, Shape{}, {2});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis, num_splits);
         OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i));
+            squeeze_vec[i] = std::make_shared<op::v0::Squeeze>(split->output(i));
         }
 
-        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
+        auto concat = std::make_shared<op::v0::Concat>(squeeze_vec, 4);
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
 
@@ -73,12 +79,12 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionSqueezeWithoutAxesInput) {
     }
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{3, 2, num_splits, 640, 20, 2});
-        auto transpose_order = opset7::Constant::create(element::i64, Shape{6}, {0, 1, 3, 4, 2, 5});
-        auto transpose = std::make_shared<opset7::Transpose>(input, transpose_order);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 2, num_splits, 640, 20, 2});
+        auto transpose_order = op::v0::Constant::create(element::i64, Shape{6}, {0, 1, 3, 4, 2, 5});
+        auto transpose = std::make_shared<op::v1::Transpose>(input, transpose_order);
         auto reshape_shape =
-            opset7::Constant::create<int64_t>(element::i64, Shape{5}, {3, 2, 640, 20, 2 * (int64_t)num_splits});
-        auto reshape = std::make_shared<opset7::Reshape>(transpose, reshape_shape, false);
+            op::v0::Constant::create<int64_t>(element::i64, Shape{5}, {3, 2, 640, 20, 2 * (int64_t)num_splits});
+        auto reshape = std::make_shared<op::v1::Reshape>(transpose, reshape_shape, false);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }
@@ -88,17 +94,17 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutp
     size_t num_splits = 4;
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
-        auto split_axis = opset7::Constant::create(element::i64, Shape{}, {2});
-        auto split = std::make_shared<opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
+        auto split_axis = op::v0::Constant::create(element::i64, Shape{}, {2});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis, num_splits);
         OutputVector squeeze_vec(num_splits - 1);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = opset7::Constant::create(element::i64, Shape{1}, {2});
-            squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
+            auto squeeze_axis = op::v0::Constant::create(element::i64, Shape{1}, {2});
+            squeeze_vec[i] = std::make_shared<op::v0::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
-        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
+        auto concat = std::make_shared<op::v0::Concat>(squeeze_vec, 4);
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
@@ -107,17 +113,17 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutp
     }
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
-        auto split_axis = opset7::Constant::create(element::i64, Shape{}, {2});
-        auto split = std::make_shared<opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
+        auto split_axis = op::v0::Constant::create(element::i64, Shape{}, {2});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis, num_splits);
         OutputVector squeeze_vec(num_splits - 1);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = opset7::Constant::create(element::i64, Shape{1}, {2});
-            squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
+            auto squeeze_axis = op::v0::Constant::create(element::i64, Shape{1}, {2});
+            squeeze_vec[i] = std::make_shared<op::v0::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
-        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
+        auto concat = std::make_shared<op::v0::Concat>(squeeze_vec, 4);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
     }
@@ -127,19 +133,19 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoI
     size_t num_splits = 4;
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
-        auto split_axis = opset7::Constant::create(element::i64, Shape{}, {2});
-        auto split = std::make_shared<opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
+        auto split_axis = op::v0::Constant::create(element::i64, Shape{}, {2});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis, num_splits);
         OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = opset7::Constant::create(element::i64, Shape{1}, {2});
-            squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
+            auto squeeze_axis = op::v0::Constant::create(element::i64, Shape{1}, {2});
+            squeeze_vec[i] = std::make_shared<op::v0::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
         std::swap(squeeze_vec[1], squeeze_vec[2]);
 
-        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
+        auto concat = std::make_shared<op::v0::Concat>(squeeze_vec, 4);
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
@@ -148,19 +154,19 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoI
     }
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
-        auto split_axis = opset7::Constant::create(element::i64, Shape{}, {2});
-        auto split = std::make_shared<opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
+        auto split_axis = op::v0::Constant::create(element::i64, Shape{}, {2});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis, num_splits);
         OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = opset7::Constant::create(element::i64, Shape{1}, {2});
-            squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
+            auto squeeze_axis = op::v0::Constant::create(element::i64, Shape{1}, {2});
+            squeeze_vec[i] = std::make_shared<op::v0::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
         std::swap(squeeze_vec[1], squeeze_vec[2]);
 
-        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
+        auto concat = std::make_shared<op::v0::Concat>(squeeze_vec, 4);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
     }
@@ -170,17 +176,17 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitAxisDiffer
     size_t num_splits = 4;
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
-        auto split_axis = opset7::Constant::create(element::i64, Shape{}, {2});
-        auto split = std::make_shared<opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
+        auto split_axis = op::v0::Constant::create(element::i64, Shape{}, {2});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis, num_splits);
         OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = opset7::Constant::create(element::i64, Shape{1}, {0});
-            squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
+            auto squeeze_axis = op::v0::Constant::create(element::i64, Shape{1}, {0});
+            squeeze_vec[i] = std::make_shared<op::v0::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
-        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
+        auto concat = std::make_shared<op::v0::Concat>(squeeze_vec, 4);
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
@@ -189,17 +195,17 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitAxisDiffer
     }
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
-        auto split_axis = opset7::Constant::create(element::i64, Shape{}, {2});
-        auto split = std::make_shared<opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
+        auto split_axis = op::v0::Constant::create(element::i64, Shape{}, {2});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis, num_splits);
         OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = opset7::Constant::create(element::i64, Shape{1}, {0});
-            squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
+            auto squeeze_axis = op::v0::Constant::create(element::i64, Shape{1}, {0});
+            squeeze_vec[i] = std::make_shared<op::v0::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
-        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
+        auto concat = std::make_shared<op::v0::Concat>(squeeze_vec, 4);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
     }
@@ -209,16 +215,16 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeSqueezeWithoutAxesI
     size_t num_splits = 4;
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
-        auto split_axis = opset7::Constant::create(element::i64, Shape{}, {2});
-        auto split = std::make_shared<opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, num_splits, 640, 20, 2});
+        auto split_axis = op::v0::Constant::create(element::i64, Shape{}, {2});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis, num_splits);
         OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            squeeze_vec[i] = std::make_shared<opset7::Squeeze>(split->output(i));
+            squeeze_vec[i] = std::make_shared<op::v0::Squeeze>(split->output(i));
         }
 
-        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 3);
+        auto concat = std::make_shared<op::v0::Concat>(squeeze_vec, 3);
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
 
@@ -244,17 +250,17 @@ TEST_P(SplitReshapeConcatFusion, SplitSqueezeConcatFusion) {
     ASSERT_EQ(0, params.input_shape[params.split_axis] % params.num_splits);
 
     {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, params.input_shape);
-        auto split_axis_node = opset7::Constant::create(element::i64, Shape{}, {params.split_axis});
-        auto split = std::make_shared<opset7::Split>(input, split_axis_node, params.num_splits);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
+        auto split_axis_node = op::v0::Constant::create(element::i64, Shape{}, {params.split_axis});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis_node, params.num_splits);
         OutputVector squeeze_vec;
         squeeze_vec.reserve(params.num_splits);
         auto reshaped_shape_node =
-            opset7::Constant::create(element::i32, Shape{params.reshaped_shape.size()}, params.reshaped_shape);
+            op::v0::Constant::create(element::i32, Shape{params.reshaped_shape.size()}, params.reshaped_shape);
         for (int i = 0; i < params.num_splits; i++) {
-            squeeze_vec.push_back(std::make_shared<opset7::Reshape>(split->output(i), reshaped_shape_node, true));
+            squeeze_vec.push_back(std::make_shared<op::v1::Reshape>(split->output(i), reshaped_shape_node, true));
         }
-        auto concat = std::make_shared<opset7::Concat>(squeeze_vec, params.concat_axis);
+        auto concat = std::make_shared<op::v0::Concat>(squeeze_vec, params.concat_axis);
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(true);
     }
@@ -262,15 +268,15 @@ TEST_P(SplitReshapeConcatFusion, SplitSqueezeConcatFusion) {
     if (!params.can_fuse) {
         model_ref = model->clone();
     } else {
-        auto input = std::make_shared<opset7::Parameter>(element::f32, params.input_shape);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
         auto transpose_order_node =
-            opset7::Constant::create(element::i64, Shape{params.transpose_order.size()}, params.transpose_order);
-        auto transpose = std::make_shared<opset7::Transpose>(input, transpose_order_node);
+            op::v0::Constant::create(element::i64, Shape{params.transpose_order.size()}, params.transpose_order);
+        auto transpose = std::make_shared<op::v1::Transpose>(input, transpose_order_node);
         auto reshape_shape = params.input_shape;
         reshape_shape.erase(reshape_shape.begin() + params.split_axis);
         reshape_shape[params.concat_axis] *= params.num_splits;
-        auto reshape_shape_node = opset7::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape);
-        auto reshape = std::make_shared<opset7::Reshape>(transpose, reshape_shape_node, false);
+        auto reshape_shape_node = op::v0::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape);
+        auto reshape = std::make_shared<op::v1::Reshape>(transpose, reshape_shape_node, false);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }

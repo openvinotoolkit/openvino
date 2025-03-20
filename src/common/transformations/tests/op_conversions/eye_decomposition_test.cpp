@@ -12,7 +12,18 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/eye.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tile.hpp"
 using namespace ov;
 using namespace testing;
 
@@ -23,38 +34,38 @@ public:
                                       const ov::Output<ov::Node>& width,
                                       const ov::Output<ov::Node>& k,
                                       ov::element::Type dtype) {
-        const auto zero_int = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-        const auto zero = ov::opset9::Constant::create(dtype, ov::Shape{1}, {0});
-        const auto one = ov::opset9::Constant::create(dtype, ov::Shape{1}, {1});
+        const auto zero_int = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        const auto zero = ov::op::v0::Constant::create(dtype, ov::Shape{1}, {0});
+        const auto one = ov::op::v0::Constant::create(dtype, ov::Shape{1}, {1});
 
-        const auto k_neg = std::make_shared<ov::opset9::Negative>(k);
-        const auto k_axis = std::make_shared<ov::opset9::Concat>(ov::OutputVector{k_neg, k}, 0);
+        const auto k_neg = std::make_shared<ov::op::v0::Negative>(k);
+        const auto k_axis = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{k_neg, k}, 0);
 
-        const auto eye_shape = std::make_shared<ov::opset9::Concat>(ov::OutputVector{height, width}, 0);
+        const auto eye_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{height, width}, 0);
 
         // Calculate eye zero padding and internal square eye size.
         const auto pad_start =
-            std::make_shared<ov::opset9::Minimum>(eye_shape, std::make_shared<ov::opset9::Maximum>(zero_int, k_axis));
-        const auto shape_pad_diff = std::make_shared<ov::opset9::Subtract>(eye_shape, pad_start);
-        const auto eye_size = std::make_shared<ov::opset9::ReduceMin>(shape_pad_diff, zero_int, true);
-        const auto pad_end = std::make_shared<ov::opset9::Subtract>(shape_pad_diff, eye_size);
+            std::make_shared<ov::op::v1::Minimum>(eye_shape, std::make_shared<ov::op::v1::Maximum>(zero_int, k_axis));
+        const auto shape_pad_diff = std::make_shared<ov::op::v1::Subtract>(eye_shape, pad_start);
+        const auto eye_size = std::make_shared<ov::op::v1::ReduceMin>(shape_pad_diff, zero_int, true);
+        const auto pad_end = std::make_shared<ov::op::v1::Subtract>(shape_pad_diff, eye_size);
 
         // Make 1d-eye as eye_size times of (1, zeros(eye_size)), trimmed at end by eye_size elements.
-        const auto zeros = std::make_shared<ov::opset9::Tile>(zero, eye_size);
-        const auto one_followed_by_zeros = std::make_shared<ov::opset9::Concat>(ov::OutputVector{one, zeros}, 0);
+        const auto zeros = std::make_shared<ov::op::v0::Tile>(zero, eye_size);
+        const auto one_followed_by_zeros = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{one, zeros}, 0);
         const auto eye_1d =
-            std::make_shared<ov::opset9::Pad>(std::make_shared<ov::opset9::Tile>(one_followed_by_zeros, eye_size),
+            std::make_shared<ov::op::v1::Pad>(std::make_shared<ov::op::v0::Tile>(one_followed_by_zeros, eye_size),
                                               zero_int,
-                                              std::make_shared<ov::opset9::Negative>(eye_size),
+                                              std::make_shared<ov::op::v0::Negative>(eye_size),
                                               ov::op::PadMode::CONSTANT);
         // Reshape 1d-eye to 2d-eye
-        const auto eye_2d = std::make_shared<ov::opset9::Reshape>(
+        const auto eye_2d = std::make_shared<ov::op::v1::Reshape>(
             eye_1d,
-            std::make_shared<ov::opset9::Concat>(ov::OutputVector{eye_size, eye_size}, 0),
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{eye_size, eye_size}, 0),
             false);
 
         // Pad Eye to get final shape
-        return std::make_shared<ov::opset9::Pad>(eye_2d, pad_start, pad_end, ov::op::PadMode::CONSTANT);
+        return std::make_shared<ov::op::v1::Pad>(eye_2d, pad_start, pad_end, ov::op::PadMode::CONSTANT);
     }
 
     std::shared_ptr<ov::Node> exp_eye(const ov::Output<ov::Node>& height,
@@ -63,12 +74,12 @@ public:
                                       const ov::Output<ov::Node>& batch,
                                       ov::element::Type dtype) {
         const auto eye = exp_eye(height, width, k, dtype);
-        const auto eye_tile = std::make_shared<ov::opset9::Constant>(ov::element::i64, ov::Shape{2}, 1);
+        const auto eye_tile = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, 1);
 
         // `batch_repeats` repeat eye matrix as tile only in higher dimensions than 1 by number(s) in batch parameter.
-        const auto batch_repeats = std::make_shared<ov::opset9::Concat>(ov::OutputVector{batch, eye_tile}, 0);
+        const auto batch_repeats = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch, eye_tile}, 0);
 
-        return std::make_shared<ov::opset9::Tile>(eye, batch_repeats);
+        return std::make_shared<ov::op::v0::Tile>(eye, batch_repeats);
     }
 };
 
@@ -123,24 +134,24 @@ protected:
 
     template <class TEye>
     std::shared_ptr<TEye> make_test_eye(const ov::Output<ov::Node>& k) const {
-        auto height = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {h});
-        auto width = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {w});
+        auto height = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {h});
+        auto width = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {w});
 
         return std::make_shared<TEye>(height, width, k, dtype);
     }
 
     template <class TEye>
     std::shared_ptr<TEye> make_test_eye() const {
-        auto k = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
+        auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
 
         return make_test_eye<TEye>(k);
     }
 
     template <class TEye>
     std::shared_ptr<TEye> make_test_eye_batch(const ov::Output<ov::Node>& batch) const {
-        auto height = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {h});
-        auto width = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {w});
-        auto k = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
+        auto height = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {h});
+        auto width = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {w});
+        auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
 
         return std::make_shared<TEye>(height, width, k, batch, dtype);
     }
@@ -149,9 +160,9 @@ protected:
 /** \brief Diagonal shift is not `Constant`, there should be no decompose. */
 TEST_F(EyeTransformationTests, shift_is_not_const) {
     {
-        auto data = std::make_shared<ov::opset9::Parameter>(dtype, ov::Shape{h, w});
-        auto k = std::make_shared<ov::opset9::Parameter>(ov::element::i64, ov::Shape{1});
-        auto node = make_test_eye<ov::opset9::Eye>(k);
+        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
+        auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+        auto node = make_test_eye<ov::op::v9::Eye>(k);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data, k});
 
@@ -162,9 +173,9 @@ TEST_F(EyeTransformationTests, shift_is_not_const) {
 /** \brief Batch size is not `Constant`, there should be no decompose. */
 TEST_F(EyeTransformationTests, batch_is_not_const) {
     {
-        auto data = std::make_shared<ov::opset9::Parameter>(dtype, ov::Shape{h, w});
-        auto batch = std::make_shared<ov::opset9::Parameter>(ov::element::i64, ov::Shape{2});
-        auto node = make_test_eye_batch<ov::opset9::Eye>(batch);
+        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
+        auto batch = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2});
+        auto node = make_test_eye_batch<ov::op::v9::Eye>(batch);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data, batch});
 
@@ -175,7 +186,7 @@ TEST_F(EyeTransformationTests, batch_is_not_const) {
 /** \brief Use fake eye as not supported op type, there should be no decompose. */
 TEST_F(EyeTransformationTests, use_fake_eye) {
     {
-        auto data = std::make_shared<ov::opset9::Parameter>(dtype, ov::Shape{h, w});
+        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
         auto node = make_test_eye<FakeEye>();
 
         model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
@@ -238,8 +249,8 @@ INSTANTIATE_TEST_SUITE_P(eye_diagonal_shift_outside_dim,
 /** \brief Test eye decomposition for different data types, dimension and diagonal shift. */
 TEST_P(EyeTransformationTestsP, eye_decompose) {
     {
-        auto data = std::make_shared<ov::opset9::Parameter>(dtype, ov::Shape{h, w});
-        auto node = make_test_eye<ov::opset9::Eye>();
+        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
+        auto node = make_test_eye<ov::op::v9::Eye>();
 
         model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
 
@@ -247,10 +258,10 @@ TEST_P(EyeTransformationTestsP, eye_decompose) {
     }
 
     {
-        auto data = std::make_shared<ov::opset9::Parameter>(dtype, ov::Shape{h, w});
-        auto height = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {h});
-        auto width = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {w});
-        auto k = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
+        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
+        auto height = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {h});
+        auto width = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {w});
+        auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
 
         auto node = eye_decomposition_wrapper.exp_eye(height, width, k, dtype);
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
@@ -275,9 +286,9 @@ INSTANTIATE_TEST_SUITE_P(batch_size,
 /** \brief Test eye decomposition for batch sizes and values. */
 TEST_P(BatchEyeTransformationTests, eye_decompose) {
     {
-        auto data = std::make_shared<ov::opset9::Parameter>(dtype, ov::Shape{h, w});
-        auto batch = ov::opset9::Constant::create(ov::element::i64, ov::Shape{GetParam().size()}, GetParam());
-        auto node = make_test_eye_batch<ov::opset9::Eye>(batch);
+        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
+        auto batch = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{GetParam().size()}, GetParam());
+        auto node = make_test_eye_batch<ov::op::v9::Eye>(batch);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
 
@@ -285,11 +296,11 @@ TEST_P(BatchEyeTransformationTests, eye_decompose) {
     }
 
     {
-        auto data = std::make_shared<ov::opset9::Parameter>(dtype, ov::Shape{h, w});
-        auto height = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {h});
-        auto width = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {w});
-        auto k = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
-        auto batch = ov::opset9::Constant::create(ov::element::i64, ov::Shape{GetParam().size()}, GetParam());
+        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
+        auto height = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {h});
+        auto width = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {w});
+        auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
+        auto batch = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{GetParam().size()}, GetParam());
 
         auto node = eye_decomposition_wrapper.exp_eye(height, width, k, batch, dtype);
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});

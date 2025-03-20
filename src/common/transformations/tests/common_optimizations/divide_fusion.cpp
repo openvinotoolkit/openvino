@@ -12,21 +12,25 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
 using namespace ov;
 using namespace testing;
 
 TEST(TransformationTests, DivideFusion) {
     std::shared_ptr<ov::Model> f, f_ref;
     {
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto data2 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto pow_constant = opset1::Constant::create(element::f32, Shape{1}, {-1});
-        auto pow = std::make_shared<opset1::Power>(data2, pow_constant);
-        auto mul = std::make_shared<opset1::Multiply>(data1, pow);
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto data2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto pow_constant = op::v0::Constant::create(element::f32, Shape{1}, {-1});
+        auto pow = std::make_shared<op::v1::Power>(data2, pow_constant);
+        auto mul = std::make_shared<op::v1::Multiply>(data1, pow);
 
         f = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data1, data2});
 
@@ -38,9 +42,9 @@ TEST(TransformationTests, DivideFusion) {
     }
 
     {
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto data2 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto divide = std::make_shared<opset1::Divide>(data1, data2);
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto data2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto divide = std::make_shared<op::v1::Divide>(data1, data2);
 
         f_ref = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{data1, data2});
     }
@@ -55,11 +59,11 @@ TEST(TransformationTests, DivideFusion) {
 TEST(TransformationTests, DivideFusionNegative) {
     std::shared_ptr<ov::Model> f, f_ref;
     {
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto data2 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto pow_constant = opset1::Constant::create(element::f32, Shape{1}, {-1.01});
-        auto pow = std::make_shared<opset1::Power>(data2, pow_constant);
-        auto mul = std::make_shared<opset1::Multiply>(data1, pow);
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto data2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto pow_constant = op::v0::Constant::create(element::f32, Shape{1}, {-1.01});
+        auto pow = std::make_shared<op::v1::Power>(data2, pow_constant);
+        auto mul = std::make_shared<op::v1::Multiply>(data1, pow);
 
         f = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data1, data2});
 
@@ -71,11 +75,11 @@ TEST(TransformationTests, DivideFusionNegative) {
     }
 
     {
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto data2 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto pow_constant = opset1::Constant::create(element::f32, Shape{1}, {-1.01});
-        auto pow = std::make_shared<opset1::Power>(data2, pow_constant);
-        auto mul = std::make_shared<opset1::Multiply>(data1, pow);
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto data2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto pow_constant = op::v0::Constant::create(element::f32, Shape{1}, {-1.01});
+        auto pow = std::make_shared<op::v1::Power>(data2, pow_constant);
+        auto mul = std::make_shared<op::v1::Multiply>(data1, pow);
 
         f_ref = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data1, data2});
     }

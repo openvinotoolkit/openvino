@@ -11,9 +11,13 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -48,55 +52,55 @@ public:
 
         std::vector<int8_t> weights{test_case.min_int, test_case.max_int};
         {
-            auto i_weights = std::make_shared<opset6::Constant>(element::i8, Shape{weights.size()}, weights);
+            auto i_weights = std::make_shared<op::v0::Constant>(element::i8, Shape{weights.size()}, weights);
 
-            auto f_weights = std::make_shared<opset6::Convert>(i_weights, float_element_type);
-            std::shared_ptr<opset6::Subtract> subtract_zp;
+            auto f_weights = std::make_shared<op::v0::Convert>(i_weights, float_element_type);
+            std::shared_ptr<op::v1::Subtract> subtract_zp;
             float zp;
             if (test_case.zp_type == ZPType::FLOAT) {
-                auto f_zp = std::make_shared<opset6::Constant>(float_element_type,
+                auto f_zp = std::make_shared<op::v0::Constant>(float_element_type,
                                                                Shape{},
                                                                std::vector<float>{test_case.zp.float_val});
-                subtract_zp = std::make_shared<opset6::Subtract>(f_weights, f_zp);
+                subtract_zp = std::make_shared<op::v1::Subtract>(f_weights, f_zp);
                 zp = test_case.zp.float_val;
             } else {
-                auto i_zp = std::make_shared<opset6::Constant>(element::i8,
+                auto i_zp = std::make_shared<op::v0::Constant>(element::i8,
                                                                Shape{},
                                                                std::vector<int8_t>{test_case.zp.int8_val});
-                auto f_zp = std::make_shared<opset6::Convert>(i_zp, float_element_type);
-                subtract_zp = std::make_shared<opset6::Subtract>(f_weights, f_zp);
+                auto f_zp = std::make_shared<op::v0::Convert>(i_zp, float_element_type);
+                subtract_zp = std::make_shared<op::v1::Subtract>(f_weights, f_zp);
                 zp = test_case.zp.int8_val;
             }
 
             auto scale =
-                std::make_shared<opset6::Constant>(float_element_type, Shape{}, std::vector<float>{test_case.scale});
+                std::make_shared<op::v0::Constant>(float_element_type, Shape{}, std::vector<float>{test_case.scale});
 
             NodeVector output;
             if (zp == 0)
-                output.push_back(std::make_shared<opset6::Multiply>(f_weights, scale));
+                output.push_back(std::make_shared<op::v1::Multiply>(f_weights, scale));
             else
-                output.push_back(std::make_shared<opset6::Multiply>(subtract_zp, scale));
+                output.push_back(std::make_shared<op::v1::Multiply>(subtract_zp, scale));
 
             f = std::make_shared<ov::Model>(output, ParameterVector{});
         }
 
         {
-            auto i_weights = std::make_shared<opset6::Constant>(element::i8, Shape{weights.size()}, weights);
+            auto i_weights = std::make_shared<op::v0::Constant>(element::i8, Shape{weights.size()}, weights);
 
-            auto f_weights = std::make_shared<opset6::Convert>(i_weights, float_element_type);
+            auto f_weights = std::make_shared<op::v0::Convert>(i_weights, float_element_type);
 
-            auto i_low = std::make_shared<opset6::Constant>(float_element_type,
+            auto i_low = std::make_shared<op::v0::Constant>(float_element_type,
                                                             Shape{},
                                                             std::vector<float>{static_cast<float>(test_case.min_int)});
-            auto i_high = std::make_shared<opset6::Constant>(float_element_type,
+            auto i_high = std::make_shared<op::v0::Constant>(float_element_type,
                                                              Shape{},
                                                              std::vector<float>{static_cast<float>(test_case.max_int)});
             auto o_low =
-                std::make_shared<opset6::Constant>(float_element_type, Shape{}, std::vector<float>{test_case.o_low});
+                std::make_shared<op::v0::Constant>(float_element_type, Shape{}, std::vector<float>{test_case.o_low});
             auto o_high =
-                std::make_shared<opset6::Constant>(float_element_type, Shape{}, std::vector<float>{test_case.o_high});
+                std::make_shared<op::v0::Constant>(float_element_type, Shape{}, std::vector<float>{test_case.o_high});
 
-            auto fq = std::make_shared<opset6::FakeQuantize>(f_weights, i_low, i_high, o_low, o_high, test_case.levels);
+            auto fq = std::make_shared<op::v0::FakeQuantize>(f_weights, i_low, i_high, o_low, o_high, test_case.levels);
 
             f_ref = std::make_shared<ov::Model>(NodeVector{fq}, ParameterVector{});
         }

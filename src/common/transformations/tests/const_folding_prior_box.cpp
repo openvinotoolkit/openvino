@@ -12,11 +12,16 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/ops.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -25,7 +30,7 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
 
     {
-        auto in = std::make_shared<opset3::Parameter>(element::i64, Shape{2});
+        auto in = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
         op::v0::PriorBox::Attributes attrs;
         attrs.min_size = {256.0f};
         attrs.max_size = {315.0f};
@@ -33,10 +38,10 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
         attrs.flip = true;
         attrs.scale_all_sizes = true;
 
-        auto layer_shape = opset3::Constant::create<int64_t>(element::i64, Shape{2}, {1, 1});
-        auto image_shape = opset3::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
-        auto pb = std::make_shared<opset3::PriorBox>(layer_shape, image_shape, attrs);
-        auto res = std::make_shared<opset3::Result>(pb);
+        auto layer_shape = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {1, 1});
+        auto image_shape = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
+        auto pb = std::make_shared<op::v0::PriorBox>(layer_shape, image_shape, attrs);
+        auto res = std::make_shared<op::v0::Result>(pb);
         f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -46,8 +51,8 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
     }
 
     {
-        auto layer_shape = std::make_shared<opset3::Parameter>(element::i64, Shape{2});
-        auto const_prior_box = opset3::Constant::create<float>(
+        auto layer_shape = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto const_prior_box = op::v0::Constant::create<float>(
             element::f32,
             Shape{2, 16},
             {
@@ -56,15 +61,15 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
                 0.1f,       0.1f,       0.1f,      0.1f,      0.1f,       0.1f,       0.1f,      0.1f,
                 0.1f,       0.1f,       0.1f,      0.1f,      0.1f,       0.1f,       0.1f,      0.1f,
             });
-        auto res = std::make_shared<opset3::Result>(const_prior_box);
+        auto res = std::make_shared<op::v0::Result>(const_prior_box);
         f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -75,15 +80,15 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
 
     {
-        auto in = std::make_shared<opset3::Parameter>(element::i64, Shape{2});
+        auto in = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
         op::v0::PriorBoxClustered::Attributes attrs;
         attrs.widths = {4.0f, 2.0f, 3.2f};
         attrs.heights = {1.0f, 2.0f, 1.1f};
 
-        auto layer_shape = opset3::Constant::create<int64_t>(element::i64, Shape{2}, {2, 2});
-        auto image_shape = opset3::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
-        auto pb = std::make_shared<opset3::PriorBoxClustered>(layer_shape, image_shape, attrs);
-        auto res = std::make_shared<opset3::Result>(pb);
+        auto layer_shape = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 2});
+        auto image_shape = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
+        auto pb = std::make_shared<op::v0::PriorBoxClustered>(layer_shape, image_shape, attrs);
+        auto res = std::make_shared<op::v0::Result>(pb);
         f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -93,8 +98,8 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
     }
 
     {
-        auto layer_shape = std::make_shared<opset3::Parameter>(element::i64, Shape{2});
-        auto const_prior_box = opset3::Constant::create<float>(
+        auto layer_shape = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto const_prior_box = op::v0::Constant::create<float>(
             element::f32,
             Shape{2, 48},
             {-0.00666667f, -0.00166667f, 0.00666667f, 0.00166667f, -0.00333333f, -0.00333333f, 0.00333333f, 0.00333333f,
@@ -109,15 +114,15 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
              0.0f,         0.0f,         0.0f,        0.0f,        0.0f,         0.0f,         0.0f,        0.0f,
              0.0f,         0.0f,         0.0f,        0.0f,        0.0f,         0.0f,         0.0f,        0.0f,
              0.0f,         0.0f,         0.0f,        0.0f,        0.0f,         0.0f,         0.0f,        0.0f});
-        auto res = std::make_shared<opset3::Result>(const_prior_box);
+        auto res = std::make_shared<op::v0::Result>(const_prior_box);
         f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -128,8 +133,8 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
 
     {
-        auto in = std::make_shared<opset3::Parameter>(element::i64, Shape{2, 3, 1, 1});
-        auto in_2 = std::make_shared<opset3::Parameter>(element::i64, Shape{2, 3, 300, 300});
+        auto in = std::make_shared<op::v0::Parameter>(element::i64, Shape{2, 3, 1, 1});
+        auto in_2 = std::make_shared<op::v0::Parameter>(element::i64, Shape{2, 3, 300, 300});
         op::v0::PriorBox::Attributes attrs;
         attrs.min_size = {256.0f};
         attrs.max_size = {315.0f};
@@ -137,27 +142,27 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
         attrs.flip = true;
         attrs.scale_all_sizes = true;
 
-        auto layer_shape = std::make_shared<opset3::ShapeOf>(in);
-        auto image_shape = std::make_shared<opset3::ShapeOf>(in_2);
+        auto layer_shape = std::make_shared<op::v3::ShapeOf>(in);
+        auto image_shape = std::make_shared<op::v3::ShapeOf>(in_2);
 
-        auto begin = opset3::Constant::create(element::i64, Shape{1}, {2});
-        auto end = opset3::Constant::create(element::i64, Shape{1}, {4});
-        auto stride = opset3::Constant::create(element::i64, Shape{1}, {1});
-        auto ss_data = std::make_shared<opset3::StridedSlice>(layer_shape,
+        auto begin = op::v0::Constant::create(element::i64, Shape{1}, {2});
+        auto end = op::v0::Constant::create(element::i64, Shape{1}, {4});
+        auto stride = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto ss_data = std::make_shared<op::v1::StridedSlice>(layer_shape,
                                                               begin,
                                                               end,
                                                               stride,
                                                               std::vector<int64_t>{0},
                                                               std::vector<int64_t>{0});
 
-        auto ss_image = std::make_shared<opset3::StridedSlice>(image_shape,
+        auto ss_image = std::make_shared<op::v1::StridedSlice>(image_shape,
                                                                begin,
                                                                end,
                                                                stride,
                                                                std::vector<int64_t>{0},
                                                                std::vector<int64_t>{0});
-        auto pb = std::make_shared<opset3::PriorBox>(ss_data, ss_image, attrs);
-        auto res = std::make_shared<opset3::Result>(pb);
+        auto pb = std::make_shared<op::v0::PriorBox>(ss_data, ss_image, attrs);
+        auto res = std::make_shared<op::v0::Result>(pb);
         f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in, in_2});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -167,23 +172,23 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
     }
 
     {
-        auto layer_shape = std::make_shared<opset3::Parameter>(element::i64, Shape{2});
-        auto const_prior_box = opset3::Constant::create<float>(
+        auto layer_shape = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto const_prior_box = op::v0::Constant::create<float>(
             element::f32,
             Shape{2, 16},
             {-0.426667f, -0.426667f, 0.426667f, 0.426667f, -0.473286f, -0.473286f, 0.473286f, 0.473286f,
              -0.603398f, -0.301699f, 0.603398f, 0.301699f, -0.301699f, -0.603398f, 0.301699f, 0.603398f,
              0.1f,       0.1f,       0.1f,      0.1f,      0.1f,       0.1f,       0.1f,      0.1f,
              0.1f,       0.1f,       0.1f,      0.1f,      0.1f,       0.1f,       0.1f,      0.1f});
-        auto res = std::make_shared<opset3::Result>(const_prior_box);
+        auto res = std::make_shared<op::v0::Result>(const_prior_box);
         f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -193,33 +198,33 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
 TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto in = std::make_shared<opset3::Parameter>(element::i64, Shape{2, 3, 2, 2});
-        auto in_2 = std::make_shared<opset3::Parameter>(element::i64, Shape{2, 3, 300, 300});
+        auto in = std::make_shared<op::v0::Parameter>(element::i64, Shape{2, 3, 2, 2});
+        auto in_2 = std::make_shared<op::v0::Parameter>(element::i64, Shape{2, 3, 300, 300});
         op::v0::PriorBoxClustered::Attributes attrs;
         attrs.widths = {4.0f, 2.0f, 3.2f};
         attrs.heights = {1.0f, 2.0f, 1.1f};
 
-        auto layer_shape = std::make_shared<opset3::ShapeOf>(in);
-        auto image_shape = std::make_shared<opset3::ShapeOf>(in_2);
+        auto layer_shape = std::make_shared<op::v3::ShapeOf>(in);
+        auto image_shape = std::make_shared<op::v3::ShapeOf>(in_2);
 
-        auto begin = opset3::Constant::create(element::i64, Shape{1}, {2});
-        auto end = opset3::Constant::create(element::i64, Shape{1}, {4});
-        auto stride = opset3::Constant::create(element::i64, Shape{1}, {1});
-        auto ss_data = std::make_shared<opset3::StridedSlice>(layer_shape,
+        auto begin = op::v0::Constant::create(element::i64, Shape{1}, {2});
+        auto end = op::v0::Constant::create(element::i64, Shape{1}, {4});
+        auto stride = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto ss_data = std::make_shared<op::v1::StridedSlice>(layer_shape,
                                                               begin,
                                                               end,
                                                               stride,
                                                               std::vector<int64_t>{0},
                                                               std::vector<int64_t>{0});
 
-        auto ss_image = std::make_shared<opset3::StridedSlice>(image_shape,
+        auto ss_image = std::make_shared<op::v1::StridedSlice>(image_shape,
                                                                begin,
                                                                end,
                                                                stride,
                                                                std::vector<int64_t>{0},
                                                                std::vector<int64_t>{0});
-        auto pb = std::make_shared<opset3::PriorBoxClustered>(ss_data, ss_image, attrs);
-        auto res = std::make_shared<opset3::Result>(pb);
+        auto pb = std::make_shared<op::v0::PriorBoxClustered>(ss_data, ss_image, attrs);
+        auto res = std::make_shared<op::v0::Result>(pb);
         f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in, in_2});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -229,8 +234,8 @@ TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
     }
 
     {
-        auto layer_shape = std::make_shared<opset3::Parameter>(element::i64, Shape{2});
-        auto const_prior_box = opset3::Constant::create<float>(
+        auto layer_shape = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto const_prior_box = op::v0::Constant::create<float>(
             element::f32,
             Shape{2, 48},
             {-0.00666667f, -0.00166667f, 0.00666667f, 0.00166667f, -0.00333333f, -0.00333333f, 0.00333333f, 0.00333333f,
@@ -245,15 +250,15 @@ TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
              0.0f,         0.0f,         0.0f,        0.0f,        0.0f,         0.0f,         0.0f,        0.0f,
              0.0f,         0.0f,         0.0f,        0.0f,        0.0f,         0.0f,         0.0f,        0.0f,
              0.0f,         0.0f,         0.0f,        0.0f,        0.0f,         0.0f,         0.0f,        0.0f});
-        auto res = std::make_shared<opset3::Result>(const_prior_box);
+        auto res = std::make_shared<op::v0::Result>(const_prior_box);
         f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -264,7 +269,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
 
     {
-        auto in = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
+        auto in = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
         op::v8::PriorBox::Attributes attrs;
         attrs.min_size = {2.0f};
         attrs.max_size = {5.0f};
@@ -272,10 +277,10 @@ TEST(TransformationTests, ConstFoldingPriorBox8) {
         attrs.scale_all_sizes = true;
         attrs.min_max_aspect_ratios_order = false;
 
-        auto layer_shape = opset8::Constant::create<int64_t>(element::i64, Shape{2}, {2, 2});
-        auto image_shape = opset8::Constant::create<int64_t>(element::i64, Shape{2}, {10, 10});
-        auto pb = std::make_shared<opset8::PriorBox>(layer_shape, image_shape, attrs);
-        auto res = std::make_shared<opset8::Result>(pb);
+        auto layer_shape = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 2});
+        auto image_shape = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {10, 10});
+        auto pb = std::make_shared<op::v8::PriorBox>(layer_shape, image_shape, attrs);
+        auto res = std::make_shared<op::v0::Result>(pb);
         f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -285,8 +290,8 @@ TEST(TransformationTests, ConstFoldingPriorBox8) {
     }
 
     {
-        auto layer_shape = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto const_prior_box = opset8::Constant::create<float>(
+        auto layer_shape = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto const_prior_box = op::v0::Constant::create<float>(
             element::f32,
             Shape{2, 48},
             {0.15f,      0.15f,     0.35f,     0.35f,      0.127526f, 0.16835f,   0.372474f, 0.33165f,  0.0918861f,
@@ -300,15 +305,15 @@ TEST(TransformationTests, ConstFoldingPriorBox8) {
              0.1f,       0.1f,      0.1f,      0.1f,       0.1f,      0.1f,       0.1f,      0.1f,      0.1f,
              0.1f,       0.1f,      0.1f,      0.1f,       0.1f,      0.1f,       0.1f,      0.1f,      0.1f,
              0.1f,       0.1f,      0.1f,      0.1f,       0.1f,      0.1f});
-        auto res = std::make_shared<opset8::Result>(const_prior_box);
+        auto res = std::make_shared<op::v0::Result>(const_prior_box);
         f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = ov::as_type_ptr<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = ov::as_type_ptr<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -319,8 +324,8 @@ TEST(TransformationTests, ConstFoldingPriorBox8Subgraph) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
 
     {
-        auto in = std::make_shared<opset8::Parameter>(element::i64, Shape{2, 3, 2, 2});
-        auto in_2 = std::make_shared<opset8::Parameter>(element::i64, Shape{2, 3, 10, 10});
+        auto in = std::make_shared<op::v0::Parameter>(element::i64, Shape{2, 3, 2, 2});
+        auto in_2 = std::make_shared<op::v0::Parameter>(element::i64, Shape{2, 3, 10, 10});
         op::v8::PriorBox::Attributes attrs;
         attrs.min_size = {2.0f};
         attrs.max_size = {5.0f};
@@ -328,27 +333,27 @@ TEST(TransformationTests, ConstFoldingPriorBox8Subgraph) {
         attrs.scale_all_sizes = true;
         attrs.min_max_aspect_ratios_order = false;
 
-        auto layer_shape = std::make_shared<opset8::ShapeOf>(in);
-        auto image_shape = std::make_shared<opset8::ShapeOf>(in_2);
+        auto layer_shape = std::make_shared<op::v3::ShapeOf>(in);
+        auto image_shape = std::make_shared<op::v3::ShapeOf>(in_2);
 
-        auto begin = opset8::Constant::create(element::i64, Shape{1}, {2});
-        auto end = opset8::Constant::create(element::i64, Shape{1}, {4});
-        auto stride = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto ss_data = std::make_shared<opset8::StridedSlice>(layer_shape,
+        auto begin = op::v0::Constant::create(element::i64, Shape{1}, {2});
+        auto end = op::v0::Constant::create(element::i64, Shape{1}, {4});
+        auto stride = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto ss_data = std::make_shared<op::v1::StridedSlice>(layer_shape,
                                                               begin,
                                                               end,
                                                               stride,
                                                               std::vector<int64_t>{0},
                                                               std::vector<int64_t>{0});
 
-        auto ss_image = std::make_shared<opset8::StridedSlice>(image_shape,
+        auto ss_image = std::make_shared<op::v1::StridedSlice>(image_shape,
                                                                begin,
                                                                end,
                                                                stride,
                                                                std::vector<int64_t>{0},
                                                                std::vector<int64_t>{0});
-        auto pb = std::make_shared<opset8::PriorBox>(ss_data, ss_image, attrs);
-        auto res = std::make_shared<opset8::Result>(pb);
+        auto pb = std::make_shared<op::v8::PriorBox>(ss_data, ss_image, attrs);
+        auto res = std::make_shared<op::v0::Result>(pb);
         f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in, in_2});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -358,8 +363,8 @@ TEST(TransformationTests, ConstFoldingPriorBox8Subgraph) {
     }
 
     {
-        auto layer_shape = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto const_prior_box = opset8::Constant::create<float>(
+        auto layer_shape = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto const_prior_box = op::v0::Constant::create<float>(
             element::f32,
             Shape{2, 48},
             {0.15f,      0.15f,     0.35f,     0.35f,      0.127526f, 0.16835f,   0.372474f, 0.33165f,  0.0918861f,
@@ -373,15 +378,15 @@ TEST(TransformationTests, ConstFoldingPriorBox8Subgraph) {
              0.1f,       0.1f,      0.1f,      0.1f,       0.1f,      0.1f,       0.1f,      0.1f,      0.1f,
              0.1f,       0.1f,      0.1f,      0.1f,       0.1f,      0.1f,       0.1f,      0.1f,      0.1f,
              0.1f,       0.1f,      0.1f,      0.1f,       0.1f,      0.1f});
-        auto res = std::make_shared<opset8::Result>(const_prior_box);
+        auto res = std::make_shared<op::v0::Result>(const_prior_box);
         f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = ov::as_type_ptr<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = ov::as_type_ptr<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<op::v0::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);

@@ -17,6 +17,13 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -24,33 +31,33 @@ using namespace ov;
 TEST(TransformationTests, CompareFunctoinsTIPositive) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto Zi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Zi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto reshape_pattern = opset5::Constant::create(element::i64, Shape{2}, {1, 16});
-        auto squeeze = std::make_shared<opset5::Reshape>(Xi, reshape_pattern, false);
+        auto reshape_pattern = op::v0::Constant::create(element::i64, Shape{2}, {1, 16});
+        auto squeeze = std::make_shared<op::v1::Reshape>(Xi, reshape_pattern, false);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto lstm_cell = std::make_shared<opset5::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
-        auto res_1 = std::make_shared<opset5::Result>(lstm_cell);
-        auto reshape_pattern_2 = opset5::Constant::create(element::i64, Shape{3}, {1, 1, 128});
-        auto unsqueeze = std::make_shared<opset5::Reshape>(lstm_cell, reshape_pattern_2, false);
-        auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
+        auto lstm_cell = std::make_shared<op::v4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
+        auto res_1 = std::make_shared<op::v0::Result>(lstm_cell);
+        auto reshape_pattern_2 = op::v0::Constant::create(element::i64, Shape{3}, {1, 1, 128});
+        auto unsqueeze = std::make_shared<op::v1::Reshape>(lstm_cell, reshape_pattern_2, false);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_invariant_input(Zi, Z);
@@ -60,40 +67,40 @@ TEST(TransformationTests, CompareFunctoinsTIPositive) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
-        auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
         f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto Zi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Zi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto reshape_pattern = opset5::Constant::create(element::i64, Shape{2}, {1, 16});
-        auto squeeze = std::make_shared<opset5::Reshape>(Xi, reshape_pattern, false);
+        auto reshape_pattern = op::v0::Constant::create(element::i64, Shape{2}, {1, 16});
+        auto squeeze = std::make_shared<op::v1::Reshape>(Xi, reshape_pattern, false);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto lstm_cell = std::make_shared<opset5::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
-        auto res_1 = std::make_shared<opset5::Result>(lstm_cell);
+        auto lstm_cell = std::make_shared<op::v4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
+        auto res_1 = std::make_shared<op::v0::Result>(lstm_cell);
         res_1->set_friendly_name("res_1");
-        auto reshape_pattern_2 = opset5::Constant::create(element::i64, Shape{3}, {1, 1, 128});
-        auto unsqueeze = std::make_shared<opset5::Reshape>(lstm_cell, reshape_pattern_2, false);
-        auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
+        auto reshape_pattern_2 = op::v0::Constant::create(element::i64, Shape{3}, {1, 1, 128});
+        auto unsqueeze = std::make_shared<op::v1::Reshape>(lstm_cell, reshape_pattern_2, false);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         res_2->set_friendly_name("res_2");
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_invariant_input(Zi, Z);
@@ -103,7 +110,7 @@ TEST(TransformationTests, CompareFunctoinsTIPositive) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
-        auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
         f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
@@ -114,33 +121,33 @@ TEST(TransformationTests, CompareFunctoinsTIPositive) {
 TEST(TransformationTests, CompareFunctoinsTINegative) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto Zi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Zi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto reshape_pattern = opset5::Constant::create(element::i64, Shape{2}, {1, 16});
-        auto squeeze = std::make_shared<opset5::Reshape>(Xi, reshape_pattern, false);
+        auto reshape_pattern = op::v0::Constant::create(element::i64, Shape{2}, {1, 16});
+        auto squeeze = std::make_shared<op::v1::Reshape>(Xi, reshape_pattern, false);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto lstm_cell = std::make_shared<opset5::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
-        auto res_1 = std::make_shared<opset5::Result>(lstm_cell);
-        auto reshape_pattern_2 = opset5::Constant::create(element::i64, Shape{3}, {1, 1, 128});
-        auto unsqueeze = std::make_shared<opset5::Reshape>(lstm_cell, reshape_pattern_2, false);
-        auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
+        auto lstm_cell = std::make_shared<op::v4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
+        auto res_1 = std::make_shared<op::v0::Result>(lstm_cell);
+        auto reshape_pattern_2 = op::v0::Constant::create(element::i64, Shape{3}, {1, 1, 128});
+        auto unsqueeze = std::make_shared<op::v1::Reshape>(lstm_cell, reshape_pattern_2, false);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_invariant_input(Zi, Z);
@@ -150,41 +157,41 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
-        auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
         f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     {
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-        auto Zi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Zi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto reshape_pattern = opset5::Constant::create(element::i64, Shape{2}, {1, 16});
-        auto squeeze = std::make_shared<opset5::Reshape>(Xi, reshape_pattern, false);
+        auto reshape_pattern = op::v0::Constant::create(element::i64, Shape{2}, {1, 16});
+        auto squeeze = std::make_shared<op::v1::Reshape>(Xi, reshape_pattern, false);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset5::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset5::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset5::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto lstm_cell = std::make_shared<opset5::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
-        auto relu = std::make_shared<opset5::Relu>(lstm_cell);
-        auto res_1 = std::make_shared<opset5::Result>(relu);
+        auto lstm_cell = std::make_shared<op::v4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
+        auto relu = std::make_shared<op::v0::Relu>(lstm_cell);
+        auto res_1 = std::make_shared<op::v0::Result>(relu);
         res_1->set_friendly_name("res_1");
-        auto reshape_pattern_2 = opset5::Constant::create(element::i64, Shape{3}, {1, 1, 128});
-        auto unsqueeze = std::make_shared<opset5::Reshape>(lstm_cell, reshape_pattern_2, false);
-        auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
+        auto reshape_pattern_2 = op::v0::Constant::create(element::i64, Shape{3}, {1, 1, 128});
+        auto unsqueeze = std::make_shared<op::v1::Reshape>(lstm_cell, reshape_pattern_2, false);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         res_2->set_friendly_name("res_2");
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
-        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_invariant_input(Zi, Z);
@@ -194,7 +201,7 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
-        auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
         f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 

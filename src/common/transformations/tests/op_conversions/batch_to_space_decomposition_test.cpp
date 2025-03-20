@@ -19,6 +19,14 @@
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace std;
 using namespace testing;
@@ -26,12 +34,12 @@ using namespace ov;
 
 TEST_F(TransformationTestsF, BatchToSpaceDecompositionByElements) {
     {
-        auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{100, 7, 13, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{100, 7, 13, 3});
         auto block_shape =
-            std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
-        auto crops_begin = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
-        auto crops_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
-        auto batch_to_space = std::make_shared<opset3::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+            std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
+        auto crops_begin = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
+        auto crops_end = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
+        auto batch_to_space = std::make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
         model = std::make_shared<ov::Model>(NodeVector{batch_to_space}, ParameterVector{data});
 
@@ -40,37 +48,37 @@ TEST_F(TransformationTestsF, BatchToSpaceDecompositionByElements) {
     }
 
     {
-        auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{100, 7, 13, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{100, 7, 13, 3});
 
-        auto dispresed_shape_1 = opset3::Constant::create(element::i64, Shape{5}, {10, 10, 7, 13, 3});
-        auto axis_order_1 = opset3::Constant::create(element::i64, Shape{5}, {1, 2, 0, 3, 4});
-        auto squeezed_order_1 = opset3::Constant::create(element::i64, Shape{4}, {10, 70, 13, 3});
+        auto dispresed_shape_1 = op::v0::Constant::create(element::i64, Shape{5}, {10, 10, 7, 13, 3});
+        auto axis_order_1 = op::v0::Constant::create(element::i64, Shape{5}, {1, 2, 0, 3, 4});
+        auto squeezed_order_1 = op::v0::Constant::create(element::i64, Shape{4}, {10, 70, 13, 3});
 
-        auto reshape_before_1 = std::make_shared<opset3::Reshape>(data, dispresed_shape_1, false);
-        auto permute_1 = std::make_shared<opset3::Transpose>(reshape_before_1, axis_order_1);
-        auto reshape_after_1 = std::make_shared<opset3::Reshape>(permute_1, squeezed_order_1, false);
+        auto reshape_before_1 = std::make_shared<op::v1::Reshape>(data, dispresed_shape_1, false);
+        auto permute_1 = std::make_shared<op::v1::Transpose>(reshape_before_1, axis_order_1);
+        auto reshape_after_1 = std::make_shared<op::v1::Reshape>(permute_1, squeezed_order_1, false);
 
-        auto dispresed_shape_2 = opset3::Constant::create(element::i64, Shape{5}, {5, 2, 70, 13, 3});
-        auto axis_order_2 = opset3::Constant::create(element::i64, Shape{5}, {1, 2, 3, 0, 4});
-        auto squeezed_order_2 = opset3::Constant::create(element::i64, Shape{4}, {2, 70, 65, 3});
+        auto dispresed_shape_2 = op::v0::Constant::create(element::i64, Shape{5}, {5, 2, 70, 13, 3});
+        auto axis_order_2 = op::v0::Constant::create(element::i64, Shape{5}, {1, 2, 3, 0, 4});
+        auto squeezed_order_2 = op::v0::Constant::create(element::i64, Shape{4}, {2, 70, 65, 3});
 
-        auto reshape_before_2 = std::make_shared<opset3::Reshape>(reshape_after_1, dispresed_shape_2, false);
-        auto permute_2 = std::make_shared<opset3::Transpose>(reshape_before_2, axis_order_2);
-        auto reshape_after_2 = std::make_shared<opset3::Reshape>(permute_2, squeezed_order_2, false);
+        auto reshape_before_2 = std::make_shared<op::v1::Reshape>(reshape_after_1, dispresed_shape_2, false);
+        auto permute_2 = std::make_shared<op::v1::Transpose>(reshape_before_2, axis_order_2);
+        auto reshape_after_2 = std::make_shared<op::v1::Reshape>(permute_2, squeezed_order_2, false);
 
-        auto dispresed_shape_3 = opset3::Constant::create(element::i64, Shape{5}, {1, 2, 70, 65, 3});
-        auto axis_order_3 = opset3::Constant::create(element::i64, Shape{5}, {1, 2, 3, 4, 0});
-        auto squeezed_order_3 = opset3::Constant::create(element::i64, Shape{4}, {2, 70, 65, 3});
+        auto dispresed_shape_3 = op::v0::Constant::create(element::i64, Shape{5}, {1, 2, 70, 65, 3});
+        auto axis_order_3 = op::v0::Constant::create(element::i64, Shape{5}, {1, 2, 3, 4, 0});
+        auto squeezed_order_3 = op::v0::Constant::create(element::i64, Shape{4}, {2, 70, 65, 3});
 
-        auto reshape_before_3 = std::make_shared<opset3::Reshape>(reshape_after_2, dispresed_shape_3, false);
-        auto permute_3 = std::make_shared<opset3::Transpose>(reshape_before_3, axis_order_3);
-        auto reshape_after_3 = std::make_shared<opset3::Reshape>(permute_3, squeezed_order_3, false);
+        auto reshape_before_3 = std::make_shared<op::v1::Reshape>(reshape_after_2, dispresed_shape_3, false);
+        auto permute_3 = std::make_shared<op::v1::Transpose>(reshape_before_3, axis_order_3);
+        auto reshape_after_3 = std::make_shared<op::v1::Reshape>(permute_3, squeezed_order_3, false);
 
-        auto begin = opset3::Constant::create(element::i64, Shape{4}, {0, 3, 1, 0});
-        auto end = opset3::Constant::create(element::i64, Shape{4}, {2, 67, 65, 3});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {2, 67, 65, 3});
         std::vector<int64_t> begin_mask(4, 0);
         std::vector<int64_t> end_mask(4, 0);
-        auto ss = std::make_shared<opset3::StridedSlice>(reshape_after_3, begin, end, begin_mask, end_mask);
+        auto ss = std::make_shared<op::v1::StridedSlice>(reshape_after_3, begin, end, begin_mask, end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{data});
     }
@@ -78,12 +86,12 @@ TEST_F(TransformationTestsF, BatchToSpaceDecompositionByElements) {
 
 TEST_F(TransformationTestsF, SpaceToBatchDecompositionByElements) {
     {
-        auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{2, 64, 64, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 64, 64, 3});
         auto block_shape =
-            std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
-        auto pads_begin = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
-        auto pads_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
-        auto batch_to_space = std::make_shared<opset3::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+            std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
+        auto pads_begin = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
+        auto pads_end = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
+        auto batch_to_space = std::make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
         model = std::make_shared<ov::Model>(NodeVector{batch_to_space}, ParameterVector{data});
 
@@ -92,42 +100,42 @@ TEST_F(TransformationTestsF, SpaceToBatchDecompositionByElements) {
     }
 
     {
-        auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{2, 64, 64, 3});
-        auto pads_begin = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
-        auto pads_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
-        auto pads = std::make_shared<opset3::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 64, 64, 3});
+        auto pads_begin = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
+        auto pads_end = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
+        auto pads = std::make_shared<op::v1::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
 
-        auto dispresed_shape_1 = opset3::Constant::create(element::i64, Shape{5}, {2, 70, 65, 3, 1});
-        auto axis_order_1 = opset3::Constant::create(element::i64, Shape{5}, {4, 0, 1, 2, 3});
-        auto squeezed_order_1 = opset3::Constant::create(element::i64, Shape{4}, {2, 70, 65, 3});
+        auto dispresed_shape_1 = op::v0::Constant::create(element::i64, Shape{5}, {2, 70, 65, 3, 1});
+        auto axis_order_1 = op::v0::Constant::create(element::i64, Shape{5}, {4, 0, 1, 2, 3});
+        auto squeezed_order_1 = op::v0::Constant::create(element::i64, Shape{4}, {2, 70, 65, 3});
 
-        auto reshape_before_1 = std::make_shared<opset3::Reshape>(pads, dispresed_shape_1, false);
-        auto permute_1 = std::make_shared<opset3::Transpose>(reshape_before_1, axis_order_1);
-        auto reshape_after_1 = std::make_shared<opset3::Reshape>(permute_1, squeezed_order_1, false);
+        auto reshape_before_1 = std::make_shared<op::v1::Reshape>(pads, dispresed_shape_1, false);
+        auto permute_1 = std::make_shared<op::v1::Transpose>(reshape_before_1, axis_order_1);
+        auto reshape_after_1 = std::make_shared<op::v1::Reshape>(permute_1, squeezed_order_1, false);
 
-        auto dispresed_shape_2 = opset3::Constant::create(element::i64, Shape{5}, {2, 70, 13, 5, 3});
-        auto axis_order_2 = opset3::Constant::create(element::i64, Shape{5}, {3, 0, 1, 2, 4});
-        auto squeezed_order_2 = opset3::Constant::create(element::i64, Shape{4}, {10, 70, 13, 3});
+        auto dispresed_shape_2 = op::v0::Constant::create(element::i64, Shape{5}, {2, 70, 13, 5, 3});
+        auto axis_order_2 = op::v0::Constant::create(element::i64, Shape{5}, {3, 0, 1, 2, 4});
+        auto squeezed_order_2 = op::v0::Constant::create(element::i64, Shape{4}, {10, 70, 13, 3});
 
-        auto reshape_before_2 = std::make_shared<opset3::Reshape>(reshape_after_1, dispresed_shape_2, false);
-        auto permute_2 = std::make_shared<opset3::Transpose>(reshape_before_2, axis_order_2);
-        auto reshape_after_2 = std::make_shared<opset3::Reshape>(permute_2, squeezed_order_2, false);
+        auto reshape_before_2 = std::make_shared<op::v1::Reshape>(reshape_after_1, dispresed_shape_2, false);
+        auto permute_2 = std::make_shared<op::v1::Transpose>(reshape_before_2, axis_order_2);
+        auto reshape_after_2 = std::make_shared<op::v1::Reshape>(permute_2, squeezed_order_2, false);
 
-        auto dispresed_shape_3 = opset3::Constant::create(element::i64, Shape{5}, {10, 7, 10, 13, 3});
-        auto axis_order_3 = opset3::Constant::create(element::i64, Shape{5}, {2, 0, 1, 3, 4});
-        auto squeezed_order_3 = opset3::Constant::create(element::i64, Shape{4}, {100, 7, 13, 3});
+        auto dispresed_shape_3 = op::v0::Constant::create(element::i64, Shape{5}, {10, 7, 10, 13, 3});
+        auto axis_order_3 = op::v0::Constant::create(element::i64, Shape{5}, {2, 0, 1, 3, 4});
+        auto squeezed_order_3 = op::v0::Constant::create(element::i64, Shape{4}, {100, 7, 13, 3});
 
-        auto reshape_before_3 = std::make_shared<opset3::Reshape>(reshape_after_2, dispresed_shape_3, false);
-        auto permute_3 = std::make_shared<opset3::Transpose>(reshape_before_3, axis_order_3);
-        auto reshape_after_3 = std::make_shared<opset3::Reshape>(permute_3, squeezed_order_3, false);
+        auto reshape_before_3 = std::make_shared<op::v1::Reshape>(reshape_after_2, dispresed_shape_3, false);
+        auto permute_3 = std::make_shared<op::v1::Transpose>(reshape_before_3, axis_order_3);
+        auto reshape_after_3 = std::make_shared<op::v1::Reshape>(permute_3, squeezed_order_3, false);
 
-        auto dispresed_shape_4 = opset3::Constant::create(element::i64, Shape{5}, {100, 1, 7, 13, 3});
-        auto axis_order_4 = opset3::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4});
-        auto squeezed_order_4 = opset3::Constant::create(element::i64, Shape{4}, {100, 7, 13, 3});
+        auto dispresed_shape_4 = op::v0::Constant::create(element::i64, Shape{5}, {100, 1, 7, 13, 3});
+        auto axis_order_4 = op::v0::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4});
+        auto squeezed_order_4 = op::v0::Constant::create(element::i64, Shape{4}, {100, 7, 13, 3});
 
-        auto reshape_before_4 = std::make_shared<opset3::Reshape>(reshape_after_3, dispresed_shape_4, false);
-        auto permute_4 = std::make_shared<opset3::Transpose>(reshape_before_4, axis_order_4);
-        auto reshape_after_4 = std::make_shared<opset3::Reshape>(permute_4, squeezed_order_4, false);
+        auto reshape_before_4 = std::make_shared<op::v1::Reshape>(reshape_after_3, dispresed_shape_4, false);
+        auto permute_4 = std::make_shared<op::v1::Transpose>(reshape_before_4, axis_order_4);
+        auto reshape_after_4 = std::make_shared<op::v1::Reshape>(permute_4, squeezed_order_4, false);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{reshape_after_4}, ParameterVector{data});
     }
@@ -135,12 +143,12 @@ TEST_F(TransformationTestsF, SpaceToBatchDecompositionByElements) {
 
 TEST_F(TransformationTestsF, SpaceToBatchDecomposition) {
     {
-        auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{2, 64, 64, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 64, 64, 3});
         auto block_shape =
-            std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
-        auto pads_begin = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
-        auto pads_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
-        auto batch_to_space = std::make_shared<opset3::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+            std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
+        auto pads_begin = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
+        auto pads_end = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
+        auto batch_to_space = std::make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
         model = std::make_shared<ov::Model>(NodeVector{batch_to_space}, ParameterVector{data});
 
@@ -149,18 +157,18 @@ TEST_F(TransformationTestsF, SpaceToBatchDecomposition) {
     }
 
     {
-        auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{2, 64, 64, 3});
-        auto pads_begin = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
-        auto pads_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
-        auto pads = std::make_shared<opset3::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 64, 64, 3});
+        auto pads_begin = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
+        auto pads_end = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
+        auto pads = std::make_shared<op::v1::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
 
-        auto dispresed_shape = opset3::Constant::create(element::i64, Shape{7}, {2, 7, 10, 13, 5, 3, 1});
-        auto axis_order = opset3::Constant::create(element::i64, Shape{7}, {2, 4, 6, 0, 1, 3, 5});
-        auto squeezed_order = opset3::Constant::create(element::i64, Shape{4}, {100, 7, 13, 3});
+        auto dispresed_shape = op::v0::Constant::create(element::i64, Shape{7}, {2, 7, 10, 13, 5, 3, 1});
+        auto axis_order = op::v0::Constant::create(element::i64, Shape{7}, {2, 4, 6, 0, 1, 3, 5});
+        auto squeezed_order = op::v0::Constant::create(element::i64, Shape{4}, {100, 7, 13, 3});
 
-        auto reshape_before = std::make_shared<opset3::Reshape>(pads, dispresed_shape, false);
-        auto permute = std::make_shared<opset3::Transpose>(reshape_before, axis_order);
-        auto reshape_after = std::make_shared<opset3::Reshape>(permute, squeezed_order, false);
+        auto reshape_before = std::make_shared<op::v1::Reshape>(pads, dispresed_shape, false);
+        auto permute = std::make_shared<op::v1::Transpose>(reshape_before, axis_order);
+        auto reshape_after = std::make_shared<op::v1::Reshape>(permute, squeezed_order, false);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{data});
     }
@@ -168,12 +176,12 @@ TEST_F(TransformationTestsF, SpaceToBatchDecomposition) {
 
 TEST_F(TransformationTestsF, BatchToSpaceDecomposition) {
     {
-        auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{100, 7, 13, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{100, 7, 13, 3});
         auto block_shape =
-            std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
-        auto crops_begin = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
-        auto crops_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
-        auto batch_to_space = std::make_shared<opset3::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+            std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
+        auto crops_begin = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 1, 0});
+        auto crops_end = std::make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
+        auto batch_to_space = std::make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
         model = std::make_shared<ov::Model>(NodeVector{batch_to_space}, ParameterVector{data});
 
@@ -182,21 +190,21 @@ TEST_F(TransformationTestsF, BatchToSpaceDecomposition) {
     }
 
     {
-        auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{100, 7, 13, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{100, 7, 13, 3});
 
-        auto dispresed_shape = opset3::Constant::create(element::i64, Shape{7}, {10, 5, 1, 2, 7, 13, 3});
-        auto axis_order = opset3::Constant::create(element::i64, Shape{7}, {3, 4, 0, 5, 1, 6, 2});
-        auto squeezed_order = opset3::Constant::create(element::i64, Shape{4}, {2, 70, 65, 3});
+        auto dispresed_shape = op::v0::Constant::create(element::i64, Shape{7}, {10, 5, 1, 2, 7, 13, 3});
+        auto axis_order = op::v0::Constant::create(element::i64, Shape{7}, {3, 4, 0, 5, 1, 6, 2});
+        auto squeezed_order = op::v0::Constant::create(element::i64, Shape{4}, {2, 70, 65, 3});
 
-        auto reshape_before = std::make_shared<opset3::Reshape>(data, dispresed_shape, false);
-        auto permute = std::make_shared<opset3::Transpose>(reshape_before, axis_order);
-        auto reshape_after = std::make_shared<opset3::Reshape>(permute, squeezed_order, false);
+        auto reshape_before = std::make_shared<op::v1::Reshape>(data, dispresed_shape, false);
+        auto permute = std::make_shared<op::v1::Transpose>(reshape_before, axis_order);
+        auto reshape_after = std::make_shared<op::v1::Reshape>(permute, squeezed_order, false);
 
-        auto begin = opset3::Constant::create(element::i64, Shape{4}, {0, 3, 1, 0});
-        auto end = opset3::Constant::create(element::i64, Shape{4}, {2, 67, 65, 3});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {2, 67, 65, 3});
         std::vector<int64_t> begin_mask(4, 0);
         std::vector<int64_t> end_mask(4, 0);
-        auto ss = std::make_shared<opset3::StridedSlice>(reshape_after, begin, end, begin_mask, end_mask);
+        auto ss = std::make_shared<op::v1::StridedSlice>(reshape_after, begin, end, begin_mask, end_mask);
         model_ref = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{data});
     }
 }
@@ -231,7 +239,7 @@ class BatchToSpaceDecomposition2D : public testing::WithParamInterface<ElementTy
                                     public TransformationTests {};
 
 TEST_P(BatchToSpaceDecomposition2D, BlockElemType) {
-    op_convertion_type_test<ov::opset10::BatchToSpace, ov::pass::ConvertBatchToSpace>(GetParam());
+    op_convertion_type_test<ov::op::v1::BatchToSpace, ov::pass::ConvertBatchToSpace>(GetParam());
 }
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
@@ -243,7 +251,7 @@ class SpaceToBatchDecomposition2D : public testing::WithParamInterface<ElementTy
                                     public TransformationTests {};
 
 TEST_P(SpaceToBatchDecomposition2D, BlockElemType) {
-    op_convertion_type_test<ov::opset10::SpaceToBatch, ov::pass::ConvertSpaceToBatch>(GetParam());
+    op_convertion_type_test<ov::op::v1::SpaceToBatch, ov::pass::ConvertSpaceToBatch>(GetParam());
 }
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
@@ -308,7 +316,7 @@ class BatchToSpaceDecompositionWithParams : public testing::WithParamInterface<B
                                             public TransformationTests {};
 
 TEST_P(BatchToSpaceDecompositionWithParams, DynamicInputs) {
-    op_convertion_test<ov::opset10::BatchToSpace, ov::pass::ConvertBatchToSpace>(GetParam());
+    op_convertion_test<ov::op::v1::BatchToSpace, ov::pass::ConvertBatchToSpace>(GetParam());
 }
 
 static vector<BatchToSpaceParams> batch_to_space_params = {
@@ -338,7 +346,7 @@ class SpaceToBatchDecompositionWithParams : public testing::WithParamInterface<S
                                             public TransformationTests {};
 
 TEST_P(SpaceToBatchDecompositionWithParams, DynamicInputs) {
-    op_convertion_test<ov::opset10::SpaceToBatch, ov::pass::ConvertSpaceToBatch>(GetParam());
+    op_convertion_test<ov::op::v1::SpaceToBatch, ov::pass::ConvertSpaceToBatch>(GetParam());
 }
 
 static vector<SpaceToBatchParams> space_to_batch_params = {

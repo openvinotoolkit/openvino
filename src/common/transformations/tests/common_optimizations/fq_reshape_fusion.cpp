@@ -12,12 +12,20 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset4.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 #include "transformations/init_node_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -49,18 +57,18 @@ public:
 
 private:
     std::shared_ptr<ov::Model> get_initial_function(const FQReshapeFusionTestCase& test_case) {
-        const auto& data = std::make_shared<opset4::Constant>(element::f32, test_case.data_shape, 0);
-        auto il = std::make_shared<opset4::Parameter>(element::f32, test_case.il_shape);
-        auto ih = std::make_shared<opset4::Parameter>(element::f32, test_case.ih_shape);
-        auto ol = std::make_shared<opset4::Parameter>(element::f32, test_case.ol_shape);
-        auto oh = std::make_shared<opset4::Parameter>(element::f32, test_case.oh_shape);
+        const auto& data = std::make_shared<op::v0::Constant>(element::f32, test_case.data_shape, 0);
+        auto il = std::make_shared<op::v0::Parameter>(element::f32, test_case.il_shape);
+        auto ih = std::make_shared<op::v0::Parameter>(element::f32, test_case.ih_shape);
+        auto ol = std::make_shared<op::v0::Parameter>(element::f32, test_case.ol_shape);
+        auto oh = std::make_shared<op::v0::Parameter>(element::f32, test_case.oh_shape);
 
-        auto fq = std::make_shared<opset4::FakeQuantize>(data, il, ih, ol, oh, 42);
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, il, ih, ol, oh, 42);
 
-        auto reshape_pattern = std::make_shared<opset4::Constant>(element::i64,
+        auto reshape_pattern = std::make_shared<op::v0::Constant>(element::i64,
                                                                   Shape{test_case.reshape_pattern.size()},
                                                                   test_case.reshape_pattern);
-        auto reshape = std::make_shared<opset4::Reshape>(fq, reshape_pattern, true);
+        auto reshape = std::make_shared<op::v1::Reshape>(fq, reshape_pattern, true);
 
         auto result = std::make_shared<op::v0::Result>(reshape);
         ParameterVector params = {il, ih, ol, oh};
@@ -70,39 +78,39 @@ private:
 
     std::shared_ptr<ov::Model> get_reference_function(const FQReshapeFusionTestCase& test_case) {
         auto shape = PartialShape(test_case.reshape_pattern).to_shape();
-        const auto& data = std::make_shared<opset4::Constant>(element::f32, shape, 0);
+        const auto& data = std::make_shared<op::v0::Constant>(element::f32, shape, 0);
 
-        const auto& p_il = std::make_shared<opset4::Parameter>(element::f32, test_case.il_shape);
+        const auto& p_il = std::make_shared<op::v0::Parameter>(element::f32, test_case.il_shape);
         Output<Node> il = p_il;
-        const auto& p_ih = std::make_shared<opset4::Parameter>(element::f32, test_case.ih_shape);
+        const auto& p_ih = std::make_shared<op::v0::Parameter>(element::f32, test_case.ih_shape);
         Output<Node> ih = p_ih;
-        const auto& p_ol = std::make_shared<opset4::Parameter>(element::f32, test_case.ol_shape);
+        const auto& p_ol = std::make_shared<op::v0::Parameter>(element::f32, test_case.ol_shape);
         Output<Node> ol = p_ol;
-        const auto& p_oh = std::make_shared<opset4::Parameter>(element::f32, test_case.oh_shape);
+        const auto& p_oh = std::make_shared<op::v0::Parameter>(element::f32, test_case.oh_shape);
         Output<Node> oh = p_oh;
 
         if (test_case.new_il_shape != DO_NOT_RESHAPE)
-            il = std::make_shared<opset4::Reshape>(
+            il = std::make_shared<op::v1::Reshape>(
                 il,
-                opset4::Constant::create(element::i64, {test_case.new_il_shape.size()}, test_case.new_il_shape),
+                op::v0::Constant::create(element::i64, {test_case.new_il_shape.size()}, test_case.new_il_shape),
                 true);
         if (test_case.new_ih_shape != DO_NOT_RESHAPE)
-            ih = std::make_shared<opset4::Reshape>(
+            ih = std::make_shared<op::v1::Reshape>(
                 ih,
-                opset4::Constant::create(element::i64, {test_case.new_ih_shape.size()}, test_case.new_ih_shape),
+                op::v0::Constant::create(element::i64, {test_case.new_ih_shape.size()}, test_case.new_ih_shape),
                 true);
         if (test_case.new_ol_shape != DO_NOT_RESHAPE)
-            ol = std::make_shared<opset4::Reshape>(
+            ol = std::make_shared<op::v1::Reshape>(
                 ol,
-                opset4::Constant::create(element::i64, {test_case.new_ol_shape.size()}, test_case.new_ol_shape),
+                op::v0::Constant::create(element::i64, {test_case.new_ol_shape.size()}, test_case.new_ol_shape),
                 true);
         if (test_case.new_oh_shape != DO_NOT_RESHAPE)
-            oh = std::make_shared<opset4::Reshape>(
+            oh = std::make_shared<op::v1::Reshape>(
                 oh,
-                opset4::Constant::create(element::i64, {test_case.new_oh_shape.size()}, test_case.new_oh_shape),
+                op::v0::Constant::create(element::i64, {test_case.new_oh_shape.size()}, test_case.new_oh_shape),
                 true);
 
-        auto fq = std::make_shared<opset4::FakeQuantize>(data, il, ih, ol, oh, 42);
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, il, ih, ol, oh, 42);
 
         auto result = std::make_shared<op::v0::Result>(fq);
         ParameterVector params = {p_il, p_ih, p_ol, p_oh};
@@ -173,23 +181,23 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_F(TransformationTestsF, FQReshapeGroupConvolution) {
     auto get_function = [](const FQReshapeFusionTestCase& test_case) {
-        const auto& data = std::make_shared<opset4::Constant>(element::f32, test_case.data_shape, 0);
-        auto il = std::make_shared<opset4::Parameter>(element::f32, test_case.il_shape);
-        auto ih = std::make_shared<opset4::Parameter>(element::f32, test_case.ih_shape);
-        auto ol = std::make_shared<opset4::Parameter>(element::f32, test_case.ol_shape);
-        auto oh = std::make_shared<opset4::Parameter>(element::f32, test_case.oh_shape);
+        const auto& data = std::make_shared<op::v0::Constant>(element::f32, test_case.data_shape, 0);
+        auto il = std::make_shared<op::v0::Parameter>(element::f32, test_case.il_shape);
+        auto ih = std::make_shared<op::v0::Parameter>(element::f32, test_case.ih_shape);
+        auto ol = std::make_shared<op::v0::Parameter>(element::f32, test_case.ol_shape);
+        auto oh = std::make_shared<op::v0::Parameter>(element::f32, test_case.oh_shape);
 
-        auto fq = std::make_shared<opset4::FakeQuantize>(data, il, ih, ol, oh, 42);
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, il, ih, ol, oh, 42);
 
-        auto reshape_pattern = std::make_shared<opset4::Constant>(element::i64,
+        auto reshape_pattern = std::make_shared<op::v0::Constant>(element::i64,
                                                                   Shape{test_case.reshape_pattern.size()},
                                                                   test_case.reshape_pattern);
-        auto reshape = std::make_shared<opset4::Reshape>(fq, reshape_pattern, true);
+        auto reshape = std::make_shared<op::v1::Reshape>(fq, reshape_pattern, true);
 
-        auto input = std::make_shared<opset4::Parameter>(element::f32, test_case.data_shape);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, test_case.data_shape);
         Strides stride{1, 1};
         CoordinateDiff pad{0, 0};
-        auto group_conv = std::make_shared<opset4::GroupConvolution>(input, reshape, stride, pad, pad, stride);
+        auto group_conv = std::make_shared<op::v1::GroupConvolution>(input, reshape, stride, pad, pad, stride);
 
         auto result = std::make_shared<op::v0::Result>(group_conv);
         ParameterVector params = {il, ih, ol, oh, input};
@@ -214,36 +222,36 @@ TEST_F(TransformationTestsF, FQReshapeGroupConvolution) {
 
 TEST_F(TransformationTestsF, FQOptimizations) {
     {
-        const auto& data = std::make_shared<opset4::Constant>(element::u8, Shape{9, 32}, 0);
-        const auto& convert = std::make_shared<opset4::Convert>(data, element::f32);
+        const auto& data = std::make_shared<op::v0::Constant>(element::u8, Shape{9, 32}, 0);
+        const auto& convert = std::make_shared<op::v0::Convert>(data, element::f32);
 
         const auto& il = op::v0::Constant::create(element::f32, Shape{1}, {0});
         const auto& ih = op::v0::Constant::create(element::f32, Shape{1}, {254});
         const auto& ol = op::v0::Constant::create(element::f32, Shape{32}, {-14.22});
         const auto& oh = op::v0::Constant::create(element::f32, Shape{32}, {14.22});
 
-        const auto& fq = std::make_shared<opset4::FakeQuantize>(convert, il, ih, ol, oh, 255);
+        const auto& fq = std::make_shared<op::v0::FakeQuantize>(convert, il, ih, ol, oh, 255);
 
         const auto& reshape =
-            std::make_shared<opset4::Reshape>(fq,
+            std::make_shared<op::v1::Reshape>(fq,
                                               op::v0::Constant::create(element::i64, Shape{4}, {3, 3, 32, 1}),
                                               true);
 
         const auto& multiply =
-            std::make_shared<opset4::Multiply>(reshape,
+            std::make_shared<op::v1::Multiply>(reshape,
                                                op::v0::Constant::create(element::f32, Shape{1, 1, 32, 1}, {0.1140}));
 
         const auto& transpose =
-            std::make_shared<opset4::Transpose>(multiply,
+            std::make_shared<op::v1::Transpose>(multiply,
                                                 op::v0::Constant::create(element::i64, Shape{4}, {2, 3, 0, 1}));
 
         const auto& reshape_to_weight =
-            std::make_shared<opset4::Reshape>(transpose,
+            std::make_shared<op::v1::Reshape>(transpose,
                                               op::v0::Constant::create(element::i64, Shape{5}, {32, 1, 1, 3, 3}),
                                               true);
 
-        const auto& input = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(4));
-        const auto& group_conv = std::make_shared<opset4::GroupConvolution>(input,
+        const auto& input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        const auto& group_conv = std::make_shared<op::v1::GroupConvolution>(input,
                                                                             reshape_to_weight,
                                                                             Strides{1, 1},
                                                                             CoordinateDiff{0, 0},
@@ -259,23 +267,23 @@ TEST_F(TransformationTestsF, FQOptimizations) {
         fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
     }
     {
-        const auto& data = std::make_shared<opset4::Constant>(element::u8, Shape{32, 1, 3, 3}, 0);
-        const auto& convert = std::make_shared<opset4::Convert>(data, element::f32);
+        const auto& data = std::make_shared<op::v0::Constant>(element::u8, Shape{32, 1, 3, 3}, 0);
+        const auto& convert = std::make_shared<op::v0::Convert>(data, element::f32);
 
         const auto& il = op::v0::Constant::create(element::f32, Shape{1, 1, 1, 1}, {0});
         const auto& ih = op::v0::Constant::create(element::f32, Shape{1, 1, 1, 1}, {254});
         const auto& ol = op::v0::Constant::create(element::f32, Shape{32, 1, 1, 1}, {-14.22 * 0.1140});
         const auto& oh = op::v0::Constant::create(element::f32, Shape{32, 1, 1, 1}, {14.22 * 0.1140});
 
-        const auto& fq = std::make_shared<opset4::FakeQuantize>(convert, il, ih, ol, oh, 255);
+        const auto& fq = std::make_shared<op::v0::FakeQuantize>(convert, il, ih, ol, oh, 255);
 
         const auto& reshape_to_weight =
-            std::make_shared<opset4::Reshape>(fq,
+            std::make_shared<op::v1::Reshape>(fq,
                                               op::v0::Constant::create(element::i64, Shape{5}, {32, 1, 1, 3, 3}),
                                               true);
 
-        const auto& input = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(4));
-        const auto& group_conv = std::make_shared<opset4::GroupConvolution>(input,
+        const auto& input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        const auto& group_conv = std::make_shared<op::v1::GroupConvolution>(input,
                                                                             reshape_to_weight,
                                                                             Strides{1, 1},
                                                                             CoordinateDiff{0, 0},

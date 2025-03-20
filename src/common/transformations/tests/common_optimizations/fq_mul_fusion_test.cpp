@@ -13,9 +13,12 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset4.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace ov;
 
@@ -33,27 +36,27 @@ public:
         Shape data_shape, in_shape, out_shape, mul_const_shape, expected_out_shape;
         std::tie(data_shape, in_shape, out_shape, mul_const_shape, expected_out_shape) = this->GetParam();
 
-        const auto data = opset4::Constant::create(element::Type_t::f32, data_shape, {0.0f});
-        const auto in_low = opset4::Constant::create(element::Type_t::f32, in_shape, {-0.5f});
-        const auto in_high = opset4::Constant::create(element::Type_t::f32, in_shape, {0.5f});
-        const auto out_low = opset4::Constant::create(element::Type_t::f32, out_shape, {0.0f});
-        const auto out_high = opset4::Constant::create(element::Type_t::f32, out_shape, {100.0f});
-        const auto fq = std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, out_low, out_high, 255);
+        const auto data = op::v0::Constant::create(element::Type_t::f32, data_shape, {0.0f});
+        const auto in_low = op::v0::Constant::create(element::Type_t::f32, in_shape, {-0.5f});
+        const auto in_high = op::v0::Constant::create(element::Type_t::f32, in_shape, {0.5f});
+        const auto out_low = op::v0::Constant::create(element::Type_t::f32, out_shape, {0.0f});
+        const auto out_high = op::v0::Constant::create(element::Type_t::f32, out_shape, {100.0f});
+        const auto fq = std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, 255);
 
         std::vector<float> mul_const(shape_size(mul_const_shape));
         std::iota(mul_const.begin(), mul_const.end(), 0.0f);
-        const auto mul_value = opset4::Constant::create(element::Type_t::f32, mul_const_shape, mul_const);
-        const auto mul = std::make_shared<opset4::Multiply>(fq, mul_value);
+        const auto mul_value = op::v0::Constant::create(element::Type_t::f32, mul_const_shape, mul_const);
+        const auto mul = std::make_shared<op::v1::Multiply>(fq, mul_value);
 
         m_model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{}, "FQMulFusion");
 
-        const auto expected_data = opset4::Constant::create(element::Type_t::f32, data_shape, {0.0f});
-        const auto expected_in_low = opset4::Constant::create(element::Type_t::f32, in_shape, {-0.5f});
-        const auto expected_in_high = opset4::Constant::create(element::Type_t::f32, in_shape, {0.5f});
-        const auto expected_out_low = opset4::Constant::create(element::Type_t::f32, expected_out_shape, {0.0f});
-        const auto expected_out_high = opset4::Constant::create(element::Type_t::f32, expected_out_shape, {314.0f});
+        const auto expected_data = op::v0::Constant::create(element::Type_t::f32, data_shape, {0.0f});
+        const auto expected_in_low = op::v0::Constant::create(element::Type_t::f32, in_shape, {-0.5f});
+        const auto expected_in_high = op::v0::Constant::create(element::Type_t::f32, in_shape, {0.5f});
+        const auto expected_out_low = op::v0::Constant::create(element::Type_t::f32, expected_out_shape, {0.0f});
+        const auto expected_out_high = op::v0::Constant::create(element::Type_t::f32, expected_out_shape, {314.0f});
 
-        const auto expected_fq = std::make_shared<opset4::FakeQuantize>(expected_data,
+        const auto expected_fq = std::make_shared<op::v0::FakeQuantize>(expected_data,
                                                                         expected_in_low,
                                                                         expected_in_high,
                                                                         expected_out_low,
@@ -191,24 +194,24 @@ INSTANTIATE_TEST_SUITE_P(FQInOUt_ones__multiplier_3D,
                                             ::testing::Values(Shape{1, 1, 512})));
 
 TEST(FQMulFusion_NonConstInputs, AllInputsNonConst) {
-    const auto data = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{1, 3, 224, 224});
-    const auto in_low = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{});
-    const auto in_high = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{});
-    const auto out_low = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{});
-    const auto out_high = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{});
-    const auto fq = std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{1, 3, 224, 224});
+    const auto in_low = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{});
+    const auto in_high = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{});
+    const auto out_low = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{});
+    const auto out_high = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{});
+    const auto fq = std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
 
-    const auto mul_value = opset4::Constant::create(element::Type_t::f32, Shape{}, {3.14f});
-    const auto mul = std::make_shared<opset4::Multiply>(fq, mul_value);
+    const auto mul_value = op::v0::Constant::create(element::Type_t::f32, Shape{}, {3.14f});
+    const auto mul = std::make_shared<op::v1::Multiply>(fq, mul_value);
 
     auto model =
         std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{data, in_low, in_high, out_low, out_high});
 
-    const auto expected_out_low = std::make_shared<opset4::Multiply>(out_low, mul_value);
-    const auto expected_out_high = std::make_shared<opset4::Multiply>(out_high, mul_value);
+    const auto expected_out_low = std::make_shared<op::v1::Multiply>(out_low, mul_value);
+    const auto expected_out_high = std::make_shared<op::v1::Multiply>(out_high, mul_value);
 
     const auto expected_fq =
-        std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, expected_out_low, expected_out_high, 42);
+        std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, expected_out_low, expected_out_high, 42);
 
     const auto expected_function =
         std::make_shared<ov::Model>(OutputVector{expected_fq},
@@ -226,24 +229,24 @@ TEST(FQMulFusion_NonConstInputs, AllInputsNonConst) {
 }
 
 TEST(FQMulFusion_NonConstInputs, FQ_out_high_const) {
-    const auto data = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{1, 3, 224, 224});
-    const auto in_low = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{});
-    const auto in_high = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{});
-    const auto out_low = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{});
-    const auto out_high = opset4::Constant::create(element::Type_t::f32, Shape{}, {100.0f});
-    const auto fq = std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{1, 3, 224, 224});
+    const auto in_low = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{});
+    const auto in_high = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{});
+    const auto out_low = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{});
+    const auto out_high = op::v0::Constant::create(element::Type_t::f32, Shape{}, {100.0f});
+    const auto fq = std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
 
-    const auto mul_value = opset4::Constant::create(element::Type_t::f32, Shape{}, {3.14f});
-    const auto mul = std::make_shared<opset4::Multiply>(fq, mul_value);
+    const auto mul_value = op::v0::Constant::create(element::Type_t::f32, Shape{}, {3.14f});
+    const auto mul = std::make_shared<op::v1::Multiply>(fq, mul_value);
 
     auto model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{data, in_low, in_high, out_low});
 
-    const auto expected_out_low = std::make_shared<opset4::Multiply>(out_low, mul_value);
+    const auto expected_out_low = std::make_shared<op::v1::Multiply>(out_low, mul_value);
     // this constant should be created by constant folding of the last FQ input
-    const auto expected_out_high = opset4::Constant::create(element::Type_t::f32, Shape{}, {314.0f});
+    const auto expected_out_high = op::v0::Constant::create(element::Type_t::f32, Shape{}, {314.0f});
 
     const auto expected_fq =
-        std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, expected_out_low, expected_out_high, 42);
+        std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, expected_out_low, expected_out_high, 42);
 
     const auto expected_function =
         std::make_shared<ov::Model>(OutputVector{expected_fq}, ParameterVector{data, in_low, in_high, out_low});
@@ -260,24 +263,24 @@ TEST(FQMulFusion_NonConstInputs, FQ_out_high_const) {
 }
 
 TEST(FQMulFusion_FQ_Mul_inputs, FQ_out_to_mul_input_2) {
-    const auto data = opset4::Constant::create(element::Type_t::f32, Shape{1, 3, 224, 224}, {0.0f});
-    const auto in_low = opset4::Constant::create(element::Type_t::f32, Shape{}, {-0.5f});
-    const auto in_high = opset4::Constant::create(element::Type_t::f32, Shape{}, {0.5f});
-    const auto out_low = opset4::Constant::create(element::Type_t::f32, Shape{}, {0.0f});
-    const auto out_high = opset4::Constant::create(element::Type_t::f32, Shape{}, {100.0f});
-    const auto fq = std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
+    const auto data = op::v0::Constant::create(element::Type_t::f32, Shape{1, 3, 224, 224}, {0.0f});
+    const auto in_low = op::v0::Constant::create(element::Type_t::f32, Shape{}, {-0.5f});
+    const auto in_high = op::v0::Constant::create(element::Type_t::f32, Shape{}, {0.5f});
+    const auto out_low = op::v0::Constant::create(element::Type_t::f32, Shape{}, {0.0f});
+    const auto out_high = op::v0::Constant::create(element::Type_t::f32, Shape{}, {100.0f});
+    const auto fq = std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
 
-    const auto mul_value = opset4::Constant::create(element::Type_t::f32, Shape{}, {3.14f});
+    const auto mul_value = op::v0::Constant::create(element::Type_t::f32, Shape{}, {3.14f});
     // here the FQ's output is passed to the second input of the Mul operation
-    const auto mul = std::make_shared<opset4::Multiply>(mul_value, fq);
+    const auto mul = std::make_shared<op::v1::Multiply>(mul_value, fq);
 
     auto model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{});
 
-    const auto expected_out_low = opset4::Constant::create(element::Type_t::f32, Shape{}, {0.0f});
-    const auto expected_out_high = opset4::Constant::create(element::Type_t::f32, Shape{}, {314.0f});
+    const auto expected_out_low = op::v0::Constant::create(element::Type_t::f32, Shape{}, {0.0f});
+    const auto expected_out_high = op::v0::Constant::create(element::Type_t::f32, Shape{}, {314.0f});
 
     const auto expected_fq =
-        std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, expected_out_low, expected_out_high, 42);
+        std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, expected_out_low, expected_out_high, 42);
 
     const auto expected_function = std::make_shared<ov::Model>(OutputVector{expected_fq}, ParameterVector{});
 
@@ -293,25 +296,25 @@ TEST(FQMulFusion_FQ_Mul_inputs, FQ_out_to_mul_input_2) {
 }
 
 TEST(FQMulFusion_FQ_Mul_inputs, FQ_out_to_mul_input_2_param) {
-    const auto data = opset4::Constant::create(element::Type_t::f32, Shape{1, 3, 224, 224}, {0.0f});
-    const auto in_low = opset4::Constant::create(element::Type_t::f32, Shape{}, {-0.5f});
-    const auto in_high = opset4::Constant::create(element::Type_t::f32, Shape{}, {0.5f});
-    const auto out_low = opset4::Constant::create(element::Type_t::f32, Shape{}, {0.0f});
+    const auto data = op::v0::Constant::create(element::Type_t::f32, Shape{1, 3, 224, 224}, {0.0f});
+    const auto in_low = op::v0::Constant::create(element::Type_t::f32, Shape{}, {-0.5f});
+    const auto in_high = op::v0::Constant::create(element::Type_t::f32, Shape{}, {0.5f});
+    const auto out_low = op::v0::Constant::create(element::Type_t::f32, Shape{}, {0.0f});
     // out_high is a parameter, which means it should not be constant folded
-    const auto out_high = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{});
-    const auto fq = std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
+    const auto out_high = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{});
+    const auto fq = std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
 
-    const auto mul_value = opset4::Constant::create(element::Type_t::f32, Shape{}, {3.14f});
+    const auto mul_value = op::v0::Constant::create(element::Type_t::f32, Shape{}, {3.14f});
     // and here the output of FQ is passed as the second input of Mul
-    const auto mul = std::make_shared<opset4::Multiply>(mul_value, fq);
+    const auto mul = std::make_shared<op::v1::Multiply>(mul_value, fq);
 
     auto model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{out_high});
 
-    const auto expected_out_low = opset4::Constant::create(element::Type_t::f32, Shape{}, {0.0f});
-    const auto expected_out_high = std::make_shared<opset4::Multiply>(out_high, mul_value);
+    const auto expected_out_low = op::v0::Constant::create(element::Type_t::f32, Shape{}, {0.0f});
+    const auto expected_out_high = std::make_shared<op::v1::Multiply>(out_high, mul_value);
 
     const auto expected_fq =
-        std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, expected_out_low, expected_out_high, 42);
+        std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, expected_out_low, expected_out_high, 42);
 
     const auto expected_function = std::make_shared<ov::Model>(OutputVector{expected_fq}, ParameterVector{out_high});
 
@@ -327,17 +330,17 @@ TEST(FQMulFusion_FQ_Mul_inputs, FQ_out_to_mul_input_2_param) {
 }
 
 TEST(TransformationTests, FakeQuantizeMultiplyFusionNegative) {
-    const auto data = opset4::Constant::create(element::Type_t::f32, Shape{1, 300, 1}, {0.0f});
-    const auto in_low = opset4::Constant::create(element::Type_t::f32, Shape{}, {-0.5f});
-    const auto in_high = opset4::Constant::create(element::Type_t::f32, Shape{}, {0.5f});
-    const auto out_low = opset4::Constant::create(element::Type_t::f32, Shape{}, {0.0f});
+    const auto data = op::v0::Constant::create(element::Type_t::f32, Shape{1, 300, 1}, {0.0f});
+    const auto in_low = op::v0::Constant::create(element::Type_t::f32, Shape{}, {-0.5f});
+    const auto in_high = op::v0::Constant::create(element::Type_t::f32, Shape{}, {0.5f});
+    const auto out_low = op::v0::Constant::create(element::Type_t::f32, Shape{}, {0.0f});
     // out_high is a parameter, which means it should not be constant folded
-    const auto out_high = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{});
-    const auto fq = std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
+    const auto out_high = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{});
+    const auto fq = std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
 
-    const auto mul_value = opset4::Constant::create(element::Type_t::f32, Shape{1, 300, 16}, {3.14f});
+    const auto mul_value = op::v0::Constant::create(element::Type_t::f32, Shape{1, 300, 16}, {3.14f});
     // and here the output of FQ is passed as the second input of Mul
-    const auto mul = std::make_shared<opset4::Multiply>(mul_value, fq);
+    const auto mul = std::make_shared<op::v1::Multiply>(mul_value, fq);
 
     auto model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{out_high});
 
@@ -352,24 +355,24 @@ TEST(TransformationTests, FakeQuantizeMultiplyFusionNegative) {
 }
 
 TEST(TransformationTests, FakeQuantizeMultiplyFusionMulConstWithEqualValues) {
-    const auto data = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{1, 3, 224, 224});
-    const auto in_low = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{});
-    const auto in_high = std::make_shared<opset4::Parameter>(element::Type_t::f32, Shape{});
-    const auto out_low = opset4::Constant::create(element::Type_t::f32, Shape{}, {1.0f});
-    const auto out_high = opset4::Constant::create(element::Type_t::f32, Shape{}, {100.0f});
-    const auto fq = std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{1, 3, 224, 224});
+    const auto in_low = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{});
+    const auto in_high = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{});
+    const auto out_low = op::v0::Constant::create(element::Type_t::f32, Shape{}, {1.0f});
+    const auto out_high = op::v0::Constant::create(element::Type_t::f32, Shape{}, {100.0f});
+    const auto fq = std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, out_low, out_high, 42);
 
-    const auto mul_value = opset4::Constant::create(element::Type_t::f32, Shape{1, 3, 1, 1}, {3, 3, 3});
-    const auto mul = std::make_shared<opset4::Multiply>(fq, mul_value);
+    const auto mul_value = op::v0::Constant::create(element::Type_t::f32, Shape{1, 3, 1, 1}, {3, 3, 3});
+    const auto mul = std::make_shared<op::v1::Multiply>(fq, mul_value);
 
     auto model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{data, in_low, in_high});
 
-    const auto expected_out_low = opset4::Constant::create(element::Type_t::f32, Shape{1}, {3.0f});
+    const auto expected_out_low = op::v0::Constant::create(element::Type_t::f32, Shape{1}, {3.0f});
     // this constant should be created by constant folding of the last FQ input
-    const auto expected_out_high = opset4::Constant::create(element::Type_t::f32, Shape{1}, {300.0f});
+    const auto expected_out_high = op::v0::Constant::create(element::Type_t::f32, Shape{1}, {300.0f});
 
     const auto expected_fq =
-        std::make_shared<opset4::FakeQuantize>(data, in_low, in_high, expected_out_low, expected_out_high, 42);
+        std::make_shared<op::v0::FakeQuantize>(data, in_low, in_high, expected_out_low, expected_out_high, 42);
 
     const auto expected_function =
         std::make_shared<ov::Model>(OutputVector{expected_fq}, ParameterVector{data, in_low, in_high});

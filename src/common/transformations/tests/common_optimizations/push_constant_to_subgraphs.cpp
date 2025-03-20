@@ -4,34 +4,43 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace testing;
 using namespace ov;
 
 TEST_F(TransformationTestsF, PushConstantToSubgraphLoop) {
     {
-        auto trip_count = opset10::Constant::create(element::i32, Shape{}, {2});
-        auto term_cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+        auto trip_count = op::v0::Constant::create(element::i32, Shape{}, {2});
+        auto term_cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
         std::shared_ptr<Model> loop_body;
         {
-            auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2});
-            auto Y = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2});
-            auto Z = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2});
-            auto mul = std::make_shared<opset10::Multiply>(X, Y);
-            auto add = std::make_shared<opset10::Add>(mul, Z);
-            auto cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+            auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2});
+            auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2});
+            auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2});
+            auto mul = std::make_shared<op::v1::Multiply>(X, Y);
+            auto add = std::make_shared<op::v1::Add>(mul, Z);
+            auto cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
             loop_body = std::make_shared<Model>(NodeVector{add, cond}, ParameterVector{X, Y, Z});
         }
-        auto loop = std::make_shared<opset10::Loop>(trip_count, term_cond);
+        auto loop = std::make_shared<op::v5::Loop>(trip_count, term_cond);
         loop->set_function(loop_body);
 
-        auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{2, 2});
-        auto constant_1 = opset10::Constant::create(element::i32, Shape{2, 2}, {11});
-        auto convert_1 = std::make_shared<opset10::Convert>(constant_1, element::f32);
-        auto constant_2 = opset10::Constant::create(element::i32, Shape{1, 2}, {22});
-        auto convert_2 = std::make_shared<opset10::Convert>(constant_2, element::f32);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto constant_1 = op::v0::Constant::create(element::i32, Shape{2, 2}, {11});
+        auto convert_1 = std::make_shared<op::v0::Convert>(constant_1, element::f32);
+        auto constant_2 = op::v0::Constant::create(element::i32, Shape{1, 2}, {22});
+        auto convert_2 = std::make_shared<op::v0::Convert>(constant_2, element::f32);
         const auto& loop_params = loop_body->get_parameters();
         loop->set_special_body_ports({-1, 1});
         loop->set_sliced_input(loop_params[0], X, 0, 1, 1, -1, 0);
@@ -44,24 +53,24 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoop) {
     }
 
     {
-        auto trip_count = opset10::Constant::create(element::i32, Shape{}, {2});
-        auto term_cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+        auto trip_count = op::v0::Constant::create(element::i32, Shape{}, {2});
+        auto term_cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
         std::shared_ptr<Model> loop_body;
         {
-            auto constant = opset10::Constant::create(element::f32, Shape{1, 2}, {22});
-            auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2});
-            auto Y = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2});
-            auto mul = std::make_shared<opset10::Multiply>(X, Y);
-            auto add = std::make_shared<opset10::Add>(mul, constant);
-            auto cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+            auto constant = op::v0::Constant::create(element::f32, Shape{1, 2}, {22});
+            auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2});
+            auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2});
+            auto mul = std::make_shared<op::v1::Multiply>(X, Y);
+            auto add = std::make_shared<op::v1::Add>(mul, constant);
+            auto cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
             loop_body = std::make_shared<Model>(NodeVector{add, cond}, ParameterVector{X, Y});
         }
-        auto loop = std::make_shared<opset10::Loop>(trip_count, term_cond);
+        auto loop = std::make_shared<op::v5::Loop>(trip_count, term_cond);
         loop->set_function(loop_body);
 
-        auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{2, 2});
-        auto constant_1 = opset10::Constant::create(element::i32, Shape{2, 2}, {11});
-        auto convert_1 = std::make_shared<opset10::Convert>(constant_1, element::f32);
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto constant_1 = op::v0::Constant::create(element::i32, Shape{2, 2}, {11});
+        auto convert_1 = std::make_shared<op::v0::Convert>(constant_1, element::f32);
         const auto& loop_params = loop_body->get_parameters();
         loop->set_special_body_ports({-1, 1});
         loop->set_sliced_input(loop_params[0], X, 0, 1, 1, -1, 0);
@@ -76,28 +85,28 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoop) {
 
 TEST_F(TransformationTestsF, PushConstantToSubgraphIf) {
     {
-        auto cond = opset10::Constant::create(element::boolean, Shape{}, {false});
-        auto if_op = std::make_shared<ov::opset10::If>(cond);
+        auto cond = op::v0::Constant::create(element::boolean, Shape{}, {false});
+        auto if_op = std::make_shared<ov::op::v8::If>(cond);
         std::shared_ptr<ov::Model> then_body;
         {
-            auto A = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto B = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto C = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto D = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto add = std::make_shared<ov::opset10::Add>(A, B);
-            auto mul = std::make_shared<ov::opset10::Multiply>(add, C);
-            auto sub = std::make_shared<ov::opset10::Subtract>(mul, D);
+            auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto C = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto D = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto add = std::make_shared<ov::op::v1::Add>(A, B);
+            auto mul = std::make_shared<ov::op::v1::Multiply>(add, C);
+            auto sub = std::make_shared<ov::op::v1::Subtract>(mul, D);
             then_body = std::make_shared<ov::Model>(add, ov::ParameterVector{A, B, C, D});
         }
         std::shared_ptr<ov::Model> else_body;
         {
-            auto A = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto B = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto C = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto D = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto mul = std::make_shared<ov::opset10::Multiply>(A, B);
-            auto add = std::make_shared<ov::opset10::Add>(mul, C);
-            auto div = std::make_shared<ov::opset10::Divide>(add, D);
+            auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto C = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto D = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto mul = std::make_shared<ov::op::v1::Multiply>(A, B);
+            auto add = std::make_shared<ov::op::v1::Add>(mul, C);
+            auto div = std::make_shared<ov::op::v1::Divide>(add, D);
             else_body = std::make_shared<ov::Model>(div, ov::ParameterVector{A, B, C, D});
         }
 
@@ -107,15 +116,15 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphIf) {
         const auto& then_params = then_body->get_parameters();
         const auto& else_params = else_body->get_parameters();
 
-        auto A = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-        auto B = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-        auto C = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-        auto const_1 = ov::opset10::Constant::create(ov::element::i32, ov::Shape{3}, {1});
-        auto convert_1 = std::make_shared<ov::opset10::Convert>(const_1, ov::element::f32);
-        auto const_2 = ov::opset10::Constant::create(ov::element::i32, ov::Shape{3}, {2});
-        auto convert_2 = std::make_shared<ov::opset10::Convert>(const_2, ov::element::f32);
-        auto const_3 = ov::opset10::Constant::create(ov::element::i32, ov::Shape{3}, {3});
-        auto convert_3 = std::make_shared<ov::opset10::Convert>(const_3, ov::element::f32);
+        auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+        auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+        auto C = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+        auto const_1 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {1});
+        auto convert_1 = std::make_shared<ov::op::v0::Convert>(const_1, ov::element::f32);
+        auto const_2 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {2});
+        auto convert_2 = std::make_shared<ov::op::v0::Convert>(const_2, ov::element::f32);
+        auto const_3 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {3});
+        auto convert_3 = std::make_shared<ov::op::v0::Convert>(const_3, ov::element::f32);
 
         if_op->set_input(A, then_params[0], nullptr);
         if_op->set_input(convert_1, then_params[1], nullptr);
@@ -132,27 +141,27 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphIf) {
     }
 
     {
-        auto cond = opset10::Constant::create(element::boolean, Shape{}, {false});
-        auto const_1 = ov::opset10::Constant::create(ov::element::f32, ov::Shape{3}, {1});
-        auto const_2 = ov::opset10::Constant::create(ov::element::f32, ov::Shape{3}, {2});
-        auto const_3 = ov::opset10::Constant::create(ov::element::f32, ov::Shape{3}, {3});
-        auto if_op = std::make_shared<ov::opset10::If>(cond);
+        auto cond = op::v0::Constant::create(element::boolean, Shape{}, {false});
+        auto const_1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{3}, {1});
+        auto const_2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{3}, {2});
+        auto const_3 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{3}, {3});
+        auto if_op = std::make_shared<ov::op::v8::If>(cond);
         std::shared_ptr<ov::Model> then_body;
         {
-            auto A = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto B = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto add = std::make_shared<ov::opset10::Add>(A, const_1);
-            auto mul = std::make_shared<ov::opset10::Multiply>(add, B);
-            auto sub = std::make_shared<ov::opset10::Subtract>(mul, const_2);
+            auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto add = std::make_shared<ov::op::v1::Add>(A, const_1);
+            auto mul = std::make_shared<ov::op::v1::Multiply>(add, B);
+            auto sub = std::make_shared<ov::op::v1::Subtract>(mul, const_2);
             then_body = std::make_shared<ov::Model>(add, ov::ParameterVector{A, B});
         }
         std::shared_ptr<ov::Model> else_body;
         {
-            auto A = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto B = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-            auto mul = std::make_shared<ov::opset10::Multiply>(A, const_2);
-            auto add = std::make_shared<ov::opset10::Add>(mul, B);
-            auto div = std::make_shared<ov::opset10::Divide>(add, const_3);
+            auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+            auto mul = std::make_shared<ov::op::v1::Multiply>(A, const_2);
+            auto add = std::make_shared<ov::op::v1::Add>(mul, B);
+            auto div = std::make_shared<ov::op::v1::Divide>(add, const_3);
             else_body = std::make_shared<ov::Model>(div, ov::ParameterVector{A, B});
         }
 
@@ -162,9 +171,9 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphIf) {
         const auto& then_params = then_body->get_parameters();
         const auto& else_params = else_body->get_parameters();
 
-        auto A = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-        auto B = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
-        auto C = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{3});
+        auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+        auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
+        auto C = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
 
         if_op->set_input(A, then_params[0], nullptr);
         if_op->set_input(B, then_params[1], else_params[0]);
@@ -182,11 +191,11 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphIf) {
 TEST_F(TransformationTestsF, PushConstantToSubgraphLoopMoreThan32Inputs) {
     int num_const_inputs = 33;
     {
-        auto trip_count = opset10::Constant::create(element::i32, Shape{}, {2});
-        auto term_cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+        auto trip_count = op::v0::Constant::create(element::i32, Shape{}, {2});
+        auto term_cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
         std::shared_ptr<Model> loop_body;
         {
-            auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2});
+            auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2});
             ParameterVector params;
             params.reserve(num_const_inputs + 1);
             params.push_back(X);
@@ -194,21 +203,21 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoopMoreThan32Inputs) {
             concat_inputs.reserve(num_const_inputs + 1);
             concat_inputs.push_back(X);
             for (int i = 0; i < num_const_inputs; i++) {
-                params.push_back(std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2}));
+                params.push_back(std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2}));
                 concat_inputs.push_back(params.back());
             }
-            auto concat = std::make_shared<opset10::Concat>(concat_inputs, 1);
-            auto cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+            auto concat = std::make_shared<op::v0::Concat>(concat_inputs, 1);
+            auto cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
             loop_body = std::make_shared<Model>(NodeVector{concat, cond}, params);
         }
-        auto loop = std::make_shared<opset10::Loop>(trip_count, term_cond);
+        auto loop = std::make_shared<op::v5::Loop>(trip_count, term_cond);
         loop->set_function(loop_body);
 
-        auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{2, 2});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
         NodeVector constants;
         constants.reserve(num_const_inputs);
         for (int i = 0; i < num_const_inputs; i++) {
-            constants.push_back(opset10::Constant::create(element::f32, Shape{1, 2}, {-2}));
+            constants.push_back(op::v0::Constant::create(element::f32, Shape{1, 2}, {-2}));
         }
         const auto& loop_params = loop_body->get_parameters();
         loop->set_special_body_ports({-1, 1});
@@ -223,26 +232,26 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoopMoreThan32Inputs) {
     }
 
     {
-        auto trip_count = opset10::Constant::create(element::i32, Shape{}, {2});
-        auto term_cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+        auto trip_count = op::v0::Constant::create(element::i32, Shape{}, {2});
+        auto term_cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
         std::shared_ptr<Model> loop_body;
         {
-            auto constant = opset10::Constant::create(element::f32, Shape{1, 2}, {-2});
-            auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2});
+            auto constant = op::v0::Constant::create(element::f32, Shape{1, 2}, {-2});
+            auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2});
             NodeVector concat_inputs;
             concat_inputs.reserve(num_const_inputs + 1);
             concat_inputs.push_back(X);
             for (int i = 0; i < num_const_inputs; i++) {
-                concat_inputs.push_back(opset10::Constant::create(element::f32, Shape{1, 2}, {-2}));
+                concat_inputs.push_back(op::v0::Constant::create(element::f32, Shape{1, 2}, {-2}));
             }
-            auto concat = std::make_shared<opset10::Concat>(concat_inputs, 1);
-            auto cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+            auto concat = std::make_shared<op::v0::Concat>(concat_inputs, 1);
+            auto cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
             loop_body = std::make_shared<Model>(NodeVector{concat, cond}, ParameterVector{X});
         }
-        auto loop = std::make_shared<opset10::Loop>(trip_count, term_cond);
+        auto loop = std::make_shared<op::v5::Loop>(trip_count, term_cond);
         loop->set_function(loop_body);
 
-        auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{2, 2});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
         const auto& loop_params = loop_body->get_parameters();
         loop->set_special_body_ports({-1, 1});
         loop->set_sliced_input(loop_params[0], X, 0, 1, 1, -1, 0);

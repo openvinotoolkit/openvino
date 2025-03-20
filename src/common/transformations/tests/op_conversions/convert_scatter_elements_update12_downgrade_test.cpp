@@ -9,23 +9,23 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset12.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 using namespace ov;
 using namespace testing;
 
 namespace {
-using Reduction = ov::opset12::ScatterElementsUpdate::Reduction;
+using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
 
 std::shared_ptr<ov::Model> create_v12_model(const Reduction reduction_type, const bool use_init_value) {
-    const auto input = std::make_shared<ov::opset12::Parameter>(ov::element::f32, ov::Shape{1, 3, 100, 100});
-    const auto indices = std::make_shared<ov::opset12::Parameter>(ov::element::i32, ov::Shape{1, 1, 5, 5});
-    const auto updates = std::make_shared<ov::opset12::Parameter>(ov::element::f32, ov::Shape{1, 1, 5, 5});
-    const auto axis = std::make_shared<ov::opset12::Parameter>(ov::element::i64, ov::Shape{});
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 100, 100});
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, 5, 5});
+    const auto updates = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 5, 5});
+    const auto axis = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{});
 
-    const auto seu = std::make_shared<ov::opset12::ScatterElementsUpdate>(input,
+    const auto seu = std::make_shared<ov::op::v12::ScatterElementsUpdate>(input,
                                                                           indices,
                                                                           updates,
                                                                           axis,
@@ -38,12 +38,12 @@ std::shared_ptr<ov::Model> create_v12_model(const Reduction reduction_type, cons
 }
 
 std::shared_ptr<ov::Model> create_v3_model() {
-    const auto input = std::make_shared<ov::opset3::Parameter>(ov::element::f32, ov::Shape{1, 3, 100, 100});
-    const auto indices = std::make_shared<ov::opset3::Parameter>(ov::element::i32, ov::Shape{1, 1, 5, 5});
-    const auto updates = std::make_shared<ov::opset3::Parameter>(ov::element::f32, ov::Shape{1, 1, 5, 5});
-    const auto axis = std::make_shared<ov::opset3::Parameter>(ov::element::i64, ov::Shape{});
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 100, 100});
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, 5, 5});
+    const auto updates = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 5, 5});
+    const auto axis = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{});
 
-    const auto seu = std::make_shared<ov::opset3::ScatterElementsUpdate>(input, indices, updates, axis);
+    const auto seu = std::make_shared<ov::op::v3::ScatterElementsUpdate>(input, indices, updates, axis);
 
     seu->set_friendly_name("seu3");
 

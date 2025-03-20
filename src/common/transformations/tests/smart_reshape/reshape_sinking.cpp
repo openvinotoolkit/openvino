@@ -6,7 +6,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 
 struct ReshapeSinkingAttributes {
     ov::element::Type_t data_et;
@@ -26,15 +30,15 @@ TEST_P(ReshapeSinkingTest, ReshapeSinkingOnlyMatMul) {
 
     std::shared_ptr<ov::Model> model(nullptr);
     {
-        auto parameter = std::make_shared<ov::opset9::Parameter>(p.data_et, p.input_shape);
-        auto reshape = std::make_shared<ov::opset9::Reshape>(parameter, create_constant(p.output_pattern), false);
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(p.data_et, p.input_shape);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(parameter, create_constant(p.output_pattern), false);
         auto matmul =
-            std::make_shared<ov::opset9::MatMul>(reshape,
+            std::make_shared<ov::op::v0::MatMul>(reshape,
                                                  ov::op::v0::Constant::create(p.data_et, p.mm_second_input_shape, {0}),
                                                  p.transpose_a,
                                                  p.transpose_b);
         auto reshape_back =
-            std::make_shared<ov::opset9::Reshape>(matmul, create_constant(p.output_pattern_back), false);
+            std::make_shared<ov::op::v1::Reshape>(matmul, create_constant(p.output_pattern_back), false);
         model = std::make_shared<ov::Model>(ov::NodeVector{reshape_back}, ov::ParameterVector{parameter});
     }
     OV_ASSERT_NO_THROW(model->reshape(p.new_shape));
@@ -48,15 +52,15 @@ TEST_P(ReshapeSinkingTestWithAdd, ReshapeSinkingMatMulAdd) {
 
     std::shared_ptr<ov::Model> model(nullptr);
     {
-        auto parameter = std::make_shared<ov::opset9::Parameter>(p.data_et, p.input_shape);
-        auto reshape = std::make_shared<ov::opset9::Reshape>(parameter, create_constant(p.output_pattern), false);
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(p.data_et, p.input_shape);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(parameter, create_constant(p.output_pattern), false);
         auto matmul =
-            std::make_shared<ov::opset9::MatMul>(reshape,
+            std::make_shared<ov::op::v0::MatMul>(reshape,
                                                  ov::op::v0::Constant::create(p.data_et, p.mm_second_input_shape, {0}),
                                                  p.transpose_a,
                                                  p.transpose_b);
-        auto add = std::make_shared<ov::opset9::Add>(matmul, ov::op::v0::Constant::create(p.data_et, {1, 37}, {0}));
-        auto reshape_back = std::make_shared<ov::opset9::Reshape>(add, create_constant(p.output_pattern_back), false);
+        auto add = std::make_shared<ov::op::v1::Add>(matmul, ov::op::v0::Constant::create(p.data_et, {1, 37}, {0}));
+        auto reshape_back = std::make_shared<ov::op::v1::Reshape>(add, create_constant(p.output_pattern_back), false);
         model = std::make_shared<ov::Model>(ov::NodeVector{reshape_back}, ov::ParameterVector{parameter});
     }
     OV_ASSERT_NO_THROW(model->reshape(p.new_shape));

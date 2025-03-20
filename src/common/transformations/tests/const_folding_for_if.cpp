@@ -7,12 +7,15 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/result.hpp"
 using namespace testing;
 using namespace std;
 using namespace ov;
@@ -21,11 +24,11 @@ using namespace ov;
 TEST(TransformationTests, DISABLED_if_constant_folding) {
     std::shared_ptr<ov::Model> fun(nullptr);
     {
-        auto cond = std::make_shared<opset5::Constant>(element::boolean, Shape{1}, false);
-        auto A1 = std::make_shared<opset5::Constant>(element::f32, Shape{1}, 37.0);
-        auto A2 = std::make_shared<opset5::Constant>(element::f32, Shape{1}, 45.0);
-        auto B1 = std::make_shared<opset5::Constant>(element::f32, Shape{1}, 10.0);
-        auto B2 = std::make_shared<opset5::Constant>(element::f32, Shape{1}, 3.0);
+        auto cond = std::make_shared<op::v0::Constant>(element::boolean, Shape{1}, false);
+        auto A1 = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, 37.0);
+        auto A2 = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, 45.0);
+        auto B1 = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, 10.0);
+        auto B2 = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, 3.0);
         auto Xt = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto Yt = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto Xe = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
@@ -54,7 +57,7 @@ TEST(TransformationTests, DISABLED_if_constant_folding) {
     }
     std::shared_ptr<ov::Model> f_ref(nullptr);
     {
-        auto constant_folding_if = make_shared<opset5::Constant>(element::f32, Shape{1}, 1000.0f);
+        auto constant_folding_if = make_shared<op::v0::Constant>(element::f32, Shape{1}, 1000.0f);
         auto param_add = make_shared<op::v0::Parameter>(element::f32, Shape{1});
         auto add = make_shared<op::v1::Add>(constant_folding_if, param_add);
         auto add_res = make_shared<op::v0::Result>(add);

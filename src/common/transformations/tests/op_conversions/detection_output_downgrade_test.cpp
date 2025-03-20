@@ -13,18 +13,17 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/detection_output_base.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "openvino/op/detection_output.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace ov;
 using namespace testing;
 
 namespace {
-void create_attributes_vectors(std::vector<opset1::DetectionOutput::Attributes>& attrs_v1_vector,
-                               std::vector<opset8::DetectionOutput::Attributes>& attrs_v8_vector) {
+void create_attributes_vectors(std::vector<op::v0::DetectionOutput::Attributes>& attrs_v1_vector,
+                               std::vector<op::v8::DetectionOutput::Attributes>& attrs_v8_vector) {
     // initialize attributes affecting shape inference
     // others remain by default
     for (int keep_top_k : {10, -1}) {
@@ -32,8 +31,8 @@ void create_attributes_vectors(std::vector<opset1::DetectionOutput::Attributes>&
             for (bool variance_encoded_in_target : {true, false}) {
                 for (bool share_location : {true, false}) {
                     for (bool normalized : {true, false}) {
-                        opset1::DetectionOutput::Attributes attrs_v1;
-                        opset8::DetectionOutput::Attributes attrs_v8;
+                        op::v0::DetectionOutput::Attributes attrs_v1;
+                        op::v8::DetectionOutput::Attributes attrs_v8;
                         attrs_v1.top_k = attrs_v8.top_k = top_k;
                         attrs_v1.keep_top_k = attrs_v8.keep_top_k = {keep_top_k};
                         attrs_v1.variance_encoded_in_target = attrs_v8.variance_encoded_in_target =
@@ -53,8 +52,8 @@ void create_attributes_vectors(std::vector<opset1::DetectionOutput::Attributes>&
 
 TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::vector<opset1::DetectionOutput::Attributes> attrs_v1_vector;
-    std::vector<opset8::DetectionOutput::Attributes> attrs_v8_vector;
+    std::vector<op::v0::DetectionOutput::Attributes> attrs_v1_vector;
+    std::vector<op::v8::DetectionOutput::Attributes> attrs_v8_vector;
     Dimension N = 5;
     Dimension num_prior_boxes = 100;
     Dimension priors_batch_size = N;
@@ -66,8 +65,8 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
         std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
         // this case covers deducing a number of classes value
         // since this value is not saved in attributes
-        opset8::DetectionOutput::Attributes attributes_v8 = attrs_v8_vector[ind];
-        opset1::DetectionOutput::Attributes attributes_v1 = attrs_v1_vector[ind];
+        op::v8::DetectionOutput::Attributes attributes_v8 = attrs_v8_vector[ind];
+        op::v0::DetectionOutput::Attributes attributes_v1 = attrs_v1_vector[ind];
         if (num_classes.is_static()) {
             attributes_v1.num_classes = (int)num_classes.get_length();
         }
@@ -82,12 +81,12 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
                                         num_prior_boxes * prior_box_size};
 
         {
-            auto box_logits = std::make_shared<opset1::Parameter>(element::f32, box_logits_shape);
-            auto class_preds = std::make_shared<opset1::Parameter>(element::f32, class_preds_shape);
-            auto proposals = std::make_shared<opset1::Parameter>(element::f32, proposals_shape);
+            auto box_logits = std::make_shared<op::v0::Parameter>(element::f32, box_logits_shape);
+            auto class_preds = std::make_shared<op::v0::Parameter>(element::f32, class_preds_shape);
+            auto proposals = std::make_shared<op::v0::Parameter>(element::f32, proposals_shape);
 
             auto detection_output_v8 =
-                std::make_shared<opset8::DetectionOutput>(box_logits, class_preds, proposals, attributes_v8);
+                std::make_shared<op::v8::DetectionOutput>(box_logits, class_preds, proposals, attributes_v8);
 
             f = std::make_shared<ov::Model>(NodeVector{detection_output_v8},
                                             ParameterVector{box_logits, class_preds, proposals});
@@ -98,12 +97,12 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
         }
 
         {
-            auto box_logits = std::make_shared<opset1::Parameter>(element::f32, box_logits_shape);
-            auto class_preds = std::make_shared<opset1::Parameter>(element::f32, class_preds_shape);
-            auto proposals = std::make_shared<opset1::Parameter>(element::f32, proposals_shape);
+            auto box_logits = std::make_shared<op::v0::Parameter>(element::f32, box_logits_shape);
+            auto class_preds = std::make_shared<op::v0::Parameter>(element::f32, class_preds_shape);
+            auto proposals = std::make_shared<op::v0::Parameter>(element::f32, proposals_shape);
 
             auto detection_output_v1 =
-                std::make_shared<opset1::DetectionOutput>(box_logits, class_preds, proposals, attributes_v1);
+                std::make_shared<op::v0::DetectionOutput>(box_logits, class_preds, proposals, attributes_v1);
 
             f_ref = std::make_shared<ov::Model>(NodeVector{detection_output_v1},
                                                 ParameterVector{box_logits, class_preds, proposals});
@@ -117,8 +116,8 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
 TEST(TransformationTests, DetectionOutput8ToDetectionOutput1FiveArguments) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // In this case num_classes attribute value is deduced using inputs shapes
-    std::vector<opset1::DetectionOutput::Attributes> attrs_v1_vector;
-    std::vector<opset8::DetectionOutput::Attributes> attrs_v8_vector;
+    std::vector<op::v0::DetectionOutput::Attributes> attrs_v1_vector;
+    std::vector<op::v8::DetectionOutput::Attributes> attrs_v8_vector;
     Dimension N = 5;
     Dimension num_prior_boxes = 15;
     Dimension priors_batch_size = N;
@@ -128,8 +127,8 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1FiveArguments) {
     ASSERT_TRUE(attrs_v1_vector.size() == attrs_v8_vector.size()) << "Sizes of attribute test vectors must be equal";
     for (size_t ind = 0; ind < attrs_v1_vector.size(); ++ind) {
         std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-        opset8::DetectionOutput::Attributes attributes_v8 = attrs_v8_vector[ind];
-        opset1::DetectionOutput::Attributes attributes_v1 = attrs_v1_vector[ind];
+        op::v8::DetectionOutput::Attributes attributes_v8 = attrs_v8_vector[ind];
+        op::v0::DetectionOutput::Attributes attributes_v1 = attrs_v1_vector[ind];
         if (num_classes.is_static()) {
             attributes_v1.num_classes = (int)num_classes.get_length();
         }
@@ -146,13 +145,13 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1FiveArguments) {
         PartialShape ad_box_preds_shape = {N, num_prior_boxes * num_loc_classes * 4};
 
         {
-            auto box_logits = std::make_shared<opset1::Parameter>(element::f32, box_logits_shape);
-            auto class_preds = std::make_shared<opset1::Parameter>(element::f32, class_preds_shape);
-            auto proposals = std::make_shared<opset1::Parameter>(element::f32, proposals_shape);
-            auto ad_class_preds = std::make_shared<opset1::Parameter>(element::f32, ad_class_preds_shape);
-            auto ad_box_preds = std::make_shared<opset1::Parameter>(element::f32, ad_box_preds_shape);
+            auto box_logits = std::make_shared<op::v0::Parameter>(element::f32, box_logits_shape);
+            auto class_preds = std::make_shared<op::v0::Parameter>(element::f32, class_preds_shape);
+            auto proposals = std::make_shared<op::v0::Parameter>(element::f32, proposals_shape);
+            auto ad_class_preds = std::make_shared<op::v0::Parameter>(element::f32, ad_class_preds_shape);
+            auto ad_box_preds = std::make_shared<op::v0::Parameter>(element::f32, ad_box_preds_shape);
 
-            auto detection_output_v8 = std::make_shared<opset8::DetectionOutput>(box_logits,
+            auto detection_output_v8 = std::make_shared<op::v8::DetectionOutput>(box_logits,
                                                                                  class_preds,
                                                                                  proposals,
                                                                                  ad_class_preds,
@@ -169,13 +168,13 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1FiveArguments) {
         }
 
         {
-            auto box_logits = std::make_shared<opset1::Parameter>(element::f32, box_logits_shape);
-            auto class_preds = std::make_shared<opset1::Parameter>(element::f32, class_preds_shape);
-            auto proposals = std::make_shared<opset1::Parameter>(element::f32, proposals_shape);
-            auto ad_class_preds = std::make_shared<opset1::Parameter>(element::f32, ad_class_preds_shape);
-            auto ad_box_preds = std::make_shared<opset1::Parameter>(element::f32, ad_box_preds_shape);
+            auto box_logits = std::make_shared<op::v0::Parameter>(element::f32, box_logits_shape);
+            auto class_preds = std::make_shared<op::v0::Parameter>(element::f32, class_preds_shape);
+            auto proposals = std::make_shared<op::v0::Parameter>(element::f32, proposals_shape);
+            auto ad_class_preds = std::make_shared<op::v0::Parameter>(element::f32, ad_class_preds_shape);
+            auto ad_box_preds = std::make_shared<op::v0::Parameter>(element::f32, ad_box_preds_shape);
 
-            auto detection_output_v1 = std::make_shared<opset1::DetectionOutput>(box_logits,
+            auto detection_output_v1 = std::make_shared<op::v0::DetectionOutput>(box_logits,
                                                                                  class_preds,
                                                                                  proposals,
                                                                                  ad_class_preds,

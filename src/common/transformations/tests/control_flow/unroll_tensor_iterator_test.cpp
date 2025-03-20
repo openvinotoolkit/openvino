@@ -13,12 +13,22 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -26,30 +36,30 @@ using namespace ov;
 TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze = std::make_shared<op::v0::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{384, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{384, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{384}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{384, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{384, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{384}, b_val);
 
-        auto gru_cell = std::make_shared<opset4::GRUCell>(squeeze, Yi, W, R, B, 128);
-        auto res_1 = std::make_shared<opset4::Result>(gru_cell);
-        auto unsqueeze = std::make_shared<opset4::Unsqueeze>(gru_cell, axis);
-        auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
+        auto gru_cell = std::make_shared<op::v3::GRUCell>(squeeze, Yi, W, R, B, 128);
+        auto res_1 = std::make_shared<op::v0::Result>(gru_cell);
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gru_cell, axis);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
-        auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
@@ -58,8 +68,8 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
-        // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(tensor_iterator->output(0));
         f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
@@ -71,31 +81,31 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
     }
 
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis_split = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto split = std::make_shared<opset4::Split>(X, axis_split, 2);
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze_1 = std::make_shared<opset4::Squeeze>(split->output(0), axis);
-        auto squeeze_2 = std::make_shared<opset4::Squeeze>(split->output(1), axis);
+        auto axis_split = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto split = std::make_shared<op::v1::Split>(X, axis_split, 2);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze_1 = std::make_shared<op::v0::Squeeze>(split->output(0), axis);
+        auto squeeze_2 = std::make_shared<op::v0::Squeeze>(split->output(1), axis);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{384, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{384, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{384}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{384, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{384, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{384}, b_val);
 
-        auto gru_cell_1 = std::make_shared<opset4::GRUCell>(squeeze_1, Y, W, R, B, 128);
-        auto gru_cell_2 = std::make_shared<opset4::GRUCell>(squeeze_2, gru_cell_1, W, R, B, 128);
+        auto gru_cell_1 = std::make_shared<op::v3::GRUCell>(squeeze_1, Y, W, R, B, 128);
+        auto gru_cell_2 = std::make_shared<op::v3::GRUCell>(squeeze_2, gru_cell_1, W, R, B, 128);
 
-        auto unsqueeze_1 = std::make_shared<opset4::Unsqueeze>(gru_cell_1, axis);
-        auto unsqueeze_2 = std::make_shared<opset4::Unsqueeze>(gru_cell_2, axis);
-        auto concat = std::make_shared<opset4::Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
+        auto unsqueeze_1 = std::make_shared<op::v0::Unsqueeze>(gru_cell_1, axis);
+        auto unsqueeze_2 = std::make_shared<op::v0::Unsqueeze>(gru_cell_2, axis);
+        auto concat = std::make_shared<op::v0::Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(concat);
-        // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
+        auto res_ti_1 = std::make_shared<op::v0::Result>(concat);
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(unsqueeze_2);
         f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
     }
 
@@ -106,30 +116,30 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
 TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze = std::make_shared<op::v0::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{128, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{128, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{128}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{128, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{128, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{128}, b_val);
 
-        auto rnn_cell = std::make_shared<opset4::RNNCell>(squeeze, Yi, W, R, B, 128);
-        auto res_1 = std::make_shared<opset4::Result>(rnn_cell);
-        auto unsqueeze = std::make_shared<opset4::Unsqueeze>(rnn_cell, axis);
-        auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
+        auto rnn_cell = std::make_shared<op::v0::RNNCell>(squeeze, Yi, W, R, B, 128);
+        auto res_1 = std::make_shared<op::v0::Result>(rnn_cell);
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(rnn_cell, axis);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
-        auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
@@ -138,8 +148,8 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
-        // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(tensor_iterator->output(0));
         f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
@@ -151,31 +161,31 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
     }
 
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis_split = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto split = std::make_shared<opset4::Split>(X, axis_split, 2);
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze_1 = std::make_shared<opset4::Squeeze>(split->output(0), axis);
-        auto squeeze_2 = std::make_shared<opset4::Squeeze>(split->output(1), axis);
+        auto axis_split = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto split = std::make_shared<op::v1::Split>(X, axis_split, 2);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze_1 = std::make_shared<op::v0::Squeeze>(split->output(0), axis);
+        auto squeeze_2 = std::make_shared<op::v0::Squeeze>(split->output(1), axis);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{128, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{128, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{128}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{128, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{128, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{128}, b_val);
 
-        auto rnn_cell_1 = std::make_shared<opset4::RNNCell>(squeeze_1, Y, W, R, B, 128);
-        auto rnn_cell_2 = std::make_shared<opset4::RNNCell>(squeeze_2, rnn_cell_1, W, R, B, 128);
+        auto rnn_cell_1 = std::make_shared<op::v0::RNNCell>(squeeze_1, Y, W, R, B, 128);
+        auto rnn_cell_2 = std::make_shared<op::v0::RNNCell>(squeeze_2, rnn_cell_1, W, R, B, 128);
 
-        auto unsqueeze_1 = std::make_shared<opset4::Unsqueeze>(rnn_cell_1, axis);
-        auto unsqueeze_2 = std::make_shared<opset4::Unsqueeze>(rnn_cell_2, axis);
-        auto concat = std::make_shared<opset4::Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
+        auto unsqueeze_1 = std::make_shared<op::v0::Unsqueeze>(rnn_cell_1, axis);
+        auto unsqueeze_2 = std::make_shared<op::v0::Unsqueeze>(rnn_cell_2, axis);
+        auto concat = std::make_shared<op::v0::Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(concat);
-        // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
+        auto res_ti_1 = std::make_shared<op::v0::Result>(concat);
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(unsqueeze_2);
         f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
     }
 
@@ -186,32 +196,32 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
 TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
-        auto Z = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
-        auto Zi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Zi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze = std::make_shared<op::v0::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto lstm_cell = std::make_shared<opset4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
-        auto res_1 = std::make_shared<opset4::Result>(lstm_cell);
-        auto unsqueeze = std::make_shared<opset4::Unsqueeze>(lstm_cell, axis);
-        auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
+        auto lstm_cell = std::make_shared<op::v4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
+        auto res_1 = std::make_shared<op::v0::Result>(lstm_cell);
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(lstm_cell, axis);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
-        auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_invariant_input(Zi, Z);
@@ -221,8 +231,8 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
-        // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(tensor_iterator->output(0));
         f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager manager;
@@ -234,32 +244,32 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
     }
 
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
-        auto Z = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis_split = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto split = std::make_shared<opset4::Split>(X, axis_split, 2);
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze_1 = std::make_shared<opset4::Squeeze>(split->output(0), axis);
-        auto squeeze_2 = std::make_shared<opset4::Squeeze>(split->output(1), axis);
+        auto axis_split = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto split = std::make_shared<op::v1::Split>(X, axis_split, 2);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze_1 = std::make_shared<op::v0::Squeeze>(split->output(0), axis);
+        auto squeeze_2 = std::make_shared<op::v0::Squeeze>(split->output(1), axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto lstm_cell_1 = std::make_shared<opset4::LSTMCell>(squeeze_1, Y, Z, W, R, B, 128);
-        auto lstm_cell_2 = std::make_shared<opset4::LSTMCell>(squeeze_2, lstm_cell_1, Z, W, R, B, 128);
+        auto lstm_cell_1 = std::make_shared<op::v4::LSTMCell>(squeeze_1, Y, Z, W, R, B, 128);
+        auto lstm_cell_2 = std::make_shared<op::v4::LSTMCell>(squeeze_2, lstm_cell_1, Z, W, R, B, 128);
 
-        auto unsqueeze_1 = std::make_shared<opset4::Unsqueeze>(lstm_cell_1, axis);
-        auto unsqueeze_2 = std::make_shared<opset4::Unsqueeze>(lstm_cell_2, axis);
-        auto concat = std::make_shared<opset4::Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
+        auto unsqueeze_1 = std::make_shared<op::v0::Unsqueeze>(lstm_cell_1, axis);
+        auto unsqueeze_2 = std::make_shared<op::v0::Unsqueeze>(lstm_cell_2, axis);
+        auto concat = std::make_shared<op::v0::Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(concat);
-        // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
+        auto res_ti_1 = std::make_shared<op::v0::Result>(concat);
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(unsqueeze_2);
         f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
@@ -270,30 +280,30 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
 TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze = std::make_shared<op::v0::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{384, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{384, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{384}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{384, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{384, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{384}, b_val);
 
-        auto gru_cell = std::make_shared<opset4::GRUCell>(squeeze, Yi, W, R, B, 128);
-        auto res_1 = std::make_shared<opset4::Result>(gru_cell);
-        auto unsqueeze = std::make_shared<opset4::Unsqueeze>(gru_cell, axis);
-        auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
+        auto gru_cell = std::make_shared<op::v3::GRUCell>(squeeze, Yi, W, R, B, 128);
+        auto res_1 = std::make_shared<op::v0::Result>(gru_cell);
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gru_cell, axis);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
-        auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
@@ -302,8 +312,8 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
-        // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(tensor_iterator->output(0));
         f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
@@ -315,25 +325,25 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
     }
 
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze_1 = std::make_shared<opset4::Squeeze>(X, axis);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze_1 = std::make_shared<op::v0::Squeeze>(X, axis);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{384, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{384, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{384}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{384, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{384, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{384}, b_val);
 
-        auto gru_cell_1 = std::make_shared<opset4::GRUCell>(squeeze_1, Y, W, R, B, 128);
+        auto gru_cell_1 = std::make_shared<op::v3::GRUCell>(squeeze_1, Y, W, R, B, 128);
 
-        auto unsqueeze_1 = std::make_shared<opset4::Unsqueeze>(gru_cell_1, axis);
+        auto unsqueeze_1 = std::make_shared<op::v0::Unsqueeze>(gru_cell_1, axis);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(unsqueeze_1);
-        // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
+        auto res_ti_1 = std::make_shared<op::v0::Result>(unsqueeze_1);
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(unsqueeze_2);
         f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
     }
 
@@ -344,30 +354,30 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
 TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze = std::make_shared<op::v0::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{128, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{128, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{128}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{128, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{128, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{128}, b_val);
 
-        auto rnn_cell = std::make_shared<opset4::RNNCell>(squeeze, Yi, W, R, B, 128);
-        auto res_1 = std::make_shared<opset4::Result>(rnn_cell);
-        auto unsqueeze = std::make_shared<opset4::Unsqueeze>(rnn_cell, axis);
-        auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
+        auto rnn_cell = std::make_shared<op::v0::RNNCell>(squeeze, Yi, W, R, B, 128);
+        auto res_1 = std::make_shared<op::v0::Result>(rnn_cell);
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(rnn_cell, axis);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
-        auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
@@ -376,8 +386,8 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
-        // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(tensor_iterator->output(0));
         f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
@@ -389,23 +399,23 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
     }
 
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze_1 = std::make_shared<opset4::Squeeze>(X, axis);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze_1 = std::make_shared<op::v0::Squeeze>(X, axis);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
         auto b_val = std::vector<float>(128, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{128, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{128, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{128}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{128, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{128, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{128}, b_val);
 
-        auto rnn_cell_1 = std::make_shared<opset4::RNNCell>(squeeze_1, Y, W, R, B, 128);
+        auto rnn_cell_1 = std::make_shared<op::v0::RNNCell>(squeeze_1, Y, W, R, B, 128);
 
-        auto unsqueeze_1 = std::make_shared<opset4::Unsqueeze>(rnn_cell_1, axis);
-        auto res_ti_1 = std::make_shared<opset4::Result>(unsqueeze_1);
+        auto unsqueeze_1 = std::make_shared<op::v0::Unsqueeze>(rnn_cell_1, axis);
+        auto res_ti_1 = std::make_shared<op::v0::Result>(unsqueeze_1);
 
         f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
     }
@@ -417,32 +427,32 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
 TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleIteration) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
-        auto Z = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
-        auto Zi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Zi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze = std::make_shared<op::v0::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto lstm_cell = std::make_shared<opset4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
-        auto res_1 = std::make_shared<opset4::Result>(lstm_cell);
-        auto unsqueeze = std::make_shared<opset4::Unsqueeze>(lstm_cell, axis);
-        auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
+        auto lstm_cell = std::make_shared<op::v4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
+        auto res_1 = std::make_shared<op::v0::Result>(lstm_cell);
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(lstm_cell, axis);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
-        auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_invariant_input(Zi, Z);
@@ -452,8 +462,8 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
-        // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(tensor_iterator->output(0));
         f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager manager;
@@ -465,25 +475,25 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
     }
 
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
-        auto Z = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze_1 = std::make_shared<opset4::Squeeze>(X, axis);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze_1 = std::make_shared<op::v0::Squeeze>(X, axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto lstm_cell_1 = std::make_shared<opset4::LSTMCell>(squeeze_1, Y, Z, W, R, B, 128);
+        auto lstm_cell_1 = std::make_shared<op::v4::LSTMCell>(squeeze_1, Y, Z, W, R, B, 128);
 
-        auto unsqueeze_1 = std::make_shared<opset4::Unsqueeze>(lstm_cell_1, axis);
-        auto res_ti_1 = std::make_shared<opset4::Result>(unsqueeze_1);
-        // auto res_ti_2 = std::make_shared<opset4::Result>(unsqueeze_2);
+        auto unsqueeze_1 = std::make_shared<op::v0::Unsqueeze>(lstm_cell_1, axis);
+        auto res_ti_1 = std::make_shared<op::v0::Result>(unsqueeze_1);
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(unsqueeze_2);
         f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
@@ -495,7 +505,7 @@ void collect_tensor_names(const std::shared_ptr<ov::Model>& model,
                           std::vector<std::unordered_set<std::string>>& holder) {
     for (const auto& op : model->get_ordered_ops()) {
         for (const auto& out : op->outputs()) {
-            if (!out.get_tensor().get_names().empty() && ov::as_type_ptr<opset8::Result>(op))
+            if (!out.get_tensor().get_names().empty() && ov::as_type_ptr<op::v0::Result>(op))
                 holder.emplace_back(out.get_tensor().get_names());
         }
     }
@@ -511,18 +521,18 @@ void collect_tensor_names(const std::shared_ptr<ov::Model>& model,
 TEST(TransformationTests, CheckTensorNamesAfterConvertToTIAndUnrolling) {
     std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto X = std::make_shared<opset8::Parameter>(element::f32, PartialShape{-1, 2, -1});
-        auto Y = std::make_shared<opset8::Parameter>(element::f32, PartialShape{1, 1, 128});
-        auto seq_lengths = opset8::Constant::create(element::i32, Shape{1}, {2});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 2, -1});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 128});
+        auto seq_lengths = op::v0::Constant::create(element::i32, Shape{1}, {2});
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = opset8::Constant::create(element::f32, Shape{1, 384, 16}, w_val);
-        auto R = opset8::Constant::create(element::f32, Shape{1, 384, 128}, r_val);
-        auto B = opset8::Constant::create(element::f32, Shape{1, 384}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{1, 384, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{1, 384, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{1, 384}, b_val);
 
-        auto rnn_sequence = std::make_shared<opset8::GRUSequence>(X,
+        auto rnn_sequence = std::make_shared<op::v5::GRUSequence>(X,
                                                                   Y,
                                                                   seq_lengths,
                                                                   W,
@@ -530,8 +540,8 @@ TEST(TransformationTests, CheckTensorNamesAfterConvertToTIAndUnrolling) {
                                                                   B,
                                                                   128,
                                                                   op::RecurrentSequenceDirection::FORWARD);
-        auto Y_out = std::make_shared<opset8::Result>(rnn_sequence->output(0));
-        auto Ho = std::make_shared<opset8::Result>(rnn_sequence->output(1));
+        auto Y_out = std::make_shared<op::v0::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<op::v0::Result>(rnn_sequence->output(1));
 
         f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho}, ParameterVector{X, Y});
     }
@@ -560,32 +570,32 @@ TEST(TransformationTests, CheckTensorNamesAfterConvertToTIAndUnrolling) {
 TEST(TransformationTests, CheckTensorNamesAfterUnrolling) {
     std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
-        auto Z = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
-        auto Zi = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
+        auto Zi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 128});
 
         // Body
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze = std::make_shared<op::v0::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
         auto b_val = std::vector<float>(512, 0);
-        auto W = opset4::Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = opset4::Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = opset4::Constant::create(element::f32, Shape{512}, b_val);
+        auto W = op::v0::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f32, Shape{512}, b_val);
 
-        auto lstm_cell = std::make_shared<opset4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
-        auto res_1 = std::make_shared<opset4::Result>(lstm_cell);
-        auto unsqueeze = std::make_shared<opset4::Unsqueeze>(lstm_cell, axis);
-        auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
+        auto lstm_cell = std::make_shared<op::v4::LSTMCell>(squeeze, Yi, Zi, W, R, B, 128);
+        auto res_1 = std::make_shared<op::v0::Result>(lstm_cell);
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(lstm_cell, axis);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
-        auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
 
         tensor_iterator->set_body(body);
         tensor_iterator->set_friendly_name("TensorIterator");
@@ -597,8 +607,8 @@ TEST(TransformationTests, CheckTensorNamesAfterUnrolling) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
-        auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
+        auto res_ti_2 = std::make_shared<op::v0::Result>(tensor_iterator->output(0));
 
         f = std::make_shared<ov::Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, Y, Z});
     }

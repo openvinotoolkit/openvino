@@ -16,13 +16,16 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -54,17 +57,17 @@ public:
     }
 
     std::shared_ptr<Model> get_initial_function(const InputShape& input_shape, const TargetShape& target_shape) {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, input_shape);
-        auto target_shape_node = opset1::Constant::create(element::i64, Shape{target_shape.size()}, target_shape);
-        auto broadcast = std::make_shared<opset3::Broadcast>(input, target_shape_node, op::BroadcastType::NUMPY);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto target_shape_node = op::v0::Constant::create(element::i64, Shape{target_shape.size()}, target_shape);
+        auto broadcast = std::make_shared<op::v3::Broadcast>(input, target_shape_node, op::BroadcastType::NUMPY);
 
         return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
     }
 
     std::shared_ptr<Model> get_reference_broadcast(const InputShape& input_shape, const TargetShape& target_shape) {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, input_shape);
-        auto target_shape_node = opset1::Constant::create(element::i64, Shape{target_shape.size()}, target_shape);
-        auto broadcast = std::make_shared<opset1::Broadcast>(input, target_shape_node, op::AutoBroadcastType::NUMPY);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto target_shape_node = op::v0::Constant::create(element::i64, Shape{target_shape.size()}, target_shape);
+        auto broadcast = std::make_shared<op::v1::Broadcast>(input, target_shape_node, op::AutoBroadcastType::NUMPY);
 
         return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
     }
@@ -84,18 +87,18 @@ public:
     }
 
     std::shared_ptr<Model> get_initial_function(const InputShape& input_shape, const TargetShape& target_shape) {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, input_shape);
-        auto target_shape_node = opset1::Constant::create(element::i64, Shape{target_shape.size()}, target_shape);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto target_shape_node = op::v0::Constant::create(element::i64, Shape{target_shape.size()}, target_shape);
         auto broadcast =
-            std::make_shared<opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
+            std::make_shared<op::v3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
         return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
     }
 
     std::shared_ptr<Model> get_reference_broadcast(const InputShape& input_shape, const TargetShape& target_shape) {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, input_shape);
-        auto const_node = opset1::Constant::create(element::f32, Shape{target_shape}, {1});
-        auto mul = std::make_shared<opset1::Multiply>(input, const_node);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto const_node = op::v0::Constant::create(element::f32, Shape{target_shape}, {1});
+        auto mul = std::make_shared<op::v1::Multiply>(input, const_node);
 
         return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
     }
@@ -117,20 +120,20 @@ public:
     }
 
     std::shared_ptr<Model> get_initial_function(const InputShape& input_shape, const TargetShape& target_shape) {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, input_shape);
-        auto target_shape_node = opset1::Constant::create(element::i64, Shape{target_shape.size()}, target_shape);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto target_shape_node = op::v0::Constant::create(element::i64, Shape{target_shape.size()}, target_shape);
         auto broadcast =
-            std::make_shared<opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
+            std::make_shared<op::v3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
         return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
     }
 
     std::shared_ptr<Model> get_reference_broadcast(const InputShape& input_shape,
                                                    const TargetShape& aligned_target_shape) {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, input_shape);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
         auto target_shape_node =
-            opset1::Constant::create(element::i64, Shape{aligned_target_shape.size()}, aligned_target_shape);
-        auto broadcast = std::make_shared<opset1::Broadcast>(input, target_shape_node, op::AutoBroadcastType::NUMPY);
+            op::v0::Constant::create(element::i64, Shape{aligned_target_shape.size()}, aligned_target_shape);
+        auto broadcast = std::make_shared<op::v1::Broadcast>(input, target_shape_node, op::AutoBroadcastType::NUMPY);
 
         return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
     }
@@ -151,21 +154,21 @@ public:
     }
 
     std::shared_ptr<Model> get_initial_function(const InputShape& input_shape, const TargetShape& target_shape) {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, input_shape);
-        auto target_shape_node = std::make_shared<opset1::Parameter>(element::i64, target_shape);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto target_shape_node = std::make_shared<op::v0::Parameter>(element::i64, target_shape);
         auto broadcast =
-            std::make_shared<opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
+            std::make_shared<op::v3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
         return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input, target_shape_node});
     }
 
     std::shared_ptr<Model> get_reference_broadcast(const InputShape& input_shape, const TargetShape& target_shape) {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, input_shape);
-        auto target_shape_node = std::make_shared<opset1::Parameter>(element::i64, target_shape);
-        auto constant_one = opset1::Constant::create(element::f32, {1}, {1});
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto target_shape_node = std::make_shared<op::v0::Parameter>(element::i64, target_shape);
+        auto constant_one = op::v0::Constant::create(element::f32, {1}, {1});
         auto broadcast =
-            std::make_shared<opset1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
-        auto mul = std::make_shared<opset1::Multiply>(input, broadcast);
+            std::make_shared<op::v1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
+        auto mul = std::make_shared<op::v1::Multiply>(input, broadcast);
         return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input, target_shape_node});
     }
 };
@@ -185,21 +188,21 @@ public:
     }
 
     std::shared_ptr<Model> get_initial_function(const InputShape& input_shape, const TargetShape& target_shape) {
-        auto input = std::make_shared<opset1::Parameter>(element::boolean, input_shape);
-        auto target_shape_node = std::make_shared<opset1::Parameter>(element::i64, target_shape);
+        auto input = std::make_shared<op::v0::Parameter>(element::boolean, input_shape);
+        auto target_shape_node = std::make_shared<op::v0::Parameter>(element::i64, target_shape);
         auto broadcast =
-            std::make_shared<opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
+            std::make_shared<op::v3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
         return std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input, target_shape_node});
     }
 
     std::shared_ptr<Model> get_reference_broadcast(const InputShape& input_shape, const TargetShape& target_shape) {
-        auto input = std::make_shared<opset1::Parameter>(element::boolean, input_shape);
-        auto target_shape_node = std::make_shared<opset1::Parameter>(element::i64, target_shape);
-        auto constant_one = opset1::Constant::create(element::boolean, {1}, {1});
+        auto input = std::make_shared<op::v0::Parameter>(element::boolean, input_shape);
+        auto target_shape_node = std::make_shared<op::v0::Parameter>(element::i64, target_shape);
+        auto constant_one = op::v0::Constant::create(element::boolean, {1}, {1});
         auto broadcast =
-            std::make_shared<opset1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
-        auto mul = std::make_shared<opset1::LogicalAnd>(input, broadcast);
+            std::make_shared<op::v1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
+        auto mul = std::make_shared<op::v1::LogicalAnd>(input, broadcast);
         return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input, target_shape_node});
     }
 };
@@ -326,9 +329,9 @@ INSTANTIATE_TEST_SUITE_P(ConvertBroadcast3BIDIRECT,
 TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto target_shape = opset1::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<opset3::Broadcast>(input1, target_shape, op::BroadcastType::NUMPY);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto target_shape = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<op::v3::Broadcast>(input1, target_shape, op::BroadcastType::NUMPY);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
@@ -341,9 +344,9 @@ TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
     }
 
     {
-        auto input1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto target_shape = std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<opset1::Broadcast>(input1, target_shape, op::AutoBroadcastType::NUMPY);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto target_shape = std::make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<op::v1::Broadcast>(input1, target_shape, op::AutoBroadcastType::NUMPY);
         broadcast->set_friendly_name("broadcast");
 
         f_ref = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
@@ -362,9 +365,9 @@ TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
 TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto target_shape = opset1::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<opset3::Broadcast>(input1, target_shape, op::BroadcastType::PDPD);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto target_shape = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<op::v3::Broadcast>(input1, target_shape, op::BroadcastType::PDPD);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
@@ -377,9 +380,9 @@ TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
     }
 
     {
-        auto input1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
-        auto target_shape = std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<opset1::Broadcast>(input1, target_shape, op::AutoBroadcastType::PDPD);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto target_shape = std::make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<op::v1::Broadcast>(input1, target_shape, op::AutoBroadcastType::PDPD);
         broadcast->set_friendly_name("broadcast");
 
         f_ref = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
@@ -398,11 +401,11 @@ TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
 TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 5, 2});
-        auto brodcast_axis = opset1::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, 2});
-        auto target_shape = opset1::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 5, 2});
+        auto brodcast_axis = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, 2});
+        auto target_shape = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
         auto broadcast =
-            std::make_shared<opset3::Broadcast>(input1, target_shape, brodcast_axis, op::BroadcastType::EXPLICIT);
+            std::make_shared<op::v3::Broadcast>(input1, target_shape, brodcast_axis, op::BroadcastType::EXPLICIT);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
@@ -415,11 +418,11 @@ TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
     }
 
     {
-        auto input1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 5, 2});
-        auto brodcast_axis = opset1::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, 2});
-        auto target_shape = opset1::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 5, 2});
+        auto brodcast_axis = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 1, 2});
+        auto target_shape = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
         auto broadcast =
-            std::make_shared<opset1::Broadcast>(input1, target_shape, brodcast_axis, op::AutoBroadcastType::EXPLICIT);
+            std::make_shared<op::v1::Broadcast>(input1, target_shape, brodcast_axis, op::AutoBroadcastType::EXPLICIT);
 
         f_ref = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
     }
@@ -440,9 +443,9 @@ TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
 TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1ConstTargetDataF32) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 2});
-        auto target_shape = opset1::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
-        auto broadcast = std::make_shared<opset3::Broadcast>(input1, target_shape, op::BroadcastType::BIDIRECTIONAL);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 2});
+        auto target_shape = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
+        auto broadcast = std::make_shared<op::v3::Broadcast>(input1, target_shape, op::BroadcastType::BIDIRECTIONAL);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
@@ -455,9 +458,9 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
     }
 
     {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 2});
-        auto target_shape = std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<opset1::Broadcast>(input, target_shape, op::AutoBroadcastType::NUMPY);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 2});
+        auto target_shape = std::make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<op::v1::Broadcast>(input, target_shape, op::AutoBroadcastType::NUMPY);
         broadcast->set_friendly_name("broadcast");
 
         f_ref = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
@@ -476,9 +479,9 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
 TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1ConstTargetDataBoolean) {
     std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<opset1::Parameter>(element::boolean, Shape{1, 1, 2});
-        auto target_shape = opset1::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
-        auto broadcast = std::make_shared<opset3::Broadcast>(input1, target_shape, op::BroadcastType::BIDIRECTIONAL);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{1, 1, 2});
+        auto target_shape = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
+        auto broadcast = std::make_shared<op::v3::Broadcast>(input1, target_shape, op::BroadcastType::BIDIRECTIONAL);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input1});
@@ -491,9 +494,9 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
     }
 
     {
-        auto input = std::make_shared<opset1::Parameter>(element::boolean, Shape{1, 1, 2});
-        auto target_shape = std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<opset1::Broadcast>(input, target_shape, op::AutoBroadcastType::NUMPY);
+        auto input = std::make_shared<op::v0::Parameter>(element::boolean, Shape{1, 1, 2});
+        auto target_shape = std::make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<op::v1::Broadcast>(input, target_shape, op::AutoBroadcastType::NUMPY);
         broadcast->set_friendly_name("broadcast");
 
         f_ref = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input});
@@ -515,11 +518,11 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
 TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToMultiply) {
     std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, -1, -1});
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, -1, -1});
         auto const_target_shape =
-            std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
+            std::make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
         auto broadcast =
-            std::make_shared<opset3::Broadcast>(input1, const_target_shape, op::BroadcastType::BIDIRECTIONAL);
+            std::make_shared<op::v3::Broadcast>(input1, const_target_shape, op::BroadcastType::BIDIRECTIONAL);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input1});
@@ -532,12 +535,12 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToMultiply) {
     }
 
     {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, -1, -1});
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, -1, -1});
         auto const_target_shape =
-            std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
+            std::make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
         const auto& target_shape = const_target_shape->cast_vector<size_t>();
         auto broadcast =
-            std::make_shared<opset1::Multiply>(input, opset1::Constant::create(element::f32, target_shape, {1}));
+            std::make_shared<op::v1::Multiply>(input, op::v0::Constant::create(element::f32, target_shape, {1}));
         broadcast->set_friendly_name("broadcast");
 
         f_ref = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input});
@@ -559,11 +562,11 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToMultiply) {
 TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToLogicalAnd) {
     std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<opset1::Parameter>(element::boolean, PartialShape{1, -1, -1});
+        auto input1 = std::make_shared<op::v0::Parameter>(element::boolean, PartialShape{1, -1, -1});
         auto const_target_shape =
-            std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
+            std::make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
         auto broadcast =
-            std::make_shared<opset3::Broadcast>(input1, const_target_shape, op::BroadcastType::BIDIRECTIONAL);
+            std::make_shared<op::v3::Broadcast>(input1, const_target_shape, op::BroadcastType::BIDIRECTIONAL);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input1});
@@ -576,12 +579,12 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToLogicalAnd) {
     }
 
     {
-        auto input = std::make_shared<opset1::Parameter>(element::boolean, PartialShape{1, -1, -1});
+        auto input = std::make_shared<op::v0::Parameter>(element::boolean, PartialShape{1, -1, -1});
         auto const_target_shape =
-            std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
+            std::make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
         const auto& target_shape = const_target_shape->cast_vector<size_t>();
         auto broadcast =
-            std::make_shared<opset1::LogicalAnd>(input, opset1::Constant::create(element::boolean, target_shape, {1}));
+            std::make_shared<op::v1::LogicalAnd>(input, op::v0::Constant::create(element::boolean, target_shape, {1}));
         broadcast->set_friendly_name("broadcast");
 
         f_ref = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input});

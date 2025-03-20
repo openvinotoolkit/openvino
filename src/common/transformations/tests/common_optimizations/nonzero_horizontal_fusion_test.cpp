@@ -10,7 +10,9 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
 using namespace ov;
 using namespace testing;
 
@@ -21,22 +23,22 @@ struct NonZeroHorizontalFusionBuilder {
     NonZeroHorizontalFusionBuilder(const std::vector<NonZeroType>& props) : branch_props(props) {}
 
     std::shared_ptr<ov::Model> getOriginal() {
-        const auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         ov::NodeVector results;
         for (size_t i = 0; i < branch_props.size(); ++i) {
             std::shared_ptr<ov::Node> nonzero;
             switch (branch_props[i]) {
             case NonZeroType::I32:
-                nonzero = std::make_shared<ov::opset10::NonZero>(input, ov::element::i32);
+                nonzero = std::make_shared<ov::op::v3::NonZero>(input, ov::element::i32);
                 break;
             case NonZeroType::I64:
-                nonzero = std::make_shared<ov::opset10::NonZero>(input, ov::element::i64);
+                nonzero = std::make_shared<ov::op::v3::NonZero>(input, ov::element::i64);
                 break;
             default:
                 nonzero = input;
                 break;
             }
-            auto last_node = std::make_shared<ov::opset10::Relu>(nonzero);
+            auto last_node = std::make_shared<ov::op::v0::Relu>(nonzero);
             last_node->set_friendly_name("last_node_" + std::to_string(i));
             results.push_back(last_node);
         }
@@ -44,7 +46,7 @@ struct NonZeroHorizontalFusionBuilder {
     };
 
     std::shared_ptr<ov::Model> getReference() {
-        const auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
 
         std::shared_ptr<ov::Node> i32_node;
         std::shared_ptr<ov::Node> i64_node;
@@ -52,17 +54,17 @@ struct NonZeroHorizontalFusionBuilder {
         for (size_t i = 0; i < branch_props.size(); ++i) {
             std::shared_ptr<ov::Node> nonzero;
             if (branch_props[i] == NonZeroType::I32) {
-                nonzero = i32_node ? i32_node : std::make_shared<ov::opset10::NonZero>(input, ov::element::i32);
+                nonzero = i32_node ? i32_node : std::make_shared<ov::op::v3::NonZero>(input, ov::element::i32);
                 if (!i32_node)
                     i32_node = nonzero;
             } else if (branch_props[i] == NonZeroType::I64) {
-                nonzero = i64_node ? i64_node : std::make_shared<ov::opset10::NonZero>(input, ov::element::i64);
+                nonzero = i64_node ? i64_node : std::make_shared<ov::op::v3::NonZero>(input, ov::element::i64);
                 if (!i64_node)
                     i64_node = nonzero;
             } else {
                 nonzero = input;
             }
-            auto last_node = std::make_shared<ov::opset10::Relu>(nonzero);
+            auto last_node = std::make_shared<ov::op::v0::Relu>(nonzero);
             last_node->set_friendly_name("last_node_" + std::to_string(i));
             results.push_back(last_node);
         }

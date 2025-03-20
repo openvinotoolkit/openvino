@@ -9,10 +9,11 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset15.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/embeddingbag_packed.hpp"
+#include "openvino/op/embeddingbag_packedsum.hpp"
+#include "openvino/op/parameter.hpp"
 using namespace ov;
 using namespace testing;
 
@@ -20,22 +21,22 @@ namespace {
 
 std::shared_ptr<ov::Model> create_v15_model(const op::v15::EmbeddingBagPacked::Reduction reduction_type,
                                             const size_t num_inputs) {
-    const auto emb_table = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{5, 2});
-    const auto indices = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{3, 2});
-    const auto per_sample_weights = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{3, 2});
+    const auto emb_table = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{5, 2});
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{3, 2});
+    const auto per_sample_weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2});
     std::shared_ptr<ov::op::v15::EmbeddingBagPacked> emb;
     ov::ParameterVector params;
     switch (num_inputs) {
     case 0:
-        emb = std::make_shared<ov::opset15::EmbeddingBagPacked>();
+        emb = std::make_shared<ov::op::v15::EmbeddingBagPacked>();
         params = {};
         break;
     case 2:
-        emb = std::make_shared<ov::opset15::EmbeddingBagPacked>(emb_table, indices, reduction_type);
+        emb = std::make_shared<ov::op::v15::EmbeddingBagPacked>(emb_table, indices, reduction_type);
         params = {emb_table, indices};
         break;
     case 3:
-        emb = std::make_shared<ov::opset15::EmbeddingBagPacked>(emb_table, indices, per_sample_weights, reduction_type);
+        emb = std::make_shared<ov::op::v15::EmbeddingBagPacked>(emb_table, indices, per_sample_weights, reduction_type);
         params = {emb_table, indices, per_sample_weights};
         break;
     }
@@ -46,22 +47,22 @@ std::shared_ptr<ov::Model> create_v15_model(const op::v15::EmbeddingBagPacked::R
 }
 
 std::shared_ptr<ov::Model> create_v3_model(const size_t num_inputs) {
-    const auto emb_table = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{5, 2});
-    const auto indices = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{3, 2});
-    const auto per_sample_weights = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{3, 2});
+    const auto emb_table = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{5, 2});
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{3, 2});
+    const auto per_sample_weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2});
     std::shared_ptr<ov::op::v3::EmbeddingBagPackedSum> emb;
     ov::ParameterVector params;
     switch (num_inputs) {
     case 0:
-        emb = std::make_shared<ov::opset3::EmbeddingBagPackedSum>();
+        emb = std::make_shared<ov::op::v3::EmbeddingBagPackedSum>();
         params = {};
         break;
     case 2:
-        emb = std::make_shared<ov::opset3::EmbeddingBagPackedSum>(emb_table, indices);
+        emb = std::make_shared<ov::op::v3::EmbeddingBagPackedSum>(emb_table, indices);
         params = {emb_table, indices};
         break;
     case 3:
-        emb = std::make_shared<ov::opset3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
+        emb = std::make_shared<ov::op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
         params = {emb_table, indices, per_sample_weights};
         break;
     }

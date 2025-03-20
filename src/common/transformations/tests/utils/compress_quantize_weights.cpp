@@ -10,11 +10,17 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -43,16 +49,16 @@ class CompressQuantizeWeightsTests
         ov::element::Type data_prc;
         std::tie(param, data_prc) = GetParam();
         {
-            std::shared_ptr<Node> data = opset8::Constant::create(data_prc, param.shape, param.weights);
+            std::shared_ptr<Node> data = op::v0::Constant::create(data_prc, param.shape, param.weights);
             if (data_prc == element::f16) {
-                data = std::make_shared<opset8::Convert>(data, element::f32);
+                data = std::make_shared<op::v0::Convert>(data, element::f32);
                 ov::mark_as_decompression(data);
             }
-            auto input_low = opset8::Constant::create(element::f32, Shape{}, {param.in_low});
-            auto input_high = opset8::Constant::create(element::f32, Shape{}, {param.in_high});
-            auto output_low = opset8::Constant::create(element::f32, Shape{}, {param.out_low});
-            auto output_high = opset8::Constant::create(element::f32, Shape{}, {param.out_high});
-            auto fq = std::make_shared<opset8::FakeQuantize>(data,
+            auto input_low = op::v0::Constant::create(element::f32, Shape{}, {param.in_low});
+            auto input_high = op::v0::Constant::create(element::f32, Shape{}, {param.in_high});
+            auto output_low = op::v0::Constant::create(element::f32, Shape{}, {param.out_low});
+            auto output_high = op::v0::Constant::create(element::f32, Shape{}, {param.out_high});
+            auto fq = std::make_shared<op::v0::FakeQuantize>(data,
                                                              input_low,
                                                              input_high,
                                                              output_low,
@@ -64,16 +70,16 @@ class CompressQuantizeWeightsTests
         manager.register_pass<ov::pass::CompressQuantizeWeights>();
 
         {
-            auto data = opset8::Constant::create(param.expected_type, param.shape, param.expected_weights);
-            auto convert = std::make_shared<opset8::Convert>(data, element::f32);
-            auto scale = opset8::Constant::create(element::f32, Shape{}, {param.scale_val});
-            std::shared_ptr<opset8::Multiply> mul;
+            auto data = op::v0::Constant::create(param.expected_type, param.shape, param.expected_weights);
+            auto convert = std::make_shared<op::v0::Convert>(data, element::f32);
+            auto scale = op::v0::Constant::create(element::f32, Shape{}, {param.scale_val});
+            std::shared_ptr<op::v1::Multiply> mul;
             if (!param.fuse_zero_point) {
-                auto zero_point = opset8::Constant::create(element::f32, Shape{}, {param.zero_point_val});
-                auto sub = std::make_shared<opset8::Subtract>(convert, zero_point);
-                mul = std::make_shared<opset8::Multiply>(sub, scale);
+                auto zero_point = op::v0::Constant::create(element::f32, Shape{}, {param.zero_point_val});
+                auto sub = std::make_shared<op::v1::Subtract>(convert, zero_point);
+                mul = std::make_shared<op::v1::Multiply>(sub, scale);
             } else {
-                mul = std::make_shared<opset8::Multiply>(convert, scale);
+                mul = std::make_shared<op::v1::Multiply>(convert, scale);
             }
             model_ref = std::make_shared<Model>(mul, ParameterVector{});
         }
@@ -201,30 +207,30 @@ TEST_F(TransformationTestsF, DISABLED_CompressQuantizeWeightsWithDequantizationS
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithDequantizationSubgraph) {
 #endif
     {
-        auto data = opset8::Constant::create(element::f32, Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11});
-        auto input_low = opset8::Constant::create(element::f32, Shape{}, {1});
-        auto input_high = opset8::Constant::create(element::f32, Shape{}, {9});
-        auto output_low = opset8::Constant::create(element::f32, Shape{}, {-128});
-        auto output_high = opset8::Constant::create(element::f32, Shape{}, {127});
-        auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
-        auto convert = std::make_shared<opset8::Convert>(fq, element::i8);
-        auto second_convert = std::make_shared<opset8::Convert>(convert, element::f32);
-        auto scale = opset8::Constant::create(element::f32, Shape{}, {10.0 / 255});
-        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {2 - 255.0 / 10});
-        auto sub = std::make_shared<opset8::Subtract>(second_convert, zero_point);
-        auto mul = std::make_shared<opset8::Multiply>(sub, scale);
+        auto data = op::v0::Constant::create(element::f32, Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11});
+        auto input_low = op::v0::Constant::create(element::f32, Shape{}, {1});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{}, {9});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{}, {-128});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{}, {127});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
+        auto convert = std::make_shared<op::v0::Convert>(fq, element::i8);
+        auto second_convert = std::make_shared<op::v0::Convert>(convert, element::f32);
+        auto scale = op::v0::Constant::create(element::f32, Shape{}, {10.0 / 255});
+        auto zero_point = op::v0::Constant::create(element::f32, Shape{}, {2 - 255.0 / 10});
+        auto sub = std::make_shared<op::v1::Subtract>(second_convert, zero_point);
+        auto mul = std::make_shared<op::v1::Multiply>(sub, scale);
 
         model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
 
         manager.register_pass<ov::pass::CompressQuantizeWeights>();
     }
     {
-        auto data = opset8::Constant::create(element::i8, Shape{2, 4, 1, 1}, {-128, -128, -128, -96, -64, -32, 0, 127});
-        auto convert = std::make_shared<opset8::Convert>(data, element::f32);
-        auto scale = opset8::Constant::create(element::f32, Shape{}, {10.0 / 255});
-        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {2 - 255.0 / 10});
-        auto sub = std::make_shared<opset8::Subtract>(convert, zero_point);
-        auto mul = std::make_shared<opset8::Multiply>(sub, scale);
+        auto data = op::v0::Constant::create(element::i8, Shape{2, 4, 1, 1}, {-128, -128, -128, -96, -64, -32, 0, 127});
+        auto convert = std::make_shared<op::v0::Convert>(data, element::f32);
+        auto scale = op::v0::Constant::create(element::f32, Shape{}, {10.0 / 255});
+        auto zero_point = op::v0::Constant::create(element::f32, Shape{}, {2 - 255.0 / 10});
+        auto sub = std::make_shared<op::v1::Subtract>(convert, zero_point);
+        auto mul = std::make_shared<op::v1::Multiply>(sub, scale);
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -238,33 +244,33 @@ TEST_F(TransformationTestsF, DISABLED_CompressQuantizeWeightsWithDequantizationS
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithDequantizationSubgraphFP16) {
 #endif
     {
-        auto data = opset8::Constant::create(element::f16, Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11});
-        auto convert_to_f32 = std::make_shared<opset8::Convert>(data, element::f32);
+        auto data = op::v0::Constant::create(element::f16, Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11});
+        auto convert_to_f32 = std::make_shared<op::v0::Convert>(data, element::f32);
         ov::mark_as_decompression(convert_to_f32);
-        auto input_low = opset8::Constant::create(element::f32, Shape{}, {1});
-        auto input_high = opset8::Constant::create(element::f32, Shape{}, {9});
-        auto output_low = opset8::Constant::create(element::f32, Shape{}, {-128});
-        auto output_high = opset8::Constant::create(element::f32, Shape{}, {127});
+        auto input_low = op::v0::Constant::create(element::f32, Shape{}, {1});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{}, {9});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{}, {-128});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{}, {127});
         auto fq =
-            std::make_shared<opset8::FakeQuantize>(convert_to_f32, input_low, input_high, output_low, output_high, 256);
-        auto convert = std::make_shared<opset8::Convert>(fq, element::i8);
-        auto second_convert = std::make_shared<opset8::Convert>(convert, element::f32);
-        auto scale = opset8::Constant::create(element::f32, Shape{}, {10.0 / 255});
-        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {2 - 255.0 / 10});
-        auto sub = std::make_shared<opset8::Subtract>(second_convert, zero_point);
-        auto mul = std::make_shared<opset8::Multiply>(sub, scale);
+            std::make_shared<op::v0::FakeQuantize>(convert_to_f32, input_low, input_high, output_low, output_high, 256);
+        auto convert = std::make_shared<op::v0::Convert>(fq, element::i8);
+        auto second_convert = std::make_shared<op::v0::Convert>(convert, element::f32);
+        auto scale = op::v0::Constant::create(element::f32, Shape{}, {10.0 / 255});
+        auto zero_point = op::v0::Constant::create(element::f32, Shape{}, {2 - 255.0 / 10});
+        auto sub = std::make_shared<op::v1::Subtract>(second_convert, zero_point);
+        auto mul = std::make_shared<op::v1::Multiply>(sub, scale);
 
         model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
 
         manager.register_pass<ov::pass::CompressQuantizeWeights>();
     }
     {
-        auto data = opset8::Constant::create(element::i8, Shape{2, 4, 1, 1}, {-128, -128, -128, -96, -64, -32, 0, 127});
-        auto convert = std::make_shared<opset8::Convert>(data, element::f32);
-        auto scale = opset8::Constant::create(element::f32, Shape{}, {10.0 / 255});
-        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {2 - 255.0 / 10});
-        auto sub = std::make_shared<opset8::Subtract>(convert, zero_point);
-        auto mul = std::make_shared<opset8::Multiply>(sub, scale);
+        auto data = op::v0::Constant::create(element::i8, Shape{2, 4, 1, 1}, {-128, -128, -128, -96, -64, -32, 0, 127});
+        auto convert = std::make_shared<op::v0::Convert>(data, element::f32);
+        auto scale = op::v0::Constant::create(element::f32, Shape{}, {10.0 / 255});
+        auto zero_point = op::v0::Constant::create(element::f32, Shape{}, {2 - 255.0 / 10});
+        auto sub = std::make_shared<op::v1::Subtract>(convert, zero_point);
+        auto mul = std::make_shared<op::v1::Multiply>(sub, scale);
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -278,22 +284,22 @@ TEST_F(TransformationTestsF, DISABLED_CompressQuantizeWeightsWithZeroPointElimin
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminated) {
 #endif
     {
-        auto data = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.144816, 0.0858578, 0.110928});
-        auto input_low = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, -0.383148, -0.34054});
-        auto input_high = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.399513, 0.380155, 0.33788});
-        auto output_low = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, -0.383148, -0.34054});
-        auto output_high = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.399513, 0.380155, 0.33788});
-        auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
+        auto data = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.144816, 0.0858578, 0.110928});
+        auto input_low = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, -0.383148, -0.34054});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.399513, 0.380155, 0.33788});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, -0.383148, -0.34054});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.399513, 0.380155, 0.33788});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
         model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{});
 
         manager.register_pass<ov::pass::CompressQuantizeWeights>();
     }
 
     {
-        auto data = opset8::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-46, 29, 42});
-        auto convert = std::make_shared<opset8::Convert>(data, element::f32);
-        auto scale = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.00314577, 0.00299335, 0.00266047});
-        auto mul = std::make_shared<opset8::Multiply>(convert, scale);
+        auto data = op::v0::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-46, 29, 42});
+        auto convert = std::make_shared<op::v0::Convert>(data, element::f32);
+        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.00314577, 0.00299335, 0.00266047});
+        auto mul = std::make_shared<op::v1::Multiply>(convert, scale);
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -307,22 +313,22 @@ TEST_F(TransformationTestsF, DISABLED_CompressQuantizeWeightsWithZeroPointElimin
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedZeroScale) {
 #endif
     {
-        auto data = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.144816, 0.0858578, 0.110928});
-        auto input_low = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, -0.383148, -0.34054});
-        auto input_high = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.399513, 0.380155, 0.33788});
-        auto output_low = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, 0.0, -0.34054});
-        auto output_high = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.399513, 0.0, 0.33788});
-        auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
+        auto data = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.144816, 0.0858578, 0.110928});
+        auto input_low = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, -0.383148, -0.34054});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.399513, 0.380155, 0.33788});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, 0.0, -0.34054});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.399513, 0.0, 0.33788});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
         model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{});
 
         manager.register_pass<ov::pass::CompressQuantizeWeights>();
     }
 
     {
-        auto data = opset8::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-46, 29, 42});
-        auto convert = std::make_shared<opset8::Convert>(data, element::f32);
-        auto scale = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.00314577, 0.0, 0.00266047});
-        auto mul = std::make_shared<opset8::Multiply>(convert, scale);
+        auto data = op::v0::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-46, 29, 42});
+        auto convert = std::make_shared<op::v0::Convert>(data, element::f32);
+        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.00314577, 0.0, 0.00266047});
+        auto mul = std::make_shared<op::v1::Multiply>(convert, scale);
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -336,27 +342,27 @@ TEST_F(TransformationTestsF, DISABLED_CompressQuantizeWeightsWithZeroPointElimin
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedFP16) {
 #endif
     {
-        auto data = opset8::Constant::create(element::f16, Shape{3, 1, 1, 1}, {0.2, 1.2, 1.2});
+        auto data = op::v0::Constant::create(element::f16, Shape{3, 1, 1, 1}, {0.2, 1.2, 1.2});
         auto input_low =
-            opset8::Constant::create(element::f16, Shape{3, 1, 1, 1}, {0.59033203125, 1.4833984375, 1.2900390625});
+            op::v0::Constant::create(element::f16, Shape{3, 1, 1, 1}, {0.59033203125, 1.4833984375, 1.2900390625});
         auto input_high =
-            opset8::Constant::create(element::f16, Shape{3, 1, 1, 1}, {-0.59033203125, -1.4833984375, -1.2900390625});
+            op::v0::Constant::create(element::f16, Shape{3, 1, 1, 1}, {-0.59033203125, -1.4833984375, -1.2900390625});
         auto output_low =
-            opset8::Constant::create(element::f16, Shape{3, 1, 1, 1}, {0.295166015625, 0.74169921875, 0.64501953125});
-        auto output_high = opset8::Constant::create(element::f16,
+            op::v0::Constant::create(element::f16, Shape{3, 1, 1, 1}, {0.295166015625, 0.74169921875, 0.64501953125});
+        auto output_high = op::v0::Constant::create(element::f16,
                                                     Shape{3, 1, 1, 1},
                                                     {-0.295166015625, -0.74169921875, -0.64501953125});
-        auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 255);
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 255);
         model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{});
 
         manager.register_pass<ov::pass::CompressQuantizeWeights>();
     }
 
     {
-        auto data = opset8::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-43, -103, -118});
-        auto convert = std::make_shared<opset8::Convert>(data, element::f16);
-        auto scale = opset8::Constant::create(element::f16, Shape{3, 1, 1, 1}, {-0.002325, -0.00584, -0.005077});
-        auto mul = std::make_shared<opset8::Multiply>(convert, scale);
+        auto data = op::v0::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-43, -103, -118});
+        auto convert = std::make_shared<op::v0::Convert>(data, element::f16);
+        auto scale = op::v0::Constant::create(element::f16, Shape{3, 1, 1, 1}, {-0.002325, -0.00584, -0.005077});
+        auto mul = std::make_shared<op::v1::Multiply>(convert, scale);
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -365,22 +371,22 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedFP16)
 
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedBF16) {
     {
-        auto data = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.2, 1.2, 1.2});
-        auto input_low = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.60, 1.45, 1.30});
-        auto input_high = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.60, -1.45, -1.30});
-        auto output_low = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.30, 0.75, 0.65});
-        auto output_high = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.30, -0.75, -0.65});
-        auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 255);
+        auto data = op::v0::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.2, 1.2, 1.2});
+        auto input_low = op::v0::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.60, 1.45, 1.30});
+        auto input_high = op::v0::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.60, -1.45, -1.30});
+        auto output_low = op::v0::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.30, 0.75, 0.65});
+        auto output_high = op::v0::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.30, -0.75, -0.65});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 255);
         model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{});
 
         manager.register_pass<ov::pass::CompressQuantizeWeights>();
     }
 
     {
-        auto data = opset8::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-42, -105, -118});
-        auto convert = std::make_shared<opset8::Convert>(data, element::bf16);
-        auto scale = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.002325, -0.00592, -0.00509});
-        auto mul = std::make_shared<opset8::Multiply>(convert, scale);
+        auto data = op::v0::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-42, -105, -118});
+        auto convert = std::make_shared<op::v0::Convert>(data, element::bf16);
+        auto scale = op::v0::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.002325, -0.00592, -0.00509});
+        auto mul = std::make_shared<op::v1::Multiply>(convert, scale);
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -397,23 +403,23 @@ TEST_F(TransformationTestsF, DISABLED_NegativeCompressQuantizeWeights) {
 TEST_F(TransformationTestsF, NegativeCompressQuantizeWeights) {
 #endif
     {
-        auto data = opset8::Constant::create(element::f32, Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11});
-        auto input_low = opset8::Constant::create(element::f32, Shape{}, {1});
-        auto input_high = opset8::Constant::create(element::f32, Shape{}, {9});
-        auto output_low = opset8::Constant::create(element::f32, Shape{}, {-2});
-        auto output_high = opset8::Constant::create(element::f32, Shape{}, {6});
-        auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
+        auto data = op::v0::Constant::create(element::f32, Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11});
+        auto input_low = op::v0::Constant::create(element::f32, Shape{}, {1});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{}, {9});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{}, {-2});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{}, {6});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
         model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{});
 
         manager.register_pass<ov::pass::CompressQuantizeWeights>();
     }
     {
-        auto data = opset8::Constant::create(element::i8, Shape{2, 4, 1, 1}, {-128, -128, -128, -96, -64, -32, 0, 127});
-        auto convert = std::make_shared<opset8::Convert>(data, element::f32);
-        auto scale = opset8::Constant::create(element::f32, Shape{}, {0.0313725});
-        auto zero_point = opset8::Constant::create(element::f32, Shape{}, {-64.25});
-        auto sub = std::make_shared<opset8::Subtract>(convert, zero_point);
-        auto mul = std::make_shared<opset8::Multiply>(sub, scale);
+        auto data = op::v0::Constant::create(element::i8, Shape{2, 4, 1, 1}, {-128, -128, -128, -96, -64, -32, 0, 127});
+        auto convert = std::make_shared<op::v0::Convert>(data, element::f32);
+        auto scale = op::v0::Constant::create(element::f32, Shape{}, {0.0313725});
+        auto zero_point = op::v0::Constant::create(element::f32, Shape{}, {-64.25});
+        auto sub = std::make_shared<op::v1::Subtract>(convert, zero_point);
+        auto mul = std::make_shared<op::v1::Multiply>(sub, scale);
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -426,12 +432,12 @@ TEST_F(TransformationTestsF, DISABLED_NegativeCompressQuantizeWeightsNonConstant
 #else
 TEST_F(TransformationTestsF, NegativeCompressQuantizeWeightsNonConstantInput) {
 #endif
-    auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 1, 1});
-    auto input_low = opset8::Constant::create(element::f32, Shape{}, {1});
-    auto input_high = opset8::Constant::create(element::f32, Shape{}, {9});
-    auto output_low = opset8::Constant::create(element::f32, Shape{}, {-2});
-    auto output_high = opset8::Constant::create(element::f32, Shape{}, {6});
-    auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 1, 1});
+    auto input_low = op::v0::Constant::create(element::f32, Shape{}, {1});
+    auto input_high = op::v0::Constant::create(element::f32, Shape{}, {9});
+    auto output_low = op::v0::Constant::create(element::f32, Shape{}, {-2});
+    auto output_high = op::v0::Constant::create(element::f32, Shape{}, {6});
+    auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 256);
     model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
 
     manager.register_pass<ov::pass::CompressQuantizeWeights>();

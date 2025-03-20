@@ -9,10 +9,11 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset15.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/embeddingbag_offsets.hpp"
+#include "openvino/op/embeddingbag_offsets_sum.hpp"
+#include "openvino/op/parameter.hpp"
 using namespace ov;
 using namespace testing;
 
@@ -20,24 +21,24 @@ namespace {
 
 std::shared_ptr<ov::Model> create_v15_model(const op::v15::EmbeddingBagOffsets::Reduction reduction_type,
                                             const size_t num_inputs) {
-    const auto emb_table = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{5, 2});
-    const auto indices = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{4});
-    const auto offsets = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{3});
-    const auto default_index = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{});
-    const auto per_sample_weights = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{4});
+    const auto emb_table = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{5, 2});
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{4});
+    const auto offsets = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{3});
+    const auto default_index = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
+    const auto per_sample_weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4});
     std::shared_ptr<ov::op::v15::EmbeddingBagOffsets> emb;
     ov::ParameterVector params;
     switch (num_inputs) {
     case 0:
-        emb = std::make_shared<ov::opset15::EmbeddingBagOffsets>();
+        emb = std::make_shared<ov::op::v15::EmbeddingBagOffsets>();
         params = {};
         break;
     case 3:
-        emb = std::make_shared<ov::opset15::EmbeddingBagOffsets>(emb_table, indices, offsets, reduction_type);
+        emb = std::make_shared<ov::op::v15::EmbeddingBagOffsets>(emb_table, indices, offsets, reduction_type);
         params = {emb_table, indices, offsets};
         break;
     case 4:
-        emb = std::make_shared<ov::opset15::EmbeddingBagOffsets>(emb_table,
+        emb = std::make_shared<ov::op::v15::EmbeddingBagOffsets>(emb_table,
                                                                  indices,
                                                                  offsets,
                                                                  default_index,
@@ -45,7 +46,7 @@ std::shared_ptr<ov::Model> create_v15_model(const op::v15::EmbeddingBagOffsets::
         params = {emb_table, indices, offsets, default_index};
         break;
     case 5:
-        emb = std::make_shared<ov::opset15::EmbeddingBagOffsets>(emb_table,
+        emb = std::make_shared<ov::op::v15::EmbeddingBagOffsets>(emb_table,
                                                                  indices,
                                                                  offsets,
                                                                  default_index,
@@ -61,28 +62,28 @@ std::shared_ptr<ov::Model> create_v15_model(const op::v15::EmbeddingBagOffsets::
 }
 
 std::shared_ptr<ov::Model> create_v3_model(const size_t num_inputs) {
-    const auto emb_table = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{5, 2});
-    const auto indices = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{4});
-    const auto offsets = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{3});
-    const auto default_index = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{});
-    const auto per_sample_weights = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{4});
+    const auto emb_table = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{5, 2});
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{4});
+    const auto offsets = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{3});
+    const auto default_index = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
+    const auto per_sample_weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4});
     std::shared_ptr<ov::op::v3::EmbeddingBagOffsetsSum> emb;
     ov::ParameterVector params;
     switch (num_inputs) {
     case 0:
-        emb = std::make_shared<ov::opset3::EmbeddingBagOffsetsSum>();
+        emb = std::make_shared<ov::op::v3::EmbeddingBagOffsetsSum>();
         params = {};
         break;
     case 3:
-        emb = std::make_shared<ov::opset3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets);
+        emb = std::make_shared<ov::op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets);
         params = {emb_table, indices, offsets};
         break;
     case 4:
-        emb = std::make_shared<ov::opset3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index);
+        emb = std::make_shared<ov::op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index);
         params = {emb_table, indices, offsets, default_index};
         break;
     case 5:
-        emb = std::make_shared<ov::opset3::EmbeddingBagOffsetsSum>(emb_table,
+        emb = std::make_shared<ov::op::v3::EmbeddingBagOffsetsSum>(emb_table,
                                                                    indices,
                                                                    offsets,
                                                                    default_index,

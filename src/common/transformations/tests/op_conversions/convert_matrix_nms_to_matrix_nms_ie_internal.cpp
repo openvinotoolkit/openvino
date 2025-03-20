@@ -10,16 +10,14 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/matrix_nms.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace ov;
 
@@ -35,10 +33,10 @@ public:
     void Execute() {
         element::Type element_type = this->GetParam();
         {
-            auto boxes = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1000, 4});
-            auto scores = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1, 1000});
+            auto boxes = std::make_shared<op::v0::Parameter>(element_type, Shape{1, 1000, 4});
+            auto scores = std::make_shared<op::v0::Parameter>(element_type, Shape{1, 1, 1000});
 
-            auto nms = std::make_shared<opset8::MatrixNms>(boxes, scores, opset8::MatrixNms::Attributes());
+            auto nms = std::make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
 
             model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
@@ -47,12 +45,12 @@ public:
         }
 
         {
-            auto boxes = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1000, 4});
-            auto scores = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1, 1000});
-            auto nms = std::make_shared<ov::op::internal::NmsStaticShapeIE<opset8::MatrixNms>>(
+            auto boxes = std::make_shared<op::v0::Parameter>(element_type, Shape{1, 1000, 4});
+            auto scores = std::make_shared<op::v0::Parameter>(element_type, Shape{1, 1, 1000});
+            auto nms = std::make_shared<ov::op::internal::NmsStaticShapeIE<op::v8::MatrixNms>>(
                 boxes,
                 scores,
-                opset8::MatrixNms::Attributes());
+                op::v8::MatrixNms::Attributes());
 
             model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
         }

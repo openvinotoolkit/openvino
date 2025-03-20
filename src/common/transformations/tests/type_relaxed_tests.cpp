@@ -7,11 +7,30 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/convert_precision.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace element = ov::element;
 using std::make_shared;
@@ -24,10 +43,10 @@ TEST_F(TypeRelaxedTests, noOverrideCopyCtor) {
     {
         ov::PartialShape shape({1, 3, 22, 22});
         element::Type type(element::Type_t::f32);
-        auto param = make_shared<ov::opset1::Parameter>(type, shape);
-        auto op = ov::opset1::Relu(param);
-        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::opset1::Relu>>(op);
-        auto result = make_shared<ov::opset1::Result>(relaxed_op);
+        auto param = make_shared<ov::op::v0::Parameter>(type, shape);
+        auto op = ov::op::v0::Relu(param);
+        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::op::v0::Relu>>(op);
+        auto result = make_shared<ov::op::v0::Result>(relaxed_op);
 
         ov::ParameterVector params = {param};
         ov::ResultVector results = {result};
@@ -47,11 +66,11 @@ TEST_F(TypeRelaxedTests, overrideOutputCopyCtor) {
     std::shared_ptr<ov::Model> model;
     {
         ov::PartialShape shape({1, 3, 22, 22});
-        auto param = make_shared<ov::opset1::Parameter>(input_type, shape);
-        auto op = ov::opset1::Relu(param);
+        auto param = make_shared<ov::op::v0::Parameter>(input_type, shape);
+        auto op = ov::op::v0::Relu(param);
         auto relaxed_op =
-            make_shared<ov::op::TypeRelaxed<ov::opset1::Relu>>(op, TypeVector{}, TypeVector{overriden_type});
-        auto result = make_shared<ov::opset1::Result>(relaxed_op);
+            make_shared<ov::op::TypeRelaxed<ov::op::v0::Relu>>(op, TypeVector{}, TypeVector{overriden_type});
+        auto result = make_shared<ov::op::v0::Result>(relaxed_op);
 
         model = make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
@@ -68,11 +87,11 @@ TEST_F(TypeRelaxedTests, overrideInputCopyCtor) {
     std::shared_ptr<ov::Model> model;
     {
         ov::PartialShape shape({1, 3, 22, 22});
-        auto param = make_shared<ov::opset1::Parameter>(input_type, shape);
-        auto op = ov::opset1::Relu(param);
+        auto param = make_shared<ov::op::v0::Parameter>(input_type, shape);
+        auto op = ov::op::v0::Relu(param);
         auto relaxed_op =
-            make_shared<ov::op::TypeRelaxed<ov::opset1::Relu>>(op, TypeVector{overriden_type}, TypeVector{});
-        auto result = make_shared<ov::opset1::Result>(relaxed_op);
+            make_shared<ov::op::TypeRelaxed<ov::op::v0::Relu>>(op, TypeVector{overriden_type}, TypeVector{});
+        auto result = make_shared<ov::op::v0::Result>(relaxed_op);
 
         model = make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
@@ -90,14 +109,14 @@ TEST_F(TypeRelaxedTests, mixedInputsAutoOutput) {
     std::shared_ptr<ov::Model> model;
     {
         ov::PartialShape shape({1, 3, 22, 22});
-        auto param1 = make_shared<ov::opset1::Parameter>(input_type1, shape);
-        auto param2 = make_shared<ov::opset1::Parameter>(input_type2, shape);
-        auto op = ov::opset1::Add(ov::op::TemporaryReplaceOutputType(param1->output(0), overriden_type).get(),
+        auto param1 = make_shared<ov::op::v0::Parameter>(input_type1, shape);
+        auto param2 = make_shared<ov::op::v0::Parameter>(input_type2, shape);
+        auto op = ov::op::v1::Add(ov::op::TemporaryReplaceOutputType(param1->output(0), overriden_type).get(),
                                   ov::op::TemporaryReplaceOutputType(param2->output(0), overriden_type).get());
-        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(op,
+        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(op,
                                                                             TypeVector{overriden_type, overriden_type},
                                                                             TypeVector{});
-        auto result = make_shared<ov::opset1::Result>(relaxed_op);
+        auto result = make_shared<ov::op::v0::Result>(relaxed_op);
 
         model = make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
 
@@ -116,14 +135,14 @@ TEST_F(TypeRelaxedTests, mixedInputsAutoOutputForwardCtor) {
     std::shared_ptr<ov::Model> model;
     {
         ov::PartialShape shape({1, 3, 22, 22});
-        auto param1 = make_shared<ov::opset1::Parameter>(input_type1, shape);
-        auto param2 = make_shared<ov::opset1::Parameter>(input_type2, shape);
-        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
+        auto param1 = make_shared<ov::op::v0::Parameter>(input_type1, shape);
+        auto param2 = make_shared<ov::op::v0::Parameter>(input_type2, shape);
+        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(
             TypeVector{overriden_type, overriden_type},
             TypeVector{},
             ov::op::TemporaryReplaceOutputType(param1, overriden_type).get(),
             ov::op::TemporaryReplaceOutputType(param2, overriden_type).get());
-        auto result = make_shared<ov::opset1::Result>(relaxed_op);
+        auto result = make_shared<ov::op::v0::Result>(relaxed_op);
 
         model = make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
 
@@ -141,14 +160,14 @@ TEST_F(TypeRelaxedTests, notSupportedTypeOverride) {
     std::shared_ptr<ov::Model> model;
     {
         ov::PartialShape shape({1, 3, 22, 22});
-        auto param1 = make_shared<ov::opset1::Parameter>(overriden_type, shape);
-        auto param2 = make_shared<ov::opset1::Parameter>(overriden_type, shape);
-        auto op = ov::opset1::LogicalAnd(ov::op::TemporaryReplaceOutputType(param1, orig_type).get(),
+        auto param1 = make_shared<ov::op::v0::Parameter>(overriden_type, shape);
+        auto param2 = make_shared<ov::op::v0::Parameter>(overriden_type, shape);
+        auto op = ov::op::v1::LogicalAnd(ov::op::TemporaryReplaceOutputType(param1, orig_type).get(),
                                          ov::op::TemporaryReplaceOutputType(param2, orig_type).get());
-        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::opset1::LogicalAnd>>(op,
+        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::op::v1::LogicalAnd>>(op,
                                                                                    TypeVector{orig_type, orig_type},
                                                                                    TypeVector{overriden_type});
-        auto result = make_shared<ov::opset1::Result>(relaxed_op);
+        auto result = make_shared<ov::op::v0::Result>(relaxed_op);
 
         model = make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
 
@@ -167,13 +186,13 @@ TEST_F(TypeRelaxedTests, notSupportedTypeOverridePartially) {
     std::shared_ptr<ov::Model> model;
     {
         ov::PartialShape shape({1, 3, 22, 22});
-        auto param1 = make_shared<ov::opset1::Parameter>(some_type, shape);
-        auto param2 = make_shared<ov::opset1::Parameter>(overriden_type, ov::PartialShape{1});
-        auto op = ov::opset1::Reshape(param1, ov::op::TemporaryReplaceOutputType(param2, orig_type).get(), false);
-        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::opset1::Reshape>>(op,
+        auto param1 = make_shared<ov::op::v0::Parameter>(some_type, shape);
+        auto param2 = make_shared<ov::op::v0::Parameter>(overriden_type, ov::PartialShape{1});
+        auto op = ov::op::v1::Reshape(param1, ov::op::TemporaryReplaceOutputType(param2, orig_type).get(), false);
+        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::op::v1::Reshape>>(op,
                                                                                 TypeVector{element::dynamic, orig_type},
                                                                                 TypeVector{});
-        auto result = make_shared<ov::opset1::Result>(relaxed_op);
+        auto result = make_shared<ov::op::v0::Result>(relaxed_op);
 
         model = make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
 
@@ -191,13 +210,13 @@ TEST_F(TypeRelaxedTests, multiOutputTypeOverride) {
     std::shared_ptr<ov::Model> model;
     {
         ov::PartialShape shape({1, 3, 22, 22});
-        auto param1 = make_shared<ov::opset1::Parameter>(orig_type, shape);
-        auto op = ov::opset1::Split(param1, ov::opset1::Constant::create(ov::element::i64, ov::Shape{}, {1}), 3);
-        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::opset1::Split>>(
+        auto param1 = make_shared<ov::op::v0::Parameter>(orig_type, shape);
+        auto op = ov::op::v1::Split(param1, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}), 3);
+        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::op::v1::Split>>(
             op,
             TypeVector{},
             TypeVector{overriden_type, overriden_type, overriden_type});
-        auto result = make_shared<ov::opset1::Result>(relaxed_op);
+        auto result = make_shared<ov::op::v0::Result>(relaxed_op);
 
         model = make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
 
@@ -212,11 +231,11 @@ TEST_F(TypeRelaxedTests, setGetTypes) {
     std::shared_ptr<ov::Model> model;
     {
         ov::PartialShape shape({1, 3, 22, 22});
-        auto param1 = make_shared<ov::opset1::Parameter>(element::u8, shape);
-        auto param2 = make_shared<ov::opset1::Parameter>(element::u8, shape);
-        // create TypeRelaxed without any type adjustment, the same behaviour as for opset1::Add
-        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(param1, param2);
-        auto result = make_shared<ov::opset1::Result>(relaxed_op);
+        auto param1 = make_shared<ov::op::v0::Parameter>(element::u8, shape);
+        auto param2 = make_shared<ov::op::v0::Parameter>(element::u8, shape);
+        // create TypeRelaxed without any type adjustment, the same behaviour as for op::v1::Add
+        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(param1, param2);
+        auto result = make_shared<ov::op::v0::Result>(relaxed_op);
 
         model = make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
 
@@ -224,7 +243,7 @@ TEST_F(TypeRelaxedTests, setGetTypes) {
         ASSERT_EQ(element::u8, relaxed_op->get_input_element_type(1));
         ASSERT_EQ(element::u8, relaxed_op->get_output_element_type(0));
 
-        // internally set types for opset1::Add inference wasn't set when TypeRelaxed created, check it
+        // internally set types for op::v1::Add inference wasn't set when TypeRelaxed created, check it
         ASSERT_EQ(element::dynamic, relaxed_op->get_origin_input_type(0));
         ASSERT_EQ(element::dynamic, relaxed_op->get_origin_input_type(1));
         // if we access elements outside really existing inputs, it should give undefined as well
@@ -302,10 +321,10 @@ TEST_F(TypeRelaxedTests, setGetTypes) {
 TEST_F(TypeRelaxedTests, OneOutputMultipleInputPorts) {
     std::shared_ptr<ov::Model> f;
     {
-        auto param1 = make_shared<ov::opset1::Parameter>(element::boolean, ov::Shape{1, 3, 22, 22});
-        auto op = ov::opset1::Select(param1, param1, param1);
+        auto param1 = make_shared<ov::op::v0::Parameter>(element::boolean, ov::Shape{1, 3, 22, 22});
+        auto op = ov::op::v1::Select(param1, param1, param1);
         auto relaxed_op =
-            make_shared<ov::op::TypeRelaxed<ov::opset1::Select>>(op, TypeVector{}, TypeVector{element::i64});
+            make_shared<ov::op::TypeRelaxed<ov::op::v1::Select>>(op, TypeVector{}, TypeVector{element::i64});
 
         f = make_shared<ov::Model>(ov::OutputVector{relaxed_op}, ov::ParameterVector{param1});
 
@@ -327,47 +346,47 @@ TEST_F(TypeRelaxedTests, OneOutputMultipleInputPorts) {
 TEST_F(TypeRelaxedTests, ConstantFoldingCheck) {
     std::shared_ptr<ov::Model> f;
     {
-        auto const1 = ov::opset1::Constant::create(element::i32, ov::Shape{}, {2});
-        auto const2 = ov::opset1::Constant::create(element::i32, ov::Shape{}, {2});
-        auto equal = ov::opset1::Equal(const1, const2);
+        auto const1 = ov::op::v0::Constant::create(element::i32, ov::Shape{}, {2});
+        auto const2 = ov::op::v0::Constant::create(element::i32, ov::Shape{}, {2});
+        auto equal = ov::op::v1::Equal(const1, const2);
         auto relaxed_equal =
-            make_shared<ov::op::TypeRelaxed<ov::opset1::Equal>>(equal, TypeVector{}, TypeVector{element::u8});
+            make_shared<ov::op::TypeRelaxed<ov::op::v1::Equal>>(equal, TypeVector{}, TypeVector{element::u8});
 
         f = make_shared<ov::Model>(ov::OutputVector{relaxed_equal}, ov::ParameterVector{});
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConstantFolding>();
         OV_ASSERT_NO_THROW(manager.run_passes(f));
         auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
-        ASSERT_TRUE(ov::is_type<ov::opset1::Constant>(layer_before_result));
+        ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(layer_before_result));
     }
 }
 
 TEST_F(TypeRelaxedTests, ConstantFoldingCheck1) {
     std::shared_ptr<ov::Model> f;
     {
-        auto const1 = ov::opset1::Constant::create(element::i32, ov::Shape{}, {2});
-        auto const2 = ov::opset1::Constant::create(element::i32, ov::Shape{}, {2});
-        auto equal = ov::opset1::Equal(const1, const2);
+        auto const1 = ov::op::v0::Constant::create(element::i32, ov::Shape{}, {2});
+        auto const2 = ov::op::v0::Constant::create(element::i32, ov::Shape{}, {2});
+        auto equal = ov::op::v1::Equal(const1, const2);
         auto relaxed_equal =
-            make_shared<ov::op::TypeRelaxed<ov::opset1::Equal>>(equal, TypeVector{}, TypeVector{element::boolean});
+            make_shared<ov::op::TypeRelaxed<ov::op::v1::Equal>>(equal, TypeVector{}, TypeVector{element::boolean});
 
         f = make_shared<ov::Model>(ov::OutputVector{relaxed_equal}, ov::ParameterVector{});
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConstantFolding>();
         OV_ASSERT_NO_THROW(manager.run_passes(f));
         auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
-        ASSERT_TRUE(ov::is_type<ov::opset1::Constant>(layer_before_result));
+        ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(layer_before_result));
     }
 }
 
 TEST_F(TypeRelaxedTests, ConstantFoldingCheck2) {
     std::shared_ptr<ov::Model> f;
     {
-        auto const1 = ov::opset1::Constant::create(element::u8, ov::Shape{}, {2});
-        auto const2 = ov::opset1::Constant::create(element::i8, ov::Shape{}, {2});
+        auto const1 = ov::op::v0::Constant::create(element::u8, ov::Shape{}, {2});
+        auto const2 = ov::op::v0::Constant::create(element::i8, ov::Shape{}, {2});
 
         auto original_input_types = TypeVector{element::i32, element::i32};
-        auto relaxed_equal = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Equal>>(
+        auto relaxed_equal = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Equal>>(
             ov::element::TypeVector{element::i32, element::i32},
             ov::element::TypeVector{element::u8},
             ov::op::TemporaryReplaceOutputType(const1, element::i32).get(),
@@ -378,27 +397,27 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck2) {
         manager.register_pass<ov::pass::ConstantFolding>();
         OV_ASSERT_NO_THROW(manager.run_passes(f));
         auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
-        ASSERT_TRUE(ov::is_type<ov::opset1::Constant>(layer_before_result));
+        ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(layer_before_result));
     }
 }
 
 TEST_F(TypeRelaxedTests, ConstantFoldingCheck3) {
     std::shared_ptr<ov::Model> f;
     {
-        auto const1 = ov::opset1::Constant::create(element::i32, ov::Shape{}, {2});
-        auto const2 = ov::opset1::Constant::create(element::i32, ov::Shape{}, {2});
-        auto equal = ov::opset1::Equal(const1, const2);
+        auto const1 = ov::op::v0::Constant::create(element::i32, ov::Shape{}, {2});
+        auto const2 = ov::op::v0::Constant::create(element::i32, ov::Shape{}, {2});
+        auto equal = ov::op::v1::Equal(const1, const2);
 
         auto original_input_types = TypeVector{element::f32, element::f32};
         auto relaxed_equal =
-            make_shared<ov::op::TypeRelaxed<ov::opset1::Equal>>(equal, original_input_types, TypeVector{element::u8});
+            make_shared<ov::op::TypeRelaxed<ov::op::v1::Equal>>(equal, original_input_types, TypeVector{element::u8});
 
         f = make_shared<ov::Model>(ov::OutputVector{relaxed_equal}, ov::ParameterVector{});
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConstantFolding>();
         OV_ASSERT_NO_THROW(manager.run_passes(f));
         auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
-        ASSERT_TRUE(ov::is_type<ov::opset1::Constant>(layer_before_result));
+        ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(layer_before_result));
     }
 }
 
@@ -409,7 +428,7 @@ bool fuse_type_to_convert_cpu(const std::shared_ptr<ov::Node>& node, const preci
     if (it == precisions.end())
         return false;
     const auto& to = it->second;
-    if (auto convert = ov::as_type_ptr<ov::opset1::Convert>(node)) {
+    if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
         // For Convert node, converting precision from floating point to boolean will lead to mathematical
         // error, because here the output precision boolean is replaced by u8:
         //  - floating point value 0.01 is converted to be 1 for boolean, but 0 for u8 - need to insert Ceil.
@@ -424,14 +443,14 @@ bool fuse_type_to_convert_cpu(const std::shared_ptr<ov::Node>& node, const preci
             auto item = precisions.find(in_prec);
             if (item != precisions.end()) {
                 // Add convert node for unsupported precision, such as FP64
-                data = reg.make<ov::opset1::Convert>(data, item->second);
+                data = reg.make<ov::op::v0::Convert>(data, item->second);
             }
-            const auto abs = reg.make<ov::opset1::Abs>(data);
-            const auto to_max_value = reg.make<ov::opset1::Constant>(ov::util::make_tensor_of_max_value(to));
-            const auto to_max_convert = reg.make<ov::opset1::Convert>(to_max_value, abs->get_output_element_type(0));
-            const auto min = reg.make<ov::opset1::Minimum>(abs, to_max_convert);
-            const auto ceil = reg.make<ov::opset1::Ceiling>(min);
-            const auto new_convert = reg.make<ov::opset1::Convert>(ceil, to);
+            const auto abs = reg.make<ov::op::v0::Abs>(data);
+            const auto to_max_value = reg.make<ov::op::v0::Constant>(ov::util::make_tensor_of_max_value(to));
+            const auto to_max_convert = reg.make<ov::op::v0::Convert>(to_max_value, abs->get_output_element_type(0));
+            const auto min = reg.make<ov::op::v1::Minimum>(abs, to_max_convert);
+            const auto ceil = reg.make<ov::op::v0::Ceiling>(min);
+            const auto new_convert = reg.make<ov::op::v0::Convert>(ceil, to);
             new_convert->set_friendly_name(convert->get_friendly_name());
             ov::copy_runtime_info(convert, reg.get());
             ov::replace_node(convert, new_convert);
@@ -447,19 +466,19 @@ bool fuse_type_to_convert_cpu(const std::shared_ptr<ov::Node>& node, const preci
 TEST_F(TypeRelaxedTests, PartialValuePropagation) {
     std::shared_ptr<ov::Model> model;
     {
-        auto parameter = std::make_shared<ov::opset1::Parameter>(element::f32, ov::PartialShape{1, 768, -1, -1});
-        auto shape = std::make_shared<ov::opset1::ShapeOf>(parameter);
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{1, 768, -1, -1});
+        auto shape = std::make_shared<ov::op::v0::ShapeOf>(parameter);
         auto strided_slice =
-            std::make_shared<ov::opset1::StridedSlice>(shape,
-                                                       ov::opset1::Constant::create(element::i64, {1}, {0}),
-                                                       ov::opset1::Constant::create(element::i64, {1}, {2}),
-                                                       ov::opset1::Constant::create(element::i64, {1}, {1}),
+            std::make_shared<ov::op::v1::StridedSlice>(shape,
+                                                       ov::op::v0::Constant::create(element::i64, {1}, {0}),
+                                                       ov::op::v0::Constant::create(element::i64, {1}, {2}),
+                                                       ov::op::v0::Constant::create(element::i64, {1}, {1}),
                                                        std::vector<int64_t>{0},
                                                        std::vector<int64_t>{0});
-        auto concat = std::make_shared<ov::opset1::Concat>(
-            ov::OutputVector{strided_slice, ov::opset1::Constant::create(element::i64, {1}, {-1})},
+        auto concat = std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{strided_slice, ov::op::v0::Constant::create(element::i64, {1}, {-1})},
             0);
-        auto reshape = std::make_shared<ov::opset1::Reshape>(parameter, concat, false);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(parameter, concat, false);
 
         model = make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{parameter});
 
@@ -470,7 +489,7 @@ TEST_F(TypeRelaxedTests, PartialValuePropagation) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConvertPrecision>(
             map,
-            type_to_fuse_map{{ov::opset1::Convert::get_type_info_static(), fuse_type_to_convert_cpu}});
+            type_to_fuse_map{{ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert_cpu}});
         OV_ASSERT_NO_THROW(manager.run_passes(model));
         EXPECT_EQ(model->get_result()->get_output_partial_shape(0), ov::PartialShape({1, 768, -1}));
     }
@@ -479,30 +498,30 @@ TEST_F(TypeRelaxedTests, PartialValuePropagation) {
 TEST_F(TypeRelaxedTests, PartialValuePropagation2) {
     std::shared_ptr<ov::Model> model;
     {
-        auto parameter = std::make_shared<ov::opset1::Parameter>(element::f32, ov::PartialShape{-1, -1});
-        auto axis = ov::opset1::Constant::create(element::i64, {1}, {1});
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1});
+        auto axis = ov::op::v0::Constant::create(element::i64, {1}, {1});
         auto broadcast_input =
-            std::make_shared<ov::opset1::Unsqueeze>(std::make_shared<ov::opset1::Unsqueeze>(parameter, axis), axis);
+            std::make_shared<ov::op::v0::Unsqueeze>(std::make_shared<ov::op::v0::Unsqueeze>(parameter, axis), axis);
 
-        auto shape = std::make_shared<ov::opset1::ShapeOf>(parameter);
-        auto gather_batch = std::make_shared<ov::opset1::Gather>(shape,
-                                                                 ov::opset1::Constant::create(element::i64, {1}, {0}),
-                                                                 ov::opset1::Constant::create(element::i64, {}, {0}));
+        auto shape = std::make_shared<ov::op::v0::ShapeOf>(parameter);
+        auto gather_batch = std::make_shared<ov::op::v1::Gather>(shape,
+                                                                 ov::op::v0::Constant::create(element::i64, {1}, {0}),
+                                                                 ov::op::v0::Constant::create(element::i64, {}, {0}));
         auto gather_sequence_twice =
-            std::make_shared<ov::opset1::Gather>(shape,
-                                                 ov::opset1::Constant::create(element::i64, {2}, {1, 1}),
-                                                 ov::opset1::Constant::create(element::i64, {}, {0}));
-        auto concat = std::make_shared<ov::opset1::Concat>(
-            ov::OutputVector{gather_batch, ov::opset1::Constant::create(element::i64, {1}, {1}), gather_sequence_twice},
+            std::make_shared<ov::op::v1::Gather>(shape,
+                                                 ov::op::v0::Constant::create(element::i64, {2}, {1, 1}),
+                                                 ov::op::v0::Constant::create(element::i64, {}, {0}));
+        auto concat = std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{gather_batch, ov::op::v0::Constant::create(element::i64, {1}, {1}), gather_sequence_twice},
             0);
         auto reshape =
-            std::make_shared<ov::opset1::Reshape>(concat, ov::opset1::Constant::create(element::i64, {1}, {-1}), false);
-        auto equal = std::make_shared<ov::opset1::Equal>(reshape, ov::opset1::Constant::create(element::i64, {}, {-1}));
+            std::make_shared<ov::op::v1::Reshape>(concat, ov::op::v0::Constant::create(element::i64, {1}, {-1}), false);
+        auto equal = std::make_shared<ov::op::v1::Equal>(reshape, ov::op::v0::Constant::create(element::i64, {}, {-1}));
 
         auto select =
-            std::make_shared<ov::opset1::Select>(equal, ov::opset1::Constant::create(element::i64, {1}, {1}), reshape);
+            std::make_shared<ov::op::v1::Select>(equal, ov::op::v0::Constant::create(element::i64, {1}, {1}), reshape);
 
-        auto broadcast = std::make_shared<ov::opset1::Broadcast>(broadcast_input, select);
+        auto broadcast = std::make_shared<ov::op::v1::Broadcast>(broadcast_input, select);
         model = make_shared<ov::Model>(ov::OutputVector{broadcast}, ov::ParameterVector{parameter});
 
         precisions_map map = {
@@ -512,7 +531,7 @@ TEST_F(TypeRelaxedTests, PartialValuePropagation2) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConvertPrecision>(
             map,
-            type_to_fuse_map{{ov::opset1::Convert::get_type_info_static(), fuse_type_to_convert_cpu}});
+            type_to_fuse_map{{ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert_cpu}});
         OV_ASSERT_NO_THROW(manager.run_passes(model));
         EXPECT_EQ(model->get_result()->get_output_partial_shape(0), ov::PartialShape({-1, 1, -1, -1}));
     }

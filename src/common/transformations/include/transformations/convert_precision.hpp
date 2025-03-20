@@ -12,6 +12,14 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
+#include "openvino/op/bucketize.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/non_max_suppression.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/topk.hpp"
 
 namespace ov {
 namespace pass {
@@ -41,15 +49,15 @@ class TRANSFORMATIONS_API ConvertPrecision;
  * into operation. m_additional_type_to_fuse_map allows to rewrite existing type convertors.
  *
  * List of operations that are supported by this transformations for i64 -> i32 conversion:
- *     opset4::Parameter
- *     opset4::Convert
- *     opset4::ShapeOf
- *     opset4::Range
- *     opset3::NonMaxSuppression
- *     opset4::NonMaxSuppression
- *     opset4::TopK
- *     opset4::NonZero
- *     opset4::Bucketize
+ *     op::v0::Parameter
+ *     op::v0::Convert
+ *     op::v3::ShapeOf
+ *     op::v4::Range
+ *     op::v3::NonMaxSuppression
+ *     op::v4::NonMaxSuppression
+ *     op::v3::TopK
+ *     op::v3::NonZero
+ *     op::v3::Bucketize
  *
  * List of operations that are supported by this transformations for bool -> u8 conversion:
  *     LogicalAnd

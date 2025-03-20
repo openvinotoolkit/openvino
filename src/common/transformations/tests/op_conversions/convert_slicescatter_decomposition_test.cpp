@@ -8,11 +8,18 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/opsets/opset15.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/convert_slicescatter.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/slice_scatter.hpp"
 namespace {
 class ConvertSliceScatterTest : public TransformationTestsF, public testing::WithParamInterface<ov::NodeVector> {
 private:
@@ -41,11 +48,11 @@ protected:
                 params.push_back(param);
             }
         }
-        std::shared_ptr<ov::opset15::SliceScatter> slicescatter;
+        std::shared_ptr<ov::op::v15::SliceScatter> slicescatter;
         if (inputs.size() == 5) {
-            slicescatter = std::make_shared<ov::opset15::SliceScatter>(data, updates, start, stop, step);
+            slicescatter = std::make_shared<ov::op::v15::SliceScatter>(data, updates, start, stop, step);
         } else {
-            slicescatter = std::make_shared<ov::opset15::SliceScatter>(data, updates, start, stop, step, inputs.at(5));
+            slicescatter = std::make_shared<ov::op::v15::SliceScatter>(data, updates, start, stop, step, inputs.at(5));
         }
         slicescatter->set_friendly_name("slicescatter15");
         return std::make_shared<ov::Model>(slicescatter->outputs(), params);
@@ -68,24 +75,24 @@ protected:
         const auto& const_1 = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
         const auto& const_1d_neg_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
         const auto& const_scatter_indices_shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {-1, 1});
-        const auto& data_shape = std::make_shared<ov::opset8::ShapeOf>(data, ov::element::i64);
-        const auto& num_elements_data = std::make_shared<ov::opset8::ReduceProd>(data_shape, const_0, false);
+        const auto& data_shape = std::make_shared<ov::op::v3::ShapeOf>(data, ov::element::i64);
+        const auto& num_elements_data = std::make_shared<ov::op::v1::ReduceProd>(data_shape, const_0, false);
         const auto& data_indices_flatten =
-            std::make_shared<ov::opset8::Range>(const_0, num_elements_data, const_1, ov::element::i64);
-        const auto& full_data_indices = std::make_shared<ov::opset8::Reshape>(data_indices_flatten, data_shape, false);
-        std::shared_ptr<ov::opset8::Slice> slice_indices;
+            std::make_shared<ov::op::v4::Range>(const_0, num_elements_data, const_1, ov::element::i64);
+        const auto& full_data_indices = std::make_shared<ov::op::v1::Reshape>(data_indices_flatten, data_shape, false);
+        std::shared_ptr<ov::op::v8::Slice> slice_indices;
         if (inputs.size() == 5) {
-            slice_indices = std::make_shared<ov::opset8::Slice>(full_data_indices, start, stop, step);
+            slice_indices = std::make_shared<ov::op::v8::Slice>(full_data_indices, start, stop, step);
         } else {
-            slice_indices = std::make_shared<ov::opset8::Slice>(full_data_indices, start, stop, step, inputs.at(5));
+            slice_indices = std::make_shared<ov::op::v8::Slice>(full_data_indices, start, stop, step, inputs.at(5));
         }
         const auto& slice_indices_flatten =
-            std::make_shared<ov::opset8::Reshape>(slice_indices, const_scatter_indices_shape, false);
-        const auto& updates_flatten = std::make_shared<ov::opset8::Reshape>(updates, const_1d_neg_1, false);
-        const auto& data_flatten = std::make_shared<ov::opset8::Reshape>(data, const_1d_neg_1, false);
+            std::make_shared<ov::op::v1::Reshape>(slice_indices, const_scatter_indices_shape, false);
+        const auto& updates_flatten = std::make_shared<ov::op::v1::Reshape>(updates, const_1d_neg_1, false);
+        const auto& data_flatten = std::make_shared<ov::op::v1::Reshape>(data, const_1d_neg_1, false);
         const auto& output_flatten =
-            std::make_shared<ov::opset8::ScatterNDUpdate>(data_flatten, slice_indices_flatten, updates_flatten);
-        const auto& slicescatter = std::make_shared<ov::opset8::Reshape>(output_flatten, data_shape, false);
+            std::make_shared<ov::op::v3::ScatterNDUpdate>(data_flatten, slice_indices_flatten, updates_flatten);
+        const auto& slicescatter = std::make_shared<ov::op::v1::Reshape>(output_flatten, data_shape, false);
         slicescatter->set_friendly_name("slicescatter15");
         return std::make_shared<ov::Model>(slicescatter->outputs(), params);
     }
@@ -96,49 +103,49 @@ INSTANTIATE_TEST_SUITE_P(
     ConvertSliceScatterTest,
     testing::Values(
         ov::NodeVector{
-            std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{256, 10, 15}),
-            std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{4, 7, 2}),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{256, 10, 15}),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 7, 2}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {0, 1, -1}),
         },
         ov::NodeVector{
-            std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{256, 10, 15}),
-            std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{4, 7, 2}),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{256, 10, 15}),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 7, 2}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
         },
         ov::NodeVector{
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {0, 1, -1}),
         },
         ov::NodeVector{
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
             ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
         },
         ov::NodeVector{
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
         },
         ov::NodeVector{
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
         }));
 TEST_P(ConvertSliceScatterTest, CompareFunctions) {}
 

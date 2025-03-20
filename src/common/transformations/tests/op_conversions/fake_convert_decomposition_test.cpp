@@ -8,8 +8,15 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/fake_convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace ov;
 
@@ -55,12 +62,12 @@ TEST_P(FakeConvertDecompositionTest, CompareFunctions) {
 
     std::shared_ptr<ov::Model> model(nullptr);
     {
-        const auto data = std::make_shared<opset1::Parameter>(data_prec, PartialShape(data_shape));
-        const auto scale = std::make_shared<opset1::Constant>(data_prec, scale_shape);
-        const auto shift = std::make_shared<opset1::Constant>(data_prec, shift_shape);
+        const auto data = std::make_shared<op::v0::Parameter>(data_prec, PartialShape(data_shape));
+        const auto scale = std::make_shared<op::v0::Constant>(data_prec, scale_shape);
+        const auto shift = std::make_shared<op::v0::Constant>(data_prec, shift_shape);
 
-        const auto fake_convert = default_shift ? std::make_shared<opset13::FakeConvert>(data, scale, dst_prec)
-                                                : std::make_shared<opset13::FakeConvert>(data, scale, shift, dst_prec);
+        const auto fake_convert = default_shift ? std::make_shared<op::v13::FakeConvert>(data, scale, dst_prec)
+                                                : std::make_shared<op::v13::FakeConvert>(data, scale, shift, dst_prec);
         model = std::make_shared<ov::Model>(NodeVector{fake_convert}, ParameterVector{data});
 
         pass::Manager manager;
@@ -73,9 +80,9 @@ TEST_P(FakeConvertDecompositionTest, CompareFunctions) {
 
     std::shared_ptr<ov::Model> model_ref(nullptr);
     {
-        const auto input_data = std::make_shared<opset1::Parameter>(data_prec, PartialShape(data_shape));
-        const auto input_scale = std::make_shared<opset1::Constant>(data_prec, scale_shape);
-        const auto input_shift = std::make_shared<opset1::Constant>(data_prec, shift_shape);
+        const auto input_data = std::make_shared<op::v0::Parameter>(data_prec, PartialShape(data_shape));
+        const auto input_scale = std::make_shared<op::v0::Constant>(data_prec, scale_shape);
+        const auto input_shift = std::make_shared<op::v0::Constant>(data_prec, shift_shape);
         ParameterVector params;
         params.push_back(input_data);
         std::shared_ptr<Node> data = input_data;

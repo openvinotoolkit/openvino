@@ -11,10 +11,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/prior_box.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -29,10 +29,10 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
         attrs.aspect_ratio = {1.5f};
         attrs.scale_all_sizes = true;
 
-        auto input = std::make_shared<opset8::Parameter>(element::i64, input_shape);
-        auto image = std::make_shared<opset8::Parameter>(element::i64, image_Shape);
+        auto input = std::make_shared<op::v0::Parameter>(element::i64, input_shape);
+        auto image = std::make_shared<op::v0::Parameter>(element::i64, image_Shape);
 
-        auto prior_box = std::make_shared<opset8::PriorBox>(input, image, attrs);
+        auto prior_box = std::make_shared<op::v8::PriorBox>(input, image, attrs);
 
         model = std::make_shared<Model>(NodeVector{prior_box}, ParameterVector{input, image});
         manager.register_pass<ov::pass::ConvertPriorBox8To0>();
@@ -47,10 +47,10 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
         attrs.aspect_ratio = {1.5f};
         attrs.scale_all_sizes = true;
 
-        auto input = std::make_shared<opset1::Parameter>(element::i64, input_shape);
-        auto image = std::make_shared<opset1::Parameter>(element::i64, image_Shape);
+        auto input = std::make_shared<op::v0::Parameter>(element::i64, input_shape);
+        auto image = std::make_shared<op::v0::Parameter>(element::i64, image_Shape);
 
-        auto prior_box = std::make_shared<opset1::PriorBox>(input, image, attrs);
+        auto prior_box = std::make_shared<op::v0::PriorBox>(input, image, attrs);
 
         model_ref = std::make_shared<Model>(NodeVector{prior_box}, ParameterVector{input, image});
     }
@@ -67,10 +67,10 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0_min_max_aspect_ratios_order) {
         attrs.scale_all_sizes = true;
         attrs.min_max_aspect_ratios_order = false;
 
-        auto input = std::make_shared<opset8::Parameter>(element::i64, input_shape);
-        auto image = std::make_shared<opset8::Parameter>(element::i64, image_Shape);
+        auto input = std::make_shared<op::v0::Parameter>(element::i64, input_shape);
+        auto image = std::make_shared<op::v0::Parameter>(element::i64, image_Shape);
 
-        auto prior_box = std::make_shared<opset8::PriorBox>(input, image, attrs);
+        auto prior_box = std::make_shared<op::v8::PriorBox>(input, image, attrs);
 
         model = std::make_shared<Model>(NodeVector{prior_box}, ParameterVector{input, image});
         manager.register_pass<ov::pass::ConvertPriorBox8To0>();

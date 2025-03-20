@@ -16,10 +16,18 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -58,12 +66,12 @@ public:
 private:
     std::shared_ptr<ov::Model> get_initial_function(const PartialShape& input_shape,
                                                     const std::vector<int64_t>& transpose_order) {
-        auto data = std::make_shared<opset3::Parameter>(element::f32, input_shape);
-        auto order_const = opset3::Constant::create(element::i64, Shape{transpose_order.size()}, transpose_order);
-        auto transpose = std::make_shared<opset3::Transpose>(data, order_const);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto order_const = op::v0::Constant::create(element::i64, Shape{transpose_order.size()}, transpose_order);
+        auto transpose = std::make_shared<op::v1::Transpose>(data, order_const);
 
         // WA to test cases with transpose elimination
-        auto relu = std::make_shared<opset3::Relu>(transpose);
+        auto relu = std::make_shared<op::v0::Relu>(transpose);
 
         return std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{data});
     }
@@ -75,25 +83,25 @@ private:
             return get_initial_function(input_shape, transpose_order);
         }
 
-        auto data = std::make_shared<opset3::Parameter>(element::f32, input_shape);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
 
         Output<Node> reshape_dims, last(data);
         if (!params.reshape_value.empty()) {
             reshape_dims =
-                opset3::Constant::create(element::i64, Shape{params.reshape_value.size()}, params.reshape_value);
+                op::v0::Constant::create(element::i64, Shape{params.reshape_value.size()}, params.reshape_value);
         } else {
-            auto shape_of = std::make_shared<opset3::ShapeOf>(data);
-            reshape_dims = std::make_shared<opset3::Gather>(
+            auto shape_of = std::make_shared<op::v3::ShapeOf>(data);
+            reshape_dims = std::make_shared<op::v1::Gather>(
                 shape_of,
-                opset3::Constant::create(element::i64, Shape{transpose_order.size()}, transpose_order),
-                opset3::Constant::create(element::i64, Shape{1}, {0}));
+                op::v0::Constant::create(element::i64, Shape{transpose_order.size()}, transpose_order),
+                op::v0::Constant::create(element::i64, Shape{1}, {0}));
         }
 
         if (!params.is_empty) {
-            last = std::make_shared<opset3::Reshape>(last, reshape_dims, true);
+            last = std::make_shared<op::v1::Reshape>(last, reshape_dims, true);
         }
 
-        last = std::make_shared<opset3::Relu>(last);
+        last = std::make_shared<op::v0::Relu>(last);
 
         return std::make_shared<ov::Model>(NodeVector{last.get_node_shared_ptr()}, ParameterVector{data});
     }

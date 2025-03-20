@@ -16,11 +16,17 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/squeeze.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -30,10 +36,10 @@ std::shared_ptr<ov::Model> get_initial_function(const PartialShape& data_shape,
                                                 const PartialShape& updates_shape,
                                                 const PartialShape& broadcast_shape,
                                                 const int64_t& axis) {
-    auto data = std::make_shared<opset3::Parameter>(element::f32, data_shape);
-    auto indexes = std::make_shared<opset3::Parameter>(element::i64, indexes_shape);
-    auto updates = std::make_shared<opset3::Parameter>(element::f32, updates_shape);
-    auto axis_const = opset3::Constant::create(element::i64, {1}, {axis});
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    auto indexes = std::make_shared<op::v0::Parameter>(element::i64, indexes_shape);
+    auto updates = std::make_shared<op::v0::Parameter>(element::f32, updates_shape);
+    auto axis_const = op::v0::Constant::create(element::i64, {1}, {axis});
 
     auto broadcast_len = broadcast_shape.rank().get_length();
     if (std::numeric_limits<size_t>::max() < (size_t)broadcast_len) {
@@ -41,10 +47,10 @@ std::shared_ptr<ov::Model> get_initial_function(const PartialShape& data_shape,
     }
 
     auto broadcast_shape_param =
-        std::make_shared<opset3::Parameter>(element::i64, Shape{static_cast<size_t>(broadcast_len)});
-    auto broadcast = std::make_shared<opset3::Broadcast>(indexes, broadcast_shape_param);
+        std::make_shared<op::v0::Parameter>(element::i64, Shape{static_cast<size_t>(broadcast_len)});
+    auto broadcast = std::make_shared<op::v3::Broadcast>(indexes, broadcast_shape_param);
 
-    auto scatter = std::make_shared<opset3::ScatterElementsUpdate>(data, broadcast, updates, axis_const);
+    auto scatter = std::make_shared<op::v3::ScatterElementsUpdate>(data, broadcast, updates, axis_const);
 
     return std::make_shared<ov::Model>(NodeVector{scatter},
                                        ParameterVector{data, indexes, updates, broadcast_shape_param});
@@ -56,26 +62,26 @@ std::shared_ptr<ov::Model> get_reference_function(const PartialShape& data_shape
                                                   const int64_t& axis,
                                                   const Shape& reshape_shape = {},
                                                   const std::vector<int64_t>& squeeze_indices = {}) {
-    auto data = std::make_shared<opset3::Parameter>(element::f32, data_shape);
-    auto indexes = std::make_shared<opset3::Parameter>(element::i64, indexes_shape);
-    auto updates = std::make_shared<opset3::Parameter>(element::f32, updates_shape);
-    auto axis_const = opset3::Constant::create(element::i64, {1}, {axis});
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    auto indexes = std::make_shared<op::v0::Parameter>(element::i64, indexes_shape);
+    auto updates = std::make_shared<op::v0::Parameter>(element::f32, updates_shape);
+    auto axis_const = op::v0::Constant::create(element::i64, {1}, {axis});
 
     Output<Node> index_out = indexes->output(0);
     if (!reshape_shape.empty()) {
-        index_out = std::make_shared<opset3::Reshape>(
+        index_out = std::make_shared<op::v1::Reshape>(
             indexes,
-            opset3::Constant::create(element::i64, {reshape_shape.size()}, reshape_shape),
+            op::v0::Constant::create(element::i64, {reshape_shape.size()}, reshape_shape),
             false);
     }
 
     if (!squeeze_indices.empty()) {
-        index_out = std::make_shared<opset3::Squeeze>(
+        index_out = std::make_shared<op::v0::Squeeze>(
             indexes,
-            opset3::Constant::create(element::i64, {squeeze_indices.size()}, squeeze_indices));
+            op::v0::Constant::create(element::i64, {squeeze_indices.size()}, squeeze_indices));
     }
 
-    auto scatter = std::make_shared<opset3::ScatterUpdate>(data, index_out, updates, axis_const);
+    auto scatter = std::make_shared<op::v3::ScatterUpdate>(data, index_out, updates, axis_const);
 
     return std::make_shared<ov::Model>(NodeVector{scatter}, ParameterVector{data, indexes, updates});
 }

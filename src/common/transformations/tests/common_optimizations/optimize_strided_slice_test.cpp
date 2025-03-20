@@ -17,27 +17,36 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 using namespace ov;
 using namespace testing;
 
 TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_Negative1) {
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
-        auto begin = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
 
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {1, 1, 1, 1};  // ignoring end -- slicing to the end
 
-        auto ss = std::make_shared<opset1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+        auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
         model = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{data});
         manager.register_pass<ov::pass::StridedSliceOptimization>();
@@ -47,16 +56,16 @@ TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_Negative1) {
 
 TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_Negative2) {
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, PartialShape::dynamic(4));
-        auto relu = std::make_shared<opset1::Relu>(data);
-        auto begin = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
 
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {1, 1, 1, 1};  // ignoring end -- slicing to the end
 
-        auto ss = std::make_shared<opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask);
+        auto ss = std::make_shared<op::v1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask);
 
         model = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{data});
         manager.register_pass<ov::pass::StridedSliceOptimization>();
@@ -66,56 +75,56 @@ TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_Negative2) {
 
 TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion) {
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
-        auto relu = std::make_shared<opset1::Relu>(data);
-        auto begin = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
 
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {1, 1, 1, 1};  // ignoring end -- slicing to the end
 
-        auto ss = std::make_shared<opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask);
+        auto ss = std::make_shared<op::v1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask);
 
         model = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{data});
         manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
-        auto relu = std::make_shared<opset1::Relu>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<op::v0::Relu>(data);
         model_ref = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{data});
     }
 }
 
 TEST_F(TransformationTestsF, OptimizeSS_SkipUselessDeletionRevertCase) {
     {
-        auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{5, 5, 5, 5});
-        auto begin = opset3::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset3::Constant::create(element::i64, Shape{4}, {-6, -7, -8, -9});
-        auto stride = opset3::Constant::create(element::i64, Shape{4}, {-1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-6, -7, -8, -9});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {-1});
 
         std::vector<int64_t> begin_mask = {1, 1, 1, 1};
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
 
-        auto ss = std::make_shared<opset3::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
-        auto relu = std::make_shared<opset3::Relu>(ss);
+        auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+        auto relu = std::make_shared<op::v0::Relu>(ss);
 
         model = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{data});
         manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{5, 5, 5, 5});
-        auto begin = opset3::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset3::Constant::create(element::i64, Shape{4}, {-6, -7, -8, -9});
-        auto stride = opset3::Constant::create(element::i64, Shape{4}, {-1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-6, -7, -8, -9});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {-1});
 
         std::vector<int64_t> begin_mask = {1, 1, 1, 1};
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
 
-        auto ss = std::make_shared<opset3::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
-        auto relu = std::make_shared<opset3::Relu>(ss);
+        auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+        auto relu = std::make_shared<op::v0::Relu>(ss);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{data});
     }
@@ -123,35 +132,35 @@ TEST_F(TransformationTestsF, OptimizeSS_SkipUselessDeletionRevertCase) {
 
 TEST_F(TransformationTestsF, UselessSlice) {
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
-        auto relu = std::make_shared<opset1::Relu>(data);
-        auto begin = opset1::Constant::create(element::i64, Shape{2}, {0, 0});
-        auto end = opset1::Constant::create(element::i64, Shape{2}, {5, 5});
-        auto stride = opset1::Constant::create(element::i64, Shape{2}, {1, 1});
-        auto axis = opset1::Constant::create(element::i64, Shape{2}, {1, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto begin = op::v0::Constant::create(element::i64, Shape{2}, {0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{2}, {5, 5});
+        auto stride = op::v0::Constant::create(element::i64, Shape{2}, {1, 1});
+        auto axis = op::v0::Constant::create(element::i64, Shape{2}, {1, 3});
 
-        auto slice = std::make_shared<opset8::Slice>(relu, begin, end, stride, axis);
+        auto slice = std::make_shared<op::v8::Slice>(relu, begin, end, stride, axis);
 
         model = std::make_shared<ov::Model>(slice, ParameterVector{data});
         manager.register_pass<ov::pass::UselessSliceEraser>();
     }
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
-        auto relu = std::make_shared<opset1::Relu>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<op::v0::Relu>(data);
         model_ref = std::make_shared<ov::Model>(relu, ParameterVector{data});
     }
 }
 
 TEST_F(TransformationTestsF, NegativeUselessSliceWithNegativeStrides) {
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
-        auto relu = std::make_shared<opset1::Relu>(data);
-        auto begin = opset1::Constant::create(element::i64, Shape{2}, {4, 0});
-        auto end = opset1::Constant::create(element::i64, Shape{2}, {INT32_MIN, 5});
-        auto stride = opset1::Constant::create(element::i64, Shape{2}, {-1, 1});
-        auto axis = opset1::Constant::create(element::i64, Shape{2}, {1, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto begin = op::v0::Constant::create(element::i64, Shape{2}, {4, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{2}, {INT32_MIN, 5});
+        auto stride = op::v0::Constant::create(element::i64, Shape{2}, {-1, 1});
+        auto axis = op::v0::Constant::create(element::i64, Shape{2}, {1, 3});
 
-        auto slice = std::make_shared<opset8::Slice>(relu, begin, end, stride, axis);
+        auto slice = std::make_shared<op::v8::Slice>(relu, begin, end, stride, axis);
 
         model = std::make_shared<ov::Model>(slice, ParameterVector{data});
         manager.register_pass<ov::pass::UselessSliceEraser>();
@@ -160,30 +169,30 @@ TEST_F(TransformationTestsF, NegativeUselessSliceWithNegativeStrides) {
 
 TEST_F(TransformationTestsF, OptimizeSS_Usefull_Test) {
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
-        auto begin = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
 
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
 
-        auto ss = std::make_shared<opset1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+        auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
         model = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{data});
         manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
-        auto begin = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
 
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
 
-        auto ss = std::make_shared<opset1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+        auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{data});
     }
@@ -191,39 +200,39 @@ TEST_F(TransformationTestsF, OptimizeSS_Usefull_Test) {
 
 TEST_F(TransformationTestsF, OptimizeSS_Shared_Test) {
     {
-        auto source = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto source = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
 
-        auto begin1 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end1 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride1 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin1 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end1 = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride1 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask1 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask1 = {0, 0, 0, 0};
-        auto ss1 = std::make_shared<opset1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
+        auto ss1 = std::make_shared<op::v1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
 
-        auto begin2 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end2 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride2 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin2 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end2 = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride2 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask2 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask2 = {0, 0, 0, 0};
-        auto ss2 = std::make_shared<opset1::StridedSlice>(source, begin2, end2, stride2, begin_mask2, end_mask2);
+        auto ss2 = std::make_shared<op::v1::StridedSlice>(source, begin2, end2, stride2, begin_mask2, end_mask2);
 
-        auto concat = std::make_shared<opset1::Concat>(NodeVector{ss1, ss2}, 0);
+        auto concat = std::make_shared<op::v0::Concat>(NodeVector{ss1, ss2}, 0);
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{source});
         manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto source = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto source = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
 
-        auto begin1 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end1 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride1 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin1 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end1 = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride1 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask1 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask1 = {0, 0, 0, 0};
-        auto ss1 = std::make_shared<opset1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
+        auto ss1 = std::make_shared<op::v1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
 
-        auto concat = std::make_shared<opset1::Concat>(NodeVector{ss1, ss1}, 0);
+        auto concat = std::make_shared<op::v0::Concat>(NodeVector{ss1, ss1}, 0);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{source});
     }
@@ -231,56 +240,56 @@ TEST_F(TransformationTestsF, OptimizeSS_Shared_Test) {
 
 TEST_F(TransformationTestsF, OptimizeSS_NotShared_Test) {
     {
-        auto source = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 6, 5, 5});
+        auto source = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 6, 5, 5});
 
-        auto axis = opset1::Constant::create(element::i64, Shape{}, {1});
-        auto split = std::make_shared<opset1::Split>(source, axis, 2);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto split = std::make_shared<op::v1::Split>(source, axis, 2);
 
-        auto begin1 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end1 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride1 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin1 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end1 = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride1 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask1 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask1 = {0, 0, 0, 0};
         auto ss1 =
-            std::make_shared<opset1::StridedSlice>(split->output(0), begin1, end1, stride1, begin_mask1, end_mask1);
+            std::make_shared<op::v1::StridedSlice>(split->output(0), begin1, end1, stride1, begin_mask1, end_mask1);
 
-        auto begin2 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end2 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride2 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin2 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end2 = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride2 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask2 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask2 = {0, 0, 0, 0};
         auto ss2 =
-            std::make_shared<opset1::StridedSlice>(split->output(1), begin2, end2, stride2, begin_mask2, end_mask2);
+            std::make_shared<op::v1::StridedSlice>(split->output(1), begin2, end2, stride2, begin_mask2, end_mask2);
 
-        auto concat = std::make_shared<opset1::Concat>(NodeVector{ss1, ss2}, 0);
+        auto concat = std::make_shared<op::v0::Concat>(NodeVector{ss1, ss2}, 0);
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{source});
         manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto source = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 6, 5, 5});
+        auto source = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 6, 5, 5});
 
-        auto axis = opset1::Constant::create(element::i64, Shape{}, {1});
-        auto split = std::make_shared<opset1::Split>(source, axis, 2);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto split = std::make_shared<op::v1::Split>(source, axis, 2);
 
-        auto begin1 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end1 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride1 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin1 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end1 = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride1 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask1 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask1 = {0, 0, 0, 0};
         auto ss1 =
-            std::make_shared<opset1::StridedSlice>(split->output(0), begin1, end1, stride1, begin_mask1, end_mask1);
+            std::make_shared<op::v1::StridedSlice>(split->output(0), begin1, end1, stride1, begin_mask1, end_mask1);
 
-        auto begin2 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end2 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride2 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin2 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end2 = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride2 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask2 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask2 = {0, 0, 0, 0};
         auto ss2 =
-            std::make_shared<opset1::StridedSlice>(split->output(1), begin2, end2, stride2, begin_mask2, end_mask2);
+            std::make_shared<op::v1::StridedSlice>(split->output(1), begin2, end2, stride2, begin_mask2, end_mask2);
 
-        auto concat = std::make_shared<opset1::Concat>(NodeVector{ss1, ss2}, 0);
+        auto concat = std::make_shared<op::v0::Concat>(NodeVector{ss1, ss2}, 0);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{source});
     }
@@ -288,37 +297,37 @@ TEST_F(TransformationTestsF, OptimizeSS_NotShared_Test) {
 
 TEST_F(TransformationTestsF, OptimizeSS_Groupped_Test) {
     {
-        auto source = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto source = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
 
-        auto begin1 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end1 = opset1::Constant::create(element::i64, Shape{4}, {5, 3, 5, 5});
-        auto stride1 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin1 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end1 = op::v0::Constant::create(element::i64, Shape{4}, {5, 3, 5, 5});
+        auto stride1 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask1 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask1 = {0, 0, 0, 0};
-        auto ss1 = std::make_shared<opset1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
+        auto ss1 = std::make_shared<op::v1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
 
-        auto begin2 = opset1::Constant::create(element::i64, Shape{4}, {0, 3, 0, 0});
-        auto end2 = opset1::Constant::create(element::i64, Shape{4}, {5, 5, 5, 5});
-        auto stride2 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin2 = op::v0::Constant::create(element::i64, Shape{4}, {0, 3, 0, 0});
+        auto end2 = op::v0::Constant::create(element::i64, Shape{4}, {5, 5, 5, 5});
+        auto stride2 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask2 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask2 = {0, 0, 0, 0};
-        auto ss2 = std::make_shared<opset1::StridedSlice>(source, begin2, end2, stride2, begin_mask2, end_mask2);
+        auto ss2 = std::make_shared<op::v1::StridedSlice>(source, begin2, end2, stride2, begin_mask2, end_mask2);
 
-        auto concat = std::make_shared<opset1::Concat>(NodeVector{ss1, ss2}, 1);
+        auto concat = std::make_shared<op::v0::Concat>(NodeVector{ss1, ss2}, 1);
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{source});
         manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto source = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto source = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
 
-        auto axis = opset1::Constant::create(element::i64, Shape{}, {1});
-        auto split_sizes = opset1::Constant::create(element::i64, Shape{2}, {3, 2});
-        auto variadic_split = std::make_shared<opset1::VariadicSplit>(source, axis, split_sizes);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto split_sizes = op::v0::Constant::create(element::i64, Shape{2}, {3, 2});
+        auto variadic_split = std::make_shared<op::v1::VariadicSplit>(source, axis, split_sizes);
 
         auto concat =
-            std::make_shared<opset1::Concat>(OutputVector{variadic_split->output(0), variadic_split->output(1)}, 1);
+            std::make_shared<op::v0::Concat>(OutputVector{variadic_split->output(0), variadic_split->output(1)}, 1);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{source});
     }
@@ -326,16 +335,16 @@ TEST_F(TransformationTestsF, OptimizeSS_Groupped_Test) {
 
 TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_use_shapes_false) {
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
-        auto relu = std::make_shared<opset1::Relu>(data);
-        auto begin = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
 
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {1, 1, 1, 1};  // ignoring end -- slicing to the end
 
-        auto ss = std::make_shared<opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask);
+        auto ss = std::make_shared<op::v1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask);
 
         model = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{data});
         manager.register_pass<ov::pass::StridedSliceOptimization>(false);
@@ -346,39 +355,39 @@ TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_use_shapes_false) {
 
 TEST_F(TransformationTestsF, OptimizeSS_Shared_Test_use_shapes_false) {
     {
-        auto source = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto source = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
 
-        auto begin1 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end1 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride1 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin1 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end1 = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride1 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask1 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask1 = {0, 0, 0, 0};
-        auto ss1 = std::make_shared<opset1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
+        auto ss1 = std::make_shared<op::v1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
 
-        auto begin2 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end2 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride2 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin2 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end2 = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride2 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask2 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask2 = {0, 0, 0, 0};
-        auto ss2 = std::make_shared<opset1::StridedSlice>(source, begin2, end2, stride2, begin_mask2, end_mask2);
+        auto ss2 = std::make_shared<op::v1::StridedSlice>(source, begin2, end2, stride2, begin_mask2, end_mask2);
 
-        auto concat = std::make_shared<opset1::Concat>(NodeVector{ss1, ss2}, 0);
+        auto concat = std::make_shared<op::v0::Concat>(NodeVector{ss1, ss2}, 0);
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{source});
         manager.register_pass<ov::pass::StridedSliceOptimization>(false);
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto source = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto source = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
 
-        auto begin1 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end1 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride1 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin1 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end1 = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride1 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask1 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask1 = {0, 0, 0, 0};
-        auto ss1 = std::make_shared<opset1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
+        auto ss1 = std::make_shared<op::v1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
 
-        auto concat = std::make_shared<opset1::Concat>(NodeVector{ss1, ss1}, 0);
+        auto concat = std::make_shared<op::v0::Concat>(NodeVector{ss1, ss1}, 0);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{source});
     }
@@ -386,23 +395,23 @@ TEST_F(TransformationTestsF, OptimizeSS_Shared_Test_use_shapes_false) {
 
 TEST_F(TransformationTestsF, OptimizeSS_Groupped_Test_use_shapes_false) {
     {
-        auto source = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto source = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 5, 5, 5});
 
-        auto begin1 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end1 = opset1::Constant::create(element::i64, Shape{4}, {5, 3, 5, 5});
-        auto stride1 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin1 = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end1 = op::v0::Constant::create(element::i64, Shape{4}, {5, 3, 5, 5});
+        auto stride1 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask1 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask1 = {0, 0, 0, 0};
-        auto ss1 = std::make_shared<opset1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
+        auto ss1 = std::make_shared<op::v1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
 
-        auto begin2 = opset1::Constant::create(element::i64, Shape{4}, {0, 3, 0, 0});
-        auto end2 = opset1::Constant::create(element::i64, Shape{4}, {5, 5, 5, 5});
-        auto stride2 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto begin2 = op::v0::Constant::create(element::i64, Shape{4}, {0, 3, 0, 0});
+        auto end2 = op::v0::Constant::create(element::i64, Shape{4}, {5, 5, 5, 5});
+        auto stride2 = op::v0::Constant::create(element::i64, Shape{4}, {1});
         std::vector<int64_t> begin_mask2 = {0, 0, 0, 0};
         std::vector<int64_t> end_mask2 = {0, 0, 0, 0};
-        auto ss2 = std::make_shared<opset1::StridedSlice>(source, begin2, end2, stride2, begin_mask2, end_mask2);
+        auto ss2 = std::make_shared<op::v1::StridedSlice>(source, begin2, end2, stride2, begin_mask2, end_mask2);
 
-        auto concat = std::make_shared<opset1::Concat>(NodeVector{ss1, ss2}, 1);
+        auto concat = std::make_shared<op::v0::Concat>(NodeVector{ss1, ss2}, 1);
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{source});
         manager.register_pass<ov::pass::StridedSliceOptimization>(false);
@@ -413,27 +422,27 @@ TEST_F(TransformationTestsF, OptimizeSS_Groupped_Test_use_shapes_false) {
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_default_axes) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto begin = opset8::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset8::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto step = opset8::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto step = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data});
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto begin = opset8::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset8::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride = opset8::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
 
-        auto strided_slice = std::make_shared<opset8::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+        auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{data});
     }
@@ -443,28 +452,28 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_default_axes) {
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_axes_const_sorted_full) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto begin = opset8::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset8::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto step = opset8::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto step = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
 
-        auto axes = opset8::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
+        auto axes = op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data});
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
     }
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto begin = opset8::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset8::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto stride = opset8::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
 
-        auto strided_slice = std::make_shared<opset1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+        auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{data});
     }
@@ -474,28 +483,28 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_axes_const_sorted_full) {
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_all_const) {
     {
-        auto data = opset8::Constant::create(element::f32, Shape{4}, {2, 3, 4, 5});
-        auto begin = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto end = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto step = opset8::Constant::create(element::i64, Shape{1}, {1});
+        auto data = op::v0::Constant::create(element::f32, Shape{4}, {2, 3, 4, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto end = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto step = op::v0::Constant::create(element::i64, Shape{1}, {1});
 
-        auto axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
+        auto axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{});
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
-        auto data = opset8::Constant::create(element::f32, Shape{4}, {2, 3, 4, 5});
-        auto begin = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto end = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto stride = opset8::Constant::create(element::i64, Shape{1}, {1});
+        auto data = op::v0::Constant::create(element::f32, Shape{4}, {2, 3, 4, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto end = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto stride = op::v0::Constant::create(element::i64, Shape{1}, {1});
 
         std::vector<int64_t> begin_end_mask = {0};
         auto strided_slice =
-            std::make_shared<opset1::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
+            std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{});
     }
@@ -505,21 +514,21 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_all_const) {
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_all_const_fold) {
     {
-        auto data = opset8::Constant::create(element::f32, Shape{4}, {2, 3, 4, 5});
-        auto begin = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto end = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto step = opset8::Constant::create(element::i64, Shape{1}, {1});
+        auto data = op::v0::Constant::create(element::f32, Shape{4}, {2, 3, 4, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto end = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto step = op::v0::Constant::create(element::i64, Shape{1}, {1});
 
-        auto axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
+        auto axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{});
         manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto sliced_const = opset8::Constant::create(element::f32, Shape{2}, {3, 4});
+        auto sliced_const = op::v0::Constant::create(element::f32, Shape{2}, {3, 4});
         model_ref = std::make_shared<ov::Model>(NodeVector{sliced_const}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -528,39 +537,39 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_all_const_fold) {
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_sorted_less) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto end = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto step = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto step = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
 
-        auto axes = opset8::Constant::create(element::i64, Shape{2}, {1, 2});
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {1, 2});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto start = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto stop = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto step = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto start = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto stop = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto step = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
 
-        auto axes = opset8::Constant::create(element::i64, Shape{2}, {1, 2});
-        auto zero = opset8::Constant::create(element::i32, Shape{1}, {0});
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {1, 2});
+        auto zero = op::v0::Constant::create(element::i32, Shape{1}, {0});
 
-        const auto default_begin = opset8::Constant::create(element::i64, Shape{3}, {0});
-        const auto begin = std::make_shared<opset8::ScatterUpdate>(default_begin, axes, start, zero);
+        const auto default_begin = op::v0::Constant::create(element::i64, Shape{3}, {0});
+        const auto begin = std::make_shared<op::v3::ScatterUpdate>(default_begin, axes, start, zero);
 
-        const auto default_end = opset8::Constant::create(element::i64, Shape{3}, {0});
-        const auto end = std::make_shared<opset8::ScatterUpdate>(default_end, axes, stop, zero);
+        const auto default_end = op::v0::Constant::create(element::i64, Shape{3}, {0});
+        const auto end = std::make_shared<op::v3::ScatterUpdate>(default_end, axes, stop, zero);
 
-        const auto default_stride = opset8::Constant::create(element::i64, Shape{3}, {1});
-        const auto stride = std::make_shared<opset8::ScatterUpdate>(default_stride, axes, step, zero);
+        const auto default_stride = op::v0::Constant::create(element::i64, Shape{3}, {1});
+        const auto stride = std::make_shared<op::v3::ScatterUpdate>(default_stride, axes, step, zero);
         std::vector<int64_t> begin_end_mask = {1, 0, 0};
         auto strided_slice =
-            std::make_shared<opset1::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
+            std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{data, start, stop, step});
     }
@@ -570,40 +579,40 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_sorted_le
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_unsorted) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto end = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto step = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto step = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
 
-        auto axes = opset8::Constant::create(element::i64, Shape{2}, {3, 1});
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {3, 1});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto start = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto stop = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto step = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto start = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto stop = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto step = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
 
-        auto zero = opset8::Constant::create(element::i32, Shape{1}, {0});
-        auto axes = opset8::Constant::create(element::i64, Shape{2}, {3, 1});
+        auto zero = op::v0::Constant::create(element::i32, Shape{1}, {0});
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {3, 1});
 
-        const auto default_begin = opset8::Constant::create(element::i64, Shape{4}, {0});
-        const auto begin = std::make_shared<opset8::ScatterUpdate>(default_begin, axes, start, zero);
+        const auto default_begin = op::v0::Constant::create(element::i64, Shape{4}, {0});
+        const auto begin = std::make_shared<op::v3::ScatterUpdate>(default_begin, axes, start, zero);
 
-        const auto default_end = opset8::Constant::create(element::i64, Shape{4}, {0});
-        const auto end = std::make_shared<opset8::ScatterUpdate>(default_end, axes, stop, zero);
+        const auto default_end = op::v0::Constant::create(element::i64, Shape{4}, {0});
+        const auto end = std::make_shared<op::v3::ScatterUpdate>(default_end, axes, stop, zero);
 
-        const auto default_stride = opset8::Constant::create(element::i64, Shape{4}, {1});
-        const auto stride = std::make_shared<opset8::ScatterUpdate>(default_stride, axes, step, zero);
+        const auto default_stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
+        const auto stride = std::make_shared<op::v3::ScatterUpdate>(default_stride, axes, step, zero);
 
         std::vector<int64_t> begin_end_mask = {1, 0, 1, 0};
         auto strided_slice =
-            std::make_shared<opset8::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
+            std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{data, start, stop, step});
     }
@@ -613,29 +622,29 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_unsorted)
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_negative_sorted) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
-        auto end = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
-        auto step = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+        auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+        auto step = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
 
-        auto axes = opset8::Constant::create(element::i64, Shape{4}, {0, -3, 2, -1});
+        auto axes = op::v0::Constant::create(element::i64, Shape{4}, {0, -3, 2, -1});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
-        auto end = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
-        auto stride = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+        auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+        auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
 
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
 
-        auto strided_slice = std::make_shared<opset8::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+        auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{data, begin, end, stride});
     }
@@ -646,14 +655,14 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_negative_
 TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_dyn_shape_axes_const_negative_unsorted) {
     {
         auto data_shape = ov::PartialShape{ov::Dimension(-1), ov::Dimension(2, 6), 4, ov::Dimension(-1)};
-        auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
-        auto end = std::make_shared<opset8::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
-        auto step = std::make_shared<opset8::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
+        auto end = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
+        auto step = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
 
-        auto axes = opset1::Constant::create(element::i64, Shape{2}, {-1, -3});
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {-1, -3});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
@@ -661,26 +670,26 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_dyn_shape_axes_const
     }
     {
         auto data_shape = ov::PartialShape{ov::Dimension(-1), ov::Dimension(2, 6), 4, ov::Dimension(-1)};
-        auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
-        auto start = std::make_shared<opset8::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
-        auto stop = std::make_shared<opset8::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
-        auto step = std::make_shared<opset8::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto start = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
+        auto stop = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
+        auto step = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{ov::Dimension(-1)});
 
-        auto zero = opset8::Constant::create(element::i32, Shape{1}, {0});
-        auto axes = opset8::Constant::create(element::i64, Shape{2}, {3, 1});
+        auto zero = op::v0::Constant::create(element::i32, Shape{1}, {0});
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {3, 1});
 
-        const auto default_begin = opset8::Constant::create(element::i64, Shape{4}, {0});
-        const auto begin = std::make_shared<opset8::ScatterUpdate>(default_begin, axes, start, zero);
+        const auto default_begin = op::v0::Constant::create(element::i64, Shape{4}, {0});
+        const auto begin = std::make_shared<op::v3::ScatterUpdate>(default_begin, axes, start, zero);
 
-        const auto default_end = opset8::Constant::create(element::i64, Shape{4}, {0});
-        const auto end = std::make_shared<opset8::ScatterUpdate>(default_end, axes, stop, zero);
+        const auto default_end = op::v0::Constant::create(element::i64, Shape{4}, {0});
+        const auto end = std::make_shared<op::v3::ScatterUpdate>(default_end, axes, stop, zero);
 
-        const auto default_stride = opset8::Constant::create(element::i64, Shape{4}, {1});
-        const auto stride = std::make_shared<opset8::ScatterUpdate>(default_stride, axes, step, zero);
+        const auto default_stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
+        const auto stride = std::make_shared<op::v3::ScatterUpdate>(default_stride, axes, step, zero);
 
         std::vector<int64_t> begin_end_mask = {1, 0, 1, 0};
         auto strided_slice =
-            std::make_shared<opset8::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
+            std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{data, start, stop, step});
     }
@@ -690,40 +699,40 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_dyn_shape_axes_const
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_static_shape_axes_const_negative_unsorted) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto end = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto step = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto step = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
 
-        auto axes = opset1::Constant::create(element::i64, Shape{2}, {-1, -3});
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {-1, -3});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto start = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto stop = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
-        auto step = std::make_shared<opset8::Parameter>(element::i64, Shape{2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto start = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto stop = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+        auto step = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
 
-        auto zero = opset8::Constant::create(element::i32, Shape{1}, {0});
-        auto axes = opset8::Constant::create(element::i64, Shape{2}, {3, 1});
+        auto zero = op::v0::Constant::create(element::i32, Shape{1}, {0});
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {3, 1});
 
-        const auto default_begin = opset8::Constant::create(element::i64, Shape{4}, {0});
-        const auto begin = std::make_shared<opset8::ScatterUpdate>(default_begin, axes, start, zero);
+        const auto default_begin = op::v0::Constant::create(element::i64, Shape{4}, {0});
+        const auto begin = std::make_shared<op::v3::ScatterUpdate>(default_begin, axes, start, zero);
 
-        const auto default_end = opset8::Constant::create(element::i64, Shape{4}, {0});
-        const auto end = std::make_shared<opset8::ScatterUpdate>(default_end, axes, stop, zero);
+        const auto default_end = op::v0::Constant::create(element::i64, Shape{4}, {0});
+        const auto end = std::make_shared<op::v3::ScatterUpdate>(default_end, axes, stop, zero);
 
-        const auto default_stride = opset8::Constant::create(element::i64, Shape{4}, {1});
-        const auto stride = std::make_shared<opset8::ScatterUpdate>(default_stride, axes, step, zero);
+        const auto default_stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
+        const auto stride = std::make_shared<op::v3::ScatterUpdate>(default_stride, axes, step, zero);
 
         std::vector<int64_t> begin_end_mask = {1, 0, 1, 0};
         auto strided_slice =
-            std::make_shared<opset8::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
+            std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{data, start, stop, step});
     }
@@ -733,29 +742,29 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_static_shape_axes_co
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_dyn_rank_axes_const_positive) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, ov::PartialShape::dynamic());
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
-        auto end = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
-        auto step = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+        auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+        auto step = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
 
-        auto axes = opset8::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
+        auto axes = op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, ov::PartialShape::dynamic());
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
-        auto end = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
-        auto stride = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+        auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+        auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
 
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
 
-        auto strided_slice = std::make_shared<opset8::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+        auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{data, begin, end, stride});
     }
@@ -765,14 +774,14 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_dyn_rank_axes_const_positive) {
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_dyn_rank_axes_const_negative) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, ov::PartialShape::dynamic());
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
-        auto end = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
-        auto step = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+        auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+        auto step = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
 
-        auto axes = opset8::Constant::create(element::i64, Shape{4}, {0, -3, 2, -1});
+        auto axes = op::v0::Constant::create(element::i64, Shape{4}, {0, -3, 2, -1});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
         manager.register_pass<ov::pass::StridedSliceOptimization>();
@@ -783,14 +792,14 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_dyn_rank_axes_const_negative) {
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_axes_param) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
-        auto begin = opset8::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset8::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
-        auto step = opset8::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 4, 3, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto step = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
 
-        auto axes = std::make_shared<opset8::Parameter>(element::i64, Shape{4});
+        auto axes = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
 
-        auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, axes});
         manager.register_pass<ov::pass::StridedSliceOptimization>();
@@ -801,21 +810,21 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_axes_param) {
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_begin_param_shape_of_use_shapes_true) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 3, 4, 5});
-        auto shape_of_data = std::make_shared<opset8::ShapeOf>(data, element::i64);
-        auto data_rank = std::make_shared<opset8::ShapeOf>(shape_of_data, element::i64);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5});
+        auto shape_of_data = std::make_shared<op::v3::ShapeOf>(data, element::i64);
+        auto data_rank = std::make_shared<op::v3::ShapeOf>(shape_of_data, element::i64);
 
-        auto zero_const = opset8::Constant::create(element::i64, Shape{}, {0});
-        auto one_const = opset8::Constant::create(element::i64, Shape{}, {1});
-        auto three_const = opset8::Constant::create(element::i64, Shape{}, {3});
+        auto zero_const = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto one_const = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto three_const = op::v0::Constant::create(element::i64, Shape{}, {3});
 
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{1});
-        auto end = std::make_shared<opset8::Broadcast>(three_const, begin);
-        auto step = std::make_shared<opset8::Broadcast>(one_const, begin);
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
+        auto end = std::make_shared<op::v3::Broadcast>(three_const, begin);
+        auto step = std::make_shared<op::v3::Broadcast>(one_const, begin);
 
-        auto axes = std::make_shared<opset8::Range>(zero_const, one_const, one_const, element::i64);
+        auto axes = std::make_shared<op::v4::Range>(zero_const, one_const, one_const, element::i64);
 
-        auto slice = std::make_shared<opset8::Slice>(shape_of_data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(shape_of_data, begin, end, step, axes);
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin});
 
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
@@ -823,17 +832,17 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_begin_param_shape_of_use_shapes
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto one_const = opset8::Constant::create(element::i64, Shape{}, {1});
-        auto three_const = opset8::Constant::create(element::i64, Shape{}, {3});
+        auto one_const = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto three_const = op::v0::Constant::create(element::i64, Shape{}, {3});
 
-        auto data = opset8::Constant::create(element::i64, Shape{4}, {2, 3, 4, 5});
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{1});
-        auto end = std::make_shared<opset8::Broadcast>(three_const, begin);
-        auto stride = std::make_shared<opset8::Broadcast>(one_const, begin);
+        auto data = op::v0::Constant::create(element::i64, Shape{4}, {2, 3, 4, 5});
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
+        auto end = std::make_shared<op::v3::Broadcast>(three_const, begin);
+        auto stride = std::make_shared<op::v3::Broadcast>(one_const, begin);
 
         std::vector<int64_t> begin_end_mask = {0};
         auto strided_slice =
-            std::make_shared<opset1::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
+            std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{begin});
     }
@@ -843,21 +852,21 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_begin_param_shape_of_use_shapes
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_begin_param_shape_of_use_shapes_false) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 3, 4, 5});
-        auto shape_of_data = std::make_shared<opset8::ShapeOf>(data, element::i64);
-        auto data_rank = std::make_shared<opset8::ShapeOf>(shape_of_data, element::i64);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5});
+        auto shape_of_data = std::make_shared<op::v3::ShapeOf>(data, element::i64);
+        auto data_rank = std::make_shared<op::v3::ShapeOf>(shape_of_data, element::i64);
 
-        auto zero_const = opset8::Constant::create(element::i64, Shape{}, {0});
-        auto one_const = opset8::Constant::create(element::i64, Shape{}, {1});
-        auto three_const = opset8::Constant::create(element::i64, Shape{}, {3});
+        auto zero_const = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto one_const = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto three_const = op::v0::Constant::create(element::i64, Shape{}, {3});
 
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{1});
-        auto end = std::make_shared<opset8::Broadcast>(three_const, begin);
-        auto step = std::make_shared<opset8::Broadcast>(one_const, begin);
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
+        auto end = std::make_shared<op::v3::Broadcast>(three_const, begin);
+        auto step = std::make_shared<op::v3::Broadcast>(one_const, begin);
 
-        auto axes = std::make_shared<opset8::Range>(zero_const, one_const, one_const, element::i64);
+        auto axes = std::make_shared<op::v4::Range>(zero_const, one_const, one_const, element::i64);
 
-        auto slice = std::make_shared<opset8::Slice>(shape_of_data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(shape_of_data, begin, end, step, axes);
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin});
 
         manager.register_pass<pass::ConstantFolding>();
@@ -866,17 +875,17 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_begin_param_shape_of_use_shapes
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto one_const = opset8::Constant::create(element::i64, Shape{}, {1});
-        auto three_const = opset8::Constant::create(element::i64, Shape{}, {3});
+        auto one_const = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto three_const = op::v0::Constant::create(element::i64, Shape{}, {3});
 
-        auto data = opset8::Constant::create(element::i64, Shape{4}, {2, 3, 4, 5});
-        auto begin = std::make_shared<opset8::Parameter>(element::i64, Shape{1});
-        auto end = std::make_shared<opset8::Broadcast>(three_const, begin);
-        auto stride = std::make_shared<opset8::Broadcast>(one_const, begin);
+        auto data = op::v0::Constant::create(element::i64, Shape{4}, {2, 3, 4, 5});
+        auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
+        auto end = std::make_shared<op::v3::Broadcast>(three_const, begin);
+        auto stride = std::make_shared<op::v3::Broadcast>(one_const, begin);
 
         std::vector<int64_t> begin_end_mask = {0};
         auto strided_slice =
-            std::make_shared<opset1::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
+            std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_end_mask, begin_end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{begin});
     }
@@ -886,21 +895,21 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_begin_param_shape_of_use_shapes
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_const_fold_params_slice_shape_of_use_shapes_true) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 3, 4, 5});
-        auto shape_of_data = std::make_shared<opset8::ShapeOf>(data, element::i64);
-        auto data_rank = std::make_shared<opset8::ShapeOf>(shape_of_data, element::i64);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5});
+        auto shape_of_data = std::make_shared<op::v3::ShapeOf>(data, element::i64);
+        auto data_rank = std::make_shared<op::v3::ShapeOf>(shape_of_data, element::i64);
 
-        auto zero_const = opset8::Constant::create(element::i64, Shape{}, {0});
-        auto one_const = opset8::Constant::create(element::i64, Shape{}, {1});
-        auto three_const = opset8::Constant::create(element::i64, Shape{}, {3});
+        auto zero_const = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto one_const = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto three_const = op::v0::Constant::create(element::i64, Shape{}, {3});
 
-        auto begin = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto end = std::make_shared<opset8::Broadcast>(three_const, begin);
-        auto step = std::make_shared<opset8::Broadcast>(one_const, begin);
+        auto begin = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto end = std::make_shared<op::v3::Broadcast>(three_const, begin);
+        auto step = std::make_shared<op::v3::Broadcast>(one_const, begin);
 
-        auto axes = std::make_shared<opset8::Range>(zero_const, one_const, one_const, element::i64);
+        auto axes = std::make_shared<op::v4::Range>(zero_const, one_const, one_const, element::i64);
 
-        auto slice = std::make_shared<opset8::Slice>(shape_of_data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(shape_of_data, begin, end, step, axes);
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data});
 
         manager.register_pass<pass::ConstantFolding>();
@@ -908,7 +917,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_const_fold_params_slice_shape_o
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto sliced_const = opset8::Constant::create(element::i64, Shape{2}, {3, 4});
+        auto sliced_const = op::v0::Constant::create(element::i64, Shape{2}, {3, 4});
         model_ref = std::make_shared<ov::Model>(NodeVector{sliced_const}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -917,21 +926,21 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_const_fold_params_slice_shape_o
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_const_fold_params_slice_shape_of_use_shapes_false) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 3, 4, 5});
-        auto shape_of_data = std::make_shared<opset8::ShapeOf>(data, element::i64);
-        auto data_rank = std::make_shared<opset8::ShapeOf>(shape_of_data, element::i64);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5});
+        auto shape_of_data = std::make_shared<op::v3::ShapeOf>(data, element::i64);
+        auto data_rank = std::make_shared<op::v3::ShapeOf>(shape_of_data, element::i64);
 
-        auto zero_const = opset8::Constant::create(element::i64, Shape{}, {0});
-        auto one_const = opset8::Constant::create(element::i64, Shape{}, {1});
-        auto three_const = opset8::Constant::create(element::i64, Shape{}, {3});
+        auto zero_const = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto one_const = op::v0::Constant::create(element::i64, Shape{}, {1});
+        auto three_const = op::v0::Constant::create(element::i64, Shape{}, {3});
 
-        auto begin = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto end = std::make_shared<opset8::Broadcast>(three_const, begin);
-        auto step = std::make_shared<opset8::Broadcast>(one_const, begin);
+        auto begin = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto end = std::make_shared<op::v3::Broadcast>(three_const, begin);
+        auto step = std::make_shared<op::v3::Broadcast>(one_const, begin);
 
-        auto axes = std::make_shared<opset8::Range>(zero_const, one_const, one_const, element::i64);
+        auto axes = std::make_shared<op::v4::Range>(zero_const, one_const, one_const, element::i64);
 
-        auto slice = std::make_shared<opset8::Slice>(shape_of_data, begin, end, step, axes);
+        auto slice = std::make_shared<op::v8::Slice>(shape_of_data, begin, end, step, axes);
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data});
 
         manager.register_pass<pass::ConstantFolding>();
@@ -939,7 +948,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_const_fold_params_slice_shape_o
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto sliced_const = opset8::Constant::create(element::i64, Shape{2}, {3, 4});
+        auto sliced_const = op::v0::Constant::create(element::i64, Shape{2}, {3, 4});
         model_ref = std::make_shared<ov::Model>(NodeVector{sliced_const}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -948,20 +957,20 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_const_fold_params_slice_shape_o
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_slice_all_use_shapes_true) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 3, 4, 5});
-        auto relu = std::make_shared<opset8::Relu>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5});
+        auto relu = std::make_shared<op::v0::Relu>(data);
 
-        auto shape_of_data = std::make_shared<opset8::ShapeOf>(relu, element::i64);
-        auto data_rank = std::make_shared<opset8::ShapeOf>(shape_of_data, element::i64);
+        auto shape_of_data = std::make_shared<op::v3::ShapeOf>(relu, element::i64);
+        auto data_rank = std::make_shared<op::v3::ShapeOf>(shape_of_data, element::i64);
 
-        auto zero_const = opset8::Constant::create(element::i64, Shape{}, {0});
-        auto one_const = opset8::Constant::create(element::i64, Shape{}, {1});
+        auto zero_const = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto one_const = op::v0::Constant::create(element::i64, Shape{}, {1});
 
-        auto begin = std::make_shared<opset8::Broadcast>(zero_const, data_rank);
-        auto end = std::make_shared<opset8::Broadcast>(data_rank, data_rank);
-        auto step = std::make_shared<opset8::Broadcast>(one_const, data_rank);
+        auto begin = std::make_shared<op::v3::Broadcast>(zero_const, data_rank);
+        auto end = std::make_shared<op::v3::Broadcast>(data_rank, data_rank);
+        auto step = std::make_shared<op::v3::Broadcast>(one_const, data_rank);
 
-        auto slice = std::make_shared<opset8::Slice>(relu, begin, end, step);
+        auto slice = std::make_shared<op::v8::Slice>(relu, begin, end, step);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data});
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
@@ -969,16 +978,16 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_slice_all_use_shapes_true) {
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 3, 4, 5});
-        auto relu = std::make_shared<opset8::Relu>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5});
+        auto relu = std::make_shared<op::v0::Relu>(data);
 
-        auto begin = opset8::Constant::create(element::i64, Shape{4}, {0});
-        auto end = opset8::Constant::create(element::i64, Shape{4}, {4});
-        auto stride = opset8::Constant::create(element::i64, Shape{4}, {1});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {4});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
 
         std::vector<int64_t> begin_end_mask = {0, 0, 0, 0};
         auto strided_slice =
-            std::make_shared<opset8::StridedSlice>(relu, begin, end, stride, begin_end_mask, begin_end_mask);
+            std::make_shared<op::v1::StridedSlice>(relu, begin, end, stride, begin_end_mask, begin_end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{data});
     }
@@ -988,20 +997,20 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_slice_all_use_shapes_true) {
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_slice_all_use_shapes_false) {
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 3, 4, 5});
-        auto relu = std::make_shared<opset8::Relu>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5});
+        auto relu = std::make_shared<op::v0::Relu>(data);
 
-        auto shape_of_data = std::make_shared<opset8::ShapeOf>(relu, element::i64);
-        auto data_rank = std::make_shared<opset8::ShapeOf>(shape_of_data, element::i64);
+        auto shape_of_data = std::make_shared<op::v3::ShapeOf>(relu, element::i64);
+        auto data_rank = std::make_shared<op::v3::ShapeOf>(shape_of_data, element::i64);
 
-        auto zero_const = opset8::Constant::create(element::i64, Shape{}, {0});
-        auto one_const = opset8::Constant::create(element::i64, Shape{}, {1});
+        auto zero_const = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto one_const = op::v0::Constant::create(element::i64, Shape{}, {1});
 
-        auto begin = std::make_shared<opset8::Broadcast>(zero_const, data_rank);
-        auto end = std::make_shared<opset8::Broadcast>(data_rank, data_rank);
-        auto step = std::make_shared<opset8::Broadcast>(one_const, data_rank);
+        auto begin = std::make_shared<op::v3::Broadcast>(zero_const, data_rank);
+        auto end = std::make_shared<op::v3::Broadcast>(data_rank, data_rank);
+        auto step = std::make_shared<op::v3::Broadcast>(one_const, data_rank);
 
-        auto slice = std::make_shared<opset8::Slice>(relu, begin, end, step);
+        auto slice = std::make_shared<op::v8::Slice>(relu, begin, end, step);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data});
         manager.register_pass<ov::pass::SliceToStridedSlice>(false);
@@ -1009,16 +1018,16 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_slice_all_use_shapes_false) {
         manager.register_pass<pass::ConstantFolding>();
     }
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 3, 4, 5});
-        auto relu = std::make_shared<opset8::Relu>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5});
+        auto relu = std::make_shared<op::v0::Relu>(data);
 
-        auto begin = opset8::Constant::create(element::i64, Shape{4}, {0});
-        auto end = opset8::Constant::create(element::i64, Shape{4}, {4});
-        auto stride = opset8::Constant::create(element::i64, Shape{4}, {1});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {4});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
 
         std::vector<int64_t> begin_end_mask = {0, 0, 0, 0};
         auto strided_slice =
-            std::make_shared<opset8::StridedSlice>(relu, begin, end, stride, begin_end_mask, begin_end_mask);
+            std::make_shared<op::v1::StridedSlice>(relu, begin, end, stride, begin_end_mask, begin_end_mask);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{strided_slice}, ParameterVector{data});
     }
@@ -1050,8 +1059,8 @@ ov::OutputVector make_vsplit(const ov::Output<ov::Node>& out,
 
 TEST_F(TransformationTestsF, GroupedSliceToVSplit) {
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, -1, -1});
-        auto relu = std::make_shared<ov::opset8::Relu>(data);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, -1, -1});
+        auto relu = std::make_shared<ov::op::v0::Relu>(data);
 
         auto slice_0 = make_slice(relu, 0, 1, 1, -3);
         auto slice_1 = make_slice(relu, 1, 2, 1, 1);
@@ -1063,8 +1072,8 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplit) {
         manager.register_pass<ov::pass::GroupedSliceToVSplitOptimization>();
     }
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, -1, -1});
-        auto relu = std::make_shared<ov::opset8::Relu>(data);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, -1, -1});
+        auto relu = std::make_shared<ov::op::v0::Relu>(data);
 
         auto vsplit = make_vsplit(relu, 1, {1, 1, 1});
 
@@ -1076,8 +1085,8 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplit) {
 
 TEST_F(TransformationTestsF, GroupedSliceToVSplitChained) {
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 10, -1, -1});
-        auto relu = std::make_shared<ov::opset8::Relu>(data);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 10, -1, -1});
+        auto relu = std::make_shared<ov::op::v0::Relu>(data);
 
         // dimension == 10 on axis == 1 aka -3
 
@@ -1116,8 +1125,8 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitChained) {
         manager.register_pass<ov::pass::GroupedSliceToVSplitOptimization>();
     }
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 10, -1, -1});
-        auto relu = std::make_shared<ov::opset8::Relu>(data);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 10, -1, -1});
+        auto relu = std::make_shared<ov::op::v0::Relu>(data);
 
         auto vsplit = make_vsplit(relu, 1, {3, 4, 3});
 
@@ -1162,8 +1171,8 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitChained) {
 
 TEST_F(TransformationTestsF, GroupedSliceToVSplitSameSourceDifferentAxis) {
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, 10, -1});
-        auto relu = std::make_shared<ov::opset8::Relu>(data);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, 10, -1});
+        auto relu = std::make_shared<ov::op::v0::Relu>(data);
 
         // axis == 1 aka -3
         auto slice_0 = make_slice(relu, 0, 1, 1, -3);
@@ -1182,8 +1191,8 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitSameSourceDifferentAxis) {
         manager.register_pass<ov::pass::GroupedSliceToVSplitOptimization>();
     }
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, 10, -1});
-        auto relu = std::make_shared<ov::opset8::Relu>(data);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3, 10, -1});
+        auto relu = std::make_shared<ov::op::v0::Relu>(data);
 
         auto vsplit_0 = make_vsplit(relu, 1, {1, 2});
         auto slice_0 = vsplit_0[0];
@@ -1204,8 +1213,8 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitSameSourceDifferentAxis) {
 
 TEST_F(TransformationTestsF, GroupedSliceToVSplitNegativeStartStop) {
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 5, -1, -1});
-        auto relu = std::make_shared<ov::opset8::Relu>(data);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 5, -1, -1});
+        auto relu = std::make_shared<ov::op::v0::Relu>(data);
 
         auto slice_0 = make_slice(relu, -50, 1, 1, -3);
         auto slice_1 = make_slice(relu, -4, -2, 1, 1);
@@ -1217,8 +1226,8 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitNegativeStartStop) {
         manager.register_pass<ov::pass::GroupedSliceToVSplitOptimization>();
     }
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 5, -1, -1});
-        auto relu = std::make_shared<ov::opset8::Relu>(data);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 5, -1, -1});
+        auto relu = std::make_shared<ov::op::v0::Relu>(data);
 
         auto vsplit = make_vsplit(relu, 1, {1, 2, 2});
 
@@ -1232,7 +1241,7 @@ TEST_F(TransformationTestsF, SliceSequenceToSingleSlice) {
     auto data_pshape = ov::PartialShape{10, 5, 5, 10};
     auto data_type = ov::element::f32;
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(data_type, data_pshape);
+        auto data = std::make_shared<ov::op::v0::Parameter>(data_type, data_pshape);
 
         auto slice_0 = make_slice(data, 1, 10, 1, 0);
         auto slice_1 = make_slice(slice_0, -1, 1, -1, 1);
@@ -1242,7 +1251,7 @@ TEST_F(TransformationTestsF, SliceSequenceToSingleSlice) {
         manager.register_pass<ov::pass::SliceSequenceToSingleSlice>();
     }
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(data_type, data_pshape);
+        auto data = std::make_shared<ov::op::v0::Parameter>(data_type, data_pshape);
         auto slice = std::make_shared<ov::op::v8::Slice>(
             data,
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, -7}),
@@ -1257,11 +1266,11 @@ TEST_F(TransformationTestsF, SliceSequenceToSingleSliceStartAsParameter) {
     auto data_pshape = ov::PartialShape{10, 5, 5, 10};
     auto data_type = ov::element::f32;
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(data_type, data_pshape);
+        auto data = std::make_shared<ov::op::v0::Parameter>(data_type, data_pshape);
 
-        auto start_0 = std::make_shared<ov::opset8::Parameter>(element::i64, ov::PartialShape{1});
-        auto start_1 = std::make_shared<ov::opset8::Parameter>(element::i64, ov::PartialShape{1});
-        auto start_2 = std::make_shared<ov::opset8::Parameter>(element::i64, ov::PartialShape{1});
+        auto start_0 = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::PartialShape{1});
+        auto start_1 = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::PartialShape{1});
+        auto start_2 = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::PartialShape{1});
         auto slice_0 =
             std::make_shared<ov::op::v8::Slice>(data,
                                                 start_0,
@@ -1288,12 +1297,12 @@ TEST_F(TransformationTestsF, SliceSequenceToSingleSliceStartAsParameter) {
         manager.register_pass<ov::pass::SliceSequenceToSingleSlice>();
     }
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(data_type, data_pshape);
-        auto start_0 = std::make_shared<ov::opset8::Parameter>(element::i64, ov::PartialShape{1});
-        auto start_1 = std::make_shared<ov::opset8::Parameter>(element::i64, ov::PartialShape{1});
-        auto start_2 = std::make_shared<ov::opset8::Parameter>(element::i64, ov::PartialShape{1});
-        auto concat_0_1 = std::make_shared<ov::opset8::Concat>(OutputVector{start_0, start_1}, 0);
-        auto concat_1_2 = std::make_shared<ov::opset8::Concat>(OutputVector{concat_0_1, start_2}, 0);
+        auto data = std::make_shared<ov::op::v0::Parameter>(data_type, data_pshape);
+        auto start_0 = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::PartialShape{1});
+        auto start_1 = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::PartialShape{1});
+        auto start_2 = std::make_shared<ov::op::v0::Parameter>(element::i64, ov::PartialShape{1});
+        auto concat_0_1 = std::make_shared<ov::op::v0::Concat>(OutputVector{start_0, start_1}, 0);
+        auto concat_1_2 = std::make_shared<ov::op::v0::Concat>(OutputVector{concat_0_1, start_2}, 0);
         auto slice = std::make_shared<ov::op::v8::Slice>(
             data,
             concat_1_2,

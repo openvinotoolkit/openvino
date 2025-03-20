@@ -9,11 +9,20 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset5.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace ov;
 
@@ -74,13 +83,13 @@ protected:
 
         std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
         {
-            const auto data = std::make_shared<opset1::Parameter>(data_prec, PartialShape(data_shape));
-            const auto il = std::make_shared<opset1::Constant>(ranges_prec, il_shape, input_ranges_values.first);
-            const auto ih = std::make_shared<opset1::Constant>(ranges_prec, ih_shape, input_ranges_values.second);
-            const auto ol = std::make_shared<opset1::Constant>(ranges_prec, ol_shape);
-            const auto oh = std::make_shared<opset1::Constant>(ranges_prec, oh_shape);
+            const auto data = std::make_shared<op::v0::Parameter>(data_prec, PartialShape(data_shape));
+            const auto il = std::make_shared<op::v0::Constant>(ranges_prec, il_shape, input_ranges_values.first);
+            const auto ih = std::make_shared<op::v0::Constant>(ranges_prec, ih_shape, input_ranges_values.second);
+            const auto ol = std::make_shared<op::v0::Constant>(ranges_prec, ol_shape);
+            const auto oh = std::make_shared<op::v0::Constant>(ranges_prec, oh_shape);
 
-            const auto fq = std::make_shared<opset1::FakeQuantize>(data, il, ih, ol, oh, levels);
+            const auto fq = std::make_shared<op::v0::FakeQuantize>(data, il, ih, ol, oh, levels);
             f = std::make_shared<ov::Model>(NodeVector{fq}, ParameterVector{data});
 
             pass::Manager manager;
@@ -92,49 +101,49 @@ protected:
         }
 
         {
-            auto input_data = std::make_shared<opset1::Parameter>(data_prec, PartialShape(data_shape));
+            auto input_data = std::make_shared<op::v0::Parameter>(data_prec, PartialShape(data_shape));
             ParameterVector params;
             params.push_back(input_data);
             std::shared_ptr<Node> data = input_data;
-            const auto il = std::make_shared<opset1::Constant>(ranges_prec, il_shape, input_ranges_values.first);
-            const auto ih = std::make_shared<opset1::Constant>(ranges_prec, ih_shape, input_ranges_values.second);
-            const auto ol = std::make_shared<opset1::Constant>(ranges_prec, ol_shape);
-            const auto oh = std::make_shared<opset1::Constant>(ranges_prec, oh_shape);
+            const auto il = std::make_shared<op::v0::Constant>(ranges_prec, il_shape, input_ranges_values.first);
+            const auto ih = std::make_shared<op::v0::Constant>(ranges_prec, ih_shape, input_ranges_values.second);
+            const auto ol = std::make_shared<op::v0::Constant>(ranges_prec, ol_shape);
+            const auto oh = std::make_shared<op::v0::Constant>(ranges_prec, oh_shape);
 
             if (should_be_decompos) {
                 if (need_convert) {
-                    data = std::make_shared<opset1::Convert>(data, ranges_prec);
+                    data = std::make_shared<op::v0::Convert>(data, ranges_prec);
                 }
 
-                const auto max = std::make_shared<opset1::Maximum>(data, il);
-                const auto min = std::make_shared<opset1::Minimum>(max, ih);
+                const auto max = std::make_shared<op::v1::Maximum>(data, il);
+                const auto min = std::make_shared<op::v1::Minimum>(max, ih);
 
-                const auto levels_minus_one = std::make_shared<opset1::Constant>(ranges_prec, Shape{}, levels - 1);
+                const auto levels_minus_one = std::make_shared<op::v0::Constant>(ranges_prec, Shape{}, levels - 1);
 
-                const auto sub_in_high_low = std::make_shared<opset1::Subtract>(ih, il);
-                const auto isc = std::make_shared<opset1::Divide>(levels_minus_one, sub_in_high_low);
-                const auto ish = std::make_shared<opset1::Multiply>(il, isc);
+                const auto sub_in_high_low = std::make_shared<op::v1::Subtract>(ih, il);
+                const auto isc = std::make_shared<op::v1::Divide>(levels_minus_one, sub_in_high_low);
+                const auto ish = std::make_shared<op::v1::Multiply>(il, isc);
 
-                const auto after_isc_apply = std::make_shared<opset1::Multiply>(min, isc);
-                const auto after_ish_apply = std::make_shared<opset1::Subtract>(after_isc_apply, ish);
+                const auto after_isc_apply = std::make_shared<op::v1::Multiply>(min, isc);
+                const auto after_ish_apply = std::make_shared<op::v1::Subtract>(after_isc_apply, ish);
 
                 const auto round =
-                    std::make_shared<opset5::Round>(after_ish_apply, opset5::Round::RoundMode::HALF_TO_EVEN);
+                    std::make_shared<op::v5::Round>(after_ish_apply, op::v5::Round::RoundMode::HALF_TO_EVEN);
 
-                const auto sub_out_high_low = std::make_shared<opset1::Subtract>(oh, ol);
-                const auto osc = std::make_shared<opset1::Divide>(sub_out_high_low, levels_minus_one);
+                const auto sub_out_high_low = std::make_shared<op::v1::Subtract>(oh, ol);
+                const auto osc = std::make_shared<op::v1::Divide>(sub_out_high_low, levels_minus_one);
 
-                const auto after_osc_apply = std::make_shared<opset1::Multiply>(round, osc);
-                const auto after_out_low_add = std::make_shared<opset1::Add>(after_osc_apply, ol);
+                const auto after_osc_apply = std::make_shared<op::v1::Multiply>(round, osc);
+                const auto after_out_low_add = std::make_shared<op::v1::Add>(after_osc_apply, ol);
                 std::shared_ptr<Node> result = after_out_low_add;
 
                 if (need_convert) {
-                    result = std::make_shared<opset1::Convert>(result, data_prec);
+                    result = std::make_shared<op::v0::Convert>(result, data_prec);
                 }
 
                 f_ref = std::make_shared<ov::Model>(NodeVector{result}, params);
             } else {
-                const auto fq = std::make_shared<opset1::FakeQuantize>(data, il, ih, ol, oh, levels);
+                const auto fq = std::make_shared<op::v0::FakeQuantize>(data, il, ih, ol, oh, levels);
                 f_ref = std::make_shared<ov::Model>(NodeVector{fq}, params);
             }
         }

@@ -13,9 +13,13 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace {
 using namespace testing;
@@ -39,25 +43,25 @@ public:
     void SetUp() override {
         const auto values = GetParam();
         {
-            auto input0 = std::make_shared<opset6::Parameter>(element::f32, values.inputPartialShape);
-            auto shape_reshape_before = opset6::Constant::create(element::i64,
+            auto input0 = std::make_shared<op::v0::Parameter>(element::f32, values.inputPartialShape);
+            auto shape_reshape_before = op::v0::Constant::create(element::i64,
                                                                  Shape{values.reshape_before_val.size()},
                                                                  values.reshape_before_val);
             auto permutation =
-                opset6::Constant::create(element::i64, Shape{values.transpose_val.size()}, values.transpose_val);
-            auto shape_reshape_after = opset6::Constant::create(element::i64,
+                op::v0::Constant::create(element::i64, Shape{values.transpose_val.size()}, values.transpose_val);
+            auto shape_reshape_after = op::v0::Constant::create(element::i64,
                                                                 Shape{values.reshape_after_val.size()},
                                                                 values.reshape_after_val);
 
-            auto reshape_before = std::make_shared<opset6::Reshape>(input0, shape_reshape_before, true);
-            auto permute = std::make_shared<opset6::Transpose>(reshape_before, permutation);
-            auto reshape_after = std::make_shared<opset6::Reshape>(permute, shape_reshape_after, true);
+            auto reshape_before = std::make_shared<op::v1::Reshape>(input0, shape_reshape_before, true);
+            auto permute = std::make_shared<op::v1::Transpose>(reshape_before, permutation);
+            auto reshape_after = std::make_shared<op::v1::Reshape>(permute, shape_reshape_after, true);
             f = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input0});
         }
 
         if (values.fuse_happened == FuseHappened::YES) {
-            auto input0 = std::make_shared<opset6::Parameter>(element::f32, values.inputPartialShape);
-            auto shuffle_channels = std::make_shared<opset6::ShuffleChannels>(input0, 1, values.reshape_before_val[1]);
+            auto input0 = std::make_shared<op::v0::Parameter>(element::f32, values.inputPartialShape);
+            auto shuffle_channels = std::make_shared<op::v0::ShuffleChannels>(input0, 1, values.reshape_before_val[1]);
             f_ref = std::make_shared<ov::Model>(NodeVector{shuffle_channels}, ParameterVector{input0});
         } else {
             f_ref = f;

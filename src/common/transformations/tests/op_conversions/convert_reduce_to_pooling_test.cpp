@@ -16,10 +16,18 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/split.hpp"
 using namespace ov;
 using namespace testing;
 
@@ -61,12 +69,12 @@ public:
                                                            const std::vector<int64_t>& axes,
                                                            const ReduceType& reduce_type,
                                                            const bool keep_dims) {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, input_shape);
-        auto axes_const = opset1::Constant::create(element::i64, Shape{axes.size()}, axes);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+        auto axes_const = op::v0::Constant::create(element::i64, Shape{axes.size()}, axes);
 
-        auto split_axis_const = opset1::Constant::create(element::i64, Shape{}, {0});
-        auto split = std::make_shared<opset1::Split>(input, split_axis_const, 2);
-        auto reduce = std::make_shared<opset1::ReduceMax>(split->output(0), axes_const, keep_dims);
+        auto split_axis_const = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis_const, 2);
+        auto reduce = std::make_shared<op::v1::ReduceMax>(split->output(0), axes_const, keep_dims);
         // TODO: need to add set_keep_dims method to Reduce ops and line above will be replaced with
         // reduce = reduce_type->copy_with_new_inputs({input, axes_const});
         // reduce->set_keep_dims(keep_dims);
@@ -77,32 +85,32 @@ public:
     static std::shared_ptr<ov::Model> get_reference_function(const PartialShape& input_shape,
                                                              const ReduceType& reduce,
                                                              const ReduceToPoolParams& params) {
-        auto param = std::make_shared<opset1::Parameter>(element::f32, input_shape);
+        auto param = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
 
         Output<Node> input = param->output(0);
 
-        auto split_axis_const = opset1::Constant::create(element::i64, Shape{}, {0});
-        auto split = std::make_shared<opset1::Split>(input, split_axis_const, 2);
+        auto split_axis_const = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto split = std::make_shared<op::v1::Split>(input, split_axis_const, 2);
         input = split->output(0);
 
         if (!params.reshape_begin.empty()) {
-            input = std::make_shared<opset1::Reshape>(
+            input = std::make_shared<op::v1::Reshape>(
                 input,
-                opset1::Constant::create(element::i64, Shape{params.reshape_begin.size()}, params.reshape_begin),
+                op::v0::Constant::create(element::i64, Shape{params.reshape_begin.size()}, params.reshape_begin),
                 false);
         }
 
         if (!params.pooling_kernel.empty()) {
-            if (reduce->get_type_info() == opset1::ReduceMax::get_type_info_static()) {
-                input = std::make_shared<opset1::MaxPool>(input,
+            if (reduce->get_type_info() == op::v1::ReduceMax::get_type_info_static()) {
+                input = std::make_shared<op::v1::MaxPool>(input,
                                                           Strides{1, 1},
                                                           Shape{0, 0},
                                                           Shape{0, 0},
                                                           params.pooling_kernel,
                                                           op::RoundingType::FLOOR /*any*/);
-            } else if (reduce->get_type_info() == opset1::ReduceMean::get_type_info_static() ||
-                       reduce->get_type_info() == opset1::ReduceSum::get_type_info_static()) {
-                input = std::make_shared<opset1::AvgPool>(input,
+            } else if (reduce->get_type_info() == op::v1::ReduceMean::get_type_info_static() ||
+                       reduce->get_type_info() == op::v1::ReduceSum::get_type_info_static()) {
+                input = std::make_shared<op::v1::AvgPool>(input,
                                                           Strides{1, 1},
                                                           Shape{0, 0},
                                                           Shape{0, 0},
@@ -120,9 +128,9 @@ public:
         ov::Shape reshape_end(params.reshape_end.begin(), params.reshape_end.end());
 
         if (reshape_end != input.get_shape()) {
-            input = std::make_shared<opset1::Reshape>(
+            input = std::make_shared<op::v1::Reshape>(
                 input,
-                opset1::Constant::create(element::i64, Shape{reshape_end.size()}, reshape_end),
+                op::v0::Constant::create(element::i64, Shape{reshape_end.size()}, reshape_end),
                 true);
         }
 
@@ -146,7 +154,7 @@ TEST_P(ConvertReduceToPoolingTests, CompareFunctions) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-#define MAX std::make_shared<opset1::ReduceMax>()
+#define MAX std::make_shared<op::v1::ReduceMax>()
 
 INSTANTIATE_TEST_SUITE_P(ReduceToMaxPooling,
                          ConvertReduceToPoolingTests,

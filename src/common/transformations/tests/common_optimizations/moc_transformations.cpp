@@ -12,19 +12,24 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace ov::opset12;
 
 TEST(TransformationTests, TestModelTensorsConsistencyUseShapesTrue) {
-    auto input = std::make_shared<opset12::Parameter>(element::f32, Shape{1});
-    auto const1 = opset12::Constant::create(element::f32, Shape{1}, {1});
-    auto const2 = opset12::Constant::create(element::f32, Shape{1}, {2});
-    auto const3 = opset12::Constant::create(element::f32, Shape{1}, {3});
-    auto add1 = std::make_shared<opset12::Add>(input, const1);
-    auto add2 = std::make_shared<opset12::Add>(add1, const2);
-    auto add3 = std::make_shared<opset12::Add>(add2, const3);
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto const1 = op::v0::Constant::create(element::f32, Shape{1}, {1});
+    auto const2 = op::v0::Constant::create(element::f32, Shape{1}, {2});
+    auto const3 = op::v0::Constant::create(element::f32, Shape{1}, {3});
+    auto add1 = std::make_shared<op::v1::Add>(input, const1);
+    auto add2 = std::make_shared<op::v1::Add>(add1, const2);
+    auto add3 = std::make_shared<op::v1::Add>(add2, const3);
 
     auto model = std::make_shared<Model>(NodeVector{add3}, ParameterVector{input});
     ov::pass::Manager m;
@@ -40,29 +45,29 @@ TEST(TransformationTests, TestModelTensorsConsistencyUseShapesTrue) {
 }
 
 TEST(TransformationTests, MOCConvertElimination) {
-    auto input = std::make_shared<opset12::Parameter>(element::f32, Shape{1});
-    auto const_val = opset12::Constant::create(element::f32, Shape{1}, {2});
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto const_val = op::v0::Constant::create(element::f32, Shape{1}, {2});
 
-    auto add1 = std::make_shared<opset12::Add>(input, const_val);
-    auto convert_fp32 = std::make_shared<opset12::Convert>(const_val, element::f32);
-    auto mul = std::make_shared<opset12::MatMul>(add1, convert_fp32);
+    auto add1 = std::make_shared<op::v1::Add>(input, const_val);
+    auto convert_fp32 = std::make_shared<op::v0::Convert>(const_val, element::f32);
+    auto mul = std::make_shared<op::v0::MatMul>(add1, convert_fp32);
 
     auto model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input});
     ov::pass::Manager m;
     m.register_pass<ov::pass::MOCTransformations>(false);
     m.run_passes(model);
 
-    EXPECT_EQ(count_ops_of_type<opset12::Constant>(model), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(model), 1);
 }
 
 TEST(TransformationTests, TestModelTensorsConsistencyUseShapesFalse) {
-    auto input = std::make_shared<opset12::Parameter>(element::f32, Shape{1});
-    auto const1 = opset12::Constant::create(element::f32, Shape{1}, {1});
-    auto const2 = opset12::Constant::create(element::f32, Shape{1}, {2});
-    auto const3 = opset12::Constant::create(element::f32, Shape{1}, {3});
-    auto add1 = std::make_shared<opset12::Add>(input, const1);
-    auto add2 = std::make_shared<opset12::Add>(add1, const2);
-    auto add3 = std::make_shared<opset12::Add>(add2, const3);
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto const1 = op::v0::Constant::create(element::f32, Shape{1}, {1});
+    auto const2 = op::v0::Constant::create(element::f32, Shape{1}, {2});
+    auto const3 = op::v0::Constant::create(element::f32, Shape{1}, {3});
+    auto add1 = std::make_shared<op::v1::Add>(input, const1);
+    auto add2 = std::make_shared<op::v1::Add>(add1, const2);
+    auto add3 = std::make_shared<op::v1::Add>(add2, const3);
 
     auto model = std::make_shared<Model>(NodeVector{add3}, ParameterVector{input});
     ov::pass::Manager m;

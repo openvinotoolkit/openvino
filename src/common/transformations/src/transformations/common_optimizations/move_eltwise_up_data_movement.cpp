@@ -6,15 +6,24 @@
 
 #include <algorithm>
 #include <memory>
-#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/reverse_sequence.hpp"
+#include "openvino/op/roll.hpp"
+#include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -30,7 +39,7 @@ bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node,
 }
 
 bool is_scalar_like(const std::shared_ptr<ov::Node>& node) {
-    auto constant_op = ov::as_type_ptr<ov::opset8::Constant>(node);
+    auto constant_op = ov::as_type_ptr<ov::op::v0::Constant>(node);
     return constant_op != nullptr && shape_size(constant_op->get_shape()) == 1;
 }
 }  // namespace
@@ -100,9 +109,9 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
         // eltwise constant shape should match new input shape
         for (size_t i = 1; i < eltwise->get_input_size(); i++) {
             if (current->get_output_partial_shape(0).size() != eltwise->get_input_partial_shape(i).size()) {
-                auto old_eltwise_const = ov::as_type_ptr<ov::opset8::Constant>(eltwise->get_input_node_shared_ptr(i));
+                auto old_eltwise_const = ov::as_type_ptr<ov::op::v0::Constant>(eltwise->get_input_node_shared_ptr(i));
                 if (old_eltwise_const->get_shape().size() != 0) {
-                    auto new_constant = std::make_shared<ov::opset8::Constant>(*old_eltwise_const.get(), ov::Shape{});
+                    auto new_constant = std::make_shared<ov::op::v0::Constant>(*old_eltwise_const.get(), ov::Shape{});
                     ov::replace_node_update_name(old_eltwise_const, new_constant);
                 }
             }
@@ -135,7 +144,7 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
     MATCHER_SCOPE(MoveEltwiseUpThroughDataMovPerChannel);
 
     auto const_predicate = [](const ov::Output<ov::Node>& output) {
-        auto constant_op = ov::as_type_ptr<ov::opset8::Constant>(output.get_node_shared_ptr());
+        auto constant_op = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
         if (!constant_op)
             return false;
 

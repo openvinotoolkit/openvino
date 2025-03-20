@@ -9,10 +9,11 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset15.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/squeeze.hpp"
 using namespace ov;
 using namespace testing;
 
@@ -24,20 +25,20 @@ std::shared_ptr<ov::Model> create_v15_model(const IndicesMode indices_mode,
                                             const std::vector<int> indices_const_val,
                                             const bool allow_axis_skip) {
     const PartialShape data_shape{-1, {2, 5}, 1, {1, 5}, 4};
-    const auto& data = std::make_shared<ov::opset15::Parameter>(ov::element::f32, data_shape);
+    const auto& data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, data_shape);
     ov::ParameterVector params = {data};
     std::shared_ptr<op::v15::Squeeze> squeeze;
     if (indices_mode == IndicesMode::NONE) {
-        squeeze = std::make_shared<ov::opset15::Squeeze>(data, allow_axis_skip);
+        squeeze = std::make_shared<ov::op::v15::Squeeze>(data, allow_axis_skip);
     } else if (indices_mode == IndicesMode::PARAM) {
         const auto& indices =
-            std::make_shared<ov::opset15::Parameter>(ov::element::i32, PartialShape({data_shape.rank()}));
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape({data_shape.rank()}));
         params.push_back(indices);
-        squeeze = std::make_shared<ov::opset15::Squeeze>(data, indices, allow_axis_skip);
+        squeeze = std::make_shared<ov::op::v15::Squeeze>(data, indices, allow_axis_skip);
     } else if (indices_mode == IndicesMode::CONST) {
         const auto& indices =
-            ov::opset15::Constant::create(ov::element::i32, Shape({indices_const_val.size()}), indices_const_val);
-        squeeze = std::make_shared<ov::opset15::Squeeze>(data, indices, allow_axis_skip);
+            ov::op::v0::Constant::create(ov::element::i32, Shape({indices_const_val.size()}), indices_const_val);
+        squeeze = std::make_shared<ov::op::v15::Squeeze>(data, indices, allow_axis_skip);
     }
     squeeze->set_friendly_name("squeeze15");
     return std::make_shared<ov::Model>(squeeze->outputs(), params);
@@ -45,20 +46,20 @@ std::shared_ptr<ov::Model> create_v15_model(const IndicesMode indices_mode,
 
 std::shared_ptr<ov::Model> create_v1_model(const IndicesMode indices_mode, const std::vector<int> indices_const_val) {
     const PartialShape data_shape{-1, {2, 5}, 1, {1, 5}, 4};
-    const auto& data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, data_shape);
+    const auto& data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, data_shape);
     ov::ParameterVector params = {data};
     std::shared_ptr<op::v0::Squeeze> squeeze;
     if (indices_mode == IndicesMode::NONE) {
-        squeeze = std::make_shared<ov::opset1::Squeeze>(data);
+        squeeze = std::make_shared<ov::op::v0::Squeeze>(data);
     } else if (indices_mode == IndicesMode::PARAM) {
         const auto& indices =
-            std::make_shared<ov::opset1::Parameter>(ov::element::i32, PartialShape({data_shape.rank()}));
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape({data_shape.rank()}));
         params.push_back(indices);
-        squeeze = std::make_shared<ov::opset1::Squeeze>(data, indices);
+        squeeze = std::make_shared<ov::op::v0::Squeeze>(data, indices);
     } else if (indices_mode == IndicesMode::CONST) {
         const auto& indices =
-            ov::opset1::Constant::create(ov::element::i32, Shape({indices_const_val.size()}), indices_const_val);
-        squeeze = std::make_shared<ov::opset1::Squeeze>(data, indices);
+            ov::op::v0::Constant::create(ov::element::i32, Shape({indices_const_val.size()}), indices_const_val);
+        squeeze = std::make_shared<ov::op::v0::Squeeze>(data, indices);
     }
     squeeze->set_friendly_name("squeeze15");
     return std::make_shared<ov::Model>(squeeze->outputs(), params);

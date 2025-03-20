@@ -14,14 +14,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset15.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset8.hpp"
-#include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "ov_ops/type_relaxed.hpp"
@@ -29,6 +21,61 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/original_precision_attribute.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/bucketize.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/matrix_nms.hpp"
+#include "openvino/op/multiclass_nms.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/non_max_suppression.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/search_sorted.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/op/unique.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -54,17 +101,17 @@ bool has_type(std::shared_ptr<Model> f) {
 TEST(TransformationTests, ConvertPrecision_NMS3) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto boxes = std::make_shared<opset3::Parameter>(element::f16, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset3::Parameter>(element::f16, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset3::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = opset3::Constant::create(element::f16, Shape{}, {0.75});
-        auto score_threshold = opset3::Constant::create(element::f16, Shape{}, {0.7});
-        auto nms = std::make_shared<opset3::NonMaxSuppression>(boxes,
+        auto boxes = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 4});
+        auto scores = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = op::v0::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = op::v0::Constant::create(element::f16, Shape{}, {0.75});
+        auto score_threshold = op::v0::Constant::create(element::f16, Shape{}, {0.7});
+        auto nms = std::make_shared<op::v3::NonMaxSuppression>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               opset3::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               op::v3::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
         f = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
@@ -84,17 +131,17 @@ TEST(TransformationTests, ConvertPrecision_NMS3) {
 TEST(TransformationTests, ConvertPrecision_NMS4) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto boxes = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset4::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = opset4::Constant::create(element::f16, Shape{}, {0.75});
-        auto score_threshold = opset4::Constant::create(element::f16, Shape{}, {0.7});
-        auto nms = std::make_shared<opset4::NonMaxSuppression>(boxes,
+        auto boxes = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 4});
+        auto scores = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = op::v0::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = op::v0::Constant::create(element::f16, Shape{}, {0.75});
+        auto score_threshold = op::v0::Constant::create(element::f16, Shape{}, {0.7});
+        auto nms = std::make_shared<op::v4::NonMaxSuppression>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               opset4::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               op::v4::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
         f = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
@@ -115,22 +162,22 @@ TEST(TransformationTests, ConvertPrecision_NMS4) {
 TEST(TransformationTests, ConvertPrecision_NMS5) {
     std::shared_ptr<Model> f;
     {
-        auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes,
+        auto boxes = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = op::v0::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = op::v0::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = op::v0::Constant::create(element::f32, Shape{}, {0.7});
+        auto nms = std::make_shared<op::v5::NonMaxSuppression>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               op::v5::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        auto result1 = std::make_shared<opset5::Result>(nms->output(0));
-        auto result2 = std::make_shared<opset5::Result>(nms->output(1));
-        auto result3 = std::make_shared<opset5::Result>(nms->output(2));
+        auto result1 = std::make_shared<op::v0::Result>(nms->output(0));
+        auto result2 = std::make_shared<op::v0::Result>(nms->output(1));
+        auto result3 = std::make_shared<op::v0::Result>(nms->output(2));
         f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
     }
 
@@ -147,22 +194,22 @@ TEST(TransformationTests, ConvertPrecision_NMS5) {
 TEST(TransformationTests, DoubleConvertPrecision_NMS5) {
     std::shared_ptr<Model> f;
     {
-        auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes,
+        auto boxes = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = op::v0::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = op::v0::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = op::v0::Constant::create(element::f32, Shape{}, {0.7});
+        auto nms = std::make_shared<op::v5::NonMaxSuppression>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               op::v5::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        auto result1 = std::make_shared<opset5::Result>(nms->output(0));
-        auto result2 = std::make_shared<opset5::Result>(nms->output(1));
-        auto result3 = std::make_shared<opset5::Result>(nms->output(2));
+        auto result1 = std::make_shared<op::v0::Result>(nms->output(0));
+        auto result2 = std::make_shared<op::v0::Result>(nms->output(1));
+        auto result3 = std::make_shared<op::v0::Result>(nms->output(2));
         f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
     }
 
@@ -181,22 +228,22 @@ TEST(TransformationTests, DoubleConvertPrecision_NMS5) {
 TEST(TransformationTests, DoubleConvertPrecision_NMS9) {
     std::shared_ptr<Model> f;
     {
-        auto boxes = std::make_shared<opset9::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset9::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset9::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = opset9::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = opset9::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset9::NonMaxSuppression>(boxes,
+        auto boxes = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = op::v0::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = op::v0::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = op::v0::Constant::create(element::f32, Shape{}, {0.7});
+        auto nms = std::make_shared<op::v9::NonMaxSuppression>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               opset9::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               op::v9::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        auto result1 = std::make_shared<opset9::Result>(nms->output(0));
-        auto result2 = std::make_shared<opset9::Result>(nms->output(1));
-        auto result3 = std::make_shared<opset9::Result>(nms->output(2));
+        auto result1 = std::make_shared<op::v0::Result>(nms->output(0));
+        auto result2 = std::make_shared<op::v0::Result>(nms->output(1));
+        auto result3 = std::make_shared<op::v0::Result>(nms->output(2));
         f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
     }
 
@@ -215,15 +262,15 @@ TEST(TransformationTests, DoubleConvertPrecision_NMS9) {
 TEST(TransformationTests, ConvertPrecision_MatrixNms) {
     std::shared_ptr<Model> f;
     {
-        auto boxes = std::make_shared<opset8::Parameter>(element::f16, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset8::Parameter>(element::f16, Shape{1, 1, 1000});
+        auto boxes = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 4});
+        auto scores = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1, 1000});
         op::v8::MatrixNms::Attributes attrs;
         attrs.output_type = element::i64;
-        auto nms = std::make_shared<opset8::MatrixNms>(boxes, scores, attrs);
+        auto nms = std::make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
-        auto result1 = std::make_shared<opset8::Result>(nms->output(0));
-        auto result2 = std::make_shared<opset8::Result>(nms->output(1));
-        auto result3 = std::make_shared<opset8::Result>(nms->output(2));
+        auto result1 = std::make_shared<op::v0::Result>(nms->output(0));
+        auto result2 = std::make_shared<op::v0::Result>(nms->output(1));
+        auto result3 = std::make_shared<op::v0::Result>(nms->output(2));
         f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
     }
 
@@ -240,15 +287,15 @@ TEST(TransformationTests, ConvertPrecision_MatrixNms) {
 TEST(TransformationTests, ConvertPrecision_MulticlassNms) {
     std::shared_ptr<Model> f;
     {
-        auto boxes = std::make_shared<opset8::Parameter>(element::f16, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset8::Parameter>(element::f16, Shape{1, 1, 1000});
+        auto boxes = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 4});
+        auto scores = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1, 1000});
         op::v8::MulticlassNms::Attributes attrs;
         attrs.output_type = element::i64;
-        auto nms = std::make_shared<opset8::MulticlassNms>(boxes, scores, attrs);
+        auto nms = std::make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
-        auto result1 = std::make_shared<opset8::Result>(nms->output(0));
-        auto result2 = std::make_shared<opset8::Result>(nms->output(1));
-        auto result3 = std::make_shared<opset8::Result>(nms->output(2));
+        auto result1 = std::make_shared<op::v0::Result>(nms->output(0));
+        auto result2 = std::make_shared<op::v0::Result>(nms->output(1));
+        auto result3 = std::make_shared<op::v0::Result>(nms->output(2));
         f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
     }
 
@@ -265,8 +312,8 @@ TEST(TransformationTests, ConvertPrecision_MulticlassNms) {
 TEST(TransformationTests, ConvertPrecision_ShapeOf) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 4});
-        auto shape_of = std::make_shared<opset4::ShapeOf>(input);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 4});
+        auto shape_of = std::make_shared<op::v3::ShapeOf>(input);
 
         f = std::make_shared<Model>(NodeVector{shape_of}, ParameterVector{input});
 
@@ -286,10 +333,10 @@ TEST(TransformationTests, ConvertPrecision_ShapeOf) {
 TEST(TransformationTests, ConvertPrecision_Range) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto start = std::make_shared<opset4::Parameter>(element::f16, Shape{});
-        auto stop = std::make_shared<opset4::Parameter>(element::f16, Shape{});
-        auto shift = std::make_shared<opset4::Parameter>(element::f16, Shape{});
-        auto range = std::make_shared<opset4::Range>(start, stop, shift, element::i64);
+        auto start = std::make_shared<op::v0::Parameter>(element::f16, Shape{});
+        auto stop = std::make_shared<op::v0::Parameter>(element::f16, Shape{});
+        auto shift = std::make_shared<op::v0::Parameter>(element::f16, Shape{});
+        auto range = std::make_shared<op::v4::Range>(start, stop, shift, element::i64);
 
         f = std::make_shared<Model>(NodeVector{range}, ParameterVector{start, stop, shift});
 
@@ -309,9 +356,9 @@ TEST(TransformationTests, ConvertPrecision_Range) {
 TEST(TransformationTests, ConvertPrecision_ConstantRelu) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input = opset4::Constant::create(element::f16, Shape{1, 1000, 4}, {0});
-        auto relu1 = std::make_shared<opset4::Relu>(input);
-        auto relu2 = std::make_shared<opset4::Relu>(relu1);
+        auto input = op::v0::Constant::create(element::f16, Shape{1, 1000, 4}, {0});
+        auto relu1 = std::make_shared<op::v0::Relu>(input);
+        auto relu2 = std::make_shared<op::v0::Relu>(relu1);
 
         f = std::make_shared<Model>(NodeVector{relu2}, ParameterVector{});
 
@@ -331,8 +378,8 @@ TEST(TransformationTests, ConvertPrecision_ConstantRelu) {
 TEST(TransformationTests, ConvertPrecision_Convert) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 4});
-        auto convert = std::make_shared<opset4::Convert>(input, element::i64);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 4});
+        auto convert = std::make_shared<op::v0::Convert>(input, element::i64);
 
         f = std::make_shared<Model>(NodeVector{convert}, ParameterVector{input});
 
@@ -354,10 +401,10 @@ TEST(TransformationTests, ConvertPrecision_Convert_clamp_1) {
     // fp16 out of range should be clamped to [fp16_min, fp16_max]
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
-        auto const_node = opset10::Constant::create(element::f32, Shape{2}, {100000.0f, -100000.0f});
-        auto convert = std::make_shared<opset4::Convert>(const_node, element::f16);
-        auto add_1 = make_shared<opset10::Add>(input, convert);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = op::v0::Constant::create(element::f32, Shape{2}, {100000.0f, -100000.0f});
+        auto convert = std::make_shared<op::v0::Convert>(const_node, element::f16);
+        auto add_1 = make_shared<op::v1::Add>(input, convert);
         model = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
 
         pass::Manager manager;
@@ -369,9 +416,9 @@ TEST(TransformationTests, ConvertPrecision_Convert_clamp_1) {
 
     {
         auto max_fp16 = static_cast<float>(std::numeric_limits<ov::float16>::max());
-        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
-        auto const_node = opset10::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
-        auto add_1 = make_shared<opset10::Add>(input, const_node);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = op::v0::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
+        auto add_1 = make_shared<op::v1::Add>(input, const_node);
 
         model_ref = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
     }
@@ -388,10 +435,10 @@ TEST(TransformationTests, ConvertPrecision_Convert_clamp_bf16_f16) {
     // fp16 out of range should be clamped to [fp16_min, fp16_max]
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 3});
-        auto const_node = opset10::Constant::create(element::bf16, Shape{3}, {100000.0f, -100000.0f, 10.0f});
-        auto convert = std::make_shared<opset4::Convert>(const_node, element::f16);
-        auto add_1 = make_shared<opset10::Add>(input, convert);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 3});
+        auto const_node = op::v0::Constant::create(element::bf16, Shape{3}, {100000.0f, -100000.0f, 10.0f});
+        auto convert = std::make_shared<op::v0::Convert>(const_node, element::f16);
+        auto add_1 = make_shared<op::v1::Add>(input, convert);
         model = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
 
         pass::Manager manager;
@@ -403,9 +450,9 @@ TEST(TransformationTests, ConvertPrecision_Convert_clamp_bf16_f16) {
 
     {
         auto max_fp16 = static_cast<float>(std::numeric_limits<ov::float16>::max());
-        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 3});
-        auto const_node = opset10::Constant::create(element::f16, Shape{3}, {max_fp16, -max_fp16, 10.0f});
-        auto add_1 = make_shared<opset10::Add>(input, const_node);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 3});
+        auto const_node = op::v0::Constant::create(element::f16, Shape{3}, {max_fp16, -max_fp16, 10.0f});
+        auto add_1 = make_shared<op::v1::Add>(input, const_node);
 
         model_ref = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
     }
@@ -428,13 +475,13 @@ TEST(TransformationTests, DISABLED_ConvertPrecision_Convert_clamp_2) {
     // fp16 out of range should be clamped to [fp16_min, fp16_max]
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1000, 2});
-        auto const_node_1 = opset10::Constant::create(element::i32, Shape{2}, {100000, -100000});
-        auto convert_f32 = std::make_shared<opset4::Convert>(const_node_1, element::f32);
-        auto const_node_2 = opset10::Constant::create(element::f32, Shape{1}, {1.0f});
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1000, 2});
+        auto const_node_1 = op::v0::Constant::create(element::i32, Shape{2}, {100000, -100000});
+        auto convert_f32 = std::make_shared<op::v0::Convert>(const_node_1, element::f32);
+        auto const_node_2 = op::v0::Constant::create(element::f32, Shape{1}, {1.0f});
 
-        auto add_1 = make_shared<opset10::Add>(convert_f32, const_node_2);
-        auto add_2 = make_shared<opset10::Add>(input, add_1);
+        auto add_1 = make_shared<op::v1::Add>(convert_f32, const_node_2);
+        auto add_2 = make_shared<op::v1::Add>(input, add_1);
         model = std::make_shared<Model>(NodeVector{add_2}, ParameterVector{input});
 
         pass::Manager manager;
@@ -447,9 +494,9 @@ TEST(TransformationTests, DISABLED_ConvertPrecision_Convert_clamp_2) {
 
     {
         auto max_fp16 = static_cast<float>(std::numeric_limits<ov::float16>::max());
-        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
-        auto const_node = opset10::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
-        auto add_1 = make_shared<opset10::Add>(input, const_node);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = op::v0::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
+        auto add_1 = make_shared<op::v1::Add>(input, const_node);
 
         model_ref = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
     }
@@ -477,13 +524,13 @@ TEST(TransformationTests, DISABLED_ConvertPrecision_Convert_clamp_int32) {
 
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1000, 2});
-        auto const_node_1 = opset10::Constant::create(element::i32, Shape{2}, {100000, -100000});
-        auto convert_f32 = std::make_shared<opset4::Convert>(const_node_1, element::f32);
-        auto const_node_2 = opset10::Constant::create(element::f32, Shape{1}, {1.0f});
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1000, 2});
+        auto const_node_1 = op::v0::Constant::create(element::i32, Shape{2}, {100000, -100000});
+        auto convert_f32 = std::make_shared<op::v0::Convert>(const_node_1, element::f32);
+        auto const_node_2 = op::v0::Constant::create(element::f32, Shape{1}, {1.0f});
 
-        auto add_1 = make_shared<opset10::Add>(convert_f32, const_node_2);
-        auto add_2 = make_shared<opset10::Add>(input, add_1);
+        auto add_1 = make_shared<op::v1::Add>(convert_f32, const_node_2);
+        auto add_2 = make_shared<op::v1::Add>(input, add_1);
         model = std::make_shared<Model>(NodeVector{add_2}, ParameterVector{input});
 
         pass::Manager manager;
@@ -496,9 +543,9 @@ TEST(TransformationTests, DISABLED_ConvertPrecision_Convert_clamp_int32) {
 
     {
         auto max_fp16 = static_cast<float>(std::numeric_limits<ov::float16>::max());
-        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
-        auto const_node = opset10::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
-        auto add_1 = make_shared<opset10::Add>(input, const_node);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = op::v0::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
+        auto add_1 = make_shared<op::v1::Add>(input, const_node);
 
         model_ref = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
     }
@@ -515,9 +562,9 @@ TEST(TransformationTests, DISABLED_ConvertPrecision_Convert_clamp_int32) {
 TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
     std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 4});
-        auto relu = std::make_shared<opset4::Relu>(input);
-        auto convert = std::make_shared<opset4::Convert>(relu, element::f32);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1000, 4});
+        auto relu = std::make_shared<op::v0::Relu>(input);
+        auto convert = std::make_shared<op::v0::Convert>(relu, element::f32);
 
         f = std::make_shared<Model>(NodeVector{convert}, ParameterVector{input});
 
@@ -529,8 +576,8 @@ TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
     }
 
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto relu = std::make_shared<opset4::Relu>(input);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto relu = std::make_shared<op::v0::Relu>(input);
 
         f_ref = std::make_shared<Model>(NodeVector{relu}, ParameterVector{input});
     }
@@ -542,9 +589,9 @@ TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
 TEST(TransformationTests, ConvertPrecision_TopK) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input = std::make_shared<opset3::Parameter>(element::f16, Shape{15, 20, 3});
-        auto k = opset3::Constant::create(element::i64, Shape{}, {10});
-        auto topk = std::make_shared<opset3::TopK>(input, k, 1, "min", "value", element::i64);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto k = op::v0::Constant::create(element::i64, Shape{}, {10});
+        auto topk = std::make_shared<op::v3::TopK>(input, k, 1, "min", "value", element::i64);
 
         f = std::make_shared<Model>(OutputVector{topk->output(0), topk->output(1)}, ParameterVector{input});
 
@@ -564,8 +611,8 @@ TEST(TransformationTests, ConvertPrecision_TopK) {
 TEST(TransformationTests, ConvertPrecision_Unique10) {
     std::shared_ptr<Model> model(nullptr);
     {
-        auto input = std::make_shared<opset10::Parameter>(element::f16, Shape{15, 20, 3});
-        auto unique = std::make_shared<opset10::Unique>(input);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto unique = std::make_shared<op::v10::Unique>(input);
 
         model = std::make_shared<Model>(unique->outputs(), ParameterVector{input});
 
@@ -593,8 +640,8 @@ TEST(TransformationTests, ConvertPrecision_Unique10) {
 TEST(TransformationTests, ConvertPrecision_NonZero) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto non_zero = std::make_shared<opset4::NonZero>(input, element::i64);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto non_zero = std::make_shared<op::v3::NonZero>(input, element::i64);
 
         f = std::make_shared<Model>(OutputVector{non_zero}, ParameterVector{input});
 
@@ -614,9 +661,9 @@ TEST(TransformationTests, ConvertPrecision_NonZero) {
 TEST(TransformationTests, ConvertPrecision_Bucketize) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{20});
-        auto k = opset4::Constant::create(element::i64, Shape{1}, {10});
-        auto b = std::make_shared<opset4::Bucketize>(input, k);
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{20});
+        auto k = op::v0::Constant::create(element::i64, Shape{1}, {10});
+        auto b = std::make_shared<op::v3::Bucketize>(input, k);
 
         f = std::make_shared<Model>(OutputVector{b}, ParameterVector{input});
 
@@ -639,15 +686,15 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
         auto max_int64 = std::numeric_limits<int64_t>::max();
         auto max_int32 = std::numeric_limits<int32_t>::max();
 
-        auto input = std::make_shared<opset1::Parameter>(element::f16, Shape{5, 5, 5, 5});
-        auto begin = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-        auto end = opset1::Constant::create(element::i64, Shape{4}, {max_int64, max_int64, max_int64, max_int64});
-        auto stride = opset1::Constant::create(element::i64, Shape{4}, {1});
+        auto input = std::make_shared<op::v0::Parameter>(element::f16, Shape{5, 5, 5, 5});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end = op::v0::Constant::create(element::i64, Shape{4}, {max_int64, max_int64, max_int64, max_int64});
+        auto stride = op::v0::Constant::create(element::i64, Shape{4}, {1});
 
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
 
-        auto ss = std::make_shared<opset1::StridedSlice>(input, begin, end, stride, begin_mask, end_mask);
+        auto ss = std::make_shared<op::v1::StridedSlice>(input, begin, end, stride, begin_mask, end_mask);
 
         f = std::make_shared<Model>(OutputVector{ss}, ParameterVector{input});
 
@@ -659,7 +706,7 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
 
-        auto casted_end = ov::as_type_ptr<opset1::Constant>(ss->input_value(2).get_node_shared_ptr());
+        auto casted_end = ov::as_type_ptr<op::v0::Constant>(ss->input_value(2).get_node_shared_ptr());
         ASSERT_TRUE(casted_end != nullptr);
         ASSERT_EQ(casted_end->get_element_type(), element::i32);
         ASSERT_EQ(casted_end->cast_vector<int32_t>(),
@@ -673,30 +720,30 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
 TEST(TransformationTests, ConvertPrecision_TIBody) {
     std::shared_ptr<Model> f(nullptr), f_ref(nullptr);
     {
-        auto X = std::make_shared<opset4::Parameter>(element::f16, Shape{2, 1, 16});
-        auto Y = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 128});
+        auto X = std::make_shared<op::v0::Parameter>(element::f16, Shape{2, 1, 16});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 128});
 
-        auto Xi = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1, 16});
-        auto Yi = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 128});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1, 16});
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 128});
 
         // Body
-        auto axis = opset4::Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<opset4::Squeeze>(Xi, axis);
+        auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto squeeze = std::make_shared<op::v0::Squeeze>(Xi, axis);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
         auto b_val = std::vector<float>(384, 0);
-        auto W = opset4::Constant::create(element::f16, Shape{384, 16}, w_val);
-        auto R = opset4::Constant::create(element::f16, Shape{384, 128}, r_val);
-        auto B = opset4::Constant::create(element::f16, Shape{384}, b_val);
+        auto W = op::v0::Constant::create(element::f16, Shape{384, 16}, w_val);
+        auto R = op::v0::Constant::create(element::f16, Shape{384, 128}, r_val);
+        auto B = op::v0::Constant::create(element::f16, Shape{384}, b_val);
 
-        auto gru_cell = std::make_shared<opset4::GRUCell>(squeeze, Yi, W, R, B, 128);
-        auto res_1 = std::make_shared<opset4::Result>(gru_cell);
-        auto unsqueeze = std::make_shared<opset4::Unsqueeze>(gru_cell, axis);
-        auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
+        auto gru_cell = std::make_shared<op::v3::GRUCell>(squeeze, Yi, W, R, B, 128);
+        auto res_1 = std::make_shared<op::v0::Result>(gru_cell);
+        auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gru_cell, axis);
+        auto res_2 = std::make_shared<op::v0::Result>(unsqueeze);
         auto body = std::make_shared<Model>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi});
 
-        auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
+        auto tensor_iterator = std::make_shared<op::v0::TensorIterator>();
         tensor_iterator->set_body(body);
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
@@ -705,8 +752,8 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
-        auto res_ti_1 = std::make_shared<opset4::Result>(tensor_iterator->output(1));
-        // auto res_ti_2 = std::make_shared<opset4::Result>(tensor_iterator->output(0));
+        auto res_ti_1 = std::make_shared<op::v0::Result>(tensor_iterator->output(1));
+        // auto res_ti_2 = std::make_shared<op::v0::Result>(tensor_iterator->output(0));
         f = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
@@ -728,9 +775,9 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
 TEST(TransformationTests, ConvertPrecision_Equal) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto input2 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::Equal>(input1, input2);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto input2 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::Equal>(input1, input2);
 
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
@@ -751,9 +798,9 @@ TEST(TransformationTests, ConvertPrecision_Equal) {
 TEST(TransformationTests, ConvertPrecision_NotEqual) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto input2 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::NotEqual>(input1, input2);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto input2 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::NotEqual>(input1, input2);
 
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
@@ -774,9 +821,9 @@ TEST(TransformationTests, ConvertPrecision_NotEqual) {
 TEST(TransformationTests, ConvertPrecision_Greater) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto input2 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::Greater>(input1, input2);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto input2 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::Greater>(input1, input2);
 
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
@@ -797,9 +844,9 @@ TEST(TransformationTests, ConvertPrecision_Greater) {
 TEST(TransformationTests, ConvertPrecision_GreaterEqual) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto input2 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::GreaterEqual>(input1, input2);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto input2 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::GreaterEqual>(input1, input2);
 
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
@@ -820,9 +867,9 @@ TEST(TransformationTests, ConvertPrecision_GreaterEqual) {
 TEST(TransformationTests, ConvertPrecision_Less) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto input2 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::Less>(input1, input2);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto input2 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::Less>(input1, input2);
 
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
@@ -843,9 +890,9 @@ TEST(TransformationTests, ConvertPrecision_Less) {
 TEST(TransformationTests, ConvertPrecision_LessEqual) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto input2 = std::make_shared<opset4::Parameter>(element::f16, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::LessEqual>(input1, input2);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto input2 = std::make_shared<op::v0::Parameter>(element::f16, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::LessEqual>(input1, input2);
 
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
@@ -866,9 +913,9 @@ TEST(TransformationTests, ConvertPrecision_LessEqual) {
 TEST(TransformationTests, ConvertPrecision_LogicalAnd) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
-        auto input2 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::LogicalAnd>(input1, input2);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto input2 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::LogicalAnd>(input1, input2);
 
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
@@ -885,9 +932,9 @@ TEST(TransformationTests, ConvertPrecision_LogicalAnd) {
 TEST(TransformationTests, ConvertPrecision_LogicalOr) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
-        auto input2 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::LogicalOr>(input1, input2);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto input2 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::LogicalOr>(input1, input2);
 
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
@@ -904,9 +951,9 @@ TEST(TransformationTests, ConvertPrecision_LogicalOr) {
 TEST(TransformationTests, ConvertPrecision_LogicalXor) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
-        auto input2 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::LogicalXor>(input1, input2);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto input2 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::LogicalXor>(input1, input2);
 
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
@@ -923,8 +970,8 @@ TEST(TransformationTests, ConvertPrecision_LogicalXor) {
 TEST(TransformationTests, ConvertPrecision_LogicalNot) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::LogicalNot>(input1);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::LogicalNot>(input1);
 
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1});
 
@@ -949,9 +996,9 @@ TEST(TransformationTests, ConvertPrecision_LogicalNot) {
 TEST(TransformationTests, ConvertPrecision_Select) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::LogicalNot>(input1);
-        auto select = std::make_shared<opset4::Select>(node, input1, input1);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::LogicalNot>(input1);
+        auto select = std::make_shared<op::v1::Select>(node, input1, input1);
 
         f = std::make_shared<Model>(OutputVector{select}, ParameterVector{input1});
 
@@ -968,9 +1015,9 @@ TEST(TransformationTests, ConvertPrecision_Select) {
 TEST(TransformationTests, ConvertPrecision_Select_Relaxed) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::LogicalNot>(input1);
-        auto select = std::make_shared<opset4::Select>(node, input1, input1);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::LogicalNot>(input1);
+        auto select = std::make_shared<op::v1::Select>(node, input1, input1);
 
         f = std::make_shared<Model>(OutputVector{select}, ParameterVector{input1});
 
@@ -996,9 +1043,9 @@ TEST(TransformationTests, ConvertPrecision_Select_Relaxed) {
 TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
-        auto node = std::make_shared<opset4::LogicalNot>(input1);
-        auto select = std::make_shared<opset4::Select>(node, input1, input1);
+        auto input1 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto node = std::make_shared<op::v1::LogicalNot>(input1);
+        auto select = std::make_shared<op::v1::Select>(node, input1, input1);
 
         f = std::make_shared<Model>(OutputVector{select}, ParameterVector{input1});
 
@@ -1017,9 +1064,9 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
 TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto input1 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
-        auto select = std::make_shared<opset4::Select>(input1, input1, input1);
-        auto type_relaxed = std::make_shared<op::TypeRelaxed<opset4::Select>>(*select,
+        auto input1 = std::make_shared<op::v0::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto select = std::make_shared<op::v1::Select>(input1, input1, input1);
+        auto type_relaxed = std::make_shared<op::TypeRelaxed<op::v1::Select>>(*select,
                                                                               element::TypeVector{},
                                                                               element::TypeVector{element::i64});
 
@@ -1041,12 +1088,12 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
 TEST(TransformationTests, ConvertPrecision_SearchSorted) {
     std::shared_ptr<Model> f(nullptr);
     {
-        auto search_sorted_input = opset15::Constant::create(ov::element::i64, {5}, {1, 2, 3, 4, 5});
-        auto indices = std::make_shared<opset15::Parameter>(ov::element::i64, Shape{3});
-        auto search_sorted = std::make_shared<opset15::SearchSorted>(search_sorted_input, indices);
+        auto search_sorted_input = op::v0::Constant::create(ov::element::i64, {5}, {1, 2, 3, 4, 5});
+        auto indices = std::make_shared<op::v0::Parameter>(ov::element::i64, Shape{3});
+        auto search_sorted = std::make_shared<op::v15::SearchSorted>(search_sorted_input, indices);
 
-        auto less_input = opset15::Constant::create(ov::element::i64, {3}, {4, 5, 6});
-        auto less = std::make_shared<opset15::Less>(search_sorted, less_input);
+        auto less_input = op::v0::Constant::create(ov::element::i64, {3}, {4, 5, 6});
+        auto less = std::make_shared<op::v1::Less>(search_sorted, less_input);
 
         f = std::make_shared<Model>(OutputVector{less}, ParameterVector{indices});
 
@@ -1064,12 +1111,12 @@ TEST(TransformationTests, ConvertPrecision_Variables) {
     std::shared_ptr<Model> f(nullptr);
     {
         Shape shape{1, 10, 2};
-        auto inp = std::make_shared<opset4::Parameter>(element::f16, shape);
-        auto m_i = std::make_shared<opset4::Constant>(element::f16, shape, 1);
-        auto m_r = std::make_shared<opset4::ReadValue>(m_i, "ID");
-        auto sum = std::make_shared<opset4::Add>(inp, m_r);
-        auto m_w = std::make_shared<opset4::Assign>(sum, "ID");
-        auto mul = std::make_shared<opset4::Multiply>(inp, sum);
+        auto inp = std::make_shared<op::v0::Parameter>(element::f16, shape);
+        auto m_i = std::make_shared<op::v0::Constant>(element::f16, shape, 1);
+        auto m_r = std::make_shared<op::v3::ReadValue>(m_i, "ID");
+        auto sum = std::make_shared<op::v1::Add>(inp, m_r);
+        auto m_w = std::make_shared<op::v3::Assign>(sum, "ID");
+        auto mul = std::make_shared<op::v1::Multiply>(inp, sum);
 
         mul->add_control_dependency(m_w);
 
@@ -1086,23 +1133,23 @@ TEST(TransformationTests, ConvertPrecision_Variables) {
 
 TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
     std::shared_ptr<Model> model(nullptr);
-    std::shared_ptr<opset10::Interpolate> interpolate(nullptr);
+    std::shared_ptr<op::v4::Interpolate> interpolate(nullptr);
     {
-        auto input = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 720, 1280});
-        auto sizes = opset10::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
-        auto scales = opset10::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
-        opset10::Interpolate::InterpolateAttrs attrs;
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto sizes = op::v0::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
+        auto scales = op::v0::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
+        op::v4::Interpolate::InterpolateAttrs attrs;
 
-        attrs.mode = opset10::Interpolate::InterpolateMode::LINEAR_ONNX;
-        attrs.shape_calculation_mode = opset10::Interpolate::ShapeCalcMode::SCALES;
-        attrs.nearest_mode = opset10::Interpolate::NearestMode::FLOOR;
+        attrs.mode = op::v4::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = op::v4::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = op::v4::Interpolate::NearestMode::FLOOR;
         attrs.pads_begin = std::vector<size_t>{0};
         attrs.pads_end = std::vector<size_t>{0};
         attrs.antialias = false;
-        attrs.coordinate_transformation_mode = opset10::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
+        attrs.coordinate_transformation_mode = op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
-        interpolate = std::make_shared<opset10::Interpolate>(input, sizes, scales, attrs);
+        interpolate = std::make_shared<op::v4::Interpolate>(input, sizes, scales, attrs);
         model = std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{input});
 
         pass::Manager manager;
@@ -1122,23 +1169,23 @@ TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
 TEST(TransformationTests, ConvertPrecision_without_keep_precision_sensitive_in_fp32) {
     // with keep_precision_sensitive_in_fp32 = false all nodes should be converted to f16 even they are marked
     std::shared_ptr<Model> model(nullptr);
-    std::shared_ptr<opset10::Interpolate> interpolate(nullptr);
+    std::shared_ptr<op::v4::Interpolate> interpolate(nullptr);
     {
-        auto input = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 720, 1280});
-        auto sizes = opset10::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
-        auto scales = opset10::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
-        opset10::Interpolate::InterpolateAttrs attrs;
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto sizes = op::v0::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
+        auto scales = op::v0::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
+        op::v4::Interpolate::InterpolateAttrs attrs;
 
-        attrs.mode = opset10::Interpolate::InterpolateMode::LINEAR_ONNX;
-        attrs.shape_calculation_mode = opset10::Interpolate::ShapeCalcMode::SCALES;
-        attrs.nearest_mode = opset10::Interpolate::NearestMode::FLOOR;
+        attrs.mode = op::v4::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = op::v4::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = op::v4::Interpolate::NearestMode::FLOOR;
         attrs.pads_begin = std::vector<size_t>{0};
         attrs.pads_end = std::vector<size_t>{0};
         attrs.antialias = false;
-        attrs.coordinate_transformation_mode = opset10::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
+        attrs.coordinate_transformation_mode = op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
-        interpolate = std::make_shared<opset10::Interpolate>(input, sizes, scales, attrs);
+        interpolate = std::make_shared<op::v4::Interpolate>(input, sizes, scales, attrs);
         model = std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{input});
         pass::Manager manager;
         type_to_fuse_map empty_type_to_fuse_map = {};
@@ -1157,10 +1204,10 @@ TEST(TransformationTests, ConvertPrecision_without_keep_precision_sensitive_in_f
 TEST(TransformationTests, ConvertPrecision_check_marking_does_not_leak_in_trivial_case) {
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 720, 1280});
-        auto input_2 = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 720, 1280});
-        auto new_shape = std::make_shared<opset10::ShapeOf>(input_2);
-        auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto new_shape = std::make_shared<op::v3::ShapeOf>(input_2);
+        auto reshape = std::make_shared<op::v1::Reshape>(input_1, new_shape, false);
         model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
@@ -1175,10 +1222,10 @@ TEST(TransformationTests, ConvertPrecision_check_marking_does_not_leak_in_trivia
         manager.run_passes(model);
     }
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 720, 1280});
-        auto input_2 = std::make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 720, 1280});
-        auto new_shape = std::make_shared<opset10::ShapeOf>(input_2);
-        auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 720, 1280});
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 720, 1280});
+        auto new_shape = std::make_shared<op::v3::ShapeOf>(input_2);
+        auto reshape = std::make_shared<op::v1::Reshape>(input_1, new_shape, false);
 
         model_ref = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
     }
@@ -1194,16 +1241,16 @@ TEST(TransformationTests, ConvertPrecision_check_marking_does_not_leak_in_trivia
 TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_1) {
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f32, Shape{360, 640});
-        auto input_2 = std::make_shared<opset10::Parameter>(element::f32, Shape{720, 1280});
-        auto shapeof = std::make_shared<opset10::ShapeOf>(input_2);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{360, 640});
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{720, 1280});
+        auto shapeof = std::make_shared<op::v3::ShapeOf>(input_2);
 
-        auto convert_to_float = std::make_shared<opset10::Convert>(shapeof, element::f32);
-        auto const_denominator = opset10::Constant::create(element::f32, Shape{}, {2.0f});
-        auto div = std::make_shared<opset10::Divide>(convert_to_float, const_denominator);
-        auto new_shape = std::make_shared<opset10::Convert>(div, element::i64);
+        auto convert_to_float = std::make_shared<op::v0::Convert>(shapeof, element::f32);
+        auto const_denominator = op::v0::Constant::create(element::f32, Shape{}, {2.0f});
+        auto div = std::make_shared<op::v1::Divide>(convert_to_float, const_denominator);
+        auto new_shape = std::make_shared<op::v0::Convert>(div, element::i64);
 
-        auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
+        auto reshape = std::make_shared<op::v1::Reshape>(input_1, new_shape, false);
         model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
@@ -1218,16 +1265,16 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_1) {
         manager.run_passes(model);
     }
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f16, Shape{360, 640});
-        auto input_2 = std::make_shared<opset10::Parameter>(element::f16, Shape{720, 1280});
-        auto shapeof_1 = std::make_shared<opset10::ShapeOf>(input_2);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{360, 640});
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f16, Shape{720, 1280});
+        auto shapeof_1 = std::make_shared<op::v3::ShapeOf>(input_2);
 
-        auto convert_to_float = std::make_shared<opset10::Convert>(shapeof_1, element::f32);
-        auto const_denominator = opset10::Constant::create(element::f32, Shape{}, {2.0f});
-        auto div = std::make_shared<opset10::Divide>(convert_to_float, const_denominator);
-        auto new_shape = std::make_shared<opset10::Convert>(div, element::i64);
+        auto convert_to_float = std::make_shared<op::v0::Convert>(shapeof_1, element::f32);
+        auto const_denominator = op::v0::Constant::create(element::f32, Shape{}, {2.0f});
+        auto div = std::make_shared<op::v1::Divide>(convert_to_float, const_denominator);
+        auto new_shape = std::make_shared<op::v0::Convert>(div, element::i64);
 
-        auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
+        auto reshape = std::make_shared<op::v1::Reshape>(input_1, new_shape, false);
         model_ref = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
     }
 
@@ -1242,25 +1289,25 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_1) {
 TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 1, 720, 1280});
-        auto shapeof_1 = std::make_shared<opset10::ShapeOf>(input_1);
-        auto indices = opset10::Constant::create(element::i64, Shape{1}, {3});
-        auto gather_axis = opset10::Constant::create(element::i64, Shape{}, {0});
-        auto gather_1 = std::make_shared<opset10::Gather>(shapeof_1, indices, gather_axis);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 720, 1280});
+        auto shapeof_1 = std::make_shared<op::v3::ShapeOf>(input_1);
+        auto indices = op::v0::Constant::create(element::i64, Shape{1}, {3});
+        auto gather_axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto gather_1 = std::make_shared<op::v8::Gather>(shapeof_1, indices, gather_axis);
 
-        auto convert_to_float = std::make_shared<opset10::Convert>(gather_1, element::f32);
-        auto const_denominator = opset10::Constant::create(element::f32, Shape{}, {2.0f});
-        auto div = std::make_shared<opset10::Divide>(convert_to_float, const_denominator);
-        auto new_dim_size = std::make_shared<opset10::Convert>(div, element::i64);
+        auto convert_to_float = std::make_shared<op::v0::Convert>(gather_1, element::f32);
+        auto const_denominator = op::v0::Constant::create(element::f32, Shape{}, {2.0f});
+        auto div = std::make_shared<op::v1::Divide>(convert_to_float, const_denominator);
+        auto new_dim_size = std::make_shared<op::v0::Convert>(div, element::i64);
 
-        auto const_ends = opset10::Constant::create(element::i64, Shape{3}, {-1, -1, -1});
-        auto concat_with_ends = std::make_shared<opset10::Concat>(OutputVector{const_ends, new_dim_size}, 0);  // scales
+        auto const_ends = op::v0::Constant::create(element::i64, Shape{3}, {-1, -1, -1});
+        auto concat_with_ends = std::make_shared<op::v0::Concat>(OutputVector{const_ends, new_dim_size}, 0);  // scales
 
-        auto begin = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
-        auto slice = std::make_shared<opset10::StridedSlice>(input_1, begin, concat_with_ends, begin_mask, end_mask);
-        auto result = std::make_shared<opset10::Result>(slice);
+        auto slice = std::make_shared<op::v1::StridedSlice>(input_1, begin, concat_with_ends, begin_mask, end_mask);
+        auto result = std::make_shared<op::v0::Result>(slice);
         model = std::make_shared<Model>(NodeVector{result}, ParameterVector{input_1});
 
         pass::Manager manager;
@@ -1275,25 +1322,25 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
         manager.run_passes(model);
     }
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f16, Shape{1, 1, 720, 1280});
-        auto shapeof_1 = std::make_shared<opset10::ShapeOf>(input_1);
-        auto indices = opset10::Constant::create(element::i64, Shape{1}, {3});
-        auto gather_axis = opset10::Constant::create(element::i64, Shape{}, {0});
-        auto gather_1 = std::make_shared<opset10::Gather>(shapeof_1, indices, gather_axis);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 1, 720, 1280});
+        auto shapeof_1 = std::make_shared<op::v3::ShapeOf>(input_1);
+        auto indices = op::v0::Constant::create(element::i64, Shape{1}, {3});
+        auto gather_axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto gather_1 = std::make_shared<op::v8::Gather>(shapeof_1, indices, gather_axis);
 
-        auto convert_to_float = std::make_shared<opset10::Convert>(gather_1, element::f32);
-        auto const_denominator = opset10::Constant::create(element::f32, Shape{}, {2.0f});
-        auto div = std::make_shared<opset10::Divide>(convert_to_float, const_denominator);
-        auto new_dim_size = std::make_shared<opset10::Convert>(div, element::i64);
+        auto convert_to_float = std::make_shared<op::v0::Convert>(gather_1, element::f32);
+        auto const_denominator = op::v0::Constant::create(element::f32, Shape{}, {2.0f});
+        auto div = std::make_shared<op::v1::Divide>(convert_to_float, const_denominator);
+        auto new_dim_size = std::make_shared<op::v0::Convert>(div, element::i64);
 
-        auto const_ends = opset10::Constant::create(element::i64, Shape{3}, {-1, -1, -1});
-        auto concat_with_ends = std::make_shared<opset10::Concat>(OutputVector{const_ends, new_dim_size}, 0);  // scales
+        auto const_ends = op::v0::Constant::create(element::i64, Shape{3}, {-1, -1, -1});
+        auto concat_with_ends = std::make_shared<op::v0::Concat>(OutputVector{const_ends, new_dim_size}, 0);  // scales
 
-        auto begin = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
         std::vector<int64_t> begin_mask = {0, 0, 0, 0};
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
-        auto slice = std::make_shared<opset10::StridedSlice>(input_1, begin, concat_with_ends, begin_mask, end_mask);
-        auto result = std::make_shared<opset10::Result>(slice);
+        auto slice = std::make_shared<op::v1::StridedSlice>(input_1, begin, concat_with_ends, begin_mask, end_mask);
+        auto result = std::make_shared<op::v0::Result>(slice);
         model_ref = std::make_shared<Model>(NodeVector{result}, ParameterVector{input_1});
     }
 
@@ -1309,41 +1356,41 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
     std::shared_ptr<Model> model(nullptr);
     std::shared_ptr<Model> model_ref(nullptr);
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 720, 1280});
-        auto input_2 = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 720, 1280});
-        auto shapeof_1 = std::make_shared<opset10::ShapeOf>(input_1);
-        auto shapeof_2 = std::make_shared<opset10::ShapeOf>(input_2);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto shapeof_1 = std::make_shared<op::v3::ShapeOf>(input_1);
+        auto shapeof_2 = std::make_shared<op::v3::ShapeOf>(input_2);
 
-        auto const_1 = opset10::Constant::create(element::i64, Shape{2}, {2, 3});
-        auto axis_const = opset10::Constant::create(element::i64, Shape{}, {0});
-        auto gather_1 = std::make_shared<opset10::Gather>(shapeof_2, const_1, axis_const);
-        auto convert_1 = std::make_shared<opset10::Convert>(shapeof_1, element::f32);
+        auto const_1 = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
+        auto axis_const = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto gather_1 = std::make_shared<op::v8::Gather>(shapeof_2, const_1, axis_const);
+        auto convert_1 = std::make_shared<op::v0::Convert>(shapeof_1, element::f32);
 
-        auto convert_2 = std::make_shared<opset10::Convert>(gather_1, element::f32);
-        auto const_2 = opset10::Constant::create(element::f32, Shape{2}, {512, 512});
-        auto div_1 = std::make_shared<opset10::Divide>(const_2, convert_2);
-        auto const_3 = opset10::Constant::create(element::f32, Shape{2}, {1, 1});
-        auto concat = std::make_shared<opset10::Concat>(OutputVector{const_3, div_1}, 0);  // scales
+        auto convert_2 = std::make_shared<op::v0::Convert>(gather_1, element::f32);
+        auto const_2 = op::v0::Constant::create(element::f32, Shape{2}, {512, 512});
+        auto div_1 = std::make_shared<op::v1::Divide>(const_2, convert_2);
+        auto const_3 = op::v0::Constant::create(element::f32, Shape{2}, {1, 1});
+        auto concat = std::make_shared<op::v0::Concat>(OutputVector{const_3, div_1}, 0);  // scales
 
-        auto mul_1 = std::make_shared<opset10::Multiply>(convert_1, concat);
-        auto convert_3 = std::make_shared<opset10::Convert>(mul_1, element::i64);  // sizes
+        auto mul_1 = std::make_shared<op::v1::Multiply>(convert_1, concat);
+        auto convert_3 = std::make_shared<op::v0::Convert>(mul_1, element::i64);  // sizes
 
-        opset10::Interpolate::InterpolateAttrs attrs;
-        attrs.mode = opset10::Interpolate::InterpolateMode::LINEAR_ONNX;
-        attrs.shape_calculation_mode = opset10::Interpolate::ShapeCalcMode::SIZES;
-        attrs.nearest_mode = opset10::Interpolate::NearestMode::FLOOR;
+        op::v4::Interpolate::InterpolateAttrs attrs;
+        attrs.mode = op::v4::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = op::v4::Interpolate::ShapeCalcMode::SIZES;
+        attrs.nearest_mode = op::v4::Interpolate::NearestMode::FLOOR;
         attrs.pads_begin = std::vector<size_t>{0};
         attrs.pads_end = std::vector<size_t>{0};
         attrs.antialias = false;
-        attrs.coordinate_transformation_mode = opset10::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
+        attrs.coordinate_transformation_mode = op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
-        auto interpolate = std::make_shared<opset10::Interpolate>(input_1, convert_3, concat, attrs);
+        auto interpolate = std::make_shared<op::v4::Interpolate>(input_1, convert_3, concat, attrs);
 
-        auto const_4 = opset10::Constant::create(element::f32, Shape{}, {0.1f});
-        auto add_1 = std::make_shared<opset10::Add>(input_1, const_4);
-        auto result_1 = std::make_shared<opset10::Result>(add_1);
-        auto result_2 = std::make_shared<opset10::Result>(interpolate);
+        auto const_4 = op::v0::Constant::create(element::f32, Shape{}, {0.1f});
+        auto add_1 = std::make_shared<op::v1::Add>(input_1, const_4);
+        auto result_1 = std::make_shared<op::v0::Result>(add_1);
+        auto result_2 = std::make_shared<op::v0::Result>(interpolate);
         model = std::make_shared<Model>(NodeVector{result_1, result_2}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
@@ -1359,41 +1406,41 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
     }
 
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 720, 1280});
-        auto input_2 = std::make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 720, 1280});
-        auto shapeof_1 = std::make_shared<opset10::ShapeOf>(input_1);
-        auto shapeof_2 = std::make_shared<opset10::ShapeOf>(input_2);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 720, 1280});
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 720, 1280});
+        auto shapeof_1 = std::make_shared<op::v3::ShapeOf>(input_1);
+        auto shapeof_2 = std::make_shared<op::v3::ShapeOf>(input_2);
 
-        auto const_1 = opset10::Constant::create(element::i64, Shape{2}, {2, 3});
-        auto axis_const = opset10::Constant::create(element::i64, Shape{}, {0});
-        auto gather_1 = std::make_shared<opset10::Gather>(shapeof_2, const_1, axis_const);
-        auto convert_1 = std::make_shared<opset10::Convert>(shapeof_1, element::f32);
+        auto const_1 = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
+        auto axis_const = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto gather_1 = std::make_shared<op::v8::Gather>(shapeof_2, const_1, axis_const);
+        auto convert_1 = std::make_shared<op::v0::Convert>(shapeof_1, element::f32);
 
-        auto convert_2 = std::make_shared<opset10::Convert>(gather_1, element::f32);
-        auto const_2 = opset10::Constant::create(element::f32, Shape{2}, {512, 512});
-        auto div_1 = std::make_shared<opset10::Divide>(const_2, convert_2);
-        auto const_3 = opset10::Constant::create(element::f32, Shape{2}, {1, 1});
-        auto concat = std::make_shared<opset10::Concat>(OutputVector{const_3, div_1}, 0);  // scales
+        auto convert_2 = std::make_shared<op::v0::Convert>(gather_1, element::f32);
+        auto const_2 = op::v0::Constant::create(element::f32, Shape{2}, {512, 512});
+        auto div_1 = std::make_shared<op::v1::Divide>(const_2, convert_2);
+        auto const_3 = op::v0::Constant::create(element::f32, Shape{2}, {1, 1});
+        auto concat = std::make_shared<op::v0::Concat>(OutputVector{const_3, div_1}, 0);  // scales
 
-        auto mul_1 = std::make_shared<opset10::Multiply>(convert_1, concat);
-        auto convert_3 = std::make_shared<opset10::Convert>(mul_1, element::i64);  // sizes
+        auto mul_1 = std::make_shared<op::v1::Multiply>(convert_1, concat);
+        auto convert_3 = std::make_shared<op::v0::Convert>(mul_1, element::i64);  // sizes
 
-        opset10::Interpolate::InterpolateAttrs attrs;
-        attrs.mode = opset10::Interpolate::InterpolateMode::LINEAR_ONNX;
-        attrs.shape_calculation_mode = opset10::Interpolate::ShapeCalcMode::SIZES;
-        attrs.nearest_mode = opset10::Interpolate::NearestMode::FLOOR;
+        op::v4::Interpolate::InterpolateAttrs attrs;
+        attrs.mode = op::v4::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = op::v4::Interpolate::ShapeCalcMode::SIZES;
+        attrs.nearest_mode = op::v4::Interpolate::NearestMode::FLOOR;
         attrs.pads_begin = std::vector<size_t>{0};
         attrs.pads_end = std::vector<size_t>{0};
         attrs.antialias = false;
-        attrs.coordinate_transformation_mode = opset10::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
+        attrs.coordinate_transformation_mode = op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
-        auto interpolate = std::make_shared<opset10::Interpolate>(input_1, convert_3, concat, attrs);
+        auto interpolate = std::make_shared<op::v4::Interpolate>(input_1, convert_3, concat, attrs);
 
-        auto const_4 = opset10::Constant::create(element::f16, Shape{}, {0.1f});
-        auto add_1 = std::make_shared<opset10::Add>(input_1, const_4);
-        auto result_1 = std::make_shared<opset10::Result>(add_1);
-        auto result_2 = std::make_shared<opset10::Result>(interpolate);
+        auto const_4 = op::v0::Constant::create(element::f16, Shape{}, {0.1f});
+        auto add_1 = std::make_shared<op::v1::Add>(input_1, const_4);
+        auto result_1 = std::make_shared<op::v0::Result>(add_1);
+        auto result_2 = std::make_shared<op::v0::Result>(interpolate);
         model_ref = std::make_shared<Model>(NodeVector{result_1, result_2}, ParameterVector{input_1, input_2});
     }
 
@@ -1409,23 +1456,23 @@ TEST(TransformationTests, ConvertCompressedToMixedPrecission_do_not_keep_in_fp32
     // negative test: check that without keeping sensitive nodes in FP32 the whole Model is converted to f16
     // including ShapeOf subgraph and we get wrong output shape [1, 3, 287, 511] instead of correct one [1, 3, 288, 512]
     std::shared_ptr<Model> model(nullptr);
-    std::shared_ptr<opset10::Interpolate> interpolate(nullptr);
+    std::shared_ptr<op::v4::Interpolate> interpolate(nullptr);
     {
-        auto input = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 720, 1280});
-        auto sizes = opset10::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
-        auto scales_const = opset10::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto sizes = op::v0::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
+        auto scales_const = op::v0::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
 
-        opset10::Interpolate::InterpolateAttrs attrs;
-        attrs.mode = opset10::Interpolate::InterpolateMode::LINEAR_ONNX;
-        attrs.shape_calculation_mode = opset10::Interpolate::ShapeCalcMode::SCALES;
-        attrs.nearest_mode = opset10::Interpolate::NearestMode::FLOOR;
+        op::v4::Interpolate::InterpolateAttrs attrs;
+        attrs.mode = op::v4::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = op::v4::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = op::v4::Interpolate::NearestMode::FLOOR;
         attrs.pads_begin = std::vector<size_t>{0};
         attrs.pads_end = std::vector<size_t>{0};
         attrs.antialias = false;
-        attrs.coordinate_transformation_mode = opset10::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
+        attrs.coordinate_transformation_mode = op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
-        interpolate = std::make_shared<opset10::Interpolate>(input, sizes, scales_const, attrs);
+        interpolate = std::make_shared<op::v4::Interpolate>(input, sizes, scales_const, attrs);
         model = std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{input});
 
         pass::Manager manager;
@@ -1452,7 +1499,7 @@ void constant_convert_test(element::Type type_from,
     std::string expected_friendly_name;
     size_t size = value.size() * sizeof(From) * 8 / type_from.bitwidth();
     {
-        auto c = std::make_shared<opset4::Constant>(type_from, Shape{size}, value.data());
+        auto c = std::make_shared<op::v0::Constant>(type_from, Shape{size}, value.data());
         expected_friendly_name = c->get_friendly_name();
         f = std::make_shared<Model>(NodeVector{c}, ParameterVector{});
 
@@ -1461,7 +1508,7 @@ void constant_convert_test(element::Type type_from,
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();
-    auto c = ov::as_type_ptr<opset4::Constant>(ops[0]);
+    auto c = ov::as_type_ptr<op::v0::Constant>(ops[0]);
     ASSERT_NE(c, nullptr);
     ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
     std::vector<To> actual;
@@ -1482,7 +1529,7 @@ void constant_convert_test(element::Type_t type_from, element::Type_t type_to, F
     std::shared_ptr<Model> f(nullptr);
     std::string expected_friendly_name;
     {
-        auto c = std::make_shared<opset4::Constant>(type_from, Shape{}, &value);
+        auto c = std::make_shared<op::v0::Constant>(type_from, Shape{}, &value);
         expected_friendly_name = c->get_friendly_name();
         f = std::make_shared<Model>(NodeVector{c}, ParameterVector{});
 
@@ -1491,7 +1538,7 @@ void constant_convert_test(element::Type_t type_from, element::Type_t type_to, F
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();
-    auto c = ov::as_type_ptr<opset4::Constant>(ops[0]);
+    auto c = ov::as_type_ptr<op::v0::Constant>(ops[0]);
     ASSERT_NE(c, nullptr);
     ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
 
@@ -1670,16 +1717,16 @@ TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_e
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto exp_1 = make_shared<opset10::Exp>(input_1);
-        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(exp_1, reduction_axes);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<op::v0::Exp>(input_1);
+        auto input_2 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(exp_1, reduction_axes);
 
-        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
-        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const_decompressed);
-        auto matmul_1 = make_shared<opset10::MatMul>(mul_1, input_2);
+        auto factor_const = op::v0::Constant::create(element::f16, Shape{1}, {-1});
+        auto factor_const_decompressed = make_shared<op::v0::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<op::v1::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto matmul_1 = make_shared<op::v0::MatMul>(mul_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
@@ -1692,17 +1739,17 @@ TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_e
     }
 
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
-        auto exp_1 = make_shared<opset10::Exp>(input_1_decompressed);
-        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(exp_1, reduction_axes);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_1_decompressed = make_shared<op::v0::Convert>(input_1, element::f32);
+        auto exp_1 = make_shared<op::v0::Exp>(input_1_decompressed);
+        auto input_2 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(exp_1, reduction_axes);
 
-        auto factor_const = opset10::Constant::create(element::f32, Shape{1}, {-1});
-        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const);
-        auto mul_1_compressed = make_shared<opset10::Convert>(mul_1, element::f16);
-        auto matmul_1 = make_shared<opset10::MatMul>(mul_1_compressed, input_2);
+        auto factor_const = op::v0::Constant::create(element::f32, Shape{1}, {-1});
+        auto mul_1 = make_shared<op::v1::Multiply>(reduce_sum_1, factor_const);
+        auto mul_1_compressed = make_shared<op::v0::Convert>(mul_1, element::f16);
+        auto matmul_1 = make_shared<op::v0::MatMul>(mul_1_compressed, input_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
@@ -1716,16 +1763,16 @@ TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_r
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto exp_1 = make_shared<opset10::Exp>(input_1);
-        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(exp_1, reduction_axes);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<op::v0::Exp>(input_1);
+        auto input_2 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(exp_1, reduction_axes);
 
-        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
-        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const_decompressed);
-        auto matmul_1 = make_shared<opset10::MatMul>(mul_1, input_2);
+        auto factor_const = op::v0::Constant::create(element::f16, Shape{1}, {-1});
+        auto factor_const_decompressed = make_shared<op::v0::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<op::v1::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto matmul_1 = make_shared<op::v0::MatMul>(mul_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
@@ -1738,17 +1785,17 @@ TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_r
     }
 
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
-        auto exp_1 = make_shared<opset10::Exp>(input_1_decompressed);
-        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_mean_1 = make_shared<opset10::ReduceMean>(exp_1, reduction_axes);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_1_decompressed = make_shared<op::v0::Convert>(input_1, element::f32);
+        auto exp_1 = make_shared<op::v0::Exp>(input_1_decompressed);
+        auto input_2 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_mean_1 = make_shared<op::v1::ReduceMean>(exp_1, reduction_axes);
 
-        auto factor_const = opset10::Constant::create(element::f32, Shape{1}, {-1});
-        auto mul_1 = make_shared<opset10::Multiply>(reduce_mean_1, factor_const);
-        auto mul_1_compressed = make_shared<opset10::Convert>(mul_1, element::f16);
-        auto matmul_1 = make_shared<opset10::MatMul>(mul_1_compressed, input_2);
+        auto factor_const = op::v0::Constant::create(element::f32, Shape{1}, {-1});
+        auto mul_1 = make_shared<op::v1::Multiply>(reduce_mean_1, factor_const);
+        auto mul_1_compressed = make_shared<op::v0::Convert>(mul_1, element::f16);
+        auto matmul_1 = make_shared<op::v0::MatMul>(mul_1_compressed, input_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
@@ -1765,14 +1812,14 @@ TEST(TransformationTests, ConvertPrecision_reducesum_without_exp) {
     pass::Manager manager;
 
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(input_1, reduction_axes);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(input_1, reduction_axes);
 
-        auto factor_const = opset10::Constant::create(element::f32, Shape{1}, {-1});
-        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const);
-        auto matmul_1 = make_shared<opset10::MatMul>(mul_1, input_2);
+        auto factor_const = op::v0::Constant::create(element::f32, Shape{1}, {-1});
+        auto mul_1 = make_shared<op::v1::Multiply>(reduce_sum_1, factor_const);
+        auto matmul_1 = make_shared<op::v0::MatMul>(mul_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
@@ -1785,14 +1832,14 @@ TEST(TransformationTests, ConvertPrecision_reducesum_without_exp) {
     }
 
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(input_1, reduction_axes);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(input_1, reduction_axes);
 
-        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
-        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const);
-        auto matmul_1 = make_shared<opset10::MatMul>(mul_1, input_2);
+        auto factor_const = op::v0::Constant::create(element::f16, Shape{1}, {-1});
+        auto mul_1 = make_shared<op::v1::Multiply>(reduce_sum_1, factor_const);
+        auto matmul_1 = make_shared<op::v0::MatMul>(mul_1, input_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
@@ -1807,50 +1854,50 @@ TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_t2t_su
     pass::Manager manager;
     // subgraph from t2t-vit-7
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3136, 32});
-        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3136, 32});
-        auto input_3 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3136, 64, 1});
-        auto input_4 = make_shared<opset10::Parameter>(element::f32, Shape{128, 64});
-        auto exp_1 = make_shared<opset10::Exp>(input_1);
-        auto exp_2 = make_shared<opset10::Exp>(input_2);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3136, 32});
+        auto input_2 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3136, 32});
+        auto input_3 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3136, 64, 1});
+        auto input_4 = make_shared<op::v0::Parameter>(element::f32, Shape{128, 64});
+        auto exp_1 = make_shared<op::v0::Exp>(input_1);
+        auto exp_2 = make_shared<op::v0::Exp>(input_2);
 
-        auto factor_1 = opset10::Constant::create(element::f32, Shape{1}, {0.5});  // add decompression
-        auto mul_1 = make_shared<opset10::Multiply>(exp_1, factor_1);
-        auto factor_2 = opset10::Constant::create(element::f32, Shape{1}, {0.5});
-        auto mul_2 = make_shared<opset10::Multiply>(exp_2, factor_2);
+        auto factor_1 = op::v0::Constant::create(element::f32, Shape{1}, {0.5});  // add decompression
+        auto mul_1 = make_shared<op::v1::Multiply>(exp_1, factor_1);
+        auto factor_2 = op::v0::Constant::create(element::f32, Shape{1}, {0.5});
+        auto mul_2 = make_shared<op::v1::Multiply>(exp_2, factor_2);
 
-        auto const_unsqueeze_1 = opset10::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
-        auto unsqueeze_1 = make_shared<opset10::Reshape>(mul_1, const_unsqueeze_1, false);
+        auto const_unsqueeze_1 = op::v0::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
+        auto unsqueeze_1 = make_shared<op::v1::Reshape>(mul_1, const_unsqueeze_1, false);
 
-        auto const_unsqueeze_2 = opset10::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
-        auto unsqueeze_2 = make_shared<opset10::Reshape>(mul_2, const_unsqueeze_1, false);
-        auto reduction_axes_1 = opset10::Constant::create(element::i64, Shape{1}, {1});
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(mul_2, reduction_axes_1, true);
-        auto mul_3 = make_shared<opset10::Multiply>(reduce_sum_1, mul_1);
-        auto mul_4 = make_shared<opset10::Multiply>(input_3, unsqueeze_2);
+        auto const_unsqueeze_2 = op::v0::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
+        auto unsqueeze_2 = make_shared<op::v1::Reshape>(mul_2, const_unsqueeze_1, false);
+        auto reduction_axes_1 = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(mul_2, reduction_axes_1, true);
+        auto mul_3 = make_shared<op::v1::Multiply>(reduce_sum_1, mul_1);
+        auto mul_4 = make_shared<op::v1::Multiply>(input_3, unsqueeze_2);
 
-        auto reduction_axes_2 = opset10::Constant::create(element::i64, Shape{1}, {1});
-        auto reduce_sum_2 = make_shared<opset10::ReduceSum>(mul_4, reduction_axes_2);
-        auto reduction_axes_3 = opset10::Constant::create(element::i64, Shape{1}, {2});
-        auto reduce_sum_3 = make_shared<opset10::ReduceSum>(mul_3, reduction_axes_3, true);
+        auto reduction_axes_2 = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto reduce_sum_2 = make_shared<op::v1::ReduceSum>(mul_4, reduction_axes_2);
+        auto reduction_axes_3 = op::v0::Constant::create(element::i64, Shape{1}, {2});
+        auto reduce_sum_3 = make_shared<op::v1::ReduceSum>(mul_3, reduction_axes_3, true);
 
-        auto broadcast_to_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto broadcast_to_shape = op::v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
         auto broadcast =
-            make_shared<opset10::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
-        auto tile_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 64});
-        auto tile = make_shared<opset10::Tile>(broadcast, tile_shape);
-        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {1.e-10});
-        auto add_1 = make_shared<opset10::Add>(tile, eps_const);
+            make_shared<op::v3::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto tile_shape = op::v0::Constant::create(element::i64, Shape{3}, {1, 1, 64});
+        auto tile = make_shared<op::v0::Tile>(broadcast, tile_shape);
+        auto eps_const = op::v0::Constant::create(element::f32, Shape{1}, {1.e-10});
+        auto add_1 = make_shared<op::v1::Add>(tile, eps_const);
 
-        auto const_unsqueeze_3 = opset10::Constant::create(element::i64, Shape{4}, {1, 1, 64, 32});
-        auto unsqueeze_3 = make_shared<opset10::Reshape>(reduce_sum_2, const_unsqueeze_3, false);
-        auto mul_5 = make_shared<opset10::Multiply>(unsqueeze_1, unsqueeze_3);
+        auto const_unsqueeze_3 = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 64, 32});
+        auto unsqueeze_3 = make_shared<op::v1::Reshape>(reduce_sum_2, const_unsqueeze_3, false);
+        auto mul_5 = make_shared<op::v1::Multiply>(unsqueeze_1, unsqueeze_3);
 
-        auto reduction_axes_4 = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_4 = make_shared<opset10::ReduceSum>(mul_5, reduction_axes_4);
+        auto reduction_axes_4 = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_4 = make_shared<op::v1::ReduceSum>(mul_5, reduction_axes_4);
 
-        auto div_1 = make_shared<opset10::Divide>(reduce_sum_4, add_1);
-        auto matmul_1 = make_shared<opset10::MatMul>(div_1, input_4, false, true);
+        auto div_1 = make_shared<op::v1::Divide>(reduce_sum_4, add_1);
+        auto matmul_1 = make_shared<op::v0::MatMul>(div_1, input_4, false, true);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2, input_3, input_4});
 
@@ -1863,55 +1910,55 @@ TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_t2t_su
     }
 
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3136, 32});
-        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3136, 32});
-        auto input_3 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3136, 64, 1});
-        auto input_4 = make_shared<opset10::Parameter>(element::f16, Shape{128, 64});
-        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
-        auto input_2_decompressed = make_shared<opset10::Convert>(input_2, element::f32);
-        auto input_3_decompressed = make_shared<opset10::Convert>(input_3, element::f32);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3136, 32});
+        auto input_2 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3136, 32});
+        auto input_3 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3136, 64, 1});
+        auto input_4 = make_shared<op::v0::Parameter>(element::f16, Shape{128, 64});
+        auto input_1_decompressed = make_shared<op::v0::Convert>(input_1, element::f32);
+        auto input_2_decompressed = make_shared<op::v0::Convert>(input_2, element::f32);
+        auto input_3_decompressed = make_shared<op::v0::Convert>(input_3, element::f32);
 
-        auto exp_1 = make_shared<opset10::Exp>(input_1_decompressed);
-        auto exp_2 = make_shared<opset10::Exp>(input_2_decompressed);
+        auto exp_1 = make_shared<op::v0::Exp>(input_1_decompressed);
+        auto exp_2 = make_shared<op::v0::Exp>(input_2_decompressed);
 
-        auto factor_1 = opset10::Constant::create(element::f32, Shape{1}, {0.5});
-        auto mul_1 = make_shared<opset10::Multiply>(exp_1, factor_1);
-        auto factor_2 = opset10::Constant::create(element::f32, Shape{1}, {0.5});
-        auto mul_2 = make_shared<opset10::Multiply>(exp_2, factor_2);
+        auto factor_1 = op::v0::Constant::create(element::f32, Shape{1}, {0.5});
+        auto mul_1 = make_shared<op::v1::Multiply>(exp_1, factor_1);
+        auto factor_2 = op::v0::Constant::create(element::f32, Shape{1}, {0.5});
+        auto mul_2 = make_shared<op::v1::Multiply>(exp_2, factor_2);
 
-        auto const_unsqueeze_1 = opset10::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
-        auto unsqueeze_1 = make_shared<opset10::Reshape>(mul_1, const_unsqueeze_1, false);
+        auto const_unsqueeze_1 = op::v0::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
+        auto unsqueeze_1 = make_shared<op::v1::Reshape>(mul_1, const_unsqueeze_1, false);
 
-        auto const_unsqueeze_2 = opset10::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
-        auto unsqueeze_2 = make_shared<opset10::Reshape>(mul_2, const_unsqueeze_2, false);
-        auto reduction_axes_1 = opset10::Constant::create(element::i64, Shape{1}, {1});
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(mul_2, reduction_axes_1, true);
-        auto mul_3 = make_shared<opset10::Multiply>(reduce_sum_1, mul_1);
-        auto mul_4 = make_shared<opset10::Multiply>(input_3_decompressed, unsqueeze_2);
+        auto const_unsqueeze_2 = op::v0::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
+        auto unsqueeze_2 = make_shared<op::v1::Reshape>(mul_2, const_unsqueeze_2, false);
+        auto reduction_axes_1 = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(mul_2, reduction_axes_1, true);
+        auto mul_3 = make_shared<op::v1::Multiply>(reduce_sum_1, mul_1);
+        auto mul_4 = make_shared<op::v1::Multiply>(input_3_decompressed, unsqueeze_2);
 
-        auto reduction_axes_2 = opset10::Constant::create(element::i64, Shape{1}, {1});
-        auto reduce_sum_2 = make_shared<opset10::ReduceSum>(mul_4, reduction_axes_2);
-        auto reduction_axes_3 = opset10::Constant::create(element::i64, Shape{1}, {2});
-        auto reduce_sum_3 = make_shared<opset10::ReduceSum>(mul_3, reduction_axes_3, true);
+        auto reduction_axes_2 = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto reduce_sum_2 = make_shared<op::v1::ReduceSum>(mul_4, reduction_axes_2);
+        auto reduction_axes_3 = op::v0::Constant::create(element::i64, Shape{1}, {2});
+        auto reduce_sum_3 = make_shared<op::v1::ReduceSum>(mul_3, reduction_axes_3, true);
 
-        auto broadcast_to_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+        auto broadcast_to_shape = op::v0::Constant::create(element::i64, Shape{3}, {1, 1, 1});
         auto broadcast =
-            make_shared<opset10::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
-        auto tile_shape = opset10::Constant::create(element::i64, Shape{3}, {1, 1, 64});
-        auto tile = make_shared<opset10::Tile>(broadcast, tile_shape);
-        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {1.e-10});
-        auto add_1 = make_shared<opset10::Add>(tile, eps_const);
+            make_shared<op::v3::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto tile_shape = op::v0::Constant::create(element::i64, Shape{3}, {1, 1, 64});
+        auto tile = make_shared<op::v0::Tile>(broadcast, tile_shape);
+        auto eps_const = op::v0::Constant::create(element::f32, Shape{1}, {1.e-10});
+        auto add_1 = make_shared<op::v1::Add>(tile, eps_const);
 
-        auto const_unsqueeze_3 = opset10::Constant::create(element::i64, Shape{4}, {1, 1, 64, 32});
-        auto unsqueeze_3 = make_shared<opset10::Reshape>(reduce_sum_2, const_unsqueeze_3, false);
-        auto mul_5 = make_shared<opset10::Multiply>(unsqueeze_1, unsqueeze_3);
+        auto const_unsqueeze_3 = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 64, 32});
+        auto unsqueeze_3 = make_shared<op::v1::Reshape>(reduce_sum_2, const_unsqueeze_3, false);
+        auto mul_5 = make_shared<op::v1::Multiply>(unsqueeze_1, unsqueeze_3);
 
-        auto reduction_axes_4 = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_4 = make_shared<opset10::ReduceSum>(mul_5, reduction_axes_4);
+        auto reduction_axes_4 = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_4 = make_shared<op::v1::ReduceSum>(mul_5, reduction_axes_4);
 
-        auto div_1 = make_shared<opset10::Divide>(reduce_sum_4, add_1);
-        auto div_compressed = make_shared<opset10::Convert>(div_1, element::f16);
-        auto matmul_1 = make_shared<opset10::MatMul>(div_compressed, input_4, false, true);
+        auto div_1 = make_shared<op::v1::Divide>(reduce_sum_4, add_1);
+        auto div_compressed = make_shared<op::v0::Convert>(div_1, element::f16);
+        auto matmul_1 = make_shared<op::v0::MatMul>(div_compressed, input_4, false, true);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2, input_3, input_4});
     }
@@ -1927,11 +1974,11 @@ TEST(TransformationTests, ConvertPrecision_DivisionByZeroMinimalPattern) {
 
     const float eps_value = 1.0e-12f;
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(3));
-        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<opset10::Add>(input_2, eps_const);
-        auto divide = std::make_shared<opset10::Divide>(input_1, add);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto eps_const = op::v0::Constant::create(element::f32, Shape{1}, {eps_value});
+        auto add = std::make_shared<op::v1::Add>(input_2, eps_const);
+        auto divide = std::make_shared<op::v1::Divide>(input_1, add);
         model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
 
         type_to_fuse_map empty_type_to_fuse_map = {};
@@ -1943,15 +1990,15 @@ TEST(TransformationTests, ConvertPrecision_DivisionByZeroMinimalPattern) {
     }
 
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f16, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<opset10::Parameter>(element::f16, PartialShape::dynamic(3));
-        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
-        auto input_2_decompressed = make_shared<opset10::Convert>(input_2, element::f32);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(3));
+        auto input_1_decompressed = make_shared<op::v0::Convert>(input_1, element::f32);
+        auto input_2_decompressed = make_shared<op::v0::Convert>(input_2, element::f32);
 
-        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<opset10::Add>(input_2_decompressed, eps_const);
-        auto divide = std::make_shared<opset10::Divide>(input_1_decompressed, add);
-        auto conv = std::make_shared<opset10::Convert>(divide, element::f16);
+        auto eps_const = op::v0::Constant::create(element::f32, Shape{1}, {eps_value});
+        auto add = std::make_shared<op::v1::Add>(input_2_decompressed, eps_const);
+        auto divide = std::make_shared<op::v1::Divide>(input_1_decompressed, add);
+        auto conv = std::make_shared<op::v0::Convert>(divide, element::f16);
 
         model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input_1, input_2});
     }
@@ -1964,54 +2011,54 @@ TEST(TransformationTests, ConvertPrecision_DivisionByZeroMinimalPattern) {
 static std::shared_ptr<ov::Model> make_then_body(bool ref) {
     auto el_type = ref ? element::f16 : element::f32;
 
-    auto then_param = std::make_shared<opset10::Parameter>(el_type, PartialShape{1, 112, 112, 24});
+    auto then_param = std::make_shared<op::v0::Parameter>(el_type, PartialShape{1, 112, 112, 24});
     auto opt_conv =
-        ref ? std::make_shared<opset10::Convert>(then_param, element::f32)->output(0) : then_param->output(0);
-    auto red_mean_const = opset10::Constant::create(element::i32, Shape{3}, {0, 1, 2});
-    auto red_mean = std::make_shared<opset10::ReduceMean>(opt_conv, red_mean_const);
+        ref ? std::make_shared<op::v0::Convert>(then_param, element::f32)->output(0) : then_param->output(0);
+    auto red_mean_const = op::v0::Constant::create(element::i32, Shape{3}, {0, 1, 2});
+    auto red_mean = std::make_shared<op::v1::ReduceMean>(opt_conv, red_mean_const);
 
     auto opt_conv_sub =
-        ref ? std::make_shared<opset10::Convert>(then_param, element::f32)->output(0) : then_param->output(0);
-    auto subtract = std::make_shared<opset10::Subtract>(opt_conv_sub, red_mean);
+        ref ? std::make_shared<op::v0::Convert>(then_param, element::f32)->output(0) : then_param->output(0);
+    auto subtract = std::make_shared<op::v1::Subtract>(opt_conv_sub, red_mean);
 
-    auto power_const = opset10::Constant::create(el_type, Shape{1}, {2});
+    auto power_const = op::v0::Constant::create(el_type, Shape{1}, {2});
     auto opt_conv_1 =
-        ref ? std::make_shared<opset10::Convert>(power_const, element::f32)->output(0) : power_const->output(0);
-    auto power = std::make_shared<opset10::Power>(subtract, opt_conv_1);
+        ref ? std::make_shared<op::v0::Convert>(power_const, element::f32)->output(0) : power_const->output(0);
+    auto power = std::make_shared<op::v1::Power>(subtract, opt_conv_1);
 
-    auto red_mean_const_1 = opset10::Constant::create(element::i32, Shape{3}, {0, 1, 2});
-    auto reduce_mean_1 = std::make_shared<opset10::ReduceMean>(power, red_mean_const_1);
+    auto red_mean_const_1 = op::v0::Constant::create(element::i32, Shape{3}, {0, 1, 2});
+    auto reduce_mean_1 = std::make_shared<op::v1::ReduceMean>(power, red_mean_const_1);
 
-    auto add_const = opset10::Constant::create(el_type, Shape{1}, {1.001e-05});
+    auto add_const = op::v0::Constant::create(el_type, Shape{1}, {1.001e-05});
     auto opt_conv_2 =
-        ref ? std::make_shared<opset10::Convert>(add_const, element::f32)->output(0) : add_const->output(0);
-    auto add = std::make_shared<opset10::Add>(reduce_mean_1, opt_conv_2);
+        ref ? std::make_shared<op::v0::Convert>(add_const, element::f32)->output(0) : add_const->output(0);
+    auto add = std::make_shared<op::v1::Add>(reduce_mean_1, opt_conv_2);
 
-    auto sqrt = std::make_shared<opset10::Sqrt>(add);
+    auto sqrt = std::make_shared<op::v0::Sqrt>(add);
 
-    auto divide = std::make_shared<opset10::Divide>(subtract, sqrt);
+    auto divide = std::make_shared<op::v1::Divide>(subtract, sqrt);
 
     auto mul_const =
-        opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1));  // stub values
-    auto mul_conv = std::make_shared<opset10::Convert>(mul_const, element::f32);
-    auto mul = std::make_shared<opset10::Multiply>(divide, mul_conv);
+        op::v0::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1));  // stub values
+    auto mul_conv = std::make_shared<op::v0::Convert>(mul_const, element::f32);
+    auto mul = std::make_shared<op::v1::Multiply>(divide, mul_conv);
 
     auto add_const_1 =
-        opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1));  // stub values
-    auto add_conv = std::make_shared<opset10::Convert>(add_const_1, element::f32);
-    auto add_1 = std::make_shared<opset10::Multiply>(mul, add_conv);
+        op::v0::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1));  // stub values
+    auto add_conv = std::make_shared<op::v0::Convert>(add_const_1, element::f32);
+    auto add_1 = std::make_shared<op::v1::Multiply>(mul, add_conv);
 
-    auto res_conv = ref ? std::make_shared<opset10::Convert>(add_1, element::f16)->output(0) : add_1->output(0);
+    auto res_conv = ref ? std::make_shared<op::v0::Convert>(add_1, element::f16)->output(0) : add_1->output(0);
 
-    auto then_res = std::make_shared<opset10::Result>(res_conv);
+    auto then_res = std::make_shared<op::v0::Result>(res_conv);
 
     return std::make_shared<ov::Model>(OutputVector{then_res}, ParameterVector{then_param});
 }
 
 static std::shared_ptr<ov::Model> make_else_body(bool ref) {
     auto el_type = ref ? element::f16 : element::f32;
-    auto else_param = std::make_shared<opset10::Parameter>(el_type, ov::Shape{1, 112, 112, 24});
-    auto else_res = std::make_shared<opset10::Result>(else_param);
+    auto else_param = std::make_shared<op::v0::Parameter>(el_type, ov::Shape{1, 112, 112, 24});
+    auto else_res = std::make_shared<op::v0::Result>(else_param);
 
     return std::make_shared<ov::Model>(OutputVector{else_res}, ParameterVector{else_param});
 }
@@ -2028,9 +2075,9 @@ TEST(TransformationTests, Convert_Precision_If_Body) {
         auto else_param = else_body->get_parameters()[0];
         auto else_res = else_body->get_results()[0];
 
-        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 112, 112, 24});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 112, 112, 24});
         auto cond = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
-        auto if_op = std::make_shared<ov::opset8::If>(cond);
+        auto if_op = std::make_shared<ov::op::v8::If>(cond);
         auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
         if_op->set_then_body(then_body);
@@ -2057,9 +2104,9 @@ TEST(TransformationTests, Convert_Precision_If_Body) {
         auto else_param = else_body->get_parameters()[0];
         auto else_res = else_body->get_results()[0];
 
-        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ov::Shape{1, 112, 112, 24});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 112, 112, 24});
         auto cond = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
-        auto if_op = std::make_shared<ov::opset8::If>(cond);
+        auto if_op = std::make_shared<ov::op::v8::If>(cond);
         auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
         if_op->set_then_body(then_body);
@@ -2080,13 +2127,13 @@ TEST(TransformationTests, ConvertPrecision_PowWithNegativeExponent) {
     pass::Manager manager;
     const float eps_value = 1.0e-12f;
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(3));
-        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<opset10::Add>(input_2, eps_const);
-        auto pow_exp_const = opset10::Constant::create(element::f32, Shape{1}, {-1.77});
-        auto pow = std::make_shared<opset10::Power>(add, pow_exp_const);
-        auto mul = std::make_shared<opset10::Multiply>(input_1, pow);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto eps_const = op::v0::Constant::create(element::f32, Shape{1}, {eps_value});
+        auto add = std::make_shared<op::v1::Add>(input_2, eps_const);
+        auto pow_exp_const = op::v0::Constant::create(element::f32, Shape{1}, {-1.77});
+        auto pow = std::make_shared<op::v1::Power>(add, pow_exp_const);
+        auto mul = std::make_shared<op::v1::Multiply>(input_1, pow);
 
         model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
 
@@ -2099,17 +2146,17 @@ TEST(TransformationTests, ConvertPrecision_PowWithNegativeExponent) {
     }
 
     {
-        auto input_1 = std::make_shared<opset10::Parameter>(element::f16, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<opset10::Parameter>(element::f16, PartialShape::dynamic(3));
-        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
-        auto input_2_decompressed = make_shared<opset10::Convert>(input_2, element::f32);
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(3));
+        auto input_1_decompressed = make_shared<op::v0::Convert>(input_1, element::f32);
+        auto input_2_decompressed = make_shared<op::v0::Convert>(input_2, element::f32);
 
-        auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<opset10::Add>(input_2_decompressed, eps_const);
-        auto pow_exp_const = opset10::Constant::create(element::f32, Shape{1}, {-1.77});
-        auto pow = std::make_shared<opset10::Power>(add, pow_exp_const);
-        auto mul = std::make_shared<opset10::Multiply>(input_1_decompressed, pow);
-        auto conv = std::make_shared<opset10::Convert>(mul, element::f16);
+        auto eps_const = op::v0::Constant::create(element::f32, Shape{1}, {eps_value});
+        auto add = std::make_shared<op::v1::Add>(input_2_decompressed, eps_const);
+        auto pow_exp_const = op::v0::Constant::create(element::f32, Shape{1}, {-1.77});
+        auto pow = std::make_shared<op::v1::Power>(add, pow_exp_const);
+        auto mul = std::make_shared<op::v1::Multiply>(input_1_decompressed, pow);
+        auto conv = std::make_shared<op::v0::Convert>(mul, element::f16);
 
         model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input_1, input_2});
     }
@@ -2123,19 +2170,19 @@ TEST(TransformationTests, ConvertPrecision_exp_through_unsqueeze) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto exp_1 = make_shared<opset10::Exp>(input_1);
-        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto input_1 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<op::v0::Exp>(input_1);
+        auto input_2 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
 
-        auto unsqueeze_axes = opset10::Constant::create(element::i64, Shape{1}, {1});
-        auto unsqueeze_1 = make_shared<opset10::Unsqueeze>(exp_1, unsqueeze_axes);
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(unsqueeze_1, reduction_axes);
+        auto unsqueeze_axes = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze_1 = make_shared<op::v0::Unsqueeze>(exp_1, unsqueeze_axes);
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(unsqueeze_1, reduction_axes);
 
-        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
-        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const_decompressed);
-        auto matmul_1 = make_shared<opset10::MatMul>(mul_1, input_2);
+        auto factor_const = op::v0::Constant::create(element::f16, Shape{1}, {-1});
+        auto factor_const_decompressed = make_shared<op::v0::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<op::v1::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto matmul_1 = make_shared<op::v0::MatMul>(mul_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
@@ -2148,21 +2195,21 @@ TEST(TransformationTests, ConvertPrecision_exp_through_unsqueeze) {
     }
 
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
-        auto exp_1 = make_shared<opset10::Exp>(input_1_decompressed);
-        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_1 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_1_decompressed = make_shared<op::v0::Convert>(input_1, element::f32);
+        auto exp_1 = make_shared<op::v0::Exp>(input_1_decompressed);
+        auto input_2 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
 
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
 
-        auto unsqueeze_axes = opset10::Constant::create(element::i64, Shape{1}, {1});
-        auto unsqueeze_1 = make_shared<opset10::Unsqueeze>(exp_1, unsqueeze_axes);
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(unsqueeze_1, reduction_axes);
+        auto unsqueeze_axes = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze_1 = make_shared<op::v0::Unsqueeze>(exp_1, unsqueeze_axes);
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(unsqueeze_1, reduction_axes);
 
-        auto factor_const = opset10::Constant::create(element::f32, Shape{1}, {-1});
-        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const);
-        auto mul_1_compressed = make_shared<opset10::Convert>(mul_1, element::f16);
-        auto matmul_1 = make_shared<opset10::MatMul>(mul_1_compressed, input_2);
+        auto factor_const = op::v0::Constant::create(element::f32, Shape{1}, {-1});
+        auto mul_1 = make_shared<op::v1::Multiply>(reduce_sum_1, factor_const);
+        auto mul_1_compressed = make_shared<op::v0::Convert>(mul_1, element::f16);
+        auto matmul_1 = make_shared<op::v0::MatMul>(mul_1_compressed, input_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
@@ -2176,21 +2223,21 @@ TEST(TransformationTests, ConvertPrecision_disable_for_quantized_nodes_1) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto exp_1 = make_shared<opset10::Exp>(input_1);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<op::v0::Exp>(input_1);
 
         auto in_low = op::v0::Constant::create(element::f32, Shape{}, {0.f});
         auto in_high = op::v0::Constant::create(element::f32, Shape{}, {5.f});
         auto out_low = op::v0::Constant::create(element::f32, Shape{}, {2.f});
         auto out_high = op::v0::Constant::create(element::f32, Shape{}, {4.f});
-        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+        auto fq_1 = make_shared<op::v0::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
 
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(fq_1, reduction_axes);
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(fq_1, reduction_axes);
 
-        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
-        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+        auto fq_2 = make_shared<op::v0::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<op::v0::MatMul>(fq_2, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
@@ -2203,21 +2250,21 @@ TEST(TransformationTests, ConvertPrecision_disable_for_quantized_nodes_1) {
     }
 
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto exp_1 = make_shared<opset10::Exp>(input_1);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<op::v0::Exp>(input_1);
 
         auto in_low = op::v0::Constant::create(element::f16, Shape{}, {0.f});
         auto in_high = op::v0::Constant::create(element::f16, Shape{}, {5.f});
         auto out_low = op::v0::Constant::create(element::f16, Shape{}, {2.f});
         auto out_high = op::v0::Constant::create(element::f16, Shape{}, {4.f});
-        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+        auto fq_1 = make_shared<op::v0::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
 
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(fq_1, reduction_axes);
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(fq_1, reduction_axes);
 
-        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
-        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+        auto fq_2 = make_shared<op::v0::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<op::v0::MatMul>(fq_2, input_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
@@ -2231,24 +2278,24 @@ TEST(TransformationTests, ConvertPrecision_disable_for_quantized_nodes_2) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto exp_1 = make_shared<opset10::Exp>(input_1);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<op::v0::Exp>(input_1);
 
         auto in_low = op::v0::Constant::create(element::f32, Shape{}, {0.f});
         auto in_high = op::v0::Constant::create(element::f32, Shape{}, {5.f});
         auto out_low = op::v0::Constant::create(element::f32, Shape{}, {2.f});
         auto out_high = op::v0::Constant::create(element::f32, Shape{}, {4.f});
-        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+        auto fq_1 = make_shared<op::v0::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
 
-        auto unsqueeze_axes = opset10::Constant::create(element::i64, Shape{1}, {1});
-        auto unsqueeze_1 = make_shared<opset10::Unsqueeze>(fq_1, unsqueeze_axes);
+        auto unsqueeze_axes = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze_1 = make_shared<op::v0::Unsqueeze>(fq_1, unsqueeze_axes);
 
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(unsqueeze_1, reduction_axes);
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(unsqueeze_1, reduction_axes);
 
-        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
-        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+        auto fq_2 = make_shared<op::v0::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<op::v0::MatMul>(fq_2, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
@@ -2261,24 +2308,24 @@ TEST(TransformationTests, ConvertPrecision_disable_for_quantized_nodes_2) {
     }
 
     {
-        auto input_1 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<opset10::Parameter>(element::f16, Shape{1, 3, 224, 224});
-        auto exp_1 = make_shared<opset10::Exp>(input_1);
+        auto input_1 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<op::v0::Exp>(input_1);
 
         auto in_low = op::v0::Constant::create(element::f16, Shape{}, {0.f});
         auto in_high = op::v0::Constant::create(element::f16, Shape{}, {5.f});
         auto out_low = op::v0::Constant::create(element::f16, Shape{}, {2.f});
         auto out_high = op::v0::Constant::create(element::f16, Shape{}, {4.f});
-        auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+        auto fq_1 = make_shared<op::v0::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
 
-        auto unsqueeze_axes = opset10::Constant::create(element::i64, Shape{1}, {1});
-        auto unsqueeze_1 = make_shared<opset10::Unsqueeze>(fq_1, unsqueeze_axes);
+        auto unsqueeze_axes = op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze_1 = make_shared<op::v0::Unsqueeze>(fq_1, unsqueeze_axes);
 
-        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(unsqueeze_1, reduction_axes);
+        auto reduction_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<op::v1::ReduceSum>(unsqueeze_1, reduction_axes);
 
-        auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
-        auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+        auto fq_2 = make_shared<op::v0::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+        auto matmul_1 = make_shared<op::v0::MatMul>(fq_2, input_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
@@ -2292,11 +2339,11 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsForParameterAndResult)
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
-        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto sin = make_shared<opset10::Sin>(param_1);
+        auto param_1 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto sin = make_shared<op::v0::Sin>(param_1);
         sin->set_friendly_name("sine");
         sin->get_output_tensor(0).add_names({"sine:0"});
-        auto result_sin = make_shared<opset10::Result>(sin);
+        auto result_sin = make_shared<op::v0::Result>(sin);
         model = make_shared<Model>(result_sin, ParameterVector{param_1});
 
         type_to_fuse_map empty_type_to_fuse_map = {};
@@ -2310,13 +2357,13 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsForParameterAndResult)
     }
 
     {
-        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto converted_param = make_shared<opset10::Convert>(param_1, element::f32);
-        auto sin = make_shared<opset10::Sin>(converted_param);
+        auto param_1 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto converted_param = make_shared<op::v0::Convert>(param_1, element::f32);
+        auto sin = make_shared<op::v0::Sin>(converted_param);
         sin->get_output_tensor(0).add_names({"sine:0"});
-        auto converted_sin = make_shared<opset10::Convert>(sin, element::f64);
+        auto converted_sin = make_shared<op::v0::Convert>(sin, element::f64);
         converted_sin->set_friendly_name("sine.0");
-        auto result_sin = make_shared<opset10::Result>(converted_sin);
+        auto result_sin = make_shared<op::v0::Result>(converted_sin);
         model_ref = make_shared<Model>(result_sin, ParameterVector{param_1});
     }
 
@@ -2332,18 +2379,18 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
-        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
+        auto param_1 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto convert_1 = make_shared<op::v0::Convert>(param_1, element::f32);
 
-        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto convert_2 = make_shared<opset10::Convert>(param_2, element::i64);
+        auto param_2 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto convert_2 = make_shared<op::v0::Convert>(param_2, element::i64);
 
-        auto param_3 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto param_4 = make_shared<opset10::Parameter>(element::i64, Shape{3});
+        auto param_3 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto param_4 = make_shared<op::v0::Parameter>(element::i64, Shape{3});
 
-        auto add = make_shared<opset10::Add>(convert_2, param_4);
-        auto mul = make_shared<opset10::Multiply>(param_1, param_3);
-        auto sin = make_shared<opset10::Sin>(convert_1);
+        auto add = make_shared<op::v1::Add>(convert_2, param_4);
+        auto mul = make_shared<op::v1::Multiply>(param_1, param_3);
+        auto sin = make_shared<op::v0::Sin>(convert_1);
 
         add->set_friendly_name("add");
         add->get_output_tensor(0).add_names({"add:0"});
@@ -2352,9 +2399,9 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
         sin->set_friendly_name("sine");
         sin->get_output_tensor(0).add_names({"sine:0"});
 
-        auto result_add = make_shared<opset10::Result>(add);
-        auto result_mul = make_shared<opset10::Result>(mul);
-        auto result_sin = make_shared<opset10::Result>(sin);
+        auto result_add = make_shared<op::v0::Result>(add);
+        auto result_mul = make_shared<op::v0::Result>(mul);
+        auto result_sin = make_shared<op::v0::Result>(sin);
 
         model = make_shared<Model>(ResultVector{result_add, result_mul, result_sin},
                                    ParameterVector{param_1, param_2, param_3, param_4});
@@ -2371,31 +2418,31 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
     }
 
     {
-        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
+        auto param_1 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto convert_1 = make_shared<op::v0::Convert>(param_1, element::f32);
 
-        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto convert_2 = make_shared<opset10::Convert>(param_2, element::i32);
+        auto param_2 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto convert_2 = make_shared<op::v0::Convert>(param_2, element::i32);
 
-        auto param_3 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto convert_3 = make_shared<opset10::Convert>(param_3, element::f32);
-        auto param_4 = make_shared<opset10::Parameter>(element::i64, Shape{3});
-        auto convert_4 = make_shared<opset10::Convert>(param_4, element::i32);
+        auto param_3 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto convert_3 = make_shared<op::v0::Convert>(param_3, element::f32);
+        auto param_4 = make_shared<op::v0::Parameter>(element::i64, Shape{3});
+        auto convert_4 = make_shared<op::v0::Convert>(param_4, element::i32);
 
-        auto add = make_shared<opset10::Add>(convert_2, convert_4);
-        auto converted_add = make_shared<opset10::Convert>(add, element::i64);
-        auto convert_1_2 = make_shared<opset10::Convert>(param_1, element::f32);
-        auto mul = make_shared<opset10::Multiply>(convert_1_2, convert_3);
-        auto converted_mul = make_shared<opset10::Convert>(mul, element::f64);
-        auto sin = make_shared<opset10::Sin>(convert_1);
+        auto add = make_shared<op::v1::Add>(convert_2, convert_4);
+        auto converted_add = make_shared<op::v0::Convert>(add, element::i64);
+        auto convert_1_2 = make_shared<op::v0::Convert>(param_1, element::f32);
+        auto mul = make_shared<op::v1::Multiply>(convert_1_2, convert_3);
+        auto converted_mul = make_shared<op::v0::Convert>(mul, element::f64);
+        auto sin = make_shared<op::v0::Sin>(convert_1);
 
         add->get_output_tensor(0).add_names({"add:0"});
         mul->get_output_tensor(0).add_names({"mul:0"});
         sin->get_output_tensor(0).add_names({"sine:0"});
 
-        auto result_add = make_shared<opset10::Result>(converted_add);
-        auto result_mul = make_shared<opset10::Result>(converted_mul);
-        auto result_sin = make_shared<opset10::Result>(sin);
+        auto result_add = make_shared<op::v0::Result>(converted_add);
+        auto result_mul = make_shared<op::v0::Result>(converted_mul);
+        auto result_sin = make_shared<op::v0::Result>(sin);
 
         model_ref = make_shared<Model>(ResultVector{result_add, result_mul, result_sin},
                                        ParameterVector{param_1, param_2, param_3, param_4});
@@ -2415,9 +2462,9 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutp
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
-        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto axis = opset10::Constant::create(element::i32, Shape{}, {0});
-        auto split = make_shared<opset10::Split>(param_1, axis, 3);
+        auto param_1 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto axis = op::v0::Constant::create(element::i32, Shape{}, {0});
+        auto split = make_shared<op::v1::Split>(param_1, axis, 3);
         split->set_friendly_name("split");
         split->get_output_tensor(0).add_names({"split:0"});
         split->get_output_tensor(1).add_names({"split:1"});
@@ -2437,14 +2484,14 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutp
     }
 
     {
-        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
-        auto axis = opset10::Constant::create(element::i32, Shape{}, {0});
-        auto split = make_shared<opset10::Split>(convert_1, axis, 3);
+        auto param_1 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto convert_1 = make_shared<op::v0::Convert>(param_1, element::f32);
+        auto axis = op::v0::Constant::create(element::i32, Shape{}, {0});
+        auto split = make_shared<op::v1::Split>(convert_1, axis, 3);
 
-        auto convert_split_0 = make_shared<opset10::Convert>(split->output(0), element::f64);
-        auto convert_split_1 = make_shared<opset10::Convert>(split->output(1), element::f64);
-        auto convert_split_2 = make_shared<opset10::Convert>(split->output(2), element::f64);
+        auto convert_split_0 = make_shared<op::v0::Convert>(split->output(0), element::f64);
+        auto convert_split_1 = make_shared<op::v0::Convert>(split->output(1), element::f64);
+        auto convert_split_2 = make_shared<op::v0::Convert>(split->output(2), element::f64);
         convert_split_0->get_output_tensor(0).add_names({"split:0"});
         convert_split_1->get_output_tensor(0).add_names({"split:1"});
         convert_split_2->get_output_tensor(0).add_names({"split:2"});
@@ -2466,30 +2513,30 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     {
-        auto cond = make_shared<opset10::Parameter>(element::boolean, Shape{});
-        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto cond = make_shared<op::v0::Parameter>(element::boolean, Shape{});
+        auto param_1 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto param_2 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
 
-        auto if_op = make_shared<opset10::If>(cond);
+        auto if_op = make_shared<op::v8::If>(cond);
 
-        auto param_1_then = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto param_2_then = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto add = make_shared<opset10::Add>(param_1_then, param_2_then);
-        auto result_then = make_shared<opset10::Result>(add);
+        auto param_1_then = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto param_2_then = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto add = make_shared<op::v1::Add>(param_1_then, param_2_then);
+        auto result_then = make_shared<op::v0::Result>(add);
         auto then_body = make_shared<Model>(result_then, ParameterVector{param_1_then, param_2_then});
 
-        auto param_1_else = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto param_2_else = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_1_else = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto param_2_else = make_shared<op::v0::Parameter>(element::f64, Shape{3});
 
         auto trip_count = op::v0::Constant::create(element::i32, Shape{}, {2});
         auto term_cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
-        auto loop = make_shared<opset10::Loop>(trip_count, term_cond);
+        auto loop = make_shared<op::v5::Loop>(trip_count, term_cond);
 
-        auto param_1_loop = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto param_2_loop = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto mul = make_shared<opset10::Multiply>(param_1_loop, param_2_loop);
-        auto result_mul = make_shared<opset10::Result>(mul);
-        auto result_cond = make_shared<opset10::Result>(term_cond);
+        auto param_1_loop = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto param_2_loop = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto mul = make_shared<op::v1::Multiply>(param_1_loop, param_2_loop);
+        auto result_mul = make_shared<op::v0::Result>(mul);
+        auto result_cond = make_shared<op::v0::Result>(term_cond);
         auto loop_body =
             make_shared<Model>(ResultVector{result_cond, result_mul}, ParameterVector{param_1_loop, param_2_loop});
 
@@ -2497,7 +2544,7 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {
         loop->set_special_body_ports({-1, 0});
         loop->set_merged_input(param_1_loop, param_1_else, result_mul);
 
-        auto result_else = make_shared<opset10::Result>(loop->get_iter_value(result_mul));
+        auto result_else = make_shared<op::v0::Result>(loop->get_iter_value(result_mul));
         auto else_body = make_shared<Model>(result_else, ParameterVector{param_1_else, param_2_else});
 
         if_op->set_then_body(then_body);
@@ -2523,30 +2570,30 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {
     }
 
     {
-        auto cond = make_shared<opset10::Parameter>(element::boolean, Shape{});
-        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
-        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto cond = make_shared<op::v0::Parameter>(element::boolean, Shape{});
+        auto param_1 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
+        auto param_2 = make_shared<op::v0::Parameter>(element::f64, Shape{3});
 
-        auto if_op = make_shared<opset10::If>(cond);
+        auto if_op = make_shared<op::v8::If>(cond);
 
-        auto param_1_then = make_shared<opset10::Parameter>(element::f32, Shape{3});
-        auto param_2_then = make_shared<opset10::Parameter>(element::f32, Shape{3});
-        auto add = make_shared<opset10::Add>(param_1_then, param_2_then);
-        auto result_then = make_shared<opset10::Result>(add);
+        auto param_1_then = make_shared<op::v0::Parameter>(element::f32, Shape{3});
+        auto param_2_then = make_shared<op::v0::Parameter>(element::f32, Shape{3});
+        auto add = make_shared<op::v1::Add>(param_1_then, param_2_then);
+        auto result_then = make_shared<op::v0::Result>(add);
         auto then_body = make_shared<Model>(result_then, ParameterVector{param_1_then, param_2_then});
 
-        auto param_1_else = make_shared<opset10::Parameter>(element::f32, Shape{3});
-        auto param_2_else = make_shared<opset10::Parameter>(element::f32, Shape{3});
+        auto param_1_else = make_shared<op::v0::Parameter>(element::f32, Shape{3});
+        auto param_2_else = make_shared<op::v0::Parameter>(element::f32, Shape{3});
 
         auto trip_count = op::v0::Constant::create(element::i32, Shape{}, {2});
         auto term_cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
-        auto loop = make_shared<opset10::Loop>(trip_count, term_cond);
+        auto loop = make_shared<op::v5::Loop>(trip_count, term_cond);
 
-        auto param_1_loop = make_shared<opset10::Parameter>(element::f32, Shape{3});
-        auto param_2_loop = make_shared<opset10::Parameter>(element::f32, Shape{3});
-        auto mul = make_shared<opset10::Multiply>(param_1_loop, param_2_loop);
-        auto result_mul = make_shared<opset10::Result>(mul);
-        auto result_cond = make_shared<opset10::Result>(term_cond);
+        auto param_1_loop = make_shared<op::v0::Parameter>(element::f32, Shape{3});
+        auto param_2_loop = make_shared<op::v0::Parameter>(element::f32, Shape{3});
+        auto mul = make_shared<op::v1::Multiply>(param_1_loop, param_2_loop);
+        auto result_mul = make_shared<op::v0::Result>(mul);
+        auto result_cond = make_shared<op::v0::Result>(term_cond);
         auto loop_body =
             make_shared<Model>(ResultVector{result_cond, result_mul}, ParameterVector{param_1_loop, param_2_loop});
 
@@ -2554,17 +2601,17 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {
         loop->set_special_body_ports({-1, 0});
         loop->set_merged_input(param_1_loop, param_1_else, result_mul);
 
-        auto result_else = make_shared<opset10::Result>(loop->get_iter_value(result_mul));
+        auto result_else = make_shared<op::v0::Result>(loop->get_iter_value(result_mul));
         auto else_body = make_shared<Model>(result_else, ParameterVector{param_1_else, param_2_else});
 
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
-        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
-        auto convert_2 = make_shared<opset10::Convert>(param_2, element::f32);
+        auto convert_1 = make_shared<op::v0::Convert>(param_1, element::f32);
+        auto convert_2 = make_shared<op::v0::Convert>(param_2, element::f32);
         if_op->set_input(convert_1, param_1_then, param_1_else);
         if_op->set_input(convert_2, param_2_then, param_2_else);
         auto result = if_op->set_output(result_then, result_else);
-        auto converted_result = make_shared<opset10::Convert>(result, element::f64);
+        auto converted_result = make_shared<op::v0::Convert>(result, element::f64);
         converted_result->get_output_tensor(0).add_names({"if_result:0"});
 
         model_ref = make_shared<Model>(converted_result, ParameterVector{cond, param_1, param_2});
@@ -2676,13 +2723,13 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types
         auto variable = std::make_shared<ov::op::util::Variable>(
             ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
 
-        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
-        auto read_value = make_shared<opset10::ReadValue>(input, variable);
+        auto input = make_shared<op::v0::Parameter>(element::f32, Shape{10, 10});
+        auto read_value = make_shared<op::v6::ReadValue>(input, variable);
 
-        auto some_value = opset10::Constant::create(element::f32, Shape{1}, {2});
-        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
-        auto res = make_shared<opset10::Result>(mul);
-        auto assign = make_shared<opset10::Assign>(mul, variable);
+        auto some_value = op::v0::Constant::create(element::f32, Shape{1}, {2});
+        auto mul = make_shared<op::v1::Multiply>(read_value, some_value);
+        auto res = make_shared<op::v0::Result>(mul);
+        auto assign = make_shared<op::v6::Assign>(mul, variable);
 
         model = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
 
@@ -2700,20 +2747,20 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types
         auto variable = std::make_shared<ov::op::util::Variable>(
             ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
 
-        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
-        auto convert_1 = make_shared<opset10::Convert>(input, element::f16);
-        auto convert_2 = make_shared<opset10::Convert>(convert_1, element::f32);
+        auto input = make_shared<op::v0::Parameter>(element::f32, Shape{10, 10});
+        auto convert_1 = make_shared<op::v0::Convert>(input, element::f16);
+        auto convert_2 = make_shared<op::v0::Convert>(convert_1, element::f32);
 
-        auto read_value = make_shared<opset10::ReadValue>(convert_2, variable);
-        auto convert_3 = make_shared<opset10::Convert>(read_value, element::f16);
+        auto read_value = make_shared<op::v6::ReadValue>(convert_2, variable);
+        auto convert_3 = make_shared<op::v0::Convert>(read_value, element::f16);
 
-        auto some_value = opset10::Constant::create(element::f16, Shape{1}, {2});
-        auto mul = make_shared<opset10::Multiply>(convert_3, some_value);
-        auto convert_4 = make_shared<opset10::Convert>(mul, element::f32);
-        auto res = make_shared<opset10::Result>(convert_4);
+        auto some_value = op::v0::Constant::create(element::f16, Shape{1}, {2});
+        auto mul = make_shared<op::v1::Multiply>(convert_3, some_value);
+        auto convert_4 = make_shared<op::v0::Convert>(mul, element::f32);
+        auto res = make_shared<op::v0::Result>(convert_4);
 
-        auto convert_5 = make_shared<opset10::Convert>(mul, element::f32);
-        auto assign = make_shared<opset10::Assign>(convert_5, variable);
+        auto convert_5 = make_shared<op::v0::Convert>(mul, element::f32);
+        auto assign = make_shared<op::v6::Assign>(convert_5, variable);
 
         model_ref = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
     }
@@ -2731,13 +2778,13 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_change_variable_typ
         auto variable = std::make_shared<ov::op::util::Variable>(
             ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
 
-        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
-        auto read_value = make_shared<opset10::ReadValue>(input, variable);
+        auto input = make_shared<op::v0::Parameter>(element::f32, Shape{10, 10});
+        auto read_value = make_shared<op::v6::ReadValue>(input, variable);
 
-        auto some_value = opset10::Constant::create(element::f32, Shape{1}, {2});
-        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
-        auto res = make_shared<opset10::Result>(mul);
-        auto assign = make_shared<opset10::Assign>(mul, variable);
+        auto some_value = op::v0::Constant::create(element::f32, Shape{1}, {2});
+        auto mul = make_shared<op::v1::Multiply>(read_value, some_value);
+        auto res = make_shared<op::v0::Result>(mul);
+        auto assign = make_shared<op::v6::Assign>(mul, variable);
 
         model = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
 
@@ -2755,13 +2802,13 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_change_variable_typ
         auto variable = std::make_shared<ov::op::util::Variable>(
             ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f16, "variable_name"});
 
-        auto input = make_shared<opset10::Parameter>(element::f16, Shape{10, 10});
-        auto read_value = make_shared<opset10::ReadValue>(input, variable);
+        auto input = make_shared<op::v0::Parameter>(element::f16, Shape{10, 10});
+        auto read_value = make_shared<op::v6::ReadValue>(input, variable);
 
-        auto some_value = opset10::Constant::create(element::f16, Shape{1}, {2});
-        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
-        auto res = make_shared<opset10::Result>(mul);
-        auto assign = make_shared<opset10::Assign>(mul, variable);
+        auto some_value = op::v0::Constant::create(element::f16, Shape{1}, {2});
+        auto mul = make_shared<op::v1::Multiply>(read_value, some_value);
+        auto res = make_shared<op::v0::Result>(mul);
+        auto assign = make_shared<op::v6::Assign>(mul, variable);
 
         model_ref = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
     }
@@ -2779,13 +2826,13 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types
         auto variable = std::make_shared<ov::op::util::Variable>(
             ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
 
-        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
-        auto read_value = make_shared<opset10::ReadValue>(input, variable);
+        auto input = make_shared<op::v0::Parameter>(element::f32, Shape{10, 10});
+        auto read_value = make_shared<op::v6::ReadValue>(input, variable);
 
-        auto some_value = opset10::Constant::create(element::f32, Shape{1}, {2});
-        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
-        auto res = make_shared<opset10::Result>(mul);
-        auto assign = make_shared<opset10::Assign>(mul, variable);
+        auto some_value = op::v0::Constant::create(element::f32, Shape{1}, {2});
+        auto mul = make_shared<op::v1::Multiply>(read_value, some_value);
+        auto res = make_shared<op::v0::Result>(mul);
+        auto assign = make_shared<op::v6::Assign>(mul, variable);
 
         model = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
 
@@ -2807,15 +2854,15 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types
         auto variable = std::make_shared<ov::op::util::Variable>(
             ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f16, "variable_name"});
 
-        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
-        auto convert_1 = make_shared<opset10::Convert>(input, element::f16);
-        auto read_value = make_shared<opset10::ReadValue>(convert_1, variable);
+        auto input = make_shared<op::v0::Parameter>(element::f32, Shape{10, 10});
+        auto convert_1 = make_shared<op::v0::Convert>(input, element::f16);
+        auto read_value = make_shared<op::v6::ReadValue>(convert_1, variable);
 
-        auto some_value = opset10::Constant::create(element::f16, Shape{1}, {2});
-        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
-        auto convert_2 = make_shared<opset10::Convert>(mul, element::f32);
-        auto res = make_shared<opset10::Result>(convert_2);
-        auto assign = make_shared<opset10::Assign>(mul, variable);
+        auto some_value = op::v0::Constant::create(element::f16, Shape{1}, {2});
+        auto mul = make_shared<op::v1::Multiply>(read_value, some_value);
+        auto convert_2 = make_shared<op::v0::Convert>(mul, element::f32);
+        auto res = make_shared<op::v0::Result>(convert_2);
+        auto assign = make_shared<op::v6::Assign>(mul, variable);
 
         model_ref = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
     }
@@ -2828,7 +2875,7 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types
 TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_weightless_cache_info_as_rt_attribute) {
     pass::Manager manager;
 
-    auto some_value = opset10::Constant::create(element::f32, Shape{1}, {2});
+    auto some_value = op::v0::Constant::create(element::f32, Shape{1}, {2});
     auto& node_rt_info = some_value->get_rt_info();
     ov::WeightlessCacheAttribute attr(element::f32.size(), 0, element::f32);
     node_rt_info[ov::WeightlessCacheAttribute::get_type_info_static()] = attr;

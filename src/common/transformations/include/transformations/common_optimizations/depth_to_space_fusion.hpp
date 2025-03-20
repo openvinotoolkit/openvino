@@ -9,6 +9,7 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
+#include "openvino/op/depth_to_space.hpp"
 
 namespace ov {
 namespace pass {
@@ -31,7 +32,7 @@ class TRANSFORMATIONS_API DepthToSpaceFusion;
  *
  *     // This callback enables DepthToSpaceFusion transformation
  *     auto callback = [](const std::shared_ptr<const ov::Node> & node) -> bool {
- *         return ov::as_type_ptr<const ov::opset3::DepthToSpace>(node) != nullptr;
+ *         return ov::as_type_ptr<const ov::op::v0::DepthToSpace>(node) != nullptr;
  *     };
  *
  *     auto p = ov::pass::DepthToSpaceFusion();

@@ -12,10 +12,14 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -23,9 +27,9 @@ using namespace testing;
 TEST(TransformationTests, ConvertConvertLike) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
-        auto like = opset8::Constant::create(element::i32, Shape{1}, {1});
-        auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto like = op::v0::Constant::create(element::i32, Shape{1}, {1});
+        auto cvtlike = std::make_shared<op::v1::ConvertLike>(data, like);
 
         f = std::make_shared<ov::Model>(NodeVector{cvtlike}, ParameterVector{data});
 
@@ -37,8 +41,8 @@ TEST(TransformationTests, ConvertConvertLike) {
     }
 
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
-        auto cvt = std::make_shared<opset8::Convert>(data, element::i32);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto cvt = std::make_shared<op::v0::Convert>(data, element::i32);
 
         f_ref = std::make_shared<ov::Model>(NodeVector{cvt}, ParameterVector{data});
     }
@@ -50,11 +54,11 @@ TEST(TransformationTests, ConvertConvertLike) {
 TEST(TransformationTests, ConvertConvertLike2) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
-        auto data2 = std::make_shared<opset8::Parameter>(element::i8, Shape{1});
-        auto constant = opset8::Constant::create(element::i8, Shape{}, {1});
-        auto like = std::make_shared<opset8::Add>(data2, constant);
-        auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto data2 = std::make_shared<op::v0::Parameter>(element::i8, Shape{1});
+        auto constant = op::v0::Constant::create(element::i8, Shape{}, {1});
+        auto like = std::make_shared<op::v1::Add>(data2, constant);
+        auto cvtlike = std::make_shared<op::v1::ConvertLike>(data, like);
 
         f = std::make_shared<ov::Model>(NodeVector{cvtlike}, ParameterVector{data, data2});
 
@@ -66,8 +70,8 @@ TEST(TransformationTests, ConvertConvertLike2) {
     }
 
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
-        auto cvt = std::make_shared<opset8::Convert>(data, element::i8);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto cvt = std::make_shared<op::v0::Convert>(data, element::i8);
 
         f_ref = std::make_shared<ov::Model>(NodeVector{cvt}, ParameterVector{data});
     }
@@ -79,9 +83,9 @@ TEST(TransformationTests, ConvertConvertLike2) {
 TEST(TransformationTests, ConvertConvertLike_Negative) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
-        auto like = std::make_shared<opset8::Parameter>(element::dynamic, Shape{1});
-        auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto like = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{1});
+        auto cvtlike = std::make_shared<op::v1::ConvertLike>(data, like);
 
         f = std::make_shared<ov::Model>(NodeVector{cvtlike}, ParameterVector{data, like});
 
@@ -93,9 +97,9 @@ TEST(TransformationTests, ConvertConvertLike_Negative) {
     }
 
     {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
-        auto like = std::make_shared<opset8::Parameter>(element::dynamic, Shape{1});
-        auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+        auto like = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{1});
+        auto cvtlike = std::make_shared<op::v1::ConvertLike>(data, like);
 
         f_ref = std::make_shared<ov::Model>(NodeVector{cvtlike}, ParameterVector{data, like});
     }

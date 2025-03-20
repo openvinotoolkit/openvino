@@ -14,6 +14,8 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "transformations_visibility.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace ov {
 namespace op {
@@ -131,7 +133,7 @@ public:
 /// Relaxes tensor element type requirements for BaseOp inputs and outputs
 /// This class template should be used with Node descendant class. Defines a new operation by extending the
 /// original BaseOp operation with ability to accept inputs and provide outputs with element type that is
-/// unusual for BaseOp. For example, TypeRelaxed<opset1::Add> can accept mixed-precision inputs and provide
+/// unusual for BaseOp. For example, TypeRelaxed<op::v1::Add> can accept mixed-precision inputs and provide
 /// another type of output. New types are provided as inputs attributes for TypeRelaxed template and fixed.
 /// There is no any deduction logic for types are provided as a part of this class and it should be
 /// implemented outside if required.

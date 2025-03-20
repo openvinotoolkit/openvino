@@ -12,9 +12,26 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_l1.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -42,45 +59,45 @@ public:
         const auto& test_case = std::get<0>(GetParam());
 
         {
-            auto input = std::make_shared<opset6::Parameter>(element::f32, test_case.transpose_input_shape);
+            auto input = std::make_shared<op::v0::Parameter>(element::f32, test_case.transpose_input_shape);
 
-            auto order = std::make_shared<opset6::Constant>(element::i64,
+            auto order = std::make_shared<op::v0::Constant>(element::i64,
                                                             Shape{test_case.transpose_order.size()},
                                                             test_case.transpose_order);
-            auto transpose = std::make_shared<opset6::Transpose>(input, order);
+            auto transpose = std::make_shared<op::v1::Transpose>(input, order);
 
-            auto i_low = std::make_shared<opset6::Constant>(element::i64, test_case.il, std::vector<int32_t>{0});
-            auto i_high = std::make_shared<opset6::Constant>(element::i64, test_case.ih, std::vector<int32_t>{0});
-            auto o_low = std::make_shared<opset6::Constant>(element::i64, test_case.ol, std::vector<int32_t>{0});
-            auto o_high = std::make_shared<opset6::Constant>(element::i64, test_case.oh, std::vector<int32_t>{0});
-            auto fq = std::make_shared<opset6::FakeQuantize>(transpose, i_low, i_high, o_low, o_high, 256);
+            auto i_low = std::make_shared<op::v0::Constant>(element::i64, test_case.il, std::vector<int32_t>{0});
+            auto i_high = std::make_shared<op::v0::Constant>(element::i64, test_case.ih, std::vector<int32_t>{0});
+            auto o_low = std::make_shared<op::v0::Constant>(element::i64, test_case.ol, std::vector<int32_t>{0});
+            auto o_high = std::make_shared<op::v0::Constant>(element::i64, test_case.oh, std::vector<int32_t>{0});
+            auto fq = std::make_shared<op::v0::FakeQuantize>(transpose, i_low, i_high, o_low, o_high, 256);
 
-            auto axes = std::make_shared<opset6::Constant>(element::i64,
+            auto axes = std::make_shared<op::v0::Constant>(element::i64,
                                                            Shape{test_case.reduce_axes.size()},
                                                            test_case.reduce_axes);
-            auto reduce = std::make_shared<opset6::ReduceMean>(fq, axes, test_case.reduce_keep_dims);
+            auto reduce = std::make_shared<op::v1::ReduceMean>(fq, axes, test_case.reduce_keep_dims);
 
             f = std::make_shared<ov::Model>(NodeVector{reduce}, ParameterVector{input});
         }
 
         {
-            auto input = std::make_shared<opset6::Parameter>(element::f32, test_case.transpose_input_shape);
+            auto input = std::make_shared<op::v0::Parameter>(element::f32, test_case.transpose_input_shape);
 
-            auto i_low = std::make_shared<opset6::Constant>(element::i64, test_case.ex_il, std::vector<int32_t>{0});
-            auto i_high = std::make_shared<opset6::Constant>(element::i64, test_case.ex_ih, std::vector<int32_t>{0});
-            auto o_low = std::make_shared<opset6::Constant>(element::i64, test_case.ex_ol, std::vector<int32_t>{0});
-            auto o_high = std::make_shared<opset6::Constant>(element::i64, test_case.ex_oh, std::vector<int32_t>{0});
-            auto fq = std::make_shared<opset6::FakeQuantize>(input, i_low, i_high, o_low, o_high, 256);
+            auto i_low = std::make_shared<op::v0::Constant>(element::i64, test_case.ex_il, std::vector<int32_t>{0});
+            auto i_high = std::make_shared<op::v0::Constant>(element::i64, test_case.ex_ih, std::vector<int32_t>{0});
+            auto o_low = std::make_shared<op::v0::Constant>(element::i64, test_case.ex_ol, std::vector<int32_t>{0});
+            auto o_high = std::make_shared<op::v0::Constant>(element::i64, test_case.ex_oh, std::vector<int32_t>{0});
+            auto fq = std::make_shared<op::v0::FakeQuantize>(input, i_low, i_high, o_low, o_high, 256);
 
-            auto axes = std::make_shared<opset6::Constant>(element::i64,
+            auto axes = std::make_shared<op::v0::Constant>(element::i64,
                                                            Shape{test_case.ex_reduce_axes.size()},
                                                            test_case.ex_reduce_axes);
-            auto reduce = std::make_shared<opset6::ReduceMean>(fq, axes, test_case.reduce_keep_dims);
+            auto reduce = std::make_shared<op::v1::ReduceMean>(fq, axes, test_case.reduce_keep_dims);
 
-            auto order = std::make_shared<opset6::Constant>(element::i64,
+            auto order = std::make_shared<op::v0::Constant>(element::i64,
                                                             Shape{test_case.ex_transpose_order.size()},
                                                             test_case.ex_transpose_order);
-            auto transpose = std::make_shared<opset6::Transpose>(reduce, order);
+            auto transpose = std::make_shared<op::v1::Transpose>(reduce, order);
 
             f_ref = std::make_shared<ov::Model>(NodeVector{transpose}, ParameterVector{input});
         }
@@ -159,14 +176,14 @@ public:
         const auto& reduction_type_info = std::get<1>(GetParam());
 
         {
-            auto input = std::make_shared<opset6::Parameter>(element::dynamic, test_case.transpose_input_shape);
+            auto input = std::make_shared<op::v0::Parameter>(element::dynamic, test_case.transpose_input_shape);
 
-            auto order = std::make_shared<opset6::Constant>(element::i64,
+            auto order = std::make_shared<op::v0::Constant>(element::i64,
                                                             Shape{test_case.transpose_order.size()},
                                                             test_case.transpose_order);
-            auto transpose = std::make_shared<opset6::Transpose>(input, order);
+            auto transpose = std::make_shared<op::v1::Transpose>(input, order);
 
-            auto axes = std::make_shared<opset6::Constant>(element::i64,
+            auto axes = std::make_shared<op::v0::Constant>(element::i64,
                                                            Shape{test_case.reduce_axes.size()},
                                                            test_case.reduce_axes);
 
@@ -176,17 +193,17 @@ public:
         }
 
         {
-            auto input = std::make_shared<opset6::Parameter>(element::dynamic, test_case.transpose_input_shape);
+            auto input = std::make_shared<op::v0::Parameter>(element::dynamic, test_case.transpose_input_shape);
 
-            auto axes = std::make_shared<opset6::Constant>(element::i64,
+            auto axes = std::make_shared<op::v0::Constant>(element::i64,
                                                            Shape{test_case.ex_reduce_axes.size()},
                                                            test_case.ex_reduce_axes);
             auto reduction = get_reduction(reduction_type_info, {input, axes}, test_case.reduction_keep_dims);
 
-            auto order = std::make_shared<opset6::Constant>(element::i64,
+            auto order = std::make_shared<op::v0::Constant>(element::i64,
                                                             Shape{test_case.ex_transpose_order.size()},
                                                             test_case.ex_transpose_order);
-            auto transpose = std::make_shared<opset6::Transpose>(reduction, order);
+            auto transpose = std::make_shared<op::v1::Transpose>(reduction, order);
 
             f_ref = std::make_shared<ov::Model>(NodeVector{transpose}, ParameterVector{input});
         }
@@ -262,15 +279,15 @@ INSTANTIATE_TEST_SUITE_P(
                                               {6, 5, 3},
                                               {0, 1, 2, 3}},
                         TransposeReduceParams{{1, 3, 240, 140}, {0, 1, 2, 3}, {0, 1, 2, -1}, false, {0, 1, 2, 3}, {}}),
-        testing::Values(opset6::ReduceMax::get_type_info_static(),
-                        opset6::ReduceMean::get_type_info_static(),
-                        opset6::ReduceMin::get_type_info_static(),
-                        opset6::ReduceProd::get_type_info_static(),
-                        opset6::ReduceSum::get_type_info_static(),
-                        opset6::ReduceL1::get_type_info_static(),
-                        opset6::ReduceL2::get_type_info_static(),
-                        opset6::ReduceLogicalAnd::get_type_info_static(),
-                        opset6::ReduceLogicalOr::get_type_info_static())));
+        testing::Values(op::v1::ReduceMax::get_type_info_static(),
+                        op::v1::ReduceMean::get_type_info_static(),
+                        op::v1::ReduceMin::get_type_info_static(),
+                        op::v1::ReduceProd::get_type_info_static(),
+                        op::v1::ReduceSum::get_type_info_static(),
+                        op::v4::ReduceL1::get_type_info_static(),
+                        op::v4::ReduceL2::get_type_info_static(),
+                        op::v1::ReduceLogicalAnd::get_type_info_static(),
+                        op::v1::ReduceLogicalOr::get_type_info_static())));
 
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingSqueeze,
@@ -282,26 +299,26 @@ INSTANTIATE_TEST_SUITE_P(
                                                            false,
                                                            {6, 5, 3},
                                                            {0, 1, 2, 3}}),
-                     testing::Values(opset6::Squeeze::get_type_info_static())));
+                     testing::Values(op::v0::Squeeze::get_type_info_static())));
 
 TEST_F(TransformationTestsF, TransposeFuseEliminatesTranspose) {
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 640, 20, 2});
-        auto tr1_order = opset6::Constant::create(element::i64, Shape{5}, {0, 2, 3, 4, 1});
-        auto transpose1 = std::make_shared<opset6::Transpose>(input, tr1_order);
-        auto tr2_order = opset6::Constant::create(element::i64, Shape{5}, {0, 4, 1, 2, 3});
-        auto transpose2 = std::make_shared<opset6::Transpose>(transpose1, tr2_order);
-        auto add_const = opset6::Constant::create(element::f32, Shape{1}, {1});
-        auto add = std::make_shared<opset6::Add>(transpose2, add_const);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 640, 20, 2});
+        auto tr1_order = op::v0::Constant::create(element::i64, Shape{5}, {0, 2, 3, 4, 1});
+        auto transpose1 = std::make_shared<op::v1::Transpose>(input, tr1_order);
+        auto tr2_order = op::v0::Constant::create(element::i64, Shape{5}, {0, 4, 1, 2, 3});
+        auto transpose2 = std::make_shared<op::v1::Transpose>(transpose1, tr2_order);
+        auto add_const = op::v0::Constant::create(element::f32, Shape{1}, {1});
+        auto add = std::make_shared<op::v1::Add>(transpose2, add_const);
 
         model = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input});
         manager.register_pass<ov::pass::TransposeFuse>();
     }
 
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 640, 20, 2});
-        auto add_const = opset6::Constant::create(element::f32, Shape{1}, {1});
-        auto add = std::make_shared<opset6::Add>(input, add_const);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 640, 20, 2});
+        auto add_const = op::v0::Constant::create(element::f32, Shape{1}, {1});
+        auto add = std::make_shared<op::v1::Add>(input, add_const);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input});
     }
@@ -309,12 +326,12 @@ TEST_F(TransformationTestsF, TransposeFuseEliminatesTranspose) {
 
 TEST_F(TransformationTestsF, TransposeFuses) {
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 640, 20, 2, 2});
-        auto tr1_order = opset6::Constant::create(element::i64, Shape{6}, {0, 5, 1, 2, 3, 4});
-        auto transpose1 = std::make_shared<opset6::Transpose>(input, tr1_order);
-        auto tr2_order = opset6::Constant::create(element::i64, Shape{6}, {0, 1, 3, 4, 2, 5});
-        auto transpose2 = std::make_shared<opset6::Transpose>(transpose1, tr2_order);
-        auto result = std::make_shared<opset6::Result>(transpose2);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 640, 20, 2, 2});
+        auto tr1_order = op::v0::Constant::create(element::i64, Shape{6}, {0, 5, 1, 2, 3, 4});
+        auto transpose1 = std::make_shared<op::v1::Transpose>(input, tr1_order);
+        auto tr2_order = op::v0::Constant::create(element::i64, Shape{6}, {0, 1, 3, 4, 2, 5});
+        auto transpose2 = std::make_shared<op::v1::Transpose>(transpose1, tr2_order);
+        auto result = std::make_shared<op::v0::Result>(transpose2);
         result->set_layout("NC...");
 
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
@@ -322,10 +339,10 @@ TEST_F(TransformationTestsF, TransposeFuses) {
     }
 
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 640, 20, 2, 2});
-        auto tr_order = opset6::Constant::create(element::i64, Shape{6}, {0, 5, 2, 3, 1, 4});
-        auto transpose = std::make_shared<opset6::Transpose>(input, tr_order);
-        auto result = std::make_shared<opset6::Result>(transpose);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 640, 20, 2, 2});
+        auto tr_order = op::v0::Constant::create(element::i64, Shape{6}, {0, 5, 2, 3, 1, 4});
+        auto transpose = std::make_shared<op::v1::Transpose>(input, tr_order);
+        auto result = std::make_shared<op::v0::Result>(transpose);
         result->set_layout("NC...");
 
         model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
@@ -334,12 +351,12 @@ TEST_F(TransformationTestsF, TransposeFuses) {
 
 TEST_F(TransformationTestsF, TransposeReduceNegative) {
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 3, 64});
-        auto order = opset6::Constant::create(element::i64, Shape{3}, {0, 2, 1});
-        auto transpose = std::make_shared<opset6::Transpose>(input, order);
-        auto axes = opset6::Constant::create(element::i64, Shape{}, {-1});
-        auto reduce_mean = std::make_shared<opset6::ReduceMean>(transpose, axes, true);
-        auto sub = std::make_shared<opset6::Subtract>(transpose, reduce_mean);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 64});
+        auto order = op::v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
+        auto transpose = std::make_shared<op::v1::Transpose>(input, order);
+        auto axes = op::v0::Constant::create(element::i64, Shape{}, {-1});
+        auto reduce_mean = std::make_shared<op::v1::ReduceMean>(transpose, axes, true);
+        auto sub = std::make_shared<op::v1::Subtract>(transpose, reduce_mean);
 
         model = std::make_shared<ov::Model>(NodeVector{sub}, ParameterVector{input});
         manager.register_pass<ov::pass::TransposeReduction>();
@@ -348,20 +365,20 @@ TEST_F(TransformationTestsF, TransposeReduceNegative) {
 
 TEST_F(TransformationTestsF, TransposeConvert) {
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 640, 20, 2, 2});
-        auto order = opset6::Constant::create(element::i64, Shape{6}, {0, 5, 1, 2, 3, 4});
-        auto transpose = std::make_shared<opset6::Transpose>(input, order);
-        auto convert = std::make_shared<opset6::Convert>(transpose, element::f16);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 640, 20, 2, 2});
+        auto order = op::v0::Constant::create(element::i64, Shape{6}, {0, 5, 1, 2, 3, 4});
+        auto transpose = std::make_shared<op::v1::Transpose>(input, order);
+        auto convert = std::make_shared<op::v0::Convert>(transpose, element::f16);
 
         model = std::make_shared<ov::Model>(NodeVector{convert}, ParameterVector{input});
         manager.register_pass<ov::pass::TransposeConvert>();
     }
 
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 640, 20, 2, 2});
-        auto convert = std::make_shared<opset6::Convert>(input, element::f16);
-        auto order = opset6::Constant::create(element::i64, Shape{6}, {0, 5, 1, 2, 3, 4});
-        auto transpose = std::make_shared<opset6::Transpose>(convert, order);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 640, 20, 2, 2});
+        auto convert = std::make_shared<op::v0::Convert>(input, element::f16);
+        auto order = op::v0::Constant::create(element::i64, Shape{6}, {0, 5, 1, 2, 3, 4});
+        auto transpose = std::make_shared<op::v1::Transpose>(convert, order);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{transpose}, ParameterVector{input});
     }
@@ -369,10 +386,10 @@ TEST_F(TransformationTestsF, TransposeConvert) {
 
 TEST_F(TransformationTestsF, TransposeConvertNegativeConsumers) {
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 640, 20, 2, 2});
-        auto order = opset6::Constant::create(element::i64, Shape{6}, {0, 5, 1, 2, 3, 4});
-        auto transpose = std::make_shared<opset6::Transpose>(input, order);
-        auto convert = std::make_shared<opset6::Convert>(transpose, element::f16);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 640, 20, 2, 2});
+        auto order = op::v0::Constant::create(element::i64, Shape{6}, {0, 5, 1, 2, 3, 4});
+        auto transpose = std::make_shared<op::v1::Transpose>(input, order);
+        auto convert = std::make_shared<op::v0::Convert>(transpose, element::f16);
 
         model = std::make_shared<ov::Model>(NodeVector{convert, transpose}, ParameterVector{input});
         manager.register_pass<ov::pass::TransposeConvert>();
