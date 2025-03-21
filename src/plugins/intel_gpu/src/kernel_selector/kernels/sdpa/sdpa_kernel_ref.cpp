@@ -99,7 +99,19 @@ KernelsData SDPAKernelRef::GetKernelsData(const Params& params) const {
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
 
     kd.internalBuffers.clear();
-    kd.internalBuffers.push_back(prim_params.inputs[0].ElementSize());
+    auto& in_q = prim_params.inputs[0];
+    auto& in_k = prim_params.inputs[1];
+    TransposedDimensionAccessHelperBase dims_q(in_q, prim_params.input0_order);
+    TransposedDimensionAccessHelperBase dims_k(in_k, prim_params.input1_order);
+
+    if (in_q.LogicalSize() > 0) {
+        auto elem_size = in_q.ElementSize();
+        auto batch_size = in_q.LogicalSize() / dims_q.x_dim().v / dims_q.y_dim().v;
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(batch_size * dims_q.y_dim().v * dims_k.y_dim().v * elem_size);
+    } else {
+        kd.internalBuffers.push_back(prim_params.inputs[0].ElementSize());
+    }
     kd.internalBufferDataType = prim_params.inputs[0].GetDType();
 
     return { kd };
