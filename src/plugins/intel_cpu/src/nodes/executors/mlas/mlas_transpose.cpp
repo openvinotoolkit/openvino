@@ -23,7 +23,7 @@ template <>
 struct has_mlas_transpose<uint32_t> : std::true_type {};
 
 template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
+std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisOutwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -48,7 +48,7 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 }
 
 template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
+std::enable_if_t<has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisOutwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -66,7 +66,7 @@ typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTranspos
 }
 
 template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
+std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisInwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -91,7 +91,7 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 }
 
 template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
+std::enable_if_t<has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisInwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,

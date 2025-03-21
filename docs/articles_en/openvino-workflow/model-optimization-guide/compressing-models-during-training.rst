@@ -70,7 +70,7 @@ NNCF provides some state-of-the-art compression methods that are still in the ex
 stages of development and are only recommended for expert developers. These include:
 
 * Mixed-precision quantization.
-* Sparsity (check out the `Sparsity-Aware Training  notebook <https://docs.openvino.ai/2025/notebooks/pytorch-quantization-sparsity-aware-training-with-output.html>`__).
+* Sparsity (check out the `Sparsity-Aware Training  notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-sparsity-aware-training>`__).
 * Movement Pruning (Movement Sparsity).
 
 To learn `more about these methods <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file#training-time-compression-algorithms>`__,

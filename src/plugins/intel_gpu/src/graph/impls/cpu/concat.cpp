@@ -5,7 +5,7 @@
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "concatenation_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/concat.hpp"
 

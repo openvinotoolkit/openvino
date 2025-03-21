@@ -174,12 +174,12 @@ TEST(group_normalization, input_bfyx_output_fsv16) {
     auto scale_mem = engine.allocate_memory(scale_layout);
     auto bias_mem = engine.allocate_memory(bias_layout);
 
-    set_values(input_mem,
+    set_values<float>(input_mem,
                { 0.125, 0.125, 0.875, -0.125, 0.125, 0.750,
                 0.875, -0.375, -0.375, -1.000, -0.625, -1.000,
                 -0.125, -0.750, -0.250, 0.625, -0.500, -0.875 });
-    set_values(scale_mem, { 0.125 });
-    set_values(bias_mem, { 0.75 });
+    set_values(scale_mem, { 0.125f });
+    set_values(bias_mem, { 0.75f });
 
     topology topology_g(
         input_layout("input", in_layout),

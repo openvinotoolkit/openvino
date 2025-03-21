@@ -24,13 +24,13 @@ namespace {
 struct jit_has_special_value_base : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_special_value_base)
 
-    typedef struct {
+    using args_t = struct {
         const float* src;
         const size_t count;
         bool hasTargetValues;
-    } args_t;
+    };
 
-    typedef void (*fn_t)(const args_t*);
+    using fn_t = void (*)(const args_t*);
 
     jit_has_special_value_base() : jit_generator(jit_name()) {
         jit_ker_ = nullptr;
@@ -182,7 +182,7 @@ struct jit_has_subnormals : public jit_has_special_value_base {
     const Vmm rmm6 = Vmm(6);
     const int length = isa == sse41 ? 4 : 8;
 
-    void generate() override final {  // NOLINT
+    void generate() override final {
         size_t const vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
@@ -256,7 +256,7 @@ struct jit_has_bf16_overflows : public jit_has_special_value_base {
     const Vmm rmm6 = Vmm(6);
     const int length = isa == sse41 ? 4 : 8;
 
-    void generate() override final {  // NOLINT
+    void generate() override final {
         size_t const vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
@@ -326,7 +326,8 @@ jit_has_special_value_base::fn_t jit_has_subnormals_function() {
         static jit_has_subnormals<cpu_isa_t::avx2> generator;
         static auto fn = generator.get();
         return fn;
-    } else if (mayiuse(cpu_isa_t::sse41)) {
+    }
+    if (mayiuse(cpu_isa_t::sse41)) {
         static jit_has_subnormals<cpu_isa_t::sse41> generator;
         static auto fn = generator.get();
         return fn;
@@ -338,7 +339,8 @@ jit_has_special_value_base::fn_t jit_has_bf16_overflows_function() {
         static jit_has_bf16_overflows<cpu_isa_t::avx2> generator;
         static auto fn = generator.get();
         return fn;
-    } else if (mayiuse(cpu_isa_t::sse41)) {
+    }
+    if (mayiuse(cpu_isa_t::sse41)) {
         static jit_has_bf16_overflows<cpu_isa_t::sse41> generator;
         static auto fn = generator.get();
         return fn;
@@ -394,8 +396,8 @@ void Input::cloneBlobIfRequired() {
     // The presence of subnormals is better to determined at IR read time.
     auto checkSubnormalsAndBF16Overflows = [&](bool& has_subnormals, bool& has_bf16_overflows) {
         if (prec == ov::element::f32) {
-            uint32_t const* u32data = m_constOp->get_data_ptr<uint32_t>();
-            float const* f32data = m_constOp->get_data_ptr<float>();
+            auto const* u32data = m_constOp->get_data_ptr<uint32_t>();
+            auto const* f32data = m_constOp->get_data_ptr<float>();
 
             if (!size) {
                 return;
@@ -594,21 +596,20 @@ Input::Input(const MemoryDescPtr& memDesc,
              const std::string& type,
              const GraphContext::CPtr& context)
     : Input(memDesc->getShape(), memDesc->getPrecision(), name, type, context) {
-    extMemDesc = memDesc;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    extMemDesc = memDesc;
 }
 
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const InputConfig& config)
     : Input(op, context) {
-    extMemDesc = config.desc;      // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
-    m_isInPlace = config.inPlace;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    extMemDesc = config.desc;
+    m_isInPlace = config.inPlace;
 }
 
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const OutputConfig& config)
     : Input(op, context) {
-    extMemDesc = config.desc;         // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
-    m_useParentMemoryDescForOutput =  // NOLINT(cppcoreguidelines-prefer-member-initializer)
-        config.useParentMemoryDescForOutput;
-    m_isInPlace = config.inPlace;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    extMemDesc = config.desc;
+    m_useParentMemoryDescForOutput = config.useParentMemoryDescForOutput;
+    m_isInPlace = config.inPlace;
 }
 
 MemoryCPtr Input::getMemoryPtr() const {
@@ -713,14 +714,14 @@ void Input::initSupportedPdDefault() {
     if (getType() == Type::Input || getType() == Type::MemoryInput) {
         auto precision = getOriginalOutputPrecisionAtPort(0);
 
-        outPortConfs.push_back({LayoutType::ncsp, precision});
+        outPortConfs.emplace_back(LayoutType::ncsp, precision);
         if (!getParentEdges().empty()) {
-            inPortConfs.push_back({LayoutType::ncsp, precision, true});
+            inPortConfs.emplace_back(LayoutType::ncsp, precision, true);
         }
     } else if (getType() == Type::Output) {
         auto precision = getOriginalInputPrecisionAtPort(0);
 
-        inPortConfs.push_back({LayoutType::ncsp, precision});
+        inPortConfs.emplace_back(LayoutType::ncsp, precision);
     }
 
     addSupportedPrimDesc(inPortConfs, outPortConfs, impl_desc_type::unknown);

@@ -11,17 +11,10 @@ file(GLOB_RECURSE LIBRARY_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
   )
-list(FILTER LIBRARY_SRC EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/.*" )
 
 file(GLOB_RECURSE KERNELS
     "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/*.cl"
   )
-
-file(GLOB_RECURSE CM_KERNELS
-  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*.hpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*.cpp"
-)
 
 # Path which points to root directory where code generated elements are created
 # (specific to build configuration).
@@ -35,12 +28,8 @@ set(CODEGEN_INCDIR  "${CODEGEN_DIR}/include")
 
 set(PRIM_DB "ks_primitive_db.inc")
 set(PRIM_DB_BATCH_HEADERS "ks_primitive_db_batch_headers.inc")
-set(CM_PRIM_DB "ks_cm_primitive_db.inc")
-set(CM_PRIM_DB_BATCH_HEADERS "ks_cm_primitive_db_batch_headers.inc")
 set(CODEGEN_CACHE_SOURCES "${CODEGEN_INCDIR}/${PRIM_DB}"
-                          "${CODEGEN_INCDIR}/${PRIM_DB_BATCH_HEADERS}"
-                          "${CODEGEN_INCDIR}/${CM_PRIM_DB}"
-                          "${CODEGEN_INCDIR}/${CM_PRIM_DB_BATCH_HEADERS}")
+                          "${CODEGEN_INCDIR}/${PRIM_DB_BATCH_HEADERS}")
 
 set(CODEGEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/primitive_db_gen.py")
 # Helping with some generators.
@@ -61,41 +50,6 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${PRIM_DB}"
   COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CODEGEN_CACHE_DIR}/${PRIM_DB_BATCH_HEADERS}" "${CODEGEN_INCDIR}/${PRIM_DB_BATCH_HEADERS}"
   DEPENDS "${CODEGEN_CACHE_DIR}/${PRIM_DB}" "${KERNELS}" "${CODEGEN_SCRIPT}"
   COMMENT "Updating file if the file changed (${PRIM_DB}) ..."
-)
-
-set(XETLA_HEADER "cm_xetla.h")
-if(WIN32)
-    add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/cm_kernels"
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/" "${CODEGEN_CACHE_DIR}/cm_kernels"
-        COMMAND "${CMAKE_CXX_COMPILER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}" -I ${XETLA_INCLUDE_DIR} -D _WIN32 -EP > "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}"
-        COMMAND "${CMAKE_COMMAND}" -E rename "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}"
-        DEPENDS "${CM_KERNELS}" "${CODEGEN_INCDIR}/${PRIM_DB}"
-        COMMENT "Copying CM sources and preprocessing XeTLA headers ..."
-    )
-else()
-    add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/cm_kernels"
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/" "${CODEGEN_CACHE_DIR}/cm_kernels"
-        COMMAND "${CMAKE_CXX_COMPILER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}" -I ${XETLA_INCLUDE_DIR} -E -P > "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}"
-        COMMAND "${CMAKE_COMMAND}" -E rename "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}"
-        DEPENDS "${CM_KERNELS}" "${CODEGEN_INCDIR}/${PRIM_DB}"
-        COMMENT "Copying CM sources and preprocessing XeTLA headers ..."
-    )
-endif()
-
-add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/${CM_PRIM_DB}"
-  COMMAND "${Python3_EXECUTABLE}" "${CODEGEN_SCRIPT}" -out_path "${CODEGEN_CACHE_DIR}"
-                                                      -out_file_name_prim_db "${CM_PRIM_DB}"
-                                                      -out_file_name_batch_headers "${CM_PRIM_DB_BATCH_HEADERS}"
-                                                      -kernels "${CODEGEN_CACHE_DIR}/cm_kernels" -cm
-  DEPENDS ${CM_KERNELS} "${CODEGEN_SCRIPT}" "${CODEGEN_CACHE_DIR}/cm_kernels" "${CODEGEN_INCDIR}/${PRIM_DB}"
-  COMMENT "Generating ${CODEGEN_CACHE_DIR}/${CM_PRIM_DB} ..."
-)
-
-add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${CM_PRIM_DB}"
-  COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CODEGEN_CACHE_DIR}/${CM_PRIM_DB}" "${CODEGEN_INCDIR}/${CM_PRIM_DB}"
-  COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CODEGEN_CACHE_DIR}/${CM_PRIM_DB_BATCH_HEADERS}" "${CODEGEN_INCDIR}/${CM_PRIM_DB_BATCH_HEADERS}"
-  DEPENDS "${CODEGEN_CACHE_DIR}/${CM_PRIM_DB}" "${CM_KERNELS}" "${CODEGEN_SCRIPT}" "${CODEGEN_INCDIR}/${PRIM_DB}"
-  COMMENT "Updating file if the file changed (${CM_PRIM_DB}) ..."
 )
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${CODEGEN_CACHE_SOURCES})

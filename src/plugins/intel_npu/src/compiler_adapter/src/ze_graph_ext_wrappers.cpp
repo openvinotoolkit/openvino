@@ -162,10 +162,10 @@ void ZeGraphExtWrappers::setGraphArgumentValue(ze_graph_handle_t graphHandle, ui
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("zeGraphSetArgumentValue", result, _zeroInitStruct->getGraphDdiTable());
 }
 
-void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle) const {
+void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const {
     if (_zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8) {
         _logger.debug("Use initialize_graph_through_command_list for ext version smaller than 1.8");
-        initialize_graph_through_command_list(graphHandle);
+        initialize_graph_through_command_list(graphHandle, commandQueueGroupOrdinal);
     } else {
         _logger.debug("Initialize graph based on graph properties for ext version larger than 1.8");
         ze_graph_properties_2_t properties = {};
@@ -179,23 +179,20 @@ void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle) const {
         }
 
         if (properties.initStageRequired & ZE_GRAPH_STAGE_COMMAND_LIST_INITIALIZE) {
-            initialize_graph_through_command_list(graphHandle);
+            initialize_graph_through_command_list(graphHandle, commandQueueGroupOrdinal);
         }
     }
 }
 
-void ZeGraphExtWrappers::initialize_graph_through_command_list(ze_graph_handle_t graphHandle) const {
-    ze_device_properties_t deviceProperties = {};
-    deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
-    auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
-
+void ZeGraphExtWrappers::initialize_graph_through_command_list(ze_graph_handle_t graphHandle,
+                                                               uint32_t commandQueueGroupOrdinal) const {
     _logger.debug("initialize_graph_through_command_list init start - create graph_command_list");
-    CommandList graph_command_list(_zeroInitStruct, groupOrdinal);
+    CommandList graph_command_list(_zeroInitStruct, commandQueueGroupOrdinal);
     _logger.debug("initialize_graph_through_command_list - create graph_command_queue");
-    std::shared_ptr<CommandQueue> graph_command_queue =
-        std::make_shared<CommandQueue>(_zeroInitStruct, ZE_COMMAND_QUEUE_PRIORITY_NORMAL, groupOrdinal, false);
+    std::shared_ptr<CommandQueue> graph_command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                                                       ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                                                       commandQueueGroupOrdinal,
+                                                                                       false);
     _logger.debug("initialize_graph_through_command_list - create fence");
     Fence fence(graph_command_queue);
 

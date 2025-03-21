@@ -8,7 +8,7 @@ For more detailed information on how this sample works, check the dedicated [art
 
 | Options                       | Values                                                                                                                      |
 | ------------------------------| ----------------------------------------------------------------------------------------------------------------------------|
-| Supported devices             | [All](https://docs.openvino.ai/2025/about-openvino/compatibility-and-support/supported-devices.html)                         |
+| Supported devices             | [All](https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-devices.html)                         |
 | Other language realization    | [Python](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/hello-query-device.html)                                           |
 
 The following C++ API is used in the application:

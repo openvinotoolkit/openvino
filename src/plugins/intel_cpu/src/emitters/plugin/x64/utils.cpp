@@ -30,10 +30,9 @@ inline snippets::Reg Xbyak2SnippetsReg(const Xbyak::Reg& xb_reg) {
     return {get_reg_type(xb_reg), static_cast<size_t>(xb_reg.getIdx())};
 }
 
-template <
-    cpu_isa_t isa,
-    typename std::enable_if<dnnl::impl::utils::one_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core),
-                            bool>::type = true>
+template <cpu_isa_t isa,
+          std::enable_if_t<dnnl::impl::utils::one_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core),
+                           bool> = true>
 struct regs_to_spill {
     static std::vector<Xbyak::Reg> get(const std::set<snippets::Reg>& live_regs) {
         std::vector<Xbyak::Reg> regs_to_spill;

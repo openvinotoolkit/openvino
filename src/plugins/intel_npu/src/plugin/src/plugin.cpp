@@ -26,6 +26,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "remote_context.hpp"
 
 using namespace intel_npu;
@@ -462,6 +463,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
           }}},
+        {ov::intel_npu::qdq_optimization.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<QDQ_OPTIMIZATION>();
+          }}},
         {ov::intel_npu::turbo.name(),
          {_backends->isCommandQueueExtSupported(),
           ov::PropertyMutability::RW,
@@ -575,9 +582,15 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<RUN_INFERENCES_SEQUENTIALLY>();
           }}},
-        {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
-                                                return config.getString<BATCH_MODE>();
-                                            }}}};
+        {ov::intel_npu::batch_mode.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<BATCH_MODE>();
+          }}},
+        {ov::intel_npu::disable_version_check.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
+                                                           return config.getString<DISABLE_VERSION_CHECK>();
+                                                       }}}};
 }
 
 void Plugin::reset_supported_properties() const {
@@ -611,6 +624,15 @@ void Plugin::reset_compiler_dependent_properties() const {
             std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = true;  /// mark supported
         } else {
             std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = false;  // mark unsupported
+        }
+    }
+    // NPU_QDQ_OPTIMIZATION
+    // unpublish if compiler version requirement is not met
+    if (_properties.find(ov::intel_npu::qdq_optimization.name()) != _properties.end()) {
+        if (active_compiler_version >= ICOMPILER_MAKE_VERSION(7, 5)) {
+            std::get<0>(_properties[ov::intel_npu::qdq_optimization.name()]) = true;  /// mark supported
+        } else {
+            std::get<0>(_properties[ov::intel_npu::qdq_optimization.name()]) = false;  // mark unsupported
         }
     }
 }
@@ -800,12 +822,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
-    std::array<uint8_t, 6> serialization_indicator;
+    ov::npuw::s11n::IndicatorType serialization_indicator;
     ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
         stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
         // Properties are required for ov::weights_path
-        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this(), properties);
+        return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
     }
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 
@@ -818,12 +840,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     std::shared_ptr<ov::AlignedBuffer> modelBuffer;
-    // ov::internal::cached_model_buffer has no corresponding "Config" implementation thus we need to remove it from the
+    // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
-    if (npu_plugin_properties.count(ov::internal::cached_model_buffer.name())) {
-        modelBuffer =
-            npu_plugin_properties.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
-        npu_plugin_properties.erase(ov::internal::cached_model_buffer.name());
+    if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
+        blob_it != npu_plugin_properties.end()) {
+        auto compiled_blob = blob_it->second.as<ov::Tensor>();
+        modelBuffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
+                                                                     compiled_blob.get_byte_size(),
+                                                                     compiled_blob);
+        npu_plugin_properties.erase(blob_it);
     }
 
     const auto propertiesMap = any_copy(npu_plugin_properties);
@@ -850,17 +875,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         CompilerAdapterFactory compilerAdapterFactory;
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
-        bool skipCompatibility = false;
-
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-        if (auto envVar = std::getenv("OV_NPU_DISABLE_VERSION_CHECK")) {
-            if (envVarStrToBool("OV_NPU_DISABLE_VERSION_CHECK", envVar)) {
-                _logger.info("Blob compatibility check skipped.");
-                skipCompatibility = true;
-            }
-        }
-#endif
         uint64_t graphSize;
+        const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
         if (!skipCompatibility) {
             auto storedMeta = read_metadata_from(stream);
             if (!storedMeta->is_compatible()) {
@@ -868,6 +884,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             }
             graphSize = storedMeta->get_blob_size();
         } else {
+            _logger.info("Blob compatibility check skipped.");
             graphSize = MetadataBase::getFileSize(stream);
         }
 

@@ -3,7 +3,7 @@
 //
 
 #include "layout_optimizer.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "primitive_inst.h"
 #include "program_helpers.h"
@@ -1068,7 +1068,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     auto expected = format::any;
 
     std::function<bool(const program_node& node)> only_gemm_users = [&](const program_node& node) {
-        bool all_users_gemm = true;
+        bool all_users_gemm = (node.get_users().size() != 0);
 
         for (auto user : node.get_users()) {
             if (user->is_type<reorder>() || user->is_type<reshape>())

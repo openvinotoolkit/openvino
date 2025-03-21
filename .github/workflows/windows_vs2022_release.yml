@@ -66,13 +66,10 @@ jobs:
             -DENABLE_PYTHON=ON `
             -DENABLE_WHEEL=ON `
             -DENABLE_CPPLINT=OFF `
-            -DBUILD_SHARED_LIBS=ON `
             -DENABLE_TESTS=ON `
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_STRICT_DEPENDENCIES=OFF `
-            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
-            -DOPENVINO_EXTRA_MODULES="${env:OPENVINO_CONTRIB_REPO}/modules/custom_operations;${env:OPENVINO_CONTRIB_REPO}/modules/java_api"
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
 
   Samples:
     needs: [ Build, Smart_CI ]
@@ -83,6 +80,7 @@ jobs:
         shell: pwsh
     runs-on: aks-win-4-cores-8gb
     env:
+      CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
@@ -92,14 +90,14 @@ jobs:
 
     steps:
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[package|tests]*
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[wheels]*
           path: ${{ env.INSTALL_WHEELS_DIR }}
@@ -132,8 +130,6 @@ jobs:
       - name: Build cpp samples
         run: |
           & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       # Test with the full names of the arguments
       - name: Build c samples
@@ -164,8 +160,6 @@ jobs:
       - name: Build cpp samples (bat)
         run: |
           & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }}/samples_bat -b ${{ env.BUILD_DIR }}/cpp_samples_bat
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       - name: Build c samples (bat)
         run: |
@@ -194,7 +188,7 @@ jobs:
           path: 'openvino'
 
       - name: Download OpenVINO artifacts (JS)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[js]*
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
@@ -272,14 +266,14 @@ jobs:
 
     steps:
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[tests]*
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[wheels]*
           path: ${{ env.INSTALL_WHEELS_DIR }}
@@ -415,14 +409,14 @@ jobs:
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     steps:
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[tests]*
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[wheels]*
           path: ${{ env.INSTALL_WHEELS_DIR }}
@@ -541,13 +535,13 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -581,7 +575,7 @@ jobs:
         run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        uses: actions/cache/restore@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -595,7 +589,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Save tests execution time
-        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        uses: actions/cache/save@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}

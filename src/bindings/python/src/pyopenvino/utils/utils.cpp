@@ -261,6 +261,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::frontend::type::List>());
     } else if (any.is<ov::frontend::type::Tensor>()) {
         return py::cast(any.as<ov::frontend::type::Tensor>());
+    } else if (any.is<ov::frontend::type::Complex>()) {
+        return py::cast(any.as<ov::frontend::type::Complex>());
     } else if (any.is<ov::frontend::type::Str>()) {
         return py::cast(any.as<ov::frontend::type::Str>());
     } else if (any.is<ov::frontend::type::PyNone>()) {
@@ -298,14 +300,14 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                 [py_encrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                return (*py_encrypt)(in_str).cast<std::string>();
+                return (*py_encrypt)(py::bytes(in_str)).cast<std::string>();
             };
 
             std::function<std::string(const std::string&)> decrypt_func =
                 [py_decrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                return (*py_decrypt)(in_str).cast<std::string>();
+                return (*py_decrypt)(py::bytes(in_str)).cast<std::string>();
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
@@ -485,6 +487,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         // Custom FrontEnd Types
     } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
         return py::cast<ov::frontend::type::Tensor>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::Complex>(py_obj)) {
+        return py::cast<ov::frontend::type::Complex>(py_obj);
     } else if (py::isinstance<ov::frontend::type::List>(py_obj)) {
         return py::cast<ov::frontend::type::List>(py_obj);
     } else if (py::isinstance<ov::frontend::type::Str>(py_obj)) {
