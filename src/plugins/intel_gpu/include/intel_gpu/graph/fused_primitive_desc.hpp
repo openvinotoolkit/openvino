@@ -71,8 +71,8 @@ struct fused_primitive_desc {
     std::shared_ptr<const primitive> desc;
     std::shared_ptr<NodeFuseParams> f_param;
 
-    layout input_layout = layout();
-    layout output_layout = layout();
+    layout input_layout;
+    layout output_layout;
 
     struct InputDescriptor {
         InputDescriptor(FusedInputType type, size_t idx, ov::element::Type_t element_type) : m_type(type), m_idx(idx), m_element_type(element_type) {};
@@ -99,8 +99,9 @@ template<typename... SupportedTypes>
 bool fused_ops_are_one_of(const std::vector<fused_primitive_desc>& fused_ops) {
     std::array supported_type_ids = {(SupportedTypes::type_id())...};
     for (const auto& fd : fused_ops) {
-        if (!one_of(fd.desc->type, supported_type_ids))
+        if (!one_of(fd.desc->type, supported_type_ids)) {
             return false;
+        }
     }
     return true;
 }

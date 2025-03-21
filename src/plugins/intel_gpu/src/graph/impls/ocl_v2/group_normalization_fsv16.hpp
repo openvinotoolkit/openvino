@@ -43,18 +43,16 @@ struct GroupNormalizationFsv16Opt : public ImplementationManager {
             return false;
         }
 
-        if (in0_layout.is_dynamic() || out_layout.is_dynamic()) {
-            return true;
-        }
+        if (in0_layout.is_static() && out_layout.is_static()) {
+            // no support for spatial paddings in static case
+            if (in0_layout.data_padding._lower_size[3] > 0 || in0_layout.data_padding._lower_size[2] > 0 || in0_layout.data_padding._upper_size[3] > 0 ||
+                in0_layout.data_padding._upper_size[2] > 0) {
+                return false;
+            }
 
-        // no support for spatial paddings
-        if (in0_layout.data_padding._lower_size[3] > 0 || in0_layout.data_padding._lower_size[2] > 0 || in0_layout.data_padding._upper_size[3] > 0 ||
-            in0_layout.data_padding._upper_size[2] > 0) {
-            return false;
-        }
-
-        if (!fused_ops_are_one_of<eltwise, activation>(node.get_fused_primitives())) {
-            return false;
+            if (!fused_ops_are_one_of<eltwise, activation>(node.get_fused_primitives())) {
+                return false;
+            }
         }
 
         constexpr size_t fsv = 16;
