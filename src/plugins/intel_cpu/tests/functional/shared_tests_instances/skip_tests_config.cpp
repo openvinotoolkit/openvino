@@ -81,6 +81,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canExportModel.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModelWithIncorrectConfig.*)",
+        // requires support CACHE_MODE
+        R"(.*OVCompiledModelBaseTest.*import_from_weightless_blob.*)",
+        R"(.*OVCompiledModelBaseTest.*compile_from_weightless_blob.*)",
+        R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*)",
+
         // CPU does not support dynamic rank
         // Issue: 66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
