@@ -119,7 +119,7 @@ SDPAFusion::SDPAFusion() {
 
         std::shared_ptr<ov::op::v1::Transpose> k_transpose;
 
-        if (v_node_ps[-1] != k_node_ps[-1]) {
+        if (q_node_ps[-1] != k_node_ps[-1]) {
             k_transpose = std::make_shared<ov::op::v1::Transpose>(
                 k_node,
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1}));
@@ -132,13 +132,29 @@ SDPAFusion::SDPAFusion() {
         if (k_node_ps[-1].is_dynamic() || k_node_ps[-3].is_dynamic())
             return false;
 
-        auto T = q_node.get_element_type();
-        auto N = q_node_ps[0];
+        // get all important dims from shapes:
+        auto N = q_node_ps[0];  // batch size - can be dynamic
+        auto H = k_node_ps[-3];    // number of heads of key and value
+        auto S = k_node_ps[-2];   // source sequence length - can be dynamic
+        auto E = q_node_ps[-1];   // embedding dimension of query and key
 
+        auto T = q_node.get_element_type();
         // make sure that all inputs to SDPA (query, key and value) have the same batch
-        if (k_node_ps[0] != q_node_ps[0])
+        if (k_node_ps[0] != N)
             return false;
-        if (v_node_ps[0] != q_node_ps[0])
+        if (v_node_ps[0] != N)
+            return false;
+
+        // make sure that number of heads of value is the same as for key
+        if (v_node_ps[-3] != H)
+            return false;
+
+        // make sure that source sequence length of value is the same as for key
+        if (v_node_ps[-2] != S)
+            return false;
+
+        // make sure that embedding dimension of key is the same as for query
+        if (k_node_ps[-1] != E)
             return false;
 
         // make sure there is only one scaling
@@ -179,8 +195,8 @@ SDPAFusion::SDPAFusion() {
             auto attn_scale_const_m = ov::as_type_ptr<ov::op::v0::Constant>(scale_node.get_node_shared_ptr());
             if (!attn_scale_const_m)
                 return false;
-            auto attn_scale_val_ptr = static_cast<const void*>(attn_scale_const_m->get_data_ptr());
-            scale_node = ov::op::v0::Constant::create(T, ov::Shape{}, attn_scale_val_ptr);
+            auto attn_scale_val = attn_scale_const_m->cast_vector<float>();
+            scale_node = ov::op::v0::Constant::create(T, ov::Shape{}, attn_scale_val);
         } else {
             scale_node = ov::op::v0::Constant::create(T, ov::Shape{}, {1.0});
         }
