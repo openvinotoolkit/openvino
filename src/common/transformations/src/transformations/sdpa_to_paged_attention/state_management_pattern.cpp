@@ -8,15 +8,16 @@
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/abs.hpp"
-
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
@@ -28,12 +29,10 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/greater_eq.hpp"
 
 using namespace ov::op;
 using namespace ov::pass;
@@ -176,7 +175,7 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
     return res_alibi_slopes;
 }
 
-static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>  handle_phi3_sliding_window() {
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> handle_phi3_sliding_window() {
     using namespace ov::pass::pattern;
 
     auto offset = wrap_type<v0::Constant>();
@@ -191,7 +190,7 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>  handle_
     auto t211 = pattern::wrap_type<v1::Select>({t210, any_input(), any_input()});
     auto t213 = pattern::wrap_type<v0::Unsqueeze>({t211, any_input()});
     auto t214 = pattern::wrap_type<v0::Unsqueeze>({t213, any_input()});
-    auto t218 = pattern::wrap_type<v1::Broadcast>({t214, any_input()});
+    auto t218 = pattern::wrap_type<v3::Broadcast>({t214, any_input()});
     auto t219 = pattern::wrap_type<v1::Select>({any_input(), any_input(), t218});
     auto mask = pattern::wrap_type<v8::Slice>({t219, any_input(), any_input(), any_input(), any_input()});
     return {mask, offset};
@@ -328,13 +327,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     auto v_to_sdpa =
         std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
 
-    auto [phi3_mask, phi3_offset] = handle_phi3_sliding_window();
+    std::shared_ptr<ov::Node> phi3_mask, phi3_offset;
+    std::tie(phi3_mask, phi3_offset) = handle_phi3_sliding_window();
     auto mask_to_sdpa = std::make_shared<pattern::op::Or>(
-        OutputVector{general_alibi_mask,
-                     jais_alibi_mask,
-                     baichuan2_13b_alibi_mask,
-                     phi3_mask,
-                     pattern::any_input()});
+        OutputVector{phi3_mask, general_alibi_mask, jais_alibi_mask, baichuan2_13b_alibi_mask, pattern::any_input()});
 
     auto sdpa_with_4_inputs =
         pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -511,6 +507,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         std::shared_ptr<Node> alibi_slopes;
         if (pattern_map.find(general_alibi) != pattern_map.end()) {
             alibi_slopes = handle_general_alibi(pattern_map.at(general_alibi).get_node_shared_ptr());
+        } else if (pattern_map.find(phi3_mask) != pattern_map.end()) {
+            alibi_slopes = handle_general_alibi(pattern_map.at(phi3_mask).get_node_shared_ptr());
         } else if (pattern_map.find(jais_13b_alibi) != pattern_map.end()) {
             alibi_slopes = handle_jais_13b_alibi(pattern_map.at(jais_13b_alibi).get_node_shared_ptr());
         } else if (pattern_map.find(baichuan2_13b_alibi) != pattern_map.end()) {
@@ -525,9 +523,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         std::shared_ptr<Node> sliding_window;
         if (pattern_map.count(phi3_offset)) {
             auto offset = pattern_map.at(phi3_offset).get_node_shared_ptr();
-            sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(offset->get_element_type(),
-                                                                                 Shape{},
-                                                                                 {2}), offset);
+            if (offset->get_element_type() != element::i32) {
+                offset = std::make_shared<v0::Convert>(offset, element::i32);
+            }
+            sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
         } else {
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
