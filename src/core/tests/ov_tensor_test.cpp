@@ -903,8 +903,8 @@ void compare_data(const ov::Tensor& src, const ov::Tensor& dst) {
 template <ov::element::Type_t ET,
           typename T = typename ov::element_type_traits<ET>::value_type,
           typename std::enable_if<ET != ov::element::Type_t::string, bool>::type = true>
-void init_tensor(const ov::Tensor& tensor, bool input) {
-    const auto origPtr = tensor.data<T>();
+void init_tensor(ov::Tensor& tensor, bool input) {
+    auto origPtr = tensor.data<T>();
     ASSERT_NE(nullptr, origPtr);
     for (size_t i = 0; i < tensor.get_size(); ++i) {
         origPtr[i] = static_cast<T>(input ? i : -1);
@@ -914,7 +914,7 @@ void init_tensor(const ov::Tensor& tensor, bool input) {
 template <ov::element::Type_t ET,
           typename T = typename ov::element_type_traits<ET>::value_type,
           typename std::enable_if<ET == ov::element::Type_t::string, bool>::type = true>
-void init_tensor(const ov::Tensor& tensor, bool input) {
+void init_tensor(ov::Tensor& tensor, bool input) {
     const auto origPtr = tensor.data<T>();
     ASSERT_NE(nullptr, origPtr);
     for (size_t i = 0; i < tensor.get_size(); ++i) {
@@ -922,7 +922,7 @@ void init_tensor(const ov::Tensor& tensor, bool input) {
     }
 }
 
-void init_tensor(const ov::Tensor& tensor, bool input) {
+void init_tensor(ov::Tensor& tensor, bool input) {
     switch (tensor.get_element_type()) {
     case ov::element::bf16:
         init_tensor<ov::element::bf16>(tensor, input);

@@ -12,19 +12,19 @@ std::vector<float> get_floats(const ov::Tensor& input, const ov::Shape& shape) {
 
     switch (input.get_element_type()) {
     case ov::element::bf16: {
-        ov::bfloat16* p = input.data<ov::bfloat16>();
+        auto p = input.data<ov::bfloat16>();
         for (size_t i = 0; i < input_size; ++i) {
             result[i] = float(p[i]);
         }
     } break;
     case ov::element::f16: {
-        ov::float16* p = input.data<ov::float16>();
+        auto p = input.data<ov::float16>();
         for (size_t i = 0; i < input_size; ++i) {
             result[i] = float(p[i]);
         }
     } break;
     case ov::element::f32: {
-        float* p = input.data<float>();
+        auto p = input.data<float>();
         memcpy(result.data(), p, input_size * sizeof(float));
     } break;
     default:

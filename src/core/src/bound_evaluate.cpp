@@ -453,7 +453,7 @@ bool ov::interval_bound_evaluator(const Node* node,
                node->evaluate(lower_output_values, *input_variants.begin());
 
     auto zero = op::v0::Constant::create(element::i64, {1}, {0});
-    const auto zero_t = ov::Tensor(element::i64, Shape{});
+    auto zero_t = ov::Tensor(element::i64, Shape{});
     *zero_t.data<int64_t>() = 0;
 
     std::vector<TensorVector> unsqueezed_output_variants;
@@ -529,8 +529,8 @@ bool ov::interval_bound_evaluator(const Node* node,
             fully_defined = false;
         } else {
             // Can not set to make_tensor_of_min_value(lower_output_values[i]->get_element_type()) yet
-            const auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
-            const auto then_data = static_cast<char*>(then.data());
+            auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
+            auto then_data = static_cast<char*>(then.data());
             std::memset(then_data, 0, then.get_byte_size());
             op::v1::Select().evaluate(lower_out, {final_input_dyn_mask, then, lower_out[0]});
             node->get_output_tensor(i).set_lower_value(lower_out[0]);
