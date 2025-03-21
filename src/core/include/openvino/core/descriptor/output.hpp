@@ -72,6 +72,7 @@ public:
     Output& operator=(const Output&) = default;
 
 protected:
+    friend Node;
     Node* m_node;
     size_t m_index;
     std::shared_ptr<Tensor> m_tensor;
