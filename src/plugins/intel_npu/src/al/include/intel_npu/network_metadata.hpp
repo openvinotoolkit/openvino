@@ -65,6 +65,21 @@ struct IODescriptor {
     bool isShapeTensor = false;
 
     /**
+     * @brief TODO
+     */
+    bool isInitInputWeights = false;
+
+    /**
+     * @brief TODO
+     */
+    bool isInitOutputWeights = false;
+
+    /**
+     * @brief TODO
+     */
+    bool isMainInputWeights = false;
+
+    /**
      * @brief Points towards a related descriptor.
      * @details The related descriptors are defined by (state input, state output) or (dynamic tensor, shape tensor)
      * pairs.

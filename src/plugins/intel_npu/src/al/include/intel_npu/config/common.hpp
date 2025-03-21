@@ -265,6 +265,72 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     static std::string toString(const ov::intel_npu::BatchMode& val);
 };
 
+struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, uint32_t> {
+    static std::string_view key() {
+        return ov::intel_npu::separate_weights_version.name();
+    }
+
+    static uint32_t defaultValue() {
+        return 3;
+    }
+
+    static uint32_t parse(std::string_view val) {
+        int val_i = -1;
+        try {
+            val_i = std::stoi(val.data());
+            if (val_i >= 0) {
+                return val_i;
+            } else {
+                throw std::logic_error("wrong val");
+            }
+        } catch (const std::exception&) {
+            OPENVINO_THROW("Wrong value of ",
+                           val.data(),
+                           " for property key ",
+                           ov::intel_npu::separate_weights_version.name(),
+                           ". Expected only positive integer numbers");
+        }
+    }
+};
+
+struct BENCHMARK_INIT final : OptionBase<BENCHMARK_INIT, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::benchmark_init.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+};
+
+struct WS_COMPILE_CALL_NUMBER final : OptionBase<WS_COMPILE_CALL_NUMBER, uint32_t> {
+    static std::string_view key() {
+        return ov::intel_npu::ws_compile_call_number.name();
+    }
+
+    static uint32_t defaultValue() {
+        return 0;
+    }
+
+    static uint32_t parse(std::string_view val) {
+        int val_i = -1;
+        try {
+            val_i = std::stoi(val.data());
+            if (val_i >= 0) {
+                return val_i;
+            } else {
+                throw std::logic_error("wrong val");
+            }
+        } catch (const std::exception&) {
+            OPENVINO_THROW("Wrong value of ",
+                           val.data(),
+                           " for property key ",
+                           ov::intel_npu::ws_compile_call_number.name(),
+                           ". Expected only positive integer numbers");
+        }
+    }
+};
+
 }  // namespace intel_npu
 
 namespace ov {
