@@ -411,7 +411,7 @@ std::tuple<Args...> tuple_from_py_tuple_impl(const py::tuple& py_tuple, std::ind
 
 template <typename... Args>
 std::tuple<Args...> tuple_from_py_tuple(const py::tuple& py_tuple) {
-    OPENVINO_ASSERT(py_tuple.size() != sizeof...(Args), "Size of py::tuple does not match size of std::tuple");
+    OPENVINO_ASSERT(py_tuple.size() == sizeof...(Args), "Size of py::tuple does not match size of std::tuple");
 
     return tuple_from_py_tuple_impl<Args...>(py_tuple, std::index_sequence_for<Args...>{});
 }
