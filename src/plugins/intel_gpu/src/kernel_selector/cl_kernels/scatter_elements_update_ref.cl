@@ -1,9 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "include/batch_headers/fetch_data.cl"
-
 #define GET_INDICES_INDEX(idx_order) INPUT1_GET_INDEX(idx_order)
 #define GET_UPDATES_INDEX(idx_order) INPUT2_GET_INDEX(idx_order)
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
@@ -11,66 +9,51 @@
 
 #if AXIS_VALUE == 0
     #define SIZE INPUT0_BATCH_NUM
+    #define ASSIGN_INDEX(index) b = index
 #elif AXIS_VALUE == 1
     #define SIZE INPUT0_FEATURE_NUM
+    #define ASSIGN_INDEX(index) f = index
 #endif
-
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
-    #if AXIS_VALUE == 0
-        #define SCATTER_ORDER index, f, y, x
-    #elif AXIS_VALUE == 1
-        #define SCATTER_ORDER b, index, y, x
-    #elif AXIS_VALUE == 2
+    #if AXIS_VALUE == 2
         #define SIZE INPUT0_SIZE_Y
-        #define SCATTER_ORDER b, f, index, x
+        #define ASSIGN_INDEX(index) y = index
     #elif AXIS_VALUE == 3
         #define SIZE INPUT0_SIZE_X
-        #define SCATTER_ORDER b, f, y, index
-    #endif 
+        #define ASSIGN_INDEX(index) x = index
+    #endif
 #elif OUTPUT_DIMS == 5
     #define ORDER b,f,z,y,x
-    #if AXIS_VALUE == 0
-        # define SCATTER_ORDER index, f, z, y, x
-    #elif   AXIS_VALUE == 1
-        # define SCATTER_ORDER b, index, z, y, x
-    #elif   AXIS_VALUE == 2
-        # define SIZE INPUT0_SIZE_Z
-        # define SCATTER_ORDER b, f, index, y, x
-    #elif   AXIS_VALUE == 3
+    #if AXIS_VALUE == 2
+        #define SIZE INPUT0_SIZE_Z
+        #define ASSIGN_INDEX(index) z = index
+    #elif AXIS_VALUE == 3
         #define SIZE INPUT0_SIZE_Y
-        # define SCATTER_ORDER b, f, z, index, x
-    #elif   AXIS_VALUE == 4
+        #define ASSIGN_INDEX(index) y = index
+    #elif AXIS_VALUE == 4
         #define SIZE INPUT0_SIZE_X
-        # define SCATTER_ORDER b, f, z, y, index
+        #define ASSIGN_INDEX(index) x = index
     #endif
 #elif OUTPUT_DIMS == 6
     #define ORDER b,f,w,z,y,x
-    #if AXIS_VALUE == 0
-        # define SCATTER_ORDER index, f, w, z, y, x
-    #elif   AXIS_VALUE == 1
-        # define SCATTER_ORDER b, index, w, z, y, x
-    #elif   AXIS_VALUE == 2
-        # define SIZE INPUT0_SIZE_W
-        # define SCATTER_ORDER b, f, index, z, y, x
-    #elif   AXIS_VALUE == 3
+    #if AXIS_VALUE == 2
+        #define SIZE INPUT0_SIZE_W
+        #define ASSIGN_INDEX(index) w = index
+    #elif AXIS_VALUE == 3
         #define SIZE INPUT0_SIZE_Z
-        # define SCATTER_ORDER b, f, w, index, y, x
-    #elif   AXIS_VALUE == 4
+        #define ASSIGN_INDEX(index) z = index
+    #elif AXIS_VALUE == 4
         #define SIZE INPUT0_SIZE_Y
-        # define SCATTER_ORDER b, f, w, z, index, x
+        #define ASSIGN_INDEX(index) y = index
     #elif AXIS_VALUE == 5
         #define SIZE INPUT0_SIZE_X
-        # define SCATTER_ORDER b, f, w, z, y, index
+        #define ASSIGN_INDEX(index) x = index
     #endif
 #endif
-
-#define ADJUST_INDEX(index) if (index < 0) { index += SIZE; }
-
 #if OUTPUT_DIMS != INPUT2_DIMS
     #error "OUTPUT_DIMS is supposed to be same as INPUT2_DIMS"
 #endif
-
 #ifdef REDUCE_MODE
     #define SUM_MODE 1
     #define PROD_MODE 2
@@ -92,7 +75,6 @@
             #error "Invalid REDUCE_MODE value"
         #endif
     #endif
-
     inline INPUT2_TYPE FUNC(reduce)(INPUT2_TYPE a, INPUT2_TYPE b)
     {
     #if REDUCE_MODE == SUM_MODE
@@ -109,7 +91,6 @@
         #error "Invalid REDUCE_MODE value"
     #endif
     }
-
     #ifdef IS_SECOND_ITER // Socond kernel only
         inline void add_count(__local int count_k[], __local int count_v[], int length, int idx, int count)
         {
@@ -124,7 +105,6 @@
                 }
             }
         }
-
         inline int get_count(__local int count_k[], __local int count_v[], int it, int *idx)
         {
             if (count_k[it] != -1) {
@@ -136,7 +116,6 @@
         }
     #endif
 #endif
-
 KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                    const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
@@ -206,28 +185,30 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         }
         const uint input2_length = tgx * tgy * tgz > COUNT_LENGTH ? COUNT_LENGTH : tgx * tgy * tgz;
         #if USE_INIT_VAL == 0
+            uint ORDER;
             for (uint gz = 0; gz < tgz; gz++) {
                 for (uint gy = 0; gy < tgy; gy++) {
                     for (uint gx = 0; gx < tgx; gx++) {
                         #if OUTPUT_DIMS == 4
-                            const uint x = gx;
-                            const uint y = gy;
+                            x = gx;
+                            y = gy;
                         #elif OUTPUT_DIMS == 5
-                            const uint x = gx % INPUT2_SIZE_X;
-                            const uint y = gx / INPUT2_SIZE_X;
-                            const uint z = gy;
+                            x = gx % INPUT2_SIZE_X;
+                            y = gx / INPUT2_SIZE_X;
+                            z = gy;
                         #elif OUTPUT_DIMS == 6
-                            const uint x = gx % INPUT2_SIZE_X;
-                            const uint y = gx / INPUT2_SIZE_X;
-                            const uint z = gy % INPUT2_SIZE_Z;
-                            const uint w = gy / INPUT2_SIZE_Z;
+                            x = gx % INPUT2_SIZE_X;
+                            y = gx / INPUT2_SIZE_X;
+                            z = gy % INPUT2_SIZE_Z;
+                            w = gy / INPUT2_SIZE_Z;
                         #endif
-                        const uint f = gz % INPUT2_FEATURE_NUM;
-                        const uint b = gz / INPUT2_FEATURE_NUM;
+                        f = gz % INPUT2_FEATURE_NUM;
+                        b = gz / INPUT2_FEATURE_NUM;
                         const uint indices_idx = GET_INDICES_INDEX(ORDER);
-                        INPUT1_TYPE index = indices[(int)indices_idx];
+                        uint index = indices[(int)indices_idx];
                         if (index < 0) { index += SIZE; }
-                        const uint output_idx = GET_OUTPUT_INDEX(SCATTER_ORDER);
+                        ASSIGN_INDEX(index);
+                        const uint output_idx = GET_OUTPUT_INDEX(ORDER);
                         output[output_idx] = REDUCTION_NEUTRAL_VALUE;
                     }
                 }
@@ -238,50 +219,51 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         for (uint gz = 0; gz < tgz; gz++) {
             for (uint gy = 0; gy < tgy; gy++) {
                 for (uint gx = 0; gx < tgx; gx++) {
+                    uint ORDER;
                     #if OUTPUT_DIMS == 4
-                        const uint x = gx;
-                        const uint y = gy;
+                        x = gx;
+                        y = gy;
                     #elif OUTPUT_DIMS == 5
-                        const uint x = gx % INPUT2_SIZE_X;
-                        const uint y = gx / INPUT2_SIZE_X;
-                        const uint z = gy;
+                        x = gx % INPUT2_SIZE_X;
+                        y = gx / INPUT2_SIZE_X;
+                        z = gy;
                     #elif OUTPUT_DIMS == 6
-                        const uint x = gx % INPUT2_SIZE_X;
-                        const uint y = gx / INPUT2_SIZE_X;
-                        const uint z = gy % INPUT2_SIZE_Z;
-                        const uint w = gy / INPUT2_SIZE_Z;
+                        x = gx % INPUT2_SIZE_X;
+                        y = gx / INPUT2_SIZE_X;
+                        z = gy % INPUT2_SIZE_Z;
+                        w = gy / INPUT2_SIZE_Z;
                     #endif
-                    const uint f = gz % INPUT2_FEATURE_NUM;
-                    const uint b = gz / INPUT2_FEATURE_NUM;
-    #else // Multiple worker items do not need a loop.
+                    f = gz % INPUT2_FEATURE_NUM;
+                    b = gz / INPUT2_FEATURE_NUM;
+    #else // Multiple worker items do not need a loop when REDUCE_MODE==NONE.
+        uint ORDER;
         #if OUTPUT_DIMS == 4
-            const uint x = dim0;
-            const uint y = dim1;
-            const uint f = dim2 % INPUT2_FEATURE_NUM;
-            const uint b = dim2 / INPUT2_FEATURE_NUM;
+            x = dim0;
+            y = dim1;
+            f = dim2 % INPUT2_FEATURE_NUM;
+            b = dim2 / INPUT2_FEATURE_NUM;
         #elif OUTPUT_DIMS == 5
-            const uint x = dim0 % INPUT2_SIZE_X;
-            const uint y = dim0 / INPUT2_SIZE_X;
-            const uint z = dim1;
-            const uint f = dim2 % INPUT2_FEATURE_NUM;
-            const uint b = dim2 / INPUT2_FEATURE_NUM;
+            x = dim0 % INPUT2_SIZE_X;
+            y = dim0 / INPUT2_SIZE_X;
+            z = dim1;
+            f = dim2 % INPUT2_FEATURE_NUM;
+            b = dim2 / INPUT2_FEATURE_NUM;
         #elif OUTPUT_DIMS == 6
-            const uint x = dim0 % INPUT2_SIZE_X;
-            const uint y = dim0 / INPUT2_SIZE_X;
-            const uint z = dim1 % INPUT2_SIZE_Z;
-            const uint w = dim1 / INPUT2_SIZE_Z;
-            const uint f = dim2 % INPUT2_FEATURE_NUM;
-            const uint b = dim2 / INPUT2_FEATURE_NUM;
+            x = dim0 % INPUT2_SIZE_X;
+            y = dim0 / INPUT2_SIZE_X;
+            z = dim1 % INPUT2_SIZE_Z;
+            w = dim1 / INPUT2_SIZE_Z;
+            f = dim2 % INPUT2_FEATURE_NUM;
+            b = dim2 / INPUT2_FEATURE_NUM;
         #endif
     #endif 
-
     const uint indices_idx = GET_INDICES_INDEX(ORDER);
-    INPUT1_TYPE index = indices[(int)indices_idx];
-    const uint output_idx = GET_OUTPUT_INDEX(SCATTER_ORDER);
-
     const uint updates_idx = GET_UPDATES_INDEX(ORDER);
     INPUT2_TYPE val = updates[(int)updates_idx];
-
+    uint index = indices[(int)indices_idx];
+    if (index < 0) { index += SIZE; }
+    ASSIGN_INDEX(index);
+    const uint output_idx = GET_OUTPUT_INDEX(ORDER);
     #ifdef REDUCE_MODE
         val = FUNC_CALL(reduce)(output[output_idx], val);
         output[output_idx] = val;
@@ -316,7 +298,6 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #endif // REDUCE_MODE
 #endif
 }
-
 #ifdef REDUCE_MODE
     #undef SUM_MODE
     #undef PROD_MODE
@@ -325,12 +306,8 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #undef MEAN_MODE
     #undef REDUCTION_NEUTRAL_VALUE
 #endif
-
 #undef GET_INDICES_INDEX
 #undef GET_UPDATES_INDEX
 #undef GET_OUTPUT_INDEX
-#undef GET_OUTPUT_INDEX_SECOND
 #undef SIZE
-#undef IDX_ORDER
 #undef ORDER
-#undef SCATTER_ORDER
