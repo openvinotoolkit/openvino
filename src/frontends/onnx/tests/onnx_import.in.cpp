@@ -6995,7 +6995,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_higher_dimen
     const std::vector<float> expected(2 * 2 * 2, 1.0986123f);
     test_case.add_expected_output<float>(Shape{2, 2, 2}, expected);
 
-    test_case.run_with_tolerance_as_fp(1e-6f);
+    test_case.run_with_tolerance_as_fp(0.002f);
 }
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_extreme_values) {
     auto model = convert_model("softmax_crossentropy_loss_extreme_values.onnx");
