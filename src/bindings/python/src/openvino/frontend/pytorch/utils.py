@@ -197,9 +197,7 @@ class ModelWrapper(torch.nn.Module):
 
 
 def build_wrapper(template, model):
-    """
-    Builds a wrapper around the given model using the provided template.
-    """
+    """Builds a wrapper around the given model using the provided template."""
     result = {}
     try:
         exec(template, result)
@@ -311,12 +309,12 @@ def convert_quantized_tensor(qtensor: torch.Tensor, shared_memory: bool):
     raise AssertionError(f"Unsupported qscheme: {qscheme}")
 
 
-def process_individual_input(x, x_name):
+def process_individual_input(arg, arg_name):
     """Generate signature, param string, example, and wrap flag from input.
 
     Args:
-        x: The input value to process.
-        x_name: The name of the input.
+        arg: The input value to process.
+        arg_name: The name of the input.
 
     Returns:
         Tuple: (signature, param string, example entry, wrap flag).
@@ -325,29 +323,29 @@ def process_individual_input(x, x_name):
     param = None
     example_entry = None
     to_wrap = False
-    if isinstance(x, tuple):
+    if isinstance(arg, tuple):
         internal_input = []
         new_tuple = []
         index = 0
-        for v in x:
-            if v is None:
+        for value in arg:
+            if value is None:
                 to_wrap = True
                 internal_input.append("None")
             else:
-                internal_input.append(f"{x_name}[{index}]")
-                new_tuple.append(v)
+                internal_input.append(f"{arg_name}[{index}]")
+                new_tuple.append(value)
                 index += 1
         param = f"({', '.join(internal_input)},)"
         if len(new_tuple) > 0:
             example_entry = tuple(new_tuple)
-            sign = x_name
-    elif x is None:
+            sign = arg_name
+    elif arg is None:
         to_wrap = True
         param = "None"
     else:
-        sign = x_name
-        param = x_name
-        example_entry = x
+        sign = arg_name
+        param = arg_name
+        example_entry = arg
     return sign, param, example_entry, to_wrap
 
 
@@ -361,9 +359,9 @@ def patch_none_example(model: torch.nn.Module, example):
     to_wrap = False
     if isinstance(example, tuple) and len(input_signature) >= len(example):
         new_example = []
-        for i, x in enumerate(example):
-            x_name = input_signature[i]
-            sign, param, example_entry, _to_wrap = process_individual_input(x, x_name)
+        for i, arg in enumerate(example):
+            arg_name = input_signature[i]
+            sign, param, example_entry, _to_wrap = process_individual_input(arg, arg_name)
             to_wrap = to_wrap or _to_wrap
             if sign is not None:
                 input_sign_str.append(str(input_params[sign]))
@@ -380,15 +378,15 @@ def patch_none_example(model: torch.nn.Module, example):
     elif isinstance(example, dict) and len(input_signature) >= len(example):
         new_example = {}
         input_signature = [s for s in input_signature if s in example]
-        for x_name in input_signature:
-            x = example[x_name]
-            sign, param, example_entry, _to_wrap = process_individual_input(x, x_name)
+        for arg_name in input_signature:
+            arg = example[arg_name]
+            sign, param, example_entry, _to_wrap = process_individual_input(arg, arg_name)
             to_wrap = to_wrap or _to_wrap
             if sign is not None:
                 input_sign_str.append(str(input_params[sign]))
-            input_params_str.append(f"{x_name}={param}")
+            input_params_str.append(f"{arg_name}={param}")
             if example_entry is not None:
-                new_example[x_name] = example_entry
+                new_example[arg_name] = example_entry
         if to_wrap:
             wrapper_class = wrapper_template.format(input_sign=", ".join(input_sign_str),
                                                     example_input=", ".join(input_params_str))

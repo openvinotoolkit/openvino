@@ -81,8 +81,8 @@ def __make_16bit_traceable(model: torch.nn.Module,
                            patch_condition=None):
     """Prepare a 16-bit PyTorch model for tracing with OpenVINO.
 
-     - Replace known list of modules with ModuleExtension.
-     - Convert other modules with weights to FP32.
+    - Replace known list of modules with ModuleExtension.
+    - Convert other modules with weights to FP32.
     """
     supported = {torch.float16, torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2}
     if patch_condition is None:
@@ -93,7 +93,7 @@ def __make_16bit_traceable(model: torch.nn.Module,
 
     def fp32_tensor(*shape):
         return torch.full(shape, 0.5, dtype=torch.float32)
-    
+
     extensions = {
         torch.nn.Linear: ModuleExtension(
             torch.nn.Linear, "ov_ext::linear",
