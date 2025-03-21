@@ -51,7 +51,7 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(std::string
         input_name = search_string.substr(0, start_pos);
         auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
         if (!input_name.empty()) {
-            return_value[parameterNameToTensorName(input_name, input_info)].push_back(input_value);
+            return_value[parameterNameToTensorName(input_name, input_info)].push_back(std::move(input_value));
         } else {
             for (auto& item : input_info) {
                 return_value[item.get_any_name()].push_back(input_value);
