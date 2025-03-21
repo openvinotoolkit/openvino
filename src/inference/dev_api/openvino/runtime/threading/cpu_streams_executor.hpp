@@ -49,7 +49,7 @@ public:
 
     int get_stream_id() override;
 
-    int get_streams_num();
+    int get_streams_num() override;
 
     int get_numa_node_id() override;
 
