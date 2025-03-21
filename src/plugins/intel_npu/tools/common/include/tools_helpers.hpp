@@ -88,7 +88,7 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(std::string
  *
  * @throws std::logic_error If the model's rank or shape is dynamic and not supported by NPU.
  */
-void modelDynamismCheck(std::shared_ptr<ov::Model>& model, bool shapeOrBatchGiven = true) {
+void boundDynamicShape(std::shared_ptr<ov::Model>& model, bool shapeOrBatchGiven = true) {
     std::cout << "Checking model for dynamism..." << std::endl;
     for (auto&& item : model->get_parameters()) {
         auto shape = item->get_partial_shape();
@@ -129,6 +129,26 @@ void modelDynamismCheck(std::shared_ptr<ov::Model>& model, bool shapeOrBatchGive
     }
 }
 
+/**
+ * @brief Reshapes the model based on the provided shape string or batch size.
+ *
+ * This function reshapes the model's input parameters based on the user-provided shape string or
+ * user-provided model batch size override. Shape string and override model batch size cannot be
+ * specified together. If the shape string is provided, it is parsed and used to reshape the model.
+ * If the override model batch size is provided, a shape string will be reconstructed using the user-
+ * provided batch size.
+ *
+ * @param inputsInfo A vector of OpenVINO output nodes representing the model's inputs.
+ * @param infoMap A map to store the reshaped input information.
+ * @param model A shared pointer to the OpenVINO model to be reshaped.
+ * @param shapeString A string representing the desired shape for the model's inputs.
+ * @param overrideModelBatchSize An integer specifying the batch size to override the model's batch size.
+ * @param device A string view representing the target device for the model.
+ *
+ * @throws std::logic_error If both shapeString and overrideModelBatchSize are specified, or if
+ *                          the shape string contains multiple shapes for one input, or if the
+ *                          model's shape is dynamic and not supported by the device.
+ */
 void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<ov::Model>& model,
              std::string& shapeString, int overrideModelBatchSize, std::string_view device) {
     std::vector<InputsInfo> infoMaps;
@@ -160,6 +180,8 @@ void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<o
         }
     }
 
+    // Processes either user-provided shape string, or shape string reconstructed
+    // through override_model_batch_size above
     if (!shapeString.empty()) {
         std::map<std::string, std::vector<std::string>> shapesMap = parseInputParameters(shapeString, inputsInfo);
 
@@ -195,7 +217,7 @@ void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<o
         if (device.find("NPU") != std::string::npos ||
             // FIXME: SIT on CPU also requires to bound dynamic shapes
             device.find("CPU") != std::string::npos || device.find("TEMPLATE") != std::string::npos) {
-            modelDynamismCheck(model, false);
+            boundDynamicShape(model, false);
         }
     }
 }
