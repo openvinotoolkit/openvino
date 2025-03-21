@@ -179,7 +179,7 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
         env:
-          CMAKE_OPTIONS: "${{ inputs.cmake-options }}"
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
 
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
