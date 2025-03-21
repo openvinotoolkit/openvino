@@ -251,7 +251,7 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
         [&cfg, &plugin](const std::shared_ptr<const ov::Model>& model_ptr) {
             if (model_ptr != nullptr &&
                 ov::util::contains(plugin.get_property(ov::supported_properties), ov::hint::model)) {
-                cfg[ov::hint::model.name()] = std::const_pointer_cast<ov::Model>(model_ptr);
+                cfg[ov::hint::model.name()] = model_ptr;
             }
         },
         [&cfg, &plugin](const std::string& model_path) {
@@ -839,7 +839,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
+        cacheContent.model = model;
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
@@ -877,7 +877,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
+        cacheContent.model = model;
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
         });
