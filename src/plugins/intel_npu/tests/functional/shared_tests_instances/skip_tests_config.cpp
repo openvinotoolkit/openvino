@@ -897,10 +897,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
         });
 
-        // get_runtime_model method is not supported on NPU
-        _skipRegistry.addPatterns("get_runtime_model method is not supported on NPU", {
-                ".*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*",
-        });
         // CACHE_MODE is not supported on NPU, update test with correct property to make weightless compiled model
         _skipRegistry.addPatterns("compiled_blob test use `CACHE_MOD` which is not supported on NPU", {
                 R"(.*OVCompiledModelBaseTest.*import_from_.*_blob.*)",
