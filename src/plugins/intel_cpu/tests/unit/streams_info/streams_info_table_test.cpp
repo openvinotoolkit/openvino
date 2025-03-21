@@ -1834,6 +1834,18 @@ StreamsCalculationTestCase _1sockets_mock_tput_4 = {
     {{4, MAIN_CORE_PROC, 2, 0, 0}},
 };
 
+StreamsCalculationTestCase _1sockets_mock_tput_5 = {
+    1,
+    false,
+    1,
+    2,
+    8,
+    "THROUGHPUT",
+    {},
+    {{16, 16, 0, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 1, 0, 0}},
+};
+
 StreamsCalculationTestCase _2sockets_mock_latency_1 = {
     1,
     false,
@@ -2788,6 +2800,7 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_mock_tput_2,
                                          _1sockets_mock_tput_3,
                                          _1sockets_mock_tput_4,
+                                         _1sockets_mock_tput_5,
                                          _2sockets_mock_latency_1,
                                          _2sockets_mock_latency_2,
                                          _2sockets_mock_latency_3,
