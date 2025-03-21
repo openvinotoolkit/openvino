@@ -133,10 +133,10 @@ SDPAFusion::SDPAFusion() {
             return false;
 
         // get all important dims from shapes:
-        auto N = q_node_ps[0];  // batch size - can be dynamic
-        auto H = k_node_ps[-3];    // number of heads of key and value
-        auto S = k_node_ps[-2];   // source sequence length - can be dynamic
-        auto E = q_node_ps[-1];   // embedding dimension of query and key
+        auto N = q_node_ps[0];   // batch size - can be dynamic
+        auto H = k_node_ps[-3];  // number of heads of key and value
+        auto S = k_node_ps[-2];  // source sequence length - can be dynamic
+        auto E = q_node_ps[-1];  // embedding dimension of query and key
 
         auto T = q_node.get_element_type();
         // make sure that all inputs to SDPA (query, key and value) have the same batch
