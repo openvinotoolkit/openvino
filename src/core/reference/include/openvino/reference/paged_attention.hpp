@@ -10,8 +10,7 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
-namespace ov {
-namespace reference {
+namespace ov::reference {
 namespace paged_attention_utils {
 
 // --- Helper / Unit Functions ---
@@ -39,7 +38,7 @@ void softmax(std::vector<T>& scores) {
 template <typename T>
 void apply_rope(T* vec, int32_t head_size, const T* rotation_trig_lut, int32_t trig_index) {
     int32_t half = head_size / 2;
-    const float* row = reinterpret_cast<const float*>(rotation_trig_lut) + trig_index * head_size;
+    const T* row = rotation_trig_lut + trig_index * head_size;
     for (int32_t i = 0; i < half; i++) {
         T x0 = vec[2 * i];
         T x1 = vec[2 * i + 1];
@@ -210,7 +209,7 @@ void paged_attention(
                     if (first_block_for_seq >= 0 && block_id == first_block_for_seq && token_offset < sliding_window) {
                         score_val = -std::numeric_limits<T>::infinity();
                     } else {
-                        int32_t kv_head = h % num_kv_heads;
+                        int32_t kv_head = h / (num_heads / num_kv_heads);
                         const T* key_vec =
                             key_cache + (((block_id * num_kv_heads + kv_head) * block_size + token_offset) * head_size);
 
@@ -326,5 +325,4 @@ void paged_attention(
     }
 }
 
-}  // namespace reference
-}  // namespace ov
+}  // namespace ov::reference
