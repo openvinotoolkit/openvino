@@ -476,11 +476,11 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
 ###
 def test_compiled_blob_property():
     assert hints.compiled_blob == "COMPILED_BLOB"
-    compiled_blob = hints.compiled_blob(ov.Tensor(Type.u8, [2,5]))
+    compiled_blob = hints.compiled_blob(ov.Tensor(Type.u8, [2, 5]))
 
     assert compiled_blob[0] == "COMPILED_BLOB"
     assert compiled_blob[1].value.element_type == Type.u8
-    assert compiled_blob[1].value.shape == [2,5]
+    assert compiled_blob[1].value.shape == [2, 5]
 
 
 def test_properties_device_priorities():
