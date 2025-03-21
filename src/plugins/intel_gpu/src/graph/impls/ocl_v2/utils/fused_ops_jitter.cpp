@@ -116,15 +116,18 @@ JitConstants make_fused_ops_jit_constants(const RuntimeParams& params, const std
                 bool can_use_preload = fused_dep_codegen.can_preload_data(c);
                 can_all_use_preload &= can_use_preload;
                 bool can_preload_eltwise = true;
-                if (fused_ops_descs[i].is_type<eltwise>() && c.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE)
+                if (fused_ops_descs[i].is_type<eltwise>() && c.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE) {
                     can_preload_eltwise = false;
-                fused_ops += "\\\n\tFUSED_OP" + to_code_string(i) + "_LOAD" + c.suffix;
-                fused_ops += "\\\n\tFUSED_OP" + to_code_string(i) + "_ACTION" + c.suffix;
-                if (can_use_preload && can_preload_eltwise)
-                    fused_ops_preload += "\\\n\tFUSED_OP" + to_code_string(i) + "_LOAD" + c.suffix;
-                if (c.allow_for_partial_preload && (!can_use_preload || !can_preload_eltwise))
-                    fused_ops_calc += "\\\n\tFUSED_OP" + to_code_string(i) + "_LOAD" + c.suffix;
-                fused_ops_calc += "\\\n\tFUSED_OP" + to_code_string(i) + "_ACTION" + c.suffix;
+                }
+                fused_ops += concat(indent, "FUSED_OP", i, "_LOAD", c.suffix).str();
+                fused_ops += concat(indent, "FUSED_OP", i, "_ACTION", c.suffix).str();
+                if (can_use_preload && can_preload_eltwise) {
+                    fused_ops_preload += concat(indent, "FUSED_OP", i, "_LOAD", c.suffix).str();
+                }
+                if (c.allow_for_partial_preload && (!can_use_preload || !can_preload_eltwise)) {
+                    fused_ops_calc += concat(indent, "FUSED_OP", i, "_LOAD", c.suffix).str();
+                }
+                fused_ops_calc += concat(indent, "FUSED_OP", i, "_ACTION", c.suffix).str();
             }
 
             jit.make("FUSED_OPS" + c.suffix, fused_ops);
@@ -145,16 +148,18 @@ JitConstants make_fused_ops_jit_constants(const RuntimeParams& params, const std
 }
 
 bool FusedOpsCodeGenerator::can_preload_data(const FusedOpsConfiguration& conf) const {
-    if (conf.loop_axes.empty())
+    if (conf.loop_axes.empty()) {
         return true;
+    }
 
     bool can_preload = true;
     // Check that tensor offset doesn't have dependency from the loop dimensions
-    for (auto& d : conf.loop_axes) {
-        for (auto& in_d : desc.inputs) {
-            if (in_d.m_type != FusedInputType::EXTERNAL)
+    for (const auto& d : conf.loop_axes) {
+        for (const auto& in_d : desc.inputs) {
+            if (in_d.m_type != FusedInputType::EXTERNAL) {
                 continue;
-            auto idx = idx_desc{conf.bfzyx_idx_order, params.get_input_layout(in_d.m_idx)};
+            }
+            auto idx = IndexDesc{conf.bfzyx_idx_order, params.get_input_layout(in_d.m_idx)};
             switch (d) {
             case ChannelName::BATCH:
                 can_preload &= idx.b == "0";
@@ -184,20 +189,22 @@ bool FusedOpsCodeGenerator::can_preload_data(const FusedOpsConfiguration& conf) 
 }
 
 JitTerm FusedOpsCodeGenerator::get_op_type() const {
-    if (desc.is_type<eltwise>())
+    if (desc.is_type<eltwise>()) {
         return JitTerm{"eltwise"};
-    else if (desc.is_type<quantize>())
+    } else if (desc.is_type<quantize>()) {
         return JitTerm{"quantize"};
-    else if (desc.is_type<activation>())
+    } else if (desc.is_type<activation>()) {
         return JitTerm{"activation"};
+    }
     return {};
 }
 
 JitConstants FusedOpsCodeGenerator::make_fused_tensor_jit_constants(const FusedOpsConfiguration& /*conf*/) const {
     JitConstants jit{};
-    for (auto& in_d : desc.inputs) {
-        if (in_d.m_type != FusedInputType::EXTERNAL)
+    for (const auto& in_d : desc.inputs) {
+        if (in_d.m_type != FusedInputType::EXTERNAL) {
             continue;
+        }
 
         const auto in_idx = in_d.m_idx;
         std::string name = get_input_tensor_name(in_idx).str();
@@ -248,7 +255,7 @@ JitConstants FusedOpsCodeGenerator::make_load_jit_constants(const FusedOpsConfig
     bool safe_load = conf.boundary_check == FusedOpsConfiguration::BoundaryCheck::ENABLED;
     JitTerm reused_idx = concat("reused_idx_", i++);
     if (reuse_index) {
-        load_decls += make_statement(reused_idx.assign(get_idx(0, idx_desc{idx, params.get_input_layout(0)}, safe_load))).str();
+        load_decls += make_statement(reused_idx.assign(get_idx(0, IndexDesc{idx, params.get_input_layout(0)}, safe_load))).str();
     }
     // TODO: add some generic way to support shuffled feature, lets say possibility to add separate config for each fused op
     if (desc.is_type<eltwise>() && conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE) {
@@ -575,7 +582,7 @@ JitTerm FusedOpsCodeGenerator::get_output_tensor_name() const {
     return concat("FUSED_OP_", op_idx, "_OUTPUT");
 }
 
-JitTerm FusedOpsCodeGenerator::get_idx(size_t input_id, const idx_desc& idx, bool should_be_safe) const {
+JitTerm FusedOpsCodeGenerator::get_idx(size_t input_id, const IndexDesc& idx, bool should_be_safe) const {
     const auto rank = params.get_input_layout(input_id).get_rank();
 
     JitTerm index_func;
@@ -660,7 +667,7 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
             OPENVINO_ASSERT(vec_axis_idx != -1, "[GPU] Incorrect vec_axis value ", static_cast<int>(conf.vec_axis), " for bfzyx_idx_order order");
             new_idx_order[vec_axis_idx] = "((" + conf.bfzyx_idx_order[vec_axis_idx] + ") + loop_var)";
         }
-        JitTerm new_index_func_call{get_idx(input_id, idx_desc{new_idx_order, input_tensor}, safe_load)};
+        JitTerm new_index_func_call{get_idx(input_id, IndexDesc{new_idx_order, input_tensor}, safe_load)};
 
         if (vec_size > 1) {
             JitTerm loop_var{"loop_var"};
@@ -672,8 +679,8 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
         return in_ptr[new_index_func_call];
     }
 
-    JitTerm index_func_call_vec{reuse_index ? reused_idx : get_idx(input_id, idx_desc{idx, input_tensor}, safe_load)};
-    JitTerm index_func_call{reuse_index ? reused_idx : get_idx(input_id, idx_desc{idx, input_tensor}, safe_load)};
+    JitTerm index_func_call_vec{reuse_index ? reused_idx : get_idx(input_id, IndexDesc{idx, input_tensor}, safe_load)};
+    JitTerm index_func_call{reuse_index ? reused_idx : get_idx(input_id, IndexDesc{idx, input_tensor}, safe_load)};
     if (conf.index_type == FusedOpsConfiguration::IndexType::LINEAR_OFFSET) {
         JitTerm offset{conf.bfzyx_idx_order[0]};
         if (safe_load) {

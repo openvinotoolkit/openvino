@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common_utils/dispatch_utils.hpp"
@@ -51,9 +52,9 @@ struct FusedOpsConfiguration {
     // Record original output layout before reorder is fused
     cldnn::format orig_output_layout;
 
-    FusedOpsConfiguration(const std::string& suffix,
+    FusedOpsConfiguration(std::string suffix,
                           const std::vector<std::string>& bfzyx_idx_order,
-                          const std::string& input_var_name,
+                          std::string input_var_name,
                           ov::element::Type input_dt,
                           size_t vec_size = 1,
                           LoadType load_type = LoadType::LT_UNALIGNED,
@@ -62,11 +63,11 @@ struct FusedOpsConfiguration {
                           ChannelName vec_axis = ChannelName::UNKNOWN,
                           const std::vector<ChannelName>& loop_axes = {},
                           bool allow_for_partial_preload = false,
-                          const std::string& shuffle_var_name = "",
+                          std::string shuffle_var_name = "",
                           cldnn::format orig_output_layout = cldnn::format::any)
-        : suffix(suffix),
+        : suffix(std::move(suffix)),
           bfzyx_idx_order(bfzyx_idx_order),
-          input_var_name(input_var_name),
+          input_var_name(std::move(input_var_name)),
           input_dt(input_dt),
           vec_size(vec_size),
           vec_axis(vec_axis),
@@ -75,8 +76,8 @@ struct FusedOpsConfiguration {
           index_type(index_type),
           loop_axes(loop_axes),
           allow_for_partial_preload(allow_for_partial_preload),
-          shuffle_var_name(shuffle_var_name),
-          orig_output_layout(orig_output_layout) {}
+          shuffle_var_name(std::move(shuffle_var_name)),
+          orig_output_layout(std::move(orig_output_layout)) {}
 
     FusedOpsConfiguration& set_vector_type(size_t val) {
         vec_size = val;
@@ -105,14 +106,14 @@ struct FusedOpsConfiguration {
     }
 
     FusedOpsConfiguration& set_shuffle_var_name(std::string val) {
-        shuffle_var_name = val;
+        shuffle_var_name = std::move(val);
         return *this;
     }
-    bool is_post_reorder_fused(void) const {
+    [[nodiscard]] bool is_post_reorder_fused(void) const {
         return orig_output_layout != cldnn::format::any;
     }
 
-    int get_dim_index_from_order(ChannelName val) const {
+    [[nodiscard]] int get_dim_index_from_order(ChannelName val) const {
         return get_channel_index(val, bfzyx_idx_order.size());
     }
 };
@@ -132,7 +133,7 @@ struct DependencyInfo {
     ov::element::Type data_type;
 };
 
-// Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program::fuse_nodes
+// Instance of FusedPrimitiveDesc is added to fused_ops vector if a node has been fused to current one using program::fuse_nodes
 // method. In order to process fused ops following modifications should be done in a kernel:
 // option 1 - using common generator:
 //     - create FusedOpsConfiguration object that contains configuration for common code generator.
@@ -174,16 +175,13 @@ struct DependencyInfo {
 //            in a kernel, but to make it easier set of helper functions exist:
 //     - KernelBase::MakeFusedOpsDeclsJitConstants that creates arguments for kernel declaration and macro for all tensors used in
 //       a fused op (requires FusedOpsConfiguration instance).
-//     - fused_operation_desc contains a bunch of methods to generate variable/pointer names, type conversions, data loads
+//     - FusedOpsCodeGenerator contains a bunch of methods to generate variable/pointer names, type conversions, data loads
 
 class FusedOpsCodeGenerator {
 public:
-    explicit FusedOpsCodeGenerator(const FusedPrimitiveDesc& desc, const RuntimeParams& params, size_t op_idx)
-        : desc(desc),
-          params(params),
-          op_idx(op_idx) {}
+    explicit FusedOpsCodeGenerator(const FusedPrimitiveDesc& desc, const RuntimeParams& params, size_t op_idx) : desc(desc), params(params), op_idx(op_idx) {}
 
-    struct idx_desc {
+    struct IndexDesc {
         std::string b;
         std::string f;
         std::string v;
@@ -192,9 +190,17 @@ public:
         std::string z;
         std::string y;
         std::string x;
-        size_t dims;
-        explicit idx_desc(std::vector<std::string> idx, const cldnn::layout& t) : b("0"), f("0"), v("0"), u("0"), w("0"), z("0"), y("0"), x("0"), dims(0) {
-            dims = idx.size();
+        size_t dims = 0;
+        explicit IndexDesc(std::vector<std::string> idx, const cldnn::layout& t)
+            : b("0"),
+              f("0"),
+              v("0"),
+              u("0"),
+              w("0"),
+              z("0"),
+              y("0"),
+              x("0"),
+              dims(idx.size()) {
             switch (dims) {
             case 1:
                 f = idx[0];
@@ -252,52 +258,44 @@ public:
                 throw std::runtime_error("More than 8 dimenstions is not supported in fused op generator");
             }
 
-            // if (t.Batch().v == 1) {
-            //     b = "0";
-            // }
-            // if (t.Feature().v == 1) {
-            //     f = "0";
-            // }
-            // if (t.V().v == 1) {
-            //     v = "0";
-            // }
-            // if (t.U().v == 1) {
-            //     u = "0";
-            // }
-            // if (t.W().v == 1) {
-            //     w = "0";
-            // }
-            // if (t.Z().v == 1) {
-            //     z = "0";
-            // }
-            // if (t.Y().v == 1) {
-            //     y = "0";
-            // }
-            // if (t.X().v == 1) {
-            //     x = "0";
-            // }
+            const std::map<ChannelName, std::string*> channels_map{
+                {ChannelName::BATCH, &b},
+                {ChannelName::FEATURE, &f},
+                {ChannelName::V, &v},
+                {ChannelName::U, &u},
+                {ChannelName::W, &w},
+                {ChannelName::Z, &z},
+                {ChannelName::Y, &y},
+                {ChannelName::X, &x},
+            };
+
+            for (const auto& [channel_name, dim] : channels_map) {
+                if (extract_channel(channel_name, t) == 1) {
+                    *dim = "0";
+                }
+            }
         }
     };
 
-    JitConstants make_fused_tensor_jit_constants(const FusedOpsConfiguration& conf) const;
-    JitConstants make_input_decls_jit_constants(const FusedOpsConfiguration& conf) const;
-    JitConstants make_load_jit_constants(const FusedOpsConfiguration& conf, const cldnn::layout& prim_output) const;
-    JitConstants make_op_jit_constants(const FusedOpsConfiguration& conf,
-                                       const JitTerm& in_var,
-                                       ov::element::Type_t in_type,
-                                       JitTerm& out_var) const;
+    [[nodiscard]] JitConstants make_fused_tensor_jit_constants(const FusedOpsConfiguration& conf) const;
+    [[nodiscard]] JitConstants make_input_decls_jit_constants(const FusedOpsConfiguration& conf) const;
+    [[nodiscard]] JitConstants make_load_jit_constants(const FusedOpsConfiguration& conf, const cldnn::layout& prim_output) const;
+    [[nodiscard]] JitConstants make_op_jit_constants(const FusedOpsConfiguration& conf,
+                                                     const JitTerm& in_var,
+                                                     ov::element::Type_t in_type,
+                                                     JitTerm& out_var) const;
 
-    bool can_preload_data(const FusedOpsConfiguration& conf) const;
+    [[nodiscard]] bool can_preload_data(const FusedOpsConfiguration& conf) const;
 
     [[nodiscard]] JitTerm get_op_type() const;
     [[nodiscard]] JitTerm get_input_tensor_name(size_t input_id) const;
     [[nodiscard]] JitTerm get_output_tensor_name() const;
     [[nodiscard]] JitTerm get_jit_load(const FusedOpsConfiguration& conf,
-                             size_t input_id,
-                             const cldnn::layout& prim_output,
-                             bool reuse_index = false,
-                             const JitTerm& reused_idx = {}) const;
-    [[nodiscard]] JitTerm get_idx(size_t input_id, const idx_desc& idx, bool should_be_safe) const;
+                                       size_t input_id,
+                                       const cldnn::layout& prim_output,
+                                       bool reuse_index = false,
+                                       const JitTerm& reused_idx = {}) const;
+    [[nodiscard]] JitTerm get_idx(size_t input_id, const IndexDesc& idx, bool should_be_safe) const;
     [[nodiscard]] JitTerm get_input_ptr_name(size_t input_id) const;
     [[nodiscard]] JitTerm get_input_var_name(size_t input_id, bool is_shuffled = false, const JitTerm& shuffle_var = {}) const;
     [[nodiscard]] JitTerm get_output_var_name(const JitTerm& input_var_name, size_t op_id) const;
