@@ -9,11 +9,14 @@
 #include <string>
 
 #include "backends.hpp"
+#include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metrics.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "properties.hpp"
 
 namespace intel_npu {
 
@@ -52,23 +55,21 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
+    void init_options();
+    void recheck_compiler_support(FilteredConfig& cfg) const;
+    FilteredConfig fork_local_config(const std::map<std::string, std::string>& rawConfig,
+                                     const std::unique_ptr<ICompilerAdapter>& compiler,
+                                     OptionMode mode = OptionMode::Both) const;
+
     std::shared_ptr<NPUBackends> _backends;
 
-    std::map<std::string, std::string> _config;
     std::shared_ptr<OptionsDesc> _options;
-    Config _globalConfig;
+    FilteredConfig _globalConfig;
     mutable Logger _logger;
-    std::unique_ptr<Metrics> _metrics;
-
-    // properties map: {name -> [supported, mutable, eval function]}
-    mutable std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
-        _properties;
-    mutable std::vector<ov::PropertyName> _supportedProperties;
+    std::shared_ptr<Metrics> _metrics;
+    std::unique_ptr<Properties> _properties;
 
     static std::atomic<int> _compiledModelLoadCounter;
-
-    void reset_compiler_dependent_properties() const;
-    void reset_supported_properties() const;
 };
 
 }  // namespace intel_npu

@@ -4,7 +4,7 @@
 
 #include "zero_tensor.hpp"
 
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"

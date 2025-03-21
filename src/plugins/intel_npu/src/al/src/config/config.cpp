@@ -175,6 +175,31 @@ details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) c
     return desc;
 }
 
+void OptionsDesc::remove(std::string_view key) {
+    std::string searchKey{key};
+    auto it = _impl.find(searchKey);
+    if (it != _impl.end()) {
+        _impl.erase(it);
+    }
+}
+
+void OptionsDesc::reset() {
+    _impl.clear();
+}
+
+bool OptionsDesc::has(std::string_view key) const {
+    std::string searchKey{key};
+    const auto itDeprecated = _deprecated.find(searchKey);
+    if (itDeprecated != _deprecated.end()) {
+        return true;
+    }
+    const auto itMain = _impl.find(searchKey);
+    if (itMain != _impl.end()) {
+        return true;
+    }
+    return false;
+}
+
 std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
     std::vector<std::string> res;
     res.reserve(_impl.size());
@@ -182,6 +207,32 @@ std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
     for (const auto& p : _impl) {
         if (p.second.isPublic() || includePrivate) {
             res.push_back(p.first);
+        }
+    }
+
+    return res;
+}
+
+std::vector<ov::PropertyName> OptionsDesc::getSupportedOptions(bool includePrivate) const {
+    std::vector<ov::PropertyName> res;
+    res.reserve(_impl.size());
+
+    for (const auto& p : _impl) {
+        if (p.second.isPublic() || includePrivate) {
+            res.push_back({p.first, p.second.mutability()});
+        }
+    }
+
+    return res;
+}
+
+std::string OptionsDesc::getSupportedAsString(bool includePrivate) const {
+    std::string res;
+
+    for (const auto& p : _impl) {
+        if (p.second.isPublic() || includePrivate) {
+            res += p.first;
+            res += " ";
         }
     }
 
@@ -219,6 +270,10 @@ void Config::parseEnvVars() {
     });
 }
 
+bool Config::has(std::string key) const {
+    return _impl.count(key) != 0;
+}
+
 void Config::update(const ConfigMap& options, OptionMode mode) {
     auto log = Logger::global().clone("Config");
 
@@ -227,6 +282,7 @@ void Config::update(const ConfigMap& options, OptionMode mode) {
 
         const auto opt = _desc->get(p.first, mode);
         _impl[opt.key().data()] = opt.validateAndParse(p.second);
+        OPENVINO_ASSERT("[ NOT_FOUND ] Option '", p.first.c_str(), "' is not supported for current configuration");
     }
 }
 
@@ -235,6 +291,7 @@ std::string Config::toString() const {
     for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
         const auto& key = it->first;
 
+        // include only enabled configs
         resultStream << key << "=\"" << it->second->toString() << "\"";
         if (std::next(it) != _impl.end()) {
             resultStream << " ";
