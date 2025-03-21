@@ -593,7 +593,7 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
     disable_rt_info_check();
 }
 
-TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern) {
+TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern) {
     {
         // Inputs to SDPA transformer:
         auto beam_idx = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
@@ -652,7 +652,7 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern) {
 // TODO: write a test for StateManagementPattern only (because changes for Alibi are inside it)
 // TODO: align precisions, check the copying of "fuse_names" attr in SDPAToPagedAttention
 // checking the graph structure and names, other checks are temporarily disabled:
-TEST_P(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
+TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
     {
         auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
         auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
@@ -903,7 +903,7 @@ TEST_P(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
     }
 }
 
-TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
+TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
     {
         auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
         auto inputs_embeds = make_param(PartialShape{DYN, DYN, 8}, element::f32, "inputs_embeds");
@@ -924,41 +924,29 @@ TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                       {1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f});
         auto Constant_16155 = makeConst(element::f32, ov::Shape({1, 1, 1}), {1.000000f});
         auto Constant_16153 = makeConst(element::f32, ov::Shape({1, 1, 1}), {2.000000f});
-        auto __module_model_model_layers_0_input_layernorm_aten_pow_Power =
-            makeOP<opset1::Power>({inputs_embeds, Constant_16153}, {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_input_layernorm_aten_mean_ReduceMean =
-            makeOP<opset1::ReduceMean>({__module_model_model_layers_0_input_layernorm_aten_pow_Power, {-1}},
-                                       {{"keep_dims", true}});
+        auto pref_7_pow_Power = makeOP<opset1::Power>({inputs_embeds, Constant_16153}, {{"auto_broadcast", "numpy"}});
+        auto pref_7_mean_ReduceMean = makeOP<opset1::ReduceMean>({pref_7_pow_Power, {-1}}, {{"keep_dims", true}});
         auto Constant_16154 = makeConst(element::f32, ov::Shape({1, 1, 1}), {0.000001f});
-        auto __module_model_model_layers_0_input_layernorm_aten_add_Add =
-            makeOP<opset1::Add>({__module_model_model_layers_0_input_layernorm_aten_mean_ReduceMean, Constant_16154},
-                                {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_input_layernorm_aten_rsqrt_Sqrt =
-            makeOP<opset1::Sqrt>({__module_model_model_layers_0_input_layernorm_aten_add_Add});
-        auto __module_model_model_layers_0_input_layernorm_aten_rsqrt_Divide =
-            makeOP<opset1::Divide>({Constant_16155, __module_model_model_layers_0_input_layernorm_aten_rsqrt_Sqrt},
-                                   {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-        auto __module_model_model_layers_0_input_layernorm_aten_mul_Multiply =
-            makeOP<opset1::Multiply>({inputs_embeds, __module_model_model_layers_0_input_layernorm_aten_rsqrt_Divide},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_input_layernorm_aten_mul_Multiply_1 =
-            makeOP<opset1::Multiply>({Constant_16156, __module_model_model_layers_0_input_layernorm_aten_mul_Multiply},
-                                     {{"auto_broadcast", "numpy"}});
+        auto pref_7_add_Add =
+            makeOP<opset1::Add>({pref_7_mean_ReduceMean, Constant_16154}, {{"auto_broadcast", "numpy"}});
+        auto pref_7_rsqrt_Sqrt = makeOP<opset1::Sqrt>({pref_7_add_Add});
+        auto pref_7_rsqrt_Divide = makeOP<opset1::Divide>({Constant_16155, pref_7_rsqrt_Sqrt},
+                                                          {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto pref_7_mul_Multiply =
+            makeOP<opset1::Multiply>({inputs_embeds, pref_7_rsqrt_Divide}, {{"auto_broadcast", "numpy"}});
+        auto pref_7_mul_Multiply_1 =
+            makeOP<opset1::Multiply>({Constant_16156, pref_7_mul_Multiply}, {{"auto_broadcast", "numpy"}});
         auto self_model_model_layers_0_self_attn_q_proj_weight = makeConst(element::f32, ov::Shape({8, 8}), MOCK_VALUE);
         auto __module_model_model_layers_0_self_attn_q_proj_aten_linear_MatMul =
-            makeOP<opset1::MatMul>({__module_model_model_layers_0_input_layernorm_aten_mul_Multiply_1,
-                                    self_model_model_layers_0_self_attn_q_proj_weight},
+            makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, self_model_model_layers_0_self_attn_q_proj_weight},
                                    {{"transpose_a", false}, {"transpose_b", true}});
-        auto __module_model_model_layers_0_self_attn_aten_view_Reshape =
+        auto pref_1_view_Reshape =
             makeOP<opset1::Reshape>({__module_model_model_layers_0_self_attn_q_proj_aten_linear_MatMul, {0, 0, 4, 2}},
                                     {{"special_zero", true}});
-        auto __module_model_model_layers_0_self_attn_aten_transpose_Transpose =
-            makeOP<opset1::Transpose>({__module_model_model_layers_0_self_attn_aten_view_Reshape, {0, 2, 1, 3}});
+        auto pref_1_transpose_Transpose = makeOP<opset1::Transpose>({pref_1_view_Reshape, {0, 2, 1, 3}});
         auto self_model_model_layers_0_self_attn_rotary_emb_cos_cached =
             makeConst(element::f32, ov::Shape({32768, 2}), MOCK_VALUE);
-        auto ShapeOf_16753 =
-            makeOP<opset3::ShapeOf>({__module_model_model_layers_0_input_layernorm_aten_mul_Multiply_1},
-                                    {{"output_type", "i64"}});
+        auto ShapeOf_16753 = makeOP<opset3::ShapeOf>({pref_7_mul_Multiply_1}, {{"output_type", "i64"}});
         auto Gather_16756 = makeOP<opset8::Gather>({ShapeOf_16753, 1, 0}, {{"batch_dims", 0}});
         auto Reshape_16764 = makeOP<opset1::Reshape>({Gather_16756, {-1}}, {{"special_zero", false}});
         auto ReadValue_19120 = makeOP<opset6::ReadValue>(
@@ -968,218 +956,133 @@ TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto ShapeOf_16767 = makeOP<opset3::ShapeOf>({Gather_18646}, {{"output_type", "i64"}});
         auto Gather_16770 = makeOP<opset8::Gather>({ShapeOf_16767, 2, 0}, {{"batch_dims", 0}});
         auto Reshape_16772 = makeOP<opset1::Reshape>({Gather_16770, {-1}}, {{"special_zero", false}});
-        auto __module_model_model_layers_0_self_attn_aten_add__Add =
-            makeOP<opset1::Add>({Reshape_16764, Reshape_16772}, {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_rotary_emb_aten_slice_Slice =
-            makeOP<opset8::Slice>({self_model_model_layers_0_self_attn_rotary_emb_cos_cached,
-                                   {0},
-                                   __module_model_model_layers_0_self_attn_aten_add__Add,
-                                   {1},
-                                   {0}});
-        auto __module_model_model_aten_view_Reshape =
-            makeOP<opset1::Reshape>({position_ids, {0, 0}}, {{"special_zero", true}});
-        auto __module_model_model_layers_0_self_attn_aten_index_Convert =
-            makeOP<opset1::Convert>({__module_model_model_aten_view_Reshape}, {{"destination_type", "i32"}});
-        auto __module_model_model_layers_0_self_attn_aten_index_Gather =
-            makeOP<opset8::Gather>({__module_model_model_layers_0_self_attn_rotary_emb_aten_slice_Slice,
-                                    __module_model_model_layers_0_self_attn_aten_index_Convert,
-                                    0},
-                                   {{"batch_dims", 0}});
-        auto __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze =
-            makeOP<opset1::Unsqueeze>({__module_model_model_layers_0_self_attn_aten_index_Gather, 1});
-        auto __module_model_model_layers_0_self_attn_aten_mul_Multiply =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_transpose_Transpose,
-                                      __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_slice_Slice = makeOP<opset8::Slice>(
-            {__module_model_model_layers_0_self_attn_aten_transpose_Transpose, {1}, {LLONG_MAX}, {1}, {3}});
+        auto pref_1_add__Add = makeOP<opset1::Add>({Reshape_16764, Reshape_16772}, {{"auto_broadcast", "numpy"}});
+        auto pref_2_slice_Slice = makeOP<opset8::Slice>(
+            {self_model_model_layers_0_self_attn_rotary_emb_cos_cached, {0}, pref_1_add__Add, {1}, {0}});
+        auto pref_6_view_Reshape = makeOP<opset1::Reshape>({position_ids, {0, 0}}, {{"special_zero", true}});
+        auto pref_1_index_Convert = makeOP<opset1::Convert>({pref_6_view_Reshape}, {{"destination_type", "i32"}});
+        auto pref_1_index_Gather =
+            makeOP<opset8::Gather>({pref_2_slice_Slice, pref_1_index_Convert, 0}, {{"batch_dims", 0}});
+        auto pref_1_unsqueeze_Unsqueeze = makeOP<opset1::Unsqueeze>({pref_1_index_Gather, 1});
+        auto pref_1_mul_Multiply = makeOP<opset1::Multiply>({pref_1_transpose_Transpose, pref_1_unsqueeze_Unsqueeze},
+                                                            {{"auto_broadcast", "numpy"}});
+        auto pref_1_slice_Slice = makeOP<opset8::Slice>({pref_1_transpose_Transpose, {1}, {LLONG_MAX}, {1}, {3}});
         auto Constant_16157 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1.000000f});
-        auto __module_model_model_layers_0_self_attn_aten_neg_Multiply =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_slice_Slice, Constant_16157},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_slice_Slice_1 = makeOP<opset8::Slice>(
-            {__module_model_model_layers_0_self_attn_aten_transpose_Transpose, {0}, {1}, {1}, {3}});
-        auto __module_model_model_layers_0_self_attn_aten_cat_Concat =
-            makeOP<opset1::Concat>({__module_model_model_layers_0_self_attn_aten_neg_Multiply,
-                                    __module_model_model_layers_0_self_attn_aten_slice_Slice_1},
-                                   {{"axis", -1}});
+        auto pref_1_neg_Multiply =
+            makeOP<opset1::Multiply>({pref_1_slice_Slice, Constant_16157}, {{"auto_broadcast", "numpy"}});
+        auto pref_1_slice_Slice_1 = makeOP<opset8::Slice>({pref_1_transpose_Transpose, {0}, {1}, {1}, {3}});
+        auto pref_1_cat_Concat = makeOP<opset1::Concat>({pref_1_neg_Multiply, pref_1_slice_Slice_1}, {{"axis", -1}});
         auto self_model_model_layers_0_self_attn_rotary_emb_sin_cached =
             makeConst(element::f32, ov::Shape({32768, 2}), MOCK_VALUE);
-        auto __module_model_model_layers_0_self_attn_rotary_emb_aten_slice_Slice_1 =
-            makeOP<opset8::Slice>({self_model_model_layers_0_self_attn_rotary_emb_sin_cached,
-                                   {0},
-                                   __module_model_model_layers_0_self_attn_aten_add__Add,
-                                   {1},
-                                   {0}});
-        auto __module_model_model_layers_0_self_attn_aten_index_Gather_1 =
-            makeOP<opset8::Gather>({__module_model_model_layers_0_self_attn_rotary_emb_aten_slice_Slice_1,
-                                    __module_model_model_layers_0_self_attn_aten_index_Convert,
-                                    0},
-                                   {{"batch_dims", 0}});
-        auto __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze_1 =
-            makeOP<opset1::Unsqueeze>({__module_model_model_layers_0_self_attn_aten_index_Gather_1, 1});
-        auto __module_model_model_layers_0_self_attn_aten_mul_Multiply_1 =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_cat_Concat,
-                                      __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze_1},
+        auto pref_2_slice_Slice_1 = makeOP<opset8::Slice>(
+            {self_model_model_layers_0_self_attn_rotary_emb_sin_cached, {0}, pref_1_add__Add, {1}, {0}});
+        auto pref_1_index_Gather_1 =
+            makeOP<opset8::Gather>({pref_2_slice_Slice_1, pref_1_index_Convert, 0}, {{"batch_dims", 0}});
+        auto pref_1_unsqueeze_Unsqueeze_1 = makeOP<opset1::Unsqueeze>({pref_1_index_Gather_1, 1});
+        auto pref_1_mul_Multiply_1 =
+            makeOP<opset1::Multiply>({pref_1_cat_Concat, pref_1_unsqueeze_Unsqueeze_1}, {{"auto_broadcast", "numpy"}});
+        auto pref_1_add_Add =
+            makeOP<opset1::Add>({pref_1_mul_Multiply, pref_1_mul_Multiply_1}, {{"auto_broadcast", "numpy"}});
+        auto pref_8_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
+        auto pref_3_linear_MatMul = makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, pref_8_weight},
+                                                           {{"transpose_a", false}, {"transpose_b", true}});
+        auto pref_1_view_Reshape_1 =
+            makeOP<opset1::Reshape>({pref_3_linear_MatMul, {0, 0, 2, 2}}, {{"special_zero", true}});
+        auto pref_1_transpose_Transpose_1 = makeOP<opset1::Transpose>({pref_1_view_Reshape_1, {0, 2, 1, 3}});
+        auto pref_1_mul_Multiply_2 =
+            makeOP<opset1::Multiply>({pref_1_transpose_Transpose_1, pref_1_unsqueeze_Unsqueeze},
                                      {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_add_Add =
-            makeOP<opset1::Add>({__module_model_model_layers_0_self_attn_aten_mul_Multiply,
-                                 __module_model_model_layers_0_self_attn_aten_mul_Multiply_1},
-                                {{"auto_broadcast", "numpy"}});
-        auto self_model_model_layers_0_self_attn_k_proj_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
-        auto __module_model_model_layers_0_self_attn_k_proj_aten_linear_MatMul =
-            makeOP<opset1::MatMul>({__module_model_model_layers_0_input_layernorm_aten_mul_Multiply_1,
-                                    self_model_model_layers_0_self_attn_k_proj_weight},
-                                   {{"transpose_a", false}, {"transpose_b", true}});
-        auto __module_model_model_layers_0_self_attn_aten_view_Reshape_1 =
-            makeOP<opset1::Reshape>({__module_model_model_layers_0_self_attn_k_proj_aten_linear_MatMul, {0, 0, 2, 2}},
-                                    {{"special_zero", true}});
-        auto __module_model_model_layers_0_self_attn_aten_transpose_Transpose_1 =
-            makeOP<opset1::Transpose>({__module_model_model_layers_0_self_attn_aten_view_Reshape_1, {0, 2, 1, 3}});
-        auto __module_model_model_layers_0_self_attn_aten_mul_Multiply_2 =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_transpose_Transpose_1,
-                                      __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_slice_Slice_2 = makeOP<opset8::Slice>(
-            {__module_model_model_layers_0_self_attn_aten_transpose_Transpose_1, {1}, {LLONG_MAX}, {1}, {3}});
+        auto pref_1_slice_Slice_2 = makeOP<opset8::Slice>({pref_1_transpose_Transpose_1, {1}, {LLONG_MAX}, {1}, {3}});
         auto Constant_16158 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1.000000f});
-        auto __module_model_model_layers_0_self_attn_aten_neg_Multiply_1 =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_slice_Slice_2, Constant_16158},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_slice_Slice_3 = makeOP<opset8::Slice>(
-            {__module_model_model_layers_0_self_attn_aten_transpose_Transpose_1, {0}, {1}, {1}, {3}});
-        auto __module_model_model_layers_0_self_attn_aten_cat_Concat_1 =
-            makeOP<opset1::Concat>({__module_model_model_layers_0_self_attn_aten_neg_Multiply_1,
-                                    __module_model_model_layers_0_self_attn_aten_slice_Slice_3},
-                                   {{"axis", -1}});
-        auto __module_model_model_layers_0_self_attn_aten_mul_Multiply_3 =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_cat_Concat_1,
-                                      __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze_1},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_add_Add_1 =
-            makeOP<opset1::Add>({__module_model_model_layers_0_self_attn_aten_mul_Multiply_2,
-                                 __module_model_model_layers_0_self_attn_aten_mul_Multiply_3},
-                                {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_cat_Concat_2 =
-            makeOP<opset1::Concat>({Gather_18646, __module_model_model_layers_0_self_attn_aten_add_Add_1},
-                                   {{"axis", -2}});
-        auto __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze_2 =
-            makeOP<opset1::Unsqueeze>({__module_model_model_layers_0_self_attn_aten_cat_Concat_2, 2});
+        auto pref_1_neg_Multiply_1 =
+            makeOP<opset1::Multiply>({pref_1_slice_Slice_2, Constant_16158}, {{"auto_broadcast", "numpy"}});
+        auto pref_1_slice_Slice_3 = makeOP<opset8::Slice>({pref_1_transpose_Transpose_1, {0}, {1}, {1}, {3}});
+        auto pref_1_cat_Concat_1 =
+            makeOP<opset1::Concat>({pref_1_neg_Multiply_1, pref_1_slice_Slice_3}, {{"axis", -1}});
+        auto pref_1_mul_Multiply_3 = makeOP<opset1::Multiply>({pref_1_cat_Concat_1, pref_1_unsqueeze_Unsqueeze_1},
+                                                              {{"auto_broadcast", "numpy"}});
+        auto pref_1_add_Add_1 =
+            makeOP<opset1::Add>({pref_1_mul_Multiply_2, pref_1_mul_Multiply_3}, {{"auto_broadcast", "numpy"}});
+        auto pref_1_cat_Concat_2 = makeOP<opset1::Concat>({Gather_18646, pref_1_add_Add_1}, {{"axis", -2}});
+        auto pref_1_unsqueeze_Unsqueeze_2 = makeOP<opset1::Unsqueeze>({pref_1_cat_Concat_2, 2});
         auto Gather_16778 = makeOP<opset8::Gather>({ShapeOf_16753, {0}, 0}, {{"batch_dims", 0}});
         auto Add_16793 = makeOP<opset1::Add>({Reshape_16772, Reshape_16764}, {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_prim_ListConstruct_2 =
+        auto pref_4_ListConstruct_2 =
             makeOP<opset1::Concat>({Gather_16778, {2l}, {2l}, Add_16793, {2l}}, {{"axis", 0}});
-        auto __module_model_model_layers_0_self_attn_aten_expand_Broadcast =
-            makeOP<opset3::Broadcast>({__module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze_2,
-                                       __module_model_model_layers_0_self_attn_prim_ListConstruct_2},
-                                      {{"mode", "bidirectional"}});
-        auto __module_model_model_layers_0_self_attn_aten_reshape_Reshape =
-            makeOP<opset1::Reshape>({__module_model_model_layers_0_self_attn_aten_expand_Broadcast, {0, 4, -1, 2}},
-                                    {{"special_zero", true}});
+        auto pref_1_expand_Broadcast = makeOP<opset3::Broadcast>({pref_1_unsqueeze_Unsqueeze_2, pref_4_ListConstruct_2},
+                                                                 {{"mode", "bidirectional"}});
+        auto pref_1_reshape_Reshape =
+            makeOP<opset1::Reshape>({pref_1_expand_Broadcast, {0, 4, -1, 2}}, {{"special_zero", true}});
         auto ReadValue_19122 = makeOP<opset6::ReadValue>(
             {Broadcast_19607},
             {{"variable_id", "var3"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 2, DYN, 2}}});
         auto Gather_18649 = makeOP<opset8::Gather>({ReadValue_19122, beam_idx, 0}, {{"batch_dims", 0}});
         auto self_model_model_layers_0_self_attn_v_proj_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
-        auto __module_model_model_layers_0_self_attn_v_proj_aten_linear_MatMul =
-            makeOP<opset1::MatMul>({__module_model_model_layers_0_input_layernorm_aten_mul_Multiply_1,
-                                    self_model_model_layers_0_self_attn_v_proj_weight},
+        auto pref_9_MatMul =
+            makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, self_model_model_layers_0_self_attn_v_proj_weight},
                                    {{"transpose_a", false}, {"transpose_b", true}});
-        auto __module_model_model_layers_0_self_attn_aten_view_Reshape_2 =
-            makeOP<opset1::Reshape>({__module_model_model_layers_0_self_attn_v_proj_aten_linear_MatMul, {0, 0, 2, 2}},
-                                    {{"special_zero", true}});
-        auto __module_model_model_layers_0_self_attn_aten_transpose_Transpose_2 =
-            makeOP<opset1::Transpose>({__module_model_model_layers_0_self_attn_aten_view_Reshape_2, {0, 2, 1, 3}});
-        auto __module_model_model_layers_0_self_attn_aten_cat_Concat_3 =
-            makeOP<opset1::Concat>({Gather_18649, __module_model_model_layers_0_self_attn_aten_transpose_Transpose_2},
-                                   {{"axis", -2}});
-        auto __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze_3 =
-            makeOP<opset1::Unsqueeze>({__module_model_model_layers_0_self_attn_aten_cat_Concat_3, 2});
-        auto __module_model_model_layers_0_self_attn_aten_expand_Broadcast_1 =
-            makeOP<opset3::Broadcast>({__module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze_3,
-                                       __module_model_model_layers_0_self_attn_prim_ListConstruct_2},
+        auto pref_1_view_Reshape_2 = makeOP<opset1::Reshape>({pref_9_MatMul, {0, 0, 2, 2}}, {{"special_zero", true}});
+        auto pref_1_transpose_Transpose_2 = makeOP<opset1::Transpose>({pref_1_view_Reshape_2, {0, 2, 1, 3}});
+        auto pref_1_cat_Concat_3 = makeOP<opset1::Concat>({Gather_18649, pref_1_transpose_Transpose_2}, {{"axis", -2}});
+        auto pref_1_unsqueeze_Unsqueeze_3 = makeOP<opset1::Unsqueeze>({pref_1_cat_Concat_3, 2});
+        auto pref_1_expand_Broadcast_1 =
+            makeOP<opset3::Broadcast>({pref_1_unsqueeze_Unsqueeze_3, pref_4_ListConstruct_2},
                                       {{"mode", "bidirectional"}});
-        auto __module_model_model_layers_0_self_attn_aten_reshape_Reshape_1 =
-            makeOP<opset1::Reshape>({__module_model_model_layers_0_self_attn_aten_expand_Broadcast_1, {0, 4, -1, 2}},
-                                    {{"special_zero", true}});
+        auto pref_1_reshape_Reshape_1 =
+            makeOP<opset1::Reshape>({pref_1_expand_Broadcast_1, {0, 4, -1, 2}}, {{"special_zero", true}});
         auto Constant_16160 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
-        auto __module_model_model_aten_unsqueeze_Unsqueeze = makeOP<opset1::Unsqueeze>({attention_mask, 1});
-        auto __module_model_model_aten_unsqueeze_Unsqueeze_1 =
-            makeOP<opset1::Unsqueeze>({__module_model_model_aten_unsqueeze_Unsqueeze, 2});
+        auto pref_6_unsqueeze_Unsqueeze = makeOP<opset1::Unsqueeze>({attention_mask, 1});
+        auto pref_6_unsqueeze_Unsqueeze_1 = makeOP<opset1::Unsqueeze>({pref_6_unsqueeze_Unsqueeze, 2});
         auto ShapeOf_16779 = makeOP<opset3::ShapeOf>({attention_mask}, {{"output_type", "i64"}});
         auto Gather_16782 = makeOP<opset8::Gather>({ShapeOf_16779, {1}, 0}, {{"batch_dims", 0}});
-        auto __module_model_model_prim_ListConstruct_1 =
+        auto pref_5_ListConstruct_1 =
             makeOP<opset1::Concat>({Gather_16778, {1l}, Reshape_16764, Gather_16782}, {{"axis", 0}});
-        auto __module_model_model_aten_expand_Broadcast = makeOP<opset3::Broadcast>(
-            {__module_model_model_aten_unsqueeze_Unsqueeze_1, __module_model_model_prim_ListConstruct_1},
-            {{"mode", "bidirectional"}});
-        auto __module_model_model_aten_to_Convert_1 =
-            makeOP<opset1::Convert>({__module_model_model_aten_expand_Broadcast}, {{"destination_type", "f32"}});
+        auto pref_6_expand_Broadcast = makeOP<opset3::Broadcast>({pref_6_unsqueeze_Unsqueeze_1, pref_5_ListConstruct_1},
+                                                                 {{"mode", "bidirectional"}});
+        auto pref_6_to_Convert_1 = makeOP<opset1::Convert>({pref_6_expand_Broadcast}, {{"destination_type", "f32"}});
         auto Constant_16159 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
-        auto __module_model_model_aten_rsub_Multiply =
-            makeOP<opset1::Multiply>({__module_model_model_aten_to_Convert_1, Constant_16159},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_aten_rsub_Subtract =
-            makeOP<opset1::Subtract>({Constant_16160, __module_model_model_aten_rsub_Multiply},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_aten_to_Convert_2 =
-            makeOP<opset1::Convert>({__module_model_model_aten_rsub_Subtract}, {{"destination_type", "boolean"}});
-        auto __module_model_model_aten_masked_fill_Select = makeOP<opset1::Select>(
-            {__module_model_model_aten_to_Convert_2, -FLT_MAX, __module_model_model_aten_rsub_Subtract},
-            {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_aten_to_Convert_4 =
-            makeOP<opset1::Convert>({__module_model_model_aten_masked_fill_Select}, {{"destination_type", "boolean"}});
-        auto __module_model_model_aten_add_Add =
-            makeOP<opset1::Add>({Gather_16756, Gather_16770}, {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_aten_sub_Subtract =
-            makeOP<opset1::Subtract>({__module_model_model_aten_add_Add, Gather_16756}, {{"auto_broadcast", "numpy"}});
-        auto Unsqueeze_124 = makeOP<opset1::Unsqueeze>({__module_model_model_aten_sub_Subtract, 0});
-        auto __module_model_model_prim_ListConstruct_2 =
-            makeOP<opset1::Concat>({Reshape_16764, Unsqueeze_124}, {{"axis", 0}});
-        auto __module_model_model_aten_zeros_Broadcast =
-            makeOP<opset3::Broadcast>({0.000000f, __module_model_model_prim_ListConstruct_2}, {{"mode", "numpy"}});
-        auto __module_model_model_aten_arange_Range =
-            makeOP<opset4::Range>({0, Gather_16756, 1}, {{"output_type", "f32"}});
-        auto __module_model_model_aten_arange_ConvertLike =
-            makeOP<opset1::Convert>({__module_model_model_aten_arange_Range}, {{"destination_type", "i64"}});
-        auto __module_model_model_aten_add_Add_1 =
-            makeOP<opset1::Add>({__module_model_model_aten_arange_ConvertLike, {1l}}, {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_aten_view_Reshape_1 =
-            makeOP<opset1::Reshape>({__module_model_model_aten_add_Add_1, {0, 1}}, {{"special_zero", true}});
-        auto __module_model_model_aten_lt_Less = makeOP<opset1::Less>(
-            {__module_model_model_aten_arange_ConvertLike, __module_model_model_aten_view_Reshape_1},
-            {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_prim_ListConstruct_3 =
-            makeOP<opset3::Broadcast>({Reshape_16764, {2}}, {{"mode", "numpy"}});
-        auto __module_model_model_aten_full_Broadcast =
-            makeOP<opset3::Broadcast>({-FLT_MAX, __module_model_model_prim_ListConstruct_3}, {{"mode", "numpy"}});
-        auto __module_model_model_aten_masked_fill__Select = makeOP<opset1::Select>(
-            {__module_model_model_aten_lt_Less, 0.000000f, __module_model_model_aten_full_Broadcast},
-            {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_aten_cat_Concat = makeOP<opset1::Concat>(
-            {__module_model_model_aten_zeros_Broadcast, __module_model_model_aten_masked_fill__Select},
-            {{"axis", -1}});
-        auto __module_model_model_aten_unsqueeze_Unsqueeze_2 =
-            makeOP<opset1::Unsqueeze>({__module_model_model_aten_cat_Concat, 0});
-        auto __module_model_model_aten_unsqueeze_Unsqueeze_3 =
-            makeOP<opset1::Unsqueeze>({__module_model_model_aten_unsqueeze_Unsqueeze_2, 1});
-        auto __module_model_model_aten_add_Add_2 =
-            makeOP<opset1::Add>({Reshape_16764, Unsqueeze_124}, {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_prim_ListConstruct_5 =
-            makeOP<opset1::Concat>({Gather_16778, {1l}, Reshape_16764, __module_model_model_aten_add_Add_2},
-                                   {{"axis", 0}});
-        auto __module_model_model_aten_expand_Broadcast_1 = makeOP<opset3::Broadcast>(
-            {__module_model_model_aten_unsqueeze_Unsqueeze_3, __module_model_model_prim_ListConstruct_5},
-            {{"mode", "bidirectional"}});
-        auto __module_model_model_aten_masked_fill_Select_1 = makeOP<opset1::Select>(
-            {__module_model_model_aten_to_Convert_4, -FLT_MAX, __module_model_model_aten_expand_Broadcast_1},
-            {{"auto_broadcast", "numpy"}});
-        auto sdpa =
-            makeOP<v13::ScaledDotProductAttention>({__module_model_model_layers_0_self_attn_aten_add_Add,
-                                                    __module_model_model_layers_0_self_attn_aten_reshape_Reshape,
-                                                    __module_model_model_layers_0_self_attn_aten_reshape_Reshape_1,
-                                                    __module_model_model_aten_masked_fill_Select_1},
-                                                   {{"causal", false}});
+        auto pref_6_rsub_Multiply =
+            makeOP<opset1::Multiply>({pref_6_to_Convert_1, Constant_16159}, {{"auto_broadcast", "numpy"}});
+        auto pref_6_rsub_Subtract =
+            makeOP<opset1::Subtract>({Constant_16160, pref_6_rsub_Multiply}, {{"auto_broadcast", "numpy"}});
+        auto pref_6_to_Convert_2 = makeOP<opset1::Convert>({pref_6_rsub_Subtract}, {{"destination_type", "boolean"}});
+        auto pref_6_masked_fill_Select = makeOP<opset1::Select>({pref_6_to_Convert_2, -FLT_MAX, pref_6_rsub_Subtract},
+                                                                {{"auto_broadcast", "numpy"}});
+        auto pref_6_to_Convert_4 =
+            makeOP<opset1::Convert>({pref_6_masked_fill_Select}, {{"destination_type", "boolean"}});
+        auto pref_6_add_Add = makeOP<opset1::Add>({Gather_16756, Gather_16770}, {{"auto_broadcast", "numpy"}});
+        auto pref_6_sub_Subtract =
+            makeOP<opset1::Subtract>({pref_6_add_Add, Gather_16756}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_124 = makeOP<opset1::Unsqueeze>({pref_6_sub_Subtract, 0});
+        auto pref_5_ListConstruct_2 = makeOP<opset1::Concat>({Reshape_16764, Unsqueeze_124}, {{"axis", 0}});
+        auto pref_6_zeros_Broadcast =
+            makeOP<opset3::Broadcast>({0.000000f, pref_5_ListConstruct_2}, {{"mode", "numpy"}});
+        auto pref_6_arange_Range = makeOP<opset4::Range>({0, Gather_16756, 1}, {{"output_type", "f32"}});
+        auto pref_6_arange_ConvertLike = makeOP<opset1::Convert>({pref_6_arange_Range}, {{"destination_type", "i64"}});
+        auto pref_6_add_Add_1 = makeOP<opset1::Add>({pref_6_arange_ConvertLike, {1l}}, {{"auto_broadcast", "numpy"}});
+        auto pref_6_view_Reshape_1 = makeOP<opset1::Reshape>({pref_6_add_Add_1, {0, 1}}, {{"special_zero", true}});
+        auto pref_6_lt_Less =
+            makeOP<opset1::Less>({pref_6_arange_ConvertLike, pref_6_view_Reshape_1}, {{"auto_broadcast", "numpy"}});
+        auto pref_5_ListConstruct_3 = makeOP<opset3::Broadcast>({Reshape_16764, {2}}, {{"mode", "numpy"}});
+        auto pref_6_full_Broadcast = makeOP<opset3::Broadcast>({-FLT_MAX, pref_5_ListConstruct_3}, {{"mode", "numpy"}});
+        auto pref_6_masked_fill__Select =
+            makeOP<opset1::Select>({pref_6_lt_Less, 0.000000f, pref_6_full_Broadcast}, {{"auto_broadcast", "numpy"}});
+        auto pref_6_cat_Concat =
+            makeOP<opset1::Concat>({pref_6_zeros_Broadcast, pref_6_masked_fill__Select}, {{"axis", -1}});
+        auto pref_6_unsqueeze_Unsqueeze_2 = makeOP<opset1::Unsqueeze>({pref_6_cat_Concat, 0});
+        auto pref_6_unsqueeze_Unsqueeze_3 = makeOP<opset1::Unsqueeze>({pref_6_unsqueeze_Unsqueeze_2, 1});
+        auto pref_6_add_Add_2 = makeOP<opset1::Add>({Reshape_16764, Unsqueeze_124}, {{"auto_broadcast", "numpy"}});
+        auto pref_5_ListConstruct_5 =
+            makeOP<opset1::Concat>({Gather_16778, {1l}, Reshape_16764, pref_6_add_Add_2}, {{"axis", 0}});
+        auto pref_6_expand_Broadcast_1 =
+            makeOP<opset3::Broadcast>({pref_6_unsqueeze_Unsqueeze_3, pref_5_ListConstruct_5},
+                                      {{"mode", "bidirectional"}});
+        auto pref_6_masked_fill_Select_1 =
+            makeOP<opset1::Select>({pref_6_to_Convert_4, -FLT_MAX, pref_6_expand_Broadcast_1},
+                                   {{"auto_broadcast", "numpy"}});
+        auto sdpa = makeOP<v13::ScaledDotProductAttention>(
+            {pref_1_add_Add, pref_1_reshape_Reshape, pref_1_reshape_Reshape_1, pref_6_masked_fill_Select_1},
+            {{"causal", false}});
 
         auto res = makeOP<v0::Result>({sdpa});
 
@@ -1217,41 +1120,30 @@ TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto Constant_16155 = makeConst(element::f32, ov::Shape({1, 1, 1}), {1.000000f});
         auto Constant_16153 = makeConst(element::f32, ov::Shape({1, 1, 1}), {2.000000f});
         auto unsqueezed_inputs_embeds = makeOP<opset1::Unsqueeze>({inputs_embeds, 1});
-        auto __module_model_model_layers_0_input_layernorm_aten_pow_Power =
+        auto pref_7_pow_Power =
             makeOP<opset1::Power>({unsqueezed_inputs_embeds, Constant_16153}, {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_input_layernorm_aten_mean_ReduceMean =
-            makeOP<opset1::ReduceMean>({__module_model_model_layers_0_input_layernorm_aten_pow_Power, {-1}},
-                                       {{"keep_dims", true}});
+        auto pref_7_mean_ReduceMean = makeOP<opset1::ReduceMean>({pref_7_pow_Power, {-1}}, {{"keep_dims", true}});
         auto Constant_16154 = makeConst(element::f32, ov::Shape({1, 1, 1}), {0.000001f});
-        auto __module_model_model_layers_0_input_layernorm_aten_add_Add =
-            makeOP<opset1::Add>({__module_model_model_layers_0_input_layernorm_aten_mean_ReduceMean, Constant_16154},
-                                {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_input_layernorm_aten_rsqrt_Sqrt =
-            makeOP<opset1::Sqrt>({__module_model_model_layers_0_input_layernorm_aten_add_Add});
-        auto __module_model_model_layers_0_input_layernorm_aten_rsqrt_Divide =
-            makeOP<opset1::Divide>({Constant_16155, __module_model_model_layers_0_input_layernorm_aten_rsqrt_Sqrt},
-                                   {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-        auto __module_model_model_layers_0_input_layernorm_aten_mul_Multiply = makeOP<opset1::Multiply>(
-            {unsqueezed_inputs_embeds, __module_model_model_layers_0_input_layernorm_aten_rsqrt_Divide},
-            {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_input_layernorm_aten_mul_Multiply_1 =
-            makeOP<opset1::Multiply>({Constant_16156, __module_model_model_layers_0_input_layernorm_aten_mul_Multiply},
-                                     {{"auto_broadcast", "numpy"}});
+        auto pref_7_add_Add =
+            makeOP<opset1::Add>({pref_7_mean_ReduceMean, Constant_16154}, {{"auto_broadcast", "numpy"}});
+        auto pref_7_rsqrt_Sqrt = makeOP<opset1::Sqrt>({pref_7_add_Add});
+        auto pref_7_rsqrt_Divide = makeOP<opset1::Divide>({Constant_16155, pref_7_rsqrt_Sqrt},
+                                                          {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto pref_7_mul_Multiply =
+            makeOP<opset1::Multiply>({unsqueezed_inputs_embeds, pref_7_rsqrt_Divide}, {{"auto_broadcast", "numpy"}});
+        auto pref_7_mul_Multiply_1 =
+            makeOP<opset1::Multiply>({Constant_16156, pref_7_mul_Multiply}, {{"auto_broadcast", "numpy"}});
         auto self_model_model_layers_0_self_attn_q_proj_weight = makeConst(element::f32, ov::Shape({8, 8}), MOCK_VALUE);
         auto __module_model_model_layers_0_self_attn_q_proj_aten_linear_MatMul =
-            makeOP<opset1::MatMul>({__module_model_model_layers_0_input_layernorm_aten_mul_Multiply_1,
-                                    self_model_model_layers_0_self_attn_q_proj_weight},
+            makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, self_model_model_layers_0_self_attn_q_proj_weight},
                                    {{"transpose_a", false}, {"transpose_b", true}});
-        auto __module_model_model_layers_0_self_attn_aten_view_Reshape =
+        auto pref_1_view_Reshape =
             makeOP<opset1::Reshape>({__module_model_model_layers_0_self_attn_q_proj_aten_linear_MatMul, {0, 0, 4, 2}},
                                     {{"special_zero", true}});
-        auto __module_model_model_layers_0_self_attn_aten_transpose_Transpose =
-            makeOP<opset1::Transpose>({__module_model_model_layers_0_self_attn_aten_view_Reshape, {0, 2, 1, 3}});
+        auto pref_1_transpose_Transpose = makeOP<opset1::Transpose>({pref_1_view_Reshape, {0, 2, 1, 3}});
         auto self_model_model_layers_0_self_attn_rotary_emb_cos_cached =
             makeConst(element::f32, ov::Shape({32768, 2}), MOCK_VALUE);
-        auto ShapeOf_16753 =
-            makeOP<opset3::ShapeOf>({__module_model_model_layers_0_input_layernorm_aten_mul_Multiply_1},
-                                    {{"output_type", "i64"}});
+        auto ShapeOf_16753 = makeOP<opset3::ShapeOf>({pref_7_mul_Multiply_1}, {{"output_type", "i64"}});
         auto Gather_16756 = makeOP<opset8::Gather>({ShapeOf_16753, 1, 0}, {{"batch_dims", 0}});
         auto Reshape_16764 = makeOP<opset1::Reshape>({Gather_16756, {-1}}, {{"special_zero", false}});
         auto ShapeOf_52004 = makeOP<opset3::ShapeOf>({unsqueezed_inputs_embeds}, {{"output_type", "i64"}});
@@ -1260,117 +1152,65 @@ TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto Subtract_52007 = makeOP<opset1::Subtract>({max_context_len, Convert_52006}, {{"auto_broadcast", "numpy"}});
         auto Convert_52008 = makeOP<opset1::Convert>({Subtract_52007}, {{"destination_type", "i64"}});
         auto Reshape_16772 = makeOP<opset1::Reshape>({Convert_52008, {-1}}, {{"special_zero", false}});
-        auto __module_model_model_layers_0_self_attn_aten_add__Add =
-            makeOP<opset1::Add>({Reshape_16764, Reshape_16772}, {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_rotary_emb_aten_slice_Slice =
-            makeOP<opset8::Slice>({self_model_model_layers_0_self_attn_rotary_emb_cos_cached,
-                                   {0},
-                                   __module_model_model_layers_0_self_attn_aten_add__Add,
-                                   {1},
-                                   {0}});
+        auto pref_1_add__Add = makeOP<opset1::Add>({Reshape_16764, Reshape_16772}, {{"auto_broadcast", "numpy"}});
+        auto pref_2_slice_Slice = makeOP<opset8::Slice>(
+            {self_model_model_layers_0_self_attn_rotary_emb_cos_cached, {0}, pref_1_add__Add, {1}, {0}});
         auto Unsqueeze_51575 = makeOP<opset1::Unsqueeze>({position_ids, 1});
-        auto __module_model_model_aten_view_Reshape =
-            makeOP<opset1::Reshape>({Unsqueeze_51575, {0, 0}}, {{"special_zero", true}});
-        auto __module_model_model_layers_0_self_attn_aten_index_Convert =
-            makeOP<opset1::Convert>({__module_model_model_aten_view_Reshape}, {{"destination_type", "i32"}});
-        auto __module_model_model_layers_0_self_attn_aten_index_Gather =
-            makeOP<opset8::Gather>({__module_model_model_layers_0_self_attn_rotary_emb_aten_slice_Slice,
-                                    __module_model_model_layers_0_self_attn_aten_index_Convert,
-                                    0},
-                                   {{"batch_dims", 0}});
-        auto __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze =
-            makeOP<opset1::Unsqueeze>({__module_model_model_layers_0_self_attn_aten_index_Gather, 1});
-        auto __module_model_model_layers_0_self_attn_aten_mul_Multiply =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_transpose_Transpose,
-                                      __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_slice_Slice = makeOP<opset8::Slice>(
-            {__module_model_model_layers_0_self_attn_aten_transpose_Transpose, {1}, {LLONG_MAX}, {1}, {3}});
+        auto pref_6_view_Reshape = makeOP<opset1::Reshape>({Unsqueeze_51575, {0, 0}}, {{"special_zero", true}});
+        auto pref_1_index_Convert = makeOP<opset1::Convert>({pref_6_view_Reshape}, {{"destination_type", "i32"}});
+        auto pref_1_index_Gather =
+            makeOP<opset8::Gather>({pref_2_slice_Slice, pref_1_index_Convert, 0}, {{"batch_dims", 0}});
+        auto pref_1_unsqueeze_Unsqueeze = makeOP<opset1::Unsqueeze>({pref_1_index_Gather, 1});
+        auto pref_1_mul_Multiply = makeOP<opset1::Multiply>({pref_1_transpose_Transpose, pref_1_unsqueeze_Unsqueeze},
+                                                            {{"auto_broadcast", "numpy"}});
+        auto pref_1_slice_Slice = makeOP<opset8::Slice>({pref_1_transpose_Transpose, {1}, {LLONG_MAX}, {1}, {3}});
         auto Constant_16157 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1.000000f});
-        auto __module_model_model_layers_0_self_attn_aten_neg_Multiply =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_slice_Slice, Constant_16157},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_slice_Slice_1 = makeOP<opset8::Slice>(
-            {__module_model_model_layers_0_self_attn_aten_transpose_Transpose, {0}, {1}, {1}, {3}});
-        auto __module_model_model_layers_0_self_attn_aten_cat_Concat =
-            makeOP<opset1::Concat>({__module_model_model_layers_0_self_attn_aten_neg_Multiply,
-                                    __module_model_model_layers_0_self_attn_aten_slice_Slice_1},
-                                   {{"axis", -1}});
+        auto pref_1_neg_Multiply =
+            makeOP<opset1::Multiply>({pref_1_slice_Slice, Constant_16157}, {{"auto_broadcast", "numpy"}});
+        auto pref_1_slice_Slice_1 = makeOP<opset8::Slice>({pref_1_transpose_Transpose, {0}, {1}, {1}, {3}});
+        auto pref_1_cat_Concat = makeOP<opset1::Concat>({pref_1_neg_Multiply, pref_1_slice_Slice_1}, {{"axis", -1}});
         auto self_model_model_layers_0_self_attn_rotary_emb_sin_cached =
             makeConst(element::f32, ov::Shape({32768, 2}), MOCK_VALUE);
-        auto __module_model_model_layers_0_self_attn_rotary_emb_aten_slice_Slice_1 =
-            makeOP<opset8::Slice>({self_model_model_layers_0_self_attn_rotary_emb_sin_cached,
-                                   {0},
-                                   __module_model_model_layers_0_self_attn_aten_add__Add,
-                                   {1},
-                                   {0}});
-        auto __module_model_model_layers_0_self_attn_aten_index_Gather_1 =
-            makeOP<opset8::Gather>({__module_model_model_layers_0_self_attn_rotary_emb_aten_slice_Slice_1,
-                                    __module_model_model_layers_0_self_attn_aten_index_Convert,
-                                    0},
-                                   {{"batch_dims", 0}});
-        auto __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze_1 =
-            makeOP<opset1::Unsqueeze>({__module_model_model_layers_0_self_attn_aten_index_Gather_1, 1});
-        auto __module_model_model_layers_0_self_attn_aten_mul_Multiply_1 =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_cat_Concat,
-                                      __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze_1},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_add_Add =
-            makeOP<opset1::Add>({__module_model_model_layers_0_self_attn_aten_mul_Multiply,
-                                 __module_model_model_layers_0_self_attn_aten_mul_Multiply_1},
-                                {{"auto_broadcast", "numpy"}});
-        auto Transpose_51951 =
-            makeOP<opset1::Transpose>({__module_model_model_layers_0_self_attn_aten_add_Add, {0, 2, 1, 3}});
+        auto pref_2_slice_Slice_1 = makeOP<opset8::Slice>(
+            {self_model_model_layers_0_self_attn_rotary_emb_sin_cached, {0}, pref_1_add__Add, {1}, {0}});
+        auto pref_1_index_Gather_1 =
+            makeOP<opset8::Gather>({pref_2_slice_Slice_1, pref_1_index_Convert, 0}, {{"batch_dims", 0}});
+        auto pref_1_unsqueeze_Unsqueeze_1 = makeOP<opset1::Unsqueeze>({pref_1_index_Gather_1, 1});
+        auto pref_1_mul_Multiply_1 =
+            makeOP<opset1::Multiply>({pref_1_cat_Concat, pref_1_unsqueeze_Unsqueeze_1}, {{"auto_broadcast", "numpy"}});
+        auto pref_1_add_Add =
+            makeOP<opset1::Add>({pref_1_mul_Multiply, pref_1_mul_Multiply_1}, {{"auto_broadcast", "numpy"}});
+        auto Transpose_51951 = makeOP<opset1::Transpose>({pref_1_add_Add, {0, 2, 1, 3}});
         auto Reshape_51953 = makeOP<opset1::Reshape>({Transpose_51951, {0, -1}}, {{"special_zero", true}});
-        auto self_model_model_layers_0_self_attn_k_proj_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
-        auto __module_model_model_layers_0_self_attn_k_proj_aten_linear_MatMul =
-            makeOP<opset1::MatMul>({__module_model_model_layers_0_input_layernorm_aten_mul_Multiply_1,
-                                    self_model_model_layers_0_self_attn_k_proj_weight},
-                                   {{"transpose_a", false}, {"transpose_b", true}});
-        auto __module_model_model_layers_0_self_attn_aten_view_Reshape_1 =
-            makeOP<opset1::Reshape>({__module_model_model_layers_0_self_attn_k_proj_aten_linear_MatMul, {0, 0, 2, 2}},
-                                    {{"special_zero", true}});
-        auto __module_model_model_layers_0_self_attn_aten_transpose_Transpose_1 =
-            makeOP<opset1::Transpose>({__module_model_model_layers_0_self_attn_aten_view_Reshape_1, {0, 2, 1, 3}});
-        auto __module_model_model_layers_0_self_attn_aten_mul_Multiply_2 =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_transpose_Transpose_1,
-                                      __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze},
+        auto pref_8_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
+        auto pref_3_linear_MatMul = makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, pref_8_weight},
+                                                           {{"transpose_a", false}, {"transpose_b", true}});
+        auto pref_1_view_Reshape_1 =
+            makeOP<opset1::Reshape>({pref_3_linear_MatMul, {0, 0, 2, 2}}, {{"special_zero", true}});
+        auto pref_1_transpose_Transpose_1 = makeOP<opset1::Transpose>({pref_1_view_Reshape_1, {0, 2, 1, 3}});
+        auto pref_1_mul_Multiply_2 =
+            makeOP<opset1::Multiply>({pref_1_transpose_Transpose_1, pref_1_unsqueeze_Unsqueeze},
                                      {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_slice_Slice_2 = makeOP<opset8::Slice>(
-            {__module_model_model_layers_0_self_attn_aten_transpose_Transpose_1, {1}, {LLONG_MAX}, {1}, {3}});
+        auto pref_1_slice_Slice_2 = makeOP<opset8::Slice>({pref_1_transpose_Transpose_1, {1}, {LLONG_MAX}, {1}, {3}});
         auto Constant_16158 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1.000000f});
-        auto __module_model_model_layers_0_self_attn_aten_neg_Multiply_1 =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_slice_Slice_2, Constant_16158},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_slice_Slice_3 = makeOP<opset8::Slice>(
-            {__module_model_model_layers_0_self_attn_aten_transpose_Transpose_1, {0}, {1}, {1}, {3}});
-        auto __module_model_model_layers_0_self_attn_aten_cat_Concat_1 =
-            makeOP<opset1::Concat>({__module_model_model_layers_0_self_attn_aten_neg_Multiply_1,
-                                    __module_model_model_layers_0_self_attn_aten_slice_Slice_3},
-                                   {{"axis", -1}});
-        auto __module_model_model_layers_0_self_attn_aten_mul_Multiply_3 =
-            makeOP<opset1::Multiply>({__module_model_model_layers_0_self_attn_aten_cat_Concat_1,
-                                      __module_model_model_layers_0_self_attn_aten_unsqueeze_Unsqueeze_1},
-                                     {{"auto_broadcast", "numpy"}});
-        auto __module_model_model_layers_0_self_attn_aten_add_Add_1 =
-            makeOP<opset1::Add>({__module_model_model_layers_0_self_attn_aten_mul_Multiply_2,
-                                 __module_model_model_layers_0_self_attn_aten_mul_Multiply_3},
-                                {{"auto_broadcast", "numpy"}});
-        auto Transpose_51954 =
-            makeOP<opset1::Transpose>({__module_model_model_layers_0_self_attn_aten_add_Add_1, {0, 2, 1, 3}});
+        auto pref_1_neg_Multiply_1 =
+            makeOP<opset1::Multiply>({pref_1_slice_Slice_2, Constant_16158}, {{"auto_broadcast", "numpy"}});
+        auto pref_1_slice_Slice_3 = makeOP<opset8::Slice>({pref_1_transpose_Transpose_1, {0}, {1}, {1}, {3}});
+        auto pref_1_cat_Concat_1 =
+            makeOP<opset1::Concat>({pref_1_neg_Multiply_1, pref_1_slice_Slice_3}, {{"axis", -1}});
+        auto pref_1_mul_Multiply_3 = makeOP<opset1::Multiply>({pref_1_cat_Concat_1, pref_1_unsqueeze_Unsqueeze_1},
+                                                              {{"auto_broadcast", "numpy"}});
+        auto pref_1_add_Add_1 =
+            makeOP<opset1::Add>({pref_1_mul_Multiply_2, pref_1_mul_Multiply_3}, {{"auto_broadcast", "numpy"}});
+        auto Transpose_51954 = makeOP<opset1::Transpose>({pref_1_add_Add_1, {0, 2, 1, 3}});
         auto Reshape_51957 = makeOP<opset1::Reshape>({Transpose_51954, {0, -1}}, {{"special_zero", true}});
         auto self_model_model_layers_0_self_attn_v_proj_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
-        auto __module_model_model_layers_0_self_attn_v_proj_aten_linear_MatMul =
-            makeOP<opset1::MatMul>({__module_model_model_layers_0_input_layernorm_aten_mul_Multiply_1,
-                                    self_model_model_layers_0_self_attn_v_proj_weight},
+        auto pref_9_MatMul =
+            makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, self_model_model_layers_0_self_attn_v_proj_weight},
                                    {{"transpose_a", false}, {"transpose_b", true}});
-        auto __module_model_model_layers_0_self_attn_aten_view_Reshape_2 =
-            makeOP<opset1::Reshape>({__module_model_model_layers_0_self_attn_v_proj_aten_linear_MatMul, {0, 0, 2, 2}},
-                                    {{"special_zero", true}});
-        auto __module_model_model_layers_0_self_attn_aten_transpose_Transpose_2 =
-            makeOP<opset1::Transpose>({__module_model_model_layers_0_self_attn_aten_view_Reshape_2, {0, 2, 1, 3}});
-        auto Transpose_51955 = makeOP<opset1::Transpose>(
-            {__module_model_model_layers_0_self_attn_aten_transpose_Transpose_2, {0, 2, 1, 3}});
+        auto pref_1_view_Reshape_2 = makeOP<opset1::Reshape>({pref_9_MatMul, {0, 0, 2, 2}}, {{"special_zero", true}});
+        auto pref_1_transpose_Transpose_2 = makeOP<opset1::Transpose>({pref_1_view_Reshape_2, {0, 2, 1, 3}});
+        auto Transpose_51955 = makeOP<opset1::Transpose>({pref_1_transpose_Transpose_2, {0, 2, 1, 3}});
         auto Reshape_51959 = makeOP<opset1::Reshape>({Transpose_51955, {0, -1}}, {{"special_zero", true}});
 
         auto c1 = makeConst(element::f32, {}, {0.707107f});
@@ -1397,13 +1237,294 @@ TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto Concat_51972 = makeOP<opset1::Concat>({{0l}, {1l}, {-1l}, Unsqueeze_51971}, {{"axis", 0}});
         auto Reshape_51973 =
             makeOP<opset1::Reshape>({PagedAttentionExtension_51962->output(0), Concat_51972}, {{"special_zero", true}});
-        auto __module_model_model_layers_0_self_attn_aten_scaled_dot_product_attention_ScaledDotProductAttention =
+        auto pref_1_scaled_dot_product_attention_ScaledDotProductAttention =
             makeOP<opset1::Transpose>({Reshape_51973, {0, 2, 1, 3}});
 
-        auto res = std::make_shared<v0::Result>(
-            __module_model_model_layers_0_self_attn_aten_scaled_dot_product_attention_ScaledDotProductAttention);
+        auto res = std::make_shared<v0::Result>(pref_1_scaled_dot_product_attention_ScaledDotProductAttention);
         model_ref = std::make_shared<ov::Model>(ResultVector{res}, params);
 
+        comparator.disable(FunctionsComparator::PRECISIONS);
+        disable_result_friendly_names_check();
+        disable_rt_info_check();
+    }
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
+    {
+        auto Parameter = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+        auto Parameter1 = make_param(PartialShape{DYN}, element::i64, "inputs_embeds");
+        auto Parameter2 = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+        auto Parameter3 = make_param(PartialShape{DYN}, element::i64, "attention_mask");
+        auto params = nodes_to_params({Parameter, Parameter1, Parameter2, Parameter3});
+
+        auto Unsqueeze = makeOP<opset1::Unsqueeze>({Parameter3, 1});
+        auto ShapeOf = makeOP<opset3::ShapeOf>({Unsqueeze}, {{"output_type", "i64"}});
+        auto Gather = makeOP<opset8::Gather>({ShapeOf, {0}, 0}, {{"batch_dims", 0}});
+        auto Concat = makeOP<opset1::Concat>({Gather, {32ll}, {0ll}, {96ll}}, {{"axis", 0}});
+        auto Broadcast = makeOP<opset3::Broadcast>({0.000000f, Concat}, {{"mode", "numpy"}});
+        auto Constant9 = makeConst(element::u8, ov::Shape({32064, 3072}), MOCK_VALUE);
+        auto Convert = makeOP<opset1::Convert>({Constant9}, {{"destination_type", "f16"}});
+        auto Constant10 = makeConst(element::u8, ov::Shape({32064, 1}), MOCK_VALUE);
+        auto Convert1 = makeOP<opset1::Convert>({Constant10}, {{"destination_type", "f16"}});
+        auto Subtract = makeOP<opset1::Subtract>({Convert, Convert1}, {{"auto_broadcast", "numpy"}});
+        auto Constant11 = makeConst(element::f16, ov::Shape({32064, 1}), MOCK_VALUE);
+        auto Multiply = makeOP<opset1::Multiply>({Subtract, Constant11}, {{"auto_broadcast", "numpy"}});
+        auto Convert2 = makeOP<opset1::Convert>({Multiply}, {{"destination_type", "f32"}});
+        auto Convert3 = makeOP<opset1::Convert>({Unsqueeze}, {{"destination_type", "i32"}});
+        auto Gather2 = makeOP<opset8::Gather>({Convert2, Convert3, 0}, {{"batch_dims", 0}});
+        auto Constant13 = makeConst(element::f32, ov::Shape({1, 1, 3072}), MOCK_VALUE);
+        auto Constant14 = makeConst(element::f32, ov::Shape({1, 1, 1}), {1.000000f});
+        auto Constant15 = makeConst(element::f32, ov::Shape({1, 1, 1}), {2.000000f});
+        auto Power = makeOP<opset1::Power>({Gather2, Constant15}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean = makeOP<opset1::ReduceMean>({Power, {-1}}, {{"keep_dims", true}});
+        auto Constant17 = makeConst(element::f32, ov::Shape({1, 1, 1}), {0.000010f});
+        auto Add = makeOP<opset1::Add>({ReduceMean, Constant17}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt = makeOP<opset1::Sqrt>({Add});
+        auto Divide = makeOP<opset1::Divide>({Constant14, Sqrt}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply1 = makeOP<opset1::Multiply>({Gather2, Divide}, {{"auto_broadcast", "numpy"}});
+        auto Multiply2 = makeOP<opset1::Multiply>({Constant13, Multiply1}, {{"auto_broadcast", "numpy"}});
+        auto Constant18 = makeConst(element::u8, ov::Shape({9216, 3072}), MOCK_VALUE);
+        auto Convert4 = makeOP<opset1::Convert>({Constant18}, {{"destination_type", "f16"}});
+        auto Constant19 = makeConst(element::u8, ov::Shape({9216, 1}), MOCK_VALUE);
+        auto Convert5 = makeOP<opset1::Convert>({Constant19}, {{"destination_type", "f16"}});
+        auto Subtract1 = makeOP<opset1::Subtract>({Convert4, Convert5}, {{"auto_broadcast", "numpy"}});
+        auto Constant20 = makeConst(element::f16, ov::Shape({9216, 1}), MOCK_VALUE);
+        auto Multiply3 = makeOP<opset1::Multiply>({Subtract1, Constant20}, {{"auto_broadcast", "numpy"}});
+        auto Convert6 = makeOP<opset1::Convert>({Multiply3}, {{"destination_type", "f32"}});
+        auto MatMul = makeOP<opset1::MatMul>({Multiply2, Convert6}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Slice = makeOP<opset8::Slice>({MatMul, {0}, {3072}, {1}, {2}});
+        auto Reshape = makeOP<opset1::Reshape>({Slice, {0, 0, 32, 96}}, {{"special_zero", true}});
+        auto Transpose = makeOP<opset1::Transpose>({Reshape, {0, 2, 1, 3}});
+        auto Constant27 = makeConst(element::f32, ov::Shape({1, 48, 1}), MOCK_VALUE);
+        auto Concat1 = makeOP<opset1::Concat>({Gather, {1ll}, {1ll}}, {{"axis", 0}});
+        auto Broadcast1 = makeOP<opset3::Broadcast>({Constant27, Concat1}, {{"mode", "bidirectional"}});
+        auto Unsqueeze1 = makeOP<opset1::Unsqueeze>({Parameter1, 1});
+        auto Reshape1 = makeOP<opset1::Reshape>({Unsqueeze1, {0, 0}}, {{"special_zero", true}});
+        auto Unsqueeze2 = makeOP<opset1::Unsqueeze>({Reshape1, 1});
+        auto Convert7 = makeOP<opset1::Convert>({Unsqueeze2}, {{"destination_type", "f32"}});
+        auto MatMul1 = makeOP<opset1::MatMul>({Broadcast1, Convert7}, {{"transpose_a", false}, {"transpose_b", false}});
+        auto Transpose1 = makeOP<opset1::Transpose>({MatMul1, {0, 2, 1}});
+        auto Concat2 = makeOP<opset1::Concat>({Transpose1, Transpose1}, {{"axis", -1}});
+        auto Cos = makeOP<opset1::Cos>({Concat2});
+        auto Unsqueeze3 = makeOP<opset1::Unsqueeze>({Cos, 1});
+        auto Multiply4 = makeOP<opset1::Multiply>({Transpose, Unsqueeze3}, {{"auto_broadcast", "numpy"}});
+        auto Slice1 = makeOP<opset8::Slice>({Transpose, {48}, {LLONG_MAX}, {1}, {3}});
+        auto Constant38 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1.000000f});
+        auto Multiply5 = makeOP<opset1::Multiply>({Slice1, Constant38}, {{"auto_broadcast", "numpy"}});
+        auto Slice2 = makeOP<opset8::Slice>({Transpose, {0}, {48}, {1}, {3}});
+        auto Concat3 = makeOP<opset1::Concat>({Multiply5, Slice2}, {{"axis", -1}});
+        auto Sin = makeOP<opset1::Sin>({Concat2});
+        auto Unsqueeze4 = makeOP<opset1::Unsqueeze>({Sin, 1});
+        auto Multiply6 = makeOP<opset1::Multiply>({Concat3, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
+        auto Add1 = makeOP<opset1::Add>({Multiply4, Multiply6}, {{"auto_broadcast", "numpy"}});
+        auto ReadValue1 = makeOP<opset6::ReadValue>(
+            {Broadcast},
+            {{"variable_id", "varid_1"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 32, DYN, 96}}});
+        auto Gather3 = makeOP<opset8::Gather>({ReadValue1, Parameter, 0}, {{"batch_dims", 0}});
+        auto Slice3 = makeOP<opset8::Slice>({MatMul, {3072}, {6144}, {1}, {2}});
+        auto Reshape2 = makeOP<opset1::Reshape>({Slice3, {0, 0, 32, 96}}, {{"special_zero", true}});
+        auto Transpose2 = makeOP<opset1::Transpose>({Reshape2, {0, 2, 1, 3}});
+        auto Multiply7 = makeOP<opset1::Multiply>({Transpose2, Unsqueeze3}, {{"auto_broadcast", "numpy"}});
+        auto Slice4 = makeOP<opset8::Slice>({Transpose2, {48}, {LLONG_MAX}, {1}, {3}});
+        auto Constant54 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1.000000f});
+        auto Multiply8 = makeOP<opset1::Multiply>({Slice4, Constant54}, {{"auto_broadcast", "numpy"}});
+        auto Slice5 = makeOP<opset8::Slice>({Transpose2, {0}, {48}, {1}, {3}});
+        auto Concat4 = makeOP<opset1::Concat>({Multiply8, Slice5}, {{"axis", -1}});
+        auto Multiply9 = makeOP<opset1::Multiply>({Concat4, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
+        auto Add2 = makeOP<opset1::Add>({Multiply7, Multiply9}, {{"auto_broadcast", "numpy"}});
+        auto Concat5 = makeOP<opset1::Concat>({Gather3, Add2}, {{"axis", -2}});
+        auto ReadValue2 = makeOP<opset6::ReadValue>(
+            {Broadcast},
+            {{"variable_id", "varid_2"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 32, DYN, 96}}});
+        auto Gather4 = makeOP<opset8::Gather>({ReadValue2, Parameter, 0}, {{"batch_dims", 0}});
+        auto Slice6 = makeOP<opset8::Slice>({MatMul, {6144}, {LLONG_MAX}, {1}, {2}});
+        auto Reshape3 = makeOP<opset1::Reshape>({Slice6, {0, 0, 32, 96}}, {{"special_zero", true}});
+        auto Transpose3 = makeOP<opset1::Transpose>({Reshape3, {0, 2, 1, 3}});
+        auto Concat6 = makeOP<opset1::Concat>({Gather4, Transpose3}, {{"axis", -2}});
+        auto Constant66 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
+        auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Parameter2, 1});
+        auto Unsqueeze6 = makeOP<opset1::Unsqueeze>({Unsqueeze5, 2});
+        auto Gather5 = makeOP<opset8::Gather>({ShapeOf, 1, 0}, {{"batch_dims", 0}});
+        auto Reshape4 = makeOP<opset1::Reshape>({Gather5, {-1}}, {{"special_zero", false}});
+        auto ShapeOf1 = makeOP<opset3::ShapeOf>({Parameter2}, {{"output_type", "i64"}});
+        auto Gather6 = makeOP<opset8::Gather>({ShapeOf1, {1}, 0}, {{"batch_dims", 0}});
+        auto Concat7 = makeOP<opset1::Concat>({Gather, {1ll}, Reshape4, Gather6}, {{"axis", 0}});
+        auto Broadcast2 = makeOP<opset3::Broadcast>({Unsqueeze6, Concat7}, {{"mode", "bidirectional"}});
+        auto Convert8 = makeOP<opset1::Convert>({Broadcast2}, {{"destination_type", "f32"}});
+        auto Constant74 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
+        auto Multiply10 = makeOP<opset1::Multiply>({Convert8, Constant74}, {{"auto_broadcast", "numpy"}});
+        auto Subtract2 = makeOP<opset1::Subtract>({Constant66, Multiply10}, {{"auto_broadcast", "numpy"}});
+        auto Convert9 = makeOP<opset1::Convert>({Subtract2}, {{"destination_type", "boolean"}});
+        auto Select = makeOP<opset1::Select>({Convert9, -FLT_MAX, Subtract2}, {{"auto_broadcast", "numpy"}});
+        auto Convert10 = makeOP<opset1::Convert>({Select}, {{"destination_type", "boolean"}});
+        auto Constant76 = makeConst(element::i64, ov::Shape({1, 1}), {1});
+        auto ShapeOf2 = makeOP<opset3::ShapeOf>({Gather3}, {{"output_type", "i64"}});
+        auto Gather7 = makeOP<opset8::Gather>({ShapeOf2, 2, 0}, {{"batch_dims", 0}});
+        auto Add3 = makeOP<opset1::Add>({Gather5, Gather7}, {{"auto_broadcast", "numpy"}});
+        auto Subtract3 = makeOP<opset1::Subtract>({Add3, Gather5}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze7 = makeOP<opset1::Unsqueeze>({Subtract3, 0});
+        auto Concat8 = makeOP<opset1::Concat>({Reshape4, Unsqueeze7}, {{"axis", 0}});
+        auto Broadcast3 = makeOP<opset3::Broadcast>({0.000000f, Concat8}, {{"mode", "numpy"}});
+        auto ShapeOf3 = makeOP<opset3::ShapeOf>({Broadcast3}, {{"output_type", "i32"}});
+        auto Gather8 = makeOP<opset8::Gather>({ShapeOf3, 1, 0}, {{"batch_dims", 0}});
+        auto Convert11 = makeOP<opset1::Convert>({Gather5}, {{"destination_type", "i32"}});
+        auto Add4 = makeOP<opset1::Add>({Gather8, Convert11}, {{"auto_broadcast", "numpy"}});
+        auto Range = makeOP<opset4::Range>({0, Add4, 1}, {{"output_type", "i32"}});
+        auto Unsqueeze8 = makeOP<opset1::Unsqueeze>({Range, 0});
+        auto Add5 = makeOP<opset1::Add>({Subtract3, -2046ll}, {{"auto_broadcast", "numpy"}});
+        auto Convert12 = makeOP<opset1::Convert>({Add5}, {{"destination_type", "i32"}});
+        auto Add6 = makeOP<opset1::Add>({Convert11, Convert12}, {{"auto_broadcast", "numpy"}});
+        auto Range1 = makeOP<opset4::Range>({Convert12, Add6, 1}, {{"output_type", "i32"}});
+        auto Unsqueeze9 = makeOP<opset1::Unsqueeze>({Range1, 1});
+        auto GreaterEqual = makeOP<opset1::GreaterEqual>({Unsqueeze8, Unsqueeze9}, {{"auto_broadcast", "numpy"}});
+        auto Range2 = makeOP<opset4::Range>({0, Gather5, 1}, {{"output_type", "f32"}});
+        auto Convert13 = makeOP<opset1::Convert>({Range2}, {{"destination_type", "i64"}});
+        auto Add7 = makeOP<opset1::Add>({Convert13, {1ll}}, {{"auto_broadcast", "numpy"}});
+        auto Reshape5 = makeOP<opset1::Reshape>({Add7, {0, 1}}, {{"special_zero", true}});
+        auto Less = makeOP<opset1::Less>({Convert13, Reshape5}, {{"auto_broadcast", "numpy"}});
+        auto Broadcast4 = makeOP<opset3::Broadcast>({Reshape4, {2}}, {{"mode", "numpy"}});
+        auto Broadcast5 = makeOP<opset3::Broadcast>({-FLT_MAX, Broadcast4}, {{"mode", "numpy"}});
+        auto Select1 = makeOP<opset1::Select>({Less, 0.000000f, Broadcast5}, {{"auto_broadcast", "numpy"}});
+        auto Concat9 = makeOP<opset1::Concat>({Broadcast3, Select1}, {{"axis", -1}});
+        auto ShapeOf4 = makeOP<opset3::ShapeOf>({Concat9}, {{"output_type", "i32"}});
+        auto Broadcast6 = makeOP<opset3::Broadcast>({1ll, ShapeOf4}, {{"mode", "numpy"}});
+        auto Select2 = makeOP<opset1::Select>({GreaterEqual, Broadcast6, 0ll}, {{"auto_broadcast", "numpy"}});
+        auto Subtract4 = makeOP<opset1::Subtract>({Constant76, Select2}, {{"auto_broadcast", "numpy"}});
+        auto Convert14 = makeOP<opset1::Convert>({Subtract4}, {{"destination_type", "boolean"}});
+        auto Select3 = makeOP<opset1::Select>({Convert14, -FLT_MAX, Concat9}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze10 = makeOP<opset1::Unsqueeze>({Select3, 0});
+        auto Unsqueeze11 = makeOP<opset1::Unsqueeze>({Unsqueeze10, 1});
+        auto Add8 = makeOP<opset1::Add>({Reshape4, Unsqueeze7}, {{"auto_broadcast", "numpy"}});
+        auto Concat10 = makeOP<opset1::Concat>({Gather, {1ll}, Reshape4, Add8}, {{"axis", 0}});
+        auto Broadcast7 = makeOP<opset3::Broadcast>({Unsqueeze11, Concat10}, {{"mode", "bidirectional"}});
+        auto Select4 = makeOP<opset1::Select>({Convert10, -FLT_MAX, Broadcast7}, {{"auto_broadcast", "numpy"}});
+        auto Reshape6 = makeOP<opset1::Reshape>({Gather7, {-1}}, {{"special_zero", false}});
+        auto Add9 = makeOP<opset1::Add>({Reshape6, Reshape4}, {{"auto_broadcast", "numpy"}});
+        auto Slice7 = makeOP<opset8::Slice>({Select4, {0}, Add9, {1}, {3}});
+        auto res = makeOP<v13::ScaledDotProductAttention>({Add1, Concat5, Concat6, Slice7}, {{"causal", false}});
+        model = std::make_shared<ov::Model>(OutputVector{res}, params);
+
+        manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    }
+    {
+        auto Parameter = make_param(PartialShape{}, element::i32, "max_context_len");
+        auto Parameter1 = make_param(PartialShape{DYN}, element::i32, "block_indices_begins");
+        auto Parameter2 = make_param(PartialShape{DYN}, element::i32, "block_indices");
+        auto Parameter3 = make_param(PartialShape{DYN}, element::i32, "subsequence_begins");
+        auto Parameter4 = make_param(PartialShape{DYN}, element::i32, "past_lens");
+        auto Parameter67 = make_param(PartialShape{DYN, 32, 96}, element::f32, "value_cache_0");
+        auto Parameter68 = make_param(PartialShape{DYN, 32, 96}, element::f32, "key_cache_0");
+        auto Parameter69 = make_param(PartialShape{DYN}, element::i64, "inputs_embeds");
+        auto Parameter70 = make_param(PartialShape{DYN}, element::i64, "position_ids");
+
+        auto params = nodes_to_params({Parameter,
+                                       Parameter1,
+                                       Parameter2,
+                                       Parameter3,
+                                       Parameter4,
+                                       Parameter67,
+                                       Parameter68,
+                                       Parameter69,
+                                       Parameter70});
+
+        auto Constant1 = makeConst(element::u8, ov::Shape({32064, 3072}), MOCK_VALUE);
+        auto Convert = makeOP<opset1::Convert>({Constant1}, {{"destination_type", "f16"}});
+        auto Constant2 = makeConst(element::u8, ov::Shape({32064, 1}), MOCK_VALUE);
+        auto Convert1 = makeOP<opset1::Convert>({Constant2}, {{"destination_type", "f16"}});
+        auto Subtract = makeOP<opset1::Subtract>({Convert, Convert1}, {{"auto_broadcast", "numpy"}});
+        auto Constant3 = makeConst(element::f16, ov::Shape({32064, 1}), MOCK_VALUE);
+        auto Multiply = makeOP<opset1::Multiply>({Subtract, Constant3}, {{"auto_broadcast", "numpy"}});
+        auto Convert2 = makeOP<opset1::Convert>({Multiply}, {{"destination_type", "f32"}});
+        auto Unsqueeze = makeOP<opset1::Unsqueeze>({Parameter70, 1});
+        auto Convert3 = makeOP<opset1::Convert>({Unsqueeze}, {{"destination_type", "i32"}});
+        auto Gather = makeOP<opset8::Gather>({Convert2, Convert3, 0}, {{"batch_dims", 0}});
+        auto Constant6 = makeConst(element::f32, ov::Shape({1, 1, 3072}), MOCK_VALUE);
+        auto Constant7 = makeConst(element::f32, ov::Shape({1, 1, 1}), {1.000000f});
+        auto Constant8 = makeConst(element::f32, ov::Shape({1, 1, 1}), {2.000000f});
+        auto Power = makeOP<opset1::Power>({Gather, Constant8}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean = makeOP<opset1::ReduceMean>({Power, {-1}}, {{"keep_dims", true}});
+        auto Constant10 = makeConst(element::f32, ov::Shape({1, 1, 1}), {0.000010f});
+        auto Add = makeOP<opset1::Add>({ReduceMean, Constant10}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt = makeOP<opset1::Sqrt>({Add});
+        auto Divide = makeOP<opset1::Divide>({Constant7, Sqrt}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply1 = makeOP<opset1::Multiply>({Gather, Divide}, {{"auto_broadcast", "numpy"}});
+        auto Multiply2 = makeOP<opset1::Multiply>({Constant6, Multiply1}, {{"auto_broadcast", "numpy"}});
+        auto Constant11 = makeConst(element::u8, ov::Shape({9216, 3072}), MOCK_VALUE);
+        auto Convert4 = makeOP<opset1::Convert>({Constant11}, {{"destination_type", "f16"}});
+        auto Constant12 = makeConst(element::u8, ov::Shape({9216, 1}), MOCK_VALUE);
+        auto Convert5 = makeOP<opset1::Convert>({Constant12}, {{"destination_type", "f16"}});
+        auto Subtract1 = makeOP<opset1::Subtract>({Convert4, Convert5}, {{"auto_broadcast", "numpy"}});
+        auto Constant13 = makeConst(element::f16, ov::Shape({9216, 1}), MOCK_VALUE);
+        auto Multiply3 = makeOP<opset1::Multiply>({Subtract1, Constant13}, {{"auto_broadcast", "numpy"}});
+        auto Convert6 = makeOP<opset1::Convert>({Multiply3}, {{"destination_type", "f32"}});
+        auto MatMul = makeOP<opset1::MatMul>({Multiply2, Convert6}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Slice = makeOP<opset8::Slice>({MatMul, {0}, {3072}, {1}, {2}});
+        auto Reshape = makeOP<opset1::Reshape>({Slice, {0, 0, 32, 96}}, {{"special_zero", true}});
+        auto Transpose = makeOP<opset1::Transpose>({Reshape, {0, 2, 1, 3}});
+        auto Constant20 = makeConst(element::f32, ov::Shape({1, 48, 1}), MOCK_VALUE);
+        auto ShapeOf = makeOP<opset3::ShapeOf>({Unsqueeze}, {{"output_type", "i64"}});
+        auto Gather1 = makeOP<opset8::Gather>({ShapeOf, {0}, 0}, {{"batch_dims", 0}});
+        auto Concat = makeOP<opset1::Concat>({Gather1, {1ll}, {1ll}}, {{"axis", 0}});
+        auto Broadcast = makeOP<opset3::Broadcast>({Constant20, Concat}, {{"mode", "bidirectional"}});
+        auto Unsqueeze1 = makeOP<opset1::Unsqueeze>({Parameter69, 1});
+        auto Reshape1 = makeOP<opset1::Reshape>({Unsqueeze1, {0, 0}}, {{"special_zero", true}});
+        auto Unsqueeze2 = makeOP<opset1::Unsqueeze>({Reshape1, 1});
+        auto Convert7 = makeOP<opset1::Convert>({Unsqueeze2}, {{"destination_type", "f32"}});
+        auto MatMul1 = makeOP<opset1::MatMul>({Broadcast, Convert7}, {{"transpose_a", false}, {"transpose_b", false}});
+        auto Transpose1 = makeOP<opset1::Transpose>({MatMul1, {0, 2, 1}});
+        auto Concat1 = makeOP<opset1::Concat>({Transpose1, Transpose1}, {{"axis", -1}});
+        auto Cos = makeOP<opset1::Cos>({Concat1});
+        auto Unsqueeze3 = makeOP<opset1::Unsqueeze>({Cos, 1});
+        auto Multiply4 = makeOP<opset1::Multiply>({Transpose, Unsqueeze3}, {{"auto_broadcast", "numpy"}});
+        auto Slice1 = makeOP<opset8::Slice>({Transpose, {48}, {LLONG_MAX}, {1}, {3}});
+        auto Constant33 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1.000000f});
+        auto Multiply5 = makeOP<opset1::Multiply>({Slice1, Constant33}, {{"auto_broadcast", "numpy"}});
+        auto Slice2 = makeOP<opset8::Slice>({Transpose, {0}, {48}, {1}, {3}});
+        auto Concat2 = makeOP<opset1::Concat>({Multiply5, Slice2}, {{"axis", -1}});
+        auto Sin = makeOP<opset1::Sin>({Concat1});
+        auto Unsqueeze4 = makeOP<opset1::Unsqueeze>({Sin, 1});
+        auto Multiply6 = makeOP<opset1::Multiply>({Concat2, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
+        auto Add1 = makeOP<opset1::Add>({Multiply4, Multiply6}, {{"auto_broadcast", "numpy"}});
+        auto Transpose2 = makeOP<opset1::Transpose>({Add1, {0, 2, 1, 3}});
+        auto Reshape2 = makeOP<opset1::Reshape>({Transpose2, {0, -1}}, {{"special_zero", true}});
+        auto Slice3 = makeOP<opset8::Slice>({MatMul, {3072}, {6144}, {1}, {2}});
+        auto Reshape3 = makeOP<opset1::Reshape>({Slice3, {0, 0, 32, 96}}, {{"special_zero", true}});
+        auto Transpose3 = makeOP<opset1::Transpose>({Reshape3, {0, 2, 1, 3}});
+        auto Multiply7 = makeOP<opset1::Multiply>({Transpose3, Unsqueeze3}, {{"auto_broadcast", "numpy"}});
+        auto Slice4 = makeOP<opset8::Slice>({Transpose3, {48}, {LLONG_MAX}, {1}, {3}});
+        auto Constant50 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1.000000f});
+        auto Multiply8 = makeOP<opset1::Multiply>({Slice4, Constant50}, {{"auto_broadcast", "numpy"}});
+        auto Slice5 = makeOP<opset8::Slice>({Transpose3, {0}, {48}, {1}, {3}});
+        auto Concat3 = makeOP<opset1::Concat>({Multiply8, Slice5}, {{"axis", -1}});
+        auto Multiply9 = makeOP<opset1::Multiply>({Concat3, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
+        auto Add2 = makeOP<opset1::Add>({Multiply7, Multiply9}, {{"auto_broadcast", "numpy"}});
+        auto Transpose4 = makeOP<opset1::Transpose>({Add2, {0, 2, 1, 3}});
+        auto Reshape4 = makeOP<opset1::Reshape>({Transpose4, {0, -1}}, {{"special_zero", true}});
+        auto Slice6 = makeOP<opset8::Slice>({MatMul, {6144}, {LLONG_MAX}, {1}, {2}});
+        auto Reshape5 = makeOP<opset1::Reshape>({Slice6, {0, 0, 32, 96}}, {{"special_zero", true}});
+        auto Transpose5 = makeOP<opset1::Transpose>({Reshape5, {0, 2, 1, 3}});
+        auto Transpose6 = makeOP<opset1::Transpose>({Transpose5, {0, 2, 1, 3}});
+        auto Reshape6 = makeOP<opset1::Reshape>({Transpose6, {0, -1}}, {{"special_zero", true}});
+        auto Convert8 = makeOP<opset1::Convert>({-2046}, {{"destination_type", "i32"}});
+        auto Subtract2 = makeOP<opset1::Subtract>({2, Convert8}, {{"auto_broadcast", "numpy"}});
+
+        auto c1 = makeConst(element::f32, {}, {0.102062f});
+        auto c2 = makeConst(element::f32, {1}, {0});
+        auto PagedAttentionExtension = std::make_shared<ov::op::PagedAttentionExtension>(ov::OutputVector{Reshape2,
+                                                                                                          Reshape4,
+                                                                                                          Reshape6,
+                                                                                                          Parameter68,
+                                                                                                          Parameter67,
+                                                                                                          Parameter4,
+                                                                                                          Parameter3,
+                                                                                                          Parameter2,
+                                                                                                          Parameter1,
+                                                                                                          c1,
+                                                                                                          Subtract2,
+                                                                                                          c2,
+                                                                                                          Parameter});
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{PagedAttentionExtension}, params);
         comparator.disable(FunctionsComparator::PRECISIONS);
         disable_result_friendly_names_check();
         disable_rt_info_check();
