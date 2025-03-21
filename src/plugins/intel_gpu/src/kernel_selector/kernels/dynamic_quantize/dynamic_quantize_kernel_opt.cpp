@@ -83,7 +83,8 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
 CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_params& params) const {
     CommonDispatchData dispatchData;
 
-    if (params.group_sizes.back() <= 128) {
+    // XXX: temporal fix to enable gs256
+    if (params.group_sizes.back() <= 256) {
         auto bf_size = get_input_bf_size(params);
         dispatchData.gws = {bf_size.first, bf_size.second / params.group_sizes.back(), 1};
         dispatchData.lws = {1, 1, 1};
@@ -107,7 +108,14 @@ void DynamicQuantizeKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+
         kd.kernels[0].skip_execution = false;
+        // const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
+        // auto bf_size = get_input_bf_size(dq_params);
+        // char *ptr = getenv("AVOID_2ND");
+        // if (ptr)
+        //     kd.kernels[0].skip_execution = bf_size.first == 1;
+        // std::cout << "skip_execution: " << kd.kernels[0].skip_execution << std::endl;
 
         GPU_DEBUG_TRACE_DETAIL << "Update Dispatch data DynamicQuantizeKernelOpt gws : " << dispatchData.gws[0] << ", "
                 << dispatchData.gws[1] << ", " << dispatchData.gws[2] << std::endl;

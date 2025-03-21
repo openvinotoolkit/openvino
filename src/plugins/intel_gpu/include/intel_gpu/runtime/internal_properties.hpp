@@ -162,6 +162,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignme
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_skip_reorder{"GPU_DISABLE_RUNTIME_SKIP_REORDER"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> usm_policy{"GPU_USM_POLICY"};
 static constexpr Property<bool, ov::PropertyMutability::RW> asym_dynamic_quantization{"GPU_ASYM_DYNAMIC_QUANTIZATION"};
+static constexpr Property<bool, ov::PropertyMutability::RW> dynamic_quantization_all{"GPU_DYNAMIC_QUANTIZATION_ALL"};
 static constexpr Property<ShapePredictor::Settings, ov::PropertyMutability::RW> shape_predictor_settings{"GPU_SHAPE_PREDICTOR_SETTINGS"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> load_dump_raw_binary{"GPU_LOAD_DUMP_RAW_BINARY"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> start_after_processes{"GPU_START_AFTER_PROCESSES"};
