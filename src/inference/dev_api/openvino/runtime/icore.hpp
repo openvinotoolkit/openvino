@@ -53,7 +53,8 @@ public:
      * @return shared pointer to ov::Model
      */
     virtual std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& model,
-                                                  const std::shared_ptr<AlignedBuffer>& weights) const = 0;
+                                                  const std::shared_ptr<AlignedBuffer>& weights,
+                                                  const std::shared_ptr<AlignedBuffer>& origin_weights = nullptr) const = 0;
 
     /**
      * @brief Reads IR xml and bin files
