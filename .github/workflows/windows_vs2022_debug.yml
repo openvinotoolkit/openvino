@@ -59,13 +59,13 @@ jobs:
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       cmake-options: |-
-        -G "Ninja" `
         -DENABLE_PYTHON=OFF `
         -DENABLE_CPPLINT=OFF `
         -DENABLE_TESTS=ON `
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
         -DENABLE_STRICT_DEPENDENCIES=OFF `
-        -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+        -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+        -G 'Ninja'
 
   CXX_Unit_Tests:
     name: C++ unit tests

@@ -103,7 +103,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_${{ inputs.model_scope }}_tests.html --self-contained-html -v -n 4 -k "TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_"${TYPE}"_tests.html --self-contained-html -v -n 4 -k "TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
@@ -113,7 +113,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_${{ inputs.model_scope }}_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel)"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_"${TYPE}"_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel)"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
