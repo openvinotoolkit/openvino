@@ -431,18 +431,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     bool is_cumulative =
         (auto_s_context->m_performance_hint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) ? true : false;
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
-    if (model_path.empty()) {
-        support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
-    } else {
-        // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
-        LOG_INFO_TAG("compile model with model path: %s", model_path.c_str());
-        auto m_model = get_core()->read_model(model_path, std::string{}, {});
-        bool is_LLM_model = ov::op::util::is_large_language_model(*m_model);
-        if (is_LLM_model) {
-            // disable cpu helper and runtime_fallback when the model is LLM, only one device need to compile model
-            disable_startup_runtime_fallback(load_config);
-        }
-    }
+    auto m_model = model_path.empty() ? model : get_core()->read_model(model_path, std::string{}, {});
+    support_devices = filter_device_by_model(support_devices_by_property, m_model, load_config);
     if (!is_cumulative) {
         devices_with_priority = get_valid_device(support_devices, model_precision);
     }
@@ -887,23 +877,23 @@ std::vector<DeviceInformation> Plugin::filter_device(const std::vector<DeviceInf
     return filter_device;
 }
 
-void Plugin::disable_startup_runtime_fallback(PluginConfig& load_config) const {
-    if (load_config.get_property(ov::intel_auto::enable_startup_fallback)) {
-        LOG_WARNING_TAG("Setting property ov::intel_auto::enable_startup_fallback to false");
-        load_config.set_property(ov::intel_auto::enable_startup_fallback(false));
-    }
-    if (load_config.get_property(ov::intel_auto::enable_runtime_fallback)) {
-        LOG_WARNING_TAG("Setting property ov::intel_auto::enable_running_fallback to false");
-        load_config.set_property(ov::intel_auto::enable_runtime_fallback(false));
-    }
-}
-
 std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
                                                               const std::shared_ptr<const ov::Model>& model,
                                                               PluginConfig& load_config) const {
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to filter ", get_device_name(), " plugin");
     }
+
+    auto disable_startup_runtime_fallback = [&]() {
+        if (load_config.get_property(ov::intel_auto::enable_startup_fallback)) {
+            LOG_WARNING_TAG("Setting property ov::intel_auto::enable_startup_fallback to false.");
+            load_config.set_property(ov::intel_auto::enable_startup_fallback(false));
+        }
+        if (load_config.get_property(ov::intel_auto::enable_runtime_fallback)) {
+            LOG_WARNING_TAG("Setting property ov::intel_auto::enable_running_fallback to false.");
+            load_config.set_property(ov::intel_auto::enable_runtime_fallback(false));
+        }
+    };
 
     if (meta_devices.size() == 1) {
         return meta_devices;
@@ -923,7 +913,7 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
     }
 
     // disable CPU_HELP and runtime fallback if model is stateful or LLM model
-    disable_startup_runtime_fallback(load_config);
+    disable_startup_runtime_fallback();
 
     bool isCumulative = (get_device_name() == "MULTI") || (load_config.get_property(ov::hint::performance_mode) ==
                                                            ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);

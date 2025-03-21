@@ -78,7 +78,6 @@ private:
     std::vector<DeviceInformation> filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
                                                           const std::shared_ptr<const ov::Model>& model,
                                                           PluginConfig& load_config) const;
-    void disable_startup_runtime_fallback(PluginConfig& load_config) const;                                                
     std::string get_log_tag() const noexcept;
     static std::shared_ptr<std::mutex> m_mtx;
     static std::shared_ptr<std::map<unsigned int, std::list<std::string>>> m_priority_map;
