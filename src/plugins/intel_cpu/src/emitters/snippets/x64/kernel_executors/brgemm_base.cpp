@@ -4,6 +4,7 @@
 
 #include "brgemm_base.hpp"
 
+#include "common/primitive_hashing_utils.hpp"
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -44,25 +45,33 @@ void BrgemmBaseKernelConfig::update(int64_t M,
 
 BrgemmBaseKernelConfig::StaticBaseParams::StaticBaseParams(const element::Type& in0_dtype,
                                                            const element::Type& in1_dtype,
+                                                           const element::Type& out_dtype,
                                                            cpu_isa_t primitive_isa,
+                                                           const dnnl_post_ops& post_ops,
                                                            size_t hash_seed)
     : dt_in0(DTYPE_CAST(in0_dtype)),
       dt_in1(DTYPE_CAST(in1_dtype)),
+      dt_out(DTYPE_CAST(out_dtype)),
       isa(primitive_isa),
-      m_hash(compute_hash(hash_seed, dt_in0, dt_in1, isa)) {}
+      post_ops(post_ops),
+      m_hash(compute_hash(hash_seed, dt_in0, dt_in1, dt_out, isa, post_ops)) {}
 
 bool BrgemmBaseKernelConfig::StaticBaseParams::operator==(const StaticBaseParams& rhs) const {
-    return EQ(hash()) && EQ(dt_in0) && EQ(dt_in1) && EQ(isa);
+    return EQ(hash()) && EQ(dt_in0) && EQ(dt_in1) && EQ(dt_out) && EQ(isa) && EQ(post_ops);
 }
 
 size_t BrgemmBaseKernelConfig::StaticBaseParams::compute_hash(size_t hash_seed,
                                                               dnnl_data_type_t dt_in0,
                                                               dnnl_data_type_t dt_in1,
-                                                              cpu_isa_t isa) {
+                                                              dnnl_data_type_t dt_out,
+                                                              cpu_isa_t isa,
+                                                              const dnnl_post_ops& post_ops) {
     size_t seed = hash_seed;
     HASH(dt_in0);
     HASH(dt_in1);
+    HASH(dt_out);
     HASH(isa);
+    dnnl::impl::primitive_hashing::get_post_op_hash(seed, post_ops);
     return seed;
 }
 
@@ -71,6 +80,7 @@ std::string BrgemmBaseKernelConfig::StaticBaseParams::to_string() const {
     std::stringstream ss;
     PRINT(dt_in0);
     PRINT(dt_in1);
+    PRINT(dt_out);
     PRINT(isa);
     return ss.str();
 }
@@ -105,8 +115,9 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
 }
 
 void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kernel_t>& kernel,
-                                                    dnnl_data_type_t dt0,
-                                                    dnnl_data_type_t dt1,
+                                                    dnnl_data_type_t dt_in0,
+                                                    dnnl_data_type_t dt_in1,
+                                                    dnnl_data_type_t dt_out,
                                                     cpu_isa_t isa,
                                                     dnnl_dim_t M,
                                                     dnnl_dim_t N,
@@ -115,14 +126,15 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                                                     dnnl_dim_t LDB,
                                                     dnnl_dim_t LDC,
                                                     float beta,
+                                                    const dnnl_post_ops& post_ops,
                                                     bool with_amx,
                                                     char* palette) {
     cpu::x64::brgemm_desc_t desc;
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_init(&desc,
                                                isa,
                                                cpu::x64::brgemm_strd,
-                                               dt0,
-                                               dt1,
+                                               dt_in0,
+                                               dt_in1,
                                                false,
                                                false,
                                                cpu::x64::brgemm_row_major,
@@ -136,6 +148,19 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                                                K,
                                                nullptr) == dnnl_success,
                               "Cannot initialize brgemm descriptor due to invalid params");
+
+    // TODO: place postops fusion here
+    primitive_attr_t attr;
+    attr.set_post_ops(post_ops);
+    dnnl::memory::desc dst_desc({M, N}, static_cast<dnnl::memory::data_type>(dt_out), dnnl::memory::format_tag::ab);
+    OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_set_postops(&desc, &attr, dst_desc.get(), LDC) == dnnl_success,
+                              "Cannot set postops to brgemm descriptor");
+
+    std::cout << "[ INFO ] Brgemm desc creation:" << std::endl;
+    std::cout << "\t desc.dt_a: " << desc.dt_a << std::endl;
+    std::cout << "\t desc.dt_b: " << desc.dt_b << std::endl;
+    std::cout << "\t desc.dt_c: " << desc.dt_c << std::endl;
+    std::cout << "\t desc.dt_d: " << desc.dt_d << std::endl;
 
     if (with_amx) {
         OV_CPU_JIT_EMITTER_ASSERT(palette && brgemm_init_tiles(desc, palette) == dnnl_success,
@@ -154,7 +179,9 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     const void* wei,
     void* dst,
     void* scratch,
-    bool with_comp) {
+    const void* post_ops_binary_arg_vec,
+    bool with_comp,
+    bool apply_post_ops) {
     cpu::x64::brgemm_kernel_params_t brgemm_p;
     brgemm_p.batch = nullptr;  // default value
     brgemm_p.ptr_A = src;
@@ -163,10 +190,19 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.ptr_D = dst;
     brgemm_p.ptr_buf = scratch;
     brgemm_p.ptr_bias = nullptr;
-    brgemm_p.do_post_ops = with_comp;
+    brgemm_p.do_post_ops = apply_post_ops;
     brgemm_p.do_apply_comp = with_comp;
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
+    brgemm_p.post_ops_binary_rhs_arg_vec = post_ops_binary_arg_vec;
+    // This ptr must be initialized if binary postops are applied
+    brgemm_p.data_C_ptr_ = reinterpret_cast<char*>(dst);
+
+    if (std::getenv("DEBUG_PRINT")) {
+        std::cout << "[ INFO ] execute_brgemm_kernel: " << std::endl;
+        std::cout << "\t Pointer value: " << post_ops_binary_arg_vec << std::endl;
+    }
+
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
     (*kernel)(&brgemm_p);
 }

@@ -225,12 +225,16 @@ std::shared_ptr<SnippetsFunctionBase> MHAFQAfterMatMul::get_subgraph() const {
 }
 
 std::shared_ptr<SnippetsFunctionBase> MHAFQ::get_subgraph() const {
-    return std::make_shared<ov::test::snippets::MHAFQFunction>(inputDynamicShapes);
+    return std::make_shared<ov::test::snippets::MHAFQFunction>(inputDynamicShapes, true);
 }
 
 void MHAFQ::init_thresholds() {
     MHABase::init_thresholds();
     abs_threshold = 0.016;
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAFQNonQuantizedAdd::get_subgraph() const {
+    return std::make_shared<ov::test::snippets::MHAFQFunction>(inputDynamicShapes, false);
 }
 
 std::shared_ptr<SnippetsFunctionBase> MHAMulAdd::get_subgraph() const {
@@ -305,6 +309,12 @@ TEST_P(MHAFQAfterMatMul, CompareWithRefImpl) {
 }
 
 TEST_P(MHAFQ, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAFQNonQuantizedAdd, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
