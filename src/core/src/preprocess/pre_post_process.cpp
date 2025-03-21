@@ -379,6 +379,11 @@ InputTensorInfo& InputTensorInfo::set_from(const ov::Tensor& runtime_tensor) {
 PreProcessSteps::PreProcessSteps() : m_impl(std::unique_ptr<PreProcessStepsImpl>(new PreProcessStepsImpl())) {}
 PreProcessSteps::~PreProcessSteps() = default;
 
+PreProcessSteps& PreProcessSteps::clamp(double min_value, double max_value) {
+    m_impl->add_clamp(min_value, max_value);
+    return *this;
+}
+
 PreProcessSteps& PreProcessSteps::scale(float value) {
     m_impl->add_scale_impl(std::vector<float>{value});
     return *this;
@@ -507,6 +512,11 @@ OutputModelInfo& OutputModelInfo::set_color_format(const ov::preprocess::ColorFo
 
 PostProcessSteps::PostProcessSteps() : m_impl(std::unique_ptr<PostProcessStepsImpl>(new PostProcessStepsImpl())) {}
 PostProcessSteps::~PostProcessSteps() = default;
+
+PostProcessSteps& PostProcessSteps::clamp(double min_value, double max_value) {
+    m_impl->add_clamp(min_value, max_value);
+    return *this;
+}
 
 PostProcessSteps& PostProcessSteps::convert_element_type(const element::Type& type) {
     m_impl->add_convert_impl(type);
