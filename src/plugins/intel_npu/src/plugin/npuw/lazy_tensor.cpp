@@ -62,6 +62,14 @@ struct Const {
         NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first!");
         return m_read_from_bin;
     }
+    LazyTensor::Meta eval_meta() const {
+        if (m_node) {
+            return {m_node->get_shape(), m_node->get_element_type()};
+        }
+
+        NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first!");
+        return {m_read_from_bin.get_shape(), m_read_from_bin.get_element_type()};
+    }
     void read_weight(const ov::npuw::s11n::Weights& weights) {
         NPUW_ASSERT(!m_node &&
                     "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
@@ -113,6 +121,14 @@ struct Concat {
             to_concat.push_back(lt.eval());
         }
         return ov::npuw::util::concat(to_concat, axis);
+    }
+    LazyTensor::Meta eval_meta() const {
+        auto meta = tensors[0].eval_meta();
+        ov::Shape shape = meta.shape;
+        for (std::size_t i = 1; i < tensors.size(); ++i) {
+            shape[axis] += tensors[i].eval_meta().shape[axis];
+        }
+        return {shape, meta.type};
     }
     void read_weight(const ov::npuw::s11n::Weights& weights) {
         for (auto& lt : tensors) {
@@ -173,6 +189,9 @@ struct Unpack {
         }
         return dst;
     }
+    LazyTensor::Meta eval_meta() const {
+        return {shape, type};
+    }
     void read_weight(const ov::npuw::s11n::Weights& weights) {
         w.read_weight(weights);
         if (z) {  // could be empty
@@ -225,6 +244,15 @@ struct Permute {
     ov::Tensor eval() const {
         return ov::npuw::util::permute(tensor.eval(), axes);
     }
+    LazyTensor::Meta eval_meta() const {
+        auto meta = tensor.eval_meta();
+        auto shape = meta.shape;
+        ov::Shape new_shape;
+        std::transform(axes.begin(), axes.end(), std::back_inserter(new_shape), [&](std::size_t i) {
+            return shape[i];
+        });
+        return {new_shape, meta.type};
+    }
     void read_weight(const ov::npuw::s11n::Weights& weights) {
         tensor.read_weight(weights);
     }
@@ -262,6 +290,9 @@ struct Convert {
         NPUW_ASSERT(ov::element::f16 == type);
         return ov::npuw::util::to_f16(tensor.eval());
     }
+    LazyTensor::Meta eval_meta() const {
+        return {tensor.eval_meta().shape, type};
+    }
     void read_weight(const ov::npuw::s11n::Weights& weights) {
         tensor.read_weight(weights);
     }
@@ -296,6 +327,7 @@ public:
     bool operator==(const LazyTensorImpl& other) const;
 
     ov::Tensor eval() const;
+    LazyTensor::Meta eval_meta() const;
     std::size_t get_hash() const;
 
     void detach();
@@ -347,6 +379,13 @@ ov::Tensor LazyTensorImpl::eval() const {
     */
     return std::visit(overloaded{[](const auto& op) {
                           return op.eval();
+                      }},
+                      m_transform);
+}
+
+LazyTensor::Meta LazyTensorImpl::eval_meta() const {
+    return std::visit(overloaded{[](const auto& op) {
+                          return op.eval_meta();
                       }},
                       m_transform);
 }
@@ -467,6 +506,13 @@ ov::Tensor LazyTensor::eval() const {
         return ov::Tensor();
     }
     return m_impl->eval();
+}
+
+LazyTensor::Meta LazyTensor::eval_meta() const {
+    if (!m_impl) {
+        return {};
+    }
+    return m_impl->eval_meta();
 }
 
 void LazyTensor::read_weight(const ov::npuw::s11n::Weights& weights) {

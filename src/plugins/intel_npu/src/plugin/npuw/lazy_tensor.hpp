@@ -45,6 +45,12 @@ public:
     std::size_t get_hash() const;
     void detach();
 
+    struct Meta {
+        ov::Shape shape;
+        ov::element::Type type;
+    };
+    Meta eval_meta() const;
+
     void serialize(std::ostream& stream) const;
     static LazyTensor deserialize(std::istream& stream);
     void read_weight(const ov::npuw::s11n::Weights& weights);
