@@ -24,6 +24,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 
@@ -607,6 +608,13 @@ static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precis
  */
 static constexpr Property<float, PropertyMutability::RW> activations_scale_factor{"ACTIVATIONS_SCALE_FACTOR"};
 
+/** @brief  Hint for device to use model compiled blob.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property is used pass compiled blob as ov::Tensor.
+ * The blob can be regular or weightless model. The `weights_path` property is hint where to look for weights.
+ */
+inline constexpr Property<Tensor, PropertyMutability::RW> compiled_blob{"COMPILED_BLOB"};
 }  // namespace hint
 
 /**

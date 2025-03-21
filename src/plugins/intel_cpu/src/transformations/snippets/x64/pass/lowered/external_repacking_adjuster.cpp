@@ -51,14 +51,15 @@ VectorDims BrgemmExternalRepackingAdjuster::get_blk_order(size_t shape_rank) {
     return order;
 }
 
-VectorDims BrgemmExternalRepackingAdjuster::get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc) {
-    const auto vnni_factor = brgemm_utils::compute_vnni_factor(prc);
+VectorDims BrgemmExternalRepackingAdjuster::get_blk_shape(const VectorDims& planar_shape,
+                                                          ov::element::Type prc,
+                                                          bool is_transposed) {
     const auto K = *++planar_shape.rbegin();
     const auto N = *planar_shape.rbegin();
-    const auto new_K = snippets::utils::div_up(K, vnni_factor);
-    const auto new_N = brgemm_utils::repacking::compute_repacked_n_dim(N, prc);
+    const auto buffer_b_shape = brgemm_utils::repacking::compute_buffer_b_allocation_shape(K, N, prc, is_transposed);
+    OPENVINO_ASSERT(buffer_b_shape.size() == 3, "Unexpected buffer B shape rank");
     VectorDims blk_shape(planar_shape.begin(), planar_shape.end() - brgemm_kernel_rank);
-    blk_shape.insert(blk_shape.end(), {new_K, new_N, vnni_factor});
+    blk_shape.insert(blk_shape.end(), buffer_b_shape.cbegin(), buffer_b_shape.cend());
     return blk_shape;
 }
 
@@ -93,7 +94,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         const auto& N = *planar_shape.rbegin();
 
         const auto& prc = linear_ir.get_parameters()[i]->get_node()->get_output_element_type(0);
-        const auto blk_shape = get_blk_shape(planar_shape, prc);
+        const auto blk_shape = get_blk_shape(planar_shape, prc, BrgemmCopyB::is_transposed(layout));
 
         // src data + dst data per kernel call
         const auto src_data = N * K * prc.size();
@@ -116,11 +117,12 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
     for (const auto& p : m_executors) {
         const auto& i = p.first;
         const auto& shape = cpu_config->io_shapes[i];
+        const auto& layout = cpu_config->io_layouts[i];
         auto& repacked_in = cpu_config->repacked_inputs[i];
 
         const auto& prc = linear_ir.get_parameters()[i]->get_node()->get_output_element_type(0);
-        auto planar_shape = ov::snippets::utils::get_planar_vdims(shape, cpu_config->io_layouts[i]);
-        auto blk_shape = get_blk_shape(planar_shape, prc);
+        auto planar_shape = ov::snippets::utils::get_planar_vdims(shape, layout);
+        auto blk_shape = get_blk_shape(planar_shape, prc, BrgemmCopyB::is_transposed(layout));
         // In parallel impl, each thread needs buffer with only shape [K_blk, N_blk, VNNI] to store repacking data
         if (is_impl_parallel) {
             std::fill(planar_shape.rbegin() + brgemm_kernel_rank, planar_shape.rend(), 1);

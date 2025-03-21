@@ -328,8 +328,6 @@ std::string Edge::hash() const {
     auto parentPtr = getParent();
     auto childPtr = getChild();
 
-    std::stringstream result;
-
     return parentPtr->getName() + "_" + std::to_string(parent_port) + "_" + childPtr->getName() + "_" +
            std::to_string(child_port);
 }

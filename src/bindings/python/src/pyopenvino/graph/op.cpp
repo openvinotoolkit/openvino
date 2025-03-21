@@ -53,7 +53,17 @@ bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& inp
 }
 
 bool PyOp::has_evaluate() const {
-    PYBIND11_OVERRIDE(bool, ov::op::Op, has_evaluate);
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+    // Try to look up the overridden method on the Python side.
+    py::function overrided_py_method = pybind11::get_override(this, "has_evaluate");
+    if (overrided_py_method) {                                 // method is found
+        return static_cast<py::bool_>(overrided_py_method());  // Call the Python function.
+    }
+    py::function overrided_evaluate_method = pybind11::get_override(this, "evaluate");
+    if (overrided_evaluate_method) {
+        return true;
+    }
+    return false;
 }
 
 void PyOp::update_type_info() {

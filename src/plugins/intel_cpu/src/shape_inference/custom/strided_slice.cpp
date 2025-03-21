@@ -4,6 +4,7 @@
 
 #include "strided_slice.hpp"
 
+#include "openvino/core/type.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "slice_shape_inference.hpp"
 #include "utils.hpp"
@@ -84,10 +85,7 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
 }
 
 ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
-    if (const auto Slice_op = ov::as_type_ptr<const ov::op::v8::Slice>(m_op)) {
-        return make_shape_inference(m_op);
-    }
-    if (const auto SliceScatter_op = ov::as_type_ptr<const ov::op::v15::SliceScatter>(m_op)) {
+    if (ov::is_type_any_of<const ov::op::v8::Slice, const ov::op::v15::SliceScatter>(m_op)) {
         return make_shape_inference(m_op);
     }
     if (const auto StridedSlice_op = ov::as_type_ptr<const ov::op::v1::StridedSlice>(m_op)) {

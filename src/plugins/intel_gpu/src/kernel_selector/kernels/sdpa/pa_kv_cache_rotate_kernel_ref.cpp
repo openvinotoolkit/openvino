@@ -55,6 +55,8 @@ ParamsKey KVCacheRotateKernelRef::GetSupportedKey() const {
 
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT32);
 
     k.EnableInputLayout(DataLayout::bfyx);
@@ -98,6 +100,16 @@ JitConstants KVCacheRotateKernelRef::GetJitConstants(const kv_cache_rotate_param
     jit.AddConstant(MakeJitConstant("KV_HEADS_NUM", params.conf.kv_heads_num));
     jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size));
+    jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
+    jit.Merge(MakeTypeJitConstants(params.original_cache_dt, "UNCOMPRESSED"));
+
+    if (params.conf.is_kv_compressed) {
+        auto scales_zp_size = BytesPerElement(params.original_cache_dt) * 2; // scale + zp
+        jit.AddConstant(MakeJitConstant("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size + scales_zp_size));
+    } else {
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size));
+    }
 
     return jit;
 }
@@ -113,7 +125,9 @@ CommonDispatchData KVCacheRotateKernelRef::SetDefault(const kv_cache_rotate_para
         dispatch_data.gws = { subgroup_size,
                               heads_number,
                               blocks_to_rotate };
-        dispatch_data.lws = { subgroup_size, heads_number, 1 };
+        dispatch_data.lws = { subgroup_size,
+                              params.conf.is_kv_compressed ? 1 : heads_number,
+                              1 };
     }
 
     return dispatch_data;

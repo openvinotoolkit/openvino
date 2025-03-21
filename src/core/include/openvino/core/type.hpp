@@ -83,11 +83,7 @@ class ConversionExtensionBase;
 
 template <typename T>
 constexpr bool use_ov_dynamic_cast() {
-#if defined(__ANDROID__) || defined(ANDROID)
-    return true;
-#else
     return std::is_base_of_v<ov::frontend::ConversionExtensionBase, T>;
-#endif
 }
 
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a

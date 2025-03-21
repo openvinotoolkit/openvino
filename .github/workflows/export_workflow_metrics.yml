@@ -34,7 +34,7 @@ permissions: read-all
 jobs:
   export-workflow-metrics:
     name: Export finished workflow metrics
-    runs-on: aks-linux-smallworker
+    runs-on: aks-linux-small
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
 
     steps:

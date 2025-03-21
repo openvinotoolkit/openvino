@@ -22,6 +22,49 @@
 
 namespace opp = ov::pass::pattern;
 
+class RemoveEmptyKVTensors : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::RemoveEmptyKVTensors");
+
+    struct Context {
+        std::vector<std::shared_ptr<ov::opset13::Parameter>> old_params;
+        using Ref = std::reference_wrapper<Context>;
+    };
+
+    RemoveEmptyKVTensors(Context::Ref ctx) {
+        auto param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, opp::any_input()});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+            auto matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
+            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
+
+            ctx.get().old_params.push_back(matched_param);
+
+            auto users = matched_param->get_users();
+            if (users.size() == 2u) {
+                auto shapeof_node = ov::is_type<ov::op::v3::ShapeOf>(users[0]) ? users[0] : users[1];
+                NPUW_ASSERT(ov::is_type<ov::op::v3::ShapeOf>(shapeof_node));
+                auto cst_node =
+                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, matched_param->get_shape());
+                ov::replace_node(shapeof_node, cst_node);
+            } else {
+                NPUW_ASSERT(users.size() == 1u);
+            }
+
+            // Redirect second concat input to every node which reads from concat
+            auto curr_kv_tensor = matched_node_concat->input(1).get_source_output();
+            for (auto target_input : matched_node_concat->output(0u).get_target_inputs()) {
+                target_input.replace_source_output(curr_kv_tensor);
+            }
+
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(concat, "RemoveEmptyKVTensors"), std::move(callback));
+    }
+};
+
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
@@ -317,18 +360,18 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     return model;
 }
 
-std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> model) {
-    ov::preprocess::PrePostProcessor ppp(model);
-    for (const auto& tensor : model->outputs()) {
-        if (tensor.get_any_name().find("value") != std::string::npos) {
-            // NB: [batch, num_heads, seq_len, emb_size] -> [batch, num_heads, emb_size, seq_len]
-            ppp.output(tensor.get_any_name()).model().set_layout(ov::Layout("BHSE"));
-            ppp.output(tensor.get_any_name()).tensor().set_layout(ov::Layout("BHES"));
-        }
+bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
+    ov::pass::GraphRewrite rewr;
+    RemoveEmptyKVTensors::Context ctx;
+    rewr.add_matcher<RemoveEmptyKVTensors>(std::ref(ctx));
+    rewr.run_on_model(model);
+    for (auto old_param : ctx.old_params) {
+        model->remove_parameter(old_param);
     }
-    return ppp.build();
+    ov::pass::Validate().run_on_model(model);
+    // NB: if old_params is not empty - pass has been applied
+    return !ctx.old_params.empty();
 }
-
 }  // namespace
 
 // testability - should we have interface for that or move matchers to another file?
@@ -464,8 +507,17 @@ ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model, co
     return config;
 }
 
-ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
+ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
+                                      const std::optional<NPUDesc>& npudesc,
+                                      const ::intel_npu::npuw::llm::PrefillHint hint) {
     auto config = get_default_common_config(model, npudesc);
+    if (hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC) {
+        if (is_cw_compressed(model)) {
+            // NB: These two ifs are not combined into one with && deliberately
+            // there may be later changes w.r.t. required compiler versions for GQ
+            config.emplace("NPUW_ONLINE_PIPELINE", "SPATIAL");
+        }
+    }
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
         config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
     }
@@ -585,14 +637,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("6. Check and apply opt layout");
         LOG_BLOCK();
         if (optimize_value_tensors(kvcache_model)) {
+            NPUW_ASSERT(optimize_value_tensors(prefill_model));
             m_kvcache_desc.v_tensors_transposed = true;
-            prefill_model = cvt_value_tensors_layout(prefill_model);
         } else {
             LOG_DEBUG("vtensors optimisation not applied");
         }
     } else {
         LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
     }
+    NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
     LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
     LOG_DEBUG("8. Converting KV-cache in kvcache model to FP16.");
@@ -601,8 +654,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
     auto npudesc = extract_npu_descriptor(plugin);
+
+    // NB: PREFILL_HINT is only applicable for default prefill config!
+    if (prefill_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::prefill_hint.name())) {
+        OPENVINO_THROW("PREFILL_HINT only works with default prefill config!");
+    }
+    const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     auto prefill_config =
-        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
+        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc, prefill_hint)).as<ov::AnyMap>();
 
     // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
@@ -649,49 +708,106 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 }
 
 void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
-    LOG_INFO("Serializing LLMCompiledModel...");
-    LOG_BLOCK();
-
     using namespace ov::npuw::s11n;
 
+    // Identify encryption flow
+    bool encryption_required = false;
+    EncryptionCallbacks enc_callbacks;
+    if (auto it = m_non_llm_props.find(ov::cache_encryption_callbacks.name());
+        it != m_non_llm_props.end() && it->second.as<EncryptionCallbacks>().encrypt) {
+        LOG_INFO("Encryption will be done via the function provided.");
+        encryption_required = true;
+        enc_callbacks.encrypt = it->second.as<EncryptionCallbacks>().encrypt;
+    }
+
+    // Identify either full flow or weightless
+    bool is_weightless = true;
+    if (auto it = m_non_llm_props.find(ov::cache_mode.name());
+        it != m_non_llm_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+        LOG_INFO("Serialization will be done via flow with weights.");
+        is_weightless = false;
+    }
+
+    // Write header regardless of encryption requirement - to identify NPUW serializated blobs
     // Serialize magic number first
     write(stream, NPUW_SERIALIZATION_INDICATOR);
-
     // Serialize general meta info
     write(stream, OPENVINO_VERSION_MAJOR);
     write(stream, OPENVINO_VERSION_MINOR);
     write(stream, OPENVINO_VERSION_PATCH);
     write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+    // Serialize encrypted flag
+    write(stream, encryption_required);
+    // Write flow identifier
+    write(stream, is_weightless);
 
-    // Serialize name
-    write(stream, m_name);
+    if (!encryption_required) {
+        LLMSerializeContext ctx(false, nullptr);
+        return serialize(stream, ctx);
+    }
 
-    // Serialize inputs and outputs
-    write(stream, inputs());
-    write(stream, outputs());
+    // In case of weightless flow the whole blob will be encrypted on NPUW side.
+    std::stringstream non_encrypted_stream;
+    if (is_weightless) {
+        non_encrypted_stream.copyfmt(stream);
+        LLMSerializeContext ctx(false, nullptr);
+        serialize(non_encrypted_stream, ctx);
+        std::string encrypted = enc_callbacks.encrypt(non_encrypted_stream.str());
+        write(stream, encrypted);
+    } else {
+        // In case of blob with weights only encrypt XML part of the model
+        LLMSerializeContext ctx(true, enc_callbacks.encrypt);
+        serialize(stream, ctx);
+    }
+}
 
-    // Serialize LLMCompiledModel-specific data
-    write(stream, m_kvcache_desc.max_prompt_size);
-    write(stream, m_kvcache_desc.total_size);
-    write(stream, m_kvcache_desc.num_stored_tokens);
-    write(stream, m_kvcache_desc.dim);
-    write(stream, m_kvcache_desc.v_tensors_transposed);
+void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::LLMSerializeContext& ctx) const {
+    LOG_INFO("Serializing LLMCompiledModel...");
+    LOG_BLOCK();
 
-    // Write config
-    write(stream, m_cfg);
+    using namespace ov::npuw::s11n;
 
     // Identify either full flow or weightless
     bool is_weightless = true;
-    if (m_non_llm_props.count(ov::cache_mode.name()) &&
-        m_non_llm_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+    if (auto it = m_non_llm_props.find(ov::cache_mode.name());
+        it != m_non_llm_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
         LOG_INFO("Serialization will be done via flow with weights.");
         is_weightless = false;
     }
-    write(stream, is_weightless);
 
-    // Serialize CompiledModels
-    m_kvcache_compiled->serialize(stream);
-    m_prefill_compiled->serialize(stream);
+    auto write_model_meta = [&](std::ostream& model_stream) {
+        // Serialize name
+        write(model_stream, m_name);
+
+        // Serialize inputs and outputs
+        write(model_stream, inputs());
+        write(model_stream, outputs());
+
+        // Serialize LLMCompiledModel-specific data
+        write(model_stream, m_kvcache_desc.max_prompt_size);
+        write(model_stream, m_kvcache_desc.total_size);
+        write(model_stream, m_kvcache_desc.num_stored_tokens);
+        write(model_stream, m_kvcache_desc.dim);
+        write(model_stream, m_kvcache_desc.v_tensors_transposed);
+
+        // Write config
+        write(model_stream, m_cfg);
+
+        // Serialize CompiledModels
+        m_kvcache_compiled->serialize(model_stream);
+        m_prefill_compiled->serialize(model_stream);
+    };
+
+    std::stringstream non_encrypted_stream;
+    if (ctx.encrypted) {
+        NPUW_ASSERT(ctx.encrypt && "Encryption function isn't provided!");
+        non_encrypted_stream.copyfmt(stream);
+        write_model_meta(non_encrypted_stream);
+        std::string encrypted_str = ctx.encrypt(non_encrypted_stream.str());
+        write(stream, encrypted_str);
+    } else {
+        write_model_meta(stream);
+    }
 
     // Serialize bank name
     const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
@@ -701,13 +817,14 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
 
     if (!is_weightless) {
         // Serialize weights bank
+        // Note: no need to encrypt weights in full flow
         kv_bank->serialize(stream);
     }
 
     LOG_INFO("Done.");
 }
 
-std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
+std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_model(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
@@ -750,64 +867,130 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
                        NPUW_SERIALIZATION_VERSION);
     }
 
-    // Deserialize model name first
-    std::string model_name;
-    read(stream, model_name);
-
-    // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
-    // to continue deserialization
-    ov::ParameterVector parameters;
-    ov::NodeVector results;
-
-    read(stream, parameters);
-    read(stream, results);
-
-    auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
-
-    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
-
-    // Deserialize LLMCompiledModel-specific data
-    read(stream, compiled->m_kvcache_desc.max_prompt_size);
-    read(stream, compiled->m_kvcache_desc.total_size);
-    read(stream, compiled->m_kvcache_desc.num_stored_tokens);
-    read(stream, compiled->m_kvcache_desc.dim);
-    read(stream, compiled->m_kvcache_desc.v_tensors_transposed);
-
-    // Deserialize config
-    read(stream, compiled->m_cfg);
-    compiled->implement_properties();
-
-    // Deserialize flow indicator
-    bool is_weightless = false;
+    bool encrypted = false;
+    read(stream, encrypted);
+    bool is_weightless = true;
     read(stream, is_weightless);
 
-    // Deserialize CompiledModels
-    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
-    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
+    auto read_and_finalize_banks = [&](std::istream& model_stream,
+                                       const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        // Deserialize weights bank name
+        std::string bank_name;
+        read(model_stream, bank_name);
 
-    // Deserialize weights bank name
-    std::string bank_name;
-    read(stream, bank_name);
+        if (is_weightless) {
+            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
 
-    if (is_weightless) {
-        auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            compiled->m_kvcache_compiled->m_weights_bank = bank;
+            compiled->m_prefill_compiled->m_weights_bank = bank;
 
-        compiled->m_kvcache_compiled->m_weights_bank = bank;
-        compiled->m_prefill_compiled->m_weights_bank = bank;
+            compiled->m_kvcache_compiled->finalize_weights_bank();
+            compiled->m_prefill_compiled->finalize_weights_bank();
+        } else {
+            auto bank =
+                ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
 
-        compiled->m_kvcache_compiled->finalize_weights_bank();
-        compiled->m_prefill_compiled->finalize_weights_bank();
-    } else {
-        auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
+            compiled->m_kvcache_compiled->m_weights_bank = bank;
+            compiled->m_prefill_compiled->m_weights_bank = bank;
 
-        compiled->m_kvcache_compiled->m_weights_bank = bank;
-        compiled->m_prefill_compiled->m_weights_bank = bank;
+            compiled->m_kvcache_compiled->reconstruct_closure();
+            compiled->m_prefill_compiled->reconstruct_closure();
+        }
+    };
 
-        compiled->m_kvcache_compiled->reconstruct_closure();
-        compiled->m_prefill_compiled->reconstruct_closure();
+    if (!encrypted) {
+        LLMDeserializeContext ctx(false, nullptr);
+        auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
+        NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
+        read_and_finalize_banks(stream, compiled_model);
+        LOG_INFO("Done.");
+        return compiled_model;
     }
 
+    EncryptionCallbacks enc_callbacks;
+    NPUW_ASSERT(properties.count(ov::cache_encryption_callbacks.name()) &&
+                properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().decrypt &&
+                "Model is encrypted but no decrypt function was provided!");
+    enc_callbacks.decrypt = properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().decrypt;
+
+    LOG_INFO("Decryption will be done via the function provided.");
+
+    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled_model = nullptr;
+
+    // Model is encrypted
+    if (is_weightless) {
+        std::string encrypted_str;
+        read(stream, encrypted_str);
+        std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
+        LLMDeserializeContext ctx(false, nullptr);
+        compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
+    } else {
+        LLMDeserializeContext ctx(true, enc_callbacks.decrypt);
+        compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
+    }
+
+    NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
+    read_and_finalize_banks(stream, compiled_model);
+
     LOG_INFO("Done.");
+
+    return compiled_model;
+}
+
+std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties,
+    const ov::npuw::s11n::LLMDeserializeContext& ctx) {
+    using namespace ov::npuw::s11n;
+
+    auto read_model_meta = [&](std::istream& model_stream) {
+        // Deserialize model name first
+        std::string model_name;
+        read(model_stream, model_name);
+
+        // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
+        // to continue deserialization
+        ov::ParameterVector parameters;
+        ov::NodeVector results;
+
+        read(model_stream, parameters);
+        read(model_stream, results);
+
+        auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
+
+        auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
+
+        // Deserialize LLMCompiledModel-specific data
+        read(model_stream, compiled->m_kvcache_desc.max_prompt_size);
+        read(model_stream, compiled->m_kvcache_desc.total_size);
+        read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
+        read(model_stream, compiled->m_kvcache_desc.dim);
+        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
+
+        // Deserialize config
+        read(model_stream, compiled->m_cfg);
+        compiled->implement_properties();
+
+        // Deserialize CompiledModels
+        compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties);
+        compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties);
+
+        return compiled;
+    };
+
+    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled = nullptr;
+    if (ctx.encrypted) {
+        std::string encrypted_string;
+        read(stream, encrypted_string);
+        std::istringstream decrypted_stream(std::move(ctx.decrypt(encrypted_string)));
+        compiled = read_model_meta(decrypted_stream);
+    } else {
+        compiled = read_model_meta(stream);
+    }
+
+    NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
+
     return compiled;
 }
 
@@ -861,6 +1044,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
+                          BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString)});
 #undef BIND
 }

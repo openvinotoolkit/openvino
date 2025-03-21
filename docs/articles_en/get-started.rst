@@ -21,7 +21,7 @@ GET STARTED
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
 
    <p id="GSG_introtext">Welcome to OpenVINO! This guide introduces installation and learning materials for Intel® Distribution of OpenVINO™ toolkit. The guide walks through the following steps:<br />
-     <a href="notebooks/vision-monodepth-with-output.html" >Quick Start Example</a>
+     <a href="https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/vision-monodepth" >Quick Start Example</a>
      <a href="get-started/install-openvino.html" >Install OpenVINO</a>
      <a href="#learn-openvino" >Learn OpenVINO</a>
    </p>
@@ -40,7 +40,8 @@ For a quick reference, check out
 .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :width: 400
 
-Try out OpenVINO's capabilities with this `quick start example <notebooks/vision-monodepth-with-output.html>`__ that estimates depth in a scene using an OpenVINO monodepth model to quickly see how to load a model, prepare an image, inference the image, and display the result.
+Try out OpenVINO's capabilities with this `quick start example <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/vision-monodepth>`__
+that estimates depth in a scene using an OpenVINO monodepth model to quickly see how to load a model, prepare an image, inference the image, and display the result.
 
 .. _install-openvino-gsg:
 
@@ -70,10 +71,12 @@ Interactive Tutorials - Jupyter Notebooks
 
 Start with :doc:`interactive Python <get-started/learn-openvino/interactive-tutorials-python>` that show the basics of model inference, the OpenVINO API, how to convert models to OpenVINO format, and more.
 
-* `Hello Image Classification <notebooks/hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
-* `OpenVINO Runtime API Tutorial <notebooks/openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
-* `Convert TensorFlow Models to OpenVINO <notebooks/tensorflow-classification-to-openvino-with-output.html>`__
-* `Convert PyTorch Models to OpenVINO <notebooks/pytorch-onnx-to-openvino-with-output.html>`__
+* `Hello Image Classification <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-world>`__
+  - Load an image classification model in OpenVINO and use it to apply a label to an image
+* `OpenVINO Runtime API Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-api>`__
+  - Learn the basic Python API for working with models in OpenVINO
+* `Convert TensorFlow Models to OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-classification-to-openvino>`__
+* `Convert PyTorch Models to OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/pytorch-to-openvino/pytorch-onnx-to-openvino.ipynb>`__
 
 .. _code-samples:
 
@@ -87,7 +90,7 @@ View :doc:`sample code <get-started/learn-openvino/openvino-samples>` for variou
 Integrate OpenVINO With Your Application
 ----------------------------------------
 
-Learn how to :doc:`use the OpenVINO API to implement an inference pipeline <openvino-workflow/running-inference/integrate-openvino-with-your-application>` in your application.
+Learn how to :doc:`use the OpenVINO API to implement an inference pipeline <openvino-workflow/running-inference>` in your application.
 
 .. _openvino-advanced-features:
 
@@ -101,8 +104,8 @@ Model Compression and Quantization
 
 Use OpenVINO’s model compression tools to reduce your model’s latency and memory footprint while maintaining good accuracy.
 
-* Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <notebooks/tensorflow-quantization-aware-training-with-output>`__
-* Tutorial - `Quantization-Aware Training in PyTorch with NNCF <notebooks/pytorch-quantization-aware-training-with-output>`__
+* Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__
+* Tutorial - `Quantization-Aware Training in PyTorch with NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__
 * :doc:`Model Optimization Guide <openvino-workflow/model-optimization>`
 
 Automated Device Configuration
@@ -120,7 +123,7 @@ Pipeline and model configuration features in OpenVINO Runtime allow you to easil
 
 * :doc:`Automatic Batching <openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>` performs on-the-fly grouping of inference requests to maximize utilization of the target hardware’s memory and processing cores.
 * :doc:`Performance Hints <openvino-workflow/running-inference/optimize-inference/high-level-performance-hints>` automatically adjust runtime parameters to prioritize for low latency or high throughput
-* :doc:`Dynamic Shapes <openvino-workflow/running-inference/dynamic-shapes>` reshapes models to accept arbitrarily-sized inputs, increasing flexibility for applications that encounter different data shapes
+* :doc:`Dynamic Shapes <openvino-workflow/running-inference/model-input-output/dynamic-shapes>` reshapes models to accept arbitrarily-sized inputs, increasing flexibility for applications that encounter different data shapes
 * :doc:`Benchmark Tool <get-started/learn-openvino/openvino-samples/benchmark-tool>` characterizes model performance in various hardware and pipeline configurations
 
 .. _additional-about-openvino/additional-resources:

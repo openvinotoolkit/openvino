@@ -27,7 +27,7 @@ OpenVINO™ Integrations
    .. grid-item::
 
       * :doc:`Run inference with HuggingFace and Optimum Intel <../../openvino-workflow-generative/inference-with-optimum-intel>`
-      * `A notebook example: llm-chatbot <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/254-llm-chatbot>`__
+      * `A notebook example: llm-chatbot <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-chatbot>`__
       * `Hugging Face Inference documentation <https://huggingface.co/docs/optimum/main/intel/openvino/inference>`__
       * `Hugging Face Compression documentation <https://huggingface.co/docs/optimum/main/intel/openvino/optimization>`__
       * `Hugging Face Reference Documentation <https://huggingface.co/docs/optimum/main/intel/openvino/reference>`__

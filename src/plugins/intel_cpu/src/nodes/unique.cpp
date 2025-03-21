@@ -142,16 +142,16 @@ void Unique::execute(const dnnl::stream& strm) {
                   OV_CASE(ov::element::i32, int32_t),
                   OV_CASE(ov::element::i8, int8_t),
                   OV_CASE(ov::element::u8, uint8_t))
-    } else {
-        OV_SWITCH(intel_cpu,
-                  slicedExec,
-                  this,
-                  dataPrecision,
-                  OV_CASE(ov::element::f32, float),
-                  OV_CASE(ov::element::i32, int32_t),
-                  OV_CASE(ov::element::i8, int8_t),
-                  OV_CASE(ov::element::u8, uint8_t))
+        return;
     }
+    OV_SWITCH(intel_cpu,
+              slicedExec,
+              this,
+              dataPrecision,
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::i32, int32_t),
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t))
 }
 
 void Unique::executeDynamicImpl(const dnnl::stream& strm) {

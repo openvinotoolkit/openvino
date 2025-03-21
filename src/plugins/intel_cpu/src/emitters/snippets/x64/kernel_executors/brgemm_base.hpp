@@ -62,7 +62,7 @@ protected:
             return !(*this == rhs);
         }
 #ifdef SNIPPETS_DEBUG_CAPS
-        [[nodiscard]] std::string to_string() const;
+        [[nodiscard]] virtual std::string to_string() const;
 #endif
     protected:
         static size_t compute_hash(size_t hash_seed,

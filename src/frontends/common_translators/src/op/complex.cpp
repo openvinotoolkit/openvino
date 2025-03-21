@@ -37,9 +37,9 @@ OutputVector translate_real(const NodeContext& context) {
     auto complex = context.get_input(0);
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(complex.get_node_shared_ptr());
-    auto op_type = context.get_op_type();
-    FRONT_END_OP_CONVERSION_CHECK(complex_type_mark, op_type + " operation expects complex type tensor on input.");
-
+    if (!complex_type_mark)
+        // if input is not a complex number, just return it as is. This is allowed in torch.
+        return {complex};
     return {complex_type_mark->get_real()};
 };
 

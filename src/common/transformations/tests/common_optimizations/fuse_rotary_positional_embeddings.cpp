@@ -11,6 +11,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
+#include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/gen_pattern.hpp"
@@ -1434,6 +1435,91 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention) {
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{DYN, 1, 4608});
         auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{DYN, 1, 32, 2});
+
+        auto rope = makeOP<ov::op::internal::RoPE>({input, input1, input1},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 4096},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", false},
+                                                    {"config.rotary_ndims", 64},
+                                                    {"config.is_chatglm", true},
+                                                    {"config.support_2d_rope", true},
+                                                    {"config.is_qwen", false},
+                                                    {"config.head_cnt", 32},
+                                                    {"config.head_size", 128},
+                                                    {"config.gather_position_arg_id", 0}});
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, input1});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention_GPU) {
+    using namespace ov;
+    {
+        disable_rt_info_check();
+        auto input0 = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{DYN, 1, 4608});
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{DYN, 1, 32, 2});
+
+        auto ListUnpack = makeOP<opset1::VariadicSplit>({input0, -1, {4096, 256, 256}});
+        auto aten_transpose =
+            makeOP<opset1::Reshape>({ListUnpack->output(0), {-1, 32, 1, 128}}, {{"special_zero", false}});
+        auto aten_slice_Slice =
+            makeOP<opset1::StridedSlice>({aten_transpose, {0, 0, 0, 0}, {0, 0, 0, 64}, {1, 1, 1, 1}},
+                                         {{"begin_mask", {1, 1, 1, 0}},
+                                          {"end_mask", {1, 1, 1, 0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
+        auto aten_reshape_Reshape =
+            makeOP<opset1::Reshape>({aten_slice_Slice, {0, 32, 0, 32, 2}}, {{"special_zero", true}});
+        auto aten_select_Gather = makeOP<opset8::Gather>({aten_reshape_Reshape, 0, -1}, {{"batch_dims", 0}});
+        auto aten_slice_Slice_2 = makeOP<opset1::StridedSlice>({input1, {0, 0}, {0, 1}, {1, 1}},
+                                                               {{"begin_mask", {1, 0}},
+                                                                {"end_mask", {1, 0}},
+                                                                {"new_axis_mask", {}},
+                                                                {"shrink_axis_mask", {}},
+                                                                {"ellipsis_mask", {}}});
+        auto aten_view_Reshape =
+            makeOP<opset1::Reshape>({aten_slice_Slice_2, {-1, 1, 1, 32, 2}}, {{"special_zero", false}});
+        auto aten_select_Gather_1 = makeOP<opset8::Gather>({aten_view_Reshape, 0, -1}, {{"batch_dims", 0}});
+        auto aten_mul_Multiply_1 =
+            makeOP<opset1::Multiply>({aten_select_Gather, aten_select_Gather_1}, {{"auto_broadcast", "numpy"}});
+        auto aten_select_Gather_2 = makeOP<opset8::Gather>({aten_reshape_Reshape, 1, -1}, {{"batch_dims", 0}});
+        auto aten_select_Gather_3 = makeOP<opset8::Gather>({aten_view_Reshape, 1, -1}, {{"batch_dims", 0}});
+        auto aten_mul_Multiply_2 =
+            makeOP<opset1::Multiply>({aten_select_Gather_2, aten_select_Gather_3}, {{"auto_broadcast", "numpy"}});
+        auto Constant_56849 = makeConst(element::f16, ov::Shape({}), {-1});
+        auto Multiply_56850 =
+            makeOP<opset1::Multiply>({aten_mul_Multiply_2, Constant_56849}, {{"auto_broadcast", "numpy"}});
+        auto aten_sub_Subtract =
+            makeOP<opset1::Add>({aten_mul_Multiply_1, Multiply_56850}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_81695 =
+            makeOP<opset1::Reshape>({aten_sub_Subtract, {-1, 32, 1, 32, 1}}, {{"special_zero", false}});
+        auto aten_mul_Multiply_3 =
+            makeOP<opset1::Multiply>({aten_select_Gather_2, aten_select_Gather_1}, {{"auto_broadcast", "numpy"}});
+        auto aten_mul_Multiply_4 =
+            makeOP<opset1::Multiply>({aten_select_Gather, aten_select_Gather_3}, {{"auto_broadcast", "numpy"}});
+        auto aten_add_Add =
+            makeOP<opset1::Add>({aten_mul_Multiply_3, aten_mul_Multiply_4}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_81696 = makeOP<opset1::Reshape>({aten_add_Add, {-1, 32, 1, 32, 1}}, {{"special_zero", false}});
+        auto aten_stack = makeOP<opset1::Concat>({Unsqueeze_81695, Unsqueeze_81696}, {{"axis", -1}});
+        auto aten_flatten_Reshape = makeOP<opset1::Reshape>({aten_stack, {0, 32, 0, 64}}, {{"special_zero", true}});
+        auto aten_slice_Slice_3 =
+            makeOP<opset1::StridedSlice>({aten_transpose, {0, 0, 0, 64}, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}},
+                                         {{"begin_mask", {1, 1, 1, 0}},
+                                          {"end_mask", {1, 1, 1, 0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
+        auto aten_cat_Concat = makeOP<opset1::Concat>({aten_flatten_Reshape, aten_slice_Slice_3}, {{"axis", -1}});
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat}, ov::ParameterVector{input0, input1});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{DYN, 1, 4608});
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{DYN, 1, 32, 2});
 
         auto rope = makeOP<ov::op::internal::RoPE>({input, input1, input1},
                                                    {{"config.slice_start", 0},

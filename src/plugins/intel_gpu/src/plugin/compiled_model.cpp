@@ -179,12 +179,14 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 //     [ ov::intel_gpu::Graph ]
 void CompiledModel::export_model(std::ostream& model) const {
     // If ov::CacheMode::OPTIMIZE_SIZE is set, do the export iff it's possible to do weightless caching
-    // which requires the weights_path.
+    // which requires the weights_path or ov::Model ptr.
     ov::CacheMode cache_mode = m_config.get_cache_mode();
     std::string weights_path = m_config.get_weights_path();
-    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE &&
-        !ov::util::validate_weights_path(weights_path))
+    auto model_ptr = m_config.get_model();
+    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE && !ov::util::validate_weights_path(weights_path) &&
+        model_ptr == nullptr) {
         return;
+    }
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");

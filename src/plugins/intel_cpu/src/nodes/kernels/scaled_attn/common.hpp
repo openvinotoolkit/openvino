@@ -473,4 +473,26 @@ inline float16_t hsum(float16x8_t vec) {
     return vget_lane_f16(sum3, 0);
 }
 #endif
+
+template <typename TA, typename TB>
+void cvt_copy(TA* a, TB* b, size_t m, size_t n, size_t src_stride, size_t dst_stride) {
+    for (size_t j = 0; j < m; j++) {
+        size_t i = 0;
+#if defined(HAVE_AVX512F)
+        for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+            auto vb = mm512_uni_loadu_ps(b + i + j * src_stride);
+            mm512_uni_storeu_ps(a + i + j * dst_stride, vb);
+        }
+#elif defined(HAVE_AVX2)
+        for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+            auto vb = mm256_uni_loadu_ps(b + i + j * src_stride);
+            mm256_uni_storeu_ps(a + i + j * dst_stride, vb);
+        }
+#endif
+        for (; i < n; i++) {
+            a[i + j * dst_stride] = b[i + j * src_stride];
+        }
+    }
+}
+
 }  // namespace ov::Extensions::Cpu::XARCH

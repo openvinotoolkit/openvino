@@ -71,7 +71,7 @@ static constexpr char outputs_model_layout_message[] =
 
 static constexpr char ioml_message[] =
         "Optional. Specifies model layout for input and output tensors by name.\n"
-        "                                             Example: -ionl \"input:NCHW, output:NHWC\".\n"
+        "                                             Example: -ioml \"input:NCHW, output:NHWC\".\n"
         "                                             Notice that quotes are required.\n"
         "                                             Overwrites layout from il and ol options for specified layers.";
 

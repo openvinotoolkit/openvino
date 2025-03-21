@@ -42,7 +42,7 @@ The result of Philox is calculated by applying a fixed number of *key* and *coun
 This implementation uses 4x32_10 version of Philox algorithm, where number of rounds = 10.
 
 Suppose we have *n* which determines *n*-th 4 elements of random sequence.
-In each round *key*, *counter* and *n* are splitted to pairs of uint32 values:
+In each round *key*, *counter* and *n* are split to pairs of uint32 values:
 
 .. math::
 
@@ -220,7 +220,8 @@ Example 3. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, 
 
 Mersenne-Twister Algorithm Explanation:
 
-Link to the original paper Mersenne Twister: Mersenne twister: a 623-dimensionally equidistributed uniform pseudo-random number generator <https://dl.acm.org/doi/10.1145/272991.272995>__.
+| Link to the original paper Mersenne Twister:
+| `Mersenne twister: a 623-dimensionally equidistributed uniform pseudo-random number generator <https://dl.acm.org/doi/10.1145/272991.272995>`__.
 
 The Mersenne-Twister algorithm generates random numbers by initializing a state array with a seed and then iterating through a series of transformations.
 Suppose we have n which determines the n-th element of the random sequence.
@@ -250,11 +251,11 @@ Whenever all state values are 'used', a new state array is generated recursively
 
 .. math::
 
-   current_state = state[i]
-   next_state    = state[i+1] if i+1 <= 623 else state[0]
-   next_m_state  = state[i+m] if i+m <= 623 else state[i+m-623]
+   current\_state = state[i]
+   next\_state    = state[i+1] if i+1 <= 623 else state[0]
+   next\_m_state  = state[i+m] if i+m <= 623 else state[i+m-623]
 
-   twisted_state = (((current_state & 0x80000000) | (next_state & 0x7fffffff)) >> 1) ^ (next_state & 1 ? 0x9908b0df : 0)
+   twisted\_state = (((current_state & 0x80000000) | (next_state & 0x7fffffff)) >> 1) ^ (next_state & 1 ? 0x9908b0df : 0)
    state[i] = next_m_state ^ twisted_state
 
 where m is a constant.

@@ -20,14 +20,19 @@ Use OpenVINO™ Test Drive to:
 
 * **Chat with LLMs** and evaluate model performance on your computer or edge device;
 * **Experiment with different text prompts** to generate images, using Stable
-  Diffusion and Stable DiffusionXL models (coming soon);
+  Diffusion and Stable DiffusionXL models;
 * **Transcribe speech from video**, using Whisper models, including generation
-  of timestamps (coming soon);
+  of timestamps;
 * **Run inference of models** trained by Intel® Geti™ and **visualize the results**.
 
 
 Installation (Windows)
 ###############################################################################################
+
+.. important::
+
+   For Intel® NPU, use the latest available version of
+   `Intel® NPU Driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
 
 1. Download the latest archive from the
    `release repository <https://storage.openvinotoolkit.org/repositories/openvino_testdrive/packages>`__.
@@ -45,7 +50,7 @@ Quick start
 When starting the application, you can import an LLM model from Hugging Face Hub
 or upload an Intel® Geti™ model from a local drive.
 
-Inference of models from Hugging Face
+Text generation and LLM performance evaluation
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 1. Find a model on `Hugging Face <https://huggingface.co/>`__ and import it.
@@ -54,7 +59,8 @@ Inference of models from Hugging Face
       :align: center
       :alt: how to import a model to test drive
 
-2. Chat with LLMs via the `Playground` tab.
+2. Chat with LLMs via the `Playground` tab. You can export an LLM by clicking
+   the `Export model` button.
 
    .. image:: ../../../assets/images/TestDrive_llm_model_chat.gif
       :align: center
@@ -66,6 +72,86 @@ Inference of models from Hugging Face
    .. image:: ../../../assets/images/TestDrive_llm_metrics.gif
       :align: center
       :alt: verifying llm performance in test drive
+
+
+Retrieval-Augmented Generation with LLMs
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+1. Upload files and create knowledge base for RAG (Retrieval-Augmented Generation),
+   using `Knowledge base` tab.
+
+   .. image:: ../../../assets/images/TestDrive_rag_base.gif
+      :align: center
+      :alt: creating a knowledge base for RAG in test drive
+
+   The knowledge base can be used for text generation with LLM models.
+
+   .. image:: ../../../assets/images/TestDrive_rag_1.gif
+      :align: center
+      :alt: using a knowledge base for text generation with LLMs
+
+2. You can also upload a document directly, using the `Playground`` tab.
+
+   .. image:: ../../../assets/images/TestDrive_rag_2.gif
+      :align: center
+      :alt: uploading a document to the knowledge base
+
+
+Image analysis with Visual Language Models (VLMs)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+1. Import a VLM for image analysis.
+
+   .. image:: ../../../assets/images/TestDrive_vlm_1.gif
+      :align: center
+      :alt: importing a visual language model for image analysis
+
+2. Select the VLM from the `My models` section, upload an image and analyze it.
+
+   .. image:: ../../../assets/images/TestDrive_vlm_2.gif
+      :align: center
+      :alt: importing a visual language model for image analysis
+
+
+Video transcription with Whisper models
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+1. Import a Whisper model for video transcription.
+
+   .. image:: ../../../assets/images/TestDrive_st_import.gif
+      :align: center
+      :alt: importing a Whisper model for video transcription
+
+2. Select the speech-to-text LLM from the `My models` section, and upload a video for transcription.
+
+   .. image:: ../../../assets/images/TestDrive_ts_video.gif
+      :align: center
+      :alt: importing a visual language model for image analysis
+
+   You can search for words in the transcript or download it.
+
+3. Use the `Performance metrics` tab to get performance metrics of the LLM on your computer
+   or an edge device.
+
+
+Image generation with LLMs
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+1. Import an image generation LLM from a predefined set of popular models or from
+   `Hugging Face <https://huggingface.co/>`__, using `Import model` -> `Hugging Face`.
+
+2. Select the LLM from the `My models` section and start the chat to generate an image.
+   You can export the model by clicking the `Export model` button.
+
+   .. image:: ../../../assets/images/TestDrive_image_generation.gif
+      :align: center
+      :alt: image generation with a chosen LLM
+
+   You can download the generated image.
+
+3. Use the `Performance metrics` tab to get performance metrics of the LLM on your computer
+   or an edge device.
+
 
 Inference of models trained with Intel® Geti™
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

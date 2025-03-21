@@ -27,20 +27,40 @@
 #endif
 
 namespace {
-typedef std::tuple<bool, bool, ov::element::Type, ov::element::Type> testParams;
+
+enum class Import_API {
+    IMPORT_EXPORT,
+    COMPILE_FILEPATH,
+    COMPILE_MODEL
+};
+
+std::string import_api_to_string(Import_API api) {
+    switch (api) {
+    case Import_API::IMPORT_EXPORT:
+        return "import_export";
+    case Import_API::COMPILE_FILEPATH:
+        return "compile_filepath";
+    case Import_API::COMPILE_MODEL:
+        return "compile_model";
+    default:
+        return "";
+    }
+}
+
+typedef std::tuple<Import_API, bool, ov::element::Type, ov::element::Type> testParams;
 
 class CheckWeightlessCacheAccuracy : public ::testing::Test, public ::testing::WithParamInterface<testParams> {
 public:
     static std::string get_test_case_name(::testing::TestParamInfo<testParams> obj) {
-        bool use_compile_model_api_;
+        Import_API import_api_;
         bool do_encryption_;
         ov::element::Type inference_mode_;
         ov::element::Type model_dtype_;
-        std::tie(use_compile_model_api_, do_encryption_, inference_mode_, model_dtype_) = obj.param;
+        std::tie(import_api_, do_encryption_, inference_mode_, model_dtype_) = obj.param;
 
         std::ostringstream result;
         const char separator = '_';
-        result << "use_compile_model_api=" << use_compile_model_api_ << separator;
+        result << "import_api=" << import_api_to_string(import_api_) << separator;
         result << "do_encryption=" << do_encryption_ << separator;
         result << "inference_mode=" << inference_mode_ << separator;
         result << "model_dtype=" << model_dtype_;
@@ -53,7 +73,7 @@ protected:
     std::string bin_path;
     std::string cache_path;
     std::string cache_dir;
-    bool use_compile_model_api;  // for loading from cache
+    Import_API import_api;
     bool do_encryption;
     ov::element::Type inference_mode;
     ov::element::Type model_dtype;
@@ -70,7 +90,7 @@ void CheckWeightlessCacheAccuracy::SetUp() {
     cache_path = filePrefix + ".blob";
     cache_dir = filePrefix + "_cache_dir";
 
-    std::tie(use_compile_model_api, do_encryption, inference_mode, model_dtype) = GetParam();
+    std::tie(import_api, do_encryption, inference_mode, model_dtype) = GetParam();
 }
 
 void CheckWeightlessCacheAccuracy::TearDown() {
@@ -102,17 +122,23 @@ void CheckWeightlessCacheAccuracy::run() {
     ov::pass::Serialize(xml_path, bin_path).run_on_model(model);
 
     ov::CompiledModel compiled_model;
-    compiled_model = core->compile_model(xml_path, ov::test::utils::DEVICE_GPU, config);
-
-    if (!use_compile_model_api) {
+    if (import_api == Import_API::IMPORT_EXPORT) {
+        compiled_model = core->compile_model(xml_path, ov::test::utils::DEVICE_GPU, config);
         auto ofstr = std::ofstream(cache_path, std::ofstream::binary);
         compiled_model.export_model(ofstr);
         ofstr.close();
+    } else if (import_api == Import_API::COMPILE_FILEPATH) {
+        compiled_model = core->compile_model(xml_path, ov::test::utils::DEVICE_GPU, config);
+    } else if (import_api == Import_API::COMPILE_MODEL) {
+        auto model = core->read_model(xml_path);
+        compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, config);
+    } else {
+        OPENVINO_THROW("Unknown import API");
     }
 
     auto get_cache_path = [&]() {
         std::string path;
-        if (use_compile_model_api) {
+        if (import_api == Import_API::COMPILE_FILEPATH || import_api == Import_API::COMPILE_MODEL) {
             auto blobs = ov::test::utils::listFilesWithExt(cache_dir, "blob");
             EXPECT_EQ(blobs.size(), 1);
             path = blobs[0];
@@ -135,8 +161,11 @@ void CheckWeightlessCacheAccuracy::run() {
     ASSERT_NE(first_mod_time, static_cast<time_t>(0));
 
     ov::CompiledModel imported_model;
-    if (use_compile_model_api) {
+    if (import_api == Import_API::COMPILE_FILEPATH) {
         imported_model = core->compile_model(xml_path, ov::test::utils::DEVICE_GPU, config);
+    } else if (import_api == Import_API::COMPILE_MODEL) {
+        auto model = core->read_model(xml_path);
+        imported_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, config);
     } else {
         auto ifstr = std::ifstream(cache_path, std::ifstream::binary);
         imported_model = core->import_model(ifstr, ov::test::utils::DEVICE_GPU, config_with_weights_path);
@@ -218,6 +247,12 @@ TEST_P(CheckWeightlessCacheAccuracyLowPrecision, MatmulWeightsDecompression) {
     OV_ASSERT_NO_THROW(run());
 }
 
+const std::vector<Import_API> import_api_types = {
+    Import_API::IMPORT_EXPORT,
+    Import_API::COMPILE_FILEPATH,
+    Import_API::COMPILE_MODEL,
+};
+
 const std::vector<ov::element::Type> inference_modes = {
     ov::element::f32,
     ov::element::f16,
@@ -237,7 +272,7 @@ const std::vector<ov::element::Type> low_precision_dtypes = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracy,
                          CheckWeightlessCacheAccuracy,
-                         ::testing::Combine(::testing::Bool(),
+                         ::testing::Combine(::testing::ValuesIn(import_api_types),
                                             ::testing::Bool(),
                                             ::testing::ValuesIn(inference_modes),
                                             ::testing::ValuesIn(model_dtypes)),
@@ -245,7 +280,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracy,
 
 INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracyLowPrecision,
                          CheckWeightlessCacheAccuracyLowPrecision,
-                         ::testing::Combine(::testing::Bool(),
+                         ::testing::Combine(::testing::ValuesIn(import_api_types),
                                             ::testing::Bool(),
                                             ::testing::ValuesIn(inference_modes),
                                             ::testing::ValuesIn(low_precision_dtypes)),

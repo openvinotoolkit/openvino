@@ -64,7 +64,13 @@ protected:
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        selectedType = makeSelectedTypeStr("unknown", inType);
+
+        if (!with_cpu_x86_avx512_core() && inType == ElementType::bf16) {
+            selectedType = makeSelectedTypeStr("unknown", ElementType::f32);
+        } else {
+            selectedType = makeSelectedTypeStr("unknown", inType);
+        }
+
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 

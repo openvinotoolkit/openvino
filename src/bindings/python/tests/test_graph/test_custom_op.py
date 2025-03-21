@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import pytest
 import numpy as np
 from contextlib import nullcontext as does_not_raise
@@ -106,6 +107,10 @@ class CustomOpWithAttribute(Op):
         visitor.on_attributes(self._attrs)
         return True
 
+    def evaluate(self, outputs, inputs):
+        inputs[0].copy_to(outputs[0])
+        return True
+
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 @pytest.fixture
@@ -133,6 +138,7 @@ def prepared_paths(request, tmp_path):
     ({"wrong_np": np.array([1.5, 2.5], dtype="complex128")}, pytest.raises(TypeError), "Unsupported NumPy array dtype: complex128"),
     ({"wrong": {}}, pytest.raises(TypeError), "Unsupported attribute type: <class 'dict'>")
 ])
+@pytest.mark.skipif(sys.platform == "win32", reason="CVS-164354 BUG: hanged on windows wheels")
 def test_visit_attributes_custom_op(prepared_paths, attributes, expectation, raise_msg):
     input_shape = [2, 1]
 
@@ -155,6 +161,14 @@ def test_visit_attributes_custom_op(prepared_paths, attributes, expectation, rai
 
     if e is not None:
         assert raise_msg in str(e.value)
+
+    input_data = np.ones([2, 1], dtype=np.float32)
+    expected_output = np.maximum(0.0, input_data)
+
+    compiled_model = compile_model(model_with_op_attr)
+    input_tensor = Tensor(input_data)
+    results = compiled_model({"data1": input_tensor})
+    assert np.allclose(results[list(results)[0]], expected_output, 1e-4, 1e-4)
 
 
 def test_custom_add_op():

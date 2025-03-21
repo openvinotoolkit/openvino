@@ -4,6 +4,7 @@
 
 #include "qkv_proj.h"
 
+#include <cstddef>
 #include <string>
 #include <utility>
 #include <vector>
@@ -32,8 +33,9 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
     auto n_groups = grouped_works.size();
     // allocate 1 worker for each group
     std::vector<int> g_workers(n_groups, 1);
-    auto left_workers = n_workers - n_groups;
-    while (left_workers > 0) {
+    size_t left_workers = n_workers - n_groups;
+
+    for (size_t i = 0; i < left_workers; i++) {
         // which group is working hardest?
         float hardest_works = 0;
         size_t hardest_group = 0;
@@ -45,7 +47,6 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
             }
         }
         g_workers[hardest_group]++;
-        left_workers--;
     }
 
     return g_workers;
@@ -429,6 +430,7 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                     errorMessage = "QKVProjection needs at least 3 cores to work";
                     return false;
                 }
+                // NOLINTNEXTLINE(bugprone-integer-division)
                 float unbalance_ratio = static_cast<float>(concurrency % 3) / static_cast<float>(concurrency / 3);
                 if (unbalance_ratio > 0.2f) {
                     errorMessage = "QKVProjection needs number of cores to be nearly multiple of 3";
