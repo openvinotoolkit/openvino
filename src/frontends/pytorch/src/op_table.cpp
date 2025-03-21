@@ -65,6 +65,7 @@ OP_CONVERTER(translate_channel_shuffle);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_col2im);
 OP_CONVERTER(translate_constant);
+OP_CONVERTER(translate_contains);
 OP_CONVERTER(translate_conv_transposend);
 OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
@@ -452,6 +453,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::concatenate", op::translate_cat},
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
+        {"aten::__contains__", op::translate_contains},
         {"aten::conv_transpose1d", op::translate_conv_transposend},
         {"aten::conv_transpose2d", op::translate_conv_transposend},
         {"aten::conv_transpose3d", op::translate_conv_transposend},
