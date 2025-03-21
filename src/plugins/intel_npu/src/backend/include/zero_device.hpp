@@ -20,6 +20,15 @@ class ZeroDevice : public IDevice {
 public:
     ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs);
 
+    /**
+     * @brief TODO
+     */
+    std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>> runInit(
+        const std::shared_ptr<IGraph>& initGraph,
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const Config& config) override;
+
     std::string getName() const override;
     std::string getFullDeviceName() const override;
     Uuid getUuid() const override;
@@ -45,7 +54,7 @@ public:
         const Config& config,
         ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
         ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
-        void* mem = nullptr) override;
+        const void* mem = nullptr) override;
 
     ov::SoPtr<ov::ITensor> createHostTensor(
         std::shared_ptr<ov::IRemoteContext> context,

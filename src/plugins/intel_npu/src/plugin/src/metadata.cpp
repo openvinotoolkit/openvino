@@ -61,6 +61,40 @@ void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
 
+Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
+                                         std::optional<OpenvinoVersion> ovVersion,
+                                         const std::vector<uint64_t> initSizes)
+    : MetadataBase{METADATA_VERSION_2_1},
+      _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)},
+      _blobDataSize{blobSize},
+      _initSizes{initSizes} {}
+
+void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
+    _ovVersion.read(stream);
+
+    uint64_t numberOfInits;
+    stream.read(reinterpret_cast<char*>(&numberOfInits), sizeof(numberOfInits));
+
+    _initSizes.reserve(numberOfInits);
+    for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
+        stream.read(reinterpret_cast<char*>(&_initSizes.at(initIndex)), sizeof(_initSizes.at(initIndex)));
+    }
+}
+
+void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
+    stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
+    _ovVersion.write(stream);
+    stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
+
+    uint64_t numberOfInits = _initSizes.size();
+    stream.write(reinterpret_cast<const char*>(&numberOfInits), sizeof(numberOfInits));
+    for (uint64_t initSize : _initSizes) {
+        stream.write(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
+    }
+
+    stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
+}
+
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
     if (MetadataBase::get_major(version) == CURRENT_METADATA_MAJOR_VERSION &&
         MetadataBase::get_minor(version) > CURRENT_METADATA_MINOR_VERSION) {
@@ -70,6 +104,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     switch (version) {
     case METADATA_VERSION_2_0:
         return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt);
+    case METADATA_VERSION_2_1:
+        return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize, std::nullopt);
 
     default:
         OPENVINO_THROW("Metadata version is not supported!");
@@ -77,6 +113,22 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
 }
 
 bool Metadata<METADATA_VERSION_2_0>::is_compatible() {
+    auto logger = Logger::global().clone("NPUBlobMetadata");
+    // checking if we can import the blob
+    if (_ovVersion != CURRENT_OPENVINO_VERSION) {
+        logger.error("Imported blob OpenVINO version: %d.%d.%d, but the current OpenVINO version is: %d.%d.%d",
+                     _ovVersion.get_major(),
+                     _ovVersion.get_minor(),
+                     _ovVersion.get_patch(),
+                     OPENVINO_VERSION_MAJOR,
+                     OPENVINO_VERSION_MINOR,
+                     OPENVINO_VERSION_PATCH);
+        return false;
+    }
+    return true;
+}
+
+bool Metadata<METADATA_VERSION_2_1>::is_compatible() {
     auto logger = Logger::global().clone("NPUBlobMetadata");
     // checking if we can import the blob
     if (_ovVersion != CURRENT_OPENVINO_VERSION) {
@@ -163,6 +215,16 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
 uint64_t Metadata<METADATA_VERSION_2_0>::get_blob_size() const {
     return _blobDataSize;
+}
+uint64_t Metadata<METADATA_VERSION_2_1>::get_blob_size() const {
+    return _blobDataSize;
+}
+
+std::vector<uint64_t> Metadata<METADATA_VERSION_2_0>::get_init_sizes() const {
+    return std::vector<uint64_t>();
+}
+std::vector<uint64_t> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
+    return _initSizes;
 }
 
 }  // namespace intel_npu
