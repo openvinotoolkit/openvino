@@ -59,9 +59,9 @@ struct KernelData {
 class KernelGeneratorBase {
 public:
     KernelGeneratorBase() = default;
-    KernelGeneratorBase(const KernelGeneratorBase&) = default;
+    KernelGeneratorBase(const KernelGeneratorBase&) = delete;
     KernelGeneratorBase(KernelGeneratorBase&&) = delete;
-    KernelGeneratorBase& operator=(const KernelGeneratorBase&) = default;
+    KernelGeneratorBase& operator=(const KernelGeneratorBase&) = delete;
     KernelGeneratorBase& operator=(KernelGeneratorBase&&) = delete;
     virtual ~KernelGeneratorBase() = default;
 

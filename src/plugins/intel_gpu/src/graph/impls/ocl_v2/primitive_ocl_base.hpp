@@ -269,6 +269,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     void reset_kernels_source() override {
         for (auto& stage : _stages) {
             stage->kd.code.reset();
+            stage->codegen.reset();
         }
     }
 
