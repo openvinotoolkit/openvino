@@ -79,7 +79,7 @@ static std::shared_ptr<Model> create_n_inputs(int N, element::Type type, const P
     return std::make_shared<Model>(res, params);
 }
 
-std::shared_ptr<Model> create_no_inputs(element::Type type) {
+static std::shared_ptr<Model> create_no_inputs(element::Type type) {
     ResultVector res;
     ParameterVector params;
     auto index_str = std::to_string(0);
