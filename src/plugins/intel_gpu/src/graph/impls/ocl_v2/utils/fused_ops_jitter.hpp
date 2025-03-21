@@ -11,6 +11,7 @@
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/primitives/activation.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_gpu::ocl {
@@ -313,5 +314,8 @@ private:
 };
 
 JitConstants make_fused_ops_jit_constants(const RuntimeParams& params, const std::vector<FusedOpsConfiguration>& conf);
-
+JitConstants make_activation_jit_constants(const std::string& suffix,
+                                           cldnn::activation_func activation_function,
+                                           ov::element::Type_t calc_dt,
+                                           ov::element::Type_t out_dt);
 }  // namespace ov::intel_gpu::ocl

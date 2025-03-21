@@ -92,12 +92,13 @@ KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     kd.params.arguments = get_arguments_desc(params);
     kd.update_dispatch_data_func = get_dispatch_data_func();
     kd.need_args_update = true;
+    kd.need_dispatch_data_update = true;
 
     return kd;
 }
 
 std::string KernelGenerator::get_entry_point(const RuntimeParams& params) const {
-    return m_kernel_name + m_stage_suffix + "_" + std::to_string(params.hash()) + (params.is_dynamic() ? "__sa" : "");
+    return m_kernel_name + "_" + m_stage_suffix + "_" + std::to_string(params.hash()) + (params.is_dynamic() ? "__sa" : "");
 }
 
 std::string KernelGenerator::get_build_options(const RuntimeParams& params) const {

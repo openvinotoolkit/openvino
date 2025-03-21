@@ -10,13 +10,11 @@
 #include "common_utils/dispatch_utils.hpp"
 #include "common_utils/jit_term.hpp"
 #include "common_utils/jitter.hpp"
-#include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_gpu::ocl {
 
-using cldnn::activation_func;
 using cldnn::format;
 using cldnn::layout;
 
@@ -186,10 +184,6 @@ inline JitTerm declare_var(const JitTerm& type, const JitTerm& name, const JitTe
 JitConstants make_layout_jit_constants(const std::string& name, const cldnn::layout& value, size_t shape_info_offset);
 JitConstants make_type_jit_constants(const std::string& name, const ov::element::Type& value);
 JitConstants make_indexing_jit_functions(const std::string& name, const layout& l);
-JitConstants make_activation_jit_constants(const std::string& suffix,
-                                           activation_func activation_function,
-                                           ov::element::Type_t calc_dt,
-                                           ov::element::Type_t out_dt);
 JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, ov::element::Type type, size_t pack_size);
 }  // namespace ov::intel_gpu::ocl
 

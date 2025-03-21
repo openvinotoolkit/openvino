@@ -4,6 +4,7 @@
 #include "group_normalization_fsv16.hpp"
 
 #include "common_utils/jitter.hpp"
+#include "common_utils/kernel_generator_base.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/runtime/utils.hpp"
@@ -37,9 +38,9 @@ ov::element::Type get_accumulator_type(const RuntimeParams& params) {
     }
 }
 
-JitConstants make_work_group_jit_constants(const WorkGroupSizes& wgs, bool is_dynamic) {
+JitConstants make_work_group_jit_constants(const DispatchDataFunc& func, const RuntimeParams& params) {
     JitConstants jit;
-    if (is_dynamic) {
+    if (params.is_dynamic()) {
         jit.add({
             make_jit_constant("GWS0", "get_global_size(0)"),
             make_jit_constant("LWS0", "get_local_size(0)"),
@@ -47,20 +48,22 @@ JitConstants make_work_group_jit_constants(const WorkGroupSizes& wgs, bool is_dy
             make_jit_constant("LWS2", "get_local_size(2)"),
         });
     } else {
+        KernelData kd;
+        func(params, kd);
         jit.add({
-            make_jit_constant("GWS0", wgs.global[0]),
-            make_jit_constant("LWS0", wgs.local[0]),
-            make_jit_constant("LWS1", wgs.local[1]),
-            make_jit_constant("LWS2", wgs.local[2]),
+            make_jit_constant("GWS0", kd.params.workGroups.global[0]),
+            make_jit_constant("LWS0", kd.params.workGroups.local[0]),
+            make_jit_constant("LWS1", kd.params.workGroups.local[1]),
+            make_jit_constant("LWS2", kd.params.workGroups.local[2]),
         });
     }
 
     return jit;
 }
 
-class GroupNormalizationGeneratorBfyxOptBase : public KernelGenerator {
+class GroupNormalizationGeneratorBase : public KernelGenerator {
 public:
-    explicit GroupNormalizationGeneratorBfyxOptBase(std::string_view name) : KernelGenerator(name) {}
+    explicit GroupNormalizationGeneratorBase(std::string_view name, std::string_view suffix) : KernelGenerator(name, suffix) {}
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<group_normalization>();
@@ -91,22 +94,24 @@ public:
     }
 };
 
-class GroupNormalizationGeneratorCalcSQRMean : public GroupNormalizationGeneratorBfyxOptBase {
+class GroupNormalizationGeneratorCalcSQRMean : public GroupNormalizationGeneratorBase {
 public:
-    GroupNormalizationGeneratorCalcSQRMean() : GroupNormalizationGeneratorBfyxOptBase("group_normalization_fsv16") {}
+    GroupNormalizationGeneratorCalcSQRMean() : GroupNormalizationGeneratorBase("group_normalization_fsv16", "calc_sqr_mean") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = GroupNormalizationGeneratorBfyxOptBase::get_jit_constants(params);
+        auto jit = GroupNormalizationGeneratorBase::get_jit_constants(params);
         jit.make("GROUP_NORM_KERNEL_FEATURE_MEAN_SQR_MEAN", 1);
-        KernelData kd;
-        get_dispatch_data_func()(params, kd);
-        jit.add(make_work_group_jit_constants(kd.params.workGroups, params.is_dynamic()));
+        jit.add(make_work_group_jit_constants(get_dispatch_data_func(), params));
         return jit;
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
+
+        if (params.is_dynamic()) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -149,17 +154,15 @@ protected:
     }
 };
 
-class GroupNormalizationGeneratorCalcMeanVariance : public GroupNormalizationGeneratorBfyxOptBase {
+class GroupNormalizationGeneratorCalcMeanVariance : public GroupNormalizationGeneratorBase {
 public:
-    GroupNormalizationGeneratorCalcMeanVariance() : GroupNormalizationGeneratorBfyxOptBase("group_normalization_bfyx_opt") {}
+    GroupNormalizationGeneratorCalcMeanVariance() : GroupNormalizationGeneratorBase("group_normalization_fsv16", "calc_mean_variance") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = GroupNormalizationGeneratorBfyxOptBase::get_jit_constants(params);
+        auto jit = GroupNormalizationGeneratorBase::get_jit_constants(params);
         jit.make("GROUP_NORM_KERNEL_GROUP_MEAN_VARIANCE", 1);
-        KernelData kd;
-        get_dispatch_data_func()(params, kd);
-        jit.add(make_work_group_jit_constants(kd.params.workGroups, params.is_dynamic()));
+        jit.add(make_work_group_jit_constants(get_dispatch_data_func(), params));
         return jit;
     }
 
@@ -201,17 +204,15 @@ protected:
     }
 };
 
-class GroupNormalizationGeneratorFinalKernel : public GroupNormalizationGeneratorBfyxOptBase {
+class GroupNormalizationGeneratorFinalKernel : public GroupNormalizationGeneratorBase {
 public:
-    GroupNormalizationGeneratorFinalKernel() : GroupNormalizationGeneratorBfyxOptBase("group_normalization_bfyx_opt") {}
+    GroupNormalizationGeneratorFinalKernel() : GroupNormalizationGeneratorBase("group_normalization_fsv16", "final") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = GroupNormalizationGeneratorBfyxOptBase::get_jit_constants(params);
+        auto jit = GroupNormalizationGeneratorBase::get_jit_constants(params);
         jit.make("GROUP_NORM_KERNEL_FINAL", 1);
-        KernelData kd;
-        get_dispatch_data_func()(params, kd);
-        jit.add(make_work_group_jit_constants(kd.params.workGroups, params.is_dynamic()));
+        jit.add(make_work_group_jit_constants(get_dispatch_data_func(), params));
 
         if (params.has_fused_primitives()) {
             const auto& out_l = params.get_output_layout(0);
@@ -224,6 +225,10 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
+
+        if (params.is_dynamic()) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
         args.push_back({ArgumentDescriptor::Types::INPUT, 1});
