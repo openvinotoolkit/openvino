@@ -116,6 +116,7 @@
         }
     #endif
 #endif
+
 KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                    const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
@@ -159,19 +160,18 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
 #else // Second kernel
-    // (TODO) Use atomic_cmpxchg or atomic_operator to implement multithread
-    #if OUTPUT_DIMS == 4
-        const uint tgx = INPUT2_SIZE_X;
-        const uint tgy = INPUT2_SIZE_Y;
-    #elif OUTPUT_DIMS == 5
-        const uint tgx = INPUT2_SIZE_X * INPUT2_SIZE_Y;
-        const uint tgy = INPUT2_SIZE_Z;
-    #elif OUTPUT_DIMS == 6
-        const uint tgx = INPUT2_SIZE_X * INPUT2_SIZE_Y;
-        const uint tgy = INPUT2_SIZE_Z * INPUT2_SIZE_W;
-    #endif
-    const uint tgz = INPUT2_FEATURE_NUM * INPUT2_BATCH_NUM;
     #ifdef REDUCE_MODE
+        #if OUTPUT_DIMS == 4
+            const uint tgx = INPUT2_SIZE_X;
+            const uint tgy = INPUT2_SIZE_Y;
+        #elif OUTPUT_DIMS == 5
+            const uint tgx = INPUT2_SIZE_X * INPUT2_SIZE_Y;
+            const uint tgy = INPUT2_SIZE_Z;
+        #elif OUTPUT_DIMS == 6
+            const uint tgx = INPUT2_SIZE_X * INPUT2_SIZE_Y;
+            const uint tgy = INPUT2_SIZE_Z * INPUT2_SIZE_W;
+        #endif
+        const uint tgz = INPUT2_FEATURE_NUM * INPUT2_BATCH_NUM;
         #if INPUT2_LENGTH == 0 || INPUT2_LENGTH > 4096
             #define COUNT_LENGTH 4096   // Maximum number of elements to reduce in case of shape agnostic kernel or large shapes
         #else
