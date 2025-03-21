@@ -2,6 +2,8 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# mypy: ignore-errors
+
 import logging
 import inspect
 import torch
@@ -39,10 +41,10 @@ class BaseFXDecoder(Decoder):
             return res
         elif isinstance(arg, dict):
             res = []
-            for k, element in arg.items():
+            for key, element in arg.items():
                 unpacked = BaseFXDecoder.unpack_containers(element)
                 if len(unpacked) == 1:
-                    unpacked[0] = (k, unpacked[0][1])
+                    unpacked[0] = (key, unpacked[0][1])
                 res.extend(unpacked)
             return res
         else:

@@ -2,10 +2,23 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# mypy: ignore-errors
+from typing import Callable, Optional, Type, Union
+import torch
+
 
 class ModuleExtension:
-    def __init__(self, module, target_op, evaluate=None, convert=None, condition=None):
+    """An extension that replaces a PyTorch module with a single operation.
+
+    A module can be identified by its type (e.g., `torch.nn.Linear`), module
+    instance in the model, or module name.
+    """
+
+    def __init__(self,
+                 module: Union[str, torch.nn.Module, Type[torch.nn.Module]],
+                 target_op: str,
+                 evaluate: Optional[Callable] = None,
+                 convert: Optional[Callable] = None,
+                 condition: Optional[Callable] = None):
         """Create an extension that replaces a PyTorch module with a single op.
 
         This functionality works with PyTorch models only. A module can be
