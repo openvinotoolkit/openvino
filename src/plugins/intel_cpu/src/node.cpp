@@ -525,8 +525,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
 
             auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
             auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock);
-            auto newMem =
-                std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memBlock);
+            auto newMem = std::make_shared<Memory>(selected_pd->getConfig().inConfs[i].getMemDesc(), memBlock);
             parentEdge->reuse(newMem);
         }
     }
@@ -546,8 +545,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
                                 " Unexpected inplace resolve call to an allocated edge: ",
                                 *childEdge);
-                auto newMem =
-                    std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memBlock);
+                auto newMem = std::make_shared<Memory>(selected_pd->getConfig().outConfs[i].getMemDesc(), memBlock);
                 childEdge->reuse(newMem);
             }
         }
@@ -820,6 +818,13 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
+    if (!primArgs.empty()) {
+        // we have to process the scratchpad ptr
+        auto itr = primArgs.find(DNNL_ARG_SCRATCHPAD);
+        if (itr != primArgs.end()) {
+            itr->second.set_data_handle(scratchpadMem->getData());
+        }
+    }
     if (isDynamicNode()) {
         return executeDynamic(strm, numaId);
     }
@@ -1107,9 +1112,9 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
 
     auto create = [&]() {
         auto newDesc = internalBlob->getDescPtr();
-        Memory memory{engine, newDesc, internalBlob->getData()};
+        Memory memory{newDesc, internalBlob->getData()};
 
-        MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
+        MemoryPtr _ptr = std::make_shared<Memory>(intDesc);
         node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
         return _ptr;
     };
@@ -1168,8 +1173,8 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     }
 
     auto create = [&]() {
-        Memory srcMemory{getEngine(), srcWeightDesc, edgeMem->getData()};
-        MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
+        Memory srcMemory{srcWeightDesc, edgeMem->getData()};
+        MemoryPtr _ptr = std::make_shared<Memory>(dstWeightDesc);
         node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
 
         return _ptr;
@@ -1214,7 +1219,7 @@ void Node::toNumaNodeImpl(int numaNodeID) {
     // create scratch pad from specified numa node
     if (scratchpadMem) {
         scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMem->getDescPtr());
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+        primArgs[DNNL_ARG_SCRATCHPAD] = DnnlExtensionUtils::createMemoryPrimitive(scratchpadMem, getEngine());
     }
 
     // mbind constant prim args to numa nodes
@@ -1499,9 +1504,10 @@ MemoryDescPtr Node::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t 
 
 void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
                             std::unordered_map<int, dnnl::memory>& primArgs,
-                            const std::unordered_map<int, MemoryPtr>& postOpsArgs) {
+                            const std::unordered_map<int, MemoryPtr>& postOpsArgs,
+                            const dnnl::engine& eng) {
     for (auto& entry : postOpsArgs) {
-        primArgs[entry.first] = entry.second->getPrimitive();
+        primArgs[entry.first] = DnnlExtensionUtils::createMemoryPrimitive(entry.second, eng);
     }
 }
 
@@ -1714,11 +1720,7 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         auto constBlob = constInputNode->getMemoryPtr();
         const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
-        cpu_convert(constBlob->getData(),
-                    &buffer[0],
-                    DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
-                    ov::element::f32,
-                    elementsCount);
+        cpu_convert(constBlob->getData(), &buffer[0], constBlob->getPrecision(), ov::element::f32, elementsCount);
     };
 
     const auto constPort = getParentEdgeAt(0)->getParent().get() == parentNode ? 1 : 0;

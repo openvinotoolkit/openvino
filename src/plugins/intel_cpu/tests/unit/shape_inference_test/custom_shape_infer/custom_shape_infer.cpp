@@ -131,7 +131,7 @@ void cpu_test_shape_infer(ov::Node* op,
                 CpuBlockedMemoryDesc desc(
                         elementType,
                         ov::intel_cpu::Shape(tmpInputShapes[port]));
-                MemoryPtr memoryPtr = std::make_shared<Memory>(eng, desc, data, true);
+                MemoryPtr memoryPtr = std::make_shared<Memory>(desc, data, true);
                 cusInputValues[port] = memoryPtr;
             }
         }

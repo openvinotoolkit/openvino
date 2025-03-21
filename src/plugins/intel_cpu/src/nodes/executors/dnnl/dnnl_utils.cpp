@@ -21,7 +21,6 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const MemoryCPtr weightsMem,
                                const ExecutorContext::CPtr context,
                                const bool needShiftSignedToUnsigned) {
-    const auto& eng = context->getEngine();
     const auto& format = dstWeightDesc->serializeFormat();
 
     const auto privateWeightCache = context->getPrivateWeighCache();
@@ -42,8 +41,8 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
             assert(src_wdt.bitwidth() == dst_wdt.bitwidth());
 
             // prevent reorderData from doing conversion
-            Memory srcMemory{eng, srcWeightDesc->cloneWithNewPrecision(dst_wdt), weightsMem->getData()};
-            MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
+            Memory srcMemory{srcWeightDesc->cloneWithNewPrecision(dst_wdt), weightsMem->getData()};
+            MemoryPtr _ptr = std::make_shared<Memory>(dstWeightDesc);
             auto rtCache = context->getRuntimeCache();
             node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
 
@@ -67,8 +66,8 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
             return _ptr;
         }
 
-        Memory srcMemory{eng, srcWeightDesc, weightsMem->getData()};
-        MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
+        Memory srcMemory{srcWeightDesc, weightsMem->getData()};
+        MemoryPtr _ptr = std::make_shared<Memory>(dstWeightDesc);
         auto rtCache = context->getRuntimeCache();
         node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
 

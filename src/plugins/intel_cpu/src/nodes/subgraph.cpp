@@ -350,8 +350,7 @@ ov::element::Type Subgraph::getRuntimePrecision() const {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated &&
             !parentEdge->getParent()->isConstant()) {
-            inputPrecisions.emplace_back(
-                DnnlExtensionUtils::DataTypeToElementType((parentEdge->getMemoryPtr()->getDataType())));
+            inputPrecisions.emplace_back(parentEdge->getMemoryPtr()->getPrecision());
         }
     }
 

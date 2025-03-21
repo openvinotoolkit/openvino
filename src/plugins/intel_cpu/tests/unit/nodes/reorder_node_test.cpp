@@ -121,13 +121,12 @@ public:
 
         parentEdge = std::make_shared<ov::intel_cpu::Edge>(inputNode, reorderNode, 0, 0);
         childEdge = std::make_shared<ov::intel_cpu::Edge>(reorderNode, outputNode, 0, 0);
-        parentEdge->changeStatus(ov::intel_cpu::Edge::Status::NeedAllocation);
-        childEdge->changeStatus(ov::intel_cpu::Edge::Status::NeedAllocation);
+
         Node::addEdge(parentEdge);
         Node::addEdge(childEdge);
 
-        auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine, inputDesc);
-        auto childMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine, outputDesc);
+        auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(inputDesc);
+        auto childMemory = std::make_shared<ov::intel_cpu::Memory>(outputDesc);
 
         parentEdge->reuse(parentMemory);
         childEdge->reuse(childMemory);
