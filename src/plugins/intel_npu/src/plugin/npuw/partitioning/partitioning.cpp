@@ -1829,10 +1829,14 @@ void Partitioner::optimize(const std::string& func_name) {
     };
     auto do_cvtf16 = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_f16) {
+            std::cout << "param to f16" << std::endl;
             auto param_idx = f._model->get_parameter_index(p);
+            NPUW_ASSERT(param_idx != -1);
             auto closure_idx = param_idx - f._param_offset;
+            std::cout << param_idx << " " << closure_idx << std::endl;
             ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
+                std::cout << "funcall._lazy_closure " << funcall._lazy_closure.size() << std::endl;
                 funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].convert(ov::element::f16);
             });
         }
@@ -1849,10 +1853,10 @@ void Partitioner::optimize(const std::string& func_name) {
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
-        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWi8>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWi8f8>(std::ref(ctx));
         // NB: This pass is disabled for reason! It doesn't make things better
         // rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulGQi>(std::ref(ctx));
-        rewr.add_matcher<ov::npuw::patterns::opt::CompressDictMatMulf32>(std::ref(ctx));
+        //rewr.add_matcher<ov::npuw::patterns::opt::CompressDictMatMulf32>(std::ref(ctx)); // FIXME: enable back!
         rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
         // Convert specific convolutions to matmuls
         rewr.add_matcher<ov::npuw::patterns::opt::ConvToMatmul>(std::ref(ctx));
@@ -1865,6 +1869,7 @@ void Partitioner::optimize(const std::string& func_name) {
             rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherDQ>(std::ref(ctx));
             rewr2.run_on_model(f._model);
         }
+        std::cout << "here11" << std::endl;
 
         // Run parallel matmul merge
         mergeParallelMatMuls(f._model, ctx);
@@ -1904,6 +1909,8 @@ void Partitioner::optimize(const std::string& func_name) {
             });
         }
 
+        std::cout << "here12" << std::endl;
+
         // Unpack closures in compile time, where requested
         for (auto&& p : ctx.params_to_unpack) {
             const auto& tensor_to_unpack = p.second;
@@ -1939,14 +1946,20 @@ void Partitioner::optimize(const std::string& func_name) {
             });
         }
 
+        std::cout << "here13" << std::endl;
+
         // Convert parameters to f16 where required
         do_cvtf16(ctx);
+
+        std::cout << "here131" << std::endl;
 
         // Host-side gather, pt 1. Add new parameters first
         if (ctx.params_to_gather) {
             auto& params_to_gather = *ctx.params_to_gather;
             new_params.push_back(params_to_gather.pnew);
+            std::cout << "here132" << std::endl;
             for (auto&& funcall : func_group.refs) {
+                std::cout << "here133" << std::endl;
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
                 const auto& new_shape = params_to_gather.pnew->get_shape();
                 // Note: no allocation needed for this tensor - set to _closure and dummy in _lazy_closure
@@ -1956,11 +1969,15 @@ void Partitioner::optimize(const std::string& func_name) {
                 // closure tensors and parameters (minus base).
                 // Based on our logic (when tensors get transferred from lazy tensors via bank
                 // to the closure), this tensor should be non-empty to avoid this process.
+                std::cout << "here134" << std::endl;
                 funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
                 funcall.get()._lazy_closure.push_back(LazyTensor());
                 funcall.get()._is_lazy_unpack.push_back(false);
+                std::cout << "here135" << std::endl;
             }
         }
+
+        std::cout << "here14" << std::endl;
 
         // Add all new parameters introduced by this change
         f._model->add_parameters(new_params);
@@ -1990,6 +2007,8 @@ void Partitioner::optimize(const std::string& func_name) {
 
         f._model->validate_nodes_and_infer_types();
 
+        std::cout << "here15" << std::endl;
+
         // Host-side gather, pt. 2: Write the gather mappings to funcall
         if (ctx.params_to_gather) {
             auto& params_to_gather = *ctx.params_to_gather;
@@ -2013,6 +2032,8 @@ void Partitioner::optimize(const std::string& func_name) {
         }
     }
 
+    std::cout << "here16" << std::endl;
+
     if (!cfg.get<::intel_npu::NPUW_DQ>()) {
         LOG_VERB("No optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
                                                       << "...");
@@ -2035,6 +2056,8 @@ void Partitioner::optimize(const std::string& func_name) {
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQ2iP>(std::ref(ctx));
     rewr.run_on_model(f._model);
     ov::pass::Validate().run_on_model(f._model);
+
+    std::cout << "here17" << std::endl;
 
     do_permute(ctx);
     do_cvtf16(ctx);
