@@ -42,7 +42,7 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         const auto& info = engine.get_device_info();
 
         // XeTLA LSTM optimized for Xe2 architectures
-        if (!check_cm_jit_support(engine, config) || info.arch != gpu_arch::xe2) {
+        if (!check_cm_jit_support(engine, config) || info.arch != gpu_arch::xe2 || !config.get_use_cm()) {
             return false;
         }
 
