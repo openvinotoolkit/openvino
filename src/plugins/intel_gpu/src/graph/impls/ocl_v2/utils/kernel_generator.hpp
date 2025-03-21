@@ -48,7 +48,9 @@ protected:
     [[nodiscard]] static std::string build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& entry_point);
     static void add_fused_ops_arguments(Arguments& args, const RuntimeParams& params);
 
-    [[nodiscard]] const std::string& get_kernel_name() const { return m_kernel_name; }
+    [[nodiscard]] const std::string& get_kernel_name() const {
+        return m_kernel_name;
+    }
 
 private:
     std::string m_kernel_name;
