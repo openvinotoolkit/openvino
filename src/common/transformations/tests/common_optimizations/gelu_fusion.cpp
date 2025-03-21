@@ -460,6 +460,45 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_pow_value_2) {
     }
 }
 
+TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_pow_value_3) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+
+        auto mul_in2 = std::make_shared<ov::op::v1::Multiply>(input, input);
+        auto mul_in3 = std::make_shared<ov::op::v1::Multiply>(input, mul_in2);
+
+        auto mul_0_constant =
+            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715f});
+        auto mul_0 = std::make_shared<ov::op::v1::Multiply>(mul_in3, mul_0_constant);
+        auto add_0 = std::make_shared<ov::op::v1::Add>(input, mul_0);
+
+        auto mul_1_constant =
+            std::make_shared<ov::op::v0::Constant>(element::f32,
+                                                   Shape{1},
+                                                   std::vector<float>{static_cast<float>(std::sqrt(2.0 / M_PI))});
+        auto mul_1 = std::make_shared<ov::op::v1::Multiply>(add_0, mul_1_constant);
+
+        auto tanh = std::make_shared<ov::op::v0::Tanh>(mul_1);
+
+        auto add_1_constant = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f});
+        auto add_1 = std::make_shared<ov::op::v1::Add>(tanh, add_1_constant);
+
+        auto mul_2_constant = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
+        auto mul_2 = std::make_shared<ov::op::v1::Multiply>(input, mul_2_constant);
+
+        auto mul_3 = std::make_shared<ov::op::v1::Multiply>(add_1, mul_2);
+
+        model = std::make_shared<Model>(NodeVector{mul_3}, ParameterVector{input});
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
+    }
+
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto gelu = std::make_shared<ov::op::v7::Gelu>(data, op::GeluApproximationMode::TANH);
+        model_ref = std::make_shared<Model>(NodeVector{gelu}, ParameterVector{data});
+    }
+}
+
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_pow_value) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
