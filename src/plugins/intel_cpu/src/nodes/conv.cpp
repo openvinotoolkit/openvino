@@ -1170,7 +1170,7 @@ static bool attrContainsPostOp(const dnnl::primitive_attr& attr, const dnnl::imp
     return ops.get()->find(kind) != -1;
 }
 
-// See the src/plugins/intel_cpu/src/docs/convPostOps.md for details
+// See the src/plugins/intel_cpu/docs/convolution_post_ops.md for details
 void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr>& attrs) {
     attrs.resize(1);
     auto outputShape = outputStaticShape();

@@ -10,11 +10,8 @@
 
 namespace ov::op::internal {
 
-template <class TOp,
-          class TShape,
-          class TRShape = result_shape_t<TShape>,
-          typename std::enable_if<std::is_same<TOp, internal::Convolution>::value>::type* = nullptr>
-std::vector<TRShape> shape_infer(const TOp* op,
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Convolution* op,
                                  const std::vector<TShape>& input_shapes,
                                  CoordinateDiff& pads_begin,
                                  CoordinateDiff& pads_end) {

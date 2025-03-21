@@ -42,21 +42,6 @@ bool Convolution::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void Convolution::validate_and_infer_types() {
-    const auto& data_batch_et = get_input_element_type(0);
-    const auto& filters_et = get_input_element_type(1);
-
-    element::Type result_et;
-    if (inputs().size() == 3) {
-        result_et = get_input_element_type(2);
-    } else {
-        element::Type::merge(result_et, data_batch_et, filters_et);
-    }
-
-    NODE_VALIDATION_CHECK(this,
-                          result_et.is_real() || result_et.is_integral_number(),
-                          "Element types must be numeric. Got: ",
-                          result_et);
-
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     auto num_spatial = convolution::calculate_num_spatial(this, input_shapes);
@@ -65,7 +50,7 @@ void Convolution::validate_and_infer_types() {
     }
 
     const auto output_shapes = op::internal::shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
-    set_output_type(0, result_et, output_shapes[0]);
+    set_output_type(0, m_output_type, output_shapes[0]);
     set_num_spatial(num_spatial, input_shapes);
 }
 
