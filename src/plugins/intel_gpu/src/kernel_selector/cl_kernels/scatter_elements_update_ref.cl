@@ -17,54 +17,51 @@
 
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
-    #define IDX_ORDER idx_b,idx_f,idx_y,idx_x
     #if AXIS_VALUE == 0
-        #define SCATTER_ORDER index, idx_f, idx_y, idx_x
+        #define SCATTER_ORDER index, f, y, x
     #elif AXIS_VALUE == 1
-        #define SCATTER_ORDER idx_b, index, idx_y, idx_x
+        #define SCATTER_ORDER b, index, y, x
     #elif AXIS_VALUE == 2
         #define SIZE INPUT0_SIZE_Y
-        #define SCATTER_ORDER idx_b, idx_f, index, idx_x
+        #define SCATTER_ORDER b, f, index, x
     #elif AXIS_VALUE == 3
         #define SIZE INPUT0_SIZE_X
-        #define SCATTER_ORDER idx_b, idx_f, idx_y, index
+        #define SCATTER_ORDER b, f, y, index
     #endif 
 #elif OUTPUT_DIMS == 5
     #define ORDER b,f,z,y,x
-    #define IDX_ORDER idx_b,idx_f,idx_z,idx_y,idx_x
     #if AXIS_VALUE == 0
-        # define SCATTER_ORDER index, idx_f, idx_z, idx_y, idx_x
+        # define SCATTER_ORDER index, f, z, y, x
     #elif   AXIS_VALUE == 1
-        # define SCATTER_ORDER idx_b, index, idx_z, idx_y, idx_x
+        # define SCATTER_ORDER b, index, z, y, x
     #elif   AXIS_VALUE == 2
         # define SIZE INPUT0_SIZE_Z
-        # define SCATTER_ORDER idx_b, idx_f, index, idx_y, idx_x
+        # define SCATTER_ORDER b, f, index, y, x
     #elif   AXIS_VALUE == 3
         #define SIZE INPUT0_SIZE_Y
-        # define SCATTER_ORDER idx_b, idx_f, idx_z, index, idx_x
+        # define SCATTER_ORDER b, f, z, index, x
     #elif   AXIS_VALUE == 4
         #define SIZE INPUT0_SIZE_X
-        # define SCATTER_ORDER idx_b, idx_f, idx_z, idx_y, index
+        # define SCATTER_ORDER b, f, z, y, index
     #endif
 #elif OUTPUT_DIMS == 6
     #define ORDER b,f,w,z,y,x
-    #define IDX_ORDER idx_b,idx_f,idx_w,idx_z,idx_y,idx_x
     #if AXIS_VALUE == 0
-        # define SCATTER_ORDER index, idx_f, idx_w, idx_z, idx_y, idx_x
+        # define SCATTER_ORDER index, f, w, z, y, x
     #elif   AXIS_VALUE == 1
-        # define SCATTER_ORDER idx_b, index, idx_w, idx_z, idx_y, idx_x
+        # define SCATTER_ORDER b, index, w, z, y, x
     #elif   AXIS_VALUE == 2
         # define SIZE INPUT0_SIZE_W
-        # define SCATTER_ORDER idx_b, idx_f, index, idx_z, idx_y, idx_x
+        # define SCATTER_ORDER b, f, index, z, y, x
     #elif   AXIS_VALUE == 3
         #define SIZE INPUT0_SIZE_Z
-        # define SCATTER_ORDER idx_b, idx_f, idx_w, index, idx_y, idx_x
+        # define SCATTER_ORDER b, f, w, index, y, x
     #elif   AXIS_VALUE == 4
         #define SIZE INPUT0_SIZE_Y
-        # define SCATTER_ORDER idx_b, idx_f, idx_w, idx_z, index, idx_x
+        # define SCATTER_ORDER b, f, w, z, index, x
     #elif AXIS_VALUE == 5
         #define SIZE INPUT0_SIZE_X
-        # define SCATTER_ORDER idx_b, idx_f, idx_w, idx_z, idx_y, index
+        # define SCATTER_ORDER b, f, w, z, y, index
     #endif
 #endif
 
@@ -80,7 +77,6 @@
     #define MIN_MODE 3
     #define MAX_MODE 4
     #define MEAN_MODE 5
-
     #if USE_INIT_VAL == 0
         #if REDUCE_MODE == SUM_MODE
             #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ZERO
@@ -115,31 +111,29 @@
     }
 
     #ifdef IS_SECOND_ITER // Socond kernel only
-        #if REDUCE_MODE == MEAN_MODE
-            inline void add_count(__local int count_k[], __local int count_v[], int length, int idx, int count)
-            {
-                for (int i = 0; i < length; ++i) {
-                    if (count_k[i] == -1) {
-                        count_k[i] = idx;
-                        count_v[i] = count;
-                        break;
-                    } else if (count_k[i] == idx) {
-                        count_v[i] += count;
-                        break;
-                    }
+        inline void add_count(__local int count_k[], __local int count_v[], int length, int idx, int count)
+        {
+            for (int i = 0; i < length; ++i) {
+                if (count_k[i] == -1) {
+                    count_k[i] = idx;
+                    count_v[i] = count;
+                    break;
+                } else if (count_k[i] == idx) {
+                    count_v[i] += count;
+                    break;
                 }
             }
+        }
 
-            inline int get_count(__local int count_k[], __local int count_v[], int it, int *idx)
-            {
-                if (count_k[it] != -1) {
-                    *idx = count_k[it];
-                    count_k[it] = -1;
-                    return count_v[it];
-                }
-                return -1;
+        inline int get_count(__local int count_k[], __local int count_v[], int it, int *idx)
+        {
+            if (count_k[it] != -1) {
+                *idx = count_k[it];
+                count_k[it] = -1;
+                return count_v[it];
             }
-        #endif
+            return -1;
+        }
     #endif
 #endif
 
@@ -199,7 +193,6 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #endif
     const uint tgz = INPUT2_FEATURE_NUM * INPUT2_BATCH_NUM;
     #ifdef REDUCE_MODE
-    #if REDUCE_MODE == MEAN_MODE
         #if INPUT2_LENGTH == 0 || INPUT2_LENGTH > 4096
             #define COUNT_LENGTH 4096   // Maximum number of elements to reduce in case of shape agnostic kernel or large shapes
         #else
@@ -212,98 +205,87 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
             count_v[i] = 0;
         }
         const uint input2_length = tgx * tgy * tgz > COUNT_LENGTH ? COUNT_LENGTH : tgx * tgy * tgz;
-    #endif
-    #if USE_INIT_VAL == 0
-    for (uint gz = 0; gz < tgz; gz++) {
-        for (uint gy = 0; gy < tgy; gy++) {
-            for (uint gx = 0; gx < tgx; gx++) {
-                #if OUTPUT_DIMS == 4
-                    const uint idx_x = gx;
-                    const uint idx_y = gy;
-                #elif OUTPUT_DIMS == 5
-                    const uint idx_x = gx % INPUT2_SIZE_X;
-                    const uint idx_y = gx / INPUT2_SIZE_X;
-                    const uint idx_z = gy;
-                #elif OUTPUT_DIMS == 6
-                    const uint idx_x = gx % INPUT2_SIZE_X;
-                    const uint idx_y = gx / INPUT2_SIZE_X;
-                    const uint idx_z = gy % INPUT2_SIZE_Z;
-                    const uint idx_w = gy / INPUT2_SIZE_Z;
-                #endif
-                const uint idx_f = gz % INPUT2_FEATURE_NUM;
-                const uint idx_b = gz / INPUT2_FEATURE_NUM;
-
-    const uint indices_idx = GET_INDICES_INDEX(IDX_ORDER);
-    INPUT1_TYPE index = indices[(int)indices_idx];
-    if (index < 0) { index += SIZE; }
-    const uint output_idx = GET_OUTPUT_INDEX(SCATTER_ORDER);
-    output[output_idx] = REDUCTION_NEUTRAL_VALUE;
+        #if USE_INIT_VAL == 0
+            for (uint gz = 0; gz < tgz; gz++) {
+                for (uint gy = 0; gy < tgy; gy++) {
+                    for (uint gx = 0; gx < tgx; gx++) {
+                        #if OUTPUT_DIMS == 4
+                            const uint x = gx;
+                            const uint y = gy;
+                        #elif OUTPUT_DIMS == 5
+                            const uint x = gx % INPUT2_SIZE_X;
+                            const uint y = gx / INPUT2_SIZE_X;
+                            const uint z = gy;
+                        #elif OUTPUT_DIMS == 6
+                            const uint x = gx % INPUT2_SIZE_X;
+                            const uint y = gx / INPUT2_SIZE_X;
+                            const uint z = gy % INPUT2_SIZE_Z;
+                            const uint w = gy / INPUT2_SIZE_Z;
+                        #endif
+                        const uint f = gz % INPUT2_FEATURE_NUM;
+                        const uint b = gz / INPUT2_FEATURE_NUM;
+                        const uint indices_idx = GET_INDICES_INDEX(ORDER);
+                        INPUT1_TYPE index = indices[(int)indices_idx];
+                        if (index < 0) { index += SIZE; }
+                        const uint output_idx = GET_OUTPUT_INDEX(SCATTER_ORDER);
+                        output[output_idx] = REDUCTION_NEUTRAL_VALUE;
+                    }
+                }
             }
-        }
-    }
-    #endif // USE_INIT_VAL
+        #endif // USE_INIT_VAL
     #endif // REDUCE_MODE
     #ifdef REDUCE_MODE // A loop is needed for a single worker item in reduce mode
-    for (uint gz = 0; gz < tgz; gz++) {
-        for (uint gy = 0; gy < tgy; gy++) {
-            for (uint gx = 0; gx < tgx; gx++) {
-                #if OUTPUT_DIMS == 4
-                    const uint idx_x = gx;
-                    const uint idx_y = gy;
-                #elif OUTPUT_DIMS == 5
-                    const uint idx_x = gx % INPUT2_SIZE_X;
-                    const uint idx_y = gx / INPUT2_SIZE_X;
-                    const uint idx_z = gy;
-                #elif OUTPUT_DIMS == 6
-                    const uint idx_x = gx % INPUT2_SIZE_X;
-                    const uint idx_y = gx / INPUT2_SIZE_X;
-                    const uint idx_z = gy % INPUT2_SIZE_Z;
-                    const uint idx_w = gy / INPUT2_SIZE_Z;
-                #endif
-                const uint idx_f = gz % INPUT2_FEATURE_NUM;
-                const uint idx_b = gz / INPUT2_FEATURE_NUM;
+        for (uint gz = 0; gz < tgz; gz++) {
+            for (uint gy = 0; gy < tgy; gy++) {
+                for (uint gx = 0; gx < tgx; gx++) {
+                    #if OUTPUT_DIMS == 4
+                        const uint x = gx;
+                        const uint y = gy;
+                    #elif OUTPUT_DIMS == 5
+                        const uint x = gx % INPUT2_SIZE_X;
+                        const uint y = gx / INPUT2_SIZE_X;
+                        const uint z = gy;
+                    #elif OUTPUT_DIMS == 6
+                        const uint x = gx % INPUT2_SIZE_X;
+                        const uint y = gx / INPUT2_SIZE_X;
+                        const uint z = gy % INPUT2_SIZE_Z;
+                        const uint w = gy / INPUT2_SIZE_Z;
+                    #endif
+                    const uint f = gz % INPUT2_FEATURE_NUM;
+                    const uint b = gz / INPUT2_FEATURE_NUM;
     #else // Multiple worker items do not need a loop.
         #if OUTPUT_DIMS == 4
-            const uint idx_x = dim0;
-            const uint idx_y = dim1;
-            const uint idx_f = dim2 % INPUT2_FEATURE_NUM;
-            const uint idx_b = dim2 / INPUT2_FEATURE_NUM;
+            const uint x = dim0;
+            const uint y = dim1;
+            const uint f = dim2 % INPUT2_FEATURE_NUM;
+            const uint b = dim2 / INPUT2_FEATURE_NUM;
         #elif OUTPUT_DIMS == 5
-            const uint idx_x = dim0 % INPUT2_SIZE_X;
-            const uint idx_y = dim0 / INPUT2_SIZE_X;
-            const uint idx_z = dim1;
-            const uint idx_f = dim2 % INPUT2_FEATURE_NUM;
-            const uint idx_b = dim2 / INPUT2_FEATURE_NUM;
+            const uint x = dim0 % INPUT2_SIZE_X;
+            const uint y = dim0 / INPUT2_SIZE_X;
+            const uint z = dim1;
+            const uint f = dim2 % INPUT2_FEATURE_NUM;
+            const uint b = dim2 / INPUT2_FEATURE_NUM;
         #elif OUTPUT_DIMS == 6
-            const uint idx_x = dim0 % INPUT2_SIZE_X;
-            const uint idx_y = dim0 / INPUT2_SIZE_X;
-            const uint idx_z = dim1 % INPUT2_SIZE_Z;
-            const uint idx_w = dim1 / INPUT2_SIZE_Z;
-            const uint idx_f = dim2 % INPUT2_FEATURE_NUM;
-            const uint idx_b = dim2 / INPUT2_FEATURE_NUM;
+            const uint x = dim0 % INPUT2_SIZE_X;
+            const uint y = dim0 / INPUT2_SIZE_X;
+            const uint z = dim1 % INPUT2_SIZE_Z;
+            const uint w = dim1 / INPUT2_SIZE_Z;
+            const uint f = dim2 % INPUT2_FEATURE_NUM;
+            const uint b = dim2 / INPUT2_FEATURE_NUM;
         #endif
-    #endif
+    #endif 
 
-    const uint indices_idx = GET_INDICES_INDEX(IDX_ORDER);
+    const uint indices_idx = GET_INDICES_INDEX(ORDER);
     INPUT1_TYPE index = indices[(int)indices_idx];
     const uint output_idx = GET_OUTPUT_INDEX(SCATTER_ORDER);
 
-    const uint updates_idx = GET_UPDATES_INDEX(IDX_ORDER);
+    const uint updates_idx = GET_UPDATES_INDEX(ORDER);
     INPUT2_TYPE val = updates[(int)updates_idx];
 
     #ifdef REDUCE_MODE
         val = FUNC_CALL(reduce)(output[output_idx], val);
-        #if REDUCE_MODE == MEAN_MODE
-            output[output_idx] = val;
-            add_count(count_k, count_v, input2_length, output_idx, 1);
-        #else
-            #if HAS_FUSED_OPS
-                FUSED_OPS_SECOND_KERNEL;
-                output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
-            #else
-                output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
-            #endif
-        #endif
+        output[output_idx] = val;
+        add_count(count_k, count_v, input2_length, output_idx, 1);
     #else
         #if HAS_FUSED_OPS
             FUSED_OPS_SECOND_KERNEL;
@@ -311,31 +293,27 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         #else
             output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
         #endif
+    #endif // REDUCE_MODE
+    #ifdef REDUCE_MODE 
+        }}} // loop end for single worker item in reduce mode
     #endif
-    #ifdef REDUCE_MODE // The closing bracket of the single worker item's loop
-            }
+    #ifdef REDUCE_MODE 
+        for (int i = 0; i < input2_length; ++i) {
+            int output_idx;
+            const int count = get_count(count_k, count_v, i, &output_idx);
+            if (count == -1) continue;
+            #if REDUCE_MODE == MEAN_MODE
+                output[output_idx] = output[output_idx] / (count + USE_INIT_VAL);
+            #endif
+            INPUT2_TYPE val = output[output_idx];
+            #if HAS_FUSED_OPS
+                FUSED_OPS_SECOND_KERNEL;
+                output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
+            #else
+                output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
+            #endif
         }
-    }
-    #if REDUCE_MODE == MEAN_MODE
-    for (int i = 0; i < input2_length; ++i) {
-        int output_idx;
-        const int count = get_count(count_k, count_v, i, &output_idx);
-
-        if (count == -1) continue;
-
-        output[output_idx] = output[output_idx] / (count + USE_INIT_VAL);
-
-        INPUT2_TYPE val = output[output_idx];
-
-        #if HAS_FUSED_OPS
-            FUSED_OPS_SECOND_KERNEL;
-            output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
-        #else
-            output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
-        #endif
-    }
-    #endif
-    #endif
+    #endif // REDUCE_MODE
 #endif
 }
 
@@ -355,3 +333,4 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 #undef SIZE
 #undef IDX_ORDER
 #undef ORDER
+#undef SCATTER_ORDER
