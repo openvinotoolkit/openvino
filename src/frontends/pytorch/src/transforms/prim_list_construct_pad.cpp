@@ -84,7 +84,9 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
                     pad_value = v0::Constant::create(element::f32, Shape{}, {0});
                 }
             }
-        } else if ((pad_op = cast_fw_node(m.get_match_root(), "aten::reflection_pad2d"))) {
+        } else if ((pad_op =
+                        cast_fw_node(m.get_match_root(),
+                                     {"aten::reflection_pad1d", "aten::reflection_pad2d", "aten::reflection_pad3d"}))) {
             mode = "reflect";
             input_node = pad_op->input_value(0);
             padding = pad_op->input_value(1);
