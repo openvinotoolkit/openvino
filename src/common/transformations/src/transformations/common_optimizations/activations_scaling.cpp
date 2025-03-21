@@ -195,12 +195,15 @@ ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
             return false;
         }
 
+        auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(scale_const_m).get_node_shared_ptr());
+
+        if (pattern_map.count(shape_of_m) == 0 && scale_const->cast_vector<float>()[0] < 1.f)
+            return false;
+
         auto activation = pattern_map.at(activation_m);
         auto norm = pattern_map.at(norm_m).get_node_shared_ptr();
 
         norm->input(0).replace_source_output(activation);
-
-        auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(scale_const_m).get_node_shared_ptr());
 
         if (pattern_map.count(rms_m)) {
             auto rms = ov::as_type_ptr<ov::op::internal::RMS>(pattern_map.at(rms_m).get_node_shared_ptr());
