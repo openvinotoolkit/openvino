@@ -21,13 +21,13 @@ def make_constant(*args, **kwargs):
 
 
 def fetch_attr(self_module, target: str):
-    """
-    Fetch an attribute from the ``Module`` hierarchy of ``self.module``.
+    """Fetch an attribute from the `Module` hierarchy of `self.module`.
 
     Args:
+        self_module (torch.nn.Module): The module to fetch the attribute from
         target (str): The fully-qualified name of the attribute to fetch
 
-    Return:
+    Returns:
         Any: The value of the attribute.
     """
     target_atoms = target.split(".")
@@ -134,11 +134,11 @@ def get_value_from_getattr(getattr_node, self_module):
 
 def graph_has_ops(graph, op_types: list) -> bool:
     res = False
-    for n in graph.nodes():
-        if any(kind in n.kind() for kind in op_types):
+    for node in graph.nodes():
+        if any(kind in node.kind() for kind in op_types):
             return True
-        for b in n.blocks():
-            res = graph_has_ops(b, op_types)
+        for block in node.blocks():
+            res = graph_has_ops(block, op_types)
         if res:
             return res
     return res
@@ -222,7 +222,7 @@ def process_dict_inputs(inputs, input_params, model):
     input_signature = list(input_params)
     if ordered_inputs == input_signature[: len(ordered_inputs)]:
         example_inputs = [inputs[input_name] for input_name in ordered_inputs]
-        if all([isinstance(inp, torch.Tensor) for inp in example_inputs]):
+        if all(isinstance(inp, torch.Tensor) for inp in example_inputs):
             return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, model
         return {"example_inputs": example_inputs}, ordered_inputs, model
 
@@ -308,13 +308,18 @@ def convert_quantized_tensor(qtensor: torch.Tensor, shared_memory: bool):
         convert = ops.convert(int8_const, np.float32)
         sub = ops.subtract(convert, zero_point)
         return ops.multiply(sub, scale).outputs()
-    assert False, "Unsupported qscheme"
+    raise AssertionError(f"Unsupported qscheme: {qscheme}")
 
 
 def process_individual_input(x, x_name):
-    """
-    Processes an individual input and generates a signature,
-    parameter string, example entry, and a wrap flag.
+    """Generate signature, param string, example, and wrap flag from input.
+
+    Args:
+        x: The input value to process.
+        x_name: The name of the input.
+
+    Returns:
+        Tuple: (signature, param string, example entry, wrap flag).
     """
     sign = None
     param = None
@@ -347,9 +352,7 @@ def process_individual_input(x, x_name):
 
 
 def patch_none_example(model: torch.nn.Module, example):
-    """
-    Patches a PyTorch model to handle None values in the input example.
-    """
+    """Patch a PyTorch model to handle None values in the input example."""
     callable_func = getattr(model, "forward", model.__call__)
     input_params = inspect.signature(callable_func).parameters
     input_signature = list(input_params)
