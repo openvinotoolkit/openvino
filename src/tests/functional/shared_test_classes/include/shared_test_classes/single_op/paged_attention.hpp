@@ -11,11 +11,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace ov {
-namespace test {
-// struct PagedAttentioni32AttributeStruct {
-//     ov::Shape batch_size_in_sequences;
-//     };
+namespace ov::test {
 
 struct PagedAttentionRotationStruct {
     std::vector<int> rotated_block_indices;
@@ -53,5 +49,4 @@ public:
 protected:
     void SetUp() override;
 };
-} //  namespace test
-} //  namespace ov
+} //  namespace ov::test

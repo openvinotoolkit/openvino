@@ -9,16 +9,9 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 std::string PagedAttentionLayerTest::getTestCaseName(const testing::TestParamInfo<PagedAttentionParamsTuple>& obj) {
-    std::vector<InputShape> input_shapes;
-    PagedAttentionIntVectorsStruct i32_attr;
-    PagedAttentionMiscInpStruct scalar_attr;
-    std::optional<PagedAttentionRotationStruct> rotation_attr;
-    ov::element::Type type;
-    std::string targetDevice;
-    std::tie(input_shapes, i32_attr, scalar_attr, rotation_attr, type, targetDevice) = obj.param;
+    const auto [input_shapes, i32_attr, misc_attrs, rotation_attr, type, device_type] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -31,18 +24,27 @@ std::string PagedAttentionLayerTest::getTestCaseName(const testing::TestParamInf
             result << ov::test::utils::vec2str(item) << "_";
         }
     }
+    result << ")_past_lens=" << ov::test::utils::vec2str(i32_attr.past_lens) << "_";
+    result << "subsequence_begins=" << ov::test::utils::vec2str(i32_attr.subsequence_begins) << "_";
+    result << "block_indices=" << ov::test::utils::vec2str(i32_attr.block_indices) << "_";
+    result << "block_indices_begins=" << ov::test::utils::vec2str(i32_attr.block_indices_begins) << "_";
+    result << "scale=" << misc_attrs.scale.value() << "_";
+    result << "sliding_window=" << misc_attrs.sliding_window.value() << "_";
+    result << "alibi_slopes=" << ov::test::utils::vec2str(misc_attrs.alibi_slopes) << "_";
+    result << "max_context_len=" << misc_attrs.max_context_len << "_";
+    if (rotation_attr.has_value()) {
+        result << "rotated_block_indices=" << ov::test::utils::vec2str(rotation_attr.value().rotated_block_indices) << "_";
+        result << "rotation_deltas=" << ov::test::utils::vec2str(rotation_attr.value().rotation_deltas) << "_";
+        result << "rotation_trig_lut=" << ov::test::utils::vec2str(rotation_attr.value().rotation_trig_lut) << "_";
+    }
     result << "IT=" << type.get_type_name() << "_";
-    result << "trgDev=" << targetDevice;
+    result << "trgDev=" << device_type;
     return result.str();
 }
 
 void PagedAttentionLayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
-    PagedAttentionIntVectorsStruct i32_attr;
-    PagedAttentionMiscInpStruct misc_attrs;
-    std::optional<PagedAttentionRotationStruct> rotation_attr;
-    ov::element::Type type;
-    std::tie(input_shapes, i32_attr, misc_attrs, rotation_attr, type, targetDevice) = this->GetParam();
+    const auto [input_shapes, i32_attr, misc_attrs, rotation_attr, type, device_type] = this->GetParam();
+    targetDevice = device_type;
 
     /*
     * [0]: query
@@ -149,5 +151,4 @@ void PagedAttentionLayerTest::SetUp() {
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(paged_attn->output(0))};
     function = std::make_shared<ov::Model>(results, params, "PagedAttentionInference");
 }
-} //  namespace test
-} //  namespace ov
+} //  namespace ov::test
