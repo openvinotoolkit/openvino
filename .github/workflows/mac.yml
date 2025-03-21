@@ -416,6 +416,7 @@ jobs:
     with:
       runner: 'macos-13'
       python-version: '3.11'
+      scope: ${{ contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event_name)  && 'nightly' || 'smoke' }}
 
   upload_artifacts:
     name: Upload OpenVINO artifacts
@@ -424,7 +425,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-small
+    runs-on: aks-linux-medium
     container:
       image: 'openvinogithubactions.azurecr.io/library/python:3.12-slim'
       volumes:
@@ -448,14 +449,14 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
 
       - name: Download OpenVINO artifacts
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: "{openvino_package,openvino_developer_package,openvino_js_package,openvino_package_manifest}"
           path: ${{ env.ARTIFACTS_DIR }}
           merge-multiple: true
 
       - name: Download OpenVINO wheels
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: openvino_wheels
           path: ${{ env.WHEELS_DIR }}
