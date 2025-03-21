@@ -471,7 +471,10 @@ std::shared_ptr<ov::Model> MHASelectSplitMFunction::initReference() const {
     auto param2 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[4]);
     ov::ParameterVector ngraphParam = {param0, param1, addParam, selectParam, param2};
 
-    auto make_reshape = [](const std::shared_ptr<ov::Node>& node, const ov::Shape& new_shape) {
+    auto make_reshape = [](const std::shared_ptr<ov::Node>& node, const ov::Shape& new_shape) -> std::shared_ptr<ov::Node> {
+        if (new_shape.empty()) {
+            return node;
+        }
         auto shape_const = ov::op::v0::Constant::create(ov::element::i32, {new_shape.size()}, new_shape);
         return std::make_shared<ov::op::v1::Reshape>(node, shape_const, true);
     };
