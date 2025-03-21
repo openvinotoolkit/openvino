@@ -27,6 +27,20 @@ size_t get_gather_axis_shape_info_idx(size_t axis, size_t rank) {
     return std::distance(shape_info_order.begin(), std::find(shape_info_order.begin(), shape_info_order.end(), order[axis]));
 }
 
+layout get_extended_out_layout(const RuntimeParams& params) {
+    auto out_l = params.get_output_layout(0);
+    auto out_pshape = out_l.get_partial_shape();
+    auto in_pshape = params.input_layouts[0].get_partial_shape();
+    auto axis = params.typed_desc<gather>()->axis;
+    if (in_pshape.size() > out_pshape.size()) {
+        out_pshape.insert(out_pshape.begin() + axis, ov::Dimension(1));
+        out_l.set_partial_shape(out_pshape);
+        out_l.format = format::adjust_to_rank(out_l.format, out_pshape.size());
+    }
+
+    return out_l;
+}
+
 int64_t get_non_empty_dims_num(const layout& data_tensor) {
     if (data_tensor.is_dynamic() || data_tensor.count() != 1) {
         // Count the number of "one size" dimensions starting with X to Batch
@@ -155,7 +169,7 @@ protected:
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& data_l = params.input_layouts[0];
         const auto& idx_l = params.input_layouts[1];
-        const auto& out_l = params.output_layouts[0];
+        const auto& out_l = get_extended_out_layout(params);
         auto axis = ov::util::normalize_axis(desc->axis, static_cast<int64_t>(data_l.get_rank()));
         int64_t batch_dim = (desc->batch_dim != 0) ? get_non_empty_dims_num(idx_l) + desc->batch_dim : desc->batch_dim;
 
@@ -247,7 +261,7 @@ protected:
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
             const auto& data_l = params.input_layouts[0];
-            const auto& out_l = params.output_layouts[0];
+            const auto& out_l = get_extended_out_layout(params);
 
             std::vector<std::vector<ChannelName>> dims_by_gws;
 
