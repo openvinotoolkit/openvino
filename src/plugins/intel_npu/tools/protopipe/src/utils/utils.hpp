@@ -5,13 +5,13 @@
 
 #pragma once
 
+#include <chrono>
 #include <map>
 #include <numeric>
-#include <thread>
-#include <vector>
-
 #include <opencv2/core.hpp>
 #include <opencv2/gapi/own/assert.hpp>
+#include <thread>
+#include <vector>
 
 namespace utils {
 
