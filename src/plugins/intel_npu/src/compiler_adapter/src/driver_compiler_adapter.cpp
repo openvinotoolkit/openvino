@@ -552,8 +552,8 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content, std::regex(dqstr.str()), "");
     }
 
-    // QDQ_OPTIMIZATION is not supported in versions < 7.5 - need to remove it
-    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 5)) {
+    // QDQ_OPTIMIZATION is not supported in versions < 7.20 - need to remove it
+    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 20)) {
         std::ostringstream qdqstr;
         qdqstr << ov::intel_npu::qdq_optimization.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                << VALUE_DELIMITER;
