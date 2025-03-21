@@ -113,7 +113,7 @@ inline std::string nodeType2str(nodeType nt) {
         return "GroupConvolutionBackpropData";
     throw std::runtime_error("Undefined node type to convert to string!");
 }
-
+bool with_cpu_x86_avx2_vnni_2();
 class CPUTestsBase {
 public:
     typedef std::map<std::string, ov::Any> CPUInfo;

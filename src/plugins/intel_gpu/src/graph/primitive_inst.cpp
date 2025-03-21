@@ -2473,6 +2473,7 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
     outputs.reserve(get_node().get_outputs_count());
     const auto& impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
     const auto& out_layouts = impl_params.output_layouts;
+    set_flag(ExecutionFlags::MEMORY_CHANGED);
     for (size_t i = 0; i < get_node().get_outputs_count(); ++i) {
         if (out_layouts[i].is_dynamic() && !out_layouts[i].has_upper_bound()) {
             outputs.push_back(memory::ptr());

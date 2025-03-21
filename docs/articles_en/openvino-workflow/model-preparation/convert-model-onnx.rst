@@ -17,7 +17,7 @@ that enables AI developers to easily transfer models between different framework
    An ONNX model file can be loaded by ``openvino.Core.read_model`` or
    ``openvino.Core.compile_model`` methods by OpenVINO runtime API without the need to
    prepare an OpenVINO IR first. Refer to the
-   :doc:`inference example <../running-inference/integrate-openvino-with-your-application>`
+   :doc:`inference example <../running-inference>`
    for more details. Using ``openvino.convert_model`` is still recommended if the model
    load latency is important for the inference application.
 
