@@ -10,6 +10,7 @@
 #include <limits>
 #include <openvino/core/rt_info.hpp>
 #include <openvino/opsets/opset13.hpp>
+#include <openvino/opsets/opset3.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>

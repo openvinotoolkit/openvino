@@ -11,6 +11,7 @@
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset8.hpp"

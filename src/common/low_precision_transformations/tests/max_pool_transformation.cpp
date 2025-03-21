@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include "transformations/utils/utils.hpp"
-#include "transformations/init_node_info.hpp"
-#include "low_precision/max_pool.hpp"
+#include <memory>
+#include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
-#include "ov_lpt_models/max_pool.hpp"
+#include "layer_transformation.hpp"
+#include "low_precision/max_pool.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-
+#include "ov_lpt_models/max_pool.hpp"
+#include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov::pass;

@@ -22,7 +22,7 @@
 namespace {
 using namespace ov::pass;
 using namespace ov::builder::subgraph;
-using namespace ov::opset1;
+using namespace ov::op::v0;
 using namespace ov;
 
 class DepthToSpaceTransformationTestValues {

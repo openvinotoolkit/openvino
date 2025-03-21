@@ -4,17 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
+#include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset13.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/manager.hpp>
+#include <ov_ops/type_relaxed.hpp>
+#include <string>
 #include <transformations/cpu_opset/common/op/sdpa.hpp>
 #include <transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 #include <transformations/utils/gen_pattern.hpp>
-#include <openvino/pass/manager.hpp>
-#include <ov_ops/type_relaxed.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/utils/print_model.hpp"

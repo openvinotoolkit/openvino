@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
+#include <gtest/gtest.h>
 
 #include <ostream>
 #include <string>
 #include <vector>
 
-#include <gtest/gtest.h>
-
-#include "low_precision/prelu.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "layer_transformation.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/max_pool.hpp"
-
-#include "common_test_utils/ov_test_utils.hpp"
+#include "low_precision/prelu.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/prelu.hpp"
 #include "ov_lpt_models/fake_quantize_precision_selection.hpp"
 #include "simple_low_precision_transformer.hpp"
 

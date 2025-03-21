@@ -34,15 +34,32 @@
 #include "low_precision/unsqueeze.hpp"
 
 // cleanup transformations
-#include "low_precision/fuse_convert.hpp"
-#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
-#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
-#include "low_precision/multiply_to_group_convolution.hpp"
-
-#include "ov_lpt_models/transformations_after_split.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "low_precision/fuse_convert.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/multiply_to_group_convolution.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "ov_lpt_models/transformations_after_split.hpp"
 #include "simple_low_precision_transformer.hpp"
-
 
 namespace {
 using namespace testing;
