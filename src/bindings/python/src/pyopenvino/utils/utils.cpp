@@ -18,6 +18,7 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 using Version = ov::pass::Serialize::Version;
 
@@ -256,6 +257,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(luid_stream.str());
     } else if (any.is<ov::device::PCIInfo>()) {
         return py::cast(any.as<ov::device::PCIInfo>());
+    } else if (any.is<ov::intel_cpu::DenormalsOptimization>()) {
+        return py::cast(any.as<ov::intel_cpu::DenormalsOptimization>());
         // Custom FrontEnd Types
     } else if (any.is<ov::frontend::type::List>()) {
         return py::cast(any.as<ov::frontend::type::List>());
@@ -478,6 +481,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::Tensor>(py_obj);
     } else if (py::isinstance<ov::Output<ov::Node>>(py_obj)) {
         return py::cast<ov::Output<ov::Node>>(py_obj);
+    } else if (py::isinstance<ov::intel_cpu::DenormalsOptimization>(py_obj)) {
+        return py::cast<ov::intel_cpu::DenormalsOptimization>(py_obj);
         // FrontEnd Decoder
     } else if (py::isinstance<ov::frontend::IDecoder>(py_obj)) {
         return py::cast<std::shared_ptr<ov::frontend::IDecoder>>(py_obj);

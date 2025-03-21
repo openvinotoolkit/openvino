@@ -247,7 +247,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         deconvAttrs.kernel.push_back(weightDims[withGroups + 2 + i]);
     }
 #if defined(OV_CPU_WITH_ACL)
-    deconvAttrs.aclFastMath = context->getConfig().aclFastMath;
+    deconvAttrs.aclFastMath = context->getConfig().get_acl_fast_math();
 #endif
 
     externOutShape = inputShapes.size() == 3;

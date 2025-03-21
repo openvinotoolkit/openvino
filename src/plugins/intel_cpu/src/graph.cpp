@@ -62,8 +62,8 @@ using namespace dnnl;
 namespace ov::intel_cpu {
 
 Graph::~Graph() {
-    CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
-    CPU_DEBUG_CAP_ENABLE(average_counters(*this));
+    CPU_DEBUG_CAP_ENABLE(dump_summary_perf(*this));
+    CPU_DEBUG_CAP_ENABLE(dump_average_counters(*this));
 }
 
 template <typename NET>
@@ -1578,8 +1578,8 @@ public:
 /* group all the profiling macros into a single one
  * to avoid cluttering a core logic */
 #define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
-    VERBOSE(node, (config).debugCaps.verbose);                  \
-    PERF(node, (config).collectPerfCounters);                   \
+    VERBOSE(node, (config).get_verbose());                      \
+    PERF(node, (config).get_enable_profiling());                \
     DUMP(node, (config).debugCaps, infer_count);                \
     OV_ITT_SCOPED_TASK(ittScope, (node)->profiling.execute);    \
     DEBUG_LOG(*(node));
@@ -1622,7 +1622,7 @@ static int GetNumaNodeId(const GraphContext::CPtr& context) {
     int numaNodeId = -1;
 #if defined(__x86_64__) && defined(__linux__)
     if ((context->getCPUStreamExecutor()) &&
-        (context->getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
+        (context->getConfig().get_performance_mode() == ov::hint::PerformanceMode::LATENCY)) {
         numaNodeId = context->getCPUStreamExecutor()->get_numa_node_id();
     }
 #endif
@@ -1976,8 +1976,8 @@ bool Graph::InsertNode(const NodePtr& parent,
 void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(EnforceInferPrcDebug inferPrecDebug);
 
-    const auto inferPrec = getConfig().inferencePrecision;
-    if (one_of(inferPrec, element::f32, element::dynamic, ov::element::f16, element::dynamic)) {
+    const auto inferPrec = getConfig().get_inference_precision();
+    if (one_of(inferPrec, element::f32, ov::element::f16, element::dynamic)) {
         return;  // nothing to do, only precision reduction is currently allowed
     }
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)

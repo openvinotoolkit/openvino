@@ -35,6 +35,7 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   Config cfg,
+                  ov::threading::IStreamsExecutor::Config streamExecutorConfig,
                   const bool loaded_from_cache,
                   std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
@@ -93,6 +94,8 @@ private:
     std::vector<std::shared_ptr<CompiledModel>> m_sub_compiled_models;
     std::shared_ptr<SubMemoryManager> m_sub_memory_manager = nullptr;
     bool m_has_sub_compiled_models = false;
+
+    std::string m_model_name;
 };
 
 // This class provides safe access to the internal CompiledModel structures and helps to decouple SyncInferRequest and

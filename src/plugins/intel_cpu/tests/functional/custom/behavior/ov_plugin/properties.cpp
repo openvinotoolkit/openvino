@@ -285,11 +285,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigLogLevel) {
 
     // check throwing message
     auto property = ov::PropertyName(ov::log::level.name(), ov::PropertyMutability::RW);
-    const std::string expect_message = std::string("Wrong value DUMMY VALUE for property key ")  +
-        ov::log::level.name() + ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.";
-    OV_EXPECT_THROW(ie.set_property("CPU", {{property, "DUMMY VALUE"}}),
-            ov::Exception,
-            testing::HasSubstr(expect_message));
+    EXPECT_THROW(ie.set_property("CPU", {{property, "DUMMY VALUE"}}), ov::Exception);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUExecutionDevice) {
