@@ -153,6 +153,7 @@ OP_CONVERTER(translate_log_sigmoid);
 OP_CONVERTER(translate_log_softmax);
 OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_log10);
+OP_CONVERTER(translate_logit);
 OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_lstm);
@@ -580,6 +581,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::log2_", op::inplace_op<op::translate_log2>},
         {"aten::log10", op::optional_out<op::translate_log10, 1>},
         {"aten::log10_", op::inplace_op<op::translate_log10>},
+        {"aten::logit", op::translate_logit},
         {"aten::logsumexp", op::translate_logsumexp},
         {"aten::lstm", op::translate_lstm},
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
@@ -689,6 +691,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::softmax", op::translate_softmax},
         {"aten::softplus", op::translate_1to1_match_1_inputs<opset10::SoftPlus>},
         {"aten::sort", op::translate_sort},
+        {"aten::special_logit", op::translate_logit},
         // aten::split - Supported in limited set of patterns
         // aten::split_with_sizes - Supported in limited set of patterns
         {"aten::sqrt", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>, 1>},
