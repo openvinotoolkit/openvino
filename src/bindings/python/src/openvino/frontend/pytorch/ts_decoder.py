@@ -200,9 +200,6 @@ class TorchScriptPythonDecoder(Decoder):
     def inputs(self) -> list:
         return [x.unique() for x in self.raw_inputs]
 
-    def get_input(self, index: int):
-        return self.inputs()[index]
-
     def get_input_debug_name(self, index: int) -> str:
         return self._raw_input(index).debugName()
 
