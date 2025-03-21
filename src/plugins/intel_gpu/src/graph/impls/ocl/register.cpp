@@ -15,6 +15,7 @@ void register_implementations() {
     REGISTER_OCL(border);
     REGISTER_OCL(broadcast);
     REGISTER_OCL(bucketize);
+    REGISTER_OCL(col_to_im);
     REGISTER_OCL(concatenation);
     REGISTER_OCL(crop);
     REGISTER_OCL(custom_gpu_primitive);
