@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <cstdint>
 
 namespace ov::intel_cpu {
 
