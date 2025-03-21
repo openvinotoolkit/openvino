@@ -12,8 +12,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/init_node_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -32,6 +30,8 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov;

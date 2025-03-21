@@ -13,17 +13,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "mask_attribute.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/op/util/attr_types.hpp"
-#include "openvino/op/util/pad_base.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset12.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "openvino/pass/visualize_tree.hpp"
-#include "openvino/reference/utils/coordinate_index.hpp"
-#include "openvino/reference/utils/coordinate_transform.hpp"
-#include "openvino/util/env_util.hpp"
-#include "transformations/init_node_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
@@ -47,7 +36,18 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
+#include "openvino/util/env_util.hpp"
+#include "transformations/init_node_info.hpp"
 
 #define VISUALIZE_TESTS_TREE false
 #define VISUALIZE_TREE_ROOT  "/tmp/"
@@ -116,11 +116,11 @@ TEST(TransformationTests, TestInitMasks) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights = create_constant_with_zeros(weights_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     auto f = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     pass::Manager m;
@@ -144,11 +144,11 @@ TEST(TransformationTests, PropagateMasksNegative) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights = op::v0::Constant::create(element::f32, weights_shape, {0});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     auto f = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
     pass::Manager m;
@@ -167,11 +167,11 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights = op::v0::Constant::create(element::f32, weights_shape, {0});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     auto relu = std::make_shared<op::v0::Relu>(conv);
 
     auto add_const = create_constant_with_zeros(Shape{1, 6, 1, 1}, {{}, {1, 2, 3, 4, 5}, {}, {}});
@@ -185,11 +185,11 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
 
     auto weights2 = create_constant_with_zeros(weights_shape2, {{1, 2}, {1, 2, 3}, {}, {}});
     auto conv2 = std::make_shared<op::v1::Convolution>(mul,
-                                                        weights2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
 
     {
@@ -197,14 +197,14 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
 
         auto weights =
             op::v0::Constant::create(element::f32,
-                                      {weights_shape[0] - 3, weights_shape[1], weights_shape[2], weights_shape[3]},
-                                      {0});
+                                     {weights_shape[0] - 3, weights_shape[1], weights_shape[2], weights_shape[3]},
+                                     {0});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
         auto relu = std::make_shared<op::v0::Relu>(conv);
 
         auto add_const = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {1});
@@ -218,14 +218,14 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
 
         auto weights2 =
             op::v0::Constant::create(element::f32,
-                                      {weights_shape2[0], weights_shape2[1] - 3, weights_shape2[2], weights_shape2[3]},
-                                      {1});
+                                     {weights_shape2[0], weights_shape2[1] - 3, weights_shape2[2], weights_shape2[3]},
+                                     {1});
         auto conv2 = std::make_shared<op::v1::Convolution>(mul,
-                                                            weights2,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights2,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         model_ref = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
@@ -259,11 +259,11 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights = op::v0::Constant::create(element::f32, weights_shape, {0});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     auto relu = std::make_shared<op::v0::Relu>(conv);
 
     auto sub_const = create_constant_with_zeros(Shape{6, 1, 1}, {{1, 2, 3}, {}, {}});
@@ -274,24 +274,24 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
 
     auto weights2 = op::v0::Constant::create(element::f32, weights_shape2, {0});
     auto conv2 = std::make_shared<op::v1::Convolution>(mul,
-                                                        weights2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
         auto weights =
             op::v0::Constant::create(element::f32,
-                                      {weights_shape[0] - 1, weights_shape[1], weights_shape[2], weights_shape[3]},
-                                      {0});
+                                     {weights_shape[0] - 1, weights_shape[1], weights_shape[2], weights_shape[3]},
+                                     {0});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
         auto relu = std::make_shared<op::v0::Relu>(conv);
 
         auto sub_const = create_constant_with_zeros(Shape{5, 1, 1}, {{}, {}, {}});
@@ -302,14 +302,14 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
 
         auto weights2 =
             op::v0::Constant::create(element::f32,
-                                      {weights_shape2[0], weights_shape2[1] - 1, weights_shape2[2], weights_shape2[3]},
-                                      {0});
+                                     {weights_shape2[0], weights_shape2[1] - 1, weights_shape2[2], weights_shape2[3]},
+                                     {0});
         auto conv2 = std::make_shared<op::v1::Convolution>(mul,
-                                                            weights2,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights2,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         model_ref = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
@@ -342,25 +342,24 @@ TEST(TransformationTests, PropagateMasksDynamicReshape) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights = op::v0::Constant::create(element::f32, weights_shape, {0});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
+    auto relu = std::make_shared<op::v0::Relu>(conv);
+
+    auto reshape = std::make_shared<op::v1::Reshape>(relu,
+                                                     op::v0::Constant::create(element::i64, Shape{4}, {-1, 6, 64, 64}),
+                                                     true);
+
+    auto weights2 = op::v0::Constant::create(element::f32, weights_shape2, {0});
+    auto conv2 = std::make_shared<op::v1::Convolution>(reshape,
+                                                       weights2,
                                                        Strides(2, 1),
                                                        CoordinateDiff(2, 0),
                                                        CoordinateDiff(2, 0),
                                                        Strides(2, 1));
-    auto relu = std::make_shared<op::v0::Relu>(conv);
-
-    auto reshape =
-        std::make_shared<op::v1::Reshape>(relu,
-                                           op::v0::Constant::create(element::i64, Shape{4}, {-1, 6, 64, 64}),
-                                           true);
-
-    auto weights2 = op::v0::Constant::create(element::f32, weights_shape2, {0});
-    auto conv2 = std::make_shared<op::v1::Convolution>(reshape,
-                                                        weights2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
 
     auto model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
@@ -385,11 +384,11 @@ TEST(TransformationTests, PropagateMasksDynamicGroupConvolution) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights = op::v0::Constant::create(element::f32, weights_shape, {0});
     auto conv = std::make_shared<op::v1::GroupConvolution>(input,
-                                                            weights,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
     auto relu = std::make_shared<op::v0::Relu>(conv);
 
     auto sub_const = create_constant_with_zeros(Shape{6, 1, 1}, {{1, 2, 3}, {}, {}});
@@ -400,11 +399,11 @@ TEST(TransformationTests, PropagateMasksDynamicGroupConvolution) {
 
     auto weights2 = op::v0::Constant::create(element::f32, weights_shape2, {0});
     auto conv2 = std::make_shared<op::v1::GroupConvolution>(mul,
-                                                             weights2,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            weights2,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
     auto f = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
@@ -424,11 +423,11 @@ TEST(TransformationTests, PropagateMasksEmpty) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights = op::v0::Constant::create(element::f32, weights_shape, {1.});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     auto relu = std::make_shared<op::v0::Relu>(conv);
 
     auto sub_const = create_constant_with_zeros(Shape{6, 1, 1}, {{1, 2, 3}, {}, {}});
@@ -439,11 +438,11 @@ TEST(TransformationTests, PropagateMasksEmpty) {
 
     auto weights2 = op::v0::Constant::create(element::f32, weights_shape2, {0});
     auto conv2 = std::make_shared<op::v1::Convolution>(add,
-                                                        weights2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     auto f = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
@@ -473,11 +472,11 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
     weights_const_1.get_node_shared_ptr()->set_friendly_name("weights_1");
 
     auto conv_1 = std::make_shared<op::v1::Convolution>(input,
-                                                         weights_const_1,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        weights_const_1,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
     conv_1->set_friendly_name("conv_1");
 
     // Adding a couple of PassThrough operations
@@ -496,11 +495,11 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
 
     auto weights2 = op::v0::Constant::create(element::f32, weight_shape2, {0});
     auto conv2 = std::make_shared<op::v1::Convolution>(max_pool,
-                                                        weights2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
@@ -510,11 +509,11 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
         weights_const_1.get_node_shared_ptr()->set_friendly_name("weights_1");
 
         auto conv_1 = std::make_shared<op::v1::Convolution>(input,
-                                                             weights_const_1,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            weights_const_1,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
         // Adding a couple of PassThrough operations
         auto relu = std::make_shared<op::v0::Relu>(conv_1);
 
@@ -523,23 +522,19 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
         auto pads_begin = op::v0::Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
         auto pads_end = op::v0::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
         auto pad = std::make_shared<op::v1::Pad>(clamp, pads_begin, pads_end, op::PadMode::CONSTANT);
-        auto max_pool = std::make_shared<op::v8::MaxPool>(pad,
-                                                           Strides{1, 1},
-                                                           Strides{1, 1},
-                                                           Shape{0, 0},
-                                                           Shape{1, 1},
-                                                           Shape{4, 4});
+        auto max_pool =
+            std::make_shared<op::v8::MaxPool>(pad, Strides{1, 1}, Strides{1, 1}, Shape{0, 0}, Shape{1, 1}, Shape{4, 4});
 
         auto weights2 =
             op::v0::Constant::create(element::f32,
-                                      {weight_shape2[0], weight_shape2[1] - 3, weight_shape2[2], weight_shape2[3]},
-                                      {0});
+                                     {weight_shape2[0], weight_shape2[1] - 3, weight_shape2[2], weight_shape2[3]},
+                                     {0});
         auto conv2 = std::make_shared<op::v1::Convolution>(max_pool,
-                                                            weights2,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights2,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         model_ref = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
@@ -662,11 +657,11 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
     weights1.get_node_shared_ptr()->set_friendly_name("weights1");
 
     auto conv1 = std::make_shared<op::v1::Convolution>(input1,
-                                                        weights1,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights1,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     conv1->set_friendly_name("conv1");
 
     auto relu = std::make_shared<op::v0::Relu>(conv1);
@@ -680,11 +675,11 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
     weights2.get_node_shared_ptr()->set_friendly_name("weights2");
 
     auto conv2 = std::make_shared<op::v1::Convolution>(input2,
-                                                        weights2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     conv2->set_friendly_name("conv2");
 
     auto add1 = std::make_shared<op::v1::Add>(conv2, conv1);
@@ -706,11 +701,11 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
     weights3->set_friendly_name("weights3");
 
     auto conv3 = std::make_shared<op::v1::Convolution>(add2,
-                                                        weights3,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights3,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     conv3->set_friendly_name("conv3");
 
     model = std::make_shared<Model>(NodeVector{matmul, conv3}, ParameterVector{input1, input2});
@@ -725,11 +720,11 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
         weights1.get_node_shared_ptr()->set_friendly_name("weights1");
 
         auto conv1 = std::make_shared<op::v1::Convolution>(input1,
-                                                            weights1,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights1,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         conv1->set_friendly_name("conv1");
 
         auto relu = std::make_shared<op::v0::Relu>(conv1);
@@ -745,11 +740,11 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
         weights2.get_node_shared_ptr()->set_friendly_name("weights2");
 
         auto conv2 = std::make_shared<op::v1::Convolution>(input2,
-                                                            weights2,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights2,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         conv2->set_friendly_name("conv2");
 
         auto add1 = std::make_shared<op::v1::Add>(conv2, conv1);
@@ -769,16 +764,16 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
         Shape weights_shape3{6, 6, 1, 1};
         auto weights3 =
             op::v0::Constant::create(element::f32,
-                                      {weights_shape3[0], weights_shape3[1] - 1, weights_shape3[2], weights_shape3[3]},
-                                      {0});
+                                     {weights_shape3[0], weights_shape3[1] - 1, weights_shape3[2], weights_shape3[3]},
+                                     {0});
         weights3->set_friendly_name("weights3");
 
         auto conv3 = std::make_shared<op::v1::Convolution>(add2,
-                                                            weights3,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights3,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         conv3->set_friendly_name("conv3");
 
         model_ref = std::make_shared<Model>(NodeVector{matmul, conv3}, ParameterVector{input1, input2});
@@ -829,11 +824,11 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
 
     auto weights1 = create_constant_with_zeros(weights_shape, {{0, 1, 2, 3, 4}, {}, {}, {}});
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights1,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights1,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     auto weights_group = op::v0::Constant::create(element::i8, weights_group_shape, {0});
     weights_group->set_friendly_name("weights_group");
 
@@ -849,17 +844,16 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     auto mul = std::make_shared<op::v1::Multiply>(sub, mul_const);
     mul->set_friendly_name("mul");
 
-    auto reshape =
-        std::make_shared<op::v1::Reshape>(mul,
-                                           op::v0::Constant::create(element::i64, Shape{5}, {8, 1, 1, 3, 3}),
-                                           false);
+    auto reshape = std::make_shared<op::v1::Reshape>(mul,
+                                                     op::v0::Constant::create(element::i64, Shape{5}, {8, 1, 1, 3, 3}),
+                                                     false);
 
     auto conv_group = std::make_shared<op::v1::GroupConvolution>(conv1,
-                                                                  reshape,
-                                                                  Strides(2, 1),
-                                                                  CoordinateDiff(2, 0),
-                                                                  CoordinateDiff(2, 0),
-                                                                  Strides(2, 1));
+                                                                 reshape,
+                                                                 Strides(2, 1),
+                                                                 CoordinateDiff(2, 0),
+                                                                 CoordinateDiff(2, 0),
+                                                                 Strides(2, 1));
 
     auto add_const = create_constant_with_zeros(Shape{1, 8, 1, 1}, {{}, {0, 1, 2, 3, 4}, {}, {}});
     ;
@@ -868,11 +862,11 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
 
     auto weights_2 = op::v0::Constant::create(element::f32, weight_shape2, {0});
     auto conv2 = std::make_shared<op::v1::Convolution>(add,
-                                                        weights_2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
@@ -881,11 +875,11 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
             create_constant_with_zeros({weights_shape[0] - 5, weights_shape[1], weights_shape[2], weights_shape[3]},
                                        {{}, {}, {}, {}});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights1,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         auto weights_group = op::v0::Constant::create(
             element::i8,
             {weights_group_shape[0] - 5, weights_group_shape[1], weights_group_shape[2], weights_group_shape[3]},
@@ -913,11 +907,11 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
         auto reshape = std::make_shared<op::v1::Reshape>(mul, reshape_concat, false);
 
         auto conv_group = std::make_shared<op::v1::GroupConvolution>(conv1,
-                                                                      reshape,
-                                                                      Strides(2, 1),
-                                                                      CoordinateDiff(2, 0),
-                                                                      CoordinateDiff(2, 0),
-                                                                      Strides(2, 1));
+                                                                     reshape,
+                                                                     Strides(2, 1),
+                                                                     CoordinateDiff(2, 0),
+                                                                     CoordinateDiff(2, 0),
+                                                                     Strides(2, 1));
 
         auto add_const = create_constant_with_zeros(Shape{1, 3, 1, 1}, {{}, {}, {}, {}});
         ;
@@ -925,14 +919,14 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
 
         auto weights_2 =
             op::v0::Constant::create(element::f32,
-                                      {weight_shape2[0], weight_shape2[1] - 5, weight_shape2[2], weight_shape2[3]},
-                                      {0});
+                                     {weight_shape2[0], weight_shape2[1] - 5, weight_shape2[2], weight_shape2[3]},
+                                     {0});
         auto conv2 = std::make_shared<op::v1::Convolution>(add,
-                                                            weights_2,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights_2,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         model_ref = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
@@ -975,11 +969,11 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
 
     auto weights1 = create_constant_with_zeros(weights_shape, {{0, 1, 2, 3}, {}, {}, {}});
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights1,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights1,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     auto weights_group = op::v0::Constant::create(element::i8, weights_group_shape, {0});
     weights_group->set_friendly_name("weights_group");
 
@@ -1010,11 +1004,11 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
     auto reshape = std::make_shared<op::v1::Reshape>(mul, reshape_concat, false);
 
     auto conv_group = std::make_shared<op::v1::GroupConvolution>(conv1,
-                                                                  reshape,
-                                                                  Strides(2, 1),
-                                                                  CoordinateDiff(2, 0),
-                                                                  CoordinateDiff(2, 0),
-                                                                  Strides(2, 1));
+                                                                 reshape,
+                                                                 Strides(2, 1),
+                                                                 CoordinateDiff(2, 0),
+                                                                 CoordinateDiff(2, 0),
+                                                                 Strides(2, 1));
 
     auto add_const = create_constant_with_zeros(Shape{1, 8, 1, 1}, {{}, {0, 1, 2, 3, 4}, {}, {}});
     ;
@@ -1023,11 +1017,11 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
 
     auto weights_2 = op::v0::Constant::create(element::f32, weight_shape2, {0});
     auto conv2 = std::make_shared<op::v1::Convolution>(add,
-                                                        weights_2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
@@ -1036,11 +1030,11 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
             create_constant_with_zeros({weights_shape[0] - 4, weights_shape[1], weights_shape[2], weights_shape[3]},
                                        {{}, {}, {}, {}});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights1,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         auto weights_group = op::v0::Constant::create(
             element::i8,
             {weights_group_shape[0] - 4, weights_group_shape[1], weights_group_shape[2], weights_group_shape[3]},
@@ -1079,11 +1073,11 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
         auto reshape = std::make_shared<op::v1::Reshape>(mul, new_reshape_concat, false);
 
         auto conv_group = std::make_shared<op::v1::GroupConvolution>(conv1,
-                                                                      reshape,
-                                                                      Strides(2, 1),
-                                                                      CoordinateDiff(2, 0),
-                                                                      CoordinateDiff(2, 0),
-                                                                      Strides(2, 1));
+                                                                     reshape,
+                                                                     Strides(2, 1),
+                                                                     CoordinateDiff(2, 0),
+                                                                     CoordinateDiff(2, 0),
+                                                                     Strides(2, 1));
 
         auto add_const = create_constant_with_zeros(Shape{1, 4, 1, 1}, {{}, {}, {}, {}});
         ;
@@ -1091,14 +1085,14 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
 
         auto weights_2 =
             op::v0::Constant::create(element::f32,
-                                      {weight_shape2[0], weight_shape2[1] - 4, weight_shape2[2], weight_shape2[3]},
-                                      {0});
+                                     {weight_shape2[0], weight_shape2[1] - 4, weight_shape2[2], weight_shape2[3]},
+                                     {0});
         auto conv2 = std::make_shared<op::v1::Convolution>(add,
-                                                            weights_2,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights_2,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         model_ref = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
@@ -1154,11 +1148,11 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     mul->set_friendly_name("mul");
 
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        mul,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       mul,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     conv1->set_friendly_name("conv1");
 
     auto add_const = create_constant_with_zeros(Shape{1, 8, 1, 1}, {{}, {0, 1, 2, 3, 4}, {}, {}});
@@ -1174,22 +1168,22 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
 
     auto weights_2 = op::v0::Constant::create(element::f32, weight_shape2, {0});
     auto conv2 = std::make_shared<op::v1::Convolution>(fq,
-                                                        weights_2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
         auto weights_1 = op::v0::Constant::create(element::i8,
-                                                   {
-                                                       weights_shape[0] - 5,
-                                                       weights_shape[1],
-                                                       weights_shape[2],
-                                                       weights_shape[3],
-                                                   },
-                                                   {0});
+                                                  {
+                                                      weights_shape[0] - 5,
+                                                      weights_shape[1],
+                                                      weights_shape[2],
+                                                      weights_shape[3],
+                                                  },
+                                                  {0});
 
         auto convert = std::make_shared<op::v0::Convert>(weights_1, element::f32);
 
@@ -1201,11 +1195,11 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
         auto mul = std::make_shared<op::v1::Multiply>(sub, mul_const);
 
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            mul,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           mul,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
         auto add_const = create_constant_with_zeros(Shape{1, 3, 1, 1}, {{}, {}, {}, {}});
         ;
@@ -1218,19 +1212,19 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
         auto fq = std::make_shared<op::v0::FakeQuantize>(add, input_low, input_high, output_low, output_high, 8);
 
         auto weights_2 = op::v0::Constant::create(element::f32,
-                                                   {
-                                                       weight_shape2[0],
-                                                       weight_shape2[1] - 5,
-                                                       weight_shape2[2],
-                                                       weight_shape2[3],
-                                                   },
-                                                   {0});
+                                                  {
+                                                      weight_shape2[0],
+                                                      weight_shape2[1] - 5,
+                                                      weight_shape2[2],
+                                                      weight_shape2[3],
+                                                  },
+                                                  {0});
         auto conv2 = std::make_shared<op::v1::Convolution>(fq,
-                                                            weights_2,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights_2,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         model_ref = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
@@ -1291,11 +1285,11 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerTensor1DScale) {
     mul->set_friendly_name("mul");
 
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        mul,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       mul,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     conv1->set_friendly_name("conv1");
 
     auto add_const = create_constant_with_zeros(Shape{1, 8, 1, 1}, {{}, {0, 1, 2, 3, 4}, {}, {}});
@@ -1311,11 +1305,11 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerTensor1DScale) {
 
     auto weights_2 = op::v0::Constant::create(element::f32, weight_shape2, {0});
     auto conv2 = std::make_shared<op::v1::Convolution>(fq,
-                                                        weights_2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     auto model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor1DScale.svg")
@@ -1364,11 +1358,11 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
     mul->set_friendly_name("mul");
 
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        mul,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       mul,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     conv1->set_friendly_name("conv1");
 
     auto add_const = create_constant_with_zeros(Shape{1, 8, 1, 1}, {{}, {0, 1, 2, 3, 4}, {}, {}});
@@ -1384,18 +1378,18 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
 
     auto weights_2 = op::v0::Constant::create(element::f32, weight_shape2, {0});
     auto conv2 = std::make_shared<op::v1::Convolution>(fq,
-                                                        weights_2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
     model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
         auto weights_1 =
             op::v0::Constant::create(element::i8,
-                                      {weights_shape[0] - 5, weights_shape[1], weights_shape[2], weights_shape[3]},
-                                      {0});
+                                     {weights_shape[0] - 5, weights_shape[1], weights_shape[2], weights_shape[3]},
+                                     {0});
 
         auto convert = std::make_shared<op::v0::Convert>(weights_1, element::f32);
 
@@ -1407,11 +1401,11 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
         auto mul = std::make_shared<op::v1::Multiply>(sub, mul_const);
 
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            mul,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           mul,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
         auto add_const = create_constant_with_zeros(Shape{1, 3, 1, 1}, {{}, {}, {}, {}});
         ;
@@ -1425,14 +1419,14 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
 
         auto weights_2 =
             op::v0::Constant::create(element::f32,
-                                      {weight_shape2[0], weight_shape2[1] - 5, weight_shape2[2], weight_shape2[3]},
-                                      {0});
+                                     {weight_shape2[0], weight_shape2[1] - 5, weight_shape2[2], weight_shape2[3]},
+                                     {0});
         auto conv2 = std::make_shared<op::v1::Convolution>(fq,
-                                                            weights_2,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights_2,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
         model_ref = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
@@ -1483,38 +1477,38 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights_1 = create_constant_with_zeros(weights_shape1, {{0, 1, 2, 3}, {}, {}, {}});
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights_1,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_1,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
 
     auto weights_2 = create_constant_with_zeros(weights_shape2, {{7, 8, 9, 10}, {}, {}, {}});
     auto conv2 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights_2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
 
     auto weights_3 = create_constant_with_zeros(weights_shape3, {{4, 5, 6, 7}, {}, {}, {}});
     auto conv3 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights_3,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_3,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
 
     auto concat =
         std::make_shared<op::v0::Concat>(OutputVector{conv1->output(0), conv2->output(0), conv3->output(0)}, 1);
 
     auto weights_out_conv = create_constant_with_zeros(weight_shape_out_conv, {{}, {}, {}, {}});
     auto conv_out = std::make_shared<op::v1::Convolution>(concat,
-                                                           weights_out_conv,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights_out_conv,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
     model = std::make_shared<Model>(NodeVector{conv_out}, ParameterVector{input});
     {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
@@ -1522,11 +1516,11 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
             create_constant_with_zeros({weights_shape1[0] - 4, weights_shape1[1], weights_shape1[2], weights_shape1[3]},
                                        {{}, {}, {}, {}});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights_1,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights_1,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
         auto weights_2 = create_constant_with_zeros(
             {
@@ -1537,11 +1531,11 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
             },
             {{}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights_2,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights_2,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
         auto weights_3 = create_constant_with_zeros(
             {
@@ -1552,11 +1546,11 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
             },
             {{}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights_3,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights_3,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
         auto concat =
             std::make_shared<op::v0::Concat>(OutputVector{conv1->output(0), conv2->output(0), conv3->output(0)}, 1);
@@ -1570,11 +1564,11 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
             },
             {{}, {}, {}, {}});
         auto conv_out = std::make_shared<op::v1::Convolution>(concat,
-                                                               weights_out_conv,
-                                                               Strides(2, 1),
-                                                               CoordinateDiff(2, 0),
-                                                               CoordinateDiff(2, 0),
-                                                               Strides(2, 1));
+                                                              weights_out_conv,
+                                                              Strides(2, 1),
+                                                              CoordinateDiff(2, 0),
+                                                              CoordinateDiff(2, 0),
+                                                              Strides(2, 1));
         model_ref = std::make_shared<Model>(NodeVector{conv_out}, ParameterVector{input});
     }
 
@@ -1613,27 +1607,27 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights_1 = create_constant_with_zeros(weights_shape1, {{0, 1, 2, 3, 4, 5}, {}, {}, {}});
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights_1,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_1,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
 
     auto weights_2 = create_constant_with_zeros(weights_shape2, {{7, 8, 9, 10}, {}, {}, {}});
     auto conv2 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights_2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
 
     auto weights_3 = create_constant_with_zeros(weights_shape3, {{2, 3, 4, 5, 6, 7}, {}, {}, {}});
     auto conv3 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights_3,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_3,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
 
     auto concat =
         std::make_shared<op::v0::Concat>(OutputVector{conv1->output(0), conv2->output(0), conv3->output(0)}, 1);
@@ -1644,11 +1638,11 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
 
     auto weights_out_conv = create_constant_with_zeros(weight_shape_out_conv, {{}, {}, {}, {}});
     auto conv_out = std::make_shared<op::v1::Convolution>(add,
-                                                           weights_out_conv,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights_out_conv,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
     model = std::make_shared<Model>(NodeVector{conv_out}, ParameterVector{input});
     {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
@@ -1661,11 +1655,11 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
             },
             {{}, {}, {}, {}});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights_1,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights_1,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
         auto weights_2 = create_constant_with_zeros(
             {
@@ -1676,11 +1670,11 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
             },
             {{}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights_2,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights_2,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
         auto weights_3 = create_constant_with_zeros(
             {
@@ -1691,11 +1685,11 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
             },
             {{}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights_3,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights_3,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
         auto concat =
             std::make_shared<op::v0::Concat>(OutputVector{conv1->output(0), conv2->output(0), conv3->output(0)}, 1);
@@ -1712,11 +1706,11 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
             },
             {{}, {}, {}, {}});
         auto conv_out = std::make_shared<op::v1::Convolution>(add,
-                                                               weights_out_conv,
-                                                               Strides(2, 1),
-                                                               CoordinateDiff(2, 0),
-                                                               CoordinateDiff(2, 0),
-                                                               Strides(2, 1));
+                                                              weights_out_conv,
+                                                              Strides(2, 1),
+                                                              CoordinateDiff(2, 0),
+                                                              CoordinateDiff(2, 0),
+                                                              Strides(2, 1));
 
         model_ref = std::make_shared<Model>(NodeVector{conv_out}, ParameterVector{input});
     }
@@ -1759,27 +1753,27 @@ TEST(TransformationTests, TestConcatMaskPropagationUpEmpty) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights_1 = create_constant_with_zeros(weights_shape1, {{0, 1, 2, 3, 4, 5}, {}, {}, {}});
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights_1,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_1,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
 
     auto weights_2 = create_constant_with_zeros(weights_shape2, {{7, 8, 9, 10}, {}, {}, {}});
     auto conv2 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights_2,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_2,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
 
     auto weights_3 = create_constant_with_zeros(weights_shape3, {{2, 3, 4, 5, 6, 7}, {}, {}, {}});
     auto conv3 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights_3,
-                                                        Strides(2, 1),
-                                                        CoordinateDiff(2, 0),
-                                                        CoordinateDiff(2, 0),
-                                                        Strides(2, 1));
+                                                       weights_3,
+                                                       Strides(2, 1),
+                                                       CoordinateDiff(2, 0),
+                                                       CoordinateDiff(2, 0),
+                                                       Strides(2, 1));
 
     auto concat =
         std::make_shared<op::v0::Concat>(OutputVector{conv1->output(0), conv2->output(0), conv3->output(0)}, 1);
@@ -1820,11 +1814,11 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     auto add_const = create_constant_with_zeros(Shape{1, 6, 1, 1}, {{}, {1, 2, 3, 4, 5}, {}, {}});
     auto add = std::make_shared<op::v1::Add>(conv, add_const);
@@ -1832,22 +1826,22 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
     auto conv_1_shape = Shape{weightsShape[0], weightsShape[0], 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(add,
-                                                         conv_1_weights,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_weights,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     auto add_1 = std::make_shared<op::v1::Add>(conv_1, conv);
 
     auto end_conv_shape = Shape{weightsShape[1], weightsShape[0], 1, 1};
     auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{1, 2, 3}, {}, {}, {}});
     auto end_conv = std::make_shared<op::v1::Convolution>(add_1,
-                                                           weights_end_conv,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights_end_conv,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
     model = std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input});
 
@@ -1864,11 +1858,11 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
             },
             {{}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
         auto add_const = create_constant_with_zeros(Shape{1, 3, 1, 1}, {{}, {}, {}, {}});
         auto add = std::make_shared<op::v1::Add>(conv, add_const);
@@ -1876,22 +1870,22 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
         auto conv_1_shape = Shape{weightsShape[0] - 3, weightsShape[0] - 3, 1, 1};
         auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{}, {}, {}, {}});
         auto conv_1 = std::make_shared<op::v1::Convolution>(add,
-                                                             conv_1_weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            conv_1_weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
 
         auto add_1 = std::make_shared<op::v1::Add>(conv_1, conv);
 
         auto end_conv_shape = Shape{weightsShape[1], weightsShape[0] - 3, 1, 1};
         auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{}, {}, {}, {}});
         auto end_conv = std::make_shared<op::v1::Convolution>(add_1,
-                                                               weights_end_conv,
-                                                               Strides(2, 1),
-                                                               CoordinateDiff(2, 0),
-                                                               CoordinateDiff(2, 0),
-                                                               Strides(2, 1));
+                                                              weights_end_conv,
+                                                              Strides(2, 1),
+                                                              CoordinateDiff(2, 0),
+                                                              CoordinateDiff(2, 0),
+                                                              Strides(2, 1));
         model_ref = std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input});
     }
     {
@@ -1925,29 +1919,29 @@ TEST(TransformationTests, PruneBranchingStopOp) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     // Branching stop op
     Shape group_conv_weights_shape{3, 2, 2, 1, 1};
     auto group_conv_weights = op::v0::Constant::create(element::f32, group_conv_weights_shape, {0});
     auto group_conv = std::make_shared<op::v1::GroupConvolution>(conv,
-                                                                  group_conv_weights,
-                                                                  Strides(2, 1),
-                                                                  CoordinateDiff(2, 0),
-                                                                  CoordinateDiff(2, 0),
-                                                                  Strides(2, 1));
+                                                                 group_conv_weights,
+                                                                 Strides(2, 1),
+                                                                 CoordinateDiff(2, 0),
+                                                                 CoordinateDiff(2, 0),
+                                                                 Strides(2, 1));
 
     auto conv_1_shape = Shape{weightsShape[0], 6, 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(group_conv,
-                                                         conv_1_weights,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_weights,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     // Multiply will try to propagate a non zero masks of the conv_1 up
     // and the mask should be invalidated by group conv stop op mask
@@ -1956,11 +1950,11 @@ TEST(TransformationTests, PruneBranchingStopOp) {
     auto end_conv_shape = Shape{weightsShape[1], weightsShape[0], 1, 1};
     auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{1, 2, 3}, {}, {}, {}});
     auto end_conv = std::make_shared<op::v1::Convolution>(mul,
-                                                           weights_end_conv,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights_end_conv,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
     auto model =
         std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input}, "RestrictedReduceMeanBranching");
@@ -1990,20 +1984,20 @@ TEST(TransformationTests, PruneStopOpUp) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     // Branching stop op
     Shape group_conv_weights_shape{3, 2, 2, 1, 1};
     auto group_conv_weights = op::v0::Constant::create(element::f32, group_conv_weights_shape, {0});
     auto group_conv = std::make_shared<op::v1::GroupConvolution>(conv,
-                                                                  group_conv_weights,
-                                                                  Strides(2, 1),
-                                                                  CoordinateDiff(2, 0),
-                                                                  CoordinateDiff(2, 0),
-                                                                  Strides(2, 1));
+                                                                 group_conv_weights,
+                                                                 Strides(2, 1),
+                                                                 CoordinateDiff(2, 0),
+                                                                 CoordinateDiff(2, 0),
+                                                                 Strides(2, 1));
 
     auto conv_1_shape = Shape{weightsShape[0], 6, 1, 1};
 
@@ -2013,11 +2007,11 @@ TEST(TransformationTests, PruneStopOpUp) {
     auto end_conv_shape = Shape{weightsShape[1], weightsShape[0], 1, 1};
     auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{1, 2, 3}, {}, {}, {}});
     auto end_conv = std::make_shared<op::v1::Convolution>(mul,
-                                                           weights_end_conv,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights_end_conv,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
     auto model = std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input}, "StopOpUp");
 
     if (VISUALIZE_TESTS_TREE)
@@ -2041,11 +2035,11 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     auto reduce_const = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
     auto reduce_mean = std::make_shared<op::v1::ReduceMean>(conv, reduce_const, true);
@@ -2053,11 +2047,11 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
     auto conv_1_shape = Shape{12, 6, 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(reduce_mean,
-                                                         conv_1_weights,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_weights,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     model = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     {
@@ -2066,11 +2060,11 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
             create_constant_with_zeros({weightsShape[0] - 3, weightsShape[1], weightsShape[2], weightsShape[3]},
                                        {{}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
         auto reduce_const = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
         auto reduce_mean = std::make_shared<op::v1::ReduceMean>(conv, reduce_const, true);
@@ -2080,11 +2074,11 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
             create_constant_with_zeros({conv_1_shape[0], conv_1_shape[1], conv_1_shape[2], conv_1_shape[3]},
                                        {{}, {}, {}, {}});
         auto conv_1 = std::make_shared<op::v1::Convolution>(reduce_mean,
-                                                             conv_1_weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            conv_1_weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
         model_ref = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
@@ -2112,11 +2106,11 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     auto reduce_const = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
     auto reduce_mean = std::make_shared<op::v1::ReduceMean>(conv, reduce_const, true);
@@ -2124,22 +2118,22 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
     auto conv_1_shape = Shape{weightsShape[0], weightsShape[0], 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(reduce_mean,
-                                                         conv_1_weights,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_weights,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     auto add_1 = std::make_shared<op::v1::Add>(conv_1, conv);
 
     auto end_conv_shape = Shape{weightsShape[1], weightsShape[0], 1, 1};
     auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{1, 2, 3}, {}, {}, {}});
     auto end_conv = std::make_shared<op::v1::Convolution>(add_1,
-                                                           weights_end_conv,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights_end_conv,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
     model = std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input});
     {
@@ -2153,11 +2147,11 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
             },
             {{}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
         auto reduce_const = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
         auto reduce_mean = std::make_shared<op::v1::ReduceMean>(conv, reduce_const, true);
@@ -2165,22 +2159,22 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
         auto conv_1_shape = Shape{weightsShape[0] - 3, weightsShape[0] - 3, 1, 1};
         auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{}, {}, {}, {}});
         auto conv_1 = std::make_shared<op::v1::Convolution>(reduce_mean,
-                                                             conv_1_weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            conv_1_weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
 
         auto add_1 = std::make_shared<op::v1::Add>(conv_1, conv);
 
         auto end_conv_shape = Shape{weightsShape[1], weightsShape[0] - 3, 1, 1};
         auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{}, {}, {}, {}});
         auto end_conv = std::make_shared<op::v1::Convolution>(add_1,
-                                                               weights_end_conv,
-                                                               Strides(2, 1),
-                                                               CoordinateDiff(2, 0),
-                                                               CoordinateDiff(2, 0),
-                                                               Strides(2, 1));
+                                                              weights_end_conv,
+                                                              Strides(2, 1),
+                                                              CoordinateDiff(2, 0),
+                                                              CoordinateDiff(2, 0),
+                                                              Strides(2, 1));
         model_ref = std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
@@ -2214,11 +2208,11 @@ TEST(TransformationTests, PruneStopReducelayerUp) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     auto reduce_const = op::v0::Constant::create(element::i64, Shape{3}, {1, 2, 3});
     auto reduce_mean = std::make_shared<op::v1::ReduceMean>(conv, reduce_const, true);
@@ -2226,11 +2220,11 @@ TEST(TransformationTests, PruneStopReducelayerUp) {
     auto conv_1_shape = Shape{12, 1, 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(reduce_mean,
-                                                         conv_1_weights,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_weights,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     auto model = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
 
@@ -2256,11 +2250,11 @@ TEST(TransformationTests, PruneStopReduceLayerDown) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     // Branching stop op
     auto reduce_const = op::v0::Constant::create(element::i64, Shape{3}, {1, 2, 3});
     auto reduce_mean = std::make_shared<op::v1::ReduceMean>(conv, reduce_const, true);
@@ -2268,11 +2262,11 @@ TEST(TransformationTests, PruneStopReduceLayerDown) {
     auto conv_1_shape = Shape{weightsShape[0], 1, 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(reduce_mean,
-                                                         conv_1_weights,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_weights,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     // Multiply will try to propagate a non zero masks of the conv_1 up
     // and the mask should be invalidated by reduce_mean stop op mask
@@ -2281,11 +2275,11 @@ TEST(TransformationTests, PruneStopReduceLayerDown) {
     auto end_conv_shape = Shape{weightsShape[1], weightsShape[0], 1, 1};
     auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{1, 2, 3}, {}, {}, {}});
     auto end_conv = std::make_shared<op::v1::Convolution>(mul,
-                                                           weights_end_conv,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights_end_conv,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
     auto model =
         std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input}, "RestrictedReduceMeanBranching");
@@ -2314,11 +2308,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{4}, {1, 6, 64, 1});
     auto reshape = std::make_shared<op::v1::Reshape>(conv, reshape_const, true);
@@ -2326,11 +2320,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
     auto conv_1_shape = Shape{6, 6, 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(reshape,
-                                                         conv_1_weights,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_weights,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     model = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     {
@@ -2344,11 +2338,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
             },
             {{}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
         auto reshape_const = op::v0::Constant::create(element::i64, Shape{4}, {1, 3, 64, 1});
         auto reshape = std::make_shared<op::v1::Reshape>(conv, reshape_const, true);
@@ -2356,11 +2350,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
         auto conv_1_shape = Shape{6, 3, 1, 1};
         auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
         auto conv_1 = std::make_shared<op::v1::Convolution>(reshape,
-                                                             conv_1_weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            conv_1_weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
 
         model_ref = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     }
@@ -2389,11 +2383,11 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapeUpWithShapeOf) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     const auto use_shape_of = GetParam();
     Output<Node> reshape_shape_input;
@@ -2414,11 +2408,11 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapeUpWithShapeOf) {
     auto conv_1_shape = Shape{6, 6, 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(reshape,
-                                                         conv_1_weights,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_weights,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     model = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     {
@@ -2432,11 +2426,11 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapeUpWithShapeOf) {
             },
             {{}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
         Output<Node> reshape_shape_input;
         if (use_shape_of) {
@@ -2464,11 +2458,11 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapeUpWithShapeOf) {
             },
             {{}, {}, {}, {}});
         auto conv_1 = std::make_shared<op::v1::Convolution>(reshape,
-                                                             conv_1_weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            conv_1_weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
 
         model_ref = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     }
@@ -2500,11 +2494,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     auto shape_of_conv = std::make_shared<op::v3::ShapeOf>(conv);
     const auto axis = op::v0::Constant::create(ov::element::i8, {}, {0});
@@ -2512,23 +2506,22 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
     const auto dims_to_keep = op::v0::Constant::create(element::i64, {dims_to_keep_vec.size()}, dims_to_keep_vec);
     const auto gather = std::make_shared<op::v8::Gather>(shape_of_conv, dims_to_keep, axis);
     auto dims_to_keep_vec_1 = std::vector<int64_t>{0};
-    const auto dims_to_keep_1 =
-        op::v0::Constant::create(element::i64, {dims_to_keep_vec_1.size()}, dims_to_keep_vec_1);
+    const auto dims_to_keep_1 = op::v0::Constant::create(element::i64, {dims_to_keep_vec_1.size()}, dims_to_keep_vec_1);
     const auto gather_1 = std::make_shared<op::v8::Gather>(shape_of_conv, dims_to_keep_1, axis);
-    const auto concat = std::make_shared<op::v0::Concat>(
-        NodeVector{gather_1, op::v0::Constant::create(element::i64, {1}, {6}), gather},
-        0);
+    const auto concat =
+        std::make_shared<op::v0::Concat>(NodeVector{gather_1, op::v0::Constant::create(element::i64, {1}, {6}), gather},
+                                         0);
 
     auto reshape = std::make_shared<op::v1::Reshape>(conv, concat, true);
 
     auto conv_1_shape = Shape{6, 6, 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(reshape,
-                                                         conv_1_weights,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_weights,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     model = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     {
@@ -2542,11 +2535,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
             },
             {{}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
         auto shape_of_conv = std::make_shared<op::v3::ShapeOf>(conv);
 
@@ -2576,11 +2569,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
             },
             {{}, {}, {}, {}});
         auto conv_1 = std::make_shared<op::v1::Convolution>(reshape,
-                                                             conv_1_weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            conv_1_weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
 
         model_ref = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     }
@@ -2611,11 +2604,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     auto reshape_const = op::v0::Constant::create(element::i64, {3}, {1, -1, 8});
     auto reshape_to = std::make_shared<op::v1::Reshape>(conv, reshape_const, true);
@@ -2632,11 +2625,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
     auto conv_1_shape = Shape{6, 6, 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(add,
-                                                         conv_1_weights,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_weights,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     model = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     {
@@ -2645,11 +2638,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
             create_constant_with_zeros({weightsShape[0] - 2, weightsShape[1], weightsShape[2], weightsShape[3]},
                                        {{1}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
         auto reshape_const = op::v0::Constant::create(element::i64, {3}, {1, -1, 8});
         auto reshape_to = std::make_shared<op::v1::Reshape>(conv, reshape_const, true);
@@ -2668,11 +2661,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
         auto conv_1_shape = Shape{6, 4, 1, 1};
         auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
         auto conv_1 = std::make_shared<op::v1::Convolution>(add,
-                                                             conv_1_weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            conv_1_weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
 
         model_ref = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     }
@@ -2709,22 +2702,22 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{}, {}, {}, {}});
     auto first_conv = std::make_shared<op::v1::Convolution>(input,
-                                                             weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
 
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{4}, {1, 8, 576, 1});
     auto reshape = std::make_shared<op::v1::Reshape>(first_conv, reshape_const, true);
 
     auto reshape_conv_weights = create_constant_with_zeros({8, 8, 1, 1}, {{1, 2, 3}, {}, {}, {}});
     auto reshape_conv = std::make_shared<op::v1::Convolution>(reshape,
-                                                               reshape_conv_weights,
-                                                               Strides(2, 1),
-                                                               CoordinateDiff(2, 0),
-                                                               CoordinateDiff(2, 0),
-                                                               Strides(2, 1));
+                                                              reshape_conv_weights,
+                                                              Strides(2, 1),
+                                                              CoordinateDiff(2, 0),
+                                                              CoordinateDiff(2, 0),
+                                                              Strides(2, 1));
 
     auto reshape_const_1 = op::v0::Constant::create(element::i64, Shape{4}, {1, 8, 24, 24});
     auto reshape_1 = std::make_shared<op::v1::Reshape>(reshape_conv, reshape_const_1, true);
@@ -2733,11 +2726,11 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
 
     auto last_conv_weights = create_constant_with_zeros({8, 8, 8, 8}, {{1, 2, 3}, {}, {}, {}});
     auto last_conv = std::make_shared<op::v1::Convolution>(mul,
-                                                            last_conv_weights,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           last_conv_weights,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
     model = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
     {
@@ -2751,22 +2744,22 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
             },
             {{}, {}, {}, {}});
         auto first_conv = std::make_shared<op::v1::Convolution>(input,
-                                                                 weights,
-                                                                 Strides(2, 1),
-                                                                 CoordinateDiff(2, 0),
-                                                                 CoordinateDiff(2, 0),
-                                                                 Strides(2, 1));
+                                                                weights,
+                                                                Strides(2, 1),
+                                                                CoordinateDiff(2, 0),
+                                                                CoordinateDiff(2, 0),
+                                                                Strides(2, 1));
 
         auto reshape_const = op::v0::Constant::create(element::i64, Shape{4}, {1, 5, 576, 1});
         auto reshape = std::make_shared<op::v1::Reshape>(first_conv, reshape_const, true);
 
         auto reshape_conv_weights = create_constant_with_zeros({5, 5, 1, 1}, {{}, {}, {}, {}});
         auto reshape_conv = std::make_shared<op::v1::Convolution>(reshape,
-                                                                   reshape_conv_weights,
-                                                                   Strides(2, 1),
-                                                                   CoordinateDiff(2, 0),
-                                                                   CoordinateDiff(2, 0),
-                                                                   Strides(2, 1));
+                                                                  reshape_conv_weights,
+                                                                  Strides(2, 1),
+                                                                  CoordinateDiff(2, 0),
+                                                                  CoordinateDiff(2, 0),
+                                                                  Strides(2, 1));
 
         auto reshape_const_1 = op::v0::Constant::create(element::i64, Shape{4}, {1, 5, 24, 24});
         auto reshape_1 = std::make_shared<op::v1::Reshape>(reshape_conv, reshape_const_1, true);
@@ -2775,11 +2768,11 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
 
         auto last_conv_weights = create_constant_with_zeros({8, 5, 8, 8}, {{1, 2, 3}, {}, {}, {}});
         auto last_conv = std::make_shared<op::v1::Convolution>(mul,
-                                                                last_conv_weights,
-                                                                Strides(2, 1),
-                                                                CoordinateDiff(2, 0),
-                                                                CoordinateDiff(2, 0),
-                                                                Strides(2, 1));
+                                                               last_conv_weights,
+                                                               Strides(2, 1),
+                                                               CoordinateDiff(2, 0),
+                                                               CoordinateDiff(2, 0),
+                                                               Strides(2, 1));
 
         model_ref = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
     }
@@ -2812,22 +2805,22 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto first_conv = std::make_shared<op::v1::Convolution>(input,
-                                                             weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
 
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{4}, {1, 8, 576, 1});
     auto reshape = std::make_shared<op::v1::Reshape>(first_conv, reshape_const, true);
 
     auto reshape_conv_weights = create_constant_with_zeros({8, 8, 1, 1}, {{1, 2, 3}, {}, {}, {}});
     auto reshape_conv = std::make_shared<op::v1::Convolution>(reshape,
-                                                               reshape_conv_weights,
-                                                               Strides(2, 1),
-                                                               CoordinateDiff(2, 0),
-                                                               CoordinateDiff(2, 0),
-                                                               Strides(2, 1));
+                                                              reshape_conv_weights,
+                                                              Strides(2, 1),
+                                                              CoordinateDiff(2, 0),
+                                                              CoordinateDiff(2, 0),
+                                                              Strides(2, 1));
 
     auto reshape_const_1 = op::v0::Constant::create(element::i64, Shape{4}, {1, 8, 24, 24});
     auto reshape_1 = std::make_shared<op::v1::Reshape>(reshape_conv, reshape_const_1, true);
@@ -2836,11 +2829,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
 
     auto last_conv_weights = create_constant_with_zeros({8, 8, 8, 8}, {{1, 2, 3}, {}, {}, {}});
     auto last_conv = std::make_shared<op::v1::Convolution>(add,
-                                                            last_conv_weights,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           last_conv_weights,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
     model = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
     {
@@ -2854,22 +2847,22 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
             },
             {{}, {}, {}, {}});
         auto first_conv = std::make_shared<op::v1::Convolution>(input,
-                                                                 weights,
-                                                                 Strides(2, 1),
-                                                                 CoordinateDiff(2, 0),
-                                                                 CoordinateDiff(2, 0),
-                                                                 Strides(2, 1));
+                                                                weights,
+                                                                Strides(2, 1),
+                                                                CoordinateDiff(2, 0),
+                                                                CoordinateDiff(2, 0),
+                                                                Strides(2, 1));
 
         auto reshape_const = op::v0::Constant::create(element::i64, Shape{4}, {1, 5, 576, 1});
         auto reshape = std::make_shared<op::v1::Reshape>(first_conv, reshape_const, true);
 
         auto reshape_conv_weights = create_constant_with_zeros({5, 5, 1, 1}, {{}, {}, {}, {}});
         auto reshape_conv = std::make_shared<op::v1::Convolution>(reshape,
-                                                                   reshape_conv_weights,
-                                                                   Strides(2, 1),
-                                                                   CoordinateDiff(2, 0),
-                                                                   CoordinateDiff(2, 0),
-                                                                   Strides(2, 1));
+                                                                  reshape_conv_weights,
+                                                                  Strides(2, 1),
+                                                                  CoordinateDiff(2, 0),
+                                                                  CoordinateDiff(2, 0),
+                                                                  Strides(2, 1));
 
         auto reshape_const_1 = op::v0::Constant::create(element::i64, Shape{4}, {1, 5, 24, 24});
         auto reshape_1 = std::make_shared<op::v1::Reshape>(reshape_conv, reshape_const_1, true);
@@ -2878,11 +2871,11 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
 
         auto last_conv_weights = create_constant_with_zeros({8, 5, 8, 8}, {{1, 2, 3}, {}, {}, {}});
         auto last_conv = std::make_shared<op::v1::Convolution>(add,
-                                                                last_conv_weights,
-                                                                Strides(2, 1),
-                                                                CoordinateDiff(2, 0),
-                                                                CoordinateDiff(2, 0),
-                                                                Strides(2, 1));
+                                                               last_conv_weights,
+                                                               Strides(2, 1),
+                                                               CoordinateDiff(2, 0),
+                                                               CoordinateDiff(2, 0),
+                                                               Strides(2, 1));
 
         model_ref = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
     }
@@ -2915,11 +2908,11 @@ TEST(TransformationTests, MaskPropagationStopReshapeUp) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{4}, {1, 3, 128, 1});
     auto reshape = std::make_shared<op::v1::Reshape>(conv, reshape_const, true);
@@ -2927,11 +2920,11 @@ TEST(TransformationTests, MaskPropagationStopReshapeUp) {
     auto conv_1_shape = Shape{6, 3, 1, 1};
     auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(reshape,
-                                                         conv_1_weights,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_weights,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     auto model = std::make_shared<ov::Model>(OutputVector{conv_1}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
@@ -2961,32 +2954,32 @@ TEST(TransformationTests, MaskPropagationStopReshapeDown) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto first_conv = std::make_shared<op::v1::Convolution>(input,
-                                                             weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
 
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{4}, {1, 32, 12, 12});
     auto reshape = std::make_shared<op::v1::Reshape>(first_conv, reshape_const, true);
 
     auto reshape_conv_weights = create_constant_with_zeros({8, 32, 13, 13}, {{1, 2, 3}, {}, {}, {}});
     auto reshape_conv = std::make_shared<op::v1::Convolution>(reshape,
-                                                               reshape_conv_weights,
-                                                               Strides(2, 1),
-                                                               CoordinateDiff(2, 12),
-                                                               CoordinateDiff(2, 12),
-                                                               Strides(2, 1));
+                                                              reshape_conv_weights,
+                                                              Strides(2, 1),
+                                                              CoordinateDiff(2, 12),
+                                                              CoordinateDiff(2, 12),
+                                                              Strides(2, 1));
 
     auto mul = std::make_shared<op::v1::Multiply>(first_conv, reshape_conv);
 
     auto last_conv_weights = create_constant_with_zeros({8, 8, 8, 8}, {{1, 2, 3}, {}, {}, {}});
     auto last_conv = std::make_shared<op::v1::Convolution>(mul,
-                                                            last_conv_weights,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           last_conv_weights,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
     auto model = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
 
@@ -3142,19 +3135,19 @@ TEST(TransformationTests, MaskPropagationWrongDimsElementwise) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto first_conv = std::make_shared<op::v1::Convolution>(input,
-                                                             weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
 
     auto branch_conv_weights = create_constant_with_zeros({32, 8, 2, 2}, {{1, 2, 3}, {}, {}, {}});
     auto branch_conv = std::make_shared<op::v1::Convolution>(first_conv,
-                                                              branch_conv_weights,
-                                                              Strides(2, 2),
-                                                              CoordinateDiff(2, 0),
-                                                              CoordinateDiff(2, 0),
-                                                              Strides(2, 1));
+                                                             branch_conv_weights,
+                                                             Strides(2, 2),
+                                                             CoordinateDiff(2, 0),
+                                                             CoordinateDiff(2, 0),
+                                                             Strides(2, 1));
 
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{4}, {1, 32, 12, 12});
     auto reshape = std::make_shared<op::v1::Reshape>(first_conv, reshape_const, true);
@@ -3163,11 +3156,11 @@ TEST(TransformationTests, MaskPropagationWrongDimsElementwise) {
 
     auto last_conv_weights = create_constant_with_zeros({8, 32, 8, 8}, {{1, 2, 3}, {}, {}, {}});
     auto last_conv = std::make_shared<op::v1::Convolution>(mul,
-                                                            last_conv_weights,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           last_conv_weights,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
     auto model = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
 
@@ -3196,11 +3189,11 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto first_conv_weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto first_conv = std::make_shared<op::v1::Convolution>(input,
-                                                             first_conv_weights,
-                                                             Strides(2, 1),
-                                                             CoordinateDiff(2, 0),
-                                                             CoordinateDiff(2, 0),
-                                                             Strides(2, 1));
+                                                            first_conv_weights,
+                                                            Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
     auto reduce_const = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
     auto reduce_mean = std::make_shared<op::v1::ReduceMean>(first_conv, reduce_const, false);
 
@@ -3210,30 +3203,30 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
     auto se_conv_0_shape = Shape{weightsShape[0], weightsShape[0], 1, 1};
     auto se_conv_0_weights = create_constant_with_zeros(se_conv_0_shape, {{1, 2, 3}, {}, {}, {}});
     auto se_conv_0 = std::make_shared<op::v1::Convolution>(reshape,
-                                                            se_conv_0_weights,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           se_conv_0_weights,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
     auto se_conv_1_shape = Shape{weightsShape[0], weightsShape[0], 1, 1};
     auto se_conv_1_weights = create_constant_with_zeros(se_conv_0_shape, {{1, 2, 3}, {}, {}, {}});
     auto se_conv_1 = std::make_shared<op::v1::Convolution>(se_conv_0,
-                                                            se_conv_1_weights,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           se_conv_1_weights,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
     auto mul = std::make_shared<op::v1::Multiply>(se_conv_1, first_conv);
 
     auto end_conv_shape = Shape{weightsShape[1], weightsShape[0], 1, 1};
     auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{1, 2, 3}, {}, {}, {}});
     auto end_conv = std::make_shared<op::v1::Convolution>(mul,
-                                                           weights_end_conv,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights_end_conv,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
 
     model = std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input});
     {
@@ -3242,11 +3235,11 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
             create_constant_with_zeros({weightsShape[0] - 3, weightsShape[1], weightsShape[2], weightsShape[3]},
                                        {{}, {}, {}, {}});
         auto first_conv = std::make_shared<op::v1::Convolution>(input,
-                                                                 first_conv_weights,
-                                                                 Strides(2, 1),
-                                                                 CoordinateDiff(2, 0),
-                                                                 CoordinateDiff(2, 0),
-                                                                 Strides(2, 1));
+                                                                first_conv_weights,
+                                                                Strides(2, 1),
+                                                                CoordinateDiff(2, 0),
+                                                                CoordinateDiff(2, 0),
+                                                                Strides(2, 1));
         auto reduce_const = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
         auto reduce_mean = std::make_shared<op::v1::ReduceMean>(first_conv, reduce_const, false);
 
@@ -3256,30 +3249,30 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
         auto se_conv_0_shape = Shape{weightsShape[0] - 3, weightsShape[0] - 3, 1, 1};
         auto se_conv_0_weights = create_constant_with_zeros(se_conv_0_shape, {{}, {}, {}, {}});
         auto se_conv_0 = std::make_shared<op::v1::Convolution>(reshape,
-                                                                se_conv_0_weights,
-                                                                Strides(2, 1),
-                                                                CoordinateDiff(2, 0),
-                                                                CoordinateDiff(2, 0),
-                                                                Strides(2, 1));
+                                                               se_conv_0_weights,
+                                                               Strides(2, 1),
+                                                               CoordinateDiff(2, 0),
+                                                               CoordinateDiff(2, 0),
+                                                               Strides(2, 1));
         auto se_conv_1_shape = Shape{weightsShape[0] - 3, weightsShape[0] - 3, 1, 1};
         auto se_conv_1_weights = create_constant_with_zeros(se_conv_0_shape, {{}, {}, {}, {}});
         auto se_conv_1 = std::make_shared<op::v1::Convolution>(se_conv_0,
-                                                                se_conv_1_weights,
-                                                                Strides(2, 1),
-                                                                CoordinateDiff(2, 0),
-                                                                CoordinateDiff(2, 0),
-                                                                Strides(2, 1));
+                                                               se_conv_1_weights,
+                                                               Strides(2, 1),
+                                                               CoordinateDiff(2, 0),
+                                                               CoordinateDiff(2, 0),
+                                                               Strides(2, 1));
 
         auto mul = std::make_shared<op::v1::Multiply>(se_conv_1, first_conv);
 
         auto end_conv_shape = Shape{weightsShape[1], weightsShape[0] - 3, 1, 1};
         auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{}, {}, {}, {}});
         auto end_conv = std::make_shared<op::v1::Convolution>(mul,
-                                                               weights_end_conv,
-                                                               Strides(2, 1),
-                                                               CoordinateDiff(2, 0),
-                                                               CoordinateDiff(2, 0),
-                                                               Strides(2, 1));
+                                                              weights_end_conv,
+                                                              Strides(2, 1),
+                                                              CoordinateDiff(2, 0),
+                                                              CoordinateDiff(2, 0),
+                                                              Strides(2, 1));
 
         model_ref = std::make_shared<ov::Model>(OutputVector{end_conv}, ParameterVector{input}, "SEBlock");
     }
@@ -3317,11 +3310,11 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights = create_constant_with_zeros(weights_shape, {{0, 1, 2}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     auto relu = std::make_shared<op::v0::Relu>(conv);
 
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{2}, {1, linear_input_features});
@@ -3347,11 +3340,11 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
             },
             {{}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
         auto relu = std::make_shared<op::v0::Relu>(conv);
 
         auto reshape_const = op::v0::Constant::create(element::i64, Shape{2}, {1, linear_input_features / 2});
@@ -3459,11 +3452,11 @@ TEST(TransformationTests, PruneLinearUp) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{2}, {1, linear_input_features});
     auto reshape = std::make_shared<op::v1::Reshape>(conv, reshape_const, true);
@@ -3517,19 +3510,19 @@ TEST(TransformationTests, PruneConvUpShort) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
 
     auto conv_1_const = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<op::v1::Convolution>(conv,
-                                                         conv_1_const,
-                                                         Strides(2, 1),
-                                                         CoordinateDiff(2, 0),
-                                                         CoordinateDiff(2, 0),
-                                                         Strides(2, 1));
+                                                        conv_1_const,
+                                                        Strides(2, 1),
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
 
     auto add_const = create_constant_with_zeros(convShape, {{}, {1, 2, 3}, {}, {}});
     auto add = std::make_shared<op::v1::Add>(conv_1, add_const);
@@ -3542,11 +3535,11 @@ TEST(TransformationTests, PruneConvUpShort) {
 
     auto weights_end_conv = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {1, 2, 3}, {}, {}});
     auto last_conv = std::make_shared<op::v1::Convolution>(bad_add,
-                                                            weights_end_conv,
-                                                            Strides(2, 1),
-                                                            CoordinateDiff(2, 0),
-                                                            CoordinateDiff(2, 0),
-                                                            Strides(2, 1));
+                                                           weights_end_conv,
+                                                           Strides(2, 1),
+                                                           CoordinateDiff(2, 0),
+                                                           CoordinateDiff(2, 0),
+                                                           Strides(2, 1));
 
     auto model = std::make_shared<ov::Model>(OutputVector{last_conv}, ParameterVector{input});
 
@@ -3745,11 +3738,11 @@ TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights = create_constant_with_zeros(weights_shape, {{0, 1, 2}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     auto relu = std::make_shared<op::v0::Relu>(conv);
 
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{3}, {1, 6, linear_input_features});
@@ -3767,11 +3760,11 @@ TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
         auto weights = create_constant_with_zeros(weights_shape, {{}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
         auto relu = std::make_shared<op::v0::Relu>(conv);
 
         auto reshape_const = op::v0::Constant::create(element::i64, Shape{3}, {1, 6, linear_input_features});
@@ -3829,11 +3822,11 @@ TEST_F(TransformationTestsF, PruneMasksMatMulRowsStopColsUp) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights = create_constant_with_zeros(weights_shape, {{0, 1, 2}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     auto relu = std::make_shared<op::v0::Relu>(conv);
 
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{3}, {1, 6, linear_input_features});
@@ -3859,11 +3852,11 @@ TEST_F(TransformationTestsF, PruneMasksMatMulRowsStopColsUp) {
             },
             {{}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
         auto relu = std::make_shared<op::v0::Relu>(conv);
 
         auto reshape_const = op::v0::Constant::create(element::i64, Shape{3}, {1, 3, linear_input_features});
@@ -3920,11 +3913,11 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto weights = create_constant_with_zeros(weights_shape, {{0, 1, 2}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     auto relu = std::make_shared<op::v0::Relu>(conv);
 
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{2}, {1, linear_input_features});
@@ -3956,11 +3949,11 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
             },
             {{}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
         auto relu = std::make_shared<op::v0::Relu>(conv);
 
         auto reshape_const = op::v0::Constant::create(element::i64, Shape{2}, {1, 2 * linear_input_features / 3});
@@ -4019,11 +4012,11 @@ TEST_F(TransformationTestsF, PropagateFlattenDown) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                       weights,
-                                                       Strides(2, 1),
-                                                       CoordinateDiff(2, 0),
-                                                       CoordinateDiff(2, 0),
-                                                       Strides(2, 1));
+                                                      weights,
+                                                      Strides(2, 1),
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     auto reshape_const = op::v0::Constant::create(element::i64, Shape{2}, {1, linear_input_features});
     auto reshape = std::make_shared<op::v1::Reshape>(conv, reshape_const, true);
     auto linear_mask = Mask();
@@ -4041,11 +4034,11 @@ TEST_F(TransformationTestsF, PropagateFlattenDown) {
             create_constant_with_zeros({weightsShape[0] - 2, weightsShape[1], weightsShape[2], weightsShape[3]},
                                        {{}, {}, {}, {}});
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                           weights,
-                                                           Strides(2, 1),
-                                                           CoordinateDiff(2, 0),
-                                                           CoordinateDiff(2, 0),
-                                                           Strides(2, 1));
+                                                          weights,
+                                                          Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
         auto reshape_const = op::v0::Constant::create(element::i64, Shape{2}, {1, 2 * linear_input_features / 3});
         auto reshape = std::make_shared<op::v1::Reshape>(conv, reshape_const, true);
         auto linear_const =
@@ -4323,8 +4316,7 @@ TEST_F(DISABLED_TransformationTestsF, PropagateMasksBroadcastedEltwiseWithInputs
 
         auto broadcasted_eltwise_weights_short =
             create_constant_with_zeros(broadcastedEltwiseShapeShort, {{}, {0, 1}, {}});
-        auto broadcasted_eltwise_short =
-            std::make_shared<op::v1::Add>(transpose_to, broadcasted_eltwise_weights_short);
+        auto broadcasted_eltwise_short = std::make_shared<op::v1::Add>(transpose_to, broadcasted_eltwise_weights_short);
 
         auto transpose_from = std::make_shared<op::v1::Transpose>(broadcasted_eltwise_short, transpose_to_const);
 
@@ -4495,8 +4487,7 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
 
         auto broadcasted_eltwise_weights_short =
             create_constant_with_zeros(broadcastedEltwiseShapeShort, {{}, {0, 1}, {}});
-        auto broadcasted_eltwise_short =
-            std::make_shared<op::v1::Add>(transpose_to, broadcasted_eltwise_weights_short);
+        auto broadcasted_eltwise_short = std::make_shared<op::v1::Add>(transpose_to, broadcasted_eltwise_weights_short);
 
         auto broadcasted_eltwise_short2 =
             std::make_shared<op::v1::Add>(broadcasted_eltwise_weights_short, broadcasted_eltwise_short);
@@ -5215,36 +5206,36 @@ TEST_F(TransformationTestsF, PruningWithVariadicSplitOnSecondAxis) {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
         auto weights1 = create_constant_with_zeros({16, 3, 1, 1}, {{1, 2, 4, 8, 10, 11}, {}, {}, {}});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split =
             std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                     op::v0::Constant::create(element::i32, {}, {1}),
-                                                     op::v0::Constant::create(element::i32, Shape{3}, {2, -1, 8}));
+                                                    op::v0::Constant::create(element::i32, {}, {1}),
+                                                    op::v0::Constant::create(element::i32, Shape{3}, {2, -1, 8}));
         auto weights2 = create_constant_with_zeros({8, 2, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 6, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 8, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         model = std::make_shared<ov::Model>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
@@ -5253,38 +5244,38 @@ TEST_F(TransformationTestsF, PruningWithVariadicSplitOnSecondAxis) {
 
         auto weights1 = op::v0::Constant::create(element::f32, {10, 3, 1, 1}, {1});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split_lengths =
             std::make_shared<op::v1::Subtract>(op::v0::Constant::create(element::i32, Shape{3}, {2, -1, 8}),
-                                                op::v0::Constant::create(element::i32, Shape{3}, {1, -5, 3}));
+                                               op::v0::Constant::create(element::i32, Shape{3}, {1, -5, 3}));
         auto split = std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                              op::v0::Constant::create(element::i32, {}, {1}),
-                                                              split_lengths);
+                                                             op::v0::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
         auto weights2 = create_constant_with_zeros({8, 1, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         model_ref = std::make_shared<ov::Model>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
@@ -5299,36 +5290,36 @@ TEST_F(TransformationTestsF, PruningWithVariadicSplitOnFirstAxis) {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 8, 8});
         auto weights1 = create_constant_with_zeros({16, 3, 1, 1}, {{1, 2, 4, 8, 10, 11}, {}, {}, {}});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split =
             std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                     op::v0::Constant::create(element::i32, {}, {-4}),
-                                                     op::v0::Constant::create(element::i32, Shape{3}, {-1, 5, 3}));
+                                                    op::v0::Constant::create(element::i32, {}, {-4}),
+                                                    op::v0::Constant::create(element::i32, Shape{3}, {-1, 5, 3}));
         auto weights2 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         model = std::make_shared<ov::Model>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
@@ -5337,36 +5328,36 @@ TEST_F(TransformationTestsF, PruningWithVariadicSplitOnFirstAxis) {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 8, 8});
         auto weights1 = op::v0::Constant::create(element::f32, {10, 3, 1, 1}, {1});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split =
             std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                     op::v0::Constant::create(element::i32, {}, {-4}),
-                                                     op::v0::Constant::create(element::i32, Shape{3}, {-1, 5, 3}));
+                                                    op::v0::Constant::create(element::i32, {}, {-4}),
+                                                    op::v0::Constant::create(element::i32, Shape{3}, {-1, 5, 3}));
         auto weights2 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         model_ref = std::make_shared<ov::Model>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
@@ -5380,36 +5371,35 @@ TEST(TransformationTests, VariadicSplitMaskPropagationSplitOnSecondAxis) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
     auto weights1 = create_constant_with_zeros({16, 3, 1, 1}, {{1, 2, 4, 8, 10, 11}, {}, {}, {}});
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights1,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
-    auto split =
-        std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                 op::v0::Constant::create(element::i32, {}, {1}),
-                                                 op::v0::Constant::create(element::i32, Shape{3}, {-1, 6, 8}));
+                                                       weights1,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
+    auto split = std::make_shared<op::v1::VariadicSplit>(conv1,
+                                                         op::v0::Constant::create(element::i32, {}, {1}),
+                                                         op::v0::Constant::create(element::i32, Shape{3}, {-1, 6, 8}));
     auto weights2 = create_constant_with_zeros({8, 2, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                        weights2,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights2,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto weights3 = create_constant_with_zeros({8, 6, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                        weights3,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights3,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto weights4 = create_constant_with_zeros({8, 8, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                        weights4,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights4,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto model = std::make_shared<ov::Model>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
 
     {
@@ -5441,38 +5431,38 @@ TEST(TransformationTests, VariadicSplitMaskPropagationSplitOnSecondAxis) {
 
         auto weights1 = op::v0::Constant::create(element::f32, {10, 3, 1, 1}, {1});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split_lengths =
             std::make_shared<op::v1::Subtract>(op::v0::Constant::create(element::i32, Shape{3}, {-1, 6, 8}),
-                                                op::v0::Constant::create(element::i32, Shape{3}, {-2, 2, 3}));
+                                               op::v0::Constant::create(element::i32, Shape{3}, {-2, 2, 3}));
         auto split = std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                              op::v0::Constant::create(element::i32, {}, {1}),
-                                                              split_lengths);
+                                                             op::v0::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
         auto weights2 = create_constant_with_zeros({8, 1, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto model_ref = std::make_shared<ov::Model>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
 
         auto res = compare_functions(model, model_ref);
@@ -5484,35 +5474,35 @@ TEST(TransformationTests, VariadicSplitMaskPropagationSplitOnFirstAxis) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 8, 8});
     auto weights1 = create_constant_with_zeros({16, 3, 1, 1}, {{1, 2, 4, 8, 10, 11}, {}, {}, {}});
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights1,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights1,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto split = std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                          op::v0::Constant::create(element::i32, {}, {0}),
-                                                          op::v0::Constant::create(element::i32, Shape{3}, {2, 5, 3}));
+                                                         op::v0::Constant::create(element::i32, {}, {0}),
+                                                         op::v0::Constant::create(element::i32, Shape{3}, {2, 5, 3}));
     auto weights2 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                        weights2,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights2,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto weights3 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                        weights3,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights3,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto weights4 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                        weights4,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights4,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto model = std::make_shared<ov::Model>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
 
     {
@@ -5543,36 +5533,36 @@ TEST(TransformationTests, VariadicSplitMaskPropagationSplitOnFirstAxis) {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 8, 8});
         auto weights1 = op::v0::Constant::create(element::f32, {10, 3, 1, 1}, {1});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split =
             std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                     op::v0::Constant::create(element::i32, {}, {0}),
-                                                     op::v0::Constant::create(element::i32, Shape{3}, {2, 5, 3}));
+                                                    op::v0::Constant::create(element::i32, {}, {0}),
+                                                    op::v0::Constant::create(element::i32, Shape{3}, {2, 5, 3}));
         auto weights2 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto model_ref = std::make_shared<ov::Model>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
 
         auto res = compare_functions(model, model_ref);
@@ -5584,21 +5574,21 @@ TEST(TransformationTests, VariadicSplitMaskPropagationInvalidateMaskOnFirstAndTh
     auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
     auto weights1 = create_constant_with_zeros({16, 3, 1, 1}, {{1, 2, 4, 8, 10, 11}, {}, {}, {}});
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights1,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights1,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto split = std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                          op::v0::Constant::create(element::i32, {}, {1}),
-                                                          op::v0::Constant::create(element::i32, Shape{3}, {2, 6, 8}));
+                                                         op::v0::Constant::create(element::i32, {}, {1}),
+                                                         op::v0::Constant::create(element::i32, Shape{3}, {2, 6, 8}));
     auto weights2 = create_constant_with_zeros({8, 6, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv2 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                        weights2,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights2,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto model =
         std::make_shared<ov::Model>(OutputVector{split->output(0), conv2, split->output(2)}, ParameterVector{input});
 
@@ -5627,24 +5617,24 @@ TEST(TransformationTests, VariadicSplitMaskPropagationInvalidateMaskOnFirstAndTh
 
         auto weights1 = op::v0::Constant::create(element::f32, {14, 3, 1, 1}, {1});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split_lengths =
             std::make_shared<op::v1::Subtract>(op::v0::Constant::create(element::i32, Shape{3}, {2, 6, 8}),
-                                                op::v0::Constant::create(element::i32, Shape{3}, {0, 2, 0}));
+                                               op::v0::Constant::create(element::i32, Shape{3}, {0, 2, 0}));
         auto split = std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                              op::v0::Constant::create(element::i32, {}, {1}),
-                                                              split_lengths);
+                                                             op::v0::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
         auto weights2 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto model_ref = std::make_shared<ov::Model>(OutputVector{split->output(0), conv2, split->output(2)},
                                                      ParameterVector{input});
 
@@ -5658,33 +5648,33 @@ TEST_F(TransformationTestsF, PruningWithSplitOnSecondAxis) {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
         auto weights1 = create_constant_with_zeros({15, 3, 1, 1}, {{1, 2, 4, 8, 10}, {}, {}, {}});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split = std::make_shared<op::v1::Split>(conv1, op::v0::Constant::create(element::i32, {}, {1}), 3);
         auto weights2 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         model = std::make_shared<ov::Model>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
@@ -5693,36 +5683,36 @@ TEST_F(TransformationTestsF, PruningWithSplitOnSecondAxis) {
 
         auto weights1 = op::v0::Constant::create(element::f32, {10, 3, 1, 1}, {1});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split_lengths = op::v0::Constant::create(element::i64, Shape{3}, {2, 4, 4});
         auto split = std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                              op::v0::Constant::create(element::i32, {}, {1}),
-                                                              split_lengths);
+                                                             op::v0::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
         auto weights2 = create_constant_with_zeros({8, 2, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         model_ref = std::make_shared<ov::Model>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
@@ -5737,33 +5727,33 @@ TEST_F(TransformationTestsF, PruningWithSplitOnFirstAxis) {
         auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{6, 3, 8, 8});
         auto weights1 = create_constant_with_zeros({15, 3, 1, 1}, {{1, 2, 4, 8, 10}, {}, {}, {}});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split = std::make_shared<op::v1::Split>(conv1, op::v0::Constant::create(element::i32, {}, {0}), 3);
         auto weights2 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         model = std::make_shared<ov::Model>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
@@ -5772,33 +5762,33 @@ TEST_F(TransformationTestsF, PruningWithSplitOnFirstAxis) {
 
         auto weights1 = op::v0::Constant::create(element::f32, {10, 3, 1, 1}, {1});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split = std::make_shared<op::v1::Split>(conv1, op::v0::Constant::create(element::i32, {}, {0}), 3);
         auto weights2 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         model_ref = std::make_shared<ov::Model>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
@@ -5812,33 +5802,33 @@ TEST(TransformationTests, SplitMaskPropagationSplitOnSecondAxis) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
     auto weights1 = create_constant_with_zeros({15, 3, 1, 1}, {{1, 2, 4, 8, 10}, {}, {}, {}});
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights1,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights1,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto split = std::make_shared<op::v1::Split>(conv1, op::v0::Constant::create(element::i32, {}, {1}), 3);
     auto weights2 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                        weights2,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights2,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto weights3 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                        weights3,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights3,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto weights4 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                        weights4,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights4,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto model = std::make_shared<ov::Model>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
 
     {
@@ -5869,36 +5859,36 @@ TEST(TransformationTests, SplitMaskPropagationSplitOnSecondAxis) {
 
         auto weights1 = op::v0::Constant::create(element::f32, {10, 3, 1, 1}, {1});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split_lengths = op::v0::Constant::create(element::i64, Shape{3}, {2, 4, 4});
         auto split = std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                              op::v0::Constant::create(element::i32, {}, {1}),
-                                                              split_lengths);
+                                                             op::v0::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
         auto weights2 = create_constant_with_zeros({8, 2, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto model_ref = std::make_shared<ov::Model>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
 
         auto res = compare_functions(model, model_ref);
@@ -5910,33 +5900,33 @@ TEST(TransformationTests, SplitMaskPropagationSplitOnFirstAxis) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{6, 3, 8, 8});
     auto weights1 = create_constant_with_zeros({15, 3, 1, 1}, {{1, 2, 4, 8, 10}, {}, {}, {}});
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights1,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights1,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto split = std::make_shared<op::v1::Split>(conv1, op::v0::Constant::create(element::i32, {}, {0}), 3);
     auto weights2 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                        weights2,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights2,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto weights3 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                        weights3,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights3,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto weights4 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                        weights4,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights4,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto model = std::make_shared<ov::Model>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
 
     {
@@ -5967,33 +5957,33 @@ TEST(TransformationTests, SplitMaskPropagationSplitOnFirstAxis) {
 
         auto weights1 = op::v0::Constant::create(element::f32, {10, 3, 1, 1}, {1});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split = std::make_shared<op::v1::Split>(conv1, op::v0::Constant::create(element::i32, {}, {0}), 3);
         auto weights2 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights3 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv3 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights3,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights3,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto weights4 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv4 = std::make_shared<op::v1::Convolution>(split->output(2),
-                                                            weights4,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights4,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto model_ref = std::make_shared<ov::Model>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
 
         auto res = compare_functions(model, model_ref);
@@ -6005,19 +5995,19 @@ TEST(TransformationTests, SplitMaskPropagationInvalidateMaskOnFirstAndThirdOutpu
     auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
     auto weights1 = create_constant_with_zeros({15, 3, 1, 1}, {{1, 2, 4, 6, 8, 10, 11}, {}, {}, {}});
     auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                        weights1,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights1,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto split = std::make_shared<op::v1::Split>(conv1, op::v0::Constant::create(element::i32, {}, {1}), 3);
     auto weights2 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
     auto conv2 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                        weights2,
-                                                        Strides{1, 1},
-                                                        CoordinateDiff{0, 0},
-                                                        CoordinateDiff{0, 0},
-                                                        Strides{1, 1});
+                                                       weights2,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{0, 0},
+                                                       Strides{1, 1});
     auto model =
         std::make_shared<ov::Model>(OutputVector{split->output(0), conv2, split->output(2)}, ParameterVector{input});
 
@@ -6046,22 +6036,22 @@ TEST(TransformationTests, SplitMaskPropagationInvalidateMaskOnFirstAndThirdOutpu
 
         auto weights1 = op::v0::Constant::create(element::f32, {13, 3, 1, 1}, {1});
         auto conv1 = std::make_shared<op::v1::Convolution>(input,
-                                                            weights1,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights1,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto split_lengths = op::v0::Constant::create(element::i64, Shape{3}, {5, 3, 5});
         auto split = std::make_shared<op::v1::VariadicSplit>(conv1,
-                                                              op::v0::Constant::create(element::i32, {}, {1}),
-                                                              split_lengths);
+                                                             op::v0::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
         auto weights2 = create_constant_with_zeros({8, 3, 1, 1}, {{1, 2}, {}, {}, {}});
         auto conv2 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                            weights2,
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
+                                                           weights2,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         auto model_ref = std::make_shared<ov::Model>(OutputVector{split->output(0), conv2, split->output(2)},
                                                      ParameterVector{input});
 
@@ -6077,8 +6067,8 @@ TEST_F(TransformationTestsF, PruningReshapeNegativeOne) {
         auto matmul1 = std::make_shared<op::v0::MatMul>(input, weights1);
         auto reshape =
             std::make_shared<op::v1::Reshape>(matmul1,
-                                               op::v0::Constant::create(element::i32, Shape{4}, {0, 2, 6, -1}),
-                                               true);
+                                              op::v0::Constant::create(element::i32, Shape{4}, {0, 2, 6, -1}),
+                                              true);
 
         auto weights2 = create_constant_with_zeros({1, 3, 6}, {{}, {}, {1, 2}});
         auto matmul2 = std::make_shared<op::v0::MatMul>(input, weights2);
@@ -6093,8 +6083,8 @@ TEST_F(TransformationTestsF, PruningReshapeNegativeOne) {
         auto matmul1 = std::make_shared<op::v0::MatMul>(input, weights1);
         auto reshape =
             std::make_shared<op::v1::Reshape>(matmul1,
-                                               op::v0::Constant::create(element::i32, Shape{4}, {0, 2, 4, -1}),
-                                               true);
+                                              op::v0::Constant::create(element::i32, Shape{4}, {0, 2, 4, -1}),
+                                              true);
 
         auto weights2 = create_constant_with_zeros({1, 3, 4}, {{}, {}, {}});
         auto matmul2 = std::make_shared<op::v0::MatMul>(input, weights2);
@@ -6117,14 +6107,14 @@ TEST_F(TransformationTestsF, PruningReshapeNegativeOneNonConstantShape) {
 
         auto shape = std::make_shared<op::v3::ShapeOf>(matmul1);
         auto second_dim = std::make_shared<op::v8::Gather>(shape,
-                                                            op::v0::Constant::create(element::i32, Shape{1}, {1}),
-                                                            op::v0::Constant::create(element::i32, Shape{1}, {0}));
+                                                           op::v0::Constant::create(element::i32, Shape{1}, {1}),
+                                                           op::v0::Constant::create(element::i32, Shape{1}, {0}));
         auto concat =
             std::make_shared<op::v0::Concat>(OutputVector{op::v0::Constant::create(element::i64, Shape{1}, {0}),
-                                                           second_dim,
-                                                           op::v0::Constant::create(element::i64, Shape{1}, {6}),
-                                                           op::v0::Constant::create(element::i64, Shape{1}, {-1})},
-                                              0);
+                                                          second_dim,
+                                                          op::v0::Constant::create(element::i64, Shape{1}, {6}),
+                                                          op::v0::Constant::create(element::i64, Shape{1}, {-1})},
+                                             0);
         auto reshape = std::make_shared<op::v1::Reshape>(matmul1, concat, true);
 
         auto weights2 = create_constant_with_zeros({1, 3, 6}, {{}, {}, {1, 2}});
@@ -6141,16 +6131,16 @@ TEST_F(TransformationTestsF, PruningReshapeNegativeOneNonConstantShape) {
 
         auto shape = std::make_shared<op::v3::ShapeOf>(matmul1);
         auto second_dim = std::make_shared<op::v8::Gather>(shape,
-                                                            op::v0::Constant::create(element::i32, Shape{1}, {1}),
-                                                            op::v0::Constant::create(element::i32, Shape{1}, {0}));
+                                                           op::v0::Constant::create(element::i32, Shape{1}, {1}),
+                                                           op::v0::Constant::create(element::i32, Shape{1}, {0}));
         auto concat =
             std::make_shared<op::v0::Concat>(OutputVector{op::v0::Constant::create(element::i64, Shape{1}, {0}),
-                                                           second_dim,
-                                                           op::v0::Constant::create(element::i64, Shape{1}, {6}),
-                                                           op::v0::Constant::create(element::i64, Shape{1}, {-1})},
-                                              0);
-        auto sub = std::make_shared<op::v1::Subtract>(concat,
-                                                       op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 2, 0}));
+                                                          second_dim,
+                                                          op::v0::Constant::create(element::i64, Shape{1}, {6}),
+                                                          op::v0::Constant::create(element::i64, Shape{1}, {-1})},
+                                             0);
+        auto sub =
+            std::make_shared<op::v1::Subtract>(concat, op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 2, 0}));
         auto reshape = std::make_shared<op::v1::Reshape>(matmul1, sub, true);
 
         auto weights2 = create_constant_with_zeros({1, 3, 4}, {{}, {}, {}});

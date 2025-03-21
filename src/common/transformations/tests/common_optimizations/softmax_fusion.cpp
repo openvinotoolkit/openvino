@@ -8,9 +8,6 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "transformations/init_node_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
@@ -19,6 +16,9 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov;

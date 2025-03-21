@@ -9,10 +9,10 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/utils/utils.hpp"
 using namespace ov;
 using namespace testing;
 

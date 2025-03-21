@@ -7,9 +7,9 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ts_test_case.hpp"
-#include "openvino/op/constant.hpp"
 
 namespace transpose_sinking {
 namespace testing {

@@ -9,11 +9,11 @@
 #include <queue>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/lstm_cell.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
-#include "openvino/op/lstm_cell.hpp"
 
 using namespace ov;
 using namespace std;

@@ -11,17 +11,17 @@
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/op/ops.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/init_node_info.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/prior_box.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace ov;
 using namespace testing;

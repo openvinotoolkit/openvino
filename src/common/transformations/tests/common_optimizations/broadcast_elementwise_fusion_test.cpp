@@ -13,14 +13,14 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "transformations/init_node_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov;

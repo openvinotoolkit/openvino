@@ -13,17 +13,17 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset8.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
-#include "openvino/op/prelu.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/prelu.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace testing;
 using namespace ov;

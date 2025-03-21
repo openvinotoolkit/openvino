@@ -7,8 +7,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -30,6 +28,8 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov;
 namespace {

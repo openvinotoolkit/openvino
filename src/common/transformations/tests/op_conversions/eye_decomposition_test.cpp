@@ -10,8 +10,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/model.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/eye.hpp"

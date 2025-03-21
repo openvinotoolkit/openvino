@@ -12,13 +12,13 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;

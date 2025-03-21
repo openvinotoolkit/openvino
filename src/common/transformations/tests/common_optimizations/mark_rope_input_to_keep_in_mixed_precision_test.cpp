@@ -4,9 +4,6 @@
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/pass/manager.hpp"
-#include "ov_ops/rotary_positional_embeddings.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/cos.hpp"
@@ -14,6 +11,9 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/manager.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 TEST_F(TransformationTestsF, MarkRopeInputsToKeepInMixedPrecisionTest) {
     /*

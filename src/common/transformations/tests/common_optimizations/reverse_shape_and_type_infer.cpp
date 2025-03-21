@@ -12,9 +12,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/convolution.hpp"
-#include "openvino/op/convolution.hpp"
 #include "openvino/op/deformable_convolution.hpp"
-#include "openvino/op/group_conv.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/pad.hpp"
@@ -35,11 +33,11 @@ TEST_F(TransformationTestsF, ConvolutionReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(data,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -49,11 +47,11 @@ TEST_F(TransformationTestsF, ConvolutionReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(data,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
@@ -65,11 +63,11 @@ TEST_F(TransformationTestsF, ConvolutionReverseInferUpdateShape) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(data,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -79,11 +77,11 @@ TEST_F(TransformationTestsF, ConvolutionReverseInferUpdateShape) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(data,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
@@ -95,11 +93,11 @@ TEST_F(TransformationTestsF, ConvolutionBackpropDataReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{20, 10, 3, 3}, std::vector<float>(20 * 10 * 3 * 3, 0.1f));
         auto conv = std::make_shared<op::v1::ConvolutionBackpropData>(data,
-                                                                       weights,
-                                                                       Strides{2, 2},
-                                                                       CoordinateDiff{1, 1},
-                                                                       CoordinateDiff{1, 1},
-                                                                       Strides{1, 1});
+                                                                      weights,
+                                                                      Strides{2, 2},
+                                                                      CoordinateDiff{1, 1},
+                                                                      CoordinateDiff{1, 1},
+                                                                      Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -109,11 +107,11 @@ TEST_F(TransformationTestsF, ConvolutionBackpropDataReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{20, 10, 3, 3}, std::vector<float>(20 * 10 * 3 * 3, 0.1f));
         auto conv = std::make_shared<op::v1::ConvolutionBackpropData>(data,
-                                                                       weights,
-                                                                       Strides{2, 2},
-                                                                       CoordinateDiff{1, 1},
-                                                                       CoordinateDiff{1, 1},
-                                                                       Strides{1, 1});
+                                                                      weights,
+                                                                      Strides{2, 2},
+                                                                      CoordinateDiff{1, 1},
+                                                                      CoordinateDiff{1, 1},
+                                                                      Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
@@ -125,11 +123,11 @@ TEST_F(TransformationTestsF, GroupConvolutionReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{3, 2, 3, 7, 7}, std::vector<float>(3 * 2 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::GroupConvolution>(data,
-                                                                weights,
-                                                                Strides{1, 1},
-                                                                CoordinateDiff{1, 1},
-                                                                CoordinateDiff{1, 1},
-                                                                Strides{1, 1});
+                                                               weights,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{1, 1},
+                                                               CoordinateDiff{1, 1},
+                                                               Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -139,11 +137,11 @@ TEST_F(TransformationTestsF, GroupConvolutionReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{3, 2, 3, 7, 7}, std::vector<float>(3 * 2 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::GroupConvolution>(data,
-                                                                weights,
-                                                                Strides{1, 1},
-                                                                CoordinateDiff{1, 1},
-                                                                CoordinateDiff{1, 1},
-                                                                Strides{1, 1});
+                                                               weights,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{1, 1},
+                                                               CoordinateDiff{1, 1},
+                                                               Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -156,11 +154,11 @@ TEST_F(TransformationTestsF, GroupConvolutionBackpropDataReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{4, 5, 2, 3, 3}, std::vector<float>(4 * 5 * 2 * 3 * 3, 0.1f));
         auto conv = std::make_shared<op::v1::GroupConvolutionBackpropData>(data,
-                                                                            weights,
-                                                                            Strides{2, 2},
-                                                                            CoordinateDiff{1, 1},
-                                                                            CoordinateDiff{1, 1},
-                                                                            Strides{1, 1});
+                                                                           weights,
+                                                                           Strides{2, 2},
+                                                                           CoordinateDiff{1, 1},
+                                                                           CoordinateDiff{1, 1},
+                                                                           Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -170,11 +168,11 @@ TEST_F(TransformationTestsF, GroupConvolutionBackpropDataReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{4, 5, 2, 3, 3}, std::vector<float>(4 * 5 * 2 * 3 * 3, 0.1f));
         auto conv = std::make_shared<op::v1::GroupConvolutionBackpropData>(data,
-                                                                            weights,
-                                                                            Strides{2, 2},
-                                                                            CoordinateDiff{1, 1},
-                                                                            CoordinateDiff{1, 1},
-                                                                            Strides{1, 1});
+                                                                           weights,
+                                                                           Strides{2, 2},
+                                                                           CoordinateDiff{1, 1},
+                                                                           CoordinateDiff{1, 1},
+                                                                           Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -189,13 +187,13 @@ TEST_F(TransformationTestsF, DeformableConvolutionReverseInfer) {
             op::v0::Constant::create(element::f32, Shape{64, 4, 5, 5}, std::vector<float>(64 * 4 * 5 * 5, 0.1f));
         auto mask = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
         auto conv = std::make_shared<op::v8::DeformableConvolution>(data,
-                                                                     offsets,
-                                                                     weights,
-                                                                     mask,
-                                                                     Strides{1, 1},
-                                                                     CoordinateDiff{0, 0},
-                                                                     CoordinateDiff{0, 0},
-                                                                     Strides{1, 1});
+                                                                    offsets,
+                                                                    weights,
+                                                                    mask,
+                                                                    Strides{1, 1},
+                                                                    CoordinateDiff{0, 0},
+                                                                    CoordinateDiff{0, 0},
+                                                                    Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data, offsets, mask});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -207,13 +205,13 @@ TEST_F(TransformationTestsF, DeformableConvolutionReverseInfer) {
             op::v0::Constant::create(element::f32, Shape{64, 4, 5, 5}, std::vector<float>(64 * 4 * 5 * 5, 0.1f));
         auto mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
         auto conv = std::make_shared<op::v8::DeformableConvolution>(data,
-                                                                     offsets,
-                                                                     weights,
-                                                                     mask,
-                                                                     Strides{1, 1},
-                                                                     CoordinateDiff{0, 0},
-                                                                     CoordinateDiff{0, 0},
-                                                                     Strides{1, 1});
+                                                                    offsets,
+                                                                    weights,
+                                                                    mask,
+                                                                    Strides{1, 1},
+                                                                    CoordinateDiff{0, 0},
+                                                                    CoordinateDiff{0, 0},
+                                                                    Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data, offsets, mask});
     }
@@ -270,11 +268,11 @@ TEST_F(TransformationTestsF, ActivationReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(relu,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -285,11 +283,11 @@ TEST_F(TransformationTestsF, ActivationReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(relu,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
@@ -303,11 +301,11 @@ TEST_F(TransformationTestsF, EltwiseScalarRightReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(add,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -319,11 +317,11 @@ TEST_F(TransformationTestsF, EltwiseScalarRightReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(add,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
@@ -337,11 +335,11 @@ TEST_F(TransformationTestsF, EltwiseScalarLeftReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(add,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -353,11 +351,11 @@ TEST_F(TransformationTestsF, EltwiseScalarLeftReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(add,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
@@ -413,11 +411,11 @@ TEST_F(TransformationTestsF, SliceReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(slice,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -432,11 +430,11 @@ TEST_F(TransformationTestsF, SliceReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(slice,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
@@ -451,11 +449,11 @@ TEST_F(TransformationTestsF, SqueezeReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(squeeze,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -467,11 +465,11 @@ TEST_F(TransformationTestsF, SqueezeReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(squeeze,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
@@ -486,11 +484,11 @@ TEST_F(TransformationTestsF, SqueezeAxesReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(squeeze,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -502,11 +500,11 @@ TEST_F(TransformationTestsF, SqueezeAxesReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(squeeze,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
@@ -521,11 +519,11 @@ TEST_F(TransformationTestsF, UnsqueezeReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(unsqueeze,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -537,11 +535,11 @@ TEST_F(TransformationTestsF, UnsqueezeReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(unsqueeze,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
@@ -557,11 +555,11 @@ TEST_F(TransformationTestsF, ConvertLikeReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(convert_like,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data1, data2});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -573,11 +571,11 @@ TEST_F(TransformationTestsF, ConvertLikeReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(convert_like,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data1, data2});
     }
@@ -611,11 +609,11 @@ TEST_F(TransformationTestsF, IfReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(res,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{X, cond});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -647,11 +645,11 @@ TEST_F(TransformationTestsF, IfReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(res,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{X, cond});
     }
@@ -666,11 +664,11 @@ TEST_F(TransformationTestsF, TransposeWithDynamicOrderReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(transpose,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data, order});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -683,11 +681,11 @@ TEST_F(TransformationTestsF, TransposeWithDynamicOrderReverseInfer) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(transpose,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data, order});
     }
@@ -719,11 +717,11 @@ TEST_F(TransformationTestsF, TransposeWithConstantOrderReverseInfer2) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(transpose,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -735,11 +733,11 @@ TEST_F(TransformationTestsF, TransposeWithConstantOrderReverseInfer2) {
         auto weights =
             op::v0::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
         auto conv = std::make_shared<op::v1::Convolution>(transpose,
-                                                           weights,
-                                                           Strides{2, 2},
-                                                           CoordinateDiff{3, 3},
-                                                           CoordinateDiff{3, 3},
-                                                           Strides{1, 1});
+                                                          weights,
+                                                          Strides{2, 2},
+                                                          CoordinateDiff{3, 3},
+                                                          CoordinateDiff{3, 3},
+                                                          Strides{1, 1});
         auto result = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }

@@ -7,10 +7,6 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
-#include "ov_ops/type_relaxed.hpp"
-#include "transformations/convert_precision.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -31,6 +27,10 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace element = ov::element;
 using std::make_shared;

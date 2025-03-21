@@ -12,11 +12,6 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -27,6 +22,11 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace testing;

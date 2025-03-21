@@ -9,9 +9,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -23,6 +20,9 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 

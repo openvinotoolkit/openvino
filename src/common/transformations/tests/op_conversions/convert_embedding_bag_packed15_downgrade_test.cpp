@@ -9,11 +9,11 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/op/embeddingbag_packed.hpp"
 #include "openvino/op/embeddingbag_packedsum.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/utils/utils.hpp"
 using namespace ov;
 using namespace testing;
 

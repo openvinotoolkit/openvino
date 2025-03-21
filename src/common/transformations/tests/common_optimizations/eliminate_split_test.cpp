@@ -7,13 +7,12 @@
 #include <queue>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/op/parameter.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/split.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 
 using namespace ov;
 using namespace testing;

@@ -10,8 +10,6 @@
 #include <openvino/pass/manager.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "ov_ops/type_relaxed.hpp"
-#include "transformations/init_node_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -25,6 +23,8 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 

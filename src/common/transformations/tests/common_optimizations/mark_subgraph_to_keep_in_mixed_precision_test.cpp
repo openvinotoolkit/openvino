@@ -5,11 +5,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -18,6 +13,11 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset2.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace testing;
 using namespace ov;

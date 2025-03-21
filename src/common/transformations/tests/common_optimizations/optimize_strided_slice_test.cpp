@@ -17,9 +17,6 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -32,6 +29,9 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace testing;

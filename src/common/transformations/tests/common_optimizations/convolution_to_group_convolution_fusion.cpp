@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
@@ -15,6 +14,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -39,11 +39,11 @@ TEST_F(TransformationTestsF, ConvToGroupConvFusionSplit) {
         for (size_t i = 0; i < num_splits; i++) {
             const auto weights = op::v0::Constant::create(element::f32, weights_shape, {i + 1});
             concat_inputs.push_back(std::make_shared<op::v1::Convolution>(split->output(i),
-                                                                           weights,
-                                                                           strides,
-                                                                           pads_begin,
-                                                                           pads_end,
-                                                                           dilations));
+                                                                          weights,
+                                                                          strides,
+                                                                          pads_begin,
+                                                                          pads_end,
+                                                                          dilations));
         }
         const auto concat = std::make_shared<op::v0::Concat>(concat_inputs, axis);
         model = std::make_shared<Model>(concat, ParameterVector{data});
@@ -92,11 +92,11 @@ TEST_F(TransformationTestsF, ConvToGroupConvFusionVariadicSplit) {
         for (size_t i = 0; i < num_splits; i++) {
             const auto weights = op::v0::Constant::create(element::f32, weights_shape, {i + 1});
             concat_inputs.push_back(std::make_shared<op::v1::Convolution>(split->output(i),
-                                                                           weights,
-                                                                           strides,
-                                                                           pads_begin,
-                                                                           pads_end,
-                                                                           dilations));
+                                                                          weights,
+                                                                          strides,
+                                                                          pads_begin,
+                                                                          pads_end,
+                                                                          dilations));
         }
         const auto concat = std::make_shared<op::v0::Concat>(concat_inputs, axis);
         model = std::make_shared<Model>(concat, ParameterVector{data});
@@ -143,11 +143,11 @@ TEST_F(TransformationTestsF, NegativeConvToGroupConvFusionSplitInvalidAxis) {
         for (int i = 0; i < num_splits; i++) {
             const auto weights = op::v0::Constant::create(element::f32, weights_shape, {i + 1});
             concat_inputs.push_back(std::make_shared<op::v1::Convolution>(split->output(i),
-                                                                           weights,
-                                                                           strides,
-                                                                           pads_begin,
-                                                                           pads_end,
-                                                                           dilations));
+                                                                          weights,
+                                                                          strides,
+                                                                          pads_begin,
+                                                                          pads_end,
+                                                                          dilations));
         }
         const auto concat = std::make_shared<op::v0::Concat>(concat_inputs, axis);
         model = std::make_shared<Model>(concat, ParameterVector{data});
@@ -175,11 +175,11 @@ TEST_F(TransformationTestsF, NegativeConvToGroupConvFusionSplitNotMatchingConvAt
         CoordinateDiff pads_end1(spatial_dim_size, 1);
         Strides dilations1(spatial_dim_size, 1);
         const auto conv1 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                                  weights1,
-                                                                  strides1,
-                                                                  pads_begin1,
-                                                                  pads_end1,
-                                                                  dilations1);
+                                                                 weights1,
+                                                                 strides1,
+                                                                 pads_begin1,
+                                                                 pads_end1,
+                                                                 dilations1);
 
         const auto weights2 = op::v0::Constant::create(element::f32, Shape{3, input_shape[1] / num_splits, 4, 4}, {1});
         Strides strides2(spatial_dim_size, 1);
@@ -187,11 +187,11 @@ TEST_F(TransformationTestsF, NegativeConvToGroupConvFusionSplitNotMatchingConvAt
         CoordinateDiff pads_end2(spatial_dim_size, 2);
         Strides dilations2(spatial_dim_size, 1);
         const auto conv2 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                                  weights2,
-                                                                  strides2,
-                                                                  pads_begin2,
-                                                                  pads_end2,
-                                                                  dilations2);
+                                                                 weights2,
+                                                                 strides2,
+                                                                 pads_begin2,
+                                                                 pads_end2,
+                                                                 dilations2);
         const auto concat = std::make_shared<op::v0::Concat>(OutputVector{conv1, conv2}, axis);
         model = std::make_shared<Model>(concat, ParameterVector{data});
         manager.register_pass<ov::pass::ConvolutionToGroupConvolutionFusion>();
@@ -213,24 +213,15 @@ TEST_F(TransformationTestsF, NegativeConvToGroupConvFusionVariadicSplitUnevenSpl
     {
         const auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
         const auto axis_node = op::v0::Constant::create(element::i32, Shape{}, {axis});
-        const auto split_lengths = op::v0::Constant::create(element::i32,
-                                                             Shape{2},
-                                                             std::vector<int>{3, static_cast<int>(input_shape[1]) - 3});
+        const auto split_lengths =
+            op::v0::Constant::create(element::i32, Shape{2}, std::vector<int>{3, static_cast<int>(input_shape[1]) - 3});
         const auto split = std::make_shared<op::v1::VariadicSplit>(data, axis_node, split_lengths);
         const auto weights1 = op::v0::Constant::create(element::f32, Shape{3, 3, 1, 1}, {1});
-        const auto conv1 = std::make_shared<op::v1::Convolution>(split->output(0),
-                                                                  weights1,
-                                                                  strides,
-                                                                  pads_begin,
-                                                                  pads_end,
-                                                                  dilations);
+        const auto conv1 =
+            std::make_shared<op::v1::Convolution>(split->output(0), weights1, strides, pads_begin, pads_end, dilations);
         const auto weights2 = op::v0::Constant::create(element::f32, Shape{3, 7, 1, 1}, {2});
-        const auto conv2 = std::make_shared<op::v1::Convolution>(split->output(1),
-                                                                  weights2,
-                                                                  strides,
-                                                                  pads_begin,
-                                                                  pads_end,
-                                                                  dilations);
+        const auto conv2 =
+            std::make_shared<op::v1::Convolution>(split->output(1), weights2, strides, pads_begin, pads_end, dilations);
         const auto concat = std::make_shared<op::v0::Concat>(OutputVector{conv1, conv2}, axis);
         model = std::make_shared<Model>(concat, ParameterVector{data});
         manager.register_pass<ov::pass::ConvolutionToGroupConvolutionFusion>();

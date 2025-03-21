@@ -12,16 +12,16 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/non_max_suppression.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/non_max_suppression.hpp"
-#include "openvino/op/parameter.hpp"
 
 using namespace testing;
 using namespace ov;

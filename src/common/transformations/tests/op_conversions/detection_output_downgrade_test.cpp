@@ -12,11 +12,11 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/detection_output.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/util/detection_output_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
-#include "openvino/op/detection_output.hpp"
-#include "openvino/op/parameter.hpp"
 
 using namespace ov;
 using namespace testing;

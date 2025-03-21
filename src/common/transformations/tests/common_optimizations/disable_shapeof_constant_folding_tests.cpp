@@ -10,15 +10,15 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 
 using namespace testing;
 using namespace ov;

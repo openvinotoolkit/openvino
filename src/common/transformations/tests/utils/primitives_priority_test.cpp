@@ -13,11 +13,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/parameter.hpp"
+#include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 using namespace ov;
 using namespace testing;

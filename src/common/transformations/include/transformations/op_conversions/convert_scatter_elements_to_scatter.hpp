@@ -7,10 +7,10 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/matcher_pass.hpp"
-#include "transformations_visibility.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {

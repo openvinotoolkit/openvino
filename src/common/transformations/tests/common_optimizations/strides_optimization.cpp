@@ -7,9 +7,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/init_node_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
@@ -18,6 +15,9 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace ov;
 using namespace testing;

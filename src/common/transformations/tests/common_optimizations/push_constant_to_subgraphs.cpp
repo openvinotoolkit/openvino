@@ -4,7 +4,6 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,6 +14,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/subtract.hpp"
+#include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 
 using namespace testing;
 using namespace ov;

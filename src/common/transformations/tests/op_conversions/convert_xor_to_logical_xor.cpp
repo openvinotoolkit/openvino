@@ -11,11 +11,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/init_node_info.hpp"
 #include "openvino/op/logical_xor.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/xor.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -50,8 +50,8 @@ TEST_F(TransformationTestsF, ConvertXorToLogicalXor) {
 
         auto logical_xor =
             std::make_shared<op::v1::LogicalXor>(input1,
-                                                  input2,
-                                                  ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
+                                                 input2,
+                                                 ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
 
         model_ref = std::make_shared<ov::Model>(NodeVector{logical_xor}, ParameterVector{input1, input2});
     }

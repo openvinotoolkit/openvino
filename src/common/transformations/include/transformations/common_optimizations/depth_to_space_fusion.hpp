@@ -7,9 +7,9 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/op/depth_to_space.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
-#include "openvino/op/depth_to_space.hpp"
 
 namespace ov {
 namespace pass {

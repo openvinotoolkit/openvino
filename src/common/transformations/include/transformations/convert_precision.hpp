@@ -10,8 +10,6 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/pass/matcher_pass.hpp"
-#include "transformations_visibility.hpp"
 #include "openvino/op/bucketize.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/non_max_suppression.hpp"
@@ -20,6 +18,8 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/topk.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {

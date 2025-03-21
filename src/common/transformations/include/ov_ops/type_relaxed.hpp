@@ -10,12 +10,11 @@
 #include <string>
 #include <vector>
 
+#include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "transformations_visibility.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/convert.hpp"
 
 namespace ov {
 namespace op {

@@ -9,14 +9,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/util/shape_of_base.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/rotary_positional_embeddings.hpp"
-#include "ov_ops/type_relaxed.hpp"
-#include "transformations/utils/gen_pattern.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -35,7 +27,15 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "transformations/utils/gen_pattern.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
 

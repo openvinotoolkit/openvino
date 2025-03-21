@@ -9,10 +9,6 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "ov_ops/rms.hpp"
-#include "ov_ops/rotary_positional_embeddings.hpp"
-#include "ov_ops/type_relaxed.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -30,6 +26,10 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "ov_ops/rms.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "transformations/utils/gen_pattern.hpp"
 
 using namespace testing;
 using namespace ov::gen_pattern;
