@@ -412,6 +412,7 @@ struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTI
 
     static std::string defaultValue() {
         return {};
+    }
 
     static OptionMode mode() {
         return OptionMode::CompileTime;
