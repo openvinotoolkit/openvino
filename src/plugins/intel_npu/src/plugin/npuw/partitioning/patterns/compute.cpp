@@ -163,7 +163,6 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
              ov::element::i8 == matched_qweight->get_element_type() ||
              ov::element::f8e4m3 == matched_qweight->get_element_type() ||
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
-             ov::element::f4e2m1 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type() ||
              ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::element::f16 == matched_qcoeff->get_element_type() ||
@@ -231,7 +230,6 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
              ov::element::i8 == matched_qweight->get_element_type() ||
              ov::element::f8e4m3 == matched_qweight->get_element_type() ||
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
-             ov::element::f4e2m1 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type() ||
              ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::element::f16 == matched_qcoeff->get_element_type() ||
@@ -447,7 +445,8 @@ RMSNorm2::RMSNorm2(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, 
 VariadicSplit::VariadicSplit(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
     auto vsplit = opp::wrap_type<ov::op::v1::VariadicSplit>({opp::any_input(), opp::any_input(), opp::any_input()});
     auto swish = opp::wrap_type<ov::op::v4::Swish>({vsplit});
-    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({vsplit, swish});
+    auto multiply1 = opp::optional<ov::op::v1::Multiply>({swish->output(0), opp::any_input()});
+    auto multiply2 = opp::wrap_type<ov::op::v1::Multiply>({vsplit, multiply1});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
@@ -457,15 +456,21 @@ VariadicSplit::VariadicSplit(const std::shared_ptr<ov::npuw::online::Snapshot>& 
 
         auto matched_vsplit = node_to_output.at(vsplit).get_node_shared_ptr();
         auto matched_swish = node_to_output.at(swish).get_node_shared_ptr();
-        auto matched_multiply = node_to_output.at(multiply).get_node_shared_ptr();
+        auto matched_multiply = node_to_output.at(multiply2).get_node_shared_ptr();
 
         node_to_gptr->at(matched_vsplit)->isolate(isol_tag);
         node_to_gptr->at(matched_swish)->isolate(isol_tag);
         node_to_gptr->at(matched_multiply)->isolate(isol_tag);
 
+        auto multiply1_iter = node_to_output.find(multiply1);
+        if (multiply1_iter != node_to_output.end()) {
+            auto matched_multiply1 = multiply1_iter->second.get_node_shared_ptr();
+            node_to_gptr->at(matched_multiply1)->isolate(isol_tag);
+        }
+
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(multiply, "TagVariadicSplit"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(multiply2, "TagVariadicSplit"), std::move(callback));
 }
 
 // TODO: visualize
