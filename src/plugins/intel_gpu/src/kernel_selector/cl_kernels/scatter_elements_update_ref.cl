@@ -199,9 +199,9 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         const uint input2_length = tgx * tgy * tgz > COUNT_LENGTH ? COUNT_LENGTH : tgx * tgy * tgz;
     #endif
     #if USE_INIT_VAL == 0
-    for (uint gx = 0; gx < tgx; gx++) {
+    for (uint gz = 0; gz < tgz; gz++) {
         for (uint gy = 0; gy < tgy; gy++) {
-            for (uint gz = 0; gz < tgz; gz++) {
+            for (uint gx = 0; gx < tgx; gx++) {
                 uint ORDER;
                 #if OUTPUT_DIMS == 4
                     x = gx;
@@ -232,9 +232,9 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #endif
     #endif
     #ifdef REDUCE_MODE  // A loop is needed for a single worker item in reduce
-    for (uint gx = 0; gx < tgx; gx++) {
+    for (uint gz = 0; gz < tgz; gz++) {
         for (uint gy = 0; gy < tgy; gy++) {
-            for (uint gz = 0; gz < tgz; gz++) {
+            for (uint gx = 0; gx < tgx; gx++) {
                 uint ORDER;
                 #if OUTPUT_DIMS == 4
                     x = gx;
