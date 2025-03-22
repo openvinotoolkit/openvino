@@ -9,9 +9,10 @@
 #if defined(OPENVINO_ARCH_RISCV64)
 #   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif
-
 #include <string>
 #include <vector>
+
+#include "utils/cpu_test_utils.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
@@ -80,6 +81,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canExportModel.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModelWithIncorrectConfig.*)",
+        // requires support CACHE_MODE
+        R"(.*OVCompiledModelBaseTest.*import_from_weightless_blob.*)",
+        R"(.*OVCompiledModelBaseTest.*compile_from_weightless_blob.*)",
+        R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*)",
+
         // CPU does not support dynamic rank
         // Issue: 66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
@@ -279,6 +285,49 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TestsROIAlign.*)",
         // Issue: 136881
         R"(.*smoke_CompareWithRefs_4D_BitwiseShift_overflow_i32_cast.*_eltwise_op_type=BitwiseLeft.*_model_type=.*(i16|u16).*)",
+        // Issue: 163083
+        // Issue: 163116
+        R"(.*RandomUniformLayerTestCPU.*OutPrc=bf16.*)",
+        // Issue: 163117
+        R"(.*InterpolateCubic_Layout_Test.*)",
+        // Issue: 163171
+        R"(.*CPUDetectionOutputDynamic3InLargeTensor.*)",
+        // Issue: 163168
+        R"(.*UniqueLayerTestCPU.*)",
+        // Issue: 163175
+        R"(.*GridSampleLayerTestCPU.*dataPrc=i8.*)",
+        R"(.*GridSampleLayerTestCPU.*dataPrc=bf16.*)",
+        // Issue: 163177
+        R"(.*NmsRotatedOpTest.*ScoreThr=0\.4.*)",
+        // Issue: 163222
+        R"(.*bf16.*LSTMSequenceCPUTest.*)",
+        // Issue: 163223
+        R"(.*bf16.*AUGRUSequenceCPUTest.*)",
+        // Issue: 163224
+        R"(.*bf16.*GRUSequenceCPUTest.*)",
+        // Issue: 163227
+        R"(.*QuantizedModelsTests\.MaxPoolFQ.*)",
+        R"(.*QuantizedModelsTests\.MaxPoolQDQ.*)",
+        // Issue: 163268
+        R"(.*QuantizedModelsTests\.ConvolutionQDQ.*)",
+        R"(.*QuantizedModelsTests\.ConvolutionFQ.*)",
+        // Issue: 163230
+        R"(.*ProposalLayerTest.*)",
+        // Issue: 163232
+        R"(.*FC_3D_BF16.*MatMulLayerCPUTest.*)",
+        // Issue: 163242
+        R"(.*bf16.*RNNSequenceCPUTest.*)",
+        // Issue: 163250
+        R"(.*OnnxModelWithExtensionFromDSO.*)",
+        // Issue: 163273
+        // todo: define correct area
+        R"(.*Deconv_2D_Planar_FP16.*DeconvolutionLayerCPUTest.*)",
+        // Issue: 163275
+        R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
+        // Issue: 163348
+        R"(.*CpuReservationTest.*Mutiple_CompiledModel_Reservation.*)",
+        // Issue: 163351
+        R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
@@ -491,7 +540,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_RDFT_CPU_1D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(126\)\)_constAxes=true_axes=\(\(0\)\)_isInverse=false.*)");
     retVector.emplace_back(R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(16.38\)\)_constAxes=true_axes=\(\(0.1\)\)_isInverse=false.*)");
 #endif
-    if (!ov::with_cpu_x86_avx512_core()) {
+    if (!ov::intel_cpu::hasHardwareSupport(ov::element::bf16)) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
@@ -504,7 +553,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
     }
-    if (!ov::with_cpu_x86_avx512_core_fp16()) {
+    if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
         retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*)");
@@ -638,7 +687,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Deconv_(2|3)D_NSPC_INT8_AMX/DeconvolutionLayerCPUTest.*)");
     }
 
-    if (ov::with_cpu_x86_avx512_core_fp16()) {
+    if (ov::with_cpu_x86_avx512_core_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
         // Issue: 143852
         retVector.emplace_back(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)");
         retVector.emplace_back(R"((smoke|nightly)_FC_3D_FP16/.*_Fused=Multiply\(PerChannel\).*)");
@@ -647,6 +696,14 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_MM_Brgemm_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_Conv_.*_FP16/.*_Fused=PRelu1D\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_Conv_Sum_Broadcast_FP16/ConvSumInPlaceTest.*Relu\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
+    }
+
+    if (CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
+        // jit_gemm_BF16 kernels are not supported for conv,inner_product,matmul on avx2_vnni_2 platforms
+        retVector.emplace_back(R"(smoke_Conv_.*D_GEMM_BF16.*)");
+        retVector.emplace_back(
+            R"(smoke_GroupConv_.*D_Gemm_BF16/GroupConvolutionLayerCPUTest.CompareWithRefs.*primitive=jit_gemm.*)");
+        retVector.emplace_back(R"(smoke_.*MatMulLayerCPUTest.*INFERENCE_PRECISION_HINT=bf16.*_primitive=jit_gemm.*)");
     }
 
     return retVector;
