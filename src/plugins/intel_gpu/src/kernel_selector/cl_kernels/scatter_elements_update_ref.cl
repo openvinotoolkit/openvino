@@ -99,7 +99,7 @@
     }
 
     #ifdef IS_SECOND_ITER // Socond kernel only
-        #if REDUCE_MODE == MEAN_MODE
+        #ifdef REDUCE_MODE
             inline void add_count(__local int count_k[], __local int count_v[], int length, int idx, int count)
             {
                 for (int i = 0; i < length; ++i) {
@@ -171,7 +171,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
 #else // Second kernel
-    // (TODO) Use atomic_cmpxchg or atomic_operator to implement multithread
+    #ifdef REDUCE_MODE
     #if OUTPUT_DIMS == 4
         const uint tgx = INPUT2_SIZE_X;
         const uint tgy = INPUT2_SIZE_Y;
@@ -183,8 +183,8 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         const uint tgy = INPUT2_SIZE_Z * INPUT2_SIZE_W;
     #endif
     const uint tgz = INPUT2_FEATURE_NUM * INPUT2_BATCH_NUM;
+
     #ifdef REDUCE_MODE
-    #if REDUCE_MODE == MEAN_MODE
         #if INPUT2_LENGTH == 0 || INPUT2_LENGTH > 4096
             #define COUNT_LENGTH 4096   // Maximum number of elements to reduce in case of shape agnostic kernel or large shapes
         #else
@@ -284,17 +284,8 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 
     #ifdef REDUCE_MODE
         val = FUNC_CALL(reduce)(output[output_idx], val);
-        #if REDUCE_MODE == MEAN_MODE
-            output[output_idx] = val;
-            add_count(count_k, count_v, input2_length, output_idx, 1);
-        #else
-            #if HAS_FUSED_OPS
-                FUSED_OPS_SECOND_KERNEL;
-                output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
-            #else
-                output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
-            #endif
-        #endif
+        output[output_idx] = val;
+        add_count(count_k, count_v, input2_length, output_idx, 1);
     #else
         #if HAS_FUSED_OPS
             FUSED_OPS_SECOND_KERNEL;
@@ -307,14 +298,16 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
             }
         }
     }
-    #if REDUCE_MODE == MEAN_MODE
+    #ifdef REDUCE_MODE
     for (int i = 0; i < input2_length; ++i) {
         int output_idx;
         const int count = get_count(count_k, count_v, i, &output_idx);
 
         if (count == -1) continue;
 
-        output[output_idx] = output[output_idx] / (count + USE_INIT_VAL);
+        #if REDUCE_MODE==MEAN_MODE
+            output[output_idx] = output[output_idx] / (count + USE_INIT_VAL);
+        #endif
 
         INPUT2_TYPE val = output[output_idx];
 
