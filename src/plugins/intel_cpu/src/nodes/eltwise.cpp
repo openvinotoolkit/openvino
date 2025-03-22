@@ -784,10 +784,6 @@ public:
             return false;
         }
 
-        if ((algorithm == Algorithm::EltwiseRelu) && ((alpha != 0.f) || (beta != 0.f) || (gamma != 0.f))) {
-            return false;
-        }
-
         const std::set<ov::element::Type> supported_precisions =
             // Divide and Floor (issue #138629) operations are supported for fp32 and fp16 only.
             ((algorithm == Algorithm::EltwiseDivide) || (algorithm == Algorithm::EltwiseFloor))
