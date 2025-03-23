@@ -30,14 +30,19 @@ OutputVector translate_rrelu(const NodeContext& context) {
     else{
         Output<Node> lower = ov::op::v0::Constant::create(element::f32, Shape{1}, {default_lower});
         Output<Node> upper = ov::op::v0::Constant::create(element::f32, Shape{1}, {default_upper});
-        if(context.get_input_size() == 3){
+        if(!context.input_is_none(1){
             lower = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(context.get_input(1), x));
+        }
+        else{
+            lower = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(lower, x));
+        }
+        if(!context.input_is_none(2){
             upper = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(context.get_input(2), x));
         }
-        else if (context.get_input_size() == 2){
-            lower = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(context.get_input(1), x));
+        else{
             upper = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(upper, x));
         }
+
         negative_slope = context.mark_node(std::make_shared<ov::op::v1::Divide>(
             std::make_shared<ov::op::v1::Add>(lower, upper),
             ov::op::v0::Constant::create(x.get_element_type(), Shape{1}, {2.0})
