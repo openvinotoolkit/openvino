@@ -87,7 +87,11 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
         auto op_codes = m_model->operator_codes();
         auto operator_code = (*op_codes)[node->opcode_index()];
         std::string type;
-        if (operator_code->deprecated_builtin_code() <
+        if (operator_code->deprecated_builtin_code() != operator_code->builtin_code()) {
+            // if the two enum values are different, take the non-zero one which means specified.
+            type = tflite::EnumNamesBuiltinOperator()[operator_code->deprecated_builtin_code() ? \
+               operator_code->deprecated_builtin_code() : operator_code->builtin_code()];
+        } else if (operator_code->deprecated_builtin_code() <
             tflite::BuiltinOperator::BuiltinOperator_PLACEHOLDER_FOR_GREATER_OP_CODES) {
             type = tflite::EnumNamesBuiltinOperator()[operator_code->deprecated_builtin_code()];
         } else {
