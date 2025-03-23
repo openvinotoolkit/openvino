@@ -35,11 +35,10 @@ class TestGather(JaxLayerTest):
 
             slice_sizes = tuple(1 if i == axis else data.shape[i] for i in range(rank))
 
-            if indices.ndim == data.ndim - 1:
-                indices = indices[..., None]
+            indices = indices[..., None]
 
             result = lax.gather(data, indices, dimension_numbers=dnums, slice_sizes=slice_sizes)
-            return jnp.squeeze(result, axis=axis)
+            return result
 
         return jax_gather, None, 'gather'
 
