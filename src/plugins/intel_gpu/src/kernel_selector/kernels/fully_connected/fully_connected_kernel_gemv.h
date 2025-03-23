@@ -19,7 +19,6 @@ public:
     using FullyConnectedKernelBase::GetTunedKernelsDataByIndex;
     KernelsData GetTunedKernelsDataByIndex(const Params& params, const int autoTuneIndex = -1) const override;
     KernelsData GetKernelsData(const Params& params) const override;
-    KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;

@@ -3,11 +3,13 @@
 //
 
 #include "fully_connected_kernel_gemv.h"
+#include "fully_connected_kernel_bf_tiled.h"
 
 #include "common_types.h"
 #include "kernel_selector_utils.h"
 #include "swiglu/swiglu_kernel_base.h"
 
+using namespace kernel_selector::fc_kernel_bf_tiled_utils;
 static constexpr size_t simd = 16;
 
 namespace kernel_selector {
@@ -30,7 +32,6 @@ ParamsKey FullyConnected_GEMV::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableBiasPerFeature();
     k.EnableDifferentTypes();
-    k.EnableSingleBatchOpt();
 
     return k;
 }
@@ -43,76 +44,6 @@ DeviceFeaturesKey FullyConnected_GEMV::get_required_device_features_key(const Pa
     k.requires_blocked_read_write_short();
 
     return k;
-}
-
-static bool is_weight_vertical(const fully_connected_params& params, size_t output_f) {
-    size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
-    GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f
-                           << " is small compared to the available threads. "
-                           << "(computeUnitsCount : " << params.engineInfo.computeUnitsCount
-                           << " min_num_threads : " << min_num_threads << ")" << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "Use ofm_tile size 1 if the batch size is 1." << std::endl;
-    return (params.weights.IFM().v >= params.weights.OFM().v * 3 &&
-            output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads);
-}
-
-static bool is_weight_horizontal(const fully_connected_params& params, size_t output_f) {
-    size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
-    GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f
-                           << " is large compared to the available threads. "
-                           << "(computeUnitsCount : " << params.engineInfo.computeUnitsCount
-                           << " min_num_threads : " << min_num_threads << ")" << std::endl;
-    return (params.weights.OFM().v > params.weights.IFM().v * 3 &&
-            output_f / 4 /* tile_ofm=4 */ > min_num_threads * 1.5);
-}
-
-static bool is_swiglu_fused(const fully_connected_params& params) {
-    bool swiglu_fused = false;
-    if (!params.fused_ops.empty()) {
-        for (auto p : params.fused_ops) {
-            if (p.GetType() == kernel_selector::KernelType::SWIGLU)
-                swiglu_fused = true;
-        }
-    }
-    if (swiglu_fused)
-        OPENVINO_ASSERT(params.fused_ops.size() == 1);
-    return swiglu_fused;
-}
-
-static std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params& params) {
-    auto& input = params.inputs[0];
-    size_t input_f = input.Feature().v;
-    size_t input_batch = input.Batch().v;
-
-    // 3D input
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        input_f = input.Y().v;
-        input_batch = input.Batch().v * input.Feature().v;
-    }
-
-    // In Some model, input_f could be dynamic in input0. It refers to IFM value of weight.
-    if (input.is_dynamic() && input_f == 0 && params.weights.IFM().v != 0)
-        input_f = params.weights.IFM().v;
-
-    return {input_batch, input_f};
-}
-
-static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params,
-                                                            bool needs_align,
-                                                            uint32_t align_b = 1,
-                                                            int32_t align_f = 1) {
-    size_t output_f =
-        (needs_align == true) ? CeilDiv(params.outputs[0].Feature().v, align_f) : params.outputs[0].Feature().v;
-    size_t output_b = params.outputs[0].Batch().v;
-    // 3D output
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        output_f = (needs_align == true) ? CeilDiv(params.outputs[0].Y().v, align_f) : params.outputs[0].Y().v;
-        output_b = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
-    }
-
-    output_b = (needs_align == true) ? CeilDiv(output_b, align_b) : output_b;
-
-    return {output_b, output_f};
 }
 
 bool FullyConnected_GEMV::Validate(const Params& params) const {
@@ -308,19 +239,6 @@ KernelsData FullyConnected_GEMV::GetKernelsData(const Params& params) const {
     KernelsData kds = GetTunedKernelsDataByIndex(params, -1);
     if (!kds.empty()) {
         res.emplace_back(kds[0]);
-    }
-
-    return res;
-}
-
-KernelsData FullyConnected_GEMV::GetKernelsDataForAutoTune(const Params& params) const {
-    KernelsData res = {};
-    for (size_t idx = 0; idx < autoTuneOptions.size(); ++idx) {
-        KernelsData kds = GetTunedKernelsDataByIndex(params, static_cast<int>(idx));
-
-        if (!kds.empty()) {
-            res.emplace_back(kds[0]);
-        }
     }
 
     return res;
