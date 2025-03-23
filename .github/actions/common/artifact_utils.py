@@ -22,6 +22,8 @@ def add_common_args(parser: argparse.ArgumentParser):
     group.add_argument('-p', '--platform', type=str.lower,
                        help='Platform for which to restore artifacts. Used if storage_dir is not set',
                        choices=[platform_key.value for platform_key in PlatformKey])
+    group.add_argument('-n', '--product_name', required=False, default='dldt',
+                       help='Product name for which artifacts are generated')
 
 
 def get_event_type(event_name: str = os.getenv('GITHUB_EVENT_NAME')) -> str:

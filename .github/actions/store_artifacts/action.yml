@@ -19,6 +19,9 @@ inputs:
   branch_name:
     description: "Target branch name. If not set - taken from github context"
     required: false
+  product_name:
+    description: "Product name for which artifacts are generated"
+    required: false
   trigger_repo_sha:
     description: "Commit hash of a trigger repo. If not set - taken from github context"
     required: false
@@ -54,10 +57,12 @@ runs:
         ${{ inputs.storage_dir && env.STORAGE_PARAM || env.PLATFORM_PARAM }}
         ${{ inputs.branch_name && env.BRANCH_PARAM || '' }}
         ${{ inputs.event_name && env.EVENT_PARAM || '' }}
+        ${{ inputs.product_name && env.PRODUCT_NAME_PARAM || '' }}
       env:
         ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
         BRANCH_PARAM: "-b ${{ inputs.branch_name }}"
         EVENT_PARAM: "-e ${{ inputs.event_name }}"
         STORAGE_PARAM: "--storage_dir ${{ inputs.storage_dir }}"
         PLATFORM_PARAM: "--platform ${{ inputs.platform }}"
+        PRODUCT_NAME_PARAM: "-n ${{ inputs.product_name }}"
         MERGE_QUEUE_BASE_REF: ""
