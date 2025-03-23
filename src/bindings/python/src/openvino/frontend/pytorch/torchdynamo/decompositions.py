@@ -304,6 +304,7 @@ def ops_to_not_decompose():
     return [
         torch.ops.aten.col2im.default,
         torch.ops.aten.linear.default,
+        torch.ops.aten.rms_norm.default,
         torch.ops.aten.upsample_nearest1d.default,
         torch.ops.aten.upsample_nearest1d.vec,
         torch.ops.aten.upsample_nearest2d.default,
