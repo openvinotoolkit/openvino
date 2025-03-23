@@ -15,10 +15,16 @@ class TestRReLU(PytorchLayerTest):
         import torch.nn.functional as F
 
         class aten_rrelu(torch.nn.Module):
-            def __init__(self, lower, upper, inplace):
+            def __init__(self, lower=0.125, upper=0.3333333333333333, inplace=False):
                 super(aten_rrelu, self).__init__()
-                self.lower = lower
-                self.upper = upper
+                if lower is not None:
+                    self.lower = lower
+                else:
+                    self.lower = 0.125
+                if upper is not None:
+                    self.upper = upper
+                else:
+                    self.upper = 0.3333333333333333
                 self.inplace = inplace
 
             def forward(self, x):
