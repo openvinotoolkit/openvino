@@ -25,21 +25,25 @@ class TestGather(JaxLayerTest):
         self.input_type = input_type
 
         def jax_gather(data, indices):
-            if indices.ndim == 1 and len(indices.shape) == 1:
-                indices = indices[:, None]
+            rank = data.ndim
 
-            dimension_numbers = lax.GatherDimensionNumbers(
-                offset_dims=tuple(i for i in range(len(data.shape)) if i != axis),
-                collapsed_slice_dims=(axis,),  # Collapse gathered axis
-                start_index_map=(axis,)  # Indices correspond to the chosen axis
+            # Create GatherDimensionNumbers
+            dnums = lax.GatherDimensionNumbers(
+                offset_dims=tuple(i for i in range(rank) if i != axis),
+                collapsed_slice_dims=(axis,),
+                start_index_map=(axis,)
             )
 
-            slice_sizes = list(data.shape)
-            slice_sizes[axis] = 1  # Gather one element per index
+            # Set slice_sizes to 1 on the gather axis, and full size (x.shape[i]) on others
+            slice_sizes = tuple(1 if i == axis else data.shape[i] for i in range(rank))
 
-            return lax.gather(
-                data, indices, dimension_numbers=dimension_numbers, slice_sizes=slice_sizes
-            )
+            # Make sure `index` has shape [..., 1] so it matches expected shape
+            if indices.ndim == data.ndim - 1:
+                indices = indices[..., None]  # Add trailing dim
+
+            result = lax.gather(data, indices, dimension_numbers=dnums, slice_sizes=slice_sizes)
+
+            return jnp.squeeze(result, axis=axis)
 
         return jax_gather, None, 'gather'
 
