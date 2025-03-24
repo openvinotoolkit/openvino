@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "group_normalization_bfyx_opt.hpp"
+
 #include <string_view>
 
 #include "common_utils/jitter.hpp"
