@@ -53,7 +53,7 @@ private:
             return !(*this == rhs);
         }
 #ifdef SNIPPETS_DEBUG_CAPS
-        std::string to_string() const;
+        std::string to_string() const override;
 #endif
     private:
         static size_t compute_hash(dnnl_dim_t inner_k_blk, dnnl_dim_t vnni_factor);
