@@ -7,6 +7,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
