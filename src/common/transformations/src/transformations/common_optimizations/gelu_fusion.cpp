@@ -184,13 +184,8 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     auto pow_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto pow = ov::pass::pattern::wrap_type<ov::op::v1::Power>({input, pow_constant});
 
-    auto mul_in2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, input});
-    auto mul_in3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_in2});
-
-    auto pow_1 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{pow, mul_in3});
-
     auto mul_0_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_0 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({pow_1, mul_0_constant});
+    auto mul_0 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({pow, mul_0_constant});
 
     auto add_0 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, mul_0});
 
@@ -212,21 +207,14 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     auto mul_2_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_2_constant});
     auto mul_3_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, mul_2_2});
 
-    // (0.5 * x) * (1 + tanh)
-    auto mul_2_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, input});
-    auto mul_3_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul_2_3, mul_2_constant});
-
-    auto mul_3 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_3_1, mul_3_2, mul_3_3});
-
-
+    auto mul_3 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_3_1, mul_3_2});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        if (!mul_in3 && !ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(pow_constant).get_node_shared_ptr()))
-            return false;
-
+        auto pow_constant_value =
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(pow_constant).get_node_shared_ptr());
         auto mul_0_constant_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_0_constant).get_node_shared_ptr());
         auto mul_1_constant_value =
@@ -235,12 +223,13 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_2_constant).get_node_shared_ptr());
         auto add_1_constant_value =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_1_constant).get_node_shared_ptr());
-        if (!add_1_constant_value || !mul_0_constant_value || !mul_1_constant_value || !mul_2_constant_value) {
+        if (!pow_constant_value || !add_1_constant_value || !mul_0_constant_value || !mul_1_constant_value ||
+            !mul_2_constant_value) {
             return false;
         }
 
         bool valid_constant_values =
-            (!mul_in3 && op::util::has_constant_value<float>(ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(pow_constant).get_node_shared_ptr()), 3.0f)) &&
+            op::util::has_constant_value<float>(pow_constant_value, 3.0f) &&
             op::util::has_constant_value<float>(mul_0_constant_value, 0.044715f, 0.001f) &&
             op::util::has_constant_value<double>(mul_1_constant_value, std::sqrt(2.0 / M_PI), 0.01) &&
             op::util::has_constant_value<float>(mul_2_constant_value, 0.5f) &&
@@ -343,4 +332,93 @@ ov::pass::GeluFusionWithTanhNoPower::GeluFusionWithTanhNoPower() {
 
     auto m = std::make_shared<pattern::Matcher>(mul6, matcher_name);
     this->register_matcher(m, callback);
+}
+
+ov::pass::GeluFusionWithTanhNoPower2::GeluFusionWithTanhNoPower2() {
+    MATCHER_SCOPE(GeluFusionWithTanhNoPower2);
+    // Replaces a sub-graph with a Gelu (ov::op::v0::Tanh) op
+    // Gaussian Error Linear Unit, TanH based approximation:
+    // x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715 * x * x * x])))
+
+    auto input = pass::pattern::any_input();
+
+    auto mul_0 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, input});
+    auto mul_1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_0});
+
+    auto mul_2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mul_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul_1, mul_2_constant});
+
+    auto add_0 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, mul_2});
+
+    auto mul_3_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mul_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_0, mul_3_constant});
+
+    auto tanh = ov::pass::pattern::wrap_type<ov::op::v0::Tanh>({mul_3});
+
+    auto add_1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto add_1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({tanh, add_1_constant});
+
+    auto mul_4_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+
+    // x * (0.5 * (1 + tanh))
+    auto mul_4_1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, mul_4_constant});
+    auto mul_5_1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_4_1});
+
+    // (x * 0.5) * (1 + tanh)
+    auto mul_4_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_4_constant});
+    auto mul_5_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, mul_4_2});
+
+    // (0.5 * x) * (1 + tanh)
+    auto mul_4_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, input});
+    auto mul_5_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul_4_3, mul_4_constant});
+
+    auto mul_5 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_5_1, mul_5_2, mul_5_3});
+
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        return false;
+        auto& pattern_to_output = m.get_pattern_value_map();
+        auto x_output = pattern_to_output.at(input);
+
+        auto mul_2_constant_value =
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_2_constant).get_node_shared_ptr());
+        auto mul_3_constant_value =
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_3_constant).get_node_shared_ptr());
+        auto mul_4_constant_value =
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_4_constant).get_node_shared_ptr());
+        auto add_1_constant_value =
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_1_constant).get_node_shared_ptr());
+        if (!add_1_constant_value || !mul_2_constant_value || !mul_3_constant_value || !mul_4_constant_value) {
+            return false;
+        }
+
+        bool valid_constant_values =
+            op::util::has_constant_value<float>(mul_2_constant_value, 0.044715f, 0.001f) &&
+            op::util::has_constant_value<double>(mul_3_constant_value, std::sqrt(2.0 / M_PI), 0.01) &&
+            op::util::has_constant_value<float>(mul_4_constant_value, 0.5f) &&
+            op::util::has_constant_value<float>(add_1_constant_value, 1.0f);
+
+        if (!valid_constant_values) {
+            return false;
+        }
+
+        auto gelu = std::make_shared<ov::op::v7::Gelu>(x_output, op::GeluApproximationMode::TANH);
+
+        gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
+
+        std::vector<std::shared_ptr<ov::Node>> pattern_nodes =
+            {mul_0, mul_1, mul_2, mul_3, tanh, add_0, add_1, mul_4_1, mul_4_2, mul_4_3, mul_5_1, mul_5_2, mul_5_3};
+        std::vector<std::shared_ptr<ov::Node>> cp_rt_info_nodes;
+        for (const auto& pattern_node : pattern_nodes) {
+            if (pattern_to_output.count(pattern_node)) {
+                cp_rt_info_nodes.push_back(pattern_to_output.at(pattern_node).get_node_shared_ptr());
+            }
+        }
+        ov::copy_runtime_info(cp_rt_info_nodes, gelu);
+
+        ov::replace_node(m.get_match_root(), gelu);
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_5, matcher_name);
+    register_matcher(m, callback);
 }
