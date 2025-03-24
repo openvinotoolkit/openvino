@@ -149,7 +149,7 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
             pad_low.push_back(input_padding._lower_size[i]);
             pad_up.push_back(input_padding._upper_size[i]);
         }
-        return padding(pad_low, pad_up);
+        return padding(pad_low, pad_up, input_padding._dynamic_dims_mask);
     };
 
     auto get_transposed_input_shape = [&](const ov::PartialShape& input_pshape, size_t input_rank, size_t output_rank, bool transpose, bool first_input) {
