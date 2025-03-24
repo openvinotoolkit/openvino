@@ -19,7 +19,7 @@ OutputVector translate_rrelu(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto x = context.get_input(0);
 
-    float default_negative_slope = 0.2291666666666667f
+    float default_negative_slope = 0.2291666666666667f;
     float default_lower = 0.125f;
     float default_upper = 0.3333333333333333f;
 
@@ -45,7 +45,7 @@ OutputVector translate_rrelu(const NodeContext& context) {
 
         negative_slope = context.mark_node(std::make_shared<ov::op::v1::Divide>(
             std::make_shared<ov::op::v1::Add>(lower, upper),
-            ov::op::v0::Constant::create(x.get_element_type(), Shape{1}, {2.0})
+            ov::op::v0::Constant::create(x.get_element_type(), Shape{1}, {2.0f})
         ));
     }
     return {context.mark_node(std::make_shared<v0::PRelu>(x, negative_slope))};
