@@ -143,6 +143,10 @@ template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(ge
 std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<const gemm> primitive,
                                                        const std::vector<layout>& input_layouts) {
     auto get_transposed_padding = [&](const padding& input_padding, size_t input_rank, size_t real_input_rank) {
+        if (real_input_rank <= input_rank) {
+            return input_padding;
+        }
+
         std::vector<int32_t> pad_low(real_input_rank-input_rank, 0);
         std::vector<int32_t> pad_up(real_input_rank-input_rank, 0);
         for (long unsigned int i=0; i < input_rank; i++) {
