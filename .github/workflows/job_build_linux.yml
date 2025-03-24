@@ -179,12 +179,11 @@ jobs:
           echo "${CMAKE_OPTIONS}"
           echo "123"
           echo ${CMAKE_OPTIONS}
-          echo "123"
-          echo '${CMAKE_OPTIONS}'
 
       - name: CMake configure - OpenVINO
         run: |
-          cmake ${CMAKE_OPTIONS} \
+          CMAKE_OPTIONS=( $CMAKE_OPTIONS )
+          cmake "${CMAKE_OPTIONS[@]}" \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
         env:
