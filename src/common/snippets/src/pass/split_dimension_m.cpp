@@ -111,6 +111,7 @@ std::vector<size_t> SplitDimensionM::get_updated_order(const std::vector<size_t>
 }
 
 ov::snippets::VectorDims SplitDimensionM::reshape_m_dim(ov::snippets::VectorDims shape, size_t m_index, size_t batch_m_dim, size_t new_m_dim) {
+    OPENVINO_ASSERT(m_index < shape.size(), "Incorrect M index: it should be less than target shape rank");
     if (shape[m_index] == 1)
         return unsqueeze_m_dim(std::move(shape), m_index);
     shape[m_index] = new_m_dim;
@@ -118,6 +119,7 @@ ov::snippets::VectorDims SplitDimensionM::reshape_m_dim(ov::snippets::VectorDims
     return shape;
 }
 ov::snippets::VectorDims SplitDimensionM::unsqueeze_m_dim(ov::snippets::VectorDims shape, size_t m_index) {
+    OPENVINO_ASSERT(m_index < shape.size(), "Incorrect M index: it should be less than target shape rank");
     shape.insert(shape.begin() + m_index, 1);
     return shape;
 }
@@ -217,7 +219,7 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
             return;
 
         const auto shape = param->get_partial_shape().get_shape();
-        // if Shape rank is less than index of dimension M, no need to reshape it.
+        // if the index of dimension M is equal or greater than Shape rank, no need to reshape it.
         if (shape.size() <= dim_M_index)
             return;
 
