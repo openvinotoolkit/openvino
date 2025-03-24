@@ -3425,7 +3425,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              output_score);
 
         if (rotated_block_indices) {
-            // TODO: implement u4
+            // Rotate kv cache currently doesn't support quantized cache.
+            // for u8 it only supports compilation but throws exception in the runtime
+            // TODO: implement u4/u8
             if constexpr (KEY_PREC != ov::element::u4)
                 rotate_kv_cache<typename ov::element_type_traits<KEY_PREC>::value_type>(
                     k_cache,
