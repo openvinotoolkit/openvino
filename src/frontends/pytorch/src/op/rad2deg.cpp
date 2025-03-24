@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
+
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/constant.hpp"
-#include <cmath>
 
 namespace ov {
 namespace frontend {
