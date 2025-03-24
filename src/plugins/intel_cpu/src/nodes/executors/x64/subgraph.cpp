@@ -76,11 +76,11 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
                            start_offset_out,
                            allocator,
                            kernel_cache),
-      m_repacked_inputs(snippet_config->repacked_inputs),
+      m_repacked_input_config(snippet_config->repacked_input_config),
       m_repacking_impl_type(snippet_config->repacking_impl_type) {
     auto external_buffer_size =
-        std::accumulate(m_repacked_inputs.begin(),
-                        m_repacked_inputs.end(),
+        std::accumulate(m_repacked_input_config.begin(),
+                        m_repacked_input_config.end(),
                         static_cast<size_t>(0),
                         [](size_t sum, const std::pair<size_t, RepackedInput>& p) {
                             auto curr_mem_size = p.second.desc()->getCurrentMemSize();
@@ -124,6 +124,67 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
 #endif
 }
 
+void SubgraphExecutor::separately_repack_input(const MemoryPtr& srcMemPtr,
+                                               const MemoryPtr& dstMemPtr,
+                                               const ov::intel_cpu::RepackedInput& repacked_input,
+                                               size_t tensor_rank) {
+    auto get_offset = [](const BlockedMemoryDescPtr& desc) {
+        return static_cast<ptrdiff_t>(desc->getOffsetPadding() * desc->getPrecision().size());
+    };
+
+    const auto* src_ptr =
+        srcMemPtr->getDataAs<const uint8_t>() + get_offset(srcMemPtr->getDescWithType<BlockedMemoryDesc>());
+    auto* dst_ptr = dstMemPtr->getDataAs<uint8_t>() + get_offset(dstMemPtr->getDescWithType<BlockedMemoryDesc>());
+
+    VectorDims dom;
+    const auto& shape = dstMemPtr->getShape().getDims();
+    OPENVINO_ASSERT(shape.size() <= tensor_rank, "Unsupported shape rank of repacking data");
+    init_parallel_domain(shape, tensor_rank, 2lu, dom);
+
+    const auto& in_strides = repacked_input.in_offsets();
+    const auto& out_strides = repacked_input.out_offsets();
+    OPENVINO_ASSERT(everyone_is(tensor_rank, in_strides.size(), out_strides.size(), dom.size()),
+                    "Unsupported shape rank of repacking data");
+
+    const auto& kernel = repacked_input.kernel<BrgemmCopyBKernel>();
+    if (tensor_rank == rank6D) {
+        parallel4d_repacking(kernel.get(), dom, in_strides, out_strides, src_ptr, dst_ptr);
+    } else {
+        parallelNd_repacking(kernel.get(), dom, in_strides, out_strides, src_ptr, dst_ptr);
+    }
+}
+
+std::vector<MemoryPtr> SubgraphExecutor::prepareWeights(const std::vector<MemoryPtr>& inMemPtrs,
+                                                        const RepackedInputConfig& repacked_const_input_config,
+                                                        const GraphContext::CPtr& context) {
+    std::vector<MemoryPtr> repackedMemPtrs = inMemPtrs;
+    for (const auto& p : repacked_const_input_config) {
+        const auto idx = p.first;
+        const auto& repacked_input = p.second;
+        OPENVINO_ASSERT(idx < inMemPtrs.size(), "Incorrect index of repacked input");
+        const auto& srcMemPtr = inMemPtrs[idx];
+
+        auto create = [&]() {
+            const auto& dstMemPtr = std::make_shared<Memory>(context->getEngine(), repacked_input.desc());
+            separately_repack_input(srcMemPtr, dstMemPtr, repacked_input, dstMemPtr->getShape().getDims().size());
+            return dstMemPtr;
+        };
+
+        auto weightCache = context->getWeightsCache();
+        if (weightCache != nullptr) {
+            const auto& wgtDims = srcMemPtr->getStaticDims();
+            OPENVINO_ASSERT(wgtDims.size() > 1, "Unexpected weight shape rank");
+            std::string format = "brgemm_snippets_" + std::to_string(wgtDims[0]) + "_" + std::to_string(wgtDims[1]);
+            const std::string string_hash = format + "_" + std::to_string(srcMemPtr->getSize()) + "_" +
+                                            std::to_string(reinterpret_cast<uint64_t>(srcMemPtr->getData()));
+            repackedMemPtrs[idx] = *weightCache->findOrCreate(string_hash, create);
+        } else {
+            repackedMemPtrs[idx] = create();
+        }
+    }
+    return repackedMemPtrs;
+}
+
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
 void SubgraphExecutor::segfault_detector() {
     if (enabled_segfault_detector) {
@@ -147,35 +208,14 @@ std::vector<MemoryPtr> SubgraphExecutor::separately_repack_inputs(const dnnl::st
                                                                   const std::vector<MemoryPtr>& srcMemPtrs) {
     auto reordered_in_ptrs = srcMemPtrs;
     size_t offset = m_internal_buffer_size;
-    for (const auto& p : m_repacked_inputs) {
-        const auto in_idx = p.first;
-        const auto& repacked_input = p.second;
+    for (const auto& [in_idx, repacked_input] : m_repacked_input_config) {
         const auto& desc = repacked_input.desc();
         const void* data_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + offset;
 
         OPENVINO_ASSERT(in_idx < srcMemPtrs.size(), "Incorrect index of input repacked mem ptr");
         const auto& src_mem = srcMemPtrs[in_idx];
         const auto& dst_mem = std::make_shared<Memory>(strm.get_engine(), desc, data_ptr, false);
-
-        const auto* src = src_mem->getDataAs<const uint8_t>() + m_start_offset_in[in_idx];
-        auto* dst = dst_mem->getDataAs<uint8_t>();
-
-        VectorDims dom;
-        const auto& shape = dst_mem->getShape().getDims();
-        OPENVINO_ASSERT(shape.size() <= m_tensor_rank, "Unsupported shape rank of repacking data");
-        init_parallel_domain(shape, m_tensor_rank, 2lu, dom);
-
-        const auto& in_strides = repacked_input.in_offsets();
-        const auto& out_strides = repacked_input.out_offsets();
-        OPENVINO_ASSERT(everyone_is(m_tensor_rank, in_strides.size(), out_strides.size(), dom.size()),
-                        "Unsupported shape rank of repacking data");
-
-        const auto& kernel = repacked_input.kernel<BrgemmCopyBKernel>();
-        if (m_tensor_rank == rank6D) {
-            parallel4d_repacking(kernel.get(), dom, in_strides, out_strides, src, dst);
-        } else {
-            parallelNd_repacking(kernel.get(), dom, in_strides, out_strides, src, dst);
-        }
+        separately_repack_input(src_mem, dst_mem, repacked_input, m_tensor_rank);
 
         reordered_in_ptrs[in_idx] = dst_mem;
         offset += desc->getCurrentMemSize();
@@ -188,12 +228,9 @@ void SubgraphExecutor::in_parallel_repack_inputs(const std::vector<MemoryPtr>& i
                                                  int ithr,
                                                  jit_snippets_call_args& call_args) {
     size_t repacked_offset_idx = 0;
-    for (const auto& p : m_repacked_inputs) {
-        const auto& in_idx = p.first;
-        const auto& repacked_in = p.second;
-
+    for (const auto& [in_idx, repacked_input] : m_repacked_input_config) {
         size_t src_offset = m_start_offset_in[in_idx];
-        init_offset(repacked_in.in_offsets(), indexes, src_offset);
+        init_offset(repacked_input.in_offsets(), indexes, src_offset);
 
         auto* repacked_ptr = get_external_scratchpad_ptr(ithr, in_idx);
 
@@ -202,7 +239,7 @@ void SubgraphExecutor::in_parallel_repack_inputs(const std::vector<MemoryPtr>& i
             BrgemmCopyBKernel::call_args args;
             args.src = inMemPtrs[in_idx]->getDataAs<const uint8_t>() + src_offset;
             args.tr_src = repacked_ptr;
-            (*repacked_in.kernel<BrgemmCopyBKernel>())(&args);
+            (*repacked_input.kernel<BrgemmCopyBKernel>())(&args);
 
             last_processed_src_offset = src_offset;
         }

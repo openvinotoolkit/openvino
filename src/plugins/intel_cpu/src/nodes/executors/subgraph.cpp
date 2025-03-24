@@ -67,6 +67,8 @@ SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs
         std::make_shared<ov::snippets::Schedule>(snippet_attrs->snippet->generate(reinterpret_cast<const void*>(&jcp)));
 }
 
+const size_t SubgraphBaseExecutor::rank6D = 6;
+
 SubgraphBaseExecutor::SubgraphBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config,
                                            const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
                                            const std::shared_ptr<SubgraphCodeGenerator>& snippet,
