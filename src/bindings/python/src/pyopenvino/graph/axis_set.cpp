@@ -19,7 +19,6 @@ namespace py = pybind11;
 void regclass_graph_AxisSet(py::module m) {
     py::class_<ov::AxisSet, std::shared_ptr<ov::AxisSet>> axis_set(m, "AxisSet");
     axis_set.doc() = "openvino.AxisSet wraps ov::AxisSet";
-    axis_set.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axes"));
     axis_set.def(py::init<const std::set<size_t>&>(), py::arg("axes"));
     axis_set.def(py::init<const std::vector<size_t>&>(), py::arg("axes"));
     axis_set.def(py::init<const ov::AxisSet&>(), py::arg("axes"));
