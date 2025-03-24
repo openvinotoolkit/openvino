@@ -16,7 +16,7 @@ A Git pre-commit hook is a script that runs automatically before a commit is fin
 
 When the pre-commit hook is triggered, the following steps occur:
 
-1. **Stub file generation**: The `pybind11-stubgen` tool is executed to generate new `.pyi` stub files for the OpenVINO Python API. This tool uses the Python package `openvino` to extract type information and create the stub files.
+1. **Stub file generation**: The `pybind11-stubgen` tool is executed to generate new `.pyi` stub files for the OpenVINO Python API. This tool uses the Python package `openvino` to extract type information and create the stub files, so it's important that currently installed OpenVINO version contains all changes related to your Pull Request.
 2. **Automatic addition to commit**: The newly generated `.pyi` files are automatically staged and added to the current commit. This ensures that the stub files are always up-to-date with the latest changes in the Python API.
 
 ### Ensuring changes are installed
