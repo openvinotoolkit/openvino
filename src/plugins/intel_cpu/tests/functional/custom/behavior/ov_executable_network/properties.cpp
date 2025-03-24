@@ -526,7 +526,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
     std::set<ov::hint::ModelDistributionPolicy> setModels = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
     ov::AnyMap config = {{ov::hint::model_distribution_policy.name(), setModels},
                          {ov::num_streams.name(), 1},
-                         {ov::inference_num_threads.name(), 2}};
+                         {ov::inference_num_threads.name(), 1}};
 
     core.set_property(deviceName, config);
     ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
