@@ -488,6 +488,54 @@ static void attn_acc_value_block_by_channel(float* out,
         }
     }
     return;
+#    elif defined(HAVE_AVX2)
+    size_t j = 0;
+    for (; j + 4 <= block_size; j += 4) {
+        size_t i = 0;
+        auto weight0 = _mm256_set1_ps(weight[j]);
+        auto weight1 = _mm256_set1_ps(weight[j + 1]);
+        auto weight2 = _mm256_set1_ps(weight[j + 2]);
+        auto weight3 = _mm256_set1_ps(weight[j + 3]);
+        for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
+            auto scale = mm256_uni_loadu_ps(p_scales + i);
+            auto zp = mm256_uni_loadu_ps(p_zps + i);
+
+            auto v_out = mm256_uni_loadu_ps(out + i);
+            auto v0 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(
+                                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(v_data_ptr + i + j * src_stride)))),
+                                    zp);
+            v0 = _mm256_mul_ps(v0, scale);
+            auto v1 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadl_epi64(
+                                        reinterpret_cast<__m128i*>(v_data_ptr + i + (j + 1) * src_stride)))),
+                                    zp);
+            v1 = _mm256_mul_ps(v1, scale);
+            auto v2 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadl_epi64(
+                                        reinterpret_cast<__m128i*>(v_data_ptr + i + (j + 2) * src_stride)))),
+                                    zp);
+            v2 = _mm256_mul_ps(v2, scale);
+            auto v3 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadl_epi64(
+                                        reinterpret_cast<__m128i*>(v_data_ptr + i + (j + 3) * src_stride)))),
+                                    zp);
+            v3 = _mm256_mul_ps(v3, scale);
+            v_out = _mm256_fmadd_ps(weight0, v0, v_out);
+            v_out = _mm256_fmadd_ps(weight1, v1, v_out);
+            v_out = _mm256_fmadd_ps(weight2, v2, v_out);
+            v_out = _mm256_fmadd_ps(weight3, v3, v_out);
+            mm256_uni_storeu_ps(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[j] * (v_data_ptr[i + j * src_stride] - p_zps[i]) * p_scales[i];
+            out[i] += weight[j + 1] * (v_data_ptr[i + (j + 1) * src_stride] - p_zps[i]) * p_scales[i];
+            out[i] += weight[j + 2] * (v_data_ptr[i + (j + 2) * src_stride] - p_zps[i]) * p_scales[i];
+            out[i] += weight[j + 3] * (v_data_ptr[i + (j + 3) * src_stride] - p_zps[i]) * p_scales[i];
+        }
+    }
+    for (; j < block_size; j++) {
+        for (size_t i = 0; i < S; i++) {
+            out[i] += weight[j] * (v_data_ptr[i + j * src_stride] - p_zps[i]) * p_scales[i];
+        }
+    }
+    return;
 #    endif
     for (size_t j = 0; j < block_size; j++) {
         for (size_t i = 0; i < S; i++) {
@@ -505,11 +553,11 @@ static void attn_acc_value_block_by_channel(float* out,
     auto p_scales = reinterpret_cast<float*>(v);
     auto p_zps = p_scales + S;
     auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
-    size_t src_stride = S / 2;
-#    if defined(HAVE_AVX512F)
+    size_t src_stride = S / get_sub_byte_multiplier(SRC_PREC);
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
         size_t i = 0;
+#    if defined(HAVE_AVX512F)
         auto weight0 = _mm512_set1_ps(weight[j]);
         auto weight1 = _mm512_set1_ps(weight[j + 1]);
         auto weight2 = _mm512_set1_ps(weight[j + 2]);
@@ -565,6 +613,63 @@ static void attn_acc_value_block_by_channel(float* out,
             _mm512_storeu_ps(out + i, v_out0);
             _mm512_storeu_ps(out + i + vec_len_f32_avx512, v_out1);
         }
+#    elif defined(HAVE_AVX2)
+        auto v256_weight0 = _mm256_set1_ps(weight[j]);
+        auto v256_weight1 = _mm256_set1_ps(weight[j + 1]);
+        auto v256_weight2 = _mm256_set1_ps(weight[j + 2]);
+        auto v256_weight3 = _mm256_set1_ps(weight[j + 3]);
+        for (; i + vec_len_f32_avx2 * 2 <= S; i += vec_len_f32_avx2 * 2) {
+            auto scale00 = _mm256_loadu_ps(p_scales + i);
+            auto zp00 = _mm256_loadu_ps(p_zps + i);
+
+            auto scale01 = _mm256_loadu_ps(p_scales + i + vec_len_f32_avx2);
+            auto zp01 = _mm256_loadu_ps(p_zps + i + vec_len_f32_avx2);
+
+            auto v_out0 = mm256_uni_loadu_ps(out + i);
+            auto v_out1 = mm256_uni_loadu_ps(out + i + vec_len_f32_avx2);
+            __m256 v00, v01;
+            mm256_loadu_u4_to_f32(v_data_ptr + i / 2 + j * src_stride, v00, v01);
+            v00 = _mm256_sub_ps(v00, zp00);
+            v00 = _mm256_mul_ps(v00, scale00);
+            v01 = _mm256_sub_ps(v01, zp01);
+            v01 = _mm256_mul_ps(v01, scale01);
+
+            __m256 v10, v11;
+            mm256_loadu_u4_to_f32(v_data_ptr + i / 2 + (j + 1) * src_stride, v10, v11);
+            v10 = _mm256_sub_ps(v10, zp00);
+            v10 = _mm256_mul_ps(v10, scale00);
+            v11 = _mm256_sub_ps(v11, zp01);
+            v11 = _mm256_mul_ps(v11, scale01);
+
+            __m256 v20, v21;
+            mm256_loadu_u4_to_f32(v_data_ptr + i / 2 + (j + 2) * src_stride, v20, v21);
+            v20 = _mm256_sub_ps(v20, zp00);
+            v20 = _mm256_mul_ps(v20, scale00);
+            v21 = _mm256_sub_ps(v21, zp01);
+            v21 = _mm256_mul_ps(v21, scale01);
+
+            __m256 v30, v31;
+            mm256_loadu_u4_to_f32(v_data_ptr + i / 2 + (j + 3) * src_stride, v30, v31);
+            v30 = _mm256_sub_ps(v30, zp00);
+            v30 = _mm256_mul_ps(v30, scale00);
+            v31 = _mm256_sub_ps(v31, zp01);
+            v31 = _mm256_mul_ps(v31, scale01);
+
+            v_out0 = _mm256_fmadd_ps(v256_weight0, v00, v_out0);
+            v_out1 = _mm256_fmadd_ps(v256_weight0, v01, v_out1);
+
+            v_out0 = _mm256_fmadd_ps(v256_weight1, v10, v_out0);
+            v_out1 = _mm256_fmadd_ps(v256_weight1, v11, v_out1);
+
+            v_out0 = _mm256_fmadd_ps(v256_weight2, v20, v_out0);
+            v_out1 = _mm256_fmadd_ps(v256_weight2, v21, v_out1);
+
+            v_out0 = _mm256_fmadd_ps(v256_weight3, v30, v_out0);
+            v_out1 = _mm256_fmadd_ps(v256_weight3, v31, v_out1);
+            _mm256_storeu_ps(out + i, v_out0);
+            _mm256_storeu_ps(out + i + vec_len_f32_avx2, v_out1);
+        }
+#    endif
         for (; i < S; i += 2) {
             uint8_t data0 = v_data_ptr[i / 2 + j * src_stride];
             float tmp00 = extract_half_byte(data0, static_cast<bool>(i % 2));
@@ -596,17 +701,6 @@ static void attn_acc_value_block_by_channel(float* out,
         }
     }
     for (; j < block_size; j++) {
-        for (size_t i = 0; i < S; i += 2) {
-            uint8_t data = v_data_ptr[i / 2 + j * src_stride];
-            float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
-            float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
-            out[i] += weight[j] * (tmp0 - p_zps[i]) * p_scales[i];
-            out[i + 1] += weight[j] * (tmp1 - p_zps[i + 1]) * p_scales[i + 1];
-        }
-    }
-    return;
-#    endif
-    for (size_t j = 0; j < block_size; j++) {
         for (size_t i = 0; i < S; i += 2) {
             uint8_t data = v_data_ptr[i / 2 + j * src_stride];
             float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
