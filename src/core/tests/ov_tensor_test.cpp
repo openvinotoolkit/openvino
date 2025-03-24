@@ -8,22 +8,24 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
-#include <openvino/core/shape.hpp>
-#include <openvino/core/strides.hpp>
-#include <openvino/core/type/element_type.hpp>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 
+namespace ov::test {
 using OVTensorTest = ::testing::Test;
-using testing::_;
+using testing::_, testing::HasSubstr;
 
 const size_t string_size = ov::element::string.size();
 
@@ -82,6 +84,26 @@ TEST_F(OVTensorTest, createTensorFromPort) {
     EXPECT_EQ(t3.get_element_type(), parameter3->get_element_type());
     EXPECT_EQ(t4.get_shape(), ov::Shape{0});
     EXPECT_EQ(t4.get_element_type(), parameter3->get_element_type());
+}
+
+TEST_F(OVTensorTest, createTensorFromConstantPort) {
+    auto constant1 = std::make_shared<ov::op::v0::Constant>(ov::element::f64, ov::Shape{1, 3, 2, 2}, 0);
+    auto constant2 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1, 3}, 1.0f);
+    ov::Tensor t1{constant1->output(0)};
+    ov::Tensor t2{constant2->output(0), constant1->get_data_ptr()};
+    const auto& t2c = t2;
+    const ov::Tensor t3{constant2->output(0), constant2->get_data_ptr()};
+
+    EXPECT_EQ(t1.get_shape(), constant1->get_shape());
+    EXPECT_EQ(t1.get_element_type(), constant1->get_element_type());
+    EXPECT_EQ(t2.get_shape(), constant2->get_shape());
+    EXPECT_EQ(t2.get_element_type(), constant2->get_element_type());
+    OV_EXPECT_THROW(t2.data(), ov::Exception, _);
+    OV_ASSERT_NO_THROW(t2c.data());
+
+    EXPECT_EQ(t3.get_shape(), constant2->get_shape());
+    EXPECT_EQ(t3.get_element_type(), constant2->get_element_type());
+    OV_ASSERT_NO_THROW(t3.data());
 }
 
 TEST_F(OVTensorTest, createStringTensorFromPort) {
@@ -290,12 +312,12 @@ TEST_F(OVTensorTest, canAccessExternalDataWithStridesStringTensor) {
 
 TEST_F(OVTensorTest, cannotCreateTensorWithExternalNullptr) {
     ov::Shape shape = {2, 3};
-    ASSERT_THROW(ov::Tensor(ov::element::f32, shape, nullptr), ov::Exception);
+    ASSERT_THROW(ov::Tensor(ov::element::f32, shape, static_cast<void*>(nullptr)), ov::Exception);
 }
 
 TEST_F(OVTensorTest, cannotCreateStringTensorWithExternalNullptr) {
     ov::Shape shape = {2, 3};
-    ASSERT_THROW(ov::Tensor(ov::element::string, shape, nullptr), ov::Exception);
+    ASSERT_THROW(ov::Tensor(ov::element::string, shape, static_cast<void*>(nullptr)), ov::Exception);
 }
 
 TEST_F(OVTensorTest, cannotCreateTensorWithWrongStrides) {
@@ -553,6 +575,15 @@ TEST_F(OVTensorTest, canChangeShapeOnStridedTensorStringTensor) {
 
     ASSERT_THROW(t.set_shape(incorrect_shape), ov::Exception);
     OV_ASSERT_NO_THROW(t.set_shape(correct_shape));
+}
+
+TEST_F(OVTensorTest, createReadOnlyStridedView) {
+    const std::vector<std::string> data(64 * 4);
+    ov::Tensor strided_view{element::string, {4, 2, 2}, data.data(), {8 * string_size, 3 * string_size, string_size}};
+
+    OV_ASSERT_NO_THROW(static_cast<const Tensor&>(strided_view).data(element::string));
+    OV_ASSERT_NO_THROW(strided_view.data<const std::string>());
+    OV_EXPECT_THROW(strided_view.data<std::string>(), ov::Exception, HasSubstr("Can not access non-const pointer"));
 }
 
 TEST_F(OVTensorTest, makeRangeRoiTensor) {
@@ -831,7 +862,7 @@ TEST_F(OVTensorTest, checkIsContinuousTensor3Dimensions) {
 }
 
 TEST_F(OVTensorTest, checkIsContinuousTensor4Dimensions) {
-    ov::Tensor tensor(ov::element::f32, ov::Shape{3, 5, 32, 128});
+    const ov::Tensor tensor(ov::element::f32, ov::Shape{3, 5, 32, 128});
     auto data = tensor.data();
     auto strides = tensor.get_strides();
 
@@ -863,6 +894,19 @@ TEST_F(OVTensorTest, checkIsContinuousTensor4Dimensions) {
 
     view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 1, 1, 32}, data, strides);
     EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_F(OVTensorTest, createReadOnlyView) {
+    const std::vector<int32_t> data(10, 1);
+    ov::Tensor data_view(ov::element::i32, ov::Shape{10}, data.data());
+
+    OV_ASSERT_NO_THROW(static_cast<const Tensor&>(data_view).data(element::i32));
+    OV_ASSERT_NO_THROW(data_view.data<const int32_t>());
+    OV_EXPECT_THROW(data_view.data<int64_t>(), ov::Exception, HasSubstr("Can not access non-const pointer"));
+}
+
+TEST_F(OVTensorTest, createReadOnlyViewFromNullptr) {
+    OV_EXPECT_THROW(Tensor(ov::element::i32, ov::Shape{10}, static_cast<const void*>(nullptr)), ov::Exception, _);
 }
 
 struct TestParams {
@@ -1141,3 +1185,4 @@ INSTANTIATE_TEST_SUITE_P(copy_tests_strings,
                                                               }
                                            )));
 // clang-format on
+}  // namespace ov::test

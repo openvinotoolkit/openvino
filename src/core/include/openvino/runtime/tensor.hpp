@@ -122,6 +122,17 @@ public:
     Tensor(const element::Type& type, const Shape& shape, void* host_ptr, const Strides& strides = {});
 
     /**
+     * @brief Constructs Tensor using element type and shape. Wraps allocated host memory as read only.
+     * @note Does not perform memory allocation internally
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @param host_ptr Pointer to pre-allocated host memory with initialized objects
+     * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
+     * on shape and element size
+     */
+    Tensor(const element::Type& type, const Shape& shape, const void* host_ptr, const Strides& strides = {});
+
+    /**
      * @brief Constructs Tensor using port from node. Allocate internal host storage using default allocator
      * @param port port from node
      * @param allocator allocates memory for internal tensor storage
@@ -137,6 +148,16 @@ public:
      * on shape and element size
      */
     Tensor(const ov::Output<const ov::Node>& port, void* host_ptr, const Strides& strides = {});
+
+    /**
+     * @brief Constructs Tensor using port from node. Wraps allocated host memory as read only.
+     * @note Does not perform memory allocation internally
+     * @param port port from node
+     * @param host_ptr Pointer to pre-allocated host memory with initialized objects
+     * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
+     * on shape and element size
+     */
+    Tensor(const ov::Output<const ov::Node>& port, const void* host_ptr, const Strides& strides = {});
 
     /**
      * @brief Constructs region of interest (ROI) tensor form another tensor.
@@ -221,7 +242,11 @@ public:
 
     template <typename T, typename datatype = std::decay_t<T>>
     T* data() {
-        return static_cast<T*>(data(element::from<datatype>()));
+        if constexpr (std::is_const_v<T>) {
+            return static_cast<const Tensor*>(this)->data<T>();
+        } else {
+            return static_cast<T*>(data(element::from<datatype>()));
+        }
     }
     /// @}
 
