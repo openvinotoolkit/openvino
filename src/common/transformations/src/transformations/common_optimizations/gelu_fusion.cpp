@@ -375,7 +375,6 @@ ov::pass::GeluFusionWithTanhNoPower2::GeluFusionWithTanhNoPower2() {
     auto mul_5 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_5_1, mul_5_2, mul_5_3});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        return false;
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
