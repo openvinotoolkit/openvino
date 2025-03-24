@@ -38,17 +38,17 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
         std::set<Reg> live_regs;
 
         if (pass_through_expr(expr)) {
-            live_regs = std::prev(expr_it)->get()->get_live_regs();
-            if (expr_it != linear_ir.begin())
+            if (expr_it != linear_ir.begin()) {
+                live_regs = std::prev(expr_it)->get()->get_live_regs();
                 expr->set_live_regs(live_regs);
+            }
         } else {
             // Remove all regs that expired before start
             regs_to_expire.erase(regs_to_expire.begin(), regs_to_expire.lower_bound(start)); // remove all elements lower than start (not equal)
             for (const auto& time_reg : regs_to_expire)
                 live_regs.insert(time_reg.second.begin(), time_reg.second.end());
+            expr->set_live_regs(std::move(live_regs));
         }
-
-        expr->set_live_regs(std::move(live_regs));
 
         for (size_t i = 0; i < expr->get_output_count(); ++i) {
             const auto& out_pd = expr->get_output_port_descriptor(i);
