@@ -88,8 +88,8 @@ jobs:
       build-js: true
       build-debian-packages: true
       build-contrib: true
+      cmake-generator: 'Ninja Multi-Config'
       cmake-options: >- 
-            -G Ninja Multi-Config
             -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
