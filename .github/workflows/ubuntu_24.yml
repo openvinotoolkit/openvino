@@ -88,7 +88,7 @@ jobs:
       build-js: true
       build-debian-packages: true
       build-contrib: true
-      cmake-options: |- 
+      cmake-options: >- 
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \

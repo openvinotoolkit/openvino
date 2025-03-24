@@ -58,7 +58,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
-      cmake-options: |-
+      cmake-options: >-
         -DENABLE_PYTHON=OFF `
         -DENABLE_CPPLINT=OFF `
         -DENABLE_TESTS=ON `

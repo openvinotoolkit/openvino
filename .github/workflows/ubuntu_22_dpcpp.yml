@@ -80,7 +80,7 @@ jobs:
       build-debian-packages: false
       build-contrib: false
       build-rpm-packages: false
-      cmake-options: |- 
+      cmake-options: >- 
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \

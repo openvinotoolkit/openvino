@@ -85,7 +85,7 @@ jobs:
       build-debian-packages: false
       build-js: false
       build-rpm-packages: true
-      cmake-options: |- 
+      cmake-options: >- 
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_INTEL_NPU=OFF \
