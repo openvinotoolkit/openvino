@@ -93,6 +93,9 @@ from openvino import opset14
 from openvino import opset15
 from openvino import opset16
 
+# opencl related:
+# ...
+
 # libva related:
 from openvino._pyopenvino import VAContext
 from openvino._pyopenvino import VASurfaceTensor
