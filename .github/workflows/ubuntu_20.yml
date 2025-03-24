@@ -92,6 +92,7 @@ jobs:
       build-js: true
       build-rpm-packages: false
       cmake-options: >- 
+            -G Ninja Multi-Config
             -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
@@ -101,7 +102,6 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DENABLE_WHEEL=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-            -G 'Ninja Multi-Config'
 
   CXX_Unit_Tests:
     name: C++ unit tests

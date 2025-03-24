@@ -81,6 +81,7 @@ jobs:
       build-contrib: false
       build-rpm-packages: false
       cmake-options: >- 
+            -G Ninja Multi-Config
             -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
@@ -89,7 +90,6 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-            -G 'Ninja Multi-Config'
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_22.04_dpcpp

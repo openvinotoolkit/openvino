@@ -91,6 +91,7 @@ jobs:
       build-debian-packages: false
       build-rpm-packages: false
       cmake-options: >-
+            -G Ninja Multi-Config
             -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
@@ -100,7 +101,6 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DENABLE_WHEEL=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-            -G 'Ninja Multi-Config'
 
   Debian_Packages:
     name: Debian Packages

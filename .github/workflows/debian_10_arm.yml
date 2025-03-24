@@ -88,7 +88,7 @@ jobs:
       build-contrib: false
       build-rpm-packages: false
       cmake-options: >-
-        -DTHREADS_PTHREAD_ARG="-pthread"
+        -DTHREADS_PTHREAD_ARG=-pthread
         -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
         -DCMAKE_BUILD_TYPE=Release
         -DENABLE_STRICT_DEPENDENCIES=OFF

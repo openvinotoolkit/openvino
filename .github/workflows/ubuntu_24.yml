@@ -89,6 +89,7 @@ jobs:
       build-debian-packages: true
       build-contrib: true
       cmake-options: >- 
+            -G Ninja Multi-Config
             -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
@@ -97,7 +98,6 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-            -G 'Ninja Multi-Config'
 
   CXX_Unit_Tests:
     name: C++ unit tests
