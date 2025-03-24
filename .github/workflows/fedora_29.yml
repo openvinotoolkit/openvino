@@ -86,7 +86,7 @@ jobs:
       build-js: false
       build-rpm-packages: true
       cmake-options: >- 
-            -G 'Ninja'
+            -G "Ninja"
             -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_INTEL_NPU=OFF
