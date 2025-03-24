@@ -27,7 +27,6 @@ bool compare_strides(const ov::Strides& a, const T& b) {
 void regclass_graph_Strides(py::module m) {
     py::class_<ov::Strides, std::shared_ptr<ov::Strides>> strides(m, "Strides");
     strides.doc() = "openvino.Strides wraps ov::Strides";
-    strides.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axis_strides"));
     strides.def(py::init<const std::vector<size_t>&>(), py::arg("axis_strides"));
     strides.def(py::init<const ov::Strides&>(), py::arg("axis_strides"));
 
