@@ -424,7 +424,7 @@ int main(int argc, char* argv[]) {
         slog::info << "OpenVINO:" << slog::endl;
         slog::info << ov::get_openvino_version() << slog::endl;
         slog::info << "Device info:" << slog::endl;
-        //slog::info << core.get_versions(device_name) << slog::endl;
+        slog::info << core.get_versions(device_name) << slog::endl;
 
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
