@@ -189,12 +189,12 @@ jobs:
         run: |
           CMAKE_OPTIONS=( $CMAKE_OPTIONS )
           cmake \
-            "${CMAKE_GENERATOR}" "${CMAKE_OPTIONS[@]}" \
+            "${CMAKE_GENERATOR_PASS}" "${CMAKE_OPTIONS[@]}" \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}
-          CMAKE_GENERATOR: ${{ inputs.cmake-generator }}
+          CMAKE_GENERATOR_PASS: ${{ inputs.cmake-generator }}
 
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
