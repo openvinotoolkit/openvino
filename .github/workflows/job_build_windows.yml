@@ -21,6 +21,11 @@ on:
         description: 'A string of options passed to CMake'
         type: string
         required: true
+      cmake-generator:
+        description: 'A generator that will be passed to CMake. E.g., "Ninja"'
+        type: string
+        required: false
+        default: ''
       build-additional-python-wheels:
         description: 'Whether to build additional, i.e., non-system Python wheels. Should have Python 3.9-3.12 installed'
         type: boolean
@@ -166,7 +171,8 @@ jobs:
       - name: CMake configure
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}
-        run: cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} "$CMAKE_OPTIONS"
+          CMAKE_GENERATOR: ${{ inputs.cmake-generator }}
+        run: cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} $env:CMAKE_OPTIONS
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'

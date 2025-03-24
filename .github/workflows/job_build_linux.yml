@@ -177,14 +177,6 @@ jobs:
       # Build
       #
 
-      - name: Show CMake Options
-        env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
-        run: |
-          echo "${CMAKE_OPTIONS}"
-          echo "123"
-          echo ${CMAKE_OPTIONS}
-
       - name: CMake configure - OpenVINO
         run: |
           CMAKE_OPTIONS=( $CMAKE_OPTIONS )
