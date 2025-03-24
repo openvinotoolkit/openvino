@@ -141,8 +141,7 @@ runs:
       run: |
         artifacts_path=${{ steps.openvino_commit_download.outputs.artifacts_path }}
         cd $artifacts_path
-        version=$(yq eval '.components.openvino.custom_params.wheel_product_version // \
-                           .components.dldt.custom_params.wheel_product_version' manifest.yml)
+        version=$(yq eval '.components.openvino.custom_params.wheel_product_version // .components.dldt.custom_params.wheel_product_version' manifest.yml)
         wheel_path=${{ inputs.install_dir && '$artifacts_path/wheels' || './wheels' }}
         default_find_links_cmd="--find-links=$wheel_path"
         find_links_cmd=$([[ -n "$PIP_FIND_LINKS" ]] && echo "" || echo "$default_find_links_cmd")
