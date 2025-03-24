@@ -423,7 +423,7 @@ if(NOT DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT DEFINED CI_BUILD_NUMBER)
                     RESULT_VARIABLE pybind11_stubgen_result)
     string(REGEX MATCH "Version: ([\\.0-9]+)" pybind11_stubgen_version "${pybind11_stubgen_info}")
     if(pybind11_stubgen_result OR NOT pybind11_stubgen_version)
-        message(FATAL_ERROR "pybind11-stubgen package is not installed or version is not detected. This pacakge is necessary for developing Python API.")
+        message(FATAL_ERROR "pybind11-stubgen package is not installed or version is not detected. This package is necessary for developing Python API.")
     endif()
 
     # check pre-commit package    
@@ -432,7 +432,7 @@ if(NOT DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT DEFINED CI_BUILD_NUMBER)
                     RESULT_VARIABLE precommit_pkg_result)
     string(REGEX MATCH "Version: ([\\.0-9]+)" precommit_pkg_version "${precommit_pkg_info}")
     if(precommit_pkg_result OR NOT precommit_pkg_version)
-        message(FATAL_ERROR "pre-commit package is not installed or version is not detected. This pacakge is necessary for developing Python API.")
+        message(FATAL_ERROR "pre-commit package is not installed or version is not detected. This package is necessary for developing Python API.")
     endif()
 
     # attach the pre-commit hook for Python stub generation
