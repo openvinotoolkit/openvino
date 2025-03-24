@@ -269,6 +269,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::frontend::type::PyNone>());
     } else if (any.is<ov::frontend::type::PyScalar>()) {
         return py::cast(any.as<ov::frontend::type::PyScalar>());
+    } else if (any.is<ov::Tensor>()) {
+        return py::cast(any.as<ov::Tensor>());
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
