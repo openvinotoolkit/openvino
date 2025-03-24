@@ -22,7 +22,7 @@ OutputVector translate_gather(const NodeContext& context) {
     Output<Node> inputs = context.get_input(0);
     Output<Node> indices = context.get_input(1);
 
-    int64_t axis = context.const_named_param<int64_t>("axis");
+    int64_t axis = context.const_named_param<int64_t>("axes");
     auto axis_node = make_shared<v0::Constant>(element::i64, Shape{}, axis);
 
     Output<Node> res = make_shared<v1::Gather>(inputs, indices, axis_node);
