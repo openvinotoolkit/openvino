@@ -290,7 +290,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternVariadicSplitAsInput) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, 512});
         auto axis = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{});
-        auto split_lengths= std::make_shared<ov::op::v0::Constant>(element::i64, Shape{2});
+        auto split_lengths = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{2});
         auto var_split = std::make_shared<ov::op::v1::VariadicSplit>(data, axis, split_lengths);
 
         auto div_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {1.4142});
@@ -310,7 +310,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternVariadicSplitAsInput) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, 512});
         auto axis = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{});
-        auto split_lengths= std::make_shared<ov::op::v0::Constant>(element::i64, Shape{2});
+        auto split_lengths = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{2});
         auto var_split = std::make_shared<ov::op::v1::VariadicSplit>(data, axis, split_lengths);
 
         auto gelu = std::make_shared<ov::op::v7::Gelu>(var_split->output(1));
