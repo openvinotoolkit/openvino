@@ -25,6 +25,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/convert_precision.hpp"
@@ -282,6 +283,38 @@ TEST_F(TransformationTestsF, GeluFusionPatternTooShortDivConstValue) {
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
 
         manager.register_pass<ov::pass::GeluFusionWithErfTwo>();
+    }
+}
+
+TEST_F(TransformationTestsF, GeluFusionPatternVariadicSplitAsInput) {
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, 512});
+        auto axis = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{});
+        auto split_lengths= std::make_shared<ov::op::v0::Constant>(element::i64, Shape{2});
+        auto var_split = std::make_shared<ov::op::v1::VariadicSplit>(data, axis, split_lengths);
+
+        auto div_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {1.4142});
+        auto add_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {1.0});
+        auto mul_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.5});
+
+        auto div = std::make_shared<ov::op::v1::Divide>(var_split->output(1), div_const);
+        auto erf = std::make_shared<ov::op::v0::Erf>(div);
+        auto add = std::make_shared<ov::op::v1::Add>(erf, add_const);
+        auto mul_first = std::make_shared<ov::op::v1::Multiply>(var_split->output(1), add);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(mul_first, mul_const);
+
+        model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
+
+        manager.register_pass<ov::pass::GeluFusionWithErfTwo>();
+    }
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, 512});
+        auto axis = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{});
+        auto split_lengths= std::make_shared<ov::op::v0::Constant>(element::i64, Shape{2});
+        auto var_split = std::make_shared<ov::op::v1::VariadicSplit>(data, axis, split_lengths);
+
+        auto gelu = std::make_shared<ov::op::v7::Gelu>(var_split->output(1));
+        model_ref = std::make_shared<Model>(NodeVector{gelu}, ParameterVector{data});
     }
 }
 
