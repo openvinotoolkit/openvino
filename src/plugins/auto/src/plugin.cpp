@@ -727,7 +727,9 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties,
         std::vector<std::string> devices_to_be_merged =
             m_plugin_config.parse_priorities_devices(priorities.as<std::string>());
         std::size_t num_blob_files = 0;
-        std::string cache_dir = get_core()->get_property("", ov::cache_dir);
+        std::string cache_dir = properties.count(ov::cache_dir.name())
+                                    ? properties.at(ov::cache_dir.name()).as<std::string>()
+                                    : get_core()->get_property("", ov::cache_dir);
         bool if_need_cache_check = enable_startup_cpu && (model || !model_path.empty()) && !cache_dir.empty();
         if (if_need_cache_check) {
             for (auto&& device : devices_to_be_merged) {
