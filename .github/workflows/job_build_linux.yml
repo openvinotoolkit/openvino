@@ -188,13 +188,12 @@ jobs:
       - name: CMake configure - OpenVINO
         run: |
           CMAKE_OPTIONS=( $CMAKE_OPTIONS )
-          cmake \
-            "${CMAKE_GENERATOR_PASS}" "${CMAKE_OPTIONS[@]}" \
+          cmake "${CMAKE_OPTIONS[@]}" \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}
-          CMAKE_GENERATOR_PASS: ${{ inputs.cmake-generator }}
+          CMAKE_GENERATOR: ${{ inputs.cmake-generator }}
 
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
