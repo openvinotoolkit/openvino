@@ -337,6 +337,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<WEIGHTS_PATH>();
           }}},
+        {ov::hint::model.name(),
+        {true,
+            ov::PropertyMutability::RW,
+            [](const Config& config) {
+                return config.get<MODEL_PTR>();
+            }}},
         {ov::device::uuid.name(),
          {true,
           ov::PropertyMutability::RO,
