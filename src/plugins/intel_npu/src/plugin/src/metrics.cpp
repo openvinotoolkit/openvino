@@ -51,12 +51,11 @@ const std::vector<std::string>& Metrics::SupportedMetrics() const {
 
 std::string Metrics::GetFullDeviceName(const std::string& specifiedDeviceName) const {
     const auto devName = getDeviceName(specifiedDeviceName);
-    if (_backend) {
-        auto device = _backend->getDevice(devName);
-        if (device) {
-            return device->getFullDeviceName();
-        }
+    auto device = _backend->getDevice(devName);
+    if (device) {
+        return device->getFullDeviceName();
     }
+
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
@@ -176,7 +175,7 @@ std::string Metrics::getDeviceName(const std::string& specifiedDeviceName) const
         if (_backend == nullptr || (devNames = _backend->getDeviceNames()).empty()) {
             OPENVINO_THROW("No available devices");
         }
-        if (devNames.size() == 1) {
+        if (devNames.size() >= 1) {
             return devNames[0];
         } else {
             OPENVINO_THROW("The device name was not specified. Please specify device name by providing DEVICE_ID");

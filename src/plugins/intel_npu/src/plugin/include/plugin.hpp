@@ -53,7 +53,10 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    std::unique_ptr<BackendsRegistry> backendsRegistry;
+    std::unique_ptr<BackendsRegistry> _backendsRegistry;
+
+    //  _backend might not be set by the plugin; certain actions, such as offline compilation, might be supported.
+    //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
 
     std::map<std::string, std::string> _config;

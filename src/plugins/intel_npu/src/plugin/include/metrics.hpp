@@ -18,7 +18,7 @@ namespace intel_npu {
 
 class Metrics final {
 public:
-    Metrics(const ov::SoPtr<IEngineBackend>& backends);
+    Metrics(const ov::SoPtr<IEngineBackend>& backend);
 
     std::vector<std::string> GetAvailableDevicesNames() const;
     const std::vector<std::string>& SupportedMetrics() const;

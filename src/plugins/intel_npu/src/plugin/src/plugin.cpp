@@ -188,8 +188,8 @@ Plugin::Plugin()
 
     OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
     // backend registry shall be created after configs are updated
-    backendsRegistry = std::make_unique<BackendsRegistry>();
-    _backend = backendsRegistry->getEngineBackend();
+    _backendsRegistry = std::make_unique<BackendsRegistry>();
+    _backend = _backendsRegistry->getEngineBackend();
 
     if (_backend) {
         OV_ITT_TASK_NEXT(PLUGIN, "registerBackendOptions");
