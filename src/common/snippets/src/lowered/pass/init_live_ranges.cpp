@@ -40,7 +40,7 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
         if (pass_through_expr(expr)) {
             if (expr_it != linear_ir.begin()) {
                 live_regs = std::prev(expr_it)->get()->get_live_regs();
-                expr->set_live_regs(live_regs);
+                expr->set_live_regs(std::move(live_regs));
             }
         } else {
             // Remove all regs that expired before start
@@ -50,6 +50,9 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
             expr->set_live_regs(std::move(live_regs));
         }
 
+        // Note that here we continue to process pass_through expressions to define register type if it was not defined
+        // in the parent expression (for example, in cases where there are no parent expression for passthrough
+        // expressions) and to propagate new registers to the consumers
         for (size_t i = 0; i < expr->get_output_count(); ++i) {
             const auto& out_pd = expr->get_output_port_descriptor(i);
             if (out_pd->get_reg().is_defined())
