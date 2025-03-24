@@ -86,6 +86,7 @@ jobs:
       build-js: false
       build-rpm-packages: true
       cmake-options: >- 
+            -G 'Ninja'
             -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_INTEL_NPU=OFF
@@ -95,7 +96,6 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DCMAKE_BUILD_TYPE=Release
-            -G 'Ninja'
 
   RPM_Packages:
     name: RPM packages
