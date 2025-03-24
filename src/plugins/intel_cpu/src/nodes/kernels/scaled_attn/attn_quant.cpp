@@ -294,7 +294,7 @@ static void quantize_by_channel(const T* src,
         for (size_t i = 0; i < seq_dim; ++i) {
             float tmp = src[i * src_stride + j];
             tmp = std::max(tmp / scale[j] + zp[j], 0.0f);
-            dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp / scale[j] + zp[j]));
+            dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp));
         }
     }
 }

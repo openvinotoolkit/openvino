@@ -440,10 +440,10 @@ static void attn_acc_value_block_by_channel(float* out,
     auto p_zps = p_scales + S;
     auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
     size_t src_stride = S;
-#    if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
         size_t i = 0;
+#    if defined(HAVE_AVX512F)
         auto weight0 = _mm512_set1_ps(weight[j]);
         auto weight1 = _mm512_set1_ps(weight[j + 1]);
         auto weight2 = _mm512_set1_ps(weight[j + 2]);
@@ -475,27 +475,11 @@ static void attn_acc_value_block_by_channel(float* out,
             v_out = _mm512_fmadd_ps(weight3, v3, v_out);
             _mm512_storeu_ps(out + i, v_out);
         }
-        for (; i < S; i++) {
-            out[i] += weight[j] * (v_data_ptr[i + j * src_stride] - p_zps[i]) * p_scales[i];
-            out[i] += weight[j + 1] * (v_data_ptr[i + (j + 1) * src_stride] - p_zps[i]) * p_scales[i];
-            out[i] += weight[j + 2] * (v_data_ptr[i + (j + 2) * src_stride] - p_zps[i]) * p_scales[i];
-            out[i] += weight[j + 3] * (v_data_ptr[i + (j + 3) * src_stride] - p_zps[i]) * p_scales[i];
-        }
-    }
-    for (; j < block_size; j++) {
-        for (size_t i = 0; i < S; i++) {
-            out[i] += weight[j] * (v_data_ptr[i + j * src_stride] - p_zps[i]) * p_scales[i];
-        }
-    }
-    return;
 #    elif defined(HAVE_AVX2)
-    size_t j = 0;
-    for (; j + 4 <= block_size; j += 4) {
-        size_t i = 0;
-        auto weight0 = _mm256_set1_ps(weight[j]);
-        auto weight1 = _mm256_set1_ps(weight[j + 1]);
-        auto weight2 = _mm256_set1_ps(weight[j + 2]);
-        auto weight3 = _mm256_set1_ps(weight[j + 3]);
+        auto v256_weight0 = _mm256_set1_ps(weight[j]);
+        auto v256_weight1 = _mm256_set1_ps(weight[j + 1]);
+        auto v256_weight2 = _mm256_set1_ps(weight[j + 2]);
+        auto v256_weight3 = _mm256_set1_ps(weight[j + 3]);
         for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
             auto scale = mm256_uni_loadu_ps(p_scales + i);
             auto zp = mm256_uni_loadu_ps(p_zps + i);
@@ -517,12 +501,13 @@ static void attn_acc_value_block_by_channel(float* out,
                                         reinterpret_cast<__m128i*>(v_data_ptr + i + (j + 3) * src_stride)))),
                                     zp);
             v3 = _mm256_mul_ps(v3, scale);
-            v_out = _mm256_fmadd_ps(weight0, v0, v_out);
-            v_out = _mm256_fmadd_ps(weight1, v1, v_out);
-            v_out = _mm256_fmadd_ps(weight2, v2, v_out);
-            v_out = _mm256_fmadd_ps(weight3, v3, v_out);
+            v_out = _mm256_fmadd_ps(v256_weight0, v0, v_out);
+            v_out = _mm256_fmadd_ps(v256_weight1, v1, v_out);
+            v_out = _mm256_fmadd_ps(v256_weight2, v2, v_out);
+            v_out = _mm256_fmadd_ps(v256_weight3, v3, v_out);
             mm256_uni_storeu_ps(out + i, v_out);
         }
+#    endif
         for (; i < S; i++) {
             out[i] += weight[j] * (v_data_ptr[i + j * src_stride] - p_zps[i]) * p_scales[i];
             out[i] += weight[j + 1] * (v_data_ptr[i + (j + 1) * src_stride] - p_zps[i]) * p_scales[i];
@@ -531,13 +516,6 @@ static void attn_acc_value_block_by_channel(float* out,
         }
     }
     for (; j < block_size; j++) {
-        for (size_t i = 0; i < S; i++) {
-            out[i] += weight[j] * (v_data_ptr[i + j * src_stride] - p_zps[i]) * p_scales[i];
-        }
-    }
-    return;
-#    endif
-    for (size_t j = 0; j < block_size; j++) {
         for (size_t i = 0; i < S; i++) {
             out[i] += weight[j] * (v_data_ptr[i + j * src_stride] - p_zps[i]) * p_scales[i];
         }
@@ -676,28 +654,28 @@ static void attn_acc_value_block_by_channel(float* out,
             float tmp01 = extract_half_byte(data0, static_cast<bool>((i + 1) % 2));
 
             out[i] += weight[j] * (tmp00 - p_zps[i]) * p_scales[i];
-            out[i + 1] += weight[j] * (tmp01 - p_zps[i]) * p_scales[i];
+            out[i + 1] += weight[j] * (tmp01 - p_zps[i + 1]) * p_scales[i + 1];
 
             uint8_t data1 = v_data_ptr[i / 2 + (j + 1) * src_stride];
             float tmp10 = extract_half_byte(data1, static_cast<bool>(i % 2));
             float tmp11 = extract_half_byte(data1, static_cast<bool>((i + 1) % 2));
 
             out[i] += weight[j + 1] * (tmp10 - p_zps[i]) * p_scales[i];
-            out[i + 1] += weight[j + 1] * (tmp11 - p_zps[i]) * p_scales[i];
+            out[i + 1] += weight[j + 1] * (tmp11 - p_zps[i + 1]) * p_scales[i + 1];
 
             uint8_t data2 = v_data_ptr[i / 2 + (j + 2) * src_stride];
             float tmp20 = extract_half_byte(data2, static_cast<bool>(i % 2));
             float tmp21 = extract_half_byte(data2, static_cast<bool>((i + 1) % 2));
 
             out[i] += weight[j + 2] * (tmp20 - p_zps[i]) * p_scales[i];
-            out[i + 1] += weight[j + 2] * (tmp21 - p_zps[i]) * p_scales[i];
+            out[i + 1] += weight[j + 2] * (tmp21 - p_zps[i + 1]) * p_scales[i + 1];
 
             uint8_t data3 = v_data_ptr[i / 2 + (j + 3) * src_stride];
             float tmp30 = extract_half_byte(data3, static_cast<bool>(i % 2));
             float tmp31 = extract_half_byte(data3, static_cast<bool>((i + 1) % 2));
 
             out[i] += weight[j + 3] * (tmp30 - p_zps[i]) * p_scales[i];
-            out[i + 1] += weight[j + 3] * (tmp31 - p_zps[i]) * p_scales[i];
+            out[i + 1] += weight[j + 3] * (tmp31 - p_zps[i + 1]) * p_scales[i + 1];
         }
     }
     for (; j < block_size; j++) {
@@ -3255,7 +3233,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         auto block_size = (_helper._quant_key_bychannel && k_cache.get_precision().is_integral())
                               ? (k_cache.size(2) - key_params_size)
                               : k_cache.size(2);
-        printf("SV %ld S %ld block_size %ld\n", SV, S, block_size);
         auto H = q.size(1) / S;
         auto h_each_group_len = 1;
         if (Hk != H) {
