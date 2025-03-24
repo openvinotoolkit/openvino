@@ -1385,7 +1385,7 @@ bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin, const
     ov::AnyMap virtual_arguments = {};
     if (ov::is_virtual_device(plugin.get_name())) {
         virtual_arguments = arguments;
-        virtual_arguments.insert(ov::hint::cache_ablility_checked(true));
+        virtual_arguments[ov::intel_auto::cache_ablility_checked.name()] = true;
     }
     return plugin.supports_model_caching(virtual_arguments);
 }

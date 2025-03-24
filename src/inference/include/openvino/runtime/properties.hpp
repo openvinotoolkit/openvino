@@ -350,12 +350,6 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
 
 /**
- * @brief Indicates whether the core is checking the cache ability.
- * This property is used to signal passed into virtual device if the core is performing a cache capability check.
- */
-static constexpr Property<bool> cache_ablility_checked{"CACHE_ABLILITY_CHECKED"};
-
-/**
  * @enum       SchedulingCoreType
  * @brief      This enum contains definition of core type can be used for CPU tasks on different devices.
  */

@@ -305,8 +305,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type {get_device_name()};
     } else if (name == ov::device::capabilities.name()) {
-        if (arguments.count(ov::hint::cache_ablility_checked.name()) &&
-            arguments.at(ov::hint::cache_ablility_checked.name()).as<bool>()) {
+        if (arguments.count(ov::intel_auto::cache_ablility_checked.name()) &&
+            arguments.at(ov::intel_auto::cache_ablility_checked.name()).as<bool>()) {
             return std::vector<std::string>{ov::device::capability::EXPORT_IMPORT};
         }
 
