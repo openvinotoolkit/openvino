@@ -1,4 +1,4 @@
-Install OpenVINO™ 2025.0
+Install OpenVINO™ 2025.1
 ==========================
 
 
@@ -24,11 +24,12 @@ Install OpenVINO™ 2025.0
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <iframe id="selector" src="../_static/selector-tool/selector-dbd55b5.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
-OpenVINO 2025.0, described here, is not a Long-Term-Support version!
+OpenVINO 2025.1, described here, is not a Long-Term-Support version!
 All currently supported versions are:
 
-* 2025.0 (development)
-* 2023.3 (LTS)
+* 2025.1 (development)
+* 2024.6 (maintenance)
+* 2023.3 (LTS), it will be deprecated at the end of 2025.
 
 
 .. dropdown:: Effortless GenAI integration with OpenVINO GenAI

@@ -83,10 +83,10 @@ static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emi
 std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_brgemm_emitter";
-    if (const auto& common = std::dynamic_pointer_cast<BrgemmKernelExecutor>(emitter->m_kernel_executor)) {
+    if (const auto& common = std::dynamic_pointer_cast<x64::BrgemmKernelExecutor>(emitter->m_kernel_executor)) {
         ss << common->to_string();
     }
-    if (const auto& amx = std::dynamic_pointer_cast<BrgemmAMXKernelExecutor>(emitter->m_kernel_executor)) {
+    if (const auto& amx = std::dynamic_pointer_cast<x64::BrgemmAMXKernelExecutor>(emitter->m_kernel_executor)) {
         ss << amx->to_string();
     }
     ss << " m_memory_offset:" << vector_to_string(emitter->m_memory_offsets)

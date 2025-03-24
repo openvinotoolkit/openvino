@@ -24,7 +24,7 @@ struct is_any_of : public std::false_type {};
 // otherwise call is_any_of<T, Rest...> recurrently
 template <class T, class U, class... Rest>
 struct is_any_of<T, U, Rest...>
-    : public std::conditional<std::is_same<T, U>::value, std::true_type, is_any_of<T, Rest...>>::type {};
+    : public std::conditional_t<std::is_same_v<T, U>, std::true_type, is_any_of<T, Rest...>> {};
 
 /**
  * @brief Returns normalized by size dims where missing dimensions are filled with units from the beginning
@@ -66,10 +66,8 @@ inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims& firstInputDim
     if (secondInputDims.size() > firstInputDims.size()) {
         return false;
     }
-    if (std::accumulate(secondInputDims.begin(),
-                        secondInputDims.end(),
-                        static_cast<size_t>(1),
-                        std::multiplies<size_t>()) == 1) {
+    if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), static_cast<size_t>(1), std::multiplies<>()) ==
+        1) {
         return true;
     }
 
@@ -129,7 +127,7 @@ inline ov::element::Type normalizeToSupportedPrecision(ov::element::Type precisi
         break;
     }
     default: {
-        precision = ov::element::undefined;
+        precision = ov::element::dynamic;
     }
     }
 
@@ -150,7 +148,7 @@ inline ov::element::Type normalizeToSupportedPrecision(ov::element::Type precisi
  */
 inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float>& buffer, int align = -1) {
     if (buffer.empty()) {
-        OPENVINO_THROW("Can't align buffer, becuase buffer is empty");
+        OPENVINO_THROW("Can't align buffer, because buffer is empty");
     }
 
     auto alignedBuffer = buffer;
@@ -182,7 +180,7 @@ std::vector<T> reshapeDownToRank(const std::vector<T>& dims, size_t rank) {
     }
 
     const auto accEnd = dims.begin() + (dims.size() - rank + 1);
-    const auto acc = std::accumulate(dims.begin(), accEnd, (T)1, std::multiplies<T>());
+    const auto acc = std::accumulate(dims.begin(), accEnd, (T)1, std::multiplies<>());
 
     std::vector<T> result{acc};
     result.insert(result.end(), accEnd, dims.end());

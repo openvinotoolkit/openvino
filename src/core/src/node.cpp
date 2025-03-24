@@ -14,11 +14,13 @@
 #include "itt.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/util/log.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
 
@@ -533,6 +535,7 @@ bool ov::Node::match_value(ov::pass::pattern::Matcher* matcher,
         (matcher->is_strict_mode() &&
          (!pattern_value.get_element_type().compatible(graph_value.get_element_type()) ||
           !pattern_value.get_partial_shape().compatible(graph_value.get_partial_shape())))) {
+        OPENVINO_LOG_NODE1(matcher, pattern_value, graph_value);
         return false;
     }
     return match_node(matcher, graph_value);
@@ -547,11 +550,17 @@ bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node
     // Not exact matching allows using base classes in the patterns and successfully matching such
     // patterns
     // with sub-graph of descent nodes types.
-    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
-        matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
-        auto& pattern_map = matcher->get_pattern_value_map();
-        pattern_map[shared_from_this()] = graph_value;
-        return true;
+    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info())) {
+        OPENVINO_LOG_NODE2(matcher);
+        if (matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
+            auto& pattern_map = matcher->get_pattern_value_map();
+            pattern_map[shared_from_this()] = graph_value;
+            OPENVINO_LOG_NODE3(matcher);
+            return true;
+        }
+        OPENVINO_LOG_NODE4(matcher);
+    } else {
+        OPENVINO_LOG_NODE5(matcher, shared_from_this(), graph_value);
     }
     return false;
 }
@@ -726,7 +735,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     TensorVector output_tensors;
     for (const auto& output : outputs()) {
         const auto& et = output.get_element_type();
-        if (et != element::undefined && et.is_static()) {
+        if (et.is_static()) {
             output_tensors.emplace_back(output);
         } else {
             output_tensors.emplace_back();
@@ -775,6 +784,8 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     return true;
 }
 
+AttributeAdapter<std::shared_ptr<ov::Node>>::~AttributeAdapter() = default;
+
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 
 bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
@@ -798,4 +809,6 @@ bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
     }
     return true;
 }
+
+AttributeAdapter<ov::NodeVector>::~AttributeAdapter() = default;
 }  // namespace ov

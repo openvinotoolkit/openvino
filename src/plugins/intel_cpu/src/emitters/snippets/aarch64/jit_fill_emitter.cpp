@@ -60,7 +60,7 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg dst = TReg(out[0]);
+    auto dst = TReg(out[0]);
 
     // Optimized impl for zero
     if (is_optimized()) {
@@ -75,7 +75,7 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg dst = TReg(out[0]);
+    auto dst = TReg(out[0]);
 
     switch (offset) {
     case 1:

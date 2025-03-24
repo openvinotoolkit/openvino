@@ -68,8 +68,6 @@ void checkedMemcpy(void* destination, size_t destinationSize, void const* source
  */
 std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precision) {
     switch (precision) {
-    case ov::element::Type_t::undefined:
-        return "UNSPECIFIED";
     case ov::element::Type_t::f16:
         return "FP16";
     case ov::element::Type_t::f32:
@@ -554,6 +552,16 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content, std::regex(dqstr.str()), "");
     }
 
+    // QDQ_OPTIMIZATION is not supported in versions < 7.20 - need to remove it
+    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 20)) {
+        std::ostringstream qdqstr;
+        qdqstr << ov::intel_npu::qdq_optimization.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+               << VALUE_DELIMITER;
+        logger.warning("NPU_QDQ_OPTIMIZATION property is not supported by this compiler version. Removing from "
+                       "parameters");
+        content = std::regex_replace(content, std::regex(qdqstr.str()), "");
+    }
+
     // NPU_DEFER_WEIGHTS_LOAD is needed at runtime only
     {
         std::ostringstream batchstr;
@@ -589,6 +597,11 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
     umdcachestring << ov::intel_npu::bypass_umd_caching.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                    << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(umdcachestring.str()), "");
+
+    std::ostringstream skipversioncheck;
+    skipversioncheck << ov::intel_npu::disable_version_check.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                     << VALUE_DELIMITER;
+    content = std::regex_replace(content, std::regex(skipversioncheck.str()), "");
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix

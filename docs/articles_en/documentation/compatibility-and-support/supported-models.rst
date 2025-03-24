@@ -6,7 +6,7 @@ models from OpenVINO-supported frameworks may also work properly but have not be
 
 **AI Models that run on Intel® Core Ultra™ Processors with OpenVINO™ toolkit:**
 
-.. data-table:: 
+.. data-table::
    :class: modeldata stripe
    :name: supportedModelsTable
    :header-rows: 1
@@ -16,13 +16,11 @@ models from OpenVINO-supported frameworks may also work properly but have not be
    :data-page-length: 10
 
 
-| Marked cells indicate models that passed inference with no errors. Empty cells indicate
-  models that were not tested. No failing runs producing an error have been recorded.
+| Marked cells indicate models that passed inference with no errors.
 |
 | In the precision column, the "optimum-intel default" label corresponds to FP32 for small models
   and INT8 for models greater than 1B parameters.
-|
-| The results as of June 17 2024, for OpenVINO version 2024.2.
+| The results as of February 25 2025, for OpenVINO version 2025.0.
 | The models come from different public model repositories, such as Pytorch Model Zoo and
   HuggingFace; they were executed on the designated hardware with OpenVINO either natively or
   as a backend.
