@@ -112,6 +112,8 @@ def run_pa(tmp_path,
 def test_pa_precommit(tmp_path, model_name, model_link, mark, reason, ie_device):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
+    if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        pytest.skip("PagedAttention tests are not enabled on ARM")
     if mark == 'skip':
         pytest.skip(reason)
     elif mark == 'xfail':
