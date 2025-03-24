@@ -433,6 +433,15 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py_obj.cast<int64_t>();
     } else if (py::isinstance<py::none>(py_obj)) {
         return {};
+    } else if (py::isinstance(py_obj, py::module_::import("enum").attr("Enum"))) {
+        const auto value = py::cast<py::object>(py_obj).attr("value");
+        if (py::isinstance<py::int_>(value)) {
+            return value.cast<int64_t>();
+        } else if (py::isinstance<py::str>(value)) {
+            return value.cast<std::string>();
+        } else {
+            OPENVINO_THROW("Unsupported enum type.");
+        }
     } else if (py::isinstance<py::list>(py_obj)) {
         auto _list = py_obj.cast<py::list>();
 

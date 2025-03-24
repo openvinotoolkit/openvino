@@ -664,6 +664,16 @@ def test_serialize_rt_info(request, tmp_path):
     os.remove(bin_path)
 
 
+def make_enum_info():
+    from enum import Enum
+
+    class EnumInfo(Enum):
+        INFO_INT = 1
+        INFO_STR = "info_str"
+
+    return EnumInfo
+
+
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_complex_rt_info(request, tmp_path):
     def check_rt_info(model):
@@ -678,6 +688,8 @@ def test_serialize_complex_rt_info(request, tmp_path):
         assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]) is True
         assert model.has_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]) is True
         assert model.has_rt_info(["config", "model_parameters", "mean_values"]) is True
+        assert model.has_rt_info("enum_info_int") is True
+        assert model.has_rt_info("enum_info_str") is True
 
         assert model.get_rt_info(["config", "type_of_model"]).astype(str) == "classification"
         assert model.get_rt_info(["config", "converter_type"]).astype(str) == "classification"
@@ -691,6 +703,8 @@ def test_serialize_complex_rt_info(request, tmp_path):
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]).aslist() == []
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]).aslist(str) == ["sasd", "fdfdfsdf"]
         assert model.get_rt_info(["config", "model_parameters", "mean_values"]).aslist(float) == [22.3, 33.11, 44.0]
+        assert model.get_rt_info("enum_info_int").astype(int) == 1
+        assert model.get_rt_info("enum_info_str").astype(str) == "info_str"
 
         rt_info = model.get_rt_info()
         assert isinstance(rt_info["config"], dict)
@@ -726,6 +740,8 @@ def test_serialize_complex_rt_info(request, tmp_path):
     model.set_rt_info([], ["config", "model_parameters", "labels", "label_tree", "nodes"])
     model.set_rt_info(["sasd", "fdfdfsdf"], ["config", "model_parameters", "labels", "label_groups", "ids"])
     model.set_rt_info([22.3, 33.11, 44.0], ["config", "model_parameters", "mean_values"])
+    model.set_rt_info(make_enum_info().INFO_INT, "enum_info_int")
+    model.set_rt_info(make_enum_info().INFO_STR, "enum_info_str")
 
     check_rt_info(model)
 
@@ -739,20 +755,39 @@ def test_serialize_complex_rt_info(request, tmp_path):
     os.remove(bin_path)
 
 
+def test_rt_info_enum():
+    model = generate_add_model()
+    enum_info = make_enum_info()
+
+    core = Core()
+    model.set_rt_info(enum_info.INFO_INT, "enum_info_int")
+    model.set_rt_info(enum_info.INFO_STR, "enum_info_str")
+    core.compile_model(model, "CPU")
+
+    prop_int = model.get_rt_info("enum_info_int")
+    assert isinstance(prop_int, OVAny)
+    assert isinstance(prop_int.value, int)
+    assert prop_int.value == 1
+    assert enum_info.INFO_INT == enum_info(prop_int.value)
+
+    prop_str = model.get_rt_info("enum_info_str")
+    assert isinstance(prop_str, OVAny)
+    assert isinstance(prop_str.value, str)
+    assert prop_str.value == "info_str"
+    assert enum_info.INFO_STR == enum_info(prop_str.value)
+
+
 def test_rt_info_gil():
     model = generate_add_model()
 
-    from enum import Enum
-
-    class EnumInfo(Enum):
-        INFO_A: str = "info_a"
+    class TestClass:
+        def __init__(self):
+            self.text = "test"
 
     core = Core()
-    model.set_rt_info(EnumInfo.INFO_A, "EnumInfo")
+    model.set_rt_info(TestClass(), "object_property")
     core.compile_model(model, "CPU")
-    assert model.get_rt_info("EnumInfo").value == EnumInfo.INFO_A
-    assert type(model.get_rt_info("EnumInfo").value) == EnumInfo
-    assert type(model.get_rt_info("EnumInfo")) == OVAny
+    assert model.get_rt_info("object_property").value.text == "test"
 
 
 def test_model_add_remove_result_parameter_sink():
