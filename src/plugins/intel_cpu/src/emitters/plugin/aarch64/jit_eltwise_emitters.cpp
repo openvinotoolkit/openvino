@@ -2621,6 +2621,127 @@ std::set<std::vector<element::Type>> jit_sigmoid_emitter::get_supported_precisio
     return {{element::f32}};
 }
 
+///ERF///
+class jit_erf_emitter : public jit_emitter {
+    public:
+        jit_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                        const std::shared_ptr<ov::Node>& node)
+            : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+            if (!host) {
+                throw std::invalid_argument("Host generator cannot be null");
+            }
+            prepare_table();
+            exp_emitter = create_exp_emitter(host, host_isa, node);
+        }
+    
+        jit_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                        const ov::element::Type exec_prc)
+            : jit_emitter(host, host_isa, exec_prc) {
+            if (!host) {
+                throw std::invalid_argument("Host generator cannot be null");
+            }
+            prepare_table();
+            exp_emitter = create_exp_emitter(host, host_isa, exec_prc);
+        }
+    
+        size_t get_inputs_count() const override {
+            return 1;
+        }
+    
+        size_t get_aux_vecs_count() const override {
+            return exp_emitter ? exp_emitter->get_aux_vecs_count() + 4 : 4;
+        }
+    
+        size_t get_aux_gprs_count() const override {
+            return exp_emitter ? exp_emitter->get_aux_gprs_count() + 1 : 1;
+        }
+    
+        void emit_impl(const std::vector<size_t>& in_vec_idxs,
+                       const std::vector<size_t>& out_vec_idxs) const override {
+            static const std::array<dnnl::impl::cpu::aarch64::cpu_isa_t, 2> supported_isas = {
+                dnnl::impl::cpu::aarch64::asimd,
+                dnnl::impl::cpu::aarch64::sve
+            };
+    
+            auto isa_it = std::find(supported_isas.begin(), supported_isas.end(), host_isa_);
+            if (isa_it == supported_isas.end()) {
+                OPENVINO_THROW("Unsupported ISA for Erf JIT kernel");
+            }
+    
+            emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+        }
+    
+        void emit_data() const override {
+            jit_emitter::emit_data();
+            if (exp_emitter) {
+                exp_emitter->emit_data();
+            }
+        }
+    
+        static std::set<std::vector<element::Type>> 
+        get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+            return {{element::f32}};
+        }
+    
+    private:
+        std::unique_ptr<jit_exp_emitter> create_exp_emitter(
+            dnnl::impl::cpu::aarch64::jit_generator* host,
+            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+            const auto& arg) {
+            try {
+                return std::make_unique<jit_exp_emitter>(host, host_isa, arg);
+            } catch (const std::exception& e) {
+                OPENVINO_THROW("Failed to create exp_emitter: " + std::string(e.what()));
+            }
+        }
+    
+        template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+        void emit_isa(const std::vector<size_t>& in_vec_idxs,
+                      const std::vector<size_t>& out_vec_idxs) const {
+            if (exec_prc_ != ov::element::f32) {
+                OPENVINO_THROW("Unsupported precision: " + exec_prc_.to_string());
+            }
+    
+            using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+            const TReg src(in_vec_idxs[0]);
+            const TReg dst(out_vec_idxs[0]);
+            const TReg vmm_aux0(aux_vec_idxs[0]);
+            const TReg vmm_aux1(aux_vec_idxs[1]);
+            const TReg vmm_aux2(aux_vec_idxs[2]);
+            const TReg vmm_aux3(aux_vec_idxs[3]);
+    
+            h->fmul(vmm_aux0.s, src.s, src.s);
+            h->fneg(vmm_aux0.s, vmm_aux0.s);
+            
+            if (exp_emitter) {
+                exp_emitter->emit_code({vmm_aux0.getIdx()}, {vmm_aux1.getIdx()}, aux_vec_idxs, aux_gpr_idxs);
+            } else {
+                OPENVINO_THROW("Exponential emitter is not initialized");
+            }
+    
+            h->ld1r(vmm_aux2.s, table_val2("erf_p"));
+            h->fmul(vmm_aux2.s, vmm_aux2.s, src.s);
+            h->ld1r(vmm_aux3.s, table_val2("one"));
+            h->fadd(vmm_aux2.s, vmm_aux2.s, vmm_aux3.s);
+            h->fdiv(vmm_aux2.s, vmm_aux3.s, vmm_aux2.s);
+    
+            h->fmul(vmm_aux1.s, vmm_aux1.s, vmm_aux2.s);
+            h->fsub(vmm_aux1.s, vmm_aux3.s, vmm_aux1.s);
+            h->fcmge(vmm_aux3.s, src.s, 0.0);
+            h->bsl(vmm_aux3.b16, vmm_aux1.b16, vmm_aux0.b16);
+            h->mov(dst.b16, vmm_aux3.b16);
+        }
+    
+        void register_table_entries() override {
+            push_arg_entry_of("one", 0x3f800000, true);
+            push_arg_entry_of("erf_p", 0x3ea7ba05, true);
+        }
+    
+        std::unique_ptr<jit_exp_emitter> exp_emitter;
+    };
+
 /// SOFTPLUS ///
 jit_softplus_emitter::jit_softplus_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
