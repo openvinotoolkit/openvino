@@ -211,7 +211,7 @@ struct OPENVINO_API BroadcastModeSpec {
 ///
 /// \brief      This class defines possible recurrent sequence directions.
 ///
-enum class RecurrentSequenceDirection { FORWARD=0, REVERSE=1, BIDIRECTIONAL=2 };
+enum class RecurrentSequenceDirection { FORWARD = 0, REVERSE = 1, BIDIRECTIONAL = 2 };
 
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const RecurrentSequenceDirection& direction);
