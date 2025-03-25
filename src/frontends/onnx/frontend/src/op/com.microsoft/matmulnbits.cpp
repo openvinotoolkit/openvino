@@ -110,7 +110,29 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     }
 
     ov::Output<ov::Node> mm_output;
-    {
+    if ((bits == 4) && (!zero_points.get_node_shared_ptr()) && (block_size == K)) {
+        // For NPU Optimization
+        // reference: https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/text_generation#npu-support
+        //  1. model must be exported with symmetric INT4 quantization.
+        //  2. The quantized LLM MatMul Op need to use Channel-wised quantization for better performance. (block_size = K)
+        // with the limitation, the NPU vpux-plugin compiler could use mix-precision matmul with i4 weight input.
+        // it raised the performance a lot in NPU.
+
+        // format b to int4
+        const auto b_const = ov::as_type_ptr<v0::Constant>(b_quantized.get_node_shared_ptr());
+        ov::Shape casted_b_shape = ov::Shape{static_cast<size_t>(N * n_blocks_per_col), static_cast<size_t>(blob_size * 2)};
+        ov::Output<ov::Node> casted_b = std::make_shared<v0::Constant>(ov::element::i4, casted_b_shape, b_const->get_data_ptr());
+
+        // convert and scale b
+        auto converted_b = std::make_shared<v0::Convert>(casted_b, a.get_element_type());
+        const auto scale_const = ov::as_type_ptr<v0::Constant>(scales.get_node_shared_ptr());
+        auto casted_scale_shape = ov::Shape{static_cast<size_t>(N * n_blocks_per_col), 1};
+        auto casted_scale = std::make_shared<v0::Constant>(a.get_element_type(), casted_scale_shape, scale_const->get_data_ptr());
+        const auto scaled_b = std::make_shared<v1::Multiply>(converted_b, casted_scale);
+
+        // mm = matmul(a,b)
+        mm_output = std::make_shared<v0::MatMul>(a, scaled_b, false, true);
+    } else {
         const auto b_const = ov::as_type_ptr<v0::Constant>(b_quantized.get_node_shared_ptr());
 
         ov::Output<ov::Node> casted_b;
