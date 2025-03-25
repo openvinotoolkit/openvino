@@ -201,7 +201,7 @@ public:
 class asBoolCheck : public PortChecker {
 public:
     asBoolCheck(const MemoryPtr& mem) {
-        OPENVINO_ASSERT(mem->getPrecision() == element::boolean);
+        OPENVINO_ASSERT(mem->getPrecision() == element::u8);
         OPENVINO_ASSERT(mem->getShape() == Shape(VectorDims{1}));
         mem_holder = mem;
     }
