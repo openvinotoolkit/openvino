@@ -142,43 +142,6 @@ static inline ze_graph_argument_precision_t getZePrecision(const ov::element::Ty
     }
 }
 
-static inline ov::element::Type_t getOVPrecision(const ze_graph_argument_precision_t precision) {
-    switch (precision) {
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT4:
-        return ov::element::Type_t::i4;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT4:
-        return ov::element::Type_t::u4;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT8:
-        return ov::element::Type_t::i8;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
-        return ov::element::Type_t::u8;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
-        return ov::element::Type_t::i16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
-        return ov::element::Type_t::u16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
-        return ov::element::Type_t::i32;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT32:
-        return ov::element::Type_t::u32;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
-        return ov::element::Type_t::i64;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
-        return ov::element::Type_t::u64;
-    case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
-        return ov::element::Type_t::bf16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
-        return ov::element::Type_t::f16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
-        return ov::element::Type_t::f32;
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP64:
-        return ov::element::Type_t::f64;
-    case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
-        return ov::element::Type_t::u1;
-    default:
-        return ov::element::Type_t::undefined;
-    }
-}
-
 static inline std::size_t layoutCount(const ze_graph_argument_layout_t val) {
     switch (val) {
     case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
