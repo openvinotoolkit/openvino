@@ -53,7 +53,7 @@ std::shared_ptr<IEngineBackend> getBackend(std::shared_ptr<void> so) {
 
 ov::SoPtr<IEngineBackend> loadBackend(const std::string& libpath) {
     auto backendSO = loadBackendLibrary(libpath);
-    auto backend = getBackend(backendS);
+    auto backend = getBackend(backendSO);
 
     return ov::SoPtr<IEngineBackend>(backend, backendSO);
 }
