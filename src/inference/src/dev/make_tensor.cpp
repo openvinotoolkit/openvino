@@ -130,6 +130,8 @@ public:
     ReadOnlyViewTensor(const element::Type element_type, const Shape& shape, const void* ptr)
         : ViewTensor{element_type, shape, const_cast<void*>(ptr)} {}
 
+    using ViewTensor::data;
+
     [[noreturn]] void* data(const element::Type& element_type) override {
         OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
     }
@@ -197,6 +199,8 @@ public:
                               const void* ptr,
                               const Strides& strides)
         : StridedViewTensor{element_type, shape, const_cast<void*>(ptr), strides} {}
+
+    using StridedViewTensor::data;
 
     [[noreturn]] void* data(const element::Type& element_type) override {
         OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
