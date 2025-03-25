@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,8 +33,8 @@ protected:
     void SetUp() override {
         SubgraphsDumperBaseTest::SetUp();
         test_model_name = "test_model_name";
-        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
-        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});
+        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"}).string();
+        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"}).string();
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
             Model_0 test;

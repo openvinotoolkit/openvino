@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -306,7 +306,7 @@ public:
             indirect_kernel_params.is_shape_agnostic = params.is_dynamic();
             kernels_data.push_back(kernel_selector.get_best_kernel(indirect_kernel_params));
         }
-        return cldnn::make_unique<gemm_impl>(kernels_data);
+        return std::make_unique<gemm_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {

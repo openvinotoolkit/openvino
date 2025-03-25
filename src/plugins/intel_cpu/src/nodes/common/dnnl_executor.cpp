@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "dnnl_executor.h"
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 DnnlExecutor::DnnlExecutor(const dnnl::primitive_desc& pd) {
     execPrim = dnnl::primitive(pd);
@@ -25,11 +24,11 @@ DnnlExecutor::IntermReorder::IntermReorder(const dnnl::memory::desc& descSrc,
     m_reorder = dnnl::reorder(reorderPd);
 }
 
-void DnnlExecutor::IntermReorder::exec(dnnl::memory& memSrc, dnnl::memory& memDst, dnnl::stream strm) {
+void DnnlExecutor::IntermReorder::exec(dnnl::memory& memSrc, dnnl::memory& memDst, const dnnl::stream& strm) {
     m_reorder.execute(strm, memSrc, memDst);
 }
 
-void DnnlExecutor::exec(const std::unordered_map<int, dnnl::memory>& primArgs, dnnl::stream strm) {
+void DnnlExecutor::exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm) {
     if (inputReorders.empty() && outputReorders.empty()) {
         execPrim.execute(strm, primArgs);
     } else {
@@ -37,7 +36,7 @@ void DnnlExecutor::exec(const std::unordered_map<int, dnnl::memory>& primArgs, d
     }
 }
 
-void DnnlExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm) {
+void DnnlExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, const dnnl::stream& strm) {
     for (auto& inReorder : inputReorders) {
         if (primArgs.count(inReorder.first)) {
             dnnl::memory memDst(inReorder.second.getDstDesc(), strm.get_engine());
@@ -82,5 +81,4 @@ impl_desc_type DnnlExecutor::getImplementationType() const {
     return parse_impl_name(DnnlExtensionUtils::query_impl_info_str(pd));
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

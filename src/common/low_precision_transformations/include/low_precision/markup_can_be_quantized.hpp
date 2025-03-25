@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ class LP_TRANSFORMATIONS_API MarkupCanBeQuantized;
  */
 class ov::pass::low_precision::MarkupCanBeQuantized : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("MarkupCanBeQuantized", "0");
+    OPENVINO_MODEL_PASS_RTTI("low_precision::MarkupCanBeQuantized");
     MarkupCanBeQuantized(const std::vector<ov::element::Type> defaultPrecisions = { ov::element::u8, ov::element::i8 });
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 private:

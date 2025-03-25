@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,8 @@ void intel_npu::registerCompilerOptions(OptionsDesc& desc) {
     desc.add<DMA_ENGINES>();
     desc.add<DYNAMIC_SHAPE_TO_STATIC>();
     desc.add<EXECUTION_MODE_HINT>();
+    desc.add<COMPILER_DYNAMIC_QUANTIZATION>();
+    desc.add<QDQ_OPTIMIZATION>();
 }
 
 //

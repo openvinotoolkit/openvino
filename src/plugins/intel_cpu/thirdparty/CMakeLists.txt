@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,8 +22,14 @@ function(ov_create_acl_version_file)
     string(REGEX MATCH "v([0-9]+\\.[0-9]+\\.?[0-9]*)" ACL_VERSION "${ACL_SCONSCRIPT_FILE_CONTENT}")
     set(ACL_VERSION "${CMAKE_MATCH_1}")
 
-    set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/src/core/arm_compute_version.embed")
+    set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed")
     file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
+endfunction()
+
+function(ov_build_kleidiai_static)
+    set(BUILD_SHARED_LIBS OFF)
+    set(KLEIDIAI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    add_subdirectory(kleidiai EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ov_add_onednn)
@@ -44,6 +50,7 @@ function(ov_add_onednn)
     set(DNNL_CPU_RUNTIME "${THREADING}" CACHE STRING "" FORCE)
     set(DNNL_GPU_RUNTIME "NONE" CACHE STRING "" FORCE)
     set(DNNL_BLAS_VENDOR "NONE" CACHE STRING "" FORCE)
+    set(ONEDNN_ENABLE_GEMM_KERNELS_ISA "SSE41" CACHE STRING "" FORCE)
     # plugin does not use onednn graph
     set(ONEDNN_BUILD_GRAPH OFF CACHE BOOL "" FORCE)
     # select needed primitives
@@ -155,6 +162,9 @@ function(ov_add_onednn)
 endfunction()
 
 if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+    # This flag is to suppress "warning as error" in libxsmm compilation, such as
+    # "generator_common_aarch64.c:60:6: error: no previous declaration for ‘libxsmm_generator_vcvt_f32i8_aarch64_sve’ [-Werror=missing-declarations]"
+    ov_add_compiler_flags(-Wno-missing-declarations)
     add_subdirectory(libxsmm)
     ov_install_static_lib(libxsmm ${OV_CPACK_COMP_CORE})
 endif()
@@ -167,6 +177,17 @@ endif()
 if(ENABLE_SHL_FOR_CPU)
     add_subdirectory(shl)
     ov_install_static_lib(shl ${OV_CPACK_COMP_CORE})
+endif()
+
+if(ENABLE_KLEIDIAI_FOR_CPU)
+    ov_build_kleidiai_static()
+    ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
+endif()
+
+if(RISCV64)
+    set(XBYAK_RISCV_V ON)
+    add_subdirectory(xbyak_riscv)
+    ov_install_static_lib(xbyak_riscv ${OV_CPACK_COMP_CORE})
 endif()
 
 ov_add_onednn()

@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "loop_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
@@ -90,7 +90,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::loop_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<loop_impl>(*this);
+        return std::make_unique<loop_impl>(*this);
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
@@ -287,7 +287,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     }
 
     static std::unique_ptr<primitive_impl> create(const loop_node& arg, const kernel_impl_params&) {
-        return make_unique<loop_impl>(arg);
+        return std::make_unique<loop_impl>(arg);
     }
 
     void save(BinaryOutputBuffer& ob) const override {

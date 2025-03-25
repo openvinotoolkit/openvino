@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@ void loop(const std::shared_ptr<Model>& func,
     std::vector<BackEdge> back_edges;
     for (const auto& desc : input_descs) {
         inputs_to_body[desc->m_body_parameter_index] = args[desc->m_input_index];
-        if (const auto& merged_desc = std::dynamic_pointer_cast<op::v5::Loop::MergedInputDescription>(desc)) {
+        if (const auto& merged_desc = ov::as_type_ptr<op::v5::Loop::MergedInputDescription>(desc)) {
             back_edges.push_back({merged_desc->m_body_parameter_index, merged_desc->m_body_value_index});
             cur_iter_back_edge_exist |= merged_desc->m_body_parameter_index == static_cast<uint64_t>(cur_iter_idx);
         }
@@ -87,7 +87,7 @@ void loop(const std::shared_ptr<Model>& func,
         // Find all ConcatOutputDescription
         std::vector<std::shared_ptr<op::v5::Loop::ConcatOutputDescription>> concat_outputs;
         for (const auto& desc : out_descs) {
-            if (const auto& concat_desc = std::dynamic_pointer_cast<op::v5::Loop::ConcatOutputDescription>(desc)) {
+            if (const auto& concat_desc = ov::as_type_ptr<op::v5::Loop::ConcatOutputDescription>(desc)) {
                 concat_outputs.push_back(concat_desc);
             }
         }
@@ -97,8 +97,7 @@ void loop(const std::shared_ptr<Model>& func,
         std::vector<ov::TensorVector> sliced_values;
         int slice_in_idx = 0;
         for (const auto& desc : input_descs) {
-            if (const auto& slice_desc =
-                    std::dynamic_pointer_cast<op::v0::TensorIterator::SliceInputDescription>(desc)) {
+            if (const auto& slice_desc = ov::as_type_ptr<op::v0::TensorIterator::SliceInputDescription>(desc)) {
                 const auto el_size = args[slice_desc->m_input_index].get_element_type().size();
                 slice_inputs.push_back(slice_desc);
                 auto shape = args[slice_desc->m_input_index].get_shape();
@@ -196,7 +195,7 @@ void loop(const std::shared_ptr<Model>& func,
         }
 
         for (const auto& desc : out_descs) {
-            if (const auto& body_desc = std::dynamic_pointer_cast<op::v5::Loop::BodyOutputDescription>(desc)) {
+            if (const auto& body_desc = ov::as_type_ptr<op::v5::Loop::BodyOutputDescription>(desc)) {
                 const auto& res = body_outputs[body_desc->m_body_value_index];
                 res.copy_to(out[body_desc->m_output_index]);
             }

@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include <memory>
+
 #include "brgemm_base.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu::x64 {
 
 struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
@@ -17,11 +18,11 @@ public:
                        dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
     BrgemmKernelConfig() = delete;
 
-    std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
-        return std::unique_ptr<BrgemmKernelConfig>(new BrgemmKernelConfig(*this));
+    [[nodiscard]] std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
+        return std::make_unique<BrgemmKernelConfig>(*this);
     }
 
-    bool is_with_comp() const {
+    [[nodiscard]] bool is_with_comp() const {
         return m_static_params->is_with_comp;
     }
 
@@ -39,13 +40,13 @@ private:
             return !(*this == rhs);
         }
 #ifdef SNIPPETS_DEBUG_CAPS
-        std::string to_string() const;
+        [[nodiscard]] std::string to_string() const override;
 #endif
     private:
         static size_t compute_hash(bool is_with_comp);
     };
 
-    std::shared_ptr<StaticBaseParams> get_static_params() const override {
+    [[nodiscard]] std::shared_ptr<StaticBaseParams> get_static_params() const override {
         return m_static_params;
     }
 
@@ -74,7 +75,7 @@ public:
     static void execute(const BrgemmKernelExecutor* executor, call_args* args);
 
 protected:
-    std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
+    [[nodiscard]] std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
 
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,
@@ -89,7 +90,7 @@ public:
     using BrgemmKernelExecutor::execute;
 
 protected:
-    std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
+    [[nodiscard]] std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
 };
 
 struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
@@ -98,7 +99,7 @@ struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
     dnnl_status_t create_kernel() override {
         return dnnl_status_t::dnnl_success;
     }
-    const dnnl::impl::cpu::x64::jit_generator* get_jit_generator() const override {
+    [[nodiscard]] const dnnl::impl::cpu::x64::jit_generator* get_jit_generator() const override {
         OV_CPU_JIT_EMITTER_THROW("get_jit_generator should not be called for reference kernel");
         return nullptr;
     }
@@ -107,5 +108,4 @@ private:
     BrgemmKernelConfig m_config;
 };
 #endif
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::x64

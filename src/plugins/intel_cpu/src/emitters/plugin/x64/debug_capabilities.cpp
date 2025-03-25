@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,7 @@
 #    include <iostream>
 #    include <sstream>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace Xbyak;
 using namespace dnnl::impl::cpu::x64;
@@ -33,32 +32,34 @@ template void RegPrinter::print<unsigned char, Reg8>(jit_generator& h, Reg8 reg,
 template <typename T>
 void RegPrinter::print_reg_prc(const char* name, const char* ori_name, T* ptr) {
     std::stringstream ss;
-    if (name)
+    if (name) {
         ss << name << " | ";
+    }
     ss << ori_name << ": ";
-    if (std::is_floating_point<T>::value) {
+    if (std::is_floating_point_v<T>) {
         ss << *ptr;
     } else {
-        if (std::is_signed<T>::value) {
+        if (std::is_signed_v<T>) {
             ss << static_cast<int64_t>(*ptr);
         } else {
             ss << static_cast<uint64_t>(*ptr);
         }
     }
-    ss << std::endl;
+    ss << '\n';
     std::cout << ss.str();
 }
 
 template <typename PRC_T, size_t vlen>
 void RegPrinter::print_vmm_prc(const char* name, const char* ori_name, PRC_T* ptr) {
     std::stringstream ss;
-    if (name)
+    if (name) {
         ss << name << " | ";
+    }
     ss << ori_name << ": {" << ptr[0];
     for (size_t i = 1; i < vlen / sizeof(float); i++) {
         ss << ", " << ptr[i];
     }
-    ss << "}" << std::endl;
+    ss << "}" << '\n';
     std::cout << ss.str();
 }
 template void RegPrinter::print_vmm_prc<float, 16>(const char* name, const char* ori_name, float* ptr);
@@ -216,7 +217,6 @@ void RegPrinter::print_reg(jit_generator& h, REG_T reg, const char* name) {
     postamble(h);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1426,4 +1426,50 @@ ov::Tensor ov::npuw::util::XARCH::to_f16(const ov::Tensor& t) {
     OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
     return tnew;
+}
+
+void ov::npuw::util::XARCH::copy_row_as_column(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to) {
+#if defined(HAVE_AVX2)
+    constexpr uint32_t BLOCK_SIZE = sizeof(__m256i) / sizeof(uint16_t);
+
+    OPENVINO_ASSERT(from->get_element_type() == ov::element::f16);
+    OPENVINO_ASSERT(from->is_continuous());
+    OPENVINO_ASSERT(from->get_size() % BLOCK_SIZE == 0);
+    OPENVINO_ASSERT(from->get_shape().size() == 4u);
+    OPENVINO_ASSERT(from->get_shape()[0] == 1u);
+    OPENVINO_ASSERT(to->get_element_type() == ov::element::f16);
+    OPENVINO_ASSERT(to->get_shape().size() == 4u);
+    OPENVINO_ASSERT(to->get_shape()[0] == 1u);
+    OPENVINO_ASSERT(from->get_shape()[1] == to->get_shape()[1]);
+    OPENVINO_ASSERT(from->get_shape()[2] == to->get_shape()[2]);
+
+    const auto* pSrc = reinterpret_cast<uint16_t*>(from->data());
+    auto* pDst = reinterpret_cast<uint16_t*>(to->data());
+
+    const auto row_step = to->get_strides()[2] / sizeof(uint16_t);
+    for (size_t k = 0; k < from->get_size(); k += BLOCK_SIZE) {
+        const uint16_t* pSrcBlock = pSrc + k;
+        __m256i vsrc = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcBlock));
+        // NB: Assign particular byte from the block to the column
+        pDst[0 * row_step] = _mm256_extract_epi16(vsrc, 0);
+        pDst[1 * row_step] = _mm256_extract_epi16(vsrc, 1);
+        pDst[2 * row_step] = _mm256_extract_epi16(vsrc, 2);
+        pDst[3 * row_step] = _mm256_extract_epi16(vsrc, 3);
+        pDst[4 * row_step] = _mm256_extract_epi16(vsrc, 4);
+        pDst[5 * row_step] = _mm256_extract_epi16(vsrc, 5);
+        pDst[6 * row_step] = _mm256_extract_epi16(vsrc, 6);
+        pDst[7 * row_step] = _mm256_extract_epi16(vsrc, 7);
+        pDst[8 * row_step] = _mm256_extract_epi16(vsrc, 8);
+        pDst[9 * row_step] = _mm256_extract_epi16(vsrc, 9);
+        pDst[10 * row_step] = _mm256_extract_epi16(vsrc, 10);
+        pDst[11 * row_step] = _mm256_extract_epi16(vsrc, 11);
+        pDst[12 * row_step] = _mm256_extract_epi16(vsrc, 12);
+        pDst[13 * row_step] = _mm256_extract_epi16(vsrc, 13);
+        pDst[14 * row_step] = _mm256_extract_epi16(vsrc, 14);
+        pDst[15 * row_step] = _mm256_extract_epi16(vsrc, 15);
+        pDst += BLOCK_SIZE * row_step;
+    }
+#else
+    from->copy_to(to._ptr);
+#endif
 }

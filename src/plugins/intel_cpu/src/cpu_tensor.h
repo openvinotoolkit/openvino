@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ public:
 
     const ov::Strides& get_strides() const override;
 
-    void* data(const element::Type& type = {}) const override;
+    void* data(const element::Type& type) const override;
 
     MemoryPtr get_memory() {
         return m_memptr;

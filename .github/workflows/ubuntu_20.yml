@@ -31,6 +31,7 @@ jobs:
     steps:
       - name: checkout action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -65,6 +66,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -98,6 +100,7 @@ jobs:
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
+            -DENABLE_WHEEL=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   CXX_Unit_Tests:
@@ -165,7 +168,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_20
-    needs: [Smart_CI, Build, Debian_Packages, Samples]
+    needs: [Smart_CI, Build, Debian_Packages, Samples, CXX_Unit_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

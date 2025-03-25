@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API AlignMixedFP32FP16Types;
  */
 class ov::pass::AlignMixedFP32FP16Types : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("AlignMixedFP32FP16Types", "0");
+    OPENVINO_MODEL_PASS_RTTI("AlignMixedFP32FP16Types");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

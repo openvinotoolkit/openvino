@@ -103,7 +103,7 @@ General considerations
 
       Some image pre-processing can be baked into OpenVINO IR and accelerated accordingly.
       For more information, refer to
-      :doc:`Embedding Pre-processing <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`
+      :doc:`Preprocessing API <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details>`.
       and
       :doc:`General Runtime Optimizations <../../openvino-workflow/running-inference/optimize-inference/general-optimizations>`.
 
@@ -128,11 +128,11 @@ General considerations
    When comparing OpenVINO Runtime performance with the framework or reference code,
    make sure that both versions are as similar as possible:
 
-   * Wrap the exact inference execution (for examples, see :doc:`Benchmark app <../../learn-openvino/openvino-samples/benchmark-tool>`).
+   * Wrap the exact inference execution (for examples, see :doc:`Benchmark app <../../get-started/learn-openvino/openvino-samples/benchmark-tool>`).
    * Do not include model loading time.
    * Ensure that the inputs are identical for OpenVINO Runtime and the framework. For example, watch out for random values that can be used to populate the inputs.
    * In situations when any user-side pre-processing should be tracked separately, consider :doc:`image pre-processing and conversion <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`.
-   * When applicable, leverage the :doc:`Dynamic Shapes support <../../openvino-workflow/running-inference/dynamic-shapes>`.
+   * When applicable, leverage the :doc:`Dynamic Shapes support <../../openvino-workflow/running-inference/model-input-output/dynamic-shapes>`.
    * If possible, demand the same accuracy. For example, TensorFlow allows ``FP16`` execution, so when comparing to that, make sure to test the OpenVINO Runtime with the ``FP16`` as well.
 
 .. dropdown:: Make sure the benchmarking setup is proper for the selected scenario
@@ -149,7 +149,7 @@ OpenVINO benchmarking (general)
 +++++++++++++++++++++++++++++++
 
 The default way of measuring OpenVINO performance is running a piece of code, referred to as
-:doc:`the benchmark tool <../../learn-openvino/openvino-samples/benchmark-tool>`.
+:doc:`the benchmark tool <../../get-started/learn-openvino/openvino-samples/benchmark-tool>`.
 For Python, it is part of the OpenVINO Runtime installation, while for C++, it is available as
 a code sample.
 
@@ -165,7 +165,7 @@ as:
    benchmark_app -m <model> -d <device> -i <input>
 
 
-Each of the :doc:`OpenVINO supported devices <../compatibility-and-support/supported-devices>`
+Each of the :doc:`OpenVINO supported devices <../../documentation/compatibility-and-support/supported-devices>`
 offers performance settings that contain command-line equivalents in the Benchmark app.
 
 While these settings provide really low-level control for the optimal model performance on a
@@ -186,13 +186,13 @@ Internal Inference Performance Counters and Execution Graphs
 
 More detailed insights into inference performance breakdown can be achieved with device-specific
 performance counters and/or execution graphs.
-Both :doc:`C++ and Python <../../learn-openvino/openvino-samples/benchmark-tool>`
+Both :doc:`C++ and Python <../../get-started/learn-openvino/openvino-samples/benchmark-tool>`
 versions of the benchmark_app support a ``-pc`` command-line parameter that outputs an internal
 execution breakdown.
 
 For example, the table below is part of performance counters for
 :doc:`CPU inference <../../openvino-workflow/running-inference/inference-devices-and-modes/cpu-device>`.
-of a `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__
+of a TensorFlow implementation of ResNet-50.
 Keep in mind that since the device is CPU, the ``realTime`` wall clock and the ``cpu`` time
 layers are the same. Information about layer precision is also stored in the performance
 counters.
@@ -244,7 +244,7 @@ request, while the actual latency can be quite different.
 
 Lastly, the performance statistics with both performance counters and execution graphs are
 averaged, so such data for the
-:doc:`inputs of dynamic shapes <../../openvino-workflow/running-inference/dynamic-shapes>`
+:doc:`inputs of dynamic shapes <../../openvino-workflow/running-inference/model-input-output/dynamic-shapes>`
 should be measured carefully, preferably by isolating the specific shape and executing multiple
 times in a loop, to gather reliable data.
 

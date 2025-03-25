@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,7 +73,7 @@ public:
      * @return empty memory descriptor
      */
     static std::shared_ptr<MemoryDesc> makeEmptyDesc();
-    static std::shared_ptr<IMemory> makeEmptyMemory(const GraphContext::CPtr context);
+    static std::shared_ptr<IMemory> makeEmptyMemory(const GraphContext::CPtr& context);
 
     /**
      * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the

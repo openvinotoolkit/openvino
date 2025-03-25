@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_load_store_emitters.hpp"
+
+#include <memory>
+#include <utility>
 
 #include "utils/bfloat16.hpp"
 
@@ -33,8 +36,7 @@ using namespace Xbyak::util;
         data_reg_updated = true;                                    \
     }
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 // heuristic threshold number by byte between mask load and emulation with several simple partial load
@@ -69,8 +71,9 @@ static int get_aux_regs_as_temp(const int elem_count,
                                 bool is_store_as_real16,
                                 const int avx512_threshold_for_mask = 0,
                                 const bool is_fill = false) {
-    if (mayiuse(cpu::x64::avx512_core) && is_fill)
+    if (mayiuse(cpu::x64::avx512_core) && is_fill) {
         return 1;
+    }
     // for pure move, there are direct no-mask instructions to move on full xmm/ymm/zmm, so aux_gpr is not needed.
     // for move+convert:
     // there are direct no-mask instructions to load i8/u8/i16/u16/bf16/fp16 to full xmm/ymm/zmm as f32/i32, so aux_gpr
@@ -82,11 +85,13 @@ static int get_aux_regs_as_temp(const int elem_count,
     // so aux_gpr is not needed.
     const int byte_size = elem_count * data_size;
     if ((is_pure_move && one_of(byte_size, 16, 32, 64)) ||
-        (!is_pure_move && one_of(elem_count, 4, 8, 16) && !is_store_as_real16))
+        (!is_pure_move && one_of(elem_count, 4, 8, 16) && !is_store_as_real16)) {
         return 0;
+    }
     if ((mayiuse(cpu::x64::avx512_core) && (byte_size > avx512_threshold_for_mask)) ||
-        (one_of(byte_size % 16, 1, 2, 3)))
+        (one_of(byte_size % 16, 1, 2, 3))) {
         return 1;
+    }
     return 0;
 }
 
@@ -102,14 +107,14 @@ jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                                    emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type),
       name_("unknown"),
+      v_len_elt_(get_vec_length() / exec_prc.size()),
       load_num_(load_num),
+      load_size_(load_num * src_prc.size()),
       src_prc_(src_prc),
       dst_prc_(dst_prc),
       is_fill_(is_fill),
-      fill_value_(fill_value) {
+      fill_value_(std::move(fill_value)) {
     prepare_table();
-    load_size_ = load_num * src_prc.size();
-    v_len_elt_ = get_vec_length() / exec_prc.size();
 }
 
 size_t jit_load_emitter::get_inputs_num() const {
@@ -128,8 +133,9 @@ size_t jit_load_emitter::aux_gprs_count() const {
                                      is_fill_);
 
     // 1 for table address
-    if (is_fill_)
+    if (is_fill_) {
         count++;
+    }
 
     return count;
 }
@@ -191,8 +197,9 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_i
     if (src_prc_ != dst_prc_) {
         switch (dst_prc_) {
         case ov::element::f32:
-            if (!src_prc_.is_real())
+            if (!src_prc_.is_real()) {
                 h->uni_vcvtdq2ps(Vmm(out_vec_idx), Vmm(out_vec_idx));
+            }
             break;
         case ov::element::i32:
             if (src_prc_.is_real()) {
@@ -233,13 +240,16 @@ void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int o
     MAYBE_UNUSED(is_zmm);
 
     // Ensure data fits completely inside the Xmm/Ymm/Zmm register
-    if (load_size < 0 || load_size > 64)
+    if (load_size < 0 || load_size > 64) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to load in load_byte.");
+    }
     // check if proper number bytes fit inside the Xmm/Ymm register
-    if (is_ymm && load_size > 32)
+    if (is_ymm && load_size > 32) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to load to ymm in load_byte.");
-    if (is_xmm && load_size > 16)
+    }
+    if (is_xmm && load_size > 16) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to load to xmm in load_byte.");
+    }
 
     auto xmm = Xbyak::Xmm(vmm.getIdx());
     auto ymm = Xbyak::Ymm(vmm.getIdx());
@@ -288,10 +298,11 @@ void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int o
         if (!one_of(bytes_to_load, 0, 1, 2, 3, 4, 8, 16)) {
             h->uni_vpxor(vmm, vmm, vmm);
         }
-        if (bytes_to_load >= 8 && bytes_to_load < 16)
+        if (bytes_to_load >= 8 && bytes_to_load < 16) {
             h->uni_vmovq(xmm, addr(start_bytes));
-        else if (bytes_to_load == 16)
-            h->uni_vmovdqu(xmm, addr(start_bytes));
+        } else if (bytes_to_load == 16) {
+            h->uni_vmovdqu16(xmm, addr(start_bytes));
+        }
 
         switch (bytes_to_load) {
         case 0:
@@ -361,11 +372,24 @@ void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int o
         }
 
         if (has_xmm_block) {
-            h->vinsertf128(ymm, ymm, xmm, 1);  // insert to upper bits of ymm
-            if (has_ymm_block)
-                h->vinsertf128(ymm, ymm, addr(32), 0);  // insert to lower bits of ymm
-            else
-                h->vinsertf128(ymm, ymm, addr(0), 0);  // insert to lower bits of ymm
+            // insert to upper bits of ymm
+            // on avx512 target, ymm may have index [16,31], so need evex encoded instruction.
+            if (mayiuse(cpu::x64::avx512_core)) {
+                h->vinsertf32x4(ymm, ymm, xmm, 1);
+            } else {
+                h->vinsertf128(ymm, ymm, xmm, 1);
+            }
+            if (has_ymm_block) {
+                // insert to lower bits of ymm, could only executed on avx512
+                h->vinsertf32x4(ymm, ymm, addr(32), 0);
+            } else {
+                // insert to lower bits of ymm
+                if (mayiuse(cpu::x64::avx512_core)) {
+                    h->vinsertf32x4(ymm, ymm, addr(0), 0);  // evex encoded instruction needed.
+                } else {
+                    h->vinsertf128(ymm, ymm, addr(0), 0);
+                }
+            }
         }
 
         if (has_ymm_block) {
@@ -376,13 +400,13 @@ void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int o
 
     switch (load_size) {
     case 64:
-        h->uni_vmovdqu(zmm, addr(0));
+        h->uni_vmovdqu16(zmm, addr(0));
         break;
     case 32:
-        h->uni_vmovdqu(ymm, addr(0));
+        h->uni_vmovdqu16(ymm, addr(0));
         break;
     case 16:
-        h->uni_vmovdqu(xmm, addr(0));
+        h->uni_vmovdqu16(xmm, addr(0));
         break;
     default: {
         if (mayiuse(cpu::x64::avx512_core) && load_size > threshold_for_mask_emu_load) {
@@ -435,40 +459,46 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm& vmm,
     // Ensure extended double words fit inside Zmm (32 * load_size <= 512)
     // For Ymm register, load capacity is halved (32 * load_size <= 256)
     // For Xmm register, load capacity is halved further (32 * load_size <= 128)
-    if (load_size < 0 || load_size > 16)
+    if (load_size < 0 || load_size > 16) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to load in load_bytes_to_dword_extension.");
-    if (is_ymm && load_size > 8)
+    }
+    if (is_ymm && load_size > 8) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to load to ymm in load_bytes_to_dword_extension.");
-    if (is_xmm && load_size > 4)
+    }
+    if (is_xmm && load_size > 4) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to load to xmm in load_bytes_to_dword_extension.");
+    }
 
     // For load_size == 4/8/16, do load/extension in one go
     switch (load_size) {
     case 16: {
         // full size of zmm
         const auto zmm = Xbyak::Zmm(vmm.getIdx());
-        if (is_signed)
+        if (is_signed) {
             h->uni_vpmovsxbd(zmm, ptr[reg + offset]);
-        else
+        } else {
             h->uni_vpmovzxbd(zmm, ptr[reg + offset]);
+        }
         break;
     }
     case 8: {
         // full size of ymm or ymm_block of zmm
         const auto ymm = Xbyak::Ymm(vmm.getIdx());
-        if (is_signed)
+        if (is_signed) {
             h->uni_vpmovsxbd(ymm, ptr[reg + offset]);
-        else
+        } else {
             h->uni_vpmovzxbd(ymm, ptr[reg + offset]);
+        }
         break;
     }
     case 4: {
         // full size of xmm or xmm_block of ymm/zmm
         const auto xmm = Xbyak::Xmm(vmm.getIdx());
-        if (is_signed)
+        if (is_signed) {
             h->uni_vpmovsxbd(xmm, ptr[reg + offset]);
-        else
+        } else {
             h->uni_vpmovzxbd(xmm, ptr[reg + offset]);
+        }
         break;
     }
     default: {
@@ -477,17 +507,19 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm& vmm,
             mask = (mask << load_size) - mask;
             h->mov(Reg32(aux_gpr_idxs[0]), mask);
             h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
-            if (is_signed)
+            if (is_signed) {
                 h->uni_vpmovsxbd(vmm | k_mask | T_z, ptr[reg + offset]);
-            else
+            } else {
                 h->uni_vpmovzxbd(vmm | k_mask | T_z, ptr[reg + offset]);
+            }
         } else {
             const auto xmm = Xbyak::Xmm(vmm.getIdx());
             load_bytes(xmm, reg, offset, load_size);
-            if (is_signed)
+            if (is_signed) {
                 h->uni_vpmovsxbd(vmm, xmm);
-            else
+            } else {
                 h->uni_vpmovzxbd(vmm, xmm);
+            }
         }
         break;
     }
@@ -530,18 +562,22 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm& vmm,
     bool is_f16 = (prc == ov::element::f16);
     bool is_signed = prc.is_signed();
 
-    if (is_f16 && !mayiuse(cpu::x64::avx2))
+    if (is_f16 && !mayiuse(cpu::x64::avx2)) {
         OV_CPU_JIT_EMITTER_THROW("only support fp16 on platform with avx2 or above.");
+    }
 
     // Ensure extended double words fit inside Zmm (32/2(num) * 32 <= 512)
     // For Ymm register, load capacity is halved (16/2(num) * 32 <= 128)
     // For Xmm register, load capacity is halved again (8/2(num) * 32 <= 128)
-    if (load_size < 0 || load_size > 32)
+    if (load_size < 0 || load_size > 32) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to load in load_words_to_dword_extension.");
-    if (is_ymm && load_size > 16)
+    }
+    if (is_ymm && load_size > 16) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to load to ymm in load_words_to_dword_extension.");
-    if (is_xmm && load_size > 8)
+    }
+    if (is_xmm && load_size > 8) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to load to xmm in load_words_to_dword_extension.");
+    }
 
     auto xmm = Xbyak::Xmm(vmm.getIdx());
     auto ymm = Xbyak::Ymm(vmm.getIdx());
@@ -557,10 +593,11 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm& vmm,
         } else if (is_f16) {
             h->vcvtph2ps(zmm, ptr[reg + offset]);
         } else {
-            if (is_signed)
+            if (is_signed) {
                 h->uni_vpmovsxwd(zmm, ptr[reg + offset]);
-            else
+            } else {
                 h->uni_vpmovzxwd(zmm, ptr[reg + offset]);
+            }
         }
         break;
     }
@@ -571,10 +608,11 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm& vmm,
         } else if (is_f16) {
             h->vcvtph2ps(ymm, ptr[reg + offset]);
         } else {
-            if (is_signed)
+            if (is_signed) {
                 h->uni_vpmovsxwd(ymm, ptr[reg + offset]);
-            else
+            } else {
                 h->uni_vpmovzxwd(ymm, ptr[reg + offset]);
+            }
         }
         break;
     }
@@ -585,10 +623,11 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm& vmm,
         } else if (is_f16) {
             h->vcvtph2ps(xmm, ptr[reg + offset]);
         } else {
-            if (is_signed)
+            if (is_signed) {
                 h->uni_vpmovsxwd(xmm, ptr[reg + offset]);
-            else
+            } else {
                 h->uni_vpmovzxwd(xmm, ptr[reg + offset]);
+            }
         }
         break;
     }
@@ -604,10 +643,11 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm& vmm,
             } else if (is_f16) {
                 h->vcvtph2ps(vmm | k_mask | T_z, ptr[reg + offset]);
             } else {
-                if (is_signed)
+                if (is_signed) {
                     h->uni_vpmovsxwd(vmm | k_mask | T_z, ptr[reg + offset]);
-                else
+                } else {
                     h->uni_vpmovzxwd(vmm | k_mask | T_z, ptr[reg + offset]);
+                }
             }
         } else {
             // xmm or ymm version
@@ -618,10 +658,11 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm& vmm,
             } else if (is_f16) {
                 h->vcvtph2ps(ymm, xmm);
             } else {
-                if (is_signed)
+                if (is_signed) {
                     h->uni_vpmovsxwd(vmm, xmm);
-                else
+                } else {
                     h->uni_vpmovzxwd(vmm, xmm);
+                }
             }
         }
         break;
@@ -630,7 +671,7 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm& vmm,
 }
 
 template <typename Vmm>
-void jit_load_emitter::fill_with_default(const Vmm& vmm, std::string fill_value, const int& load_num) const {
+void jit_load_emitter::fill_with_default(const Vmm& vmm, const std::string& fill_value, const int& load_num) const {
     constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
     constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
     constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
@@ -671,14 +712,14 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                                      emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type),
       name_("unknown"),
+      v_len_elt_(get_vec_length() / exec_prc.size()),
       store_num_(store_num),
+      store_size_(store_num * dst_prc.size()),
       src_prc_(src_prc),
       dst_prc_(dst_prc),
       mode_(mode) {
     prepare_table();
-    v_len_elt_ = get_vec_length() / exec_prc.size();
-    store_size_ = store_num * dst_prc.size();
-    uni_vcvtneps2bf16_.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
+    uni_vcvtneps2bf16_ = std::make_shared<jit_uni_vcvtneps2bf16>(host, host_isa);
 }
 
 inline bool jit_store_emitter::is_saturation() const {
@@ -703,8 +744,9 @@ size_t jit_store_emitter::aux_gprs_count() const {
                                      threshold_for_mask_emu_store);
 
     // for table value in truncation arithmetic mode
-    if (is_truncation_emulation())
+    if (is_truncation_emulation()) {
         count++;
+    }
 
     return count;
 }
@@ -714,17 +756,20 @@ size_t jit_store_emitter::aux_vecs_count() const {
 
     // to avoid src vmm pollution for data type conversion
     // and other vmm data pollution instructions
-    if (src_prc_ != dst_prc_ || !one_of(store_size_, 64, 32, 16))
+    if (src_prc_ != dst_prc_ || !one_of(store_size_, 64, 32, 16)) {
         count++;
+    }
 
     // for data swapping to avoid using Xmm(0) as I/O xmm for jit_uni_vcvtneps2bf16
-    if ((host_isa_ == cpu::x64::sse41) && (src_prc_ == ov::element::f32 && dst_prc_ == ov::element::bf16))
+    if ((host_isa_ == cpu::x64::sse41) && (src_prc_ == ov::element::f32 && dst_prc_ == ov::element::bf16)) {
         count++;
+    }
 
     // zero value, zeroed and passed from caller from performance standpoint(zeroed one time and not need preserve and
     // restore status)
-    if (mayiuse(cpu::x64::avx512_core) && one_of(dst_prc_, ov::element::u8, ov::element::u16))
+    if (mayiuse(cpu::x64::avx512_core) && one_of(dst_prc_, ov::element::u8, ov::element::u16)) {
         count++;
+    }
 
     return count;
 }
@@ -735,8 +780,9 @@ size_t jit_store_emitter::get_inputs_num() const {
 
 void jit_store_emitter::emit_data() const {
     jit_emitter::emit_data();
-    if (uni_vcvtneps2bf16_)
+    if (uni_vcvtneps2bf16_) {
         uni_vcvtneps2bf16_->emit_data();
+    }
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
@@ -769,8 +815,9 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64& reg_d
 
     data_idx = in_vec_idx;
     data_reg_updated = false;
-    if (!aux_vec_idxs.empty())
+    if (!aux_vec_idxs.empty()) {
         aux_src_idx = aux_vec_idxs.back();  // to avoid src pollution
+    }
     if (src_prc_ != dst_prc_) {
         switch (src_prc_) {
         case ov::element::f32:
@@ -847,12 +894,15 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
     MAYBE_UNUSED(is_zmm);
 
     // Ensure data fits completely inside the Xmm/Ymm/Zmm register
-    if (store_size < 0 || store_size > 64)
+    if (store_size < 0 || store_size > 64) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to store in store_bytes.");
-    if (is_ymm && store_size > 32)
+    }
+    if (is_ymm && store_size > 32) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to store to ymm in store_bytes.");
-    if (is_xmm && store_size > 16)
+    }
+    if (is_xmm && store_size > 16) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to store to xmm in store_bytes.");
+    }
 
     auto xmm = Xbyak::Xmm(data_idx);
     auto ymm = Xbyak::Ymm(data_idx);
@@ -868,7 +918,7 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
         int bytes_to_store = store_size;
 
         if (store_size > 32) {
-            h->uni_vmovdqu(addr(0), ymm);  // store lower bits from zmm
+            h->uni_vmovdqu16(addr(0), ymm);  // store lower bits from zmm
             start_bytes += 32;
             bytes_to_store -= 32;
             // load upper bits from zmm into ymm
@@ -876,24 +926,30 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
         }
 
         if (bytes_to_store > 16) {
-            h->uni_vmovdqu(addr(start_bytes), xmm);  // store lower bits from ymm
+            h->uni_vmovdqu16(addr(start_bytes), xmm);  // store lower bits from ymm
             start_bytes += 16;
             bytes_to_store -= 16;
             // load upper bits from ymm into xmm
-            STORE_KEEP_SOURCE(vextractf128, xmm, Xmm(aux_src_idx), ymm, 1);
+            if (mayiuse(cpu::x64::avx512_core)) {
+                STORE_KEEP_SOURCE(vextractf32x4, xmm, Xmm(aux_src_idx), ymm, 1);  // evex used on avx512
+            } else {
+                STORE_KEEP_SOURCE(vextractf128, xmm, Xmm(aux_src_idx), ymm, 1);
+            }
         }
 
-        if (bytes_to_store >= 8 && bytes_to_store < 16)
+        if (bytes_to_store >= 8 && bytes_to_store < 16) {
             h->uni_vmovq(addr(start_bytes), xmm);
-        else if (bytes_to_store == 16)
-            h->uni_vmovdqu(addr(start_bytes), xmm);
+        } else if (bytes_to_store == 16) {
+            h->uni_vmovdqu16(addr(start_bytes), xmm);
+        }
 
         // 64/32/16/8 with one go
         // tail 7 bytes for lower or upper xmm
         auto store_one_byte = [&](int bytes_offset, int gpr_idx) {
             bool ext8bit = false;
-            if (one_of(gpr_idx, Operand::RSP, Operand::RBP, Operand::RSI, Operand::RDI))
+            if (one_of(gpr_idx, Operand::RSP, Operand::RBP, Operand::RSI, Operand::RDI)) {
                 ext8bit = true;
+            }
             h->mov(addr(start_bytes + bytes_offset), Reg8(gpr_idx, ext8bit));
         };
         switch (bytes_to_store) {
@@ -966,13 +1022,13 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
 
     switch (store_size) {
     case 64:
-        h->uni_vmovdqu(addr(0), zmm);
+        h->uni_vmovdqu16(addr(0), zmm);
         break;
     case 32:
-        h->uni_vmovdqu(addr(0), ymm);
+        h->uni_vmovdqu16(addr(0), ymm);
         break;
     case 16:
-        h->uni_vmovdqu(addr(0), xmm);
+        h->uni_vmovdqu16(addr(0), xmm);
         break;
     default:
         if (mayiuse(cpu::x64::avx512_core) && store_size > threshold_for_mask_emu_store) {
@@ -1010,12 +1066,15 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64& reg,
     // Ensure data fits completely inside the Xmm/Ymm/Zmm register
     // At most 8 dwords can fit inside the Ymm register
     // At most 4 dwords can fit inside the Xmm register
-    if (store_num < 0 || store_num > 16)
+    if (store_num < 0 || store_num > 16) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to store in store_dword_to_byte_extension.");
-    if (is_ymm && store_num > 8)
+    }
+    if (is_ymm && store_num > 8) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to store to ymm in store_dword_to_byte_extension.");
-    if (is_xmm && store_num > 4)
+    }
+    if (is_xmm && store_num > 4) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to store to xmm in store_dword_to_byte_extension.");
+    }
 
     auto vmm = Vmm(data_idx);
     auto zmm = Xbyak::Zmm(data_idx);
@@ -1177,12 +1236,15 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
     // Ensure data fits completely inside the Xmm/Ymm/Zmm register
     // At most 4 dwords can fit inside the Xmm register
     // At most 8 dwords can fit inside the Ymm register
-    if (store_num < 0 || store_num > 16)
+    if (store_num < 0 || store_num > 16) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to store in store_dword_to_word_extension.");
-    if (is_ymm && store_num > 8)
+    }
+    if (is_ymm && store_num > 8) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to store to ymm in store_dword_to_word_extension.");
-    if (is_xmm && store_num > 4)
+    }
+    if (is_xmm && store_num > 4) {
         OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to store to xmm in store_dword_to_word_extension.");
+    }
 
     auto xmm = Xbyak::Xmm(data_idx);
     auto ymm = Xbyak::Ymm(data_idx);
@@ -1287,7 +1349,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             }
             h->vcvtps2ph(xmm, ymm, 0x4);
             if (store_num == 8) {
-                h->uni_vmovdqu(ptr[reg + offset], xmm);
+                h->uni_vmovdqu16(ptr[reg + offset], xmm);
             } else {
                 data_idx = static_cast<int>(xmm.getIdx());
                 store_bytes<Vmm>(reg, offset, store_num * 2);
@@ -1380,5 +1442,4 @@ void jit_store_emitter::register_table_entries() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

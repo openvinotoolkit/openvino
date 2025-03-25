@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -119,8 +119,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     set(extra_cxx_flags "${CMAKE_CXX_FLAGS} -Wno-undef")
     if(MSVC64)
-        # Recommended Win ARM arch build in https://arm-software.github.io/ComputeLibrary/latest/how_to_build.xhtml
-        set(OV_CPU_ARM_TARGET_ARCH armv8a)
         # clang-cl does not recognize /MP option
         string(REPLACE "/MP " "" extra_cxx_flags "${extra_cxx_flags}")
     elseif(CMAKE_POSITION_INDEPENDENT_CODE)
@@ -142,6 +140,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
         # TODO: use data_type_support to disable useless kernels
         data_layout_support=all
         arch=${OV_CPU_ARM_TARGET_ARCH}
+        build_dir=${OV_CPU_ARM_TARGET_ARCH}
     )
 
     if(THREADING STREQUAL "OMP")
@@ -345,9 +344,9 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endif()
 
     if(MSVC64)
-        set(arm_compute build/arm_compute-static.lib)
+        set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/arm_compute-static.lib)
     else()
-        set(arm_compute build/libarm_compute-static.a)
+        set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a)
     endif()
     set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
 

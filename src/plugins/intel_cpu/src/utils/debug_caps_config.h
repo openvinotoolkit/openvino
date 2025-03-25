@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -46,6 +46,7 @@ public:
     FORMAT blobDumpFormat = FORMAT::TEXT;
     std::unordered_map<FILTER, std::string, EnumClassHash> blobDumpFilters;
     std::string summaryPerf = "";
+    std::string memoryStatisticsDumpPath;
 
     struct TransformationFilter {
         enum Type : uint8_t { PreLpt = 0, Lpt, PostLpt, Snippets, Specific, NumOfTypes };
@@ -97,6 +98,9 @@ public:
             };
 
             for (const auto& option : options) {
+                if (option.empty()) {
+                    continue;
+                }
                 const auto& parts = ov::util::split(option, '=');
                 if (parts.size() > 2) {
                     failed = true;

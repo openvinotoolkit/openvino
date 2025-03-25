@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "executor.hpp"
 #include "nodes/executors/executor_config.hpp"
@@ -17,8 +18,7 @@
 #include "nodes/executors/variable_executor.hpp"
 #include "post_ops.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename Attrs>
 class ExecutorFactory {
@@ -27,12 +27,12 @@ public:
 
     ExecutorFactory(const Attrs& attrs,
                     const PostOps& postOps,
-                    const ExecutorContext::CPtr context,
+                    ExecutorContext::CPtr context,
                     const MemoryDescArgs& descriptors,
                     const std::string& implementationPriority = {})
         : m_attrs(attrs),
           m_postOps(postOps),
-          m_context(context),
+          m_context(std::move(context)),
           m_suitableImplementations(filter(m_attrs, m_postOps, descriptors, implementationPriority)) {}
 
     /**
@@ -50,7 +50,7 @@ public:
      * @note The main use case is to avoid a fallback during the creation of an executor
      *       by passing proper memory descriptors to the make() method
      */
-    MemoryDescArgs getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
+    [[nodiscard]] MemoryDescArgs getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
         DEBUG_LOG("Preconfiguring memory descriptors");
 
         const auto& impl = m_suitableImplementations.front();
@@ -162,5 +162,4 @@ using ExecutorFactoryPtr = std::shared_ptr<ExecutorFactory<Attrs>>;
 template <typename Attrs>
 using ExecutorFactoryCPtr = std::shared_ptr<const ExecutorFactory<Attrs>>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

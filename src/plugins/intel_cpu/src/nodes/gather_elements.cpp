@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
@@ -31,28 +29,30 @@ bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    errorPrefix_ = std::string("Layer GatherElements with name '") + op->get_friendly_name() + "'";
-
-    if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        OPENVINO_THROW(errorPrefix_, " has invalid number of input/output edges.");
+    if (inputShapes.size() != 2 || outputShapes.size() != 1) {
+        THROW_CPU_NODE_ERR("has invalid number of input/output edges.");
+    }
 
     const auto dataRank = getInputShapeAtPort(dataIndex_).getRank();
     const auto indicesRank = getInputShapeAtPort(indicesIndex_).getRank();
-    if (dataRank != indicesRank)
-        OPENVINO_THROW(errorPrefix_, " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.");
+    if (dataRank != indicesRank) {
+        THROW_CPU_NODE_ERR("has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.");
+    }
 
     auto gatherElementsOp = ov::as_type_ptr<ov::op::v6::GatherElements>(op);
     auto axis = gatherElementsOp->get_axis();
-    if (axis < 0)
+    if (axis < 0) {
         axis += dataRank;
-    if (axis < 0 || axis >= static_cast<int>(dataRank))
-        OPENVINO_THROW(errorPrefix_, " has invalid axis attribute: ", axis);
+    }
+    if (axis < 0 || axis >= static_cast<int>(dataRank)) {
+        THROW_CPU_NODE_ERR("has invalid axis attribute: ", axis);
+    }
     axis_ = axis;
 }
 
@@ -60,32 +60,35 @@ void GatherElements::prepareParams() {
     const auto& dataDims = getParentEdgeAt(dataIndex_)->getMemory().getStaticDims();
     const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     strideAxDst_ = 1;
-    for (size_t i = dstDims.size() - 1; i > axis_; i--)
+    for (size_t i = dstDims.size() - 1; i > axis_; i--) {
         strideAxDst_ *= dstDims[i];
+    }
     dstAxDim_ = dstDims[axis_];
     if (axis_ > 0) {
         strideAx1Diff_ = 1;
-        for (size_t i = dataDims.size() - 1; i >= axis_; i--)
+        for (size_t i = dataDims.size() - 1; i >= axis_; i--) {
             strideAx1Diff_ *= dataDims[i];
+        }
         strideAx1Diff_ -= strideAxDst_ * dstDims[axis_];
     }
 }
 
 void GatherElements::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(dataIndex_);
     if (!one_of(inDataPrecision.size(),
                 sizeof(element_type_traits<ov::element::i32>::value_type),
                 sizeof(element_type_traits<ov::element::i16>::value_type),
                 sizeof(element_type_traits<ov::element::i8>::value_type))) {
-        OPENVINO_THROW(errorPrefix_, " has unsupported 'inputData' input precision: ", inDataPrecision);
+        THROW_CPU_NODE_ERR("has unsupported 'inputData' input precision: ", inDataPrecision);
     }
 
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
     if (!one_of(indicesPrecision, ov::element::i32, ov::element::i64)) {
-        OPENVINO_THROW(errorPrefix_, " has unsupported 'indices' input precision: ", indicesPrecision);
+        THROW_CPU_NODE_ERR("has unsupported 'indices' input precision: ", indicesPrecision);
     }
 
     dataTypeSize_ = inDataPrecision.size();
@@ -95,7 +98,7 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GatherElements::executeDynamicImpl(dnnl::stream strm) {
+void GatherElements::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -109,8 +112,9 @@ void GatherElements::directExecution() {
     auto threadBody = [&](const int ithr, const int nthr) {
         int start(0lu), end(0lu);
         splitter(outSize, nthr, ithr, start, end);
-        if (start >= end)
+        if (start >= end) {
             return;
+        }
 
         int axStrideIt = start % strideAxDst_;
         int dstAxIdx = (start / strideAxDst_) % dstAxDim_;
@@ -132,7 +136,7 @@ void GatherElements::directExecution() {
     parallel_nt(0, threadBody);
 }
 
-void GatherElements::execute(dnnl::stream strm) {
+void GatherElements::execute(const dnnl::stream& strm) {
     switch (dataTypeSize_) {
     case sizeof(element_type_traits<ov::element::i32>::value_type):
         return directExecution<element_type_traits<ov::element::i32>::value_type>();
@@ -141,7 +145,7 @@ void GatherElements::execute(dnnl::stream strm) {
     case sizeof(element_type_traits<ov::element::i8>::value_type):
         return directExecution<element_type_traits<ov::element::i8>::value_type>();
     default:
-        OPENVINO_THROW("Unsupported data type size");
+        THROW_CPU_NODE_ERR("Unsupported data type size");
     }
 }
 
@@ -149,6 +153,4 @@ bool GatherElements::created() const {
     return getType() == Type::GatherElements;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

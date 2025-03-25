@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -679,8 +679,6 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
 }  // namespace
 
 void reorder_inputs::run(program& p, reorder_factory& rf) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-
     auto& lo = p.get_layout_optimizer();
 
     auto fmt_map = get_preferred_formats(p, lo);
@@ -704,7 +702,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         GPU_DEBUG_LOG_PASS << "  " << node_ptr->id() << " " << fmt_to_str(fmt) << std::endl;
     }
 
-    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+    GPU_DEBUG_IF(p.get_config().get_verbose() >= 2) {
         reorder_cnt total_reorder_count =
             std::accumulate(p.get_processing_order().begin(),
                             p.get_processing_order().end(),
@@ -927,6 +925,40 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         }
     };
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    const auto reorder_input_gemm = [&p, &rf](typed_program_node<gemm>& gemm_node) {
+        if (gemm_node.get_preferred_impl_type() != impl_types::onednn || gemm_node.is_dynamic()
+            || gemm_node.get_preferred_input_fmts().size() < 2) {
+            return;
+        }
+
+        for (size_t idx = 0; idx < 2; ++idx) {
+            auto fmt = gemm_node.get_preferred_input_fmts()[idx];
+            if (fmt != format::type::any && !format::is_simple_data_format(fmt)) {
+                return;
+            }
+        }
+
+        for (size_t idx = 0; idx < 2; idx++) {
+            auto dep = gemm_node.get_dependency_with_port(idx);
+            const auto& input = dep.first;
+            auto input_layout = input->get_output_layout();
+
+            if (input_layout.is_dynamic())
+                continue;
+
+            if (!input->is_constant() && !format::is_simple_data_format(input_layout.format)) {
+                auto new_layout = input_layout;
+                new_layout.format = format::get_default_format(input_layout.get_rank());
+                auto new_input = rf.get_reorder(input->id(), dep.second, input_layout, new_layout);
+                if (new_input.first) {
+                    p.add_intermediate(new_input.first, gemm_node, idx, !new_input.second);
+                }
+            }
+        }
+    };
+#endif // ENABLE_ONEDNN_FOR_GPU
+
     for (auto& prim : p.get_processing_order()) {
         program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling>(
             *prim,
@@ -935,6 +967,12 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             reorder_convolution,
             reorder_input_fully_connected,
             reorder_input_pooling);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        program_helpers::do_for_types<gemm>(
+            *prim,
+            reorder_input_gemm);
+#endif // ENABLE_ONEDNN_FOR_GPU
     }
 
     for (auto n : p.get_processing_order()) {

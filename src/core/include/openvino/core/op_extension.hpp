@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,12 +17,7 @@ namespace ov {
 class OPENVINO_API BaseOpExtension : public Extension {
 public:
     using Ptr = std::shared_ptr<BaseOpExtension>;
-    /**
-     * @brief Returns the type info of operation
-     *
-     * @return ov::DiscreteTypeInfo
-     */
-    virtual const ov::DiscreteTypeInfo& get_type_info() const = 0;
+
     /**
      * @brief Method creates an OpenVINO operation
      *

@@ -1,35 +1,20 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "reference.h"
 
+#include <utility>
+
 #include "common/cpu_memcpy.h"
 #include "shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu::node {
 
-class ReferenceShapeInferFactory : public ShapeInferFactory {
-public:
-    ReferenceShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op{std::move(op)} {}
-
-    ShapeInferPtr makeShapeInfer() const override {
-        return make_shape_inference(m_op, FULL_PORT_MASK);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
-namespace node {
-
-Reference::Reference(const std::shared_ptr<ov::Node>& op,
-                     const GraphContext::CPtr& context,
-                     const std::string& errorMessage)
-    : Node(op, context, ReferenceShapeInferFactory(op)),
+Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, std::string errorMessage)
+    : Node(op, context, NgraphShapeInferFactory(op)),
       ovCoreNode(op),
-      additionalErrorMessage(errorMessage) {
+      additionalErrorMessage(std::move(errorMessage)) {
     if (!op->has_evaluate()) {
         OPENVINO_THROW_NOT_IMPLEMENTED(
             "Cannot fallback on ngraph reference implementation. Ngraph::Node::evaluate() is not implemented for op: ",
@@ -43,8 +28,9 @@ Reference::Reference(const std::shared_ptr<ov::Node>& op,
 void Reference::getSupportedDescriptors() {}
 
 void Reference::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inputConfigurators;
     inputConfigurators.reserve(inputShapes.size());
@@ -61,9 +47,11 @@ void Reference::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inputConfigurators, outputConfigurators, impl_desc_type::ref);
 }
 
-void Reference::createPrimitive() {}
+void Reference::createPrimitive() {
+    hasOutputShapeDataDependency = isDynamicNode() && outputShapeDataDependency();
+}
 
-void Reference::execute(dnnl::stream strm) {
+void Reference::execute(const dnnl::stream& strm) {
     auto inputs = prepareInputs();
     auto outputs = prepareOutputs();
     if (!ovCoreNode->evaluate(outputs, inputs)) {
@@ -71,7 +59,15 @@ void Reference::execute(dnnl::stream strm) {
     }
 }
 
-void Reference::executeDynamicImpl(dnnl::stream strm) {
+void Reference::executeDynamicImpl(const dnnl::stream& strm) {
+    if (!hasOutputShapeDataDependency) {
+        // if there is no data dependency for the output shape, we can execute the operation as is, similar to the
+        // static case, since the shapes are already calculated
+        execute(strm);
+        return;
+    }
+
+    // if there is data dependency, we need to perform shape inference first
     auto inputs = prepareInputs();
     ov::TensorVector outputs;
     auto result = Node::shapeInfer();
@@ -125,7 +121,9 @@ bool Reference::created() const {
 }
 
 bool Reference::needShapeInfer() const {
-    return false;
+    // If there is data dependency for the output shape, let's assume the node has internal dynamism (in general case),
+    // so we postpone the shape inference until the actual execution
+    return !hasOutputShapeDataDependency && Node::needShapeInfer();
 }
 
 ov::TensorVector Reference::prepareInputs() const {
@@ -139,10 +137,10 @@ ov::TensorVector Reference::prepareInputs() const {
         if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) {
                 return dim == 0lu;
             })) {
-            inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape));
+            inputs.emplace_back(ovCoreNode->get_input_element_type(i), shape);
         } else {
             CPU_NODE_ASSERT(srcDataPtr, "has empty input data on port ", i);
-            inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape, srcDataPtr));
+            inputs.emplace_back(ovCoreNode->get_input_element_type(i), shape, srcDataPtr);
         }
     }
     return inputs;
@@ -159,15 +157,13 @@ ov::TensorVector Reference::prepareOutputs() const {
         if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) {
                 return dim == 0lu;
             })) {
-            outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape));
+            outputs.emplace_back(ovCoreNode->get_output_element_type(i), shape);
         } else {
             CPU_NODE_ASSERT(dstDataPtr, "has empty output data on port ", i);
-            outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape, dstDataPtr));
+            outputs.emplace_back(ovCoreNode->get_output_element_type(i), shape, dstDataPtr);
         }
     }
     return outputs;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

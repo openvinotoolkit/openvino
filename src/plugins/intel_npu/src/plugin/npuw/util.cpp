@@ -18,12 +18,19 @@
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util_xarch.hpp"
 
-bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t end_idx) {
+bool ov::npuw::util::is_set(const std::size_t sub_idx,
+                            const std::string& opt,
+                            const std::size_t real_idx,
+                            const std::size_t end_idx) {
     if (opt.empty() || opt == "NO") {
         return false;
     }
     if (opt == "YES") {
         return true;
+    }
+
+    if (opt == "MIN") {
+        return sub_idx == real_idx;
     }
 
     std::string str(opt);
@@ -110,7 +117,7 @@ ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node>& no
     NPUW_ASSERT(ov::op::util::is_constant(node));
     NPUW_ASSERT(node->outputs().size() == 1);
     const auto port = node->output(0);
-    auto cnst_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+    auto cnst_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
     return ov::Tensor(port.get_element_type(), port.get_shape(), const_cast<void*>(cnst_node->get_data_ptr()));
 }
 
@@ -353,11 +360,34 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
                                             std::size_t offset,
                                             std::size_t len) {
     const auto& shape = src->get_shape();
+    NPUW_ASSERT(dim < shape.size());
     View view_start = View(shape.size(), 0u);
     View view_end = shape;
     view_start[dim] = offset;
     view_end[dim] = offset + len;
-    return ov::npuw::util::view(src, view_start, view_end);
+
+    auto ret_view = ov::npuw::util::view(src, view_start, view_end);
+
+    // Check if a tensor view can be faked as "continuous"
+    // FIXME: This trick should be removed after strided tensor
+    // checks are relaxed
+    if (std::all_of(shape.begin(), shape.begin() + dim, [](std::size_t d) {
+            return d == 1u;
+        })) {
+        // If all dimensions up to the sub-ranged dimension are 1s,
+        // This tensor can be faked as continuous
+        const auto type = src->get_element_type();
+        const auto view_shape = ret_view->get_shape();
+        ov::Strides fake_strides(shape.size());
+        fake_strides.back() = type.size();
+        std::transform(view_shape.crbegin(),
+                       view_shape.crend() - 1,
+                       fake_strides.rbegin(),
+                       fake_strides.rbegin() + 1,
+                       std::multiplies<size_t>());
+        return ov::get_tensor_impl(ov::Tensor(type, view_shape, ret_view->data(), fake_strides));
+    }
+    return ret_view;
 }
 
 template <typename InT>

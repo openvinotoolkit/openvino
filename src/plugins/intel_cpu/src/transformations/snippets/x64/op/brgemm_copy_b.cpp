@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const element::Type src_type,
@@ -17,7 +16,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const size_t offset_in,
                                     const size_t offset_out0,
                                     const size_t offset_out1,
-                                    std::vector<size_t> layout_input)
+                                    const std::vector<size_t>& layout_input)
     : snippets::modifier::MemoryAccess(1, with_compensations(type) ? 2 : 1),
       op::Op({x}),
       m_type(type),
@@ -28,7 +27,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
     if (with_compensations(m_type)) {
         set_output_port_descriptor({0, offset_out1}, 1);
     }
-    custom_constructor_validate_and_infer_types(std::move(layout_input));
+    custom_constructor_validate_and_infer_types(layout_input);
 }
 
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
@@ -37,7 +36,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const PortDescriptor& desc_in0,
                                     const PortDescriptor& desc_out0,
                                     const PortDescriptor& desc_out1,
-                                    std::vector<size_t> layout_input)
+                                    const std::vector<size_t>& layout_input)
     : snippets::modifier::MemoryAccess(1, with_compensations(type) ? 2 : 1),
       op::Op({x}),
       m_type(type),
@@ -48,7 +47,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
     if (with_compensations(m_type)) {
         set_output_port_descriptor(desc_out1, 1);
     }
-    custom_constructor_validate_and_infer_types(std::move(layout_input));
+    custom_constructor_validate_and_infer_types(layout_input);
 }
 
 bool BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
@@ -59,7 +58,7 @@ bool BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void BrgemmCopyB::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input) {
+void BrgemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input) {
     INTERNAL_OP_SCOPE(BrgemmRepack_ctor_validate_and_infer_types);
     OPENVINO_ASSERT(m_type == BRGEMM_TYPE::WITH_COMPENSATIONS || m_type == BRGEMM_TYPE::REPACKING_ONLY,
                     "Unsupported BRGEMM_TYPE value");
@@ -91,7 +90,7 @@ void BrgemmCopyB::validate_and_infer_types() {
 }
 
 void BrgemmCopyB::validate_element_type(const ov::element::Type& element_type) {
-    OPENVINO_ASSERT(one_of(element_type, element::f32, element::bf16, element::i8),
+    OPENVINO_ASSERT(one_of(element_type, element::f32, element::bf16, element::f16, element::i8),
                     "BrgemmCopyB doesn't support element type" + element_type.get_type_name());
 }
 
@@ -114,6 +113,13 @@ size_t BrgemmCopyB::get_offset_compensations() const {
     return get_output_offset(1);
 }
 
+bool BrgemmCopyB::is_transposed(const std::vector<size_t>& layout) {
+    const auto is_transposed = !layout.empty() && layout.back() != layout.size() - 1;
+    OPENVINO_ASSERT(IMPLICATION(is_transposed, (layout[layout.size() - 2] == layout.size() - 1)),
+                    "supports only N dim placed as last or pre last dimension");
+    return is_transposed;
+}
+
 BrgemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
     const auto& brg_copyb = ov::as_type_ptr<BrgemmCopyB>(n);
     OPENVINO_ASSERT(brg_copyb, "Got invalid node in BrgemmCopyB::ShapeInfer");
@@ -128,5 +134,4 @@ ov::snippets::IShapeInferSnippets::Result BrgemmCopyB::ShapeInfer::infer(
     std::vector<ov::snippets::VectorDims> new_shapes(m_num_outs, planar_shape);
     return {new_shapes, ov::snippets::ShapeInferStatus::success};
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

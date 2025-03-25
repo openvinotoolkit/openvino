@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "utils/generate_static_shapes.hpp"
@@ -50,7 +50,7 @@ namespace {
 
 InputShape generate(const std::shared_ptr<ov::Node>& node,
                     size_t in_port_id) {
-    const auto& param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node->get_input_node_shared_ptr(in_port_id));
+    const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(node->get_input_node_shared_ptr(in_port_id));
     std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
                                             generate_mid_shape(param->get_partial_shape()),
                                             param->get_partial_shape().get_max_shape() };

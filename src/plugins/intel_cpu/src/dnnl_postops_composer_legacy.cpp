@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 DnnlPostOpsComposerLegacy::DnnlPostOpsComposerLegacy(const dnnl::engine& engine,
                                                      dnnl::primitive_attr& attr,
@@ -54,8 +53,9 @@ DnnlPostOpsComposerLegacy::DnnlPostOpsComposerLegacy(const dnnl::engine& engine,
 }
 
 void DnnlPostOpsComposerLegacy::updateWeiScales() {
-    if (wei_scale_mask == 0 && wei_scale_values[0] == 1.0f)
+    if (wei_scale_mask == 0 && wei_scale_values[0] == 1.0f) {
         return;
+    }
 
     DEBUG_LOG("Set weight scales mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", wei_scale_mask);
     attr.set_scales_mask(DNNL_ARG_WEIGHTS, wei_scale_mask);
@@ -67,8 +67,9 @@ void DnnlPostOpsComposerLegacy::updateWeiScales() {
 }
 
 void DnnlPostOpsComposerLegacy::updateDestScales() {
-    if (dst_scale_val == 1.0f)
+    if (dst_scale_val == 1.0f) {
         return;
+    }
 
     DEBUG_LOG("Set dest scale mask ", "DNNL_ARG: ", DNNL_ARG_DST, " mask: ", 0);
     attr.set_scales_mask(DNNL_ARG_DST, 0);
@@ -133,8 +134,9 @@ bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, boo
         //
         //  we cannot implement all of them, so we just add the one
         //  that we observed in real models.
-        if ((ops.len() == 0))
+        if ((ops.len() == 0)) {
             fuseIntoWeiScale = true;
+        }
 
         // relu(x)*s = relu(x*s)
         // prelu(x)*s = prelu(x*s)
@@ -157,22 +159,26 @@ bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, boo
     }
     if (fuseIntoWeiScale) {
         if (scale.size() > 1) {
-            if (wei_scale_mask == 0)
+            if (wei_scale_mask == 0) {
                 wei_scale_values.resize(scale.size(), wei_scale_values[0]);
-            else
+            } else {
                 OPENVINO_ASSERT(wei_scale_values.size() == OC);
+            }
 
-            for (Dim j = 0; j < OC; j++)
+            for (Dim j = 0; j < OC; j++) {
                 wei_scale_values[j] *= scale[j];
+            }
         } else {
-            for (size_t j = 0; j < wei_scale_values.size(); j++)
-                wei_scale_values[j] *= scale[0];
+            for (float& wei_scale_value : wei_scale_values) {
+                wei_scale_value *= scale[0];
+            }
         }
 
-        if (wei_scale_values.size() == 1)
+        if (wei_scale_values.size() == 1) {
             wei_scale_mask = 0;
-        else
+        } else {
             wei_scale_mask = weightScaleMaskPerChannel;
+        }
         updateWeiScales();
         return true;
     }
@@ -182,8 +188,9 @@ bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, boo
         appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], 0);
     } else {
         // this check returns before committing any changes
-        if (!allowBinary)
+        if (!allowBinary) {
             return false;
+        }
         appendBinary(dnnl::algorithm::binary_mul, scale);
     }
     return true;
@@ -195,8 +202,9 @@ bool DnnlPostOpsComposerLegacy::appendShift(const std::vector<float>& shift, boo
             appendEltwise(dnnl::algorithm::eltwise_linear, 1.0f, shift[0]);
         }
     } else {
-        if (!allowBinary)
+        if (!allowBinary) {
             return false;
+        }
         appendBinary(dnnl::algorithm::binary_add, shift);
     }
     return true;
@@ -207,22 +215,26 @@ bool DnnlPostOpsComposerLegacy::appendLinear(const std::vector<float>& scale,
                                              bool isLastPostOp,
                                              bool allowBinary) {
     if (scale.size() == 1 && shift.size() == 1) {
-        if (shift[0] == 0.0f)
+        if (shift[0] == 0.0f) {
             return appendScale(scale, isLastPostOp, allowBinary);
-        else
-            appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
+        }
+        appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
+
     } else {
         // return before committing any changes
-        if (!allowBinary && shift.size() > 1)
+        if (!allowBinary && shift.size() > 1) {
             return false;
+        }
 
         if (!scale.empty()) {
-            if (!appendScale(scale, isLastPostOp && shift.empty(), allowBinary))
+            if (!appendScale(scale, isLastPostOp && shift.empty(), allowBinary)) {
                 return false;
+            }
         }
         if (!shift.empty()) {
-            if (!appendShift(shift, allowBinary))
+            if (!appendShift(shift, allowBinary)) {
                 return false;
+            }
         }
     }
     return true;
@@ -234,13 +246,15 @@ void DnnlPostOpsComposerLegacy::appendClip(const std::vector<float>& low, const 
     } else if (low.size() == 1) {
         OPENVINO_ASSERT(high.size() == OC);
         appendEltwise(dnnl::algorithm::eltwise_clip, low[0], std::numeric_limits<float>::max());
-        if (high.size() > 0)
+        if (high.size() > 0) {
             appendBinary(dnnl::algorithm::binary_min, high);
+        }
     } else if (high.size() == 1) {
         OPENVINO_ASSERT(low.size() == OC);
         appendEltwise(dnnl::algorithm::eltwise_clip, -std::numeric_limits<float>::max(), high[0]);
-        if (low.size() > 0)
+        if (low.size() > 0) {
             appendBinary(dnnl::algorithm::binary_max, low);
+        }
     } else {
         if (low.size() > 0) {
             OPENVINO_ASSERT(low.size() == OC);
@@ -253,5 +267,4 @@ void DnnlPostOpsComposerLegacy::appendClip(const std::vector<float>& low, const 
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

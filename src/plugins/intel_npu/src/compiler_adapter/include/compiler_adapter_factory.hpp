@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,14 +19,13 @@ public:
         auto compilerType = config.get<COMPILER_TYPE>();
         switch (compilerType) {
         case ov::intel_npu::CompilerType::MLIR: {
-            if (engineBackend->getName() != "LEVEL0") {
+            if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
                 return std::make_unique<PluginCompilerAdapter>(nullptr);
             }
-
             return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
         }
         case ov::intel_npu::CompilerType::DRIVER: {
-            if (engineBackend->getName() != "LEVEL0") {
+            if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
                 OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
             }
 

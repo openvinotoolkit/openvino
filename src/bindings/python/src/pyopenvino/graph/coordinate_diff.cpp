@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,7 @@ namespace py = pybind11;
 
 void regclass_graph_CoordinateDiff(py::module m) {
     py::class_<ov::CoordinateDiff, std::shared_ptr<ov::CoordinateDiff>> coordinate_diff(m, "CoordinateDiff");
-    coordinate_diff.doc() = "openvino.runtime.CoordinateDiff wraps ov::CoordinateDiff";
-    coordinate_diff.def(py::init<const std::initializer_list<ptrdiff_t>&>());
+    coordinate_diff.doc() = "openvino.CoordinateDiff wraps ov::CoordinateDiff";
     coordinate_diff.def(py::init<const std::vector<ptrdiff_t>&>());
     coordinate_diff.def(py::init<const ov::CoordinateDiff&>());
 

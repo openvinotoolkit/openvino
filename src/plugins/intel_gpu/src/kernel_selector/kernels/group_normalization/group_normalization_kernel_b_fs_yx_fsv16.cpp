@@ -153,21 +153,13 @@ void GroupNormalizationKernel_b_fs_yx_fsv16::GetUpdateDispatchDataFunc(KernelDat
         kd.kernels[1].params.workGroups.local = dispatchData.stage_2.lws;
         kd.kernels[1].skip_execution = KernelData::SkipKernelExecution(prim_params, 1);
 
-        kd.kernels[2].params.workGroups.global = dispatchData.stage_1.gws;
-        kd.kernels[2].params.workGroups.local = dispatchData.stage_1.lws;
+        kd.kernels[2].params.workGroups.global = dispatchData.stage_final.gws;
+        kd.kernels[2].params.workGroups.local = dispatchData.stage_final.lws;
         kd.kernels[2].skip_execution = KernelData::SkipKernelExecution(prim_params, 2);
 
-        kd.kernels[3].params.workGroups.global = dispatchData.stage_2.gws;
-        kd.kernels[3].params.workGroups.local = dispatchData.stage_2.lws;
-        kd.kernels[3].skip_execution = KernelData::SkipKernelExecution(prim_params, 3);
-
-        kd.kernels[4].params.workGroups.global = dispatchData.stage_final.gws;
-        kd.kernels[4].params.workGroups.local = dispatchData.stage_final.lws;
-        kd.kernels[4].skip_execution = KernelData::SkipKernelExecution(prim_params, 4);
-
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
-        kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
+        kd.internalBuffers.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
     };
 }
 
@@ -203,7 +195,7 @@ KernelsData GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsData(const Params 
 
     MultiDispatchData dispatchData = SetDefault(prim_params);
 
-    KernelData kd = KernelData::Default<group_normalization_params>(params, 5);
+    KernelData kd = KernelData::Default<group_normalization_params>(params, 3);
     kd.internalBufferDataType = GetAccumulatorType(prim_params);
     GetUpdateDispatchDataFunc(kd);
 
@@ -213,7 +205,7 @@ KernelsData GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsData(const Params 
     {
         // Mean first stage
         auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_1);
-        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_FEATURE_MEAN", 1));
+        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_FEATURE_MEAN_SQR_MEAN", 1));
         auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[0];
@@ -231,14 +223,16 @@ KernelsData GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsData(const Params 
                         0,
                         prim_params.is_shape_agnostic);
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         if (!prim_params.has_dynamic_tensors()) {
-            kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
+            kd.internalBuffers.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
+            kd.internalBuffers.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
         }
     }
     {
         // Mean second stage
         auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_2);
-        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_GROUP_MEAN", 1));
+        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_GROUP_MEAN_VARIANCE", 1));
         auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[1];
@@ -255,52 +249,6 @@ KernelsData GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsData(const Params 
                         0);
         kernel.params.arguments.clear();
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-    }
-    {
-        // Variance first stage
-        auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_1);
-        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_FEATURE_VAR", 1));
-        auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
-        auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
-        auto& kernel = kd.kernels[2];
-        FillCLKernelData(kernel,
-                        dispatchData.stage_1,
-                        params.engineInfo,
-                        finalKernelName,
-                        jit,
-                        entry_point,
-                        "",
-                        false,
-                        false,
-                        1,
-                        0,
-                        0,
-                        prim_params.is_shape_agnostic);
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        if (!prim_params.has_dynamic_tensors()) {
-            kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
-        }
-    }
-    {
-        // Variance second stage
-        auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_2);
-        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_GROUP_VAR", 1));
-        auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
-        auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
-        auto& kernel = kd.kernels[3];
-        FillCLKernelData(kernel,
-                        dispatchData.stage_2,
-                        params.engineInfo,
-                        finalKernelName,
-                        jit,
-                        entry_point,
-                        "",
-                        false,
-                        false,
-                        0,
-                        0);
-        kernel.params.arguments.clear();
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
     }
     {
@@ -309,7 +257,7 @@ KernelsData GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsData(const Params 
         cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_FINAL", 1));
         auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
-        auto& kernel = kd.kernels[4];
+        auto& kernel = kd.kernels[2];
         FillCLKernelData(kernel,
                         dispatchData.stage_final,
                         params.engineInfo,

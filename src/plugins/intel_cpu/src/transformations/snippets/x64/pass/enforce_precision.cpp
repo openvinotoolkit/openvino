@@ -18,7 +18,7 @@ using namespace ov::intel_cpu::pass;
 EnforcePrecision::EnforcePrecision(
     const ov::element::Type source,
     const ov::element::Type target,
-    std::function<std::set<std::vector<ov::element::Type>>(const std::shared_ptr<ov::Node>& op)>
+    const std::function<std::set<std::vector<ov::element::Type>>(const std::shared_ptr<ov::Node>& op)>&
         get_supported_precisions)
     : source(source),
       target(target),
@@ -60,7 +60,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
                 if ((supported_precisions[index] == target) && (actual_precisions[index] == source)) {
                     // actual input precision has to be enforced: at least one port has to be handled
                     port_has_to_be_handled = true;
-                } else if ((supported_precisions[index] != element::undefined) &&
+                } else if ((supported_precisions[index] != element::dynamic) &&
                            (supported_precisions[index] != actual_precisions[index])) {
                     // actual input precision is not enforced but not supported, operation has to be ignored
                     op_is_appropriate = false;
@@ -121,9 +121,14 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
 std::set<std::vector<ov::element::Type>> EnforcePrecision::get_supported_precisions_default(
     const std::shared_ptr<ov::Node>& op) noexcept {
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) &&
-        ov::is_type<snippets::op::Brgemm>(op)) {
-        return {{element::bf16, element::bf16}};
+    std::set<std::vector<ov::element::Type>> types;
+    if (ov::is_type<snippets::op::Brgemm>(op)) {
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+            types.insert({element::f16, element::f16});
+        }
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+            types.insert({element::bf16, element::bf16});
+        }
     }
-    return {};
+    return types;
 }

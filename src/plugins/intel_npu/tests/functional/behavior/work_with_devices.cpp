@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 namespace {
 
 const std::vector<ov::AnyMap> configs = {
-    {{ov::log::level(ov::log::Level::DEBUG)}},
+    {{ov::log::level(ov::log::Level::ERR)}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,

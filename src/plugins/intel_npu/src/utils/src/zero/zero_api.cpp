@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,11 @@ ZeroApi::ZeroApi() {
     symbols_list();
     weak_symbols_list();
 #undef symbol_statement
+}
+
+const std::shared_ptr<ZeroApi>& ZeroApi::getInstance() {
+    static std::shared_ptr<ZeroApi> instance = std::make_shared<ZeroApi>();
+    return instance;
 }
 
 }  // namespace intel_npu

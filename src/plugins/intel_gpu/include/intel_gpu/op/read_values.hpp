@@ -6,15 +6,13 @@
 
 #include "intel_gpu/op/read_value.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 /// \brief This operation handles the OpenVINO GPU Plugin's custom variable
 //         representation (which can store multiple states in a single variable) at the graph level.
 class ReadValues : public ReadValue {
 public:
-    OPENVINO_OP("ReadValues", "gpu_opset");
+    OPENVINO_OP("ReadValues", "gpu_opset", ReadValue);
 
     ReadValues() = default;
 
@@ -37,6 +35,4 @@ private:
     std::vector<ov::op::util::VariableInfo> m_internal_states_infos;
 };
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

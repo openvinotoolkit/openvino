@@ -12,8 +12,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 class jit_aux_gpr_holder {
@@ -42,7 +41,7 @@ public:
         }
     }
 
-    const Reg64& get_reg() const {
+    [[nodiscard]] const Reg64& get_reg() const {
         return m_aux_gpr_idx;
     }
 
@@ -82,22 +81,23 @@ void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in, c
                               "loop increment might be dynamic only if loop evaluates once!");
 }
 
-void jit_loop_begin_emitter::emit_code(const std::vector<size_t>& in,
-                                       const std::vector<size_t>& out,
-                                       const std::vector<size_t>& pool_vec_idxs,
-                                       const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
+                                            const std::vector<size_t>& out,
+                                            const std::vector<size_t>& pool_vec_idxs,
+                                            const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
-    jit_emitter::emit_code(in, out, pool_vec_idxs, pool_gpr_idxs);
+    jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
 void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     // If the loop evaulate once, we can skip loop begin code emission
     // If work_amount is dynamic, we should get runtime `work_amount` - it might be `zero` and we should skip loop
     // evaluation
-    if (evaluate_once && !is_work_amount_dynamic)
+    if (evaluate_once && !is_work_amount_dynamic) {
         return;
+    }
 
-    Reg64 reg_work_amount = Reg64(static_cast<int>(out.back()));
+    auto reg_work_amount = Reg64(static_cast<int>(out.back()));
     if (is_work_amount_dynamic) {
         jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out);  // loop_begin has only output registers
         Reg64 reg_loop_args_ptr = gpr_holder.get_reg();
@@ -160,7 +160,7 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* 
 
 ov::snippets::lowered::ExpressionPtr jit_loop_end_emitter::get_loop_begin_expr(
     const ov::snippets::lowered::ExpressionPtr& expr) {
-    const auto begin_expr = expr->get_input_port_connectors().back()->get_source().get_expr();
+    auto begin_expr = expr->get_input_port_connectors().back()->get_source().get_expr();
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(begin_expr->get_node()),
                               "LoopEnd expression must have th last port connector to LoopBegin");
     return begin_expr;
@@ -199,12 +199,12 @@ void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, con
                               "loop increment might be dynamic only if loop evaluates once!");
 }
 
-void jit_loop_end_emitter::emit_code(const std::vector<size_t>& in,
-                                     const std::vector<size_t>& out,
-                                     const std::vector<size_t>& pool_vec_idxs,
-                                     const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
+                                          const std::vector<size_t>& out,
+                                          const std::vector<size_t>& pool_vec_idxs,
+                                          const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
-    jit_emitter::emit_code(in, out, pool_vec_idxs, pool_gpr_idxs);
+    jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
 void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -248,7 +248,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
     if (!evaluate_once) {
         apply_increments(are_ptr_increments_dynamic, GET_OFF_LOOP_ARGS(m_ptr_increments), ptr_increments, wa_increment);
 
-        Reg64 reg_work_amount = Reg64(in.back());
+        auto reg_work_amount = Reg64(in.back());
         h->sub(reg_work_amount, wa_increment);
         h->cmp(reg_work_amount, wa_increment);
         h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);
@@ -261,5 +261,4 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
 
 /* ============================================================== */
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

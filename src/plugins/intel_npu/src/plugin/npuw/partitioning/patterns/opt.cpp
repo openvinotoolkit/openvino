@@ -160,7 +160,8 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
         auto qcoeff_shape = matched_node_qcoeff->output(0).get_shape();
 
         if ((ov::element::i4 == matched_qweight->get_element_type() ||
-             ov::element::i8 == matched_qweight->get_element_type()) &&
+             ov::element::i8 == matched_qweight->get_element_type() ||
+             ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::op::util::is_parameter(matched_node_qcoeff) || ov::op::util::is_constant(matched_node_qcoeff)) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
@@ -386,7 +387,8 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
-    auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
+    auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qcvtm, opp::any_input()});
     auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
     auto qmmi = opp::any_input();
     auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtr});
@@ -398,6 +400,10 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
         auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
+        std::shared_ptr<Node> matched_node_qcvtm = nullptr;
+        if (node_to_output.count(qcvtm)) {
+            matched_node_qcvtm = node_to_output.at(qcvtm).get_node_shared_ptr();
+        }
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
         auto matched_node_qreshp = node_to_output.at(qreshp).get_node_shared_ptr();
         auto matched_out_mmi = node_to_output.at(qmmi);
@@ -426,6 +432,9 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
                 auto new_transpose_order_c =
                     std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, new_transpose_order);
                 auto new_transpose = std::make_shared<ov::op::v1::Transpose>(matched_node_qmuls, new_transpose_order_c);
+                if (matched_node_qcvtm) {
+                    new_transpose = std::make_shared<ov::op::v1::Transpose>(matched_node_qcvtm, new_transpose_order_c);
+                }
                 matched_node_qreshp->input(0).replace_source_output(new_transpose);
                 matched_node_qreshp->validate_and_infer_types();
                 matched_matmul->validate_and_infer_types();
@@ -660,10 +669,11 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
-    auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
-    auto qcvtm = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
+    auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qcvtm, opp::any_input()});
+    auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
     auto qmmi = opp::any_input();
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtr});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -672,6 +682,10 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
         auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
+        std::shared_ptr<Node> matched_node_qcvtm = nullptr;
+        if (node_to_output.count(qcvtm)) {
+            matched_node_qcvtm = node_to_output.at(qcvtm).get_node_shared_ptr();
+        }
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
         auto matched_node_qreshp = node_to_output.at(qreshp).get_node_shared_ptr();
         auto matched_out_mmi = node_to_output.at(qmmi);
@@ -703,6 +717,9 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
                 auto new_transpose_order_c =
                     std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, new_transpose_order);
                 auto new_transpose = std::make_shared<ov::op::v1::Transpose>(matched_node_qmuls, new_transpose_order_c);
+                if (matched_node_qcvtm) {
+                    new_transpose = std::make_shared<ov::op::v1::Transpose>(matched_node_qcvtm, new_transpose_order_c);
+                }
                 matched_node_qreshp->input(0).replace_source_output(new_transpose);
                 matched_node_qreshp->validate_and_infer_types();
                 matched_matmul->validate_and_infer_types();
@@ -798,7 +815,8 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
     auto qmmi = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
     auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtr});
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmmi->output(0)});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qcvtm, qcvtr});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -1533,7 +1551,7 @@ SliceLastMatmulTranspose::SliceLastMatmulTranspose() {
 
 SliceLastMatmulMultiply::SliceLastMatmulMultiply() {
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
-    auto div = opp::wrap_type<ov::op::v1::Divide>({matmul, opp::any_input()});
+    auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
     auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
     auto multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
     auto res = opp::wrap_type<ov::op::v0::Result>({multiply});

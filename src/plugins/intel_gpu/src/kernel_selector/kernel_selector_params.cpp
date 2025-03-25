@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -498,6 +498,12 @@ ParamsKey base_params::GetParamsKey() const {
         bDifferentTypes |= (i.GetDType() != outputs[0].GetDType());
         bFP16Used |= (i.GetDType() == Datatype::F16);
         dynamic_shapes |= i.is_dynamic();
+    }
+
+    for (const auto& fused_op : fused_ops) {
+        for (const auto& tensor : fused_op.tensors) {
+            dynamic_shapes |= tensor.is_dynamic();
+        }
     }
 
     k.EnableOutputDataType(outputs[0].GetDType());

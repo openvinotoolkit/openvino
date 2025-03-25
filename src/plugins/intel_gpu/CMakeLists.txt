@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -51,9 +51,11 @@ endif()
 
 if(ENABLE_GPU_DEBUG_CAPS)
     add_definitions(-DGPU_DEBUG_CONFIG=1)
+    add_definitions(-DENABLE_DEBUG_CAPS=1)
 endif()
 
-set(INTEL_GPU_TARGET_OCL_VERSION "200" CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
+set(INTEL_GPU_TARGET_OCL_VERSION "300"
+  CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
 
 add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 

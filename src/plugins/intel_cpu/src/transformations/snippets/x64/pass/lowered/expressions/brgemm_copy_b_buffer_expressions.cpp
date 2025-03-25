@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "brgemm_copy_b_buffer_expressions.hpp"
+
+#include <memory>
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
@@ -12,8 +14,7 @@
 using namespace ov::intel_cpu::brgemm_utils::repacking;
 using namespace ov::snippets::lowered;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 RepackedWeightsBufferExpression::RepackedWeightsBufferExpression(
     const std::shared_ptr<ov::Node>& n,
@@ -21,7 +22,7 @@ RepackedWeightsBufferExpression::RepackedWeightsBufferExpression(
     : BufferExpression(n, factory) {}
 
 snippets::lowered::ExpressionPtr RepackedWeightsBufferExpression::clone() const {
-    return std::shared_ptr<RepackedWeightsBufferExpression>(new RepackedWeightsBufferExpression(*this));
+    return std::make_shared<RepackedWeightsBufferExpression>(*this);
 }
 
 void RepackedWeightsBufferExpression::validate() const {
@@ -44,23 +45,16 @@ void RepackedWeightsBufferExpression::init_allocation_size(
     const size_t k_blk = *++in_subtensor.rbegin();
 
     const auto& precision = get_node()->get_input_element_type(0);
-    // Repacking buffer shape is set in accordance to OneDNN requirements
-    const size_t N_dim = std::max(n_blk, compute_inner_n_block(precision));
-    if (!in_layout.empty() && in_layout.back() != in_layout.size() - 1) {
-        // In case of transpose, K dimension must be rounded-up to number of elems in vector register
-        // For the details, please see 'transpose16x8' and 'fixup16x16' implementations and usage in
-        // onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-        const auto elems_in_vec = brgemm_utils::get_elems_in_vec(precision);
-        m_allocation_size = snippets::utils::dynamic_safe_mul(N_dim, snippets::utils::rnd_up(k_blk, elems_in_vec));
-    } else {
-        // Low precision repacking writes the result by m_brgemmVNNIFactor * m_inner_n_block blocks
-        // despite the actual size of the input data. Because of that we have to round-up the allocation shape to always
-        // have enough memory allocated. For the details, please see 'copy_4x64' and 'copy_2x32' implementations and
-        // usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-        const auto brgemmVNNIFactor = brgemm_utils::compute_vnni_factor(precision);
-        OPENVINO_ASSERT(brgemmVNNIFactor > 0, "brgemmVNNIFactor value must be positive.");
-        m_allocation_size = snippets::utils::dynamic_safe_mul(N_dim, snippets::utils::rnd_up(k_blk, brgemmVNNIFactor));
-    }
+    const auto buffer_b_shape =
+        brgemm_utils::repacking::compute_buffer_b_allocation_shape(k_blk,
+                                                                   n_blk,
+                                                                   precision,
+                                                                   BrgemmCopyB::is_transposed(in_layout));
+    OPENVINO_ASSERT(buffer_b_shape.size() == 3, "Unexpected buffer B shape rank");
+    m_allocation_size =
+        std::accumulate(buffer_b_shape.cbegin(), buffer_b_shape.cend(), size_t(1), [](size_t a, size_t b) {
+            return snippets::utils::dynamic_safe_mul(a, b);
+        });
 }
 
 CompensationsBufferExpression::CompensationsBufferExpression(
@@ -69,7 +63,7 @@ CompensationsBufferExpression::CompensationsBufferExpression(
     : BufferExpression(n, factory) {}
 
 snippets::lowered::ExpressionPtr CompensationsBufferExpression::clone() const {
-    return std::shared_ptr<CompensationsBufferExpression>(new CompensationsBufferExpression(*this));
+    return std::make_shared<CompensationsBufferExpression>(*this);
 }
 
 void CompensationsBufferExpression::validate() const {
@@ -88,14 +82,9 @@ void CompensationsBufferExpression::init_allocation_size(
     // Compensations are computed during repacking, so we need to round-up allocation shape according to m_inner_n_block
     // because of OneDNN implementation nuances (as in get_repacking_buffer_size).
     // However, the compensations are computed by N dimension, so K dimension doesn't affect the compensations buffer
+    const auto& precision = parent_expr->get_node()->get_input_element_type(0);
     const size_t n_blk = *ov::snippets::utils::get_projected_subtensor(parent_expr->get_input_port(0)).rbegin();
-    if (snippets::utils::is_dynamic_value(n_blk)) {
-        m_allocation_size = snippets::utils::get_dynamic_value<size_t>();
-    } else {
-        const auto& precision = parent_expr->get_node()->get_input_element_type(0);
-        m_allocation_size = std::max(n_blk, compute_inner_n_block(precision));
-    }
+    m_allocation_size = compute_repacked_n_dim(n_blk, precision);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

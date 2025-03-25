@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "prepare_buffer_fusing.h"
@@ -80,8 +80,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     if (concat_node.is_output() || concat_params.fused_desc.size() > 0 || concat_node.is_in_shape_of_subgraph())
         return false;
     bool do_runtime_buffer_fusing = true;
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+    GPU_DEBUG_IF(concat_node.get_config().get_disable_runtime_buffer_fusing()) {
         do_runtime_buffer_fusing = false;
     }
 
@@ -522,8 +521,7 @@ bool crop_in_place_optimization::match(const program_node& node,
         return false;
 
     if (node.get_users().size() > 0) {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing && node.is_dynamic()) {
+        GPU_DEBUG_IF(node.get_config().get_disable_runtime_buffer_fusing() && node.is_dynamic()) {
             return false;
         }
 
@@ -926,6 +924,7 @@ void prepare_buffer_fusing::run(program& p) {
 
             if (kv_out_layout.is_dynamic()) {
                 // set dynamic pad dims for shape agnostic kernel
+                const auto& desc = node.get_primitive();
                 padding::DynamicDimsMask info_dynamic_pad;
                 info_dynamic_pad[concat_axis] = 1;
                 kv_out_layout.data_padding._dynamic_dims_mask = info_dynamic_pad;
@@ -942,7 +941,7 @@ void prepare_buffer_fusing::run(program& p) {
                 auto update_scale_zp = [&](size_t kv_cache_output_idx, size_t read_value_output_idx) {
                     auto scales_out_layout = node.get_output_layout(false, kv_cache_output_idx);
 
-                    const size_t scales_zp_concat_axis = 2;
+                    const auto scales_zp_concat_axis = kv_cache_inst::get_scale_zp_sequence_axis();
                     padding::DynamicDimsMask info_dynamic_pad_scales;
                     info_dynamic_pad_scales[scales_zp_concat_axis] = 1;
                     scales_out_layout.data_padding._dynamic_dims_mask = info_dynamic_pad_scales;
@@ -958,7 +957,6 @@ void prepare_buffer_fusing::run(program& p) {
                     update_dep(gather_prim, info_dynamic_pad, 0);
                 }
 
-                const auto& desc = node.get_primitive();
                 if (desc->compressed) {
                     update_scale_zp(2, 1);
 
@@ -999,6 +997,39 @@ void prepare_buffer_fusing::run(program& p) {
             // topological sort (i.e. if we ensure that all read_value users are completed before assign is run)
             node.can_be_optimized(can_read_value_be_optimize(node));
             GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized = " << node.can_be_optimized() << std::endl;
+        });
+        program_helpers::do_for_types<reorder>(*node, [](reorder_node& node) {
+            // Allow optimization of reorder -> permute if input dimension order is same as the permute order
+            if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty()) {
+                return;
+            }
+
+            auto &users = node.get_users();
+            if (users.size() != 1 || !users.front()->is_type<permute>()) {
+                return;
+            }
+            auto &permute_node = users.front()->as<permute>();
+
+            auto &input_layout = node.get_input_layout(0);
+            auto &output_layout = node.get_output_layout(0);
+            if (!format::is_simple_data_format(input_layout.format) || input_layout.data_type != output_layout.data_type) {
+                return;
+            }
+
+            auto input_order = input_layout.get_dims_order();
+            auto permute_order = permute_node.get_permute_order();
+            if (input_order.size() != permute_order.size()) {
+                return;
+            }
+            for (size_t i = 0; i < permute_order.size(); i++) {
+                if (permute_order[i] != input_order[i]) {
+                    return;
+                }
+            }
+            node.can_be_optimized(true);
+            permute_node.can_be_optimized(true);
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << permute_node.id() << " can be optimized" << std::endl;
         });
     }
 }

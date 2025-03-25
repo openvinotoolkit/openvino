@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ ov::intel_gpu::ConvertAvgPoolingToReduce::ConvertAvgPoolingToReduce() {
     // Check all AvgPool nodes
     auto m = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::op::v1::AvgPool>(), "ConvertAvgPoolingToReduce");
     register_matcher(m, [&](ov::pass::pattern::Matcher& m) {
-        auto pool = std::dynamic_pointer_cast<ov::op::v1::AvgPool>(m.get_match_root());
+        auto pool = ov::as_type_ptr<ov::op::v1::AvgPool>(m.get_match_root());
         if (!pool || transformation_callback(pool)) {
             return false;
         }

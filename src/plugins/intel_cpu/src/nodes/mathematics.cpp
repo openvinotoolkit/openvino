@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Math::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -39,11 +37,8 @@ bool Math::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-Math::Math(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, PassThroughShapeInferFactory()),
-      alpha(0.f),
-      beta(0.f),
-      gamma(0.f) {
+Math::Math(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -53,25 +48,27 @@ Math::Math(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
 }
 
 void Math::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (size_t i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
+    }
 
     addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
-void Math::executeDynamicImpl(dnnl::stream strm) {
+void Math::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Math::execute(dnnl::stream strm) {
+void Math::execute(const dnnl::stream& strm) {
     size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
-    const float* src_data = getSrcDataAtPortAs<const float>(0);
-    float* dst_data = getDstDataAtPortAs<float>(0);
+    const auto* src_data = getSrcDataAtPortAs<const float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
 
     switch (getAlgorithm()) {
     case Algorithm::MathAbs:
@@ -151,19 +148,20 @@ void Math::execute(dnnl::stream strm) {
         gamma = (gamma == 0.0f) ? 1.0507f : gamma;
         parallel_for(dataSize, [&](size_t i) {
             float x = src_data[i];
-            dst_data[i] = (x > 0.0f) ? (gamma * x) : (gamma * alpha * (exp(x) - 1.0f));
+            dst_data[i] = (x > 0.0f) ? (gamma * x) : (gamma * alpha * (std::exp(x) - 1.0f));
         });
         break;
     case Algorithm::MathSign:
         parallel_for(dataSize, [&](size_t i) {
-            if (src_data[i] > 0.0f)
+            if (src_data[i] > 0.0f) {
                 dst_data[i] = 1.0f;
-            else if (src_data[i] < 0.0f)
+            } else if (src_data[i] < 0.0f) {
                 dst_data[i] = -1.0f;
-            else if (std::isnan(src_data[i]))
+            } else if (std::isnan(src_data[i])) {
                 dst_data[i] = src_data[i];
-            else
+            } else {
                 dst_data[i] = 0.0f;
+            }
         });
         break;
     case Algorithm::MathSin:
@@ -193,7 +191,7 @@ void Math::execute(dnnl::stream strm) {
         });
         break;
     default:
-        OPENVINO_THROW("Incorrect Reduce layer type");
+        THROW_CPU_NODE_ERR("Incorrect Reduce layer type");
     }
 }
 
@@ -291,6 +289,4 @@ Math::getInitializers() {
     return initializers;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

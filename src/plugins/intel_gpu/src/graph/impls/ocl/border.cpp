@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -150,17 +150,16 @@ protected:
         return args;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         const auto& prim_params = static_cast<const kernel_selector::border_params&>(*_kernel_data.params);
-        std::vector<layout> layouts;
+        std::vector<BufferDescriptor> internal_buffers;
 
         if ((_kernel_data.params == nullptr && zero_input) ||
             (_kernel_data.params != nullptr && prim_params.inputs[0].LogicalSize() == 0)) {
-            layout any_layout = {data_types::u8, format::bfyx, {1, 1, 1, 1}};
-            layouts.push_back(any_layout);
+            internal_buffers.emplace_back(1, ov::element::u8);
         }
 
-        return layouts;
+        return internal_buffers;
     }
 };
 

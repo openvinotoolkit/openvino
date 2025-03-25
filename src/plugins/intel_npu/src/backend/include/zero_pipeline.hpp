@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,26 +9,20 @@
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_memory.hpp"
 #include "zero_profiling.hpp"
+#include "zero_tensor.hpp"
 
 namespace intel_npu {
-
-struct TensorData {
-    void* mem;
-    size_t size;
-    bool levelZeroTensorCreatedLocally = true;
-};
 
 struct Pipeline {
 public:
     Pipeline(const Config& config,
-             const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+             const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
              const std::shared_ptr<IGraph>& graph,
              zeroProfiling::ProfilingPool& profiling_pool,
              zeroProfiling::ProfilingQuery& profiling_query,
              const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
-             const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
-             const std::vector<std::optional<TensorData>>& outputTensorsData,
-             uint32_t group_ordinal);
+             const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
+             const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors);
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
@@ -38,8 +32,11 @@ public:
     void pull();
     void reset() const;
 
-    void updateCommandList(const TensorData& tensorsData, uint32_t index);
-    void updateCommandList(const TensorData& tensorsData, uint32_t index, size_t commandListIndex);
+    void updateCommandList(uint32_t arg_index, const void* arg_data, size_t byte_size);
+    void updateCommandListIndex(uint32_t arg_index, const void* arg_data, size_t command_list_index);
+
+    void closeCommandList();
+    void closeCommandListIndex(size_t command_list_index);
 
 protected:
     std::shared_ptr<IGraph> _graph;
@@ -61,7 +58,7 @@ protected:
     std::vector<std::unique_ptr<Fence>> _fences;
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
-    bool sync_output_with_fences_ = true;
+    bool _sync_output_with_fences = true;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     Logger _logger;
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ struct gemm_onednn : typed_primitive_onednn_impl<gemm> {
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<gemm_onednn>(*this);
+        return std::make_unique<gemm_onednn>(*this);
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(gemm_inst& instance) const override {
@@ -448,7 +448,7 @@ public:
         auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_gemm_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);
+        return std::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, typed_primitive_inst<gemm>& instance) override {

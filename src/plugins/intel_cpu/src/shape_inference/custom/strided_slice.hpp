@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <node.h>
 
+#include <utility>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
-namespace ov {
-namespace intel_cpu {
-namespace node {
+
+namespace ov::intel_cpu::node {
 using Result = IShapeInfer::Result;
 
 constexpr IShapeInfer::port_mask_t port_mask = PortMask(/*BEGIN_ID*/ 1, /*END_ID*/ 2, /*STRIDE_ID*/ 3, /*AXES_ID*/ 4);
@@ -39,13 +40,11 @@ private:
 
 class StridedSliceShapeInferFactory : public ShapeInferFactory {
 public:
-    StridedSliceShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override;
+    StridedSliceShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:
     const std::shared_ptr<ov::Node> m_op;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

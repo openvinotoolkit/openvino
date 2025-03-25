@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "fully_connected_inst.h"
@@ -84,7 +84,9 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
     // "is_batch_after_spatial" should return true)
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         input_layout.format == format::bfyx &&
-        input_layout.batch() > 1)
+        input_layout.batch() > 1 &&
+        input_pitches[2] == 1 &&
+        input_pitches[3] == 1)
         return format::yxfb;
 
     return format::bfyx;
@@ -248,8 +250,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         }
     }
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_fake_alignment) {
+    GPU_DEBUG_IF(orig_impl_param.get_program().get_config().get_disable_fake_alignment()) {
         can_apply_fake_alignment = false;
     }
 
@@ -268,8 +269,9 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
             auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
             auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
+            auto is_8bit = weights_layout_dt == data_types::i8 || weights_layout_dt == data_types::u8;
             auto is_extra_alignment_needed = batch_size >= 256;
-            fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
+            fake_align_base = (is_4bit || is_8bit) && is_extra_alignment_needed ? 64 : 16;
         }
 
         std::fill(input_shape.begin(), input_shape.end() - 1, 1);

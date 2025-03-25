@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,7 +155,7 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_template_arg_wit
     fe->add_extension(ext);
 
     const auto input_model = fe->load(ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"})));
+        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"}).string()));
 
     std::shared_ptr<ov::Model> model;
     EXPECT_NO_THROW(fe->convert(input_model));
@@ -169,7 +169,7 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_ov_type_name_wit
     fe->add_extension(ext);
 
     const auto input_model = fe->load(ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"})));
+        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"}).string()));
 
     std::shared_ptr<ov::Model> model;
     EXPECT_NO_THROW(fe->convert(input_model));

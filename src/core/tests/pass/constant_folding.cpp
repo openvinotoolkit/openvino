@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2584,8 +2584,8 @@ TEST(constant_folding, const_reshape_no_data_copy) {
 
     run_constant_folding(f);
 
-    auto const1 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer1->input_value(0).get_node_shared_ptr());
-    auto const2 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+    auto const1 = ov::as_type_ptr<ov::op::v0::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 = ov::as_type_ptr<ov::op::v0::Constant>(consumer2->input_value(0).get_node_shared_ptr());
 
     ASSERT_TRUE(const1);
     ASSERT_TRUE(const2);
@@ -2604,8 +2604,8 @@ TEST(constant_folding, const_squeeze_no_data_copy) {
 
     run_constant_folding(f);
 
-    auto const1 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer1->input_value(0).get_node_shared_ptr());
-    auto const2 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+    auto const1 = ov::as_type_ptr<ov::op::v0::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 = ov::as_type_ptr<ov::op::v0::Constant>(consumer2->input_value(0).get_node_shared_ptr());
 
     ASSERT_TRUE(const1);
     ASSERT_TRUE(const2);
@@ -2624,8 +2624,8 @@ TEST(constant_folding, const_unsqueeze_no_data_copy) {
 
     run_constant_folding(f);
 
-    auto const1 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer1->input_value(0).get_node_shared_ptr());
-    auto const2 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+    auto const1 = ov::as_type_ptr<ov::op::v0::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 = ov::as_type_ptr<ov::op::v0::Constant>(consumer2->input_value(0).get_node_shared_ptr());
 
     ASSERT_TRUE(const1);
     ASSERT_TRUE(const2);
@@ -3914,7 +3914,7 @@ TEST(constant_folding, gather_with_dynamic_shapes_in_data_input) {
     ASSERT_EQ(count_ops_of_type<ov::op::v8::Gather>(model), 0);
     ASSERT_EQ(count_ops_of_type<ov::op::v1::StridedSlice>(model), 1);
 
-    auto new_const = dynamic_pointer_cast<ov::op::v0::Constant>(strided_slice->input_value(1).get_node_shared_ptr());
+    auto new_const = ov::as_type_ptr<ov::op::v0::Constant>(strided_slice->input_value(1).get_node_shared_ptr());
     EXPECT_NE(new_const, nullptr);
 
     check_names(new_const, {"shape_of", "indices", "axis", "test"});
@@ -3925,7 +3925,7 @@ TEST(constant_folding, gather_with_dynamic_shapes_in_data_input) {
 }
 
 TEST(constant_folding, parameter_with_unspecified_type_from_host_tensor) {
-    auto param = std::make_shared<ov::op::v0::Parameter>(element::undefined, ov::PartialShape{});
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::dynamic, ov::PartialShape{});
     auto res = std::make_shared<ov::op::v0::Result>(param);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
     EXPECT_NO_THROW(run_constant_folding(model));
@@ -3943,9 +3943,9 @@ TEST(constant_folding, sq_diff) {
     ops = model->get_ordered_ops();
     // constant + result
     ASSERT_EQ(ops.size(), 2);
-    auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(ops.front());
+    auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(ops.front());
     ASSERT_NE(const_node, nullptr);
-    auto res_node = std::dynamic_pointer_cast<ov::op::v0::Result>(ops.back());
+    auto res_node = ov::as_type_ptr<ov::op::v0::Result>(ops.back());
     ASSERT_NE(res_node, nullptr);
 }
 

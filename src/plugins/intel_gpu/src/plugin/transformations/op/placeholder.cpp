@@ -6,9 +6,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 Placeholder::Placeholder() : ov::op::Op() {
     validate_and_infer_types();
@@ -21,7 +19,7 @@ bool Placeholder::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void Placeholder::validate_and_infer_types() {
-    set_output_type(0, ov::element::undefined, ov::PartialShape{});
+    set_output_type(0, ov::element::dynamic, ov::PartialShape{});
 }
 
 std::shared_ptr<Node> Placeholder::clone_with_new_inputs(const ov::OutputVector& new_args) const {
@@ -29,6 +27,4 @@ std::shared_ptr<Node> Placeholder::clone_with_new_inputs(const ov::OutputVector&
     return std::make_shared<Placeholder>();
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

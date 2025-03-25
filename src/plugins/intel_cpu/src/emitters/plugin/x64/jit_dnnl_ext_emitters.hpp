@@ -9,8 +9,7 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "utils/ngraph_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_relu_emitter : public jit_dnnl_emitter {
 public:
@@ -157,14 +156,15 @@ public:
         : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
         auto gelu = getNgraphOpAs<ov::op::v7::Gelu>(n);
         ov::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
-        if (approximationMode == ov::op::GeluApproximationMode::ERF)
+        if (approximationMode == ov::op::GeluApproximationMode::ERF) {
             kind = dnnl_eltwise_gelu_erf;
-        else if (approximationMode == ov::op::GeluApproximationMode::TANH)
+        } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {
             kind = dnnl_eltwise_gelu_tanh;
-        else
+        } else {
             OPENVINO_THROW_NOT_IMPLEMENTED(
                 "Subgraph node doesn't support ngraph operation Gelu with approximation mode: ",
                 approximationMode);
+        }
 
         set_injector();
     }
@@ -191,5 +191,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

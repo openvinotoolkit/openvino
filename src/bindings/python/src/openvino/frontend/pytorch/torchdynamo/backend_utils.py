@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
 # mypy: ignore-errors
 
 from typing import Optional, Any
-from openvino.runtime import Core
+from openvino import Core
 
 
 def _get_device(options) -> Optional[Any]:
@@ -24,6 +24,7 @@ def _get_device(options) -> Optional[Any]:
     else:
         device = "CPU"
     return device
+
 
 def _is_cache_dir_in_config(options) -> Optional[Any]:
     if options is not None and "config" in options:
@@ -64,11 +65,13 @@ def _get_config(options) -> Optional[Any]:
         return options["config"]
     return {}
 
+
 def _get_decompositions(options) -> Optional[Any]:
     decompositions = []
     if options is not None and "decompositions" in options:
         decompositions = options["decompositions"]
     return decompositions
+
 
 def _get_disabled_ops(options) -> Optional[Any]:
     disabled_ops = []
@@ -76,10 +79,10 @@ def _get_disabled_ops(options) -> Optional[Any]:
         disabled_ops = options["disabled_ops"]
     return disabled_ops
 
+
 def _is_testing(options) -> Optional[Any]:
     if options is not None and "testing" in options:
         is_testing = options["testing"]
         if bool(is_testing) and str(is_testing).lower not in ["false", "0"]:
             return True
     return False
-

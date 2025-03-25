@@ -1,12 +1,115 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef SNIPPETS_DEBUG_CAPS
+
+#include <fstream>
 
 #include "snippets/op/perf_count.hpp"
 
 namespace ov {
 namespace snippets {
+
+//////////////////utils///////////////
+
+namespace utils {
+
+//////////////////utils::Dumper///////////////
+
+void Dumper::init(const std::string &params) {
+    m_params = params;
+}
+
+//////////////////utils::ConsoleDumper///////////////
+
+ConsoleDumper::~ConsoleDumper() {
+    OPENVINO_ASSERT(m_accumulation.size() == m_iteration.size(),
+                    "accumulation size should be the same as iteration size in perf_count_end node.");
+    auto iterator_iter = m_iteration.begin();
+    auto iterator_acc = m_accumulation.begin();
+    uint64_t avg_max = 0;
+    for (; iterator_iter != m_iteration.end(); ++iterator_iter, ++iterator_acc) {
+        const auto iter = *iterator_iter;
+        const auto acc = *iterator_acc;
+        uint64_t avg = iter == 0 ? 0 : acc / iter;
+        if (avg > avg_max)
+            avg_max = avg;
+    }
+
+    // max time of all threads: combine for reduce max
+    auto BinaryFunc = [](const uint64_t& a, const uint64_t& b) {
+        return a >= b ? a : b;
+    };
+
+    // max accumulation
+    uint64_t acc_max = m_accumulation.combine(BinaryFunc);
+    std::cout << "max accumulated time:" << acc_max << "ns" << std::endl;
+    // max avg
+    std::cout << "max avg time:" << avg_max << "ns" << std::endl;
+}
+
+void ConsoleDumper::update(const op::PerfCountEnd* node) {
+    auto accumulation = node->get_accumulation();
+    auto iteration = node->get_iteration();
+    OPENVINO_ASSERT(accumulation.size() == iteration.size(),
+                    "accumulation size should be the same as iteration size in perf_count_end node.");
+    auto iterator_iter = iteration.begin();
+    auto iterator_acc = accumulation.begin();
+    for (; iterator_iter != iteration.end(); ++iterator_iter, ++iterator_acc) {
+        m_accumulation.local() += *iterator_acc;
+        m_iteration.local() += *iterator_iter;
+    }
+}
+
+//////////////////utils::CSVDumper///////////////
+
+CSVDumper::CSVDumper(const std::string csv_path) : csv_path(std::move(csv_path)) {}
+
+CSVDumper::~CSVDumper() {
+    if (m_debug_params_map.empty() || csv_path.empty()) {
+        return;
+    }
+    std::ofstream csv_file(csv_path, std::ios_base::app);
+    OPENVINO_ASSERT(csv_file.is_open(), "Failed to open csv file for brgemm debug parameters.");
+    if (csv_file.tellp() == 0) {
+        csv_file << "name,subgraph_name,in_type,out_type,in_shapes,out_shapes,in_layouts,out_layouts,M,N,K,m_block,n_"
+                    "block,k_block,acc_max_time,"
+                    "avg_max_time\n";
+    }
+    for (const auto& [_, params] : m_debug_params_map) {
+        csv_file << params << '\n';
+    }
+    csv_file.close();
+}
+
+void CSVDumper::update(const op::PerfCountEnd* node) {
+    auto accumulation = node->get_accumulation();
+    auto iteration = node->get_iteration();
+    OPENVINO_ASSERT(accumulation.size() == iteration.size(), "accumulation size should be the same as iteration size in perf_count_end node.");
+    auto iterator_iter = iteration.begin();
+    auto iterator_acc = accumulation.begin();
+    uint64_t avg_max = 0;
+    for (; iterator_iter != iteration.end(); ++iterator_iter, ++iterator_acc) {
+        const auto iter = *iterator_iter;
+        const auto acc = *iterator_acc;
+        uint64_t avg = iter == 0 ? 0 : acc / iter;
+        if (avg > avg_max)
+            avg_max = avg;
+    }
+
+    // max time of all threads: combine for reduce max
+    auto BinaryFunc = [](const uint64_t& a, const uint64_t& b) {
+        return a >= b ? a : b;
+    };
+
+    // max accumulation
+    uint64_t acc_max = accumulation.combine(BinaryFunc);
+
+    m_debug_params_map[node->get_friendly_name()] = m_params + std::to_string(acc_max) + ',' + std::to_string(avg_max);
+}
+
+}  // namespace utils
+
 namespace op {
 
 /////////////////PerfCountBeginBase/////////////////
@@ -62,13 +165,31 @@ void PerfCountBegin::set_start_time() {
 }
 
 //////////////////PerfCountEnd///////////////
-PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin) : PerfCountEndBase({pc_begin}), accumulation(0ul), iteration(0u) {
+
+PerfCountEnd::PerfCountEnd() : PerfCountEndBase() {}
+
+PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
+                           std::vector<std::shared_ptr<utils::Dumper>> dumpers,
+                           const std::string& params)
+    : PerfCountEndBase({pc_begin}),
+      accumulation(0ul),
+      iteration(0u),
+      dumpers(std::move(dumpers)) {
     constructor_validate_and_infer_types();
     init_pc_begin();
+    for (const auto& dumper : dumpers) {
+        dumper->init(params);
+    }
+}
+
+PerfCountEnd::~PerfCountEnd() {
+    for (const auto& dumper : dumpers) {
+        dumper->update(this);
+    }
 }
 
 std::shared_ptr<Node> PerfCountEnd::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<PerfCountEnd>(inputs.at(0));
+    return std::make_shared<PerfCountEnd>(inputs.at(0), dumpers);
 }
 
 void PerfCountEnd::set_accumulated_time() {
@@ -81,34 +202,6 @@ void PerfCountEnd::set_accumulated_time() {
 void PerfCountEnd::init_pc_begin() {
     m_pc_begin = ov::as_type_ptr<PerfCountBegin>(get_input_source_output(get_input_size() - 1).get_node_shared_ptr());
     NODE_VALIDATION_CHECK(this, m_pc_begin != nullptr, "PerfCountEnd last input is not connected to PerfCountBegin");
-}
-
-void PerfCountEnd::output_perf_count() {
-    OPENVINO_ASSERT(accumulation.size() == iteration.size(), "accumulation size should be the same as iteration size in perf_count_end node.");
-    auto iterator_iter = iteration.begin();
-    auto iterator_acc = accumulation.begin();
-    int t_num = 0;
-    uint64_t avg_max = 0;
-    std::cout << "Perf count data in perfCountEnd node with name " << get_friendly_name() << " is:"<< std::endl;
-    for (; iterator_iter != iteration.end(); ++iterator_iter, ++iterator_acc) {
-        const auto iter = *iterator_iter;
-        const auto acc = *iterator_acc;
-        uint64_t avg = iter == 0 ? 0 : acc / iter;
-        if (avg > avg_max)
-            avg_max = avg;
-        std::cout << "accumulated time:" << acc << "ns, iteration:" << iter << " avg time:" << avg << "ns"<< " on thread:" << t_num << std::endl;
-        t_num++;
-    }
-
-    // max time of all threads: combine for reduce max
-    auto BinaryFunc = [](const uint64_t& a, const uint64_t& b) {
-        return a >= b ? a : b;
-    };
-    // max accumulation
-    uint64_t acc_max = accumulation.combine(BinaryFunc);
-    std::cout << "max accumulated time:" << acc_max << "ns" << std::endl;
-    // max avg
-    std::cout << "max avg time:" << avg_max << "ns" << std::endl;
 }
 
 } // namespace op

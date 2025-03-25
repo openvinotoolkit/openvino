@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,7 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCoreType& input_type,
                                                          const std::vector<std::vector<int>>& proc_type_table) {
@@ -48,7 +47,7 @@ std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCor
 
 std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
                                                     const bool input_ht_changed,
-                                                    const std::string input_pm_hint,
+                                                    const std::string& input_pm_hint,
                                                     const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<std::vector<int>> result_table = proc_type_table;
 
@@ -70,36 +69,38 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
     return result_table;
 }
 
-bool get_cpu_pinning(bool& input_value,
-                     const bool input_changed,
-                     const std::vector<std::vector<int>>& proc_type_table,
-                     const std::vector<std::vector<int>>& streams_info_table) {
+bool check_cpu_pinning(const bool cpu_pinning,
+                       const bool cpu_pinning_changed,
+                       const bool cpu_reservation,
+                       const std::vector<std::vector<int>>& streams_info_table) {
     bool result_value;
 
 #if defined(__APPLE__)
     result_value = false;
 #elif defined(_WIN32)
-    result_value = ((input_changed) && (proc_type_table.size() == 1)) ? input_value : false;
+    result_value = cpu_pinning_changed ? cpu_pinning : cpu_reservation;
 #else
-    if (input_changed) {
-        result_value = input_value;
-    } else {
-        result_value = true;
-        // The following code disables pinning in case stream contains both Pcore and Ecore
+    // The following code disables pinning in case stream contains both Pcore and Ecore
+    auto hyper_cores_in_stream = [&]() {
         if (streams_info_table.size() >= 3) {
             if ((streams_info_table[0][PROC_TYPE] == ALL_PROC) &&
                 (streams_info_table[1][PROC_TYPE] != EFFICIENT_CORE_PROC) &&
                 (streams_info_table[2][PROC_TYPE] == EFFICIENT_CORE_PROC)) {
-                result_value = false;
+                return true;
             }
+        }
+        return false;
+    };
+
+    result_value = cpu_pinning_changed ? cpu_pinning : true;
+    if (!cpu_pinning_changed && !cpu_reservation) {
+        if (hyper_cores_in_stream()) {
+            result_value = false;
         }
     }
 #endif
 
-    input_value = result_value;
-
     return result_value;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

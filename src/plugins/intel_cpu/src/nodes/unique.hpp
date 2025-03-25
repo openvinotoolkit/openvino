@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,27 +6,25 @@
 
 #include <node.h>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Unique : public Node {
 public:
-    Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(dnnl::stream strm) override;
-    bool created() const override {
+    void execute(const dnnl::stream& strm) override;
+    [[nodiscard]] bool created() const override {
         return getType() == Type::Unique;
     }
 
 protected:
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     void prepareParams() override;
-    bool needShapeInfer() const override {
+    [[nodiscard]] bool needShapeInfer() const override {
         return false;
     }
 
@@ -61,6 +59,4 @@ private:
     static constexpr size_t OCCURRENCES_NUM = 3;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

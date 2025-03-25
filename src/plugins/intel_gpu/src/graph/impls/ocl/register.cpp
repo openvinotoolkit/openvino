@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "register.hpp"
@@ -75,7 +75,6 @@ void register_implementations() {
     REGISTER_OCL(resample);
     REGISTER_OCL(grn);
     REGISTER_OCL(ctc_greedy_decoder);
-    REGISTER_OCL(ctc_loss);
     REGISTER_OCL(cum_sum);
     REGISTER_OCL(embedding_bag);
     REGISTER_OCL(extract_image_patches);
@@ -88,6 +87,7 @@ void register_implementations() {
     REGISTER_OCL(scaled_dot_product_attention);
     REGISTER_OCL(rope);
     REGISTER_OCL(search_sorted);
+    REGISTER_OCL(STFT);
 }
 
 }  // namespace ocl

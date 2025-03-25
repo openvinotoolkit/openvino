@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
+#include "read_value_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -87,6 +88,16 @@ public:
 
 private:
     void run(program& p) override;
+};
+
+class mark_state_init_subgraphs : public base_pass {
+    // This optimization pass aggregates nodes into state initializer subgraphs
+public:
+    mark_state_init_subgraphs() : base_pass("mark_state_init_subgraphs") {}
+
+private:
+    void run(program& p) override;
+    void mark_init_subgraph(program& p, read_value_node& node);
 };
 
 class mark_shape_of_subgraphs : public base_pass {
@@ -211,9 +222,13 @@ public:
 
 private:
     void run(program& p) override;
-    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
-                                                              const ExecutionConfig& config,
-                                                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
+    std::list<std::tuple<
+        primitive_id,
+        memory::ptr,
+        std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>>>
+    calculate(engine& engine,
+              const ExecutionConfig& config,
+              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
@@ -305,7 +320,8 @@ public:
             return;
         }
 
-        if ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized()) {
+        if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) && ((node->can_be_optimized() && !node->is_runtime_skippable())
+            || !dep->can_be_optimized())) {
             node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
             if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -17,3 +17,5 @@ from openvino.op import loop
 from openvino.op import tensor_iterator
 from openvino.op import read_value
 from openvino.op import Result
+
+from openvino.runtime.op import util

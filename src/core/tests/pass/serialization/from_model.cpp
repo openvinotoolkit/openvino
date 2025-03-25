@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -191,7 +191,7 @@ TEST_P(SerializationFromModelTest_large, DISABLED_Model_very_large) {
     auto actual = ov::test::readModel(m_out_xml_path, m_out_bin_path);
     bool found = false;
     for (const auto& op : actual->get_ordered_ops()) {
-        if (auto const1 = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
+        if (auto const1 = ov::as_type_ptr<op::v0::Constant>(op)) {
             auto ptr = const1->get_data_ptr<uint8_t>();
             for (size_t i = 0; i < s; i++) {
                 EXPECT_EQ(ptr[i], uint8_t(i + 42)) << "Index " << i << " has value " << static_cast<int>(ptr[i]);

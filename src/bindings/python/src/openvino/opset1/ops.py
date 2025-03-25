@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
@@ -8,17 +8,17 @@ from typing import List, Optional, Union, get_args
 import numpy as np
 from functools import partial
 
-from openvino.runtime import Node, PartialShape, Type
+from openvino import Node, PartialShape, Type
 from openvino.op import Constant, Parameter, tensor_iterator
-from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
-from openvino.runtime.utils.input_validation import (
+from openvino.utils.node_factory import _get_node_factory
+from openvino.utils.decorators import binary_op, nameable_op, unary_op
+from openvino.utils.input_validation import (
     check_valid_attributes,
     is_non_negative_value,
     is_positive_value,
 )
-from openvino.runtime.utils.node_factory import NodeFactory
-from openvino.runtime.utils.types import (
+from openvino.utils.node_factory import NodeFactory
+from openvino.utils.types import (
     NodeInput,
     NumericData,
     NumericType,

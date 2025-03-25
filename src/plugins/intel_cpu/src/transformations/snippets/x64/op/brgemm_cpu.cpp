@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 using namespace brgemm_utils;
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
@@ -20,9 +19,9 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const size_t offset_a,
                      const size_t offset_b,
                      const size_t offset_c,
-                     std::vector<size_t> layout_a,
-                     std::vector<size_t> layout_b,
-                     std::vector<size_t> layout_c)
+                     const std::vector<size_t>& layout_a,
+                     const std::vector<size_t>& layout_b,
+                     const std::vector<size_t>& layout_c)
     : Brgemm(),
       m_type(type) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
@@ -32,7 +31,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
     set_input_port_descriptor({0, offset_a}, 0);
     set_input_port_descriptor({0, offset_b}, 1);
     set_output_port_descriptor({0, offset_c}, 0);
-    custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
 }
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
@@ -43,9 +42,9 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const size_t offset_b,
                      const size_t offset_scratch,
                      const size_t offset_c,
-                     std::vector<size_t> layout_a,
-                     std::vector<size_t> layout_b,
-                     std::vector<size_t> layout_c)
+                     const std::vector<size_t>& layout_a,
+                     const std::vector<size_t>& layout_b,
+                     const std::vector<size_t>& layout_c)
     : Brgemm(),
       m_type(type) {
     set_arguments({A, B, scratch});
@@ -55,7 +54,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
     set_input_port_descriptor({0, offset_b}, 1);
     set_output_port_descriptor({0, offset_c}, 0);
     set_input_port_descriptor({0, offset_scratch}, 2);
-    custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
 }
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
@@ -64,16 +63,16 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const PortDescriptor& desc_a,
                      const PortDescriptor& desc_b,
                      const PortDescriptor& desc_c,
-                     std::vector<size_t> layout_a,
-                     std::vector<size_t> layout_b,
-                     std::vector<size_t> layout_c)
+                     const std::vector<size_t>& layout_a,
+                     const std::vector<size_t>& layout_b,
+                     const std::vector<size_t>& layout_c)
     : Brgemm(),
       m_type(type) {
     set_arguments({A, B});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}};
     m_output_ports = {{0, desc_c}};
-    custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
 }
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
@@ -84,21 +83,21 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const PortDescriptor& desc_b,
                      const PortDescriptor& desc_scratch,
                      const PortDescriptor& desc_c,
-                     std::vector<size_t> layout_a,
-                     std::vector<size_t> layout_b,
-                     std::vector<size_t> layout_c)
+                     const std::vector<size_t>& layout_a,
+                     const std::vector<size_t>& layout_b,
+                     const std::vector<size_t>& layout_c)
     : Brgemm(),
       m_type(type) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_scratch}};
     m_output_ports = {{0, desc_c}};
-    custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
 }
 
-void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a,
-                                                            std::vector<size_t> layout_b,
-                                                            std::vector<size_t> layout_c) {
+void BrgemmCPU::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
+                                                            const std::vector<size_t>& layout_b,
+                                                            const std::vector<size_t>& layout_c) {
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
     validate_inputs();
 
@@ -159,20 +158,19 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
-    } else {
-        return std::make_shared<BrgemmCPU>(
-            new_args.at(0),
-            new_args.at(1),
-            new_args.at(2),
-            m_type,
-            get_input_port_descriptor(0),
-            get_input_port_descriptor(1),
-            get_input_port_descriptor(2),
-            get_output_port_descriptor(0),
-            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
-            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
-            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
     }
+    return std::make_shared<BrgemmCPU>(
+        new_args.at(0),
+        new_args.at(1),
+        new_args.at(2),
+        m_type,
+        get_input_port_descriptor(0),
+        get_input_port_descriptor(1),
+        get_input_port_descriptor(2),
+        get_output_port_descriptor(0),
+        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {
@@ -186,6 +184,4 @@ bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("type", m_type);
     return true;
 }
-}  // namespace intel_cpu
-
-}  // namespace ov
+}  // namespace ov::intel_cpu

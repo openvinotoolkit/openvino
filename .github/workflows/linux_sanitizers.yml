@@ -4,6 +4,19 @@ on:
     # run daily at 00:00
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      # to be defined for specified test scopes (e.g. CPU func. tests)
+      sanitizerMode:
+        description: 'Sanitizer mode for func_tests (All || AddressAndLeak || UndefinedBehavior || Thread).'
+        required: false
+        default: 'All'
+      gtestFilter:
+        description: 'Filter for func_tests.'
+        required: false
+        default: '*smoke*'
+  pull_request:
+    paths:
+    - '.github/workflows/linux_sanitizers.yml'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -14,6 +27,14 @@ permissions: read-all
 
 env:
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  BUILD_DIR: /__w/openvino/openvino/openvino_build
+  OPENVINO_REPO: /__w/openvino/openvino/openvino
+  INSTALL_TEST_DIR: /__w/openvino/openvino/openvino_install/tests/
+  INSTALL_DIR: /__w/openvino/openvino/openvino_install
+  TBB_ENABLE_SANITIZERS: 1
+  ASAN_OPTIONS: halt_on_error=0:suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
+  LSAN_OPTIONS: suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1
+  TSAN_OPTIONS: suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/tsan/suppressions.txt
 
 jobs:
   Smart_CI:
@@ -25,6 +46,7 @@ jobs:
     steps:
       - name: checkout action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -53,6 +75,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -91,11 +114,7 @@ jobs:
       CMAKE_BUILD_TYPE: 'RelWithDebInfo'
       CMAKE_GENERATOR: 'Ninja'
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
-      OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
-      BUILD_DIR: /__w/openvino/openvino/openvino_build
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
@@ -108,12 +127,14 @@ jobs:
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -157,7 +178,6 @@ jobs:
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
-            -DBUILD_SHARED_LIBS=ON \
             -DENABLE_OV_TF_FRONTEND=ON \
             -DENABLE_OV_TF_LITE_FRONTEND=ON \
             -DENABLE_OV_PADDLE_FRONTEND=ON \
@@ -206,23 +226,23 @@ jobs:
       #
       - name: Upload sccache log
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: sccache_log_${{ matrix.SANITIZER }}
           path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'error'
 
-      - name: Upload openvino package
+      - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_package_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
-      - name: Upload openvino tests package
+      - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_tests_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -247,25 +267,16 @@ jobs:
           - SANITIZER: 'AddressAndLeak'
           - SANITIZER: 'UndefinedBehavior'
           - SANITIZER: 'Thread'
-    env:
-      OPENVINO_REPO: /__w/openvino/openvino/openvino
-      INSTALL_DIR: /__w/openvino/openvino/install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
-      BUILD_DIR: /__w/openvino/openvino/openvino_build
-      TBB_ENABLE_SANITIZERS: 1
-      ASAN_OPTIONS: halt_on_error=0:suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
-      LSAN_OPTIONS: suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1
-      TSAN_OPTIONS: suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/tsan/suppressions.txt
       
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -281,6 +292,7 @@ jobs:
 
       - name: Fetch Sanitizer Suppression Lists
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             tests/sanitizers/lsan/suppressions.txt
@@ -472,12 +484,102 @@ jobs:
         if: ${{ 'false' }} # Ticket: 134425
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*"
+          ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        if: ${{ !cancelled() }}
+        with:
+          name: unit-test-results-cpp_${{ matrix.SANITIZER }}
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'
+
+  CXX_Func_Tests:
+    # todo: move another plugin's func tests here
+    name: C++ func tests
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    needs: [Docker, Build]
+    timeout-minutes: 120
+    runs-on: aks-linux-8-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        include:
+          - SANITIZER: 'AddressAndLeak'
+          - SANITIZER: 'UndefinedBehavior'
+          - SANITIZER: 'Thread'
+
+    steps:
+      - name: Check matrix
+        id: check_matrix
+        # by default in scheduled launch we run only AddressAndLeak with *smoke*Conv_* pattern
+        # to prevent false-positive alerts and time exceeded error,
+        # in workflow_dispatch case all smoke tests will be launched with all types of sanitizers
+        # if gtestFilter and sanMode inputs are not specified
+        if: ${{ (github.event_name == 'workflow_dispatch' && (inputs.sanitizerMode == 'All' || inputs.sanitizerMode == matrix.SANITIZER) || matrix.SANITIZER == 'AddressAndLeak')}}
+        run: |
+          echo 'Sanitizer mode: ${{ inputs.sanitizerMode }}'
+
+      - name: Download OpenVINO package
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        run: |
+          pushd $INSTALL_DIR
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+          pushd $INSTALL_TEST_DIR
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+
+      - name: Fetch Sanitizer Suppression Lists
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            tests/sanitizers/lsan/suppressions.txt
+            tests/sanitizers/asan/suppressions.supp
+            tests/sanitizers/tsan/suppressions.txt
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      #
+      # Tests
+      #
+
+      - name: CPU plugin func tests
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        env:
+          GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*Conv_*' }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 \
+                --gtest_filter=${{ env.GTEST_FILTER }} \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-        if: ${{ !cancelled() }}
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         with:
-          name: test-results-cpp_${{ matrix.SANITIZER }}
+          name: func-test-results-cpp_${{ matrix.SANITIZER }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'

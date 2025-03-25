@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "nodes/common/cpu_convert.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool CommonConvertExecutor::isSupported(ov::element::Type srcPrc, ov::element::Type dstPrc) {
     return is_supported_convert(srcPrc, dstPrc);
@@ -33,5 +32,4 @@ void CommonConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::
                 commonConvertParams.size);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

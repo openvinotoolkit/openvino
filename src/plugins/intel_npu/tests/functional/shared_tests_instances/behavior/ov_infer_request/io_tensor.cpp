@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,31 +22,31 @@ const std::vector<ov::AnyMap> multiConfigs = {
 const std::vector<ov::AnyMap> autoConfigs = {
     {ov::device::priorities(ov::test::utils::DEVICE_NPU), ov::device::properties(ov::test::utils::DEVICE_NPU, {})}};
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestIOTensorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Multi_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          OVInferRequestIOTensorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multiConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestIOTensorTestNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Multi_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          OVInferRequestIOTensorTestNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multiConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Auto_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          OVInferRequestIOTensorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),

@@ -416,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
     
             await element.initialize({
-                accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
+                accessToken: "xx2b580d60-addf-451d-94fd-06effafb7686",
                 organizationId: "intelcorporationproductione78n25s6"
             });
     

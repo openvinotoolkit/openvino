@@ -13,9 +13,7 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace pass {
+namespace ov::intel_cpu::pass {
 using LinearIR = snippets::lowered::LinearIR;
 using LoopPort = snippets::lowered::LoopPort;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
@@ -87,8 +85,9 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                                                                     n_block,
                                                                                     k_block);
 
-    if (stand_alone(type))
+    if (stand_alone(type)) {
         return res;
+    }
 
     const auto copy_b_expr = repacking::get_copy_b_expr(brgemm_expr);
     if (copy_b_expr) {
@@ -121,17 +120,18 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
             OPENVINO_ASSERT(in_ports.size() > 1, "Invalid number of input loop ports");
             loop_info->replace_with_new_ports(in_ports[1], {in_ports[1], new_port});
         };
-        if (!is_full_dim_value(m_block))
-            update_loop_info({compens_port, false, 1});
+        if (!is_full_dim_value(m_block)) {
+            update_loop_info(LoopPort::create<LoopPort::Type::NotProcessed>(compens_port));
+        }
 
-        if (!is_full_dim_value(n_block))
-            update_loop_info({compens_port, true, 0});
+        if (!is_full_dim_value(n_block)) {
+            update_loop_info(LoopPort::create<LoopPort::Type::Incremented>(compens_port, 0));
+        }
 
-        if (!is_full_dim_value(k_block))
-            update_loop_info({compens_port, false, 1});
+        if (!is_full_dim_value(k_block)) {
+            update_loop_info(LoopPort::create<LoopPort::Type::NotIncremented>(compens_port, 1));
+        }
     }
     return true;
 }
-}  // namespace pass
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::pass

@@ -1,6 +1,8 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+add_subdirectory(vectorized)
 
 set(TARGET_NAME ov_cpu_unit_tests)
 
@@ -38,6 +40,10 @@ if (ENABLE_SHL_FOR_CPU)
     set(SHL_LIBRARY "shl")
 endif()
 
+if (ENABLE_KLEIDIAI_FOR_CPU)
+    set(KLEIDIAI_LIBRARY "kleidiai")
+endif()
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -52,6 +58,8 @@ ov_add_test_target(
                 $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include
         EXCLUDED_SOURCE_PATHS
             ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
+            ${CMAKE_CURRENT_SOURCE_DIR}/vectorized
+
         OBJECT_FILES
             ${OBJ_LIB}
         LINK_LIBRARIES
@@ -66,6 +74,7 @@ ov_add_test_target(
             snippets_test_utils
             ${MLAS_LIBRARY}
             ${SHL_LIBRARY}
+            ${KLEIDIAI_LIBRARY}
         ADD_CPPLINT
         LABELS
             OV UNIT CPU
@@ -77,6 +86,7 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     target_link_libraries(${TARGET_NAME} PRIVATE xsmm)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
 endif()
+
 
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

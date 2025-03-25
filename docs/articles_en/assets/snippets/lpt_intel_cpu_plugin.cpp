@@ -18,6 +18,7 @@ namespace device {
 
 class ConvertOpSet1ToDeviceSpecific: public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("ConvertOpSet1ToDeviceSpecific");
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         return true;
     }
@@ -38,7 +39,7 @@ auto defaultPrecisions =
     useLpt ? ov::pass::low_precision::precision_set::get_int8_support() : std::vector<ov::element::Type>{};
 if (useLpt) {
     // disable constant folding on dequantization subgraphs so they can be processed by LPT
-    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(defaultPrecisions);
+    manager.register_pass<ov::pass::MarkDequantization>(defaultPrecisions);
 }
 
 // OpenVINO common transformations happen here
@@ -96,7 +97,7 @@ if (useLpt) {
 
     // Low precision transformations plugin specific configuration: transformation callbacks definition
     lptManager.get_pass_config()->set_callback<MarkupPrecisions>([](const std::shared_ptr<const ov::Node>& node) -> bool {
-        if (const auto multiply = std::dynamic_pointer_cast<const ov::opset1::Multiply>(node)) {
+        if (const auto multiply = ov::as_type_ptr<const ov::opset1::Multiply>(node)) {
             return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(multiply);
         }
         return false;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@
 #include "common/primitive_cache.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct DeconvExecutorDesc {
     ExecutorType executorType;
@@ -28,7 +27,7 @@ public:
     DeconvExecutorFactory(const DeconvAttrs& deconvAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
-                          const ExecutorContext::CPtr context)
+                          const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getDeconvExecutorsList()) {
             if (desc.builder->isSupported(deconvAttrs, srcDescs, dstDescs)) {
@@ -37,7 +36,7 @@ public:
         }
     }
 
-    ~DeconvExecutorFactory() = default;
+    ~DeconvExecutorFactory() override = default;
     virtual DeconvExecutorPtr makeExecutor(const DeconvAttrs& deconvAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs,
@@ -75,5 +74,4 @@ private:
 using DeconvExecutorFactoryPtr = std::shared_ptr<DeconvExecutorFactory>;
 using DeconvExecutorFactoryCPtr = std::shared_ptr<const DeconvExecutorFactory>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

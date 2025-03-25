@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,21 +88,22 @@ struct jit_uni_reduce_post_kernel {
 
 class Reduce : public Node {
 public:
-    Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void prepareParams() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     int getFusingAxis() const override;
     bool canFuse(const NodePtr& node) const override;
     bool canBeInPlace() const override {
         return false;
     }
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -196,8 +197,6 @@ private:
     static const std::map<const ov::DiscreteTypeInfo,
                           std::function<void(const std::shared_ptr<ov::Node>& op, Reduce& node)>>&
     getInitializers();
-
-    std::string errorPrefix;
 
 #if defined(OV_CPU_WITH_ACL)
     ReduceAttrs reduceAttrs;

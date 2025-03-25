@@ -120,8 +120,8 @@ inline std::shared_ptr<ov::Node> make_qkv_transpose(ov::Output<ov::Node> qkv, st
     return std::make_shared<ov::op::v1::Transpose>(qkv, transpose_const);
 }
 
-inline std::shared_ptr<ov::Node> make_kv_rearrange(ov::Output<ov::Node> kv_past, ov::Output<ov::Node> beam_idx) {
-    auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
+inline std::shared_ptr<ov::Node> make_kv_rearrange(ov::Output<ov::Node> kv_past, ov::Output<ov::Node> beam_idx, int axis_val = 0) {
+    auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, axis_val);
     return std::make_shared<ov::op::v8::Gather>(kv_past, beam_idx, axis, 0);
 }
 
@@ -180,7 +180,7 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
         if (build_state_initializer) {
             auto state_initializer = make_state_initializer(in_new_token, element_type, kv_cache_size, {0, 1, 2, 3});
             for (auto op : model->get_ops()) {
-                if (auto read_value = std::dynamic_pointer_cast<ov::op::v6::ReadValue>(op)) {
+                if (auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op)) {
                     read_value->set_arguments(ov::OutputVector{state_initializer});
                 }
             }
@@ -242,8 +242,8 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension b
         in_beam_idx->set_friendly_name("beam_idx");
         params.push_back(in_beam_idx);
 
-        concat_k_input = make_kv_rearrange(past_k, in_beam_idx);
-        concat_v_input = make_kv_rearrange(past_v, in_beam_idx);
+        concat_k_input = make_kv_rearrange(past_k, in_beam_idx, qkv_order[0]);
+        concat_v_input = make_kv_rearrange(past_v, in_beam_idx, qkv_order[0]);
     }
 
     auto concat_k = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{concat_k_input, in_k_token}, concat_axis);
@@ -312,7 +312,7 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension b
         ov::pass::MakeStateful({{past_k, present_k}, {past_v, present_v}}).run_on_model(model);
         auto state_initializer = make_state_initializer(in_v_token, element_type, kv_cache_size, qkv_order);
         for (auto op : model->get_ops()) {
-            if (auto read_value = std::dynamic_pointer_cast<ov::op::v6::ReadValue>(op)) {
+            if (auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op)) {
                 read_value->set_arguments(ov::OutputVector{state_initializer});
             }
         }

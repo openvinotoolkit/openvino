@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ protected:
     class IntermReorder {
     public:
         IntermReorder(const dnnl::memory::desc& descSrc, const dnnl::memory::desc& descDst, const dnnl::engine& engine);
-        void exec(dnnl::memory& memSrc, dnnl::memory& memDst, dnnl::stream strm);
+        void exec(dnnl::memory& memSrc, dnnl::memory& memDst, const dnnl::stream& strm);
         const dnnl::memory::desc& getSrcDesc() const {
             return m_descSrc;
         }
@@ -33,7 +33,7 @@ protected:
 
 public:
     explicit DnnlExecutor(const dnnl::primitive_desc& pd);
-    void exec(const std::unordered_map<int, dnnl::memory>& primArgs, dnnl::stream strm);
+    void exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm);
     bool needReordering() const;
     virtual ~DnnlExecutor() = default;
     dnnl::primitive getExecPrim() const;
@@ -67,7 +67,7 @@ public:
     }
 
 protected:
-    virtual void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
+    virtual void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, const dnnl::stream& strm);
 
 protected:
     dnnl::primitive execPrim;

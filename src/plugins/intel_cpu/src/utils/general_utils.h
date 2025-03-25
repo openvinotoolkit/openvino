@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,7 +148,7 @@ inline ov::element::Type getMaxPrecision(std::vector<ov::element::Type> precisio
                                  });
     }
 
-    return ov::element::undefined;
+    return ov::element::dynamic;
 }
 
 inline std::vector<std::string> split(const std::string& str, char delim) {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -98,7 +98,7 @@ class TestSTFTAttrs(PytorchLayerTest):
                 self.return_complex = return_complex
 
             def forward(self, x):
-                return torch.stft(
+                stft = torch.stft(
                     x,
                     self.n_fft,
                     hop_length=self.hop_length,
@@ -110,6 +110,10 @@ class TestSTFTAttrs(PytorchLayerTest):
                     onesided=self.onesided,
                     return_complex=self.return_complex,
                 )
+                if self.return_complex:
+                    return torch.view_as_real(stft)
+                else:
+                    return stft
 
         ref_net = None
 
@@ -128,9 +132,9 @@ class TestSTFTAttrs(PytorchLayerTest):
         [16, None, None, False, "reflect", False, True, False],  # hop & win length None
         [16, 4, None, False, "reflect", False, True, False],  # win_length None
         [16, 4, 16, False, "reflect", True, True, False],  # normalized True
+        [16, 4, 16, False, "reflect", False, True, True],  # return_complex True
         # Unsupported cases:
         [16, 4, 16, False, "reflect", False, False, False],  # onesided False
-        [16, 4, 16, False, "reflect", False, True, True],  # reutrn_complex True
     ])
     def test_stft_not_supported_attrs(self, n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex, ie_device, precision, ir_version, trace_model):
         if ie_device == "GPU":
@@ -143,10 +147,6 @@ class TestSTFTAttrs(PytorchLayerTest):
         if onesided is False:
             pytest.xfail(
                 reason="aten::stft conversion is currently supported with onesided=True only")
-
-        if return_complex is True:
-            pytest.xfail(
-                reason="aten::stft conversion is currently supported with return_complex=False only")
 
         self._test(*self.create_model_with_attrs(n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={}, trace_model=trace_model)

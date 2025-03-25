@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2018-2025 Intel Corporation SPDX-License-Identifier: Apache-2.0
 #
 
 if(ENABLE_LTO)
@@ -13,6 +13,9 @@ set(TARGET_NAME ov_npu_func_tests)
 set(EXCLUDED_FUNC_TESTS_DIR "")
 set(OPTIONAL_FUNC_TESTS_INCLUDES "")
 set(OPTIONAL_FUNC_TESTS_LIBS "")
+
+set(SKIP_CONFIG "skip_tests.xml")
+set(SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/${SKIP_CONFIG})
 
 list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include")
@@ -66,3 +69,9 @@ install(
   RUNTIME DESTINATION tests
           COMPONENT tests
           EXCLUDE_FROM_ALL)
+
+install(
+  FILES ${SKIP_CONFIG_PATH}
+  DESTINATION tests
+  COMPONENT tests
+  EXCLUDE_FROM_ALL)

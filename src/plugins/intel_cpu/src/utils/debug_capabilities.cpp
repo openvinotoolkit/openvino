@@ -1,5 +1,5 @@
 
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/core/type/element_type.hpp"
@@ -22,18 +22,15 @@
 #    include "openvino/op/util/multi_subgraph_base.hpp"
 #    include "transformations/rt_info/disable_fp16_compression.hpp"
 
-namespace dnnl {
-namespace impl {
+namespace dnnl::impl {
 std::ostream& operator<<(std::ostream& ss, const primitive_attr_t* attr);
 std::ostream& operator<<(std::ostream& ss, alg_kind_t alg);
-}  // namespace impl
-}  // namespace dnnl
+}  // namespace dnnl::impl
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
-size_t replace_all(std::string& inout, std::string what, std::string with) {
+size_t replace_all(std::string& inout, const std::string& what, const std::string& with) {
     std::size_t count{};
     for (std::string::size_type pos{}; inout.npos != (pos = inout.find(what.data(), pos, what.length()));
          pos += with.length(), ++count) {
@@ -55,10 +52,12 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
     std::string file_path(file);
     std::string file_name(file);
     auto last_sep = file_path.find_last_of('/');
-    if (last_sep == std::string::npos)
+    if (last_sep == std::string::npos) {
         last_sep = file_path.find_last_of('\\');
-    if (last_sep != std::string::npos)
+    }
+    if (last_sep != std::string::npos) {
         file_name = file_path.substr(last_sep + 1);
+    }
 
     std::string file_name_with_line = file_name + ":" + std::to_string(line);
     tag = file_name_with_line + " " + func + "()";
@@ -79,8 +78,9 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
     const char* p1 = p0;
     while (*p0 != 0) {
         p1 = p0;
-        while (*p1 != ';' && *p1 != 0)
+        while (*p1 != ';' && *p1 != 0) {
             ++p1;
+        }
         std::string pattern(p0, p1 - p0);
         if (pattern == file_name || pattern == func || pattern == tag || pattern == file_name_with_line ||
             (name != nullptr && pattern == name)) {
@@ -88,21 +88,23 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
             break;
         }
         p0 = p1;
-        if (*p0 == ';')
+        if (*p0 == ';') {
             ++p0;
+        }
     }
 
-    if (match)
+    if (match) {
         enabled = filter_match_action;
-    else
+    } else {
         enabled = !filter_match_action;
+    }
 }
 
 void DebugLogEnabled::break_at(const std::string& log) {
     static const char* p_brk = std::getenv("OV_CPU_DEBUG_LOG_BRK");
     if (p_brk && log.find(p_brk) != std::string::npos) {
         std::cout << "[ DEBUG ] "
-                  << " Debug log breakpoint hit" << std::endl;
+                  << " Debug log breakpoint hit" << '\n';
 #    if defined(_MSC_VER)
         __debugbreak();
 #    elif defined(__APPLE__) || defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64) || \
@@ -137,11 +139,13 @@ std::ostream& operator<<(std::ostream& os, const PortConfig& config) {
 
 std::ostream& operator<<(std::ostream& os, const NodeConfig& config) {
     os << "(";
-    for (auto& conf : config.inConfs)
+    for (auto& conf : config.inConfs) {
         os << conf;
+    }
     os << ") -> (";
-    for (auto& conf : config.outConfs)
+    for (auto& conf : config.outConfs) {
         os << conf;
+    }
     os << ")" << '\n';
     return os;
 }
@@ -153,22 +157,25 @@ std::ostream& operator<<(std::ostream& os, const NodeDesc& desc) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Node& c_node) {
-    Node& node = const_cast<Node&>(c_node);
+    auto& node = const_cast<Node&>(c_node);
     const int align_col = 50;
     const char* comma = "";
     auto node_id = [](Node& node) {
         auto id = node.getName();
-        if (id.size() > 50)
+        if (id.size() > 50) {
             return node.getTypeStr() + "_" + std::to_string(node.getExecIndex());
+        }
         return id;
     };
     auto is_single_output_port = [](Node& node) {
         for (auto& e : node.getChildEdges()) {
             auto edge = e.lock();
-            if (!edge)
+            if (!edge) {
                 continue;
-            if (edge->getInputNum() != 0)
+            }
+            if (edge->getInputNum() != 0) {
                 return false;
+            }
         }
         return true;
     };
@@ -179,8 +186,9 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
     int num_output_port = 0;
     for (const auto& wptr : node.getChildEdges()) {
         auto edge = wptr.lock();
-        if (num_output_port < edge->getInputNum() + 1)
+        if (num_output_port < edge->getInputNum() + 1) {
             num_output_port = edge->getInputNum() + 1;
+        }
     }
 
     auto getData = [](const MemoryPtr& ptr) {
@@ -196,8 +204,9 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
     };
 
     if (num_output_port) {
-        if (num_output_port > 1)
+        if (num_output_port > 1) {
             leftside << "(";
+        }
         comma = "";
         for (int i = 0; i < num_output_port; i++) {
             bool b_ouputed = false;
@@ -229,8 +238,9 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             }
             comma = ",";
         }
-        if (num_output_port > 1)
+        if (num_output_port > 1) {
             leftside << ")";
+        }
     } else if (nodeDesc) {
         // output Desc is enough since input is always in consistent
         // with output.
@@ -249,8 +259,9 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
 
         auto& outConfs = nodeDesc->getConfig().outConfs;
         if (!outConfs.empty()) {
-            if (outConfs.size() > 1)
+            if (outConfs.size() > 1) {
                 leftside << "(";
+            }
             comma = "";
             for (auto& c : outConfs) {
                 auto shape_str = c.getMemDesc()->getShape().toString();
@@ -259,8 +270,9 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
                          << c.getMemDesc()->serializeFormat() << "_" << shape_str;
                 comma = ",";
             }
-            if (outConfs.size() > 1)
+            if (outConfs.size() > 1) {
                 leftside << ")";
+            }
         }
     } else {
         // no SPD yet, use orginal shapes
@@ -278,8 +290,9 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
     leftside << "  " << node_id(node) << " = ";
     os << "#" << node.getExecIndex() << " :" << std::right << std::setw(align_col) << leftside.str();
     os << std::left << node.getTypeStr();
-    if (node.getAlgorithm() != Algorithm::Default)
+    if (node.getAlgorithm() != Algorithm::Default) {
         os << "." << algToString(node.getAlgorithm());
+    }
     os << " (";
 
     comma = "";
@@ -289,10 +302,12 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
         const char* sep2 = "";
         for (const auto& e : node.getParentEdges()) {
             auto edge = e.lock();
-            if (!edge)
+            if (!edge) {
                 continue;
-            if (edge->getOutputNum() != static_cast<int>(port))
+            }
+            if (edge->getOutputNum() != static_cast<int>(port)) {
                 continue;
+            }
             auto n = edge->getParent();
             os << sep2;
             os << node_id(*edge->getParent());
@@ -300,8 +315,9 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             if (ptr) {
                 os << "&" << getData(ptr);
             }
-            if (!is_single_output_port(*n))
+            if (!is_single_output_port(*n)) {
                 os << "[" << edge->getInputNum() << "]";
+            }
             sep2 = "|";  // show all edges at single port(usually indicating bugs)
         }
         comma = ",";
@@ -312,9 +328,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             auto pmem = input_node->getMemoryPtr();
             void* data = pmem->getData();
             auto shape = pmem->getDesc().getShape().getDims();
-
-            if (shape_size(shape) <= 8 && pmem->getDesc().getPrecision() != ov::element::undefined) {
-                auto type = pmem->getDesc().getPrecision();
+            if (auto type = pmem->getDesc().getPrecision(); shape_size(shape) <= 8 && type.is_static()) {
                 auto tensor = ov::Tensor(type, shape, data);
                 auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
                 comma = "";
@@ -387,11 +401,11 @@ std::ostream& operator<<(std::ostream& os, const Shape& shape) {
 
 // Print complex data structures in a textualized form to the console is an efficient way to investigate them
 std::ostream& operator<<(std::ostream& os, const Graph& g) {
-    os << "ov::intel_cpu::Graph " << g.GetName() << " {" << std::endl;
+    os << "ov::intel_cpu::Graph " << g.GetName() << " {" << '\n';
     for (auto& graphNode : g.GetNodes()) {
-        std::cout << *graphNode << std::endl;
+        std::cout << *graphNode << '\n';
     }
-    os << "};" << std::endl;
+    os << "};" << '\n';
     return os;
 }
 
@@ -489,15 +503,17 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
         auto type = op->get_type_name();
         auto name = op->get_friendly_name();
         os << prefix << "\t";
-        if (op->get_output_size() > 1)
+        if (op->get_output_size() > 1) {
             os << "(";
+        }
         sep = "";
         for (size_t i = 0; i < op->get_output_size(); i++) {
             os << sep << op->get_output_element_type(i) << "_" << op->get_output_partial_shape(i);
             sep = ",";
         }
-        if (op->get_output_size() > 1)
+        if (op->get_output_size() > 1) {
             os << ")";
+        }
         os << "  " << tag << name << " = " << type << "(";
         sep = "";
         for (size_t i = 0; i < op->get_input_size(); i++) {
@@ -512,7 +528,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
             sep = ",";
         }
 
-        if (auto constop = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
+        if (auto constop = ov::as_type_ptr<op::v0::Constant>(op)) {
             if (constop->get_element_type() == element::Type_t::f32) {
                 os << printable(constop->get_vector<float>());
             } else if (constop->get_element_type() == element::Type_t::i8) {
@@ -535,13 +551,13 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
 
         os << ") \t attrs:";
         op->visit_attributes(osvis);
-        os << std::endl;
+        os << '\n';
 
         // recursively output subgraphs
-        if (auto msubgraph = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+        if (auto msubgraph = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
             auto cnt = msubgraph->get_internal_subgraphs_size();
             for (size_t i = 0; i < cnt; i++) {
-                os << "\t\t MultiSubGraphOp " << tag << msubgraph->get_friendly_name() << "[" << i << "]" << std::endl;
+                os << "\t\t MultiSubGraphOp " << tag << msubgraph->get_friendly_name() << "[" << i << "]" << '\n';
                 os << PrintableModel(*msubgraph->get_function(i).get(), tag, prefix + "\t\t");
             }
         }
@@ -549,8 +565,9 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
     os << prefix << "}\n";
     os << prefix << "fp16_compress disabled Ngraph nodes:\n";
     for (const auto& op : f.get_ordered_ops()) {
-        if (ov::fp16_compression_is_disabled(op) && !std::dynamic_pointer_cast<op::v0::Constant>(op))
+        if (ov::fp16_compression_is_disabled(op) && !ov::as_type_ptr<op::v0::Constant>(op)) {
             os << "\t" << tag << op->get_friendly_name() << "\n";
+        }
     }
     return os;
 }
@@ -638,16 +655,18 @@ template <typename T>
 std::string to_string(const T* values, size_t N, size_t maxsize) {
     std::stringstream ss;
     for (size_t i = 0; i < N; i++) {
-        if (i > 0)
+        if (i > 0) {
             ss << ",";
+        }
         if (ss.tellp() > static_cast<std::stringstream::pos_type>(maxsize)) {
             ss << "..." << N << "in total";
             break;
         }
-        if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value)
+        if (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>) {
             ss << static_cast<int>(values[i]);
-        else
+        } else {
             ss << values[i];
+        }
     }
     return ss.str();
 }
@@ -671,6 +690,16 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
     return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record) {
+    os << "Memory profile record: " << record.id << "\n";
+    os << "Total regions: " << record.total_regions << "\n";
+    os << "Total unique blocks: " << record.total_unique_blocks << "\n";
+    os << "Total size: " << record.total_size << " bytes\n";
+    os << "Optimal total size: " << record.optimal_total_size << " bytes\n";
+    os << "Max region size: " << record.max_region_size << " bytes\n";
+    return os;
+}
+
 void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message) {
     const size_t s = memory.get_desc().get_size() / sizeof(float);
     std::cout << message << " " << id << " size: " << s << ", values: ";
@@ -682,8 +711,7 @@ void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int 
     std::cout << "\n";
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 bool getEnvBool(const char* name) {
     static const bool env = ov::util::getenv_bool(name);

@@ -8,7 +8,7 @@
         "ticket": 135715
     },
     {
-        "error_text": "GnuTLS recv error",
+        "error_text": "error: RPC failed",
         "ticket": 131918
     },
     {
@@ -82,5 +82,53 @@
     {
         "error_text": "Upload progress stalled",
         "ticket": 152933
+    },
+    {
+        "error_text": "because the GET request got Content-Type",
+        "ticket": 158400
+    },
+    {
+        "error_text": "Unable to make request:",
+        "ticket": 158401
+    },
+    {
+        "error_text": "Failed to make request",
+        "ticket": 158401
+    },
+    {
+        "error_text": "Unable to download artifact",
+        "ticket": 158401
+    },
+    {
+        "error_text": "Failure when receiving data from the peer",
+        "ticket": 159323
+    },
+    {
+        "error_text": "HTTP response code said error",
+        "ticket": 159398
+    },
+    {
+        "error_text": "download failed after attempts",
+        "ticket": 159547
+    },
+    {
+        "error_text": "Failed to connect to github.com port 443: Connection refused",
+        "ticket": 156593
+    },
+    {
+        "error_text": "file DOWNLOAD cannot compute hash on failed download",
+        "ticket": 156593
+    },
+    {
+        "error_text": "lost communication with the server",
+        "ticket": 160816
+    },
+    {
+        "error_text": "the runner has received a shutdown signal",
+        "ticket": 160818
+    },
+    {
+        "error_text": "Timed out waiting for server startup",
+        "ticket": 161077
     }
 ]

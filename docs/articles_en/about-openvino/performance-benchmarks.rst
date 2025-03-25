@@ -18,7 +18,7 @@ Performance Benchmarks
 
 This page presents benchmark results for the
 `Intel® Distribution of OpenVINO™ toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__
-and :doc:`OpenVINO Model Server <../openvino-workflow/model-server/ovms_what_is_openvino_model_server>`, for a representative
+and :doc:`OpenVINO Model Server <../../model-server/ovms_what_is_openvino_model_server>`, for a representative
 selection of public neural networks and Intel® devices. The results may help you decide which
 hardware to use in your applications or plan AI workload for the hardware you have already
 implemented in your solutions. Click the buttons below to see the chosen benchmark data.
@@ -56,8 +56,7 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
 
          :material-regular:`table_view;1.4em` LLM performance for AI PC
 
-.. uncomment under 
-   .. .. grid-item::
+   .. grid-item::
 
       .. button-link:: #
          :class: ovms-toolkit-benchmark-llm-result
@@ -133,26 +132,20 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.5-platform_list.pdf
+      .. button-link:: ../_static/download/benchmarking_OV_platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.5-system-info-detailed.xlsx
+      .. button-link:: ../_static/download/benchmarking_OV_system_info_detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.5-Performance-Data.xlsx
-         :color: primary
-         :outline:
-         :expand:
-
-         :material-regular:`download;1.5em` Click for Performance Data [XLSX]
 
 
 
@@ -161,10 +154,10 @@ For a listing of all platforms and configurations used for testing, refer to the
 **Disclaimers**
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
-  2024.5, as of November 20, 2024.
+  2025.0, as of February 13, 2025.
 
 * OpenVINO Model Server performance results are based on release
-  2024.5, as of November 20, 2024.
+  2025.0, as of February 13, 2025.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service

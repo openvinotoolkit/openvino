@@ -44,17 +44,17 @@ const std::vector<ShapeRelatedParams>& FC_2DParams() {
     return params;
 }
 
-
-const auto testParams3D_SHL_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(FC_2DParams()),
-                                                        ::testing::Values(ElementType::f32),
-                                                        ::testing::Values(ElementType::undefined),
-                                                        ::testing::Values(ElementType::undefined),
-                                                        ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
-                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                        ::testing::Values(emptyAdditionalConfig())),
-                                             ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::Values(emptyFusingSpec),
-                                             ::testing::ValuesIn(filterSpecificParams_SHL()));
+const auto testParams3D_SHL_smoke =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(FC_2DParams()),
+                                          ::testing::Values(ElementType::f32),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                          ::testing::Values(emptyAdditionalConfig())),
+                       ::testing::Values(MatMulNodeType::FullyConnected),
+                       ::testing::Values(emptyFusingSpec),
+                       ::testing::ValuesIn(filterSpecificParams_SHL()));
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_SHL, MatMulLayerCPUTest, testParams3D_SHL_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams>& FC_3DParams() {
@@ -83,16 +83,17 @@ const std::vector<ShapeRelatedParams>& FC_3DParams() {
     return params;
 }
 
-const auto testParams2D_SHL_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(FC_3DParams()),
-                                                                ::testing::Values(ElementType::f32),
-                                                                ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
-                                                                ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                                ::testing::Values(emptyAdditionalConfig())),
-                                             ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::Values(emptyFusingSpec),
-                                             ::testing::ValuesIn(filterSpecificParams_SHL()));
+const auto testParams2D_SHL_smoke =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(FC_3DParams()),
+                                          ::testing::Values(ElementType::f32),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                          ::testing::Values(emptyAdditionalConfig())),
+                       ::testing::Values(MatMulNodeType::FullyConnected),
+                       ::testing::Values(emptyFusingSpec),
+                       ::testing::ValuesIn(filterSpecificParams_SHL()));
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_SHL, MatMulLayerCPUTest, testParams2D_SHL_smoke, MatMulLayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace MatMul

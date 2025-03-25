@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -75,4 +75,31 @@ class TestRepeatInterleaveNonConstRepeats(PytorchLayerTest):
         self.repeats = input_data['repeats']
         dim = input_data['dim']
         self._test(*self.create_model_non_const_repeat(dim),
-                   ie_device, precision, ir_version, dynamic_shapes=False, use_mo_convert=False)
+                   ie_device, precision, ir_version, dynamic_shapes=False)
+
+
+class TestRepeatInterleaveTensorRepeats(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(10), self.repeats)
+
+    def create_model_non_const_repeat(self, dim):
+        class aten_repeat_interleave_non_const_repeat(torch.nn.Module):
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.dim = dim
+
+            def forward(self, input_tensor, repeats):
+                return input_tensor.repeat_interleave(repeats, self.dim)
+
+        return aten_repeat_interleave_non_const_repeat(), None, "aten::repeat_interleave"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize('input_data', ({'repeats': np.array([2, 3, 4, 1, 2, 4, 6, 7, 4, 3]).astype(np.int32), 'dim': None},
+                                            {'repeats': np.array([3, 7, 1, 9, 4, 6, 2, 8, 5, 0]).astype(np.int32), 'dim': None}))
+    def test_repeat_interleave_tensor_repeats(self, ie_device, precision, ir_version, input_data):
+        self.repeats = input_data['repeats']
+        dim = input_data['dim']
+        self._test(*self.create_model_non_const_repeat(dim),
+                   ie_device, precision, ir_version, dynamic_shapes=False)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,11 +45,7 @@ public:
      */
     template <typename KeyType,
               typename BuilderType,
-#if (defined(_MSVC_LANG) && (_MSVC_LANG > 201703L)) || (defined(__cplusplus) && (__cplusplus > 201703L))
               typename ValueType = std::invoke_result_t<BuilderType&, const KeyType&>>
-#else
-              typename ValueType = typename std::result_of<BuilderType&(const KeyType&)>::type>
-#endif
     typename CacheEntry<KeyType, ValueType>::ResultType getOrCreate(const KeyType& key, BuilderType builder) {
         auto entry = getEntry<KeyType, ValueType>();
         return entry->getOrCreate(key, std::move(builder));

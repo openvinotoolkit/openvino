@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -65,7 +65,7 @@ protected:
     void SetUp() override {
         groupConvSpecificParams groupConvParams;
         InputShape inputShape;
-        auto model_type = ov::element::undefined;
+        auto model_type = ov::element::dynamic;
         std::tie(groupConvParams, model_type, inputShape, targetDevice) = this->GetParam();
 
         init_input_shapes({inputShape});

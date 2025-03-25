@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @interface SnippetsMarkSkipped
@@ -16,7 +15,7 @@ namespace intel_cpu {
  */
 class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("SnippetsMarkSkipped", "0");
+    OPENVINO_MODEL_PASS_RTTI("SnippetsMarkSkipped");
     SnippetsMarkSkipped(bool enableBF16 = false) : ModelPass(), enableBF16(enableBF16) {}
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 
@@ -52,5 +51,4 @@ enum class NodeFusingType : int64_t {
     FusedWithMisc
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

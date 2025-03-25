@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1689,7 +1689,7 @@ TEST(convolution_f32_fw_gpu, convolution_big_size_weights) {
     };
 
     const std::vector<std::string> impl_kernel_data = {
-        "convolution_gpu_ref__f32"
+        "convolution_gpu_bfyx_os_iyx_osv16__f32"
     };
 
     for (size_t m = 0 ; m < filter_size_data.size() / 2; m++) {
@@ -1767,8 +1767,8 @@ TEST(convolution_f16_fw_gpu, convolution_big_size_weights) {
     };
 
     const std::vector<std::string> impl_kernel_data = {
-        "convolution_gpu_ref__f16",
-        "convolution_gpu_bfyx_gemm_like__f16",
+        "convolution_gpu_bfyx_os_iyx_osv16__f16",
+        "convolution_gpu_bfyx_os_iyx_osv16__f16",
     };
 
     for (size_t m = 0 ; m < filter_size_data.size() / 2; m++) {
@@ -7927,7 +7927,7 @@ TEST_P(convolution_grouped_gpu, base) {
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     auto out_lay = out_mem->get_layout();
 
     ASSERT_EQ(out_mem->get_layout().format, input_data_format);
@@ -10628,10 +10628,11 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
     auto output_memory = outputs.at("conv").get_memory();
     ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "convolution_gpu_ref", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_ref } }));
+
     auto output_memory_ref = calculate_ref(input, weights, config);
 
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
     for (size_t i = 0; i < output_ptr.size(); i++) {
@@ -10657,9 +10658,8 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_memory_ref = calculate_ref(input, weights, config);
-
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-        cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
         for (size_t i = 0; i < output_ptr.size(); i++) {
@@ -10820,7 +10820,14 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
         return outputs_ref.at("conv").get_memory();
     };
 
-    auto in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(p.in_shape[1]), ov::Dimension(), ov::Dimension()}, data_types::f16, format::b_fs_yx_fsv16};
+    cldnn::layout in_layout;
+    if (p.in_shape[2] % 2 == 0) {
+        // input feature is static
+        in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(p.in_shape[1]), ov::Dimension(), ov::Dimension()}, data_types::f16, format::b_fs_yx_fsv16};
+    } else {
+        // input feature is dynamic
+        in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(), ov::Dimension(), ov::Dimension()}, data_types::f16, format::b_fs_yx_fsv16};
+    }
     auto input = engine.allocate_memory({ p.in_shape, data_types::f16, format::b_fs_yx_fsv16 });
     auto weights = engine.allocate_memory({p.wei_shape, data_types::f16, is_grouped ? format::bfzyx : format::bfyx});
 

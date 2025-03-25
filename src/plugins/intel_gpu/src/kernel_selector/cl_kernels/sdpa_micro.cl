@@ -18,6 +18,12 @@
 #include "include/batch_headers/sdpa_utils.cl"
 #include "include/batch_headers/tile_ops.cl"
 
+/* The quantization parameter may be unique for each token/element */
+#define QUANTIZE_2D 2
+
+/* The quantization parameter shares the same value across the work-group */
+#define QUANTIZE_COMMON 3
+
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define DIV_UP(x, y) (((x) + (y)-1) / (y))
 
@@ -133,26 +139,72 @@ DECLARE_2D_TILE_RSELECT(a_scale_tile_type, SUBGROUP_SIZE, ugemm_vs_sg_tile_n, 1,
 
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
-        const global half *K, const global half *Q, const global half *V,
+        const global KEY_DATA_T *K,
+        const global QRY_DATA_T *Q,
+        const global VAL_DATA_T *V,
         global half *A,
+#if IS_PAGED_ATTENTION
+    const __global INPUT3_TYPE* subsequence_begins,
+#endif
 #if WITH_ATTN_MASK
         const global half *msk,
 #endif
 #if WITH_SCALE
         global SCALE_DATA_T *scale_ptr,
 #endif
-        int d, int k, int q) {
+#if IS_PAGED_ATTENTION
+        const __global int* blocked_indexes_start_and_gws_mapping
+#else
+        int d, int k, int q
+#endif
+#ifdef KV_COMPRESSED
+        , const global KEY_ATTR_SCALES_DATA_T *K_scales
+        , const global KEY_ATTR_ZP_DATA_T *K_zp
+        , const global VAL_ATTR_SCALES_DATA_T *V_scales
+        , const global VAL_ATTR_ZP_DATA_T *V_zp
+#endif
+        ) {
+#if IS_PAGED_ATTENTION
+    const uint query_block_idx = get_group_id(0) << 1;
+    const uint block_start_pos = blocked_indexes_start_and_gws_mapping[query_block_idx];
+    const uint gws_mapping = blocked_indexes_start_and_gws_mapping[query_block_idx + 1];
+    const uint subsequence_begin = subsequence_begins[gws_mapping];
+    const uint subsequence_end = subsequence_begins[gws_mapping + 1];
+    const uint subsequence_query_block_idx = block_start_pos - subsequence_begin;
+    const int k = subsequence_end - subsequence_begin;
+    const int q = k;
+    const int d = HEAD_SIZE;
+#endif
     uint sg_ij = sub_group_broadcast(get_local_id(1), 0);
     uint b0 = get_group_id(1);
     uint b1 = get_group_id(2);
+    uint b0_kv = b0 / KV_GROUP_SIZE;
 
+#if IS_PAGED_ATTENTION
+    uint wg_j0 = subsequence_query_block_idx;
+#else
     uint wg_j0 = get_group_id(0) * ugemm_kq_wg_tile_n;
+#endif
 
     /* Leading dimension for matrices */
+#if IS_PAGED_ATTENTION
+    uint ldk = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
+    uint ldq = HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM;
+    uint ldv = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
+    uint lda = HEAD_SIZE * HEADS_NUM;
+#else
     uint ldk = TRANSPOSE_K ? KEY_S3 : KEY_S2;
     uint ldq = QRY_S2;
     uint ldv = VAL_S2;
     uint lda = DST_S2;
+#endif
+
+#if KEY_SCALES || KEY_ZERO_POINTS
+    uint ldkq = DIV_UP(d, KEY_GROUP_SIZE);
+#endif
+#if VAL_SCALES || VAL_ZERO_POINTS
+    uint ldvq = DIV_UP(d, VAL_GROUP_SIZE);
+#endif
 
     /* Subgroup IDs for each GEMM */
     uint sg_i_kq = sg_ij % ugemm_kq_sg_per_wg_m;
@@ -183,10 +235,43 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     const bool need_sum_barrier = (ugemm_vs_barrier_count == 0);
 
     /* Locate K/Q/V/A matrices within batch */
-    K += KEY_OFF(b1, (b0 / KV_GROUP_SIZE), 0, 0) + INPUT1_OFFSET;
-    Q += QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET;
-    V += VAL_OFF(b1, (b0 / KV_GROUP_SIZE), 0, 0) + INPUT2_OFFSET;
+#if IS_PAGED_ATTENTION
+    K += subsequence_begin * ldk
+       + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
+    Q += subsequence_begin * ldq
+       + b0 * HEAD_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
+    V += subsequence_begin * ldv
+       + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
+    A += subsequence_begin * lda
+       + b0 * HEAD_SIZE;
+#else
+    K += (KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET) / KEY_ELEMENTS_PER_BYTE;
+    Q += (QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET);
+    V += (VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET) / VAL_ELEMENTS_PER_BYTE;
     A += DST_OFF(b1, b0, 0, 0, 0);
+#if WITH_ATTN_MASK
+    msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0);
+#endif
+#endif
+
+#if KEY_SCALES
+    K_scales += KEY_COMP_OFF(b1, b0_kv, 0, 0);
+#endif
+#if KEY_SCALES == QUANTIZE_COMMON
+    float k_scale = convert_float(*K_scales);
+#endif
+#if KEY_ZERO_POINTS
+    K_zp += KEY_COMP_OFF(b1, b0_kv, 0, 0) / KEY_ZP_ELEMENTS_PER_BYTE;
+#endif
+#if VAL_SCALES
+    V_scales += VAL_COMP_OFF(b1, b0_kv, 0, 0);
+#endif
+#if VAL_SCALES == QUANTIZE_COMMON
+    float v_scale = convert_float(*V_scales);
+#endif
+#if VAL_ZERO_POINTS
+    V_zp += VAL_COMP_OFF(b1, b0_kv, 0, 0) / VAL_ZP_ELEMENTS_PER_BYTE;
+#endif
 
     __builtin_assume_aligned(K, K_ALIGN);
     __builtin_assume_aligned(Q, Q_ALIGN);
@@ -216,7 +301,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         float iscale = native_recip(scale);
     #endif
 #else
-    float iscale = sqrt(convert_float(INPUT1_SIZE_X));
+    float iscale = sqrt(convert_float(HEAD_SIZE));
     float scale = native_recip(iscale);
 #endif
     scale *= 1.442695f; // log2(e)
@@ -283,7 +368,25 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         /* Calculate S = (K^T) * Q */
         s_tile_type S_tile
                 = ugemm_kq(K, ldk, Q_slm, D_MAX, k, ugemm_kq_wg_tile_n, d, k0,
-                        0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm);
+                        0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
+#if KEY_SCALES == QUANTIZE_2D
+                        ,
+                        K_scales
+#endif
+#if KEY_ZERO_POINTS
+                        ,
+                        K_zp
+#endif
+#if (KEY_SCALES == QUANTIZE_2D) || KEY_ZERO_POINTS
+                        ,
+                        ldkq
+#endif
+                );
+
+#if KEY_SCALES == QUANTIZE_COMMON
+#define k_scale_op(x) ((x)*k_scale)
+        tile_elementwise(S_tile, k_scale_op);
+#endif
 
         /* Apply attention mask */
 #if WITH_ATTN_MASK
@@ -297,6 +400,15 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         /* Apply k mask */
 #if REMAINDER_K
         tile_hbroadcast_min(&S_tile, k_mask);
+#endif
+
+#if WITH_CAUSAL_MASK
+#define greater_than(offset_k, offset_q) (offset_k > offset_q)
+        /* Apply causal mask */
+        tile_predicated_assignment_t(S_tile, k0 + sg_i0_kq, wg_j0 + sg_j0_kq,
+                greater_than, -INFINITY, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0,
+                ugemm_kq_c_type_nblock1);
 #endif
 
         /* Before softmax, we will need to scale columns by maximum values to avoid overflow. */
@@ -419,10 +531,31 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         /* Accumulate A += V * S */
         int k_chunk = min(k - k0, ugemm_kq_wg_tile_m);
-        a_tile_type A_tile1 = ugemm_vs(V, ldv, S_slm, ugemm_kq_wg_tile_m, d,
-                ugemm_kq_wg_tile_n, k_chunk, 0, 0, 0, sg_i_vs, sg_j_vs,
-                (local char *)ugemm_slm);
-        V += ldv * ugemm_kq_wg_tile_m;
+
+        a_tile_type A_tile1 = ugemm_vs(
+                V, ldv, S_slm, ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_n,
+                k_chunk, 0, 0, 0, sg_i_vs, sg_j_vs, (local char *)ugemm_slm
+#if VAL_SCALES == QUANTIZE_2D
+                ,
+                V_scales
+#endif
+#if VAL_ZERO_POINTS
+                ,
+                V_zp
+#endif
+#if (VAL_SCALES == QUANTIZE_2D) || VAL_ZERO_POINTS
+                ,
+                ldvq
+#endif
+        );
+
+        V += ldv * ugemm_kq_wg_tile_m / VAL_ELEMENTS_PER_BYTE;
+#if VAL_SCALES == QUANTIZE_2D
+        V_scales += ldvq * ugemm_kq_wg_tile_m;
+#endif
+#if VAL_ZERO_POINTS == QUANTIZE_2D
+        V_zp += ldvq * ugemm_kq_wg_tile_m / VAL_ZP_ELEMENTS_PER_BYTE;
+#endif
         tile_binary(A_tile, A_tile1, binary_add);
     }
 
@@ -439,6 +572,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 ugemm_vs_sg_tile_n * sg_j_vs, sg1);
         tile_binary(A_scale_tile, A_scale_tile_load, binary_add);
     }
+
+#if VAL_SCALES == QUANTIZE_COMMON
+#define v_scale_op(x) ((x)*v_scale)
+    tile_elementwise(A_tile, v_scale_op);
+#endif
 
     /* Rescale by 1 / (column sums) */
     tile_elementwise(A_scale_tile, native_vrecip);

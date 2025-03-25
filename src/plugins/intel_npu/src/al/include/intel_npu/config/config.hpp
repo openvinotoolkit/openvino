@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -422,6 +422,8 @@ public:
     typename std::string getString() const;
 
     std::string toString() const;
+
+    void fromString(const std::string& str);
 
 private:
     std::shared_ptr<const OptionsDesc> _desc;

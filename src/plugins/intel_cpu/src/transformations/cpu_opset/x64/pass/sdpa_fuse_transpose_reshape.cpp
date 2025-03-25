@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,13 +18,13 @@
  * Description: SDPA fuse transpose and reshape.
  *           Original pattern                            Fused pattern
  *
- *  input1         input2       input3
+ *  input1        readvalue      readvalue
  *     |             |             |
  * q_reshape     k_reshape     v_reshap
  *     |             |             |                         (qkv transpose and reshape's orders)
- * q_transpose  k_transpose   v_transpose                                     |
- *         \         |        /                      input1  input2  input3   |
- *          \        |       /                          \      |       /      /
+ * q_transpose  k_transpose   v_transpose                                        |
+ *         \         |        /                      input1 ReadValue ReadValue  |
+ *          \        |       /                          \      |       /        /
  *       ScaledDotProductAttention   --------->        SDPAWithTransposeReshape
  *                   |                                         |
  *              out_transpose                                  |
@@ -41,8 +41,8 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
     MATCHER_SCOPE(SDPAFuseTransposeReshape);
 
     auto q_reshape_node = wrap_type<op::v1::Reshape>({any_input(), any_input()});
-    auto k_reshape_node = wrap_type<op::v1::Reshape>({any_input(), any_input()});
-    auto v_reshape_node = wrap_type<op::v1::Reshape>({any_input(), any_input()});
+    auto k_reshape_node = wrap_type<op::v1::Reshape>({wrap_type<op::v6::ReadValue>(), any_input()});
+    auto v_reshape_node = wrap_type<op::v1::Reshape>({wrap_type<op::v6::ReadValue>(), any_input()});
 
     auto q_transpose_order_node = wrap_type<op::v0::Constant>();
     auto k_transpose_order_node = wrap_type<op::v0::Constant>();
@@ -92,10 +92,9 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
                 if (reverse) {
                     return check_dim_4(inp_shape) && check_dim_3(outp_shape) &&
                            (outp_shape[2] == inp_shape[2] * inp_shape[3]);
-                } else {
-                    return check_dim_3(inp_shape) && check_dim_4(outp_shape) &&
-                           (inp_shape[2] == outp_shape[2] * outp_shape[3]);
                 }
+                return check_dim_3(inp_shape) && check_dim_4(outp_shape) &&
+                       (inp_shape[2] == outp_shape[2] * outp_shape[3]);
             }
             return false;
         };

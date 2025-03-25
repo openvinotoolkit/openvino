@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "common/primitive_hashing_utils.hpp"
 #include "kernels/x64/rdft_kernel.hpp"
 #include "node.h"
 
@@ -29,6 +30,8 @@ public:
     std::vector<std::vector<float>> generateTwiddles(const std::vector<int>& signalSizes,
                                                      const std::vector<size_t>& outputShape,
                                                      const std::vector<int>& axes);
+
+    static std::shared_ptr<RDFTExecutor> build(bool inverse, NodeDesc* primDesc = nullptr);
 
 protected:
     bool isInverse;
@@ -96,13 +99,13 @@ private:
 
 class RDFT : public Node {
 public:
-    RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void prepareParams() override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool created() const override;
     void createPrimitive() override;
 
@@ -115,7 +118,6 @@ private:
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
 
-    std::string errorMsgPrefix;
     bool inverse;
     std::vector<int> axes;
     std::vector<int> signalSizes;
@@ -123,6 +125,20 @@ private:
     std::shared_ptr<RDFTExecutor> executor;
     bool isAxesConstant = false;
     bool isSignalSizesConstant = false;
+};
+
+struct RDFTKey {
+    bool isInverse;
+
+    size_t hash() const {
+        size_t seed = 0;
+        seed = dnnl::impl::hash_combine(seed, isInverse);
+        return seed;
+    }
+
+    bool operator==(const RDFTKey& rhs) const {
+        return isInverse == rhs.isInverse;
+    }
 };
 
 }  // namespace node

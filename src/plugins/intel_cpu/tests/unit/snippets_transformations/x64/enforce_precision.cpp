@@ -192,203 +192,90 @@ std::vector<std::pair<PartialShape, PartialShape>> shapes {
     {{1, 3, 16, 16}, {1, 3, 16, 16}}
 };
 
-std::vector<EnforcePrecisionParamsValues> test_values {
-    {
-        {element::bf16, element::bf16, element::f32},
-        element::f32,
-        element::bf16,
-        {
-            {element::f32, element::f32},
-            {},
-            {},
-            {element::bf16},
-            {
-                {
-                    {element::bf16, element::bf16, element::bf16},
-                    {element::bf16, element::bf16}
-                },
-            },
-            {
-                {
-                    {element::bf16, element::bf16, element::bf16}
-                }
-            }
-        },
-        {
-            {},
-            {},
-            {element::f32, element::undefined},
-            {},
-            {element::bf16}
-        }
-    },
+std::vector<EnforcePrecisionParamsValues> test_values{
+    {{element::bf16, element::bf16, element::f32},
+     element::f32,
+     element::bf16,
+     {{element::f32, element::f32},
+      {},
+      {},
+      {element::bf16},
+      {
+          {{element::bf16, element::bf16, element::bf16}, {element::bf16, element::bf16}},
+      },
+      {{{element::bf16, element::bf16, element::bf16}}}},
+     {{}, {}, {element::f32, element::dynamic}, {}, {element::bf16}}},
 
-    {
-        {element::bf16, element::bf16, element::f32},
-        element::f32,
-        element::bf16,
-        {
-            {element::f32, element::f32},
-            {},
-            {},
-            {element::bf16},
-            {
-                {
-                    {element::bf16, element::bf16}
-                },
-            },
-            {
-                {
-                    {element::bf16, element::bf16}
-                }
-            }
-        },
-        {
-            {},
-            {},
-            {element::undefined, element::bf16},
-            {element::f32},
-            {element::bf16}
-        }
-    },
+    {{element::bf16, element::bf16, element::f32},
+     element::f32,
+     element::bf16,
+     {{element::f32, element::f32},
+      {},
+      {},
+      {element::bf16},
+      {
+          {{element::bf16, element::bf16}},
+      },
+      {{{element::bf16, element::bf16}}}},
+     {{}, {}, {element::dynamic, element::bf16}, {element::f32}, {element::bf16}}},
 
-    {
-        {element::bf16, element::bf16, element::f32},
-        element::f32,
-        element::bf16,
-        {
-            {element::f32, element::f32},
-            {},
-            {},
-            {element::bf16},
-            {
-                {
-                    {element::bf16, element::bf16}
-                },
-            },
-            {
-                {
-                    {element::bf16, element::f32}
-                }
-            }
-        },
-        {
-            {},
-            {},
-            {},
-            {element::f32},
-            {element::bf16}
-        }
-    },
+    {{element::bf16, element::bf16, element::f32},
+     element::f32,
+     element::bf16,
+     {{element::f32, element::f32},
+      {},
+      {},
+      {element::bf16},
+      {
+          {{element::bf16, element::bf16}},
+      },
+      {{{element::bf16, element::f32}}}},
+     {{}, {}, {}, {element::f32}, {element::bf16}}},
 
-    {
-        {element::bf16, element::bf16, element::i32},
-        element::f32,
-        element::bf16,
-        {
-            {element::f32, element::f32},
-            {},
-            {},
-            {element::bf16},
-            {
-                {
-                    {element::bf16, element::bf16}
-                },
-            },
-            {
-                {
-                    {element::bf16, element::bf16}
-                }
-            }
-        },
-        {
-            {},
-            {},
-            {element::f32, element::undefined},
-            {},
-            {element::bf16}
-        }
-    },
+    {{element::bf16, element::bf16, element::i32},
+     element::f32,
+     element::bf16,
+     {{element::f32, element::f32},
+      {},
+      {},
+      {element::bf16},
+      {
+          {{element::bf16, element::bf16}},
+      },
+      {{{element::bf16, element::bf16}}}},
+     {{}, {}, {element::f32, element::dynamic}, {}, {element::bf16}}},
 
-    {
-        {element::bf16, element::bf16, element::i32},
-        element::f32,
-        element::bf16,
-        {
-            {element::f32, element::f32},
-            {},
-            {},
-            {element::bf16},
-            {
-                {
-                    {element::bf16, element::bf16}
-                },
-            },
-            {
-                {
-                    {element::bf16, element::i32}
-                }
-            }
-        },
-        {
-            {},
-            {},
-            {},
-            {element::f32},
-            {element::bf16}
-        }
-    },
+    {{element::bf16, element::bf16, element::i32},
+     element::f32,
+     element::bf16,
+     {{element::f32, element::f32},
+      {},
+      {},
+      {element::bf16},
+      {
+          {{element::bf16, element::bf16}},
+      },
+      {{{element::bf16, element::i32}}}},
+     {{}, {}, {}, {element::f32}, {element::bf16}}},
 
-    {
-        {element::f16, element::f16, element::f32},
-        element::f32,
-        element::f16,
-        {
-            {element::f32, element::f32},
-            {},
-            {},
-            {element::f16},
-            {
-                {
-                    {element::f16, element::f16}
-                },
-            },
-            {
-                {
-                    {element::f16, element::f32}
-                }
-            }
-        },
-        {
-            {},
-            {},
-            {},
-            {element::f32},
-            {element::f16}
-        }
-    },
+    {{element::f16, element::f16, element::f32},
+     element::f32,
+     element::f16,
+     {{element::f32, element::f32},
+      {},
+      {},
+      {element::f16},
+      {
+          {{element::f16, element::f16}},
+      },
+      {{{element::f16, element::f32}}}},
+     {{}, {}, {}, {element::f32}, {element::f16}}},
 
-    {
-        {element::f16, element::f16, element::f32},
-        element::f32,
-        element::f16,
-        {
-            {element::f32, element::f32},
-            {},
-            {},
-            {element::f16},
-            {},
-            {}
-        },
-        {
-            {element::f32, element::f32},
-            {},
-            {},
-            {},
-            {element::f16}
-        }
-    }
-};
+    {{element::f16, element::f16, element::f32},
+     element::f32,
+     element::f16,
+     {{element::f32, element::f32}, {}, {}, {element::f16}, {}, {}},
+     {{element::f32, element::f32}, {}, {}, {}, {element::f16}}}};
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_EnforcePrecisionTest,

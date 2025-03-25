@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_set>
+#include <utility>
 
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -79,6 +80,7 @@ public:
     bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
     void free();
+    size_t size() const;  // in bytes
 
 private:
     bool m_useExternalStorage = false;
@@ -122,7 +124,7 @@ using MemoryBlockCPtr = std::shared_ptr<const IMemoryBlockObserver>;
 
 class DnnlMemBlockHandle {
 public:
-    DnnlMemBlockHandle(MemoryBlockPtr pBlock, Memory* pMem) : m_pMemBlock(pBlock), m_pMem(pMem) {
+    DnnlMemBlockHandle(MemoryBlockPtr pBlock, Memory* pMem) : m_pMemBlock(std::move(pBlock)), m_pMem(pMem) {
         if (m_pMemBlock) {
             m_pMemBlock->registerMemory(m_pMem);
         }
@@ -131,11 +133,11 @@ public:
     DnnlMemBlockHandle(const DnnlMemBlockHandle&) = delete;
     DnnlMemBlockHandle& operator=(const DnnlMemBlockHandle&) = delete;
 
-    DnnlMemBlockHandle(DnnlMemBlockHandle&& source) {
+    DnnlMemBlockHandle(DnnlMemBlockHandle&& source) noexcept {
         std::swap(m_pMemBlock, source.m_pMemBlock);
         std::swap(m_pMem, source.m_pMem);
     }
-    DnnlMemBlockHandle& operator=(DnnlMemBlockHandle&& rhs) {
+    DnnlMemBlockHandle& operator=(DnnlMemBlockHandle&& rhs) noexcept {
         std::swap(m_pMemBlock, rhs.m_pMemBlock);
         std::swap(m_pMem, rhs.m_pMem);
         return *this;
@@ -187,7 +189,7 @@ public:
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
     virtual void redefineDesc(MemoryDescPtr desc) = 0;
 
-    virtual void load(const IMemory& src, bool ftz = true) const = 0;
+    virtual void load(const IMemory& src, bool ftz, bool bf16saturation) const = 0;
 
     virtual MemoryBlockPtr getMemoryBlock() const = 0;
 
@@ -238,8 +240,8 @@ public:
     using MemBlockPtr = std::shared_ptr<StaticMemoryBlock>;
 
 public:
-    StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
-    StaticMemory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
+    StaticMemory(dnnl::engine eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
     StaticMemory(const StaticMemory&) = delete;
     StaticMemory& operator=(const StaticMemory&) = delete;
@@ -259,7 +261,7 @@ public:
     // Always throws since a static memory descriptor should not be modified
     void redefineDesc(MemoryDescPtr desc) override;
 
-    void load(const IMemory& src, bool ftz = true) const override;
+    void load(const IMemory& src, bool ftz, bool bf16saturation) const override;
 
     MemoryBlockPtr getMemoryBlock() const override;
 
@@ -279,10 +281,10 @@ private:
 
 class Memory : public IMemory {
 public:
-    Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
-    Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
-    Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryBlockPtr block);
-    Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryBlockPtr block);
+    Memory(dnnl::engine eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
+    Memory(dnnl::engine eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    Memory(dnnl::engine eng, MemoryDescPtr desc, MemoryBlockPtr block);
+    Memory(dnnl::engine eng, const MemoryDesc& desc, MemoryBlockPtr block);
 
     Memory(const Memory&) = delete;
     Memory& operator=(const Memory&) = delete;
@@ -314,7 +316,7 @@ public:
 
     void redefineDesc(MemoryDescPtr desc) override;
 
-    void load(const IMemory& src, bool ftz = true) const override;
+    void load(const IMemory& src, bool ftz, bool bf16saturation) const override;
     void nullify() override;
 
     dnnl::engine getEngine() const {
@@ -385,18 +387,18 @@ public:
 
     using StringMemoryBlockPtr = std::shared_ptr<StringMemoryBlock>;
 
-    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const void* data = nullptr);
+    StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* data = nullptr);
 
-    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const void* data = nullptr)
-        : StringMemory(engine, desc.clone(), data) {}
+    StringMemory(dnnl::engine engine, const MemoryDesc& desc, const void* data = nullptr)
+        : StringMemory(std::move(engine), desc.clone(), data) {}
 
-    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const StringMemoryBlockPtr& block)
-        : m_engine(engine),
-          m_mem_desc(desc),
-          m_memoryBlock(block) {}
+    StringMemory(dnnl::engine engine, MemoryDescPtr desc, StringMemoryBlockPtr block)
+        : m_engine(std::move(engine)),
+          m_mem_desc(std::move(desc)),
+          m_memoryBlock(std::move(block)) {}
 
-    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const StringMemoryBlockPtr& block)
-        : StringMemory(engine, desc.clone(), block) {}
+    StringMemory(dnnl::engine engine, const MemoryDesc& desc, StringMemoryBlockPtr block)
+        : StringMemory(std::move(engine), desc.clone(), std::move(block)) {}
 
     const MemoryDesc& getDesc() const override {
         return *m_mem_desc;
@@ -420,7 +422,7 @@ public:
 
     void redefineDesc(MemoryDescPtr desc) override;
 
-    void load(const IMemory& src, bool ftz = false) const override;
+    void load(const IMemory& src, bool ftz, bool bf16saturation) const override;
 
     MemoryBlockPtr getMemoryBlock() const override;
 
@@ -443,17 +445,17 @@ using MemoryCPtr = std::shared_ptr<const IMemory>;
 using StringMemoryPtr = std::shared_ptr<StringMemory>;
 
 bool mbind_move(void* data, size_t size, int numaNodeID);
-bool mbind_move(const MemoryCPtr mem, int numaNodeID);
-bool mbind_move(const dnnl::memory mem, int numaNodeID);
+bool mbind_move(const MemoryCPtr& mem, int numaNodeID);
+bool mbind_move(const dnnl::memory& mem, int numaNodeID);
 
 MemoryPtr split_horizontal(const dnnl::engine& eng,
-                           const MemoryPtr src,
+                           const MemoryPtr& src,
                            int dim,
                            int w_rank,
                            int w_size,
                            bool need_fill = true);
 MemoryPtr split_vertical(const dnnl::engine& eng,
-                         const MemoryPtr src,
+                         const MemoryPtr& src,
                          int dim,
                          int w_rank,
                          int w_size,

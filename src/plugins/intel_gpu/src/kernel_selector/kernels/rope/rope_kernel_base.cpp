@@ -70,7 +70,8 @@ RoPEKernelBase::DispatchData RoPEKernelBase::SetDefault(const rope_params& param
     if (params.is_qwen) {
         dispatchData.gws = {input.Batch().v,
                             input.Feature().v,
-                            params.head_cnt * std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims)};
+                            params.head_cnt *
+                                std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims)};
     } else if (params.is_chatglm) {
         if (params.support_2d_rope) {
             // input  [batch_size, seq_length]

@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import List
 
 import numpy as np
-from openvino.runtime.op import Parameter, Constant
-from openvino.runtime.opset13 import add, multiply
+from openvino.op import Parameter, Constant
+from openvino.opset13 import add, multiply
 
 import openvino as ov
 from tests.utils.helpers import create_filenames_for_ir

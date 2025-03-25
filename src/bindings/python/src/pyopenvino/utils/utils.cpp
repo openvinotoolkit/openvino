@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -153,6 +153,15 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::vector<double>>()) {
         return py::cast(any.as<std::vector<double>>());
     }
+    // Check for std::vector<ov::Any>
+    else if (any.is<std::vector<ov::Any>>()) {
+        const auto& values = any.as<std::vector<ov::Any>>();
+        PyObject* list = PyList_New(0);
+        for (const auto& value : values) {
+            PyList_Append(list, from_ov_any(value).ptr());
+        }
+        return py::cast<py::object>(list);
+    }
     // Check for std::tuple<unsigned int, unsigned int>
     else if (any.is<std::tuple<unsigned int, unsigned int>>()) {
         return py::cast(any.as<std::tuple<unsigned int, unsigned int>>());
@@ -190,13 +199,29 @@ py::object from_ov_any(const ov::Any& any) {
         PyObject* dict = PyDict_New();
         for (const auto& it : val) {
             std::string property_name = it;
-            std::string mutability = it.is_mutable() ? "RW" : "RO";
-            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
+            auto mutability = it.get_mutability();
+            std::string mutability_str;
+            switch (mutability) {
+            case ov::PropertyMutability::RW:
+                mutability_str = "RW";
+                break;
+            case ov::PropertyMutability::RO:
+                mutability_str = "RO";
+                break;
+            case ov::PropertyMutability::WO:
+                mutability_str = "WO";
+                break;
+            default:
+                throw std::runtime_error("Unknown mutability type");
+            }
+            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability_str.c_str()));
         }
         return py::cast<py::object>(dict);
     } else if (any.is<std::shared_ptr<ov::Meta>>()) {
         const ov::AnyMap& as_map = *any.as<std::shared_ptr<ov::Meta>>();
         return from_ov_any_map(as_map);
+    } else if (any.is<std::shared_ptr<ov::Symbol>>()) {
+        return py::cast(any.as<std::shared_ptr<ov::Symbol>>());
     } else if (any.is<ov::element::Type>()) {
         return py::cast(any.as<ov::element::Type>());
     } else if (any.is<ov::hint::Priority>()) {
@@ -217,8 +242,6 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::device::Type>());
     } else if (any.is<ov::streams::Num>()) {
         return py::cast(any.as<ov::streams::Num>());
-    } else if (any.is<ov::Affinity>()) {
-        return py::cast(any.as<ov::Affinity>());
     } else if (any.is<ov::WorkloadType>()) {
         return py::cast(any.as<ov::WorkloadType>());
     } else if (any.is<ov::CacheMode>()) {
@@ -238,12 +261,16 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::frontend::type::List>());
     } else if (any.is<ov::frontend::type::Tensor>()) {
         return py::cast(any.as<ov::frontend::type::Tensor>());
+    } else if (any.is<ov::frontend::type::Complex>()) {
+        return py::cast(any.as<ov::frontend::type::Complex>());
     } else if (any.is<ov::frontend::type::Str>()) {
         return py::cast(any.as<ov::frontend::type::Str>());
     } else if (any.is<ov::frontend::type::PyNone>()) {
         return py::cast(any.as<ov::frontend::type::PyNone>());
     } else if (any.is<ov::frontend::type::PyScalar>()) {
         return py::cast(any.as<ov::frontend::type::PyScalar>());
+    } else if (any.is<ov::Tensor>()) {
+        return py::cast(any.as<ov::Tensor>());
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
@@ -275,14 +302,14 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                 [py_encrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                return (*py_encrypt)(in_str).cast<std::string>();
+                return (*py_encrypt)(py::bytes(in_str)).cast<std::string>();
             };
 
             std::function<std::string(const std::string&)> decrypt_func =
                 [py_decrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                return (*py_decrypt)(in_str).cast<std::string>();
+                return (*py_decrypt)(py::bytes(in_str)).cast<std::string>();
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
@@ -309,6 +336,18 @@ std::string convert_path_to_string(const py::object& path) {
         << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
            "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
     OPENVINO_THROW(str.str());
+}
+
+std::shared_ptr<ov::Model> convert_to_model(const py::object& obj) {
+    if (!py::isinstance(obj, py::module_::import("openvino").attr("Model"))) {
+        throw py::type_error("Incompatible `model` argument. Please provide a valid openvino.Model instance.");
+    }
+    auto model = obj.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+    if (model == nullptr) {
+        throw py::attribute_error("Invalid openvino.Model instance. It cannot be None. "
+                                  "Please make sure it is not used outside of its context.");
+    }
+    return model;
 }
 
 Version convert_to_version(const std::string& version) {
@@ -360,9 +399,7 @@ ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
     for (auto& item : py::cast<py::dict>(py_obj)) {
         std::string key = py::cast<std::string>(item.first);
         py::object value = py::cast<py::object>(item.second);
-        if (py::isinstance<ov::Affinity>(value)) {
-            return_value[key] = py::cast<ov::Affinity>(value);
-        } else if (py_object_is_any_map(value)) {
+        if (py_object_is_any_map(value)) {
             return_value[key] = Common::utils::py_object_to_any_map(value);
         } else {
             return_value[key] = Common::utils::py_object_to_any(value);
@@ -437,8 +474,6 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::device::Type>(py_obj);
     } else if (py::isinstance<ov::streams::Num>(py_obj)) {
         return py::cast<ov::streams::Num>(py_obj);
-    } else if (py::isinstance<ov::Affinity>(py_obj)) {
-        return py::cast<ov::Affinity>(py_obj);
     } else if (py::isinstance<ov::WorkloadType>(py_obj)) {
         return py::cast<ov::WorkloadType>(py_obj);
     } else if (py::isinstance<ov::Tensor>(py_obj)) {
@@ -448,12 +483,14 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         // FrontEnd Decoder
     } else if (py::isinstance<ov::frontend::IDecoder>(py_obj)) {
         return py::cast<std::shared_ptr<ov::frontend::IDecoder>>(py_obj);
-        // TF FrontEnd GraphIterator
-    } else if (py::isinstance<ov::frontend::tensorflow::GraphIterator>(py_obj)) {
-        return py::cast<std::shared_ptr<ov::frontend::tensorflow::GraphIterator>>(py_obj);
+        // FrontEnd GraphIterator
+    } else if (py::isinstance<ov::frontend::GraphIterator>(py_obj)) {
+        return py::cast<std::shared_ptr<ov::frontend::GraphIterator>>(py_obj);
         // Custom FrontEnd Types
     } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
         return py::cast<ov::frontend::type::Tensor>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::Complex>(py_obj)) {
+        return py::cast<ov::frontend::type::Complex>(py_obj);
     } else if (py::isinstance<ov::frontend::type::List>(py_obj)) {
         return py::cast<ov::frontend::type::List>(py_obj);
     } else if (py::isinstance<ov::frontend::type::Str>(py_obj)) {

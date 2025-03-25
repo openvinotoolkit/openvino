@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,14 +31,14 @@ ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
         for (auto& key : input_descs) {
             auto is_equal = [&](const std::shared_ptr<SubGraphOp::InputDescription>& input) -> bool {
                 if (ti->input_value(input->m_input_index) == ti->input_value(key->m_input_index)) {
-                    auto invariant_l = std::dynamic_pointer_cast<SubGraphOp::InvariantInputDescription>(input);
-                    auto invariant_r = std::dynamic_pointer_cast<SubGraphOp::InvariantInputDescription>(key);
+                    auto invariant_l = ov::as_type_ptr<SubGraphOp::InvariantInputDescription>(input);
+                    auto invariant_r = ov::as_type_ptr<SubGraphOp::InvariantInputDescription>(key);
                     if (invariant_l && invariant_r) {
                         return true;
                     }
 
-                    auto slice_l = std::dynamic_pointer_cast<SubGraphOp::SliceInputDescription>(input);
-                    auto slice_r = std::dynamic_pointer_cast<SubGraphOp::SliceInputDescription>(key);
+                    auto slice_l = ov::as_type_ptr<SubGraphOp::SliceInputDescription>(input);
+                    auto slice_r = ov::as_type_ptr<SubGraphOp::SliceInputDescription>(key);
 
                     if (slice_l && slice_r) {
                         return slice_l->m_axis == slice_r->m_axis && slice_l->m_start == slice_r->m_start &&
@@ -46,8 +46,8 @@ ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
                                slice_l->m_stride == slice_r->m_stride;
                     }
 
-                    auto merged_l = std::dynamic_pointer_cast<SubGraphOp::MergedInputDescription>(input);
-                    auto merged_r = std::dynamic_pointer_cast<SubGraphOp::MergedInputDescription>(key);
+                    auto merged_l = ov::as_type_ptr<SubGraphOp::MergedInputDescription>(input);
+                    auto merged_r = ov::as_type_ptr<SubGraphOp::MergedInputDescription>(key);
 
                     if (merged_l && merged_r) {
                         return merged_l->m_body_value_index == merged_r->m_body_value_index;
@@ -91,12 +91,12 @@ ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
         for (const auto& remain : should_stay) {
             auto par = body->get_parameters()[remain->m_body_parameter_index];
             auto in = ti->input_value(remain->m_input_index);
-            if (auto invariant = std::dynamic_pointer_cast<SubGraphOp::InvariantInputDescription>(remain)) {
+            if (auto invariant = ov::as_type_ptr<SubGraphOp::InvariantInputDescription>(remain)) {
                 new_ti->set_invariant_input(par, in);
-            } else if (auto merged = std::dynamic_pointer_cast<SubGraphOp::MergedInputDescription>(remain)) {
+            } else if (auto merged = ov::as_type_ptr<SubGraphOp::MergedInputDescription>(remain)) {
                 auto results = body->get_results();
                 new_ti->set_merged_input(par, in, results[merged->m_body_value_index]);
-            } else if (auto slice = std::dynamic_pointer_cast<SubGraphOp::SliceInputDescription>(remain)) {
+            } else if (auto slice = ov::as_type_ptr<SubGraphOp::SliceInputDescription>(remain)) {
                 new_ti->set_sliced_input(par,
                                          in,
                                          slice->m_start,

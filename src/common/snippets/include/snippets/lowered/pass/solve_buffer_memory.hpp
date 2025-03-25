@@ -24,7 +24,7 @@ namespace pass {
  */
 class SolveBufferMemory : public Pass {
 public:
-    OPENVINO_RTTI("SolveBufferMemory", "Pass")
+    OPENVINO_RTTI("SolveBufferMemory", "", Pass);
 
     SolveBufferMemory(size_t& static_buffer_scratchpad_size) : m_static_buffer_scratchpad_size(static_buffer_scratchpad_size) {}
     /**

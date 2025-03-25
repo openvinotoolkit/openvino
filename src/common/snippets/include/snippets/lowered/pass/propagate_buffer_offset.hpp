@@ -19,7 +19,7 @@ namespace pass {
  */
 class PropagateBufferOffset: public Pass {
 public:
-    OPENVINO_RTTI("PropagateBufferOffset", "Pass")
+    OPENVINO_RTTI("PropagateBufferOffset", "", Pass);
     PropagateBufferOffset() = default;
 
     /**

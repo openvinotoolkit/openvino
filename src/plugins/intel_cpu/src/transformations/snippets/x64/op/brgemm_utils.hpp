@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -11,12 +13,12 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
-namespace intel_cpu {
-namespace brgemm_utils {
+
+namespace intel_cpu::brgemm_utils {
 
 enum class BRGEMM_TYPE {
-    STAND_ALONE,         // No extra requirements, used for f32|f32
-    WITH_AMX,            // i8|i8 or bf16|bf16 on AMX system - needs BrgemmCopyB and scratchpad
+    STAND_ALONE,  // No extra requirements, used for f32|f32
+    WITH_AMX,     // i8|i8 or bf16|bf16 on AMX system or fp16|fp16 on AMX_FP16 system - needs BrgemmCopyB and scratchpad
     WITH_COMPENSATIONS,  // i8|i8 (non-AMX system) - needs BrgemmCopyB for data repacking and compensations
     REPACKING_ONLY,      // u8|i8, or bf16|bf16 (non-AMX system), or brgemm with transpose_b=true - needs BrgemmCopyB on
                          // second input for data repacking
@@ -60,19 +62,20 @@ namespace repacking {
 size_t compute_inner_n_block(const ov::element::Type& precision);
 /// \brief  Computes inner K block size used by OneDNN implementation. Depends on tensor precision
 size_t compute_inner_k_block(const ov::element::Type& precision);
-/**
- * @brief Computes leading dimension (LDB) which must be used in brgemm and brgemm_copy_b emitters
- * @param n_block N block size shared between BrgemmCPU and BrgemmCopyB node
- * @param precision tensor precision
- */
-template <
-    typename T,
-    typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
-T compute_LDB(T n_block, const ov::element::Type& precision) {
-    return snippets::utils::is_dynamic_value<T>(n_block)
-               ? n_block
-               : std::max(n_block, static_cast<T>(compute_inner_n_block(precision)));
+
+/// \brief  Computes N dim in output blocked shape of BrgemmCopyB. Depends on tensor precision
+template <typename T,
+          typename = typename std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
+inline T compute_repacked_n_dim(T n, const ov::element::Type& precision) {
+    return ov::snippets::utils::rnd_up(n, static_cast<T>(compute_inner_n_block(precision)));
 }
+
+/// \brief  Computes allocation shape for Buffer between BrgemmCopyB and Brgemm
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K,
+                                                           size_t N,
+                                                           const ov::element::Type& prc,
+                                                           bool is_transposed);
+
 /**
  * @brief Retrieves the expression pointer for the brgemm_copy_b expression corresponding to the given BrgemmCPU
  * expression.
@@ -81,8 +84,8 @@ T compute_LDB(T n_block, const ov::element::Type& precision) {
  */
 snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::ExpressionPtr& brgemm_expr);
 }  // namespace repacking
-}  // namespace brgemm_utils
-}  // namespace intel_cpu
+}  // namespace intel_cpu::brgemm_utils
+
 template <>
 class AttributeAdapter<intel_cpu::brgemm_utils::BRGEMM_TYPE>
     : public EnumAttributeAdapterBase<intel_cpu::brgemm_utils::BRGEMM_TYPE> {

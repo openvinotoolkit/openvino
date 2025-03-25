@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 #include "executor.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum MVNLayoutType { mvn_planar, mvn_block, mvn_by_channel };
 
@@ -29,7 +28,7 @@ struct MVNAttrs {
 
 class MVNExecutor {
 public:
-    MVNExecutor(const ExecutorContext::CPtr context);
+    MVNExecutor(ExecutorContext::CPtr context);
     virtual bool init(const MVNAttrs& mvnAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
@@ -40,7 +39,7 @@ public:
                       const void* post_ops_data_) = 0;
     virtual ~MVNExecutor() = default;
 
-    virtual impl_desc_type getImplType() const = 0;
+    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
 
     static VectorDims transformTo5DCase(const VectorDims& shape, bool initAcrossChannels);
 
@@ -55,14 +54,13 @@ using MVNExecutorCPtr = std::shared_ptr<const MVNExecutor>;
 class MVNExecutorBuilder {
 public:
     ~MVNExecutorBuilder() = default;
-    virtual bool isSupported(const MVNAttrs& mvnAttrs,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual MVNExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual bool isSupported(const MVNAttrs& mvnAttrs,
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+    [[nodiscard]] virtual MVNExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using MVNExecutorBuilderPtr = std::shared_ptr<MVNExecutorBuilder>;
 using MVNExecutorBuilderCPtr = std::shared_ptr<const MVNExecutorBuilder>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

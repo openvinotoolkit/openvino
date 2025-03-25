@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,10 +90,12 @@ public:
         ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
         void* mem = nullptr);
 
-    virtual ov::SoPtr<ov::ITensor> createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
-                                                    const ov::element::Type& element_type,
-                                                    const ov::Shape& shape,
-                                                    const Config& config);
+    virtual ov::SoPtr<ov::ITensor> createHostTensor(
+        std::shared_ptr<ov::IRemoteContext> context,
+        const ov::element::Type& element_type,
+        const ov::Shape& shape,
+        const Config& config,
+        ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED);
 
 protected:
     virtual ~IDevice() = default;

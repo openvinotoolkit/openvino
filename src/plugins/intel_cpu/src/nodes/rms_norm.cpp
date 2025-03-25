@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,16 +27,14 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct RMSNormKey {
     ov::element::Type precision;
     size_t data_size;
     size_t scale_size;
     float eps;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const RMSNormKey& rhs) const;
 };
 
@@ -67,8 +65,9 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const kernel::jit_
         res = std::make_shared<kernel::jit_rms_kernel<dnnl::impl::cpu::x64::avx2>>(param);
     }
 
-    if (res)
+    if (res) {
         res->create_kernel();
+    }
 
     return res;
 }
@@ -98,7 +97,7 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
     void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
         auto src = inputs[0]->getDataAs<uint8_t>();
         auto dst = output->getDataAs<uint8_t>();
-        float* scale = inputs[1]->getDataAs<float>();
+        auto* scale = inputs[1]->getDataAs<float>();
 
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dst_strides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -117,22 +116,24 @@ private:
 };
 #endif  // OPENVINO_ARCH_X86_64
 
-RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, RMSNormShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    const auto rms = std::dynamic_pointer_cast<const ov::op::internal::RMS>(op);
+    const auto rms = ov::as_type_ptr<const ov::op::internal::RMS>(op);
     m_eps = static_cast<float>(rms->get_epsilon());
 }
 
 void RMSNorm::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     auto precision = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16))
+    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         precision = ov::element::f32;
+    }
 
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
@@ -172,7 +173,7 @@ void RMSNorm::createPrimitive() {
     m_executor = result.first;
 }
 
-void RMSNorm::execute(dnnl::stream strm) {
+void RMSNorm::execute(const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
 
@@ -185,7 +186,7 @@ void RMSNorm::execute(dnnl::stream strm) {
 
 bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto rms = std::dynamic_pointer_cast<const ov::op::internal::RMS>(op);
+        const auto rms = ov::as_type_ptr<const ov::op::internal::RMS>(op);
         if (rms) {
             if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
                 errorMessage = "RMSNorm needs avx2+.";
@@ -231,6 +232,4 @@ bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

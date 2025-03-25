@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -12,8 +12,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 using namespace Xbyak::util;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 jit_perf_count_rdtsc_start_emitter::jit_perf_count_rdtsc_start_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                                                                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
@@ -86,6 +85,6 @@ void jit_perf_count_rdtsc_end_emitter::emit_impl(const std::vector<size_t>& in_i
     h->pop(h->rax);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
+
 #endif  // SNIPPETS_DEBUG_CAPS

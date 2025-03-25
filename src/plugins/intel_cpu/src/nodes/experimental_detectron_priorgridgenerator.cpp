@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,15 +9,12 @@
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                                    std::string& errorMessage) noexcept {
     try {
-        const auto priorGridGen =
-            std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+        const auto priorGridGen = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
         if (!priorGridGen) {
             errorMessage = "Only opset6 ExperimentalDetectronPriorGridGenerator operation is supported";
             return false;
@@ -29,17 +26,17 @@ bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::sh
 }
 
 ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(const std::shared_ptr<ov::Node>& op,
-                                                                                 const GraphContext::CPtr context)
+                                                                                 const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "ExperimentalDetectronPriorGridGenerator layer with name '" + op->get_friendly_name() + "'";
-    const auto priorGridGen = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
-    if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+    const auto priorGridGen = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
+    if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1) {
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
+    }
 
     const auto& attr = priorGridGen->get_attrs();
     grid_w_ = attr.w;
@@ -49,8 +46,9 @@ ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator
 }
 
 void ExperimentalDetectronPriorGridGenerator::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, ov::element::f32},
@@ -59,7 +57,7 @@ void ExperimentalDetectronPriorGridGenerator::initSupportedPrimitiveDescriptors(
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronPriorGridGenerator::execute(dnnl::stream strm) {
+void ExperimentalDetectronPriorGridGenerator::execute(const dnnl::stream& strm) {
     const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[0];
     assert(getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[1] == 4);
 
@@ -97,6 +95,4 @@ bool ExperimentalDetectronPriorGridGenerator::needPrepareParams() const {
     return false;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

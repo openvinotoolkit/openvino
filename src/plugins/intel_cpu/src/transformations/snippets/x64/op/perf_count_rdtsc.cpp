@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -18,10 +18,7 @@ std::shared_ptr<Node> PerfCountRdtscBegin::clone_with_new_inputs(const OutputVec
 }
 
 /////////////////////////PerfCountRdtscEnd//////////////////////
-PerfCountRdtscEnd::PerfCountRdtscEnd(const Output<Node>& pc_begin)
-    : ov::snippets::op::PerfCountEndBase({pc_begin}),
-      accumulation(0ul),
-      iteration(0u) {
+PerfCountRdtscEnd::PerfCountRdtscEnd(const Output<Node>& pc_begin) : ov::snippets::op::PerfCountEndBase({pc_begin}) {
     constructor_validate_and_infer_types();
 }
 

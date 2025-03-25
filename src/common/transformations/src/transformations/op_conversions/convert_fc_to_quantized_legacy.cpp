@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
     std::vector<element::Type> weights_types{ov::element::i8};
 
     auto activations_m = pattern::any_input(ov::pass::pattern::type_matches_any(activation_types));
-    auto weights_m = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any(weights_types));
+    auto weights_m = pattern::any_input();
     auto bias_m = pattern::any_input();
 
     auto fully_connected_m = wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});
@@ -43,15 +43,16 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
         const auto& fc_output_shape = fc_output.get_partial_shape();
         const auto& multiply_output_shape = multiply.get_partial_shape();
 
-        if (*fc_output_shape.rbegin() != *multiply_output_shape.rbegin()) {
+        if (*fc_output_shape.rbegin() != *multiply_output_shape.rbegin() ||
+            !ov::op::util::is_on_constant_path(weights)) {
             return false;
         }
 
-        auto fc_node = std::dynamic_pointer_cast<ov::op::internal::FullyConnected>(
-            pattern_map.at(fully_connected_m).get_node_shared_ptr());
+        auto fc_node =
+            ov::as_type_ptr<ov::op::internal::FullyConnected>(pattern_map.at(fully_connected_m).get_node_shared_ptr());
 
         ov::NodeVector new_ops;
-        auto zp = std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});
+        auto zp = std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
         new_ops.push_back(zp);
 
         auto fc_quantized =

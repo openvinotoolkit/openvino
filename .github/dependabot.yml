@@ -15,14 +15,11 @@ updates:
       timezone: "Poland"
     open-pull-requests-limit: 3
     assignees:
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
       - "ceciliapeng2011"
       - "meiyang-intel"
-      - "mbencer"
-      - "tomdol"
       - "jane-intel"
     versioning-strategy: increase-if-necessary
 
@@ -136,6 +133,21 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
+    assignees:
+      - "akashchi"
+      - "mryzhov"
+      - "ilya-lavrenov"
+    open-pull-requests-limit: 3
+
+  # Docker images
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    allow:
+      - dependency-type: "direct"
     assignees:
       - "akashchi"
       - "mryzhov"

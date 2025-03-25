@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool Shape::isCompatible(const VectorDims& vecDims) const {
     if (getRank() != vecDims.size()) {
@@ -77,5 +76,4 @@ Shape mergeShapes(const Shape& lhs, const Shape& rhs) {
     return Shape{resultMinDims, resultMaxDims};
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,6 @@
 #include "transforms/dict_resolver.hpp"
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
-#include "transforms/irfftn_complex_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
 #include "transforms/min_max_prim_list_construct_replacer.hpp"
 #include "transforms/prim_list_construct_pad.hpp"
@@ -40,7 +39,6 @@
 #include "transforms/quantized_node_remover.hpp"
 #include "transforms/remove_packing_ops.hpp"
 #include "transforms/reverseprop_resolver.hpp"
-#include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/softmax_reshape_elimination.hpp"
 #include "transforms/string_equality_replacer.hpp"
 #include "transforms/torchfx_gptq_pattern_replacer.hpp"
@@ -68,6 +66,11 @@ std::map<std::string, std::string> get_unconverted_types_from_model(const std::s
             }
             if (!unconverted_ops_types.count(op_type_it->second)) {
                 unconverted_ops_types.emplace(op_type_it->second, std::move(exception_msg));
+            }
+        } else if (const auto& fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(node)) {
+            auto op_type = std::string(fw_node->get_type_name());
+            if (!unconverted_ops_types.count(op_type)) {
+                unconverted_ops_types.emplace(op_type, "This is OpenVINO internal type.");
             }
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
@@ -183,7 +186,7 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
             auto place = inputs[i];
             if (place->get_names().size() != 0 && input_names.find(place->get_names().at(0)) != input_names.end()) {
                 auto input = converted_model->input(place->get_names().at(0));
-                auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(input.get_node_shared_ptr());
+                auto param = ov::as_type_ptr<ov::op::v0::Parameter>(input.get_node_shared_ptr());
                 FRONT_END_GENERAL_CHECK(param, "Input is not a Parameter.");
                 update_parameter_info(param, place, converted_model);
             } else {
@@ -205,7 +208,7 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
                 update_parameter_info(parameters[idx], fplace, converted_model);
             } else {
                 auto input = converted_model->input(fplace->get_names().at(0));
-                auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(input.get_node_shared_ptr());
+                auto param = ov::as_type_ptr<ov::op::v0::Parameter>(input.get_node_shared_ptr());
                 FRONT_END_GENERAL_CHECK(param, "Input is not a Parameter.");
                 update_parameter_info(param, fplace, converted_model);
             }
@@ -270,7 +273,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::pass::ConvertConvertLike>();
         manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
-        // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+        // Mark low precision compressed constants to prevent CF for them,
         // so that not extra memory is used for intermediate decompressed constants.
         manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
 
@@ -283,8 +286,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
-        manager.register_pass<ov::frontend::pytorch::pass::RFFTNComplexReplacer>();
-        manager.register_pass<ov::frontend::pytorch::pass::IRFFTNComplexReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
         manager.register_pass<ov::frontend::pytorch::pass::DecomposeUnpackParameters>();
@@ -359,12 +360,12 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
-    if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+    if (auto conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(conv_ext);
         m_op_extension_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return conv_ext->get_converter()(context);
         };
-    } else if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::pytorch::ConversionExtension>(extension)) {
+    } else if (auto conv_ext = ov::as_type_ptr<ov::frontend::pytorch::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(conv_ext);
         m_op_extension_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return conv_ext->get_converter()(context);
@@ -396,14 +397,15 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     FRONT_END_GENERAL_CHECK(variants.size() == 1 + extra_variants_num,
                             "PyTorch Frontend supports exactly one parameter in model representation, got ",
-                            std::to_string(variants.size()),
+                            variants.size(),
                             " instead.");
     FRONT_END_GENERAL_CHECK(variants[0].is<std::shared_ptr<IDecoder>>(),
                             "PyTorch Frontend doesn't support provided model type. Please provide supported model "
                             "object using Python API.");
     auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
+    FRONT_END_GENERAL_CHECK(decoder, "Couldn't cast ov::Any to std::shared_ptr<IDecoder>");
     auto tdecoder = std::dynamic_pointer_cast<TorchDecoder>(decoder);
-    FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast ov::Any to TorchDecoder");
+    FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast IDecoder to TorchDecoder");
     return std::make_shared<pytorch::InputModel>(tdecoder);
 }
 

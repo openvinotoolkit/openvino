@@ -1,11 +1,10 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import platform
-import sys
-
 import numpy as np
+import platform
 import pytest
+import sys
 from common.tf_layer_test_class import CommonTFLayerTest
 
 
@@ -14,7 +13,7 @@ class TestUnaryOps(CommonTFLayerTest):
 
     def _prepare_input(self, inputs_dict):
         non_negative = ['Sqrt', 'Log']
-        narrow_borders = ["Sinh", "Cosh", "Tanh", "Exp", "Selu"]
+        narrow_borders = ["Tanh"]
         within_one = ['Asin', 'Acos', 'Atanh']
         from_one = ['Acosh']
 
@@ -76,25 +75,14 @@ class TestUnaryOps(CommonTFLayerTest):
             'Asin': tf.math.asin,
             'Asinh': tf.math.asinh,
             'Atan': tf.math.atan,
-            'Atanh': tf.math.atanh,
             'BitwiseNot': tf.bitwise.invert,
             'Ceiling': tf.math.ceil,
-            'Cos': tf.math.cos,
-            'Cosh': tf.math.cosh,
-            'Elu': tf.nn.elu,
-            'Erf': tf.math.erf,
-            'Exp': tf.math.exp,
             'Floor': tf.math.floor,
             'Log': tf.math.log,
             'LogicalNot': tf.math.logical_not,
             # 'Mish': tfa.activations.mish,  # temporarily moved to `create_net_with_mish()`
             'Negative': tf.math.negative,
-            'Selu': tf.nn.selu,
-            'Sigmoid': tf.nn.sigmoid,
             'Sign': tf.math.sign,
-            'Sin': tf.math.sin,
-            'Sinh': tf.math.sinh,
-            'SoftPlus': tf.nn.softplus,
             'Square': tf.math.square,
             'Tan': tf.math.tan,
             'Tanh': tf.math.tanh,
@@ -126,15 +114,8 @@ class TestUnaryOps(CommonTFLayerTest):
     test_data_precommit = [dict(shape=[4, 6, 8, 10, 12])]
 
     @pytest.mark.parametrize("params", test_data_precommit)
-    @pytest.mark.parametrize("op_type", ['Elu',
-                                         'Sigmoid',
-                                         'Sin',
-                                         'Sinh',
-                                         'Cos',
-                                         'Cosh',
-                                         'Abs',
+    @pytest.mark.parametrize("op_type", ['Abs',
                                          'Negative',
-                                         'Exp',
                                          'Tan',
                                          'Tanh',
                                          'Floor',
@@ -145,15 +126,11 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Atan',
                                          'Log',
                                          'Sign',
-                                         'SoftPlus',
-                                         'Atanh',
                                          'Acosh',
                                          'Asinh',
                                          'LogicalNot',
                                          'Square',
-                                         'Erf',
-                                         'BitwiseNot'
-                                         ])
+                                         'BitwiseNot'])
     @pytest.mark.nightly
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                                 use_legacy_frontend):
@@ -188,15 +165,8 @@ class TestUnaryOps(CommonTFLayerTest):
                  dict(shape=[4, 6, 8, 10, 12])]
 
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.parametrize("op_type", ['Elu',
-                                         'Sigmoid',
-                                         'Sin',
-                                         'Sinh',
-                                         'Cos',
-                                         'Cosh',
-                                         'Abs',
+    @pytest.mark.parametrize("op_type", ['Abs',
                                          'Negative',
-                                         'Exp',
                                          'Tan',
                                          'Tanh',
                                          'Floor',
@@ -206,17 +176,12 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Acos',
                                          'Atan',
                                          'Log',
-                                         'LogicalNot',
                                          'Sign',
-                                         'SoftPlus',
-                                         'Atanh',
                                          'Acosh',
                                          'Asinh',
+                                         'LogicalNot',
                                          'Square',
-                                         'Erf',
-                                         'Selu',
-                                         'BitwiseNot'
-                                         ])
+                                         'BitwiseNot'])
     @pytest.mark.nightly
     @pytest.mark.skipif(sys.platform == 'darwin', reason="Ticket - 122182")
     @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"], reason='Ticket - 122716')

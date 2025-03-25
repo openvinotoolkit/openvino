@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include "openvino/core/node.hpp"
 
 namespace ov {
+
+RuntimeAttribute::~RuntimeAttribute() = default;
 
 std::string RuntimeAttribute::to_string() const {
     return {};

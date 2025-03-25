@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -170,10 +170,9 @@ TEST_F(TypeRelaxedTests, notSupportedTypeOverridePartially) {
         auto param1 = make_shared<ov::opset1::Parameter>(some_type, shape);
         auto param2 = make_shared<ov::opset1::Parameter>(overriden_type, ov::PartialShape{1});
         auto op = ov::opset1::Reshape(param1, ov::op::TemporaryReplaceOutputType(param2, orig_type).get(), false);
-        auto relaxed_op =
-            make_shared<ov::op::TypeRelaxed<ov::opset1::Reshape>>(op,
-                                                                  TypeVector{element::undefined, orig_type},
-                                                                  TypeVector{});
+        auto relaxed_op = make_shared<ov::op::TypeRelaxed<ov::opset1::Reshape>>(op,
+                                                                                TypeVector{element::dynamic, orig_type},
+                                                                                TypeVector{});
         auto result = make_shared<ov::opset1::Result>(relaxed_op);
 
         model = make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
@@ -226,16 +225,16 @@ TEST_F(TypeRelaxedTests, setGetTypes) {
         ASSERT_EQ(element::u8, relaxed_op->get_output_element_type(0));
 
         // internally set types for opset1::Add inference wasn't set when TypeRelaxed created, check it
-        ASSERT_EQ(element::undefined, relaxed_op->get_origin_input_type(0));
-        ASSERT_EQ(element::undefined, relaxed_op->get_origin_input_type(1));
+        ASSERT_EQ(element::dynamic, relaxed_op->get_origin_input_type(0));
+        ASSERT_EQ(element::dynamic, relaxed_op->get_origin_input_type(1));
         // if we access elements outside really existing inputs, it should give undefined as well
-        ASSERT_EQ(element::undefined, relaxed_op->get_origin_input_type(2));
+        ASSERT_EQ(element::dynamic, relaxed_op->get_origin_input_type(2));
         // number of inputs for the operation node shouldn't change after that
         ASSERT_EQ(2, relaxed_op->get_input_size());
 
         // similar checks for outputs
-        ASSERT_EQ(element::undefined, relaxed_op->get_overridden_output_type(0));
-        ASSERT_EQ(element::undefined, relaxed_op->get_overridden_output_type(1));
+        ASSERT_EQ(element::dynamic, relaxed_op->get_overridden_output_type(0));
+        ASSERT_EQ(element::dynamic, relaxed_op->get_overridden_output_type(1));
         ASSERT_EQ(1, relaxed_op->get_output_size());
 
         // previous checks for input/output indices that are out of number of real inputs/outputs
@@ -284,17 +283,17 @@ TEST_F(TypeRelaxedTests, setGetTypes) {
         ASSERT_EQ(1, relaxed_op->get_output_size());
 
         // lets try to reset types to undefined again and make sure that all original types are restored
-        relaxed_op->set_origin_input_type(element::undefined, 0);
-        relaxed_op->set_origin_input_type(element::undefined, 1);
-        relaxed_op->set_overridden_output_type(element::undefined, 0);
+        relaxed_op->set_origin_input_type(element::dynamic, 0);
+        relaxed_op->set_origin_input_type(element::dynamic, 1);
+        relaxed_op->set_overridden_output_type(element::dynamic, 0);
         model->validate_nodes_and_infer_types();
         ASSERT_EQ(element::u8, relaxed_op->get_input_element_type(0));
         ASSERT_EQ(element::u8, relaxed_op->get_input_element_type(1));
         ASSERT_EQ(element::u8, relaxed_op->get_output_element_type(0));
 
-        ASSERT_EQ(element::undefined, relaxed_op->get_origin_input_type(0));
-        ASSERT_EQ(element::undefined, relaxed_op->get_origin_input_type(1));
-        ASSERT_EQ(element::undefined, relaxed_op->get_origin_input_type(0));
+        ASSERT_EQ(element::dynamic, relaxed_op->get_origin_input_type(0));
+        ASSERT_EQ(element::dynamic, relaxed_op->get_origin_input_type(1));
+        ASSERT_EQ(element::dynamic, relaxed_op->get_origin_input_type(0));
     }
 
     ASSERT_EQ(4, model->get_ops().size());

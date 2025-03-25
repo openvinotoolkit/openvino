@@ -9,8 +9,7 @@
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @class BrgemmCopyBLoopPortsAdjuster
@@ -18,6 +17,7 @@ namespace intel_cpu {
  */
 class BrgemmCopyBLoopPortsAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
 public:
+    OPENVINO_RTTI("BrgemmCopyBLoopPortsAdjuster", "", RuntimeOptimizer)
     BrgemmCopyBLoopPortsAdjuster() = default;
     BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                  const CPURuntimeConfigurator* configurator);
@@ -32,5 +32,4 @@ private:
         m_affected_uni2exp_map;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,25 +32,22 @@ const std::vector<int64_t> axis2D = {
     0, 1, -1
 };
 
-const auto params2D_static = testing::Combine(
-    testing::ValuesIn(netPrecisions),
-    ::testing::Values(ov::element::undefined),
-    ::testing::Values(ov::element::undefined),
-    testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputStaticShape2D)),
-    testing::ValuesIn(axis2D),
-    testing::Values(ov::test::utils::DEVICE_CPU),
-    testing::Values(ov::AnyMap())
-);
+const auto params2D_static =
+    testing::Combine(testing::ValuesIn(netPrecisions),
+                     ::testing::Values(ov::element::dynamic),
+                     ::testing::Values(ov::element::dynamic),
+                     testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputStaticShape2D)),
+                     testing::ValuesIn(axis2D),
+                     testing::Values(ov::test::utils::DEVICE_CPU),
+                     testing::Values(ov::AnyMap()));
 
-const auto params2D_dynamic = testing::Combine(
-        testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        testing::ValuesIn(inputDynamicShape2D),
-        testing::ValuesIn(axis2D),
-        testing::Values(ov::test::utils::DEVICE_CPU),
-        testing::Values(ov::AnyMap())
-);
+const auto params2D_dynamic = testing::Combine(testing::ValuesIn(netPrecisions),
+                                               ::testing::Values(ov::element::dynamic),
+                                               ::testing::Values(ov::element::dynamic),
+                                               testing::ValuesIn(inputDynamicShape2D),
+                                               testing::ValuesIn(axis2D),
+                                               testing::Values(ov::test::utils::DEVICE_CPU),
+                                               testing::Values(ov::AnyMap()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax2D_static,
@@ -80,25 +77,22 @@ const std::vector<ov::test::InputShape> inputDynamicShape4D = {
 
 const std::vector<int64_t> axis4D = {0, 1, 2, 3, -1, -2, -3};
 
-const auto params4Dstatic = testing::Combine(
-    testing::ValuesIn(netPrecisions),
-    ::testing::Values(ov::element::undefined),
-    ::testing::Values(ov::element::undefined),
-    testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputStaticShape4D)),
-    testing::ValuesIn(axis4D),
-    testing::Values(ov::test::utils::DEVICE_CPU),
-    testing::Values(ov::AnyMap())
-);
+const auto params4Dstatic =
+    testing::Combine(testing::ValuesIn(netPrecisions),
+                     ::testing::Values(ov::element::dynamic),
+                     ::testing::Values(ov::element::dynamic),
+                     testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputStaticShape4D)),
+                     testing::ValuesIn(axis4D),
+                     testing::Values(ov::test::utils::DEVICE_CPU),
+                     testing::Values(ov::AnyMap()));
 
-const auto params4Ddynamic = testing::Combine(
-        testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        testing::ValuesIn(inputDynamicShape4D),
-        testing::ValuesIn(axis4D),
-        testing::Values(ov::test::utils::DEVICE_CPU),
-        testing::Values(ov::AnyMap())
-);
+const auto params4Ddynamic = testing::Combine(testing::ValuesIn(netPrecisions),
+                                              ::testing::Values(ov::element::dynamic),
+                                              ::testing::Values(ov::element::dynamic),
+                                              testing::ValuesIn(inputDynamicShape4D),
+                                              testing::ValuesIn(axis4D),
+                                              testing::Values(ov::test::utils::DEVICE_CPU),
+                                              testing::Values(ov::AnyMap()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax4D_static,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 
@@ -28,8 +27,9 @@ bool isRegAllocable(int id) {
 
 template <typename RegType>
 const RegType& reserveReg(jit_kernel::reg_indices& freeRegs, const registers<RegType>& regs) {
-    if (freeRegs.empty())
+    if (freeRegs.empty()) {
         throw std::runtime_error("No free registers");
+    }
     const auto idx = freeRegs.back();
     freeRegs.pop_back();
     return regs[idx];
@@ -43,8 +43,9 @@ void freeReg(jit_kernel::reg_indices& freeRegs, const registers<RegType>& regs, 
     // if (it != freeRegs.end())
     //     throw std::runtime_error("Some register was freed twice");
     freeRegs.emplace_back(idx);
-    if (freeRegs.size() > regs.size())
+    if (freeRegs.size() > regs.size()) {
         OPENVINO_THROW("Some register was freed twice");
+    }
 }
 
 const registers<Reg64>& x64regs() {
@@ -235,10 +236,12 @@ ov::element::Type type2precision<int8_t>() {
 }
 
 cpu_isa_t get_current_isa() {
-    if (mayiuse(cpu_isa_t::avx512_core))
+    if (mayiuse(cpu_isa_t::avx512_core)) {
         return cpu_isa_t::avx512_core;
-    if (mayiuse(cpu_isa_t::avx2))
+    }
+    if (mayiuse(cpu_isa_t::avx2)) {
         return cpu_isa_t::avx2;
+    }
     return cpu_isa_t::sse41;
 }
 
@@ -259,7 +262,10 @@ stack_frame::stack_frame(ov::intel_cpu::jit_kernel& kernel, size_t size, uint32_
     }
 }
 
-stack_frame::stack_frame(stack_frame&& rhs) : _kernel(rhs._kernel), _size(rhs._size), _alignment(rhs._alignment) {
+stack_frame::stack_frame(stack_frame&& rhs) noexcept
+    : _kernel(rhs._kernel),
+      _size(rhs._size),
+      _alignment(rhs._alignment) {
     rhs._size = 0;
     rhs._alignment = 0;
 }
@@ -279,7 +285,7 @@ const Xbyak::Reg64& stack_frame::pointer() const {
 }
 
 void stack_frame::clear() const {
-    const size_t end = _size & ~(size_t)7u;
+    const size_t end = _size & ~static_cast<size_t>(7u);
 
     _kernel.foreach (
         0,
@@ -297,8 +303,9 @@ void stack_frame::clear() const {
 }
 
 const void* consts_table::store(const void* data, size_t size) {
-    if (size > chunk_size)
+    if (size > chunk_size) {
         throw std::runtime_error("Data size is too large");
+    }
     const size_t capacity = _chunks.size() * chunk_size;
     if (size > capacity - _size) {
         _size = _chunks.size() * chunk_size;
@@ -318,8 +325,9 @@ jit_kernel::jit_kernel(const char* name) : jit_generator(name) {
     _free_rmmregs.reserve(16);
 
     for (int reg = Operand::Code::RAX; reg <= Operand::Code::R15; ++reg) {
-        if (isRegAllocable(reg))
+        if (isRegAllocable(reg)) {
             _free_x64regs.emplace_back(reg);
+        }
         _free_rmmregs.emplace_back(reg);
     }
 }
@@ -397,8 +405,9 @@ void jit_kernel::free<Zmm>(const Zmm& reg) {
 void jit_kernel::postamble() {
     jit_generator::postamble();
     for (const auto& emitter : _emitters) {
-        if (emitter.second)
+        if (emitter.second) {
             emitter.second->emit_data();
+        }
     }
 }
 
@@ -433,22 +442,25 @@ const jit_kernel::reg_indices& jit_kernel::free_rmmregs() const {
 }
 
 jit_kernel::stack_frame jit_kernel::stack(size_t size, uint32_t alignment) {
-    return stack_frame(*this, size, alignment);
+    return {*this, size, alignment};
 }
 
 void jit_kernel::uni_vpermps(const Xmm& x1, const uint8_t mask[4], const Operand& op) {
     uint8_t imm8 = 0;
-    for (size_t i = 0; i < 4; ++i)
+    for (size_t i = 0; i < 4; ++i) {
         imm8 |= mask[i] << (i * 2);
-    if (op != x1)
+    }
+    if (op != x1) {
         movdqu(x1, op);
+    }
     shufps(x1, op, imm8);
 }
 
 void jit_kernel::uni_vpermps(const Ymm& y1, const uint8_t mask[8], const Operand& op) {
     int data[8];
-    for (size_t i = 0; i < 8; ++i)
+    for (size_t i = 0; i < 8; ++i) {
         data[i] = mask[i];
+    }
     auto mreg = var<int[8]>();
     mreg = data;
     vpermps(y1, mreg, op);
@@ -456,8 +468,9 @@ void jit_kernel::uni_vpermps(const Ymm& y1, const uint8_t mask[8], const Operand
 
 void jit_kernel::uni_vpermps(const Zmm& z1, const uint8_t mask[16], const Operand& op) {
     int data[16];
-    for (size_t i = 0; i < 16; ++i)
+    for (size_t i = 0; i < 16; ++i) {
         data[i] = mask[i];
+    }
     auto mreg = var<int[16]>();
     mreg = data;
     vpermps(z1, mreg, op);
@@ -478,5 +491,4 @@ void jit_kernel::uni_vblendps(const Xbyak::Zmm& z1, const Xbyak::Zmm& z2, uint16
     vblendmps(z1 | k1, z1, z2);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -29,6 +29,7 @@ jobs:
     steps:
       - name: checkout action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -63,6 +64,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -97,6 +99,7 @@ jobs:
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
+            -DENABLE_WHEEL=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   Debian_Packages:
@@ -176,8 +179,8 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-arm'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
-    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
@@ -199,6 +202,16 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
+  JAX_Layer_Tests:
+    name: JAX Layer Tests
+    needs: [ Build, Docker, Smart_CI ]
+    uses: ./.github/workflows/job_jax_layer_tests.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb-arm'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
+
   CPU_Functional_Tests:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
@@ -210,6 +223,7 @@ jobs:
       runner: 'aks-linux-16-cores-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
       python-version: '3.11'
+      scope: ${{ github.event_name == 'workflow_dispatch' && 'nightly' || 'smoke' }}
 
   TensorFlow_Models_Tests:
     name: TensorFlow Models tests

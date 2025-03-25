@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ OutputVector translate_reshape_op(const NodeContext& node) {
     auto shape = node.get_input(1);
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        tensor = complex_type_mark->input_value(0);
+        tensor = complex_type_mark->get_data();
 
         OutputVector concat_inputs;
         concat_inputs.push_back(shape);

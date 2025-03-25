@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include <type_traits>
 #include <unordered_map>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace internal {
 
@@ -20,7 +19,7 @@ struct enum_hash {
 };
 
 template <typename K>
-using hash_t = typename std::conditional<std::is_enum<K>::value, enum_hash<K>, std::hash<K>>::type;
+using hash_t = std::conditional_t<std::is_enum_v<K>, enum_hash<K>, std::hash<K>>;
 
 }  // namespace internal
 
@@ -62,5 +61,4 @@ private:
     std::unordered_map<key_type, mapped_type, hash_type> _map;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

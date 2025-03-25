@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,7 @@ namespace py = pybind11;
 
 void regclass_graph_Coordinate(py::module m) {
     py::class_<ov::Coordinate, std::shared_ptr<ov::Coordinate>> coordinate(m, "Coordinate");
-    coordinate.doc() = "openvino.runtime.Coordinate wraps ov::Coordinate";
-    coordinate.def(py::init<const std::initializer_list<size_t>&>());
+    coordinate.doc() = "openvino.Coordinate wraps ov::Coordinate";
     coordinate.def(py::init<const ov::Shape&>());
     coordinate.def(py::init<const std::vector<size_t>&>());
     coordinate.def(py::init<const ov::Coordinate&>());

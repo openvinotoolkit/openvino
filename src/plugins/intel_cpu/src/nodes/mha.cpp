@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mha.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -25,11 +26,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::cpu::x64::matmul;
 using namespace Xbyak;
 
-#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
-
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -39,12 +36,10 @@ struct jit_mul_add_softmax_kernel : public jit_uni_mul_add_softmax_kernel, publi
 
     explicit jit_mul_add_softmax_kernel(const jit_mul_add_softmax_compile_params& jcp)
         : jit_uni_mul_add_softmax_kernel(jcp),
-          jit_generator(jit_name()) {
-        exp_emitter = std::make_shared<jit_dnnl_aux_emitter>(this, isa, dnnl_eltwise_exp, 0.f, 0.f);
-
-        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
-    }
-    virtual ~jit_mul_add_softmax_kernel() {}
+          jit_generator(jit_name()),
+          vec_size(dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float)),
+          exp_emitter(std::make_shared<jit_dnnl_aux_emitter>(this, isa, dnnl_eltwise_exp, 0.f, 0.f)) {}
+    ~jit_mul_add_softmax_kernel() override = default;
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -168,8 +163,9 @@ private:
         vbroadcastss(get_vmm_denom(0), xmm_tmp);
         uni_vdivps(get_vmm_denom(0), get_vmm_denom(0), get_vmm_aux(0));
 
-        if (jcp_.with_scales1)
+        if (jcp_.with_scales1) {
             mov(reg_scales, ptr[reg_params + GET_OFF(p_scales1)]);
+        }
 
         if (jcp_.with_scales1 && jcp_.broadcast_scales1) {
             uni_vmovss(Xmm(vmm_scales.getIdx()), ptr[reg_scales]);
@@ -196,8 +192,9 @@ private:
         this->postamble();
 
         for (const auto& emitter : emitters) {
-            if (emitter.second)
+            if (emitter.second) {
                 emitter.second->emit_data();
+            }
         }
 
         exp_emitter->emit_data();
@@ -294,14 +291,14 @@ private:
                      bool fill) {
         const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this,
-                                                      isa,
-                                                      src_prc,
-                                                      ov::element::f32,
-                                                      elt_num,
-                                                      ov::element::f32,
-                                                      fill,
-                                                      "float_min"));
+            emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                                isa,
+                                                                src_prc,
+                                                                ov::element::f32,
+                                                                elt_num,
+                                                                ov::element::f32,
+                                                                fill,
+                                                                "float_min");
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0},
@@ -312,7 +309,7 @@ private:
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num) {
         const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, dst_prc, elt_num);
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
@@ -384,10 +381,9 @@ struct jit_convert_reorder_kernel : public jit_uni_convert_reorder_kernel, publi
 
     explicit jit_convert_reorder_kernel(const jit_convert_reorder_compile_params& jcp)
         : jit_uni_convert_reorder_kernel(jcp),
-          jit_generator(jit_name()) {
-        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
-    }
-    virtual ~jit_convert_reorder_kernel() {}
+          jit_generator(jit_name()),
+          vec_size(dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float)) {}
+    ~jit_convert_reorder_kernel() override = default;
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -460,8 +456,9 @@ private:
         this->postamble();
 
         for (const auto& emitter : emitters) {
-            if (emitter.second)
+            if (emitter.second) {
                 emitter.second->emit_data();
+            }
         }
     }
 
@@ -494,14 +491,14 @@ private:
                      bool fill) {
         const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this,
-                                                      isa,
-                                                      src_prc,
-                                                      ov::element::f32,
-                                                      elt_num,
-                                                      ov::element::f32,
-                                                      fill,
-                                                      "float_min"));
+            emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                                isa,
+                                                                src_prc,
+                                                                ov::element::f32,
+                                                                elt_num,
+                                                                ov::element::f32,
+                                                                fill,
+                                                                "float_min");
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0},
@@ -512,7 +509,7 @@ private:
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num) {
         const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, dst_prc, elt_num);
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
@@ -553,7 +550,7 @@ struct jit_convert_transpose_kernel : public jit_uni_convert_transpose_kernel, p
         interm_prc = jcp_.with_scales ? ov::element::f32 : jcp_.src_prc;
         vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / interm_prc.size();
     }
-    virtual ~jit_convert_transpose_kernel() {}
+    ~jit_convert_transpose_kernel() override = default;
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -625,8 +622,9 @@ private:
         this->postamble();
 
         for (const auto& emitter : emitters) {
-            if (emitter.second)
+            if (emitter.second) {
                 emitter.second->emit_data();
+            }
         }
     }
 
@@ -673,8 +671,14 @@ private:
                      bool fill) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(
-                new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, ov::element::f32, fill, "float_min"));
+            emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                                isa,
+                                                                src_prc,
+                                                                dst_prc,
+                                                                elt_num,
+                                                                ov::element::f32,
+                                                                fill,
+                                                                "float_min");
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0},
@@ -689,7 +693,7 @@ private:
                       const int& elt_num) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, src_prc, dst_prc, elt_num);
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
@@ -728,7 +732,7 @@ private:
 
 bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto mha = std::dynamic_pointer_cast<const MHANode>(op);
+        const auto mha = ov::as_type_ptr<const MHANode>(op);
         if (!mha) {
             errorMessage = "Only MHA from CPU internal opset is supported";
             return false;
@@ -751,8 +755,9 @@ bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 supportedPrecisions = false;
             }
         } else {
-            if (mha->get_fq0_output_type() != mha->get_input_element_type(0))
+            if (mha->get_fq0_output_type() != mha->get_input_element_type(0)) {
                 supportedPrecisions = false;
+            }
         }
 
         if (!mha->get_fq_scales1().empty() && mha->get_fq1_output_type() != element::i8) {
@@ -801,14 +806,14 @@ bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto mha = std::dynamic_pointer_cast<const MHANode>(op);
+    const auto mha = ov::as_type_ptr<const MHANode>(op);
     mulScales = mha->get_mul_scales();
     isMulFirst = mha->get_is_mul_first();
     fqScales0 = mha->get_fq_scales0();
@@ -819,8 +824,9 @@ MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
 }
 
 void MHA::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     for (auto idx : {0, 1, 2, 3}) {
         inputPrecisions.push_back(getOriginalInputPrecisionAtPort(idx));
@@ -837,8 +843,9 @@ void MHA::initSupportedPrimitiveDescriptors() {
 
     inputPrecisions[2] = ov::element::f32;
 
-    if (inputPrecisions[3] == ov::element::i8 && fqScales2.empty())
+    if (inputPrecisions[3] == ov::element::i8 && fqScales2.empty()) {
         inputPrecisions[3] = ov::element::f32;
+    }
 
     outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!one_of(outputPrecision, ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8)) {
@@ -882,7 +889,7 @@ void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKerne
                                    ctx.K,
                                    &strides);
     if (status != dnnl_success) {
-        THROW_ERROR("cannot be executed due to invalid brgconv params");
+        THROW_CPU_NODE_ERR("cannot be executed due to invalid brgconv params");
     }
 
     ctx.is_with_amx = use_amx;
@@ -896,11 +903,11 @@ void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKerne
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
     if (status != dnnl_success) {
-        THROW_ERROR("cannot be executed due to invalid brgconv params");
+        THROW_CPU_NODE_ERR("cannot be executed due to invalid brgconv params");
     }
     brgKernel.reset(brgKernel_);
 #else
-    THROW_ERROR("is not supported on non-x86_64");
+    THROW_CPU_NODE_ERR("is not supported on non-x86_64");
 #endif  // OPENVINO_ARCH_X86_64
 }
 
@@ -974,8 +981,9 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
 
 #if defined(OPENVINO_ARCH_X86_64)
     auto ret = create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
-    if (ret != dnnl::impl::status_t::dnnl_success)
-        THROW_ERROR("cannot create_brgemm_matmul_copy_b kernel, dnnl_status: ", ret);
+    if (ret != dnnl::impl::status_t::dnnl_success) {
+        THROW_CPU_NODE_ERR("cannot create_brgemm_matmul_copy_b kernel, dnnl_status: ", ret);
+    }
 #endif  // OPENVINO_ARCH_X86_64
 }
 
@@ -1068,8 +1076,9 @@ void MHA::prepareParams() {
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg0BaseIdx == std::numeric_limits<size_t>::max())
+                    if (brg0BaseIdx == std::numeric_limits<size_t>::max()) {
                         brg0BaseIdx = getBrgIdx(m, k, n);
+                    }
                     init_brgemm(brgemmCtx, brgKernels0[getBrgIdx(m, k, n)], brg0WithAMX);
                 }
             }
@@ -1136,8 +1145,9 @@ void MHA::prepareParams() {
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg1BaseIdx == std::numeric_limits<size_t>::max())
+                    if (brg1BaseIdx == std::numeric_limits<size_t>::max()) {
                         brg1BaseIdx = getBrgIdx(m, k, n);
+                    }
 
                     init_brgemm(brgemmCtx, brgKernels1[getBrgIdx(m, k, n)], brg1WithAMX);
                 }
@@ -1199,15 +1209,15 @@ void MHA::prepareParams() {
 
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
-            mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::avx512_core>(jcp));
+            mulAddSoftmaxKernel = std::make_unique<jit_mul_add_softmax_kernel<cpu_isa_t::avx512_core>>(jcp);
         } else if (mayiuse(cpu_isa_t::avx2)) {
-            mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::avx2>(jcp));
+            mulAddSoftmaxKernel = std::make_unique<jit_mul_add_softmax_kernel<cpu_isa_t::avx2>>(jcp);
         } else if (mayiuse(cpu_isa_t::sse41)) {
-            mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::sse41>(jcp));
+            mulAddSoftmaxKernel = std::make_unique<jit_mul_add_softmax_kernel<cpu_isa_t::sse41>>(jcp);
         }
 #endif  // OPENVINO_ARCH_X86_64
         if (!mulAddSoftmaxKernel) {
-            THROW_ERROR("cannot create jit eltwise kernel");
+            THROW_CPU_NODE_ERR("cannot create jit eltwise kernel");
         }
     }
 
@@ -1223,15 +1233,15 @@ void MHA::prepareParams() {
 
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
-            convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::avx512_core>(jcp));
+            convertReorderKernel = std::make_unique<jit_convert_reorder_kernel<cpu_isa_t::avx512_core>>(jcp);
         } else if (mayiuse(cpu_isa_t::avx2)) {
-            convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::avx2>(jcp));
+            convertReorderKernel = std::make_unique<jit_convert_reorder_kernel<cpu_isa_t::avx2>>(jcp);
         } else if (mayiuse(cpu_isa_t::sse41)) {
-            convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::sse41>(jcp));
+            convertReorderKernel = std::make_unique<jit_convert_reorder_kernel<cpu_isa_t::sse41>>(jcp);
         }
 #endif  // OPENVINO_ARCH_X86_64
         if (!convertReorderKernel) {
-            THROW_ERROR("cannot create jit eltwise kernel");
+            THROW_CPU_NODE_ERR("cannot create jit eltwise kernel");
         }
     }
 
@@ -1249,27 +1259,30 @@ void MHA::prepareParams() {
 
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
-            convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::avx512_core>(jcp));
+            convertTransposeKernel = std::make_unique<jit_convert_transpose_kernel<cpu_isa_t::avx512_core>>(jcp);
         } else if (mayiuse(cpu_isa_t::avx2)) {
-            convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::avx2>(jcp));
+            convertTransposeKernel = std::make_unique<jit_convert_transpose_kernel<cpu_isa_t::avx2>>(jcp);
         } else if (mayiuse(cpu_isa_t::sse41)) {
-            convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::sse41>(jcp));
+            convertTransposeKernel = std::make_unique<jit_convert_transpose_kernel<cpu_isa_t::sse41>>(jcp);
         }
 #endif  // OPENVINO_ARCH_X86_64
 
         if (!convertTransposeKernel) {
-            THROW_ERROR("cannot create jit eltwise kernel");
+            THROW_CPU_NODE_ERR("cannot create jit eltwise kernel");
         }
     }
 
-    if (mulAddSoftmaxKernel)
+    if (mulAddSoftmaxKernel) {
         mulAddSoftmaxKernel->create_ker();
+    }
 
-    if (convertReorderKernel)
+    if (convertReorderKernel) {
         convertReorderKernel->create_ker();
+    }
 
-    if (convertTransposeKernel)
+    if (convertTransposeKernel) {
         convertTransposeKernel->create_ker();
+    }
 
     const auto& selectedPD = getSelectedPrimitiveDescriptor();
     if (brgemmCtx0.is_with_amx || brgemmCtx1.is_with_amx) {
@@ -1306,8 +1319,9 @@ void MHA::callBrgemm(brgemmCtx& ctx,
                      void* pout,
                      void* wsp) {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (ctx.is_with_amx)
+    if (ctx.is_with_amx) {
         amx_tile_configure(ctx.palette);
+    }
     if (ctx.is_with_comp) {
         brgemm_post_ops_data_t post_ops_data;
         brgemm_kernel_execute_postops(brgKernel.get(), 1, pin0, pin1, nullptr, pout, pout, post_ops_data, wsp);
@@ -1315,17 +1329,17 @@ void MHA::callBrgemm(brgemmCtx& ctx,
         brgemm_kernel_execute(brgKernel.get(), 1, pin0, pin1, nullptr, pout, wsp);
     }
 #else
-    THROW_ERROR("is not supported on non-x64 platforms");
+    THROW_CPU_NODE_ERR("is not supported on non-x64 platforms");
 #endif  // OPENVINO_ARCH_X86_64
 }
 
 template <typename in1_type>
 void MHA::mhaImpl() {
-    const uint8_t* pTranspose0In0 = getSrcDataAtPortAs<const uint8_t>(0);
-    const uint8_t* pTranspose1In0 = getSrcDataAtPortAs<const uint8_t>(1);
-    const float* pAddIn1 = getSrcDataAtPortAs<const float>(2);
-    const uint8_t* pTranspose2In0 = getSrcDataAtPortAs<const uint8_t>(3);
-    uint8_t* pout = getDstDataAtPortAs<uint8_t>(0);
+    const auto* pTranspose0In0 = getSrcDataAtPortAs<const uint8_t>(0);
+    const auto* pTranspose1In0 = getSrcDataAtPortAs<const uint8_t>(1);
+    const auto* pAddIn1 = getSrcDataAtPortAs<const float>(2);
+    const auto* pTranspose2In0 = getSrcDataAtPortAs<const uint8_t>(3);
+    auto* pout = getDstDataAtPortAs<uint8_t>(0);
 
     auto outPrcSize = outputPrecision.size();
 
@@ -1542,7 +1556,7 @@ void MHA::mhaImpl() {
     });
 }
 
-void MHA::execute(dnnl::stream strm) {
+void MHA::execute(const dnnl::stream& strm) {
     if (inputPrecisions[1] == ov::element::f32) {
         mhaImpl<float>();
     } else if (inputPrecisions[1] == ov::element::bf16) {
@@ -1550,11 +1564,11 @@ void MHA::execute(dnnl::stream strm) {
     } else if (inputPrecisions[1] == ov::element::i8) {
         mhaImpl<int8_t>();
     } else {
-        THROW_ERROR("doesn't support provided input precisions");
+        THROW_CPU_NODE_ERR("doesn't support provided input precisions");
     }
 }
 
-void MHA::executeDynamicImpl(dnnl::stream strm) {
+void MHA::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -1562,6 +1576,4 @@ bool MHA::created() const {
     return getType() == Type::MHA;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
