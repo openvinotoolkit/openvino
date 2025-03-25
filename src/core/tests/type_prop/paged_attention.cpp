@@ -13,8 +13,7 @@
 
 using namespace testing;
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 class TypePropPagedAttentionInternalTest : public TypePropOpTest<op::PagedAttentionExtension> {};
 
@@ -128,5 +127,4 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_16_inputs_evic
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
 
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

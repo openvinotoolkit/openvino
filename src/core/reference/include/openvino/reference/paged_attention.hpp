@@ -103,14 +103,15 @@ bool should_rotate(int32_t block_id,
                    const int32_t* rotated_block_indices,
                    const ov::Shape& rotated_block_indices_shape,
                    int32_t& rotated_index) {
-    int32_t num_rotated_blocks =
-        !rotated_block_indices_shape.empty() ? static_cast<int32_t>(rotated_block_indices_shape[0]) : 0;
-    if (rotated_block_indices && num_rotated_blocks > 0) {
-        for (int32_t i = 0; i < num_rotated_blocks; i++) {
-            if (rotated_block_indices[i] == block_id) {
-                rotated_index = i;
-                return true;
-            }
+    if (!rotated_block_indices || rotated_block_indices_shape.empty()) {
+        return false;
+    }
+
+    auto num_rotated_blocks = static_cast<int32_t>(rotated_block_indices_shape[0]);
+    for (int32_t i = 0; i < num_rotated_blocks; i++) {
+        if (rotated_block_indices[i] == block_id) {
+            rotated_index = i;
+            return true;
         }
     }
     return false;
@@ -121,14 +122,16 @@ template <typename T>
 void paged_attention(
     T* out,                               // output: attention result
     T* score,                             // output: concatenated raw scores
-    const T* query,                       // shape: [batch_tokens, num_heads * head_size]
-    const T* key,                         // shape: [batch_tokens, num_kv_heads * head_size]
-    const T* value,                       // shape: [batch_tokens, num_kv_heads * head_size]
-    const T* key_cache,                   // shape: [num_blocks, num_kv_heads, block_size, head_size]
-    const T* value_cache,                 // shape: [num_blocks, num_kv_heads, block_size, head_size]
-    const Shape& q_shape,                 // e.g. {batch_tokens, num_heads * head_size}
-    const Shape& kv_shape,                // e.g. {batch_tokens, num_kv_heads * head_size}
-    const Shape& kv_cache_shape,          // e.g. {num_blocks, num_kv_heads, block_size, head_size}
+    const T* query,                       // shape: [batch_tokens, num_q_heads * head_size]
+    const T* key,                         // shape: [batch_tokens, num_k_heads * head_size]
+    const T* value,                       // shape: [batch_tokens, num_v_heads * head_size]
+    T* key_cache,                         // shape: [num_blocks, num_k_heads, block_size, head_size]
+    T* value_cache,                       // shape: [num_blocks, num_v_heads, block_size, head_size]
+    const Shape& q_shape,                 // e.g. {batch_tokens, num_q_heads * head_size}
+    const Shape& key_shape,               // e.g. {batch_tokens, num_k_heads * head_size}
+    const Shape& value_shape,             // e.g. {batch_tokens, num_v_heads * head_size}
+    const Shape& key_cache_shape,         // e.g. {num_blocks, num_k_heads, block_size, head_size}
+    const Shape& value_cache_shape,       // e.g. {num_blocks, num_v_heads, block_size, head_size}
     const int32_t* past_lens,             // [batch_seq]: past tokens per sequence
     const Shape& past_lens_shape,         // e.g. {batch_seq}
     const int32_t* subsequence_begins,    // [batch_seq + 1]: start indices of new tokens per sequence
@@ -136,7 +139,7 @@ void paged_attention(
     const int32_t* block_indices_begins,  // [batch_seq + 1]: indices into block_indices per sequence
     const T* scale_ptr,                   // (Optional) attention scale factor (can be nullptr; default = 1)
     const int32_t* sliding_window_ptr,    // (Optional) sliding window parameter (can be nullptr; default = 0)
-    const T* alibi_slopes,  // (Optional) [num_kv_heads]: per-head bias slopes (can be nullptr; default = 0)
+    const T* alibi_slopes,               // (Optional) [num_k_heads]: per-head bias slopes (can be nullptr; default = 0)
     const int32_t* max_context_len_ptr,  // max context length (for score output indexing)
 
     // Rotation parameters (if any is nullptr, rotation is skipped)
@@ -154,14 +157,15 @@ void paged_attention(
     int32_t max_context_len = max_context_len_ptr ? max_context_len_ptr[0] : 0;
 
     // Determine dimensions.
-    int32_t num_blocks = kv_cache_shape[0];
-    int32_t num_kv_heads = kv_cache_shape[1];
-    int32_t block_size = kv_cache_shape[2];
-    int32_t head_size = kv_cache_shape[3];
+    int32_t num_blocks = key_cache_shape[0];
+    int32_t num_k_heads = key_cache_shape[1];
+    int32_t num_v_heads = value_cache_shape[1];
+    int32_t block_size = key_cache_shape[2];
+    int32_t head_size = key_cache_shape[3];
 
     int32_t batch_tokens = q_shape[0];
-    int32_t query_features = q_shape[1];  // equals num_heads * head_size.
-    int32_t num_heads = query_features / head_size;
+    int32_t query_features = q_shape[1];  // equals num_q_heads * head_size.
+    int32_t num_q_heads = query_features / head_size;
     int32_t batch_seq = !past_lens_shape.empty() ? past_lens_shape[0] : 1;
 
     // Process each query token.
@@ -176,8 +180,29 @@ void paged_attention(
                 }
             }
         }
-        // Process each head.
-        for (int32_t h = 0; h < num_heads; h++) {
+
+        // --- Copy new token key and value vectors into cache ---
+        // If this token is new (i.e. not part of the past), copy its key and value.
+        if (subsequence_begins && token_idx >= subsequence_begins[seq_idx]) {
+            int32_t new_token_offset = token_idx - subsequence_begins[seq_idx];
+            // For simplicity, we assume new tokens are stored in the last block.
+            int32_t block_id_new = num_blocks - 1;
+            // Copy keys for each key head.
+            for (int32_t kh = 0; kh < num_k_heads; kh++) {
+                int32_t cache_idx = (((block_id_new * num_k_heads + kh) * block_size + new_token_offset) * head_size);
+                const T* src_key = key + token_idx * key_shape[1] + kh * head_size;
+                std::memcpy(key_cache + cache_idx, src_key, head_size * sizeof(T));
+            }
+            // Copy values for each value head.
+            for (int32_t vh = 0; vh < num_v_heads; vh++) {
+                int32_t cache_idx = (((block_id_new * num_v_heads + vh) * block_size + new_token_offset) * head_size);
+                const T* src_val = value + token_idx * value_shape[1] + vh * head_size;
+                std::memcpy(value_cache + cache_idx, src_val, head_size * sizeof(T));
+            }
+        }
+
+        // Process each query head.
+        for (int32_t h = 0; h < num_q_heads; h++) {
             const T* q_vec = query + token_idx * query_features + h * head_size;
 
             int32_t seq_new_tokens =
@@ -209,9 +234,10 @@ void paged_attention(
                     if (first_block_for_seq >= 0 && block_id == first_block_for_seq && token_offset < sliding_window) {
                         score_val = -std::numeric_limits<T>::infinity();
                     } else {
-                        int32_t kv_head = h / (num_heads / num_kv_heads);
-                        const T* key_vec =
-                            key_cache + (((block_id * num_kv_heads + kv_head) * block_size + token_offset) * head_size);
+                        int32_t k_head = h / (num_q_heads / num_k_heads);
+                        int32_t cache_idx =
+                            (((block_id * num_k_heads + k_head) * block_size + token_offset) * head_size);
+                        const T* key_vec = key_cache + cache_idx;
 
                         // Check for RoPE adjustment.
                         bool do_rotate = false;
@@ -242,14 +268,15 @@ void paged_attention(
                     // Retrieve key from new input.
                     int32_t new_token_idx = subsequence_begins ? (subsequence_begins[seq_idx] + (k - seq_past_tokens))
                                                                : (k - seq_past_tokens);
-                    int32_t kv_head = h % num_kv_heads;
-                    const T* key_vec = key + new_token_idx * kv_shape[1] + kv_head * head_size;
+                    int32_t k_head = h % num_k_heads;
+                    const T* key_vec = key + new_token_idx * key_shape[1] + k_head * head_size;
                     score_val = paged_attention_utils::dot_product(q_vec, key_vec, head_size);
                 }
-                // Apply scale and add alibi bias.
+                // Apply scale and add alibi bias according to the formula:
+                // softmax(q * transpose(k) + m · [–(i – 1), …, –2, –1, 0])
+                T alibi = alibi_slopes ? alibi_slopes[h % num_k_heads] : T(0);
                 score_val *= scale;
-                T alibi = alibi_slopes ? alibi_slopes[h % num_kv_heads] : T(0);
-                score_val += alibi * static_cast<T>(k);
+                score_val += alibi * static_cast<T>(-(total_keys - k - 1));
                 scores[k] = score_val;
             }
 
@@ -277,9 +304,9 @@ void paged_attention(
                     if (first_block_for_seq >= 0 && block_id == first_block_for_seq && token_offset < sliding_window)
                         continue;
 
-                    int32_t kv_head = h % num_kv_heads;
-                    const T* raw_val_vec =
-                        value_cache + (((block_id * num_kv_heads + kv_head) * block_size + token_offset) * head_size);
+                    int32_t v_head = h % num_v_heads;
+                    int32_t cache_idx = (((block_id * num_v_heads + v_head) * block_size + token_offset) * head_size);
+                    const T* raw_val_vec = value_cache + cache_idx;
 
                     bool do_rotate = false;
                     int32_t rotated_index = -1;
@@ -308,8 +335,8 @@ void paged_attention(
                 } else {
                     int32_t new_token_idx = subsequence_begins ? (subsequence_begins[seq_idx] + (k - seq_past_tokens))
                                                                : (k - seq_past_tokens);
-                    int32_t kv_head = h % num_kv_heads;
-                    const T* val_vec = value + new_token_idx * kv_shape[1] + kv_head * head_size;
+                    int32_t v_head = h % num_v_heads;
+                    const T* val_vec = value + new_token_idx * value_shape[1] + v_head * head_size;
                     for (int32_t d = 0; d < head_size; d++) {
                         out_vec[d] += weight * val_vec[d];
                     }

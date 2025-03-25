@@ -165,10 +165,10 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           ".");
 
     // TODO Handle optional inputs properly.
-        NODE_VALIDATION_CHECK(this,
+    NODE_VALIDATION_CHECK(this,
                           get_input_partial_shape(9).rank().is_dynamic() ||
-                              get_input_partial_shape(9).rank().get_length() ==0 ||
-                              get_input_partial_shape(9).rank().get_length() ==1,
+                              get_input_partial_shape(9).rank().get_length() == 0 ||
+                              get_input_partial_shape(9).rank().get_length() == 1,
                           "Input `scale` should be a scalar but it has rank ",
                           get_input_partial_shape(9).rank().get_length(),
                           ".");
