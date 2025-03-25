@@ -168,11 +168,21 @@ jobs:
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
+      - name: Display CMake options
+        env:
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
+        run: |
+          Write-Host $env:CMAKE_OPTIONS
+          Write-Host "$env:CMAKE_OPTIONS"
+
       - name: CMake configure
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}
           CMAKE_GENERATOR: ${{ inputs.cmake-generator }}
-        run: cmake $env:CMAKE_OPTIONS -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
+        run: |
+          $cmakeOptions = "$env:CMAKE_OPTIONS"
+          $splitCmakeOptions = $cmakeOptions.Split(" ")
+          cmake $splitCmakeOptions -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
