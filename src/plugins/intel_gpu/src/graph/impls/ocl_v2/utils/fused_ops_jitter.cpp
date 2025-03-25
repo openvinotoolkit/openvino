@@ -395,7 +395,7 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
             op = input_vars[0] / input_vars[1];
             break;
         default:
-            throw std::runtime_error("[GPU] Eltwise mode is not supported in fused ops codegen");
+            OPENVINO_THROW("[GPU] Eltwise mode is not supported in fused ops codegen");
         }
 
         auto tmp_var = concat(out_var, "_tmp");
