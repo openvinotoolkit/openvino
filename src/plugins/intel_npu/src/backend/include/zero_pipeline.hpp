@@ -13,6 +13,12 @@
 
 namespace intel_npu {
 
+struct arg_info {
+    uint32_t arg_index;
+    const void* arg_data;
+    size_t byte_size;
+};
+
 struct Pipeline {
 public:
     Pipeline(const Config& config,
@@ -33,10 +39,8 @@ public:
     void reset() const;
 
     void updateCommandList(uint32_t arg_index, const void* arg_data, size_t byte_size);
+    void updateCommandList(const std::vector<arg_info>& args_info);
     void updateCommandListIndex(uint32_t arg_index, const void* arg_data, size_t command_list_index);
-
-    void closeCommandList();
-    void closeCommandListIndex(size_t command_list_index);
 
 protected:
     std::shared_ptr<IGraph> _graph;

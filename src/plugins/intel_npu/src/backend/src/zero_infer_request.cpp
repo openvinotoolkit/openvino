@@ -246,7 +246,6 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
             isInput ? _graph->get_input_descriptors().at(index).idx : _graph->get_output_descriptors().at(index).idx,
             levelZeroTensors->data(),
             levelZeroTensors->get_byte_size());
-        _pipeline->closeCommandList();
     }
 }
 
@@ -274,7 +273,6 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
             isInput ? _graph->get_input_descriptors().at(index).idx : _graph->get_output_descriptors().at(index).idx,
             data,
             tensor->get_byte_size());
-        _pipeline->closeCommandList();
     }
 }
 
@@ -389,7 +387,6 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                     OPENVINO_ASSERT(data, "Empty buffer");
 
                     _pipeline->updateCommandListIndex(_graph->get_input_descriptors().at(foundPort.idx).idx, data, i);
-                    _pipeline->closeCommandListIndex(i);
                 }
             }
         }
@@ -442,8 +439,8 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 }
 
 void ZeroInferRequest::update_pipeline_if_memory_changed() {
-    bool closePipeline = false;
     size_t ioIndex = 0;
+    std::vector<arg_info> args_info;
 
     for (const auto& levelZeroTensor : _levelZeroInputTensors) {
         const auto& inputDescriptor = _metadata.inputs.at(ioIndex);
@@ -459,10 +456,8 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             _logger.debug("Update input graph descriptor with the new tensor");
             OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
 
-            _pipeline->updateCommandList(_graph->get_input_descriptors().at(ioIndex).idx,
-                                         zeroTensor->data(),
-                                         zeroTensor->get_byte_size());
-            closePipeline = true;
+            args_info.push_back(
+                {_graph->get_input_descriptors().at(ioIndex).idx, zeroTensor->data(), zeroTensor->get_byte_size()});
 
             if (!inputDescriptor.isStateInput) {
                 zeroTensor->reset_memory_flag();
@@ -487,10 +482,8 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             _logger.debug("Update output graph descriptor with the new tensor");
             OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
 
-            _pipeline->updateCommandList(_graph->get_output_descriptors().at(ioIndex).idx,
-                                         zeroTensor->data(),
-                                         zeroTensor->get_byte_size());
-            closePipeline = true;
+            args_info.push_back(
+                {_graph->get_output_descriptors().at(ioIndex).idx, zeroTensor->data(), zeroTensor->get_byte_size()});
 
             zeroTensor->reset_memory_flag();
         }
@@ -498,13 +491,13 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
         ++ioIndex;
     }
 
-    if (closePipeline) {
-        _pipeline->closeCommandList();
+    if (!args_info.empty()) {
+        _pipeline->updateCommandList(args_info);
     }
 }
 
 void ZeroInferRequest::update_states_if_memory_changed() {
-    bool closePipeline = false;
+    std::vector<arg_info> args_info;
 
     for (const auto& variableState : _variableStates) {
         auto zeroState = std::dynamic_pointer_cast<ZeroVariableState>(variableState._ptr);
@@ -522,26 +515,24 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
                 void* userBuffer = !remoteTensor ? zeroState->get_state()->data() : remoteTensor->get_original_memory();
 
-                _pipeline->updateCommandList(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
-                                             userBuffer,
-                                             zeroState->get_state()->get_byte_size());
+                args_info.push_back({_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
+                                     userBuffer,
+                                     zeroState->get_state()->get_byte_size()});
 
-                _pipeline->updateCommandList(_graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
-                                             userBuffer,
-                                             zeroState->get_state()->get_byte_size());
+                args_info.push_back({_graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
+                                     userBuffer,
+                                     zeroState->get_state()->get_byte_size()});
 
                 zeroState->reset_zero_tensor_updated_flag();
 
                 get_level_zero_input(zeroState->get_tensor_index()) = zeroState->get_state()._ptr;
                 _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_state()._ptr;
-
-                closePipeline = true;
             }
         }
     }
 
-    if (closePipeline) {
-        _pipeline->closeCommandList();
+    if (!args_info.empty()) {
+        _pipeline->updateCommandList(args_info);
     }
 }
 
