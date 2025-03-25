@@ -477,6 +477,7 @@ std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std:
             compilationDone = true;
             mainNetworkMetadata = std::move(networkMetadata);
             mainGraphHandle = graphHandle;
+            serializedIR = SerializedIR();
         }
     }
 
