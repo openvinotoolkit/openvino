@@ -1172,7 +1172,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
             // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
             std::shared_ptr<ov::Model> originalModel;
-            if (!localConfig.get<MODEL_PTR>().empty()) {
+            if (!localConfig.get<MODEL_PTR>()) {
                 originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>();
             } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
                 const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
