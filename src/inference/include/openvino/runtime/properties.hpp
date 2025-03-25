@@ -530,7 +530,7 @@ static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"
  * ov::optimal_batch_size)
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
+static constexpr Property<std::shared_ptr<const ov::Model>> model{"MODEL_PTR"};
 
 /**
  * @brief Special key for auto batching feature configuration. Enabled by default
