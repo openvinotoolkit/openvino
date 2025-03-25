@@ -118,10 +118,16 @@
 #endif
 
 #if defined(__clang__)
-#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START                      \
-        OPENVINO_DO_PRAGMA(clang diagnostic push)                         \
-        OPENVINO_DO_PRAGMA(clang diagnostic ignored "-Wsuggest-override") \
-        OPENVINO_DO_PRAGMA(clang diagnostic ignored "-Winconsistent-missing-override")
+#    if defined(__has_warning) && __has_warning("-Wsuggest-override")
+#        define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START                      \
+            OPENVINO_DO_PRAGMA(clang diagnostic push)                         \
+            OPENVINO_DO_PRAGMA(clang diagnostic ignored "-Wsuggest-override") \
+            OPENVINO_DO_PRAGMA(clang diagnostic ignored "-Winconsistent-missing-override")
+#    else
+#        define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START \
+            OPENVINO_DO_PRAGMA(clang diagnostic push)    \
+            OPENVINO_DO_PRAGMA(clang diagnostic ignored "-Winconsistent-missing-override")
+#    endif  // defined(__has_warning) && __has_warning("-Wsuggest-override")
 #    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END OPENVINO_DO_PRAGMA(clang diagnostic pop)
 #elif (defined(__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__ > 405))
 #    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START \

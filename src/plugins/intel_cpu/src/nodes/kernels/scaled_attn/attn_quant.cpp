@@ -275,8 +275,8 @@ static void quant_u8_by_channel_kernel(const T* src,
         }
     }
 #endif
-    for (size_t i = 0; i < seq_dim; ++i) {
-        for (; j < hidden_dims; j++) {
+    for (; j < hidden_dims; j++) {
+        for (size_t i = 0; i < seq_dim; ++i) {
             float tmp = src[i * src_stride + j];
             dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp / scale[j] + zp[j]));
         }

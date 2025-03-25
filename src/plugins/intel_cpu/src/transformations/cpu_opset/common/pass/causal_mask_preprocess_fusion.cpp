@@ -175,14 +175,14 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     auto masked_fill_Select = makePattern<ov::opset1::Select>(
         {mul_LogicalAnd, -FLT_MAX, causal_mask_boolean_slice | causal_mask_boolean_strided_slice},
         {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,1,8192,?]>
-    auto copy__ShapeOf = makePattern<ov::opset1::ShapeOf>(
+    auto copy_ShapeOf = makePattern<ov::opset1::ShapeOf>(
         {causal_mask_boolean_slice | causal_mask_boolean_strided_slice});  //  tensor_array<i32[4]>
     auto Constant_47319 = makeConst(ov::element::u8, ov::Shape({}), {0});
-    auto copy__Broadcast =
-        makePattern<ov::opset1::Broadcast>({masked_fill_Select, copy__ShapeOf, Constant_47319},
+    auto copy_Broadcast =
+        makePattern<ov::opset1::Broadcast>({masked_fill_Select, copy_ShapeOf, Constant_47319},
                                            {{"mode", "numpy"}});  //  tensor_array<f32[?,1,8192,..8192]>
     auto SliceAssign_201_Reshape_2 =
-        makePattern<ov::opset1::Reshape>({copy__Broadcast, {-1}}, {{"special_zero", false}});  //  tensor_array<f32[?]>
+        makePattern<ov::opset1::Reshape>({copy_Broadcast, {-1}}, {{"special_zero", false}});  //  tensor_array<f32[?]>
     auto SliceAssign_201_ScatterNDUpdate = makePattern<ov::opset4::ScatterNDUpdate>(
         {SliceAssign_201_Reshape_0, SliceAssign_201_Reshape_1, SliceAssign_201_Reshape_2});  //  tensor_array<f32[?]>
     auto SliceAssign_201_Reshape_3 =
