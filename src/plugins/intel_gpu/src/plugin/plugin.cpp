@@ -693,10 +693,10 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
         }
     }
 
-    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<const ov::Model> model;
     auto model_param = options.find(ov::hint::model.name())->second;
-    if (model_param.is<std::shared_ptr<ov::Model>>()) {
-        model = model_param.as<std::shared_ptr<ov::Model>>();
+    if (model_param.is<std::shared_ptr<const ov::Model>>()) {
+        model = model_param.as<std::shared_ptr<const ov::Model>>();
     } else {
         OPENVINO_THROW("[GPU_MAX_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type");
     }
@@ -808,9 +808,9 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
         GPU_DEBUG_INFO << "[OPTIMAL_BATCH_SIZE] ov::hint::model is not set: return 1" << std::endl;
         return static_cast<uint32_t>(1);
     }
-    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<const ov::Model> model;
     try {
-        model = model_param->second.as<std::shared_ptr<ov::Model>>();
+        model = model_param->second.as<std::shared_ptr<const ov::Model>>();
     } catch (...) {
         OPENVINO_THROW("[OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type");
     }
