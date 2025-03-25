@@ -3462,8 +3462,6 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          bool quant_key_bychannel,
                                                          bool quant_value_bychannel) {
     std::shared_ptr<PagedAttentionExecutor> executor;
-    std::cout << "make_pa_executor|" << data_type << "|" << key_cache_type << "|quant_key_bychannel|"
-              << quant_key_bychannel << std::endl;
 #if defined(OPENVINO_ARCH_X86_64)
     if (data_type == ov::element::bf16) {
 #    if defined(HAVE_AVX512F)
@@ -3505,7 +3503,11 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                " is not support");
             }
         } else {
-            OPENVINO_ASSERT(key_cache_type == ov::element::bf16, "expect kvcache type bf16, current: ", key_cache_type);
+            OPENVINO_ASSERT(key_cache_type == ov::element::bf16 && value_cache_type == ov::element::bf16,
+                            "expect kvcache type bf16, current: ",
+                            key_cache_type,
+                            " , ",
+                            value_cache_type);
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::bf16, ov::element::bf16>>();
         }
 #    else
@@ -3550,7 +3552,11 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                " is not support");
             }
         } else {
-            OPENVINO_ASSERT(key_cache_type == ov::element::f16, "expect kvcache type f16, current: ", key_cache_type);
+            OPENVINO_ASSERT(key_cache_type == ov::element::f16 && value_cache_type == ov::element::f16,
+                            "expect kvcache type f16, current: ",
+                            key_cache_type,
+                            " , ",
+                            value_cache_type);
             executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::f16, ov::element::f16>>();
         }
 #    else
@@ -3594,13 +3600,20 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                " is not support");
             }
         } else if (key_cache_type == ov::element::f16) {
+            OPENVINO_ASSERT(value_cache_type == ov::element::f16,
+                            "expect value_cache_type type f16, current: ",
+                            value_cache_type);
             executor =
                 std::make_shared<AttentionExecutor<float, ov::element::f16, ov::element::f16>>(key_group_size,
                                                                                                value_group_size,
                                                                                                quant_key_bychannel,
                                                                                                quant_value_bychannel);
         } else {
-            OPENVINO_ASSERT(key_cache_type == ov::element::f32, "expect kvcache type f32, current: ", key_cache_type);
+            OPENVINO_ASSERT(key_cache_type == ov::element::f32 && value_cache_type == ov::element::f32,
+                            "expect kvcache type f32, current: ",
+                            key_cache_type,
+                            " , ",
+                            value_cache_type);
             executor =
                 std::make_shared<AttentionExecutor<float, ov::element::f32, ov::element::f32>>(key_group_size,
                                                                                                value_group_size,
