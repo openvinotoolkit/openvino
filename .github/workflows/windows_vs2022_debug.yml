@@ -58,8 +58,8 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+      cmake-generator: 'Ninja'
       cmake-options: >-
-        -G Ninja
         -DENABLE_PYTHON=OFF
         -DENABLE_CPPLINT=OFF
         -DENABLE_TESTS=ON
