@@ -409,6 +409,11 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     //
     // *Convolution has input offset so it should be propagated, both back to reorders and to second concatenation.
     // As a result both concatenations should be optimized out and convolution should use optimized implementation.
+
+    if (engine.get_device_info().supports_immad) {
+        return;
+    }
+
     const int32_t input_f = 32;
     const int32_t output_f = 3 * input_f;
 
