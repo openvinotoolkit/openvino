@@ -644,7 +644,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
         {"aten::rand", op::translate_rand},
-        {"aten::rand", op::translate_randperm},
+        {"aten::randperm", op::translate_randperm},
         {"aten::rand_like", op::translate_rand_like},
         {"aten::randint", op::translate_randint},
         {"aten::randn", op::translate_randn},
