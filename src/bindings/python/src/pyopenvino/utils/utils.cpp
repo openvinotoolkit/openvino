@@ -465,13 +465,13 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
     } else if (py::isinstance<py::tuple>(py_obj)) {
-        auto _tuple = py::cast<py::tuple>(py_obj);
+        const auto _tuple = py::cast<py::tuple>(py_obj);
         if (_tuple.size() == 2) {
             return tuple_from_py_tuple<unsigned int, unsigned int>(_tuple);
         } else if (_tuple.size() == 3) {
             return tuple_from_py_tuple<unsigned int, unsigned int, unsigned int>(_tuple);
         } else {
-            OPENVINO_ASSERT(false, "Unsupported tuple size");
+            OPENVINO_THROW("Unsupported tuple size");
         }
         // OV types
     } else if (py_object_is_any_map(py_obj)) {
