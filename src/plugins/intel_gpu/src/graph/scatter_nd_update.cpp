@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "scatter_nd_update_inst.h"
+#include "openvino/op/scatter_nd_update.hpp"
 
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
 
+#include "json_object.h"
+#include "primitive_type_base.h"
 #include "scatter_nd_base_shape_inference.hpp"
+#include "scatter_nd_update_inst.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(scatter_nd_update)
