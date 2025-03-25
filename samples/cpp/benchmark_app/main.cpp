@@ -155,6 +155,9 @@ int64_t get_peak_memory_usage() {
 
 #endif
 
+constexpr std::string_view WEIGHTS_EXTENSION = ".bin";
+constexpr std::string_view BLOB_EXTENSION = ".blob";
+
 bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
     // arguments--------------------------------------
@@ -901,6 +904,18 @@ int main(int argc, char* argv[]) {
             if (!modelStream.is_open()) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
             }
+
+            device_config.insert(ov::hint::allow_auto_batching(false));
+
+            if (!device_config.count(ov::weights_path.name())) {
+                // Temporary solution: build the path to the weights by leveragin the one towards the binary object
+                std::string weightsPath = FLAGS_m;
+                weightsPath.replace(weightsPath.size() - BLOB_EXTENSION.length(),
+                                    BLOB_EXTENSION.length(),
+                                    WEIGHTS_EXTENSION);
+                device_config.insert(ov::weights_path(weightsPath));
+            }
+
             compiledModel = core.import_model(modelStream, device_name, device_config);
             modelStream.close();
 
