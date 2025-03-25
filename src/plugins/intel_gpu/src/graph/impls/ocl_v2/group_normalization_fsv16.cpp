@@ -38,29 +38,6 @@ ov::element::Type get_accumulator_type(const RuntimeParams& params) {
     }
 }
 
-JitConstants make_work_group_jit_constants(const DispatchDataFunc& func, const RuntimeParams& params) {
-    JitConstants jit;
-    if (params.is_dynamic()) {
-        jit.add({
-            make_jit_constant("GWS0", "get_global_size(0)"),
-            make_jit_constant("LWS0", "get_local_size(0)"),
-            make_jit_constant("LWS1", "get_local_size(1)"),
-            make_jit_constant("LWS2", "get_local_size(2)"),
-        });
-    } else {
-        KernelData kd;
-        func(params, kd);
-        jit.add({
-            make_jit_constant("GWS0", kd.params.workGroups.global[0]),
-            make_jit_constant("LWS0", kd.params.workGroups.local[0]),
-            make_jit_constant("LWS1", kd.params.workGroups.local[1]),
-            make_jit_constant("LWS2", kd.params.workGroups.local[2]),
-        });
-    }
-
-    return jit;
-}
-
 class GroupNormalizationGeneratorBase : public KernelGenerator {
 public:
     explicit GroupNormalizationGeneratorBase(std::string_view name, std::string_view suffix) : KernelGenerator(name, suffix) {}
@@ -102,7 +79,6 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = GroupNormalizationGeneratorBase::get_jit_constants(params);
         jit.make("GROUP_NORM_KERNEL_FEATURE_MEAN_SQR_MEAN", 1);
-        jit.add(make_work_group_jit_constants(get_dispatch_data_func(), params));
         return jit;
     }
 
@@ -162,7 +138,6 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = GroupNormalizationGeneratorBase::get_jit_constants(params);
         jit.make("GROUP_NORM_KERNEL_GROUP_MEAN_VARIANCE", 1);
-        jit.add(make_work_group_jit_constants(get_dispatch_data_func(), params));
         return jit;
     }
 
@@ -212,7 +187,6 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = GroupNormalizationGeneratorBase::get_jit_constants(params);
         jit.make("GROUP_NORM_KERNEL_FINAL", 1);
-        jit.add(make_work_group_jit_constants(get_dispatch_data_func(), params));
 
         if (params.has_fused_primitives()) {
             const auto& out_l = params.get_output_layout(0);
