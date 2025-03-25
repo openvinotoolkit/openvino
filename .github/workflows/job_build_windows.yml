@@ -172,7 +172,7 @@ jobs:
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}
           CMAKE_GENERATOR: ${{ inputs.cmake-generator }}
-        run: cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} $env:CMAKE_OPTIONS
+        run: cmake $env:CMAKE_OPTIONS -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
