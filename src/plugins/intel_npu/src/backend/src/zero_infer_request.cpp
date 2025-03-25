@@ -78,16 +78,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _graphInputDescriptors(_graph->get_input_descriptors()),
       _graphOutputDescriptors(_graph->get_output_descriptors()),
       _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1, nullptr)),
-      _levelZeroOutputTensors(_metadata.outputs.size(), nullptr),
-      _profilingPool(_initStructs, _graph, zeroProfiling::POOL_SIZE),
-      _profilingQuery(_initStructs, 0) {
+      _levelZeroOutputTensors(_metadata.outputs.size(), nullptr) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
-
-    auto proftype = config.get<PROFILING_TYPE>();
-    if (proftype == ov::intel_npu::ProfilingType::INFER) {
-        _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
-        _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_initStructs, _config.get<LOG_LEVEL>());
-    }
 
     _outputAllocator = std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs);
     _inputAllocator =
@@ -195,14 +187,8 @@ void ZeroInferRequest::create_pipeline() {
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
 
     // Construct pipeline
-    _pipeline = std::make_unique<Pipeline>(_config,
-                                           _initStructs,
-                                           _graph,
-                                           _profilingPool,
-                                           _profilingQuery,
-                                           _npuProfiling,
-                                           _levelZeroInputTensors,
-                                           _levelZeroOutputTensors);
+    _pipeline =
+        std::make_unique<Pipeline>(_config, _initStructs, _graph, _levelZeroInputTensors, _levelZeroOutputTensors);
 
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }
@@ -740,31 +726,7 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
 }
 
 std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
-    _logger.debug("InferRequest::get_profiling_info started");
-    const auto& compiledModel = *std::dynamic_pointer_cast<const ICompiledModel>(_compiledModel);
-    const auto& compilerConfig = compiledModel.get_config();
-    if (!compilerConfig.get<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
-        _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
-        return {};
-    }
-
-    auto compilerType = compilerConfig.get<COMPILER_TYPE>();
-    if (compilerType == ov::intel_npu::CompilerType::MLIR) {
-        // For plugin compiler retreive raw profiling data from backend and delegate
-        // processing to the compiler
-        auto profData = get_raw_profiling_data();
-        _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
-        return _graph->process_profiling_output(profData, compilerConfig);
-    } else {
-        auto proftype = _config.get<PROFILING_TYPE>();
-        if (proftype == ov::intel_npu::ProfilingType::INFER) {
-            _logger.debug("InferRequest::get_profiling_info complete with _npuProfiling->getNpuInferStatistics().");
-            return _npuProfiling->getNpuInferStatistics();
-        } else {  /// proftype = MODEL or undefined = fallback to model profiling
-            _logger.debug("InferRequest::get_profiling_info complete with _profilingQuery.getLayerStatistics().");
-            return _profilingQuery.getLayerStatistics();
-        }
-    }
+    return _pipeline->get_profiling_info();
 }
 
 std::shared_ptr<ov::ITensor> ZeroInferRequest::create_tensor(ov::element::Type type,
@@ -786,10 +748,6 @@ void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIn
                                                                   tensorIndex,
                                                                   descriptor.relatedDescriptorIndex.value(),
                                                                   _config));
-}
-
-std::vector<uint8_t> ZeroInferRequest::get_raw_profiling_data() const {
-    return _profilingQuery.getData<uint8_t>();
 }
 
 std::shared_ptr<ov::ITensor>& ZeroInferRequest::get_level_zero_input(size_t index, size_t tensorNo) const {

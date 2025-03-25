@@ -24,9 +24,6 @@ public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
              const std::shared_ptr<IGraph>& graph,
-             zeroProfiling::ProfilingPool& profiling_pool,
-             zeroProfiling::ProfilingQuery& profiling_query,
-             const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
              const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
              const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors);
 
@@ -42,10 +39,16 @@ public:
     void updateCommandList(const std::vector<arg_info>& args_info);
     void updateCommandListIndex(uint32_t arg_index, const void* arg_data, size_t command_list_index);
 
+    std::vector<ov::ProfilingInfo> get_profiling_info() const;
+
 protected:
     std::shared_ptr<IGraph> _graph;
     const Config _config;
     const uint32_t _id;
+
+    zeroProfiling::ProfilingPool _profiling_pool;
+    zeroProfiling::ProfilingQuery _profiling_query;
+    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
 
     /**
      * @brief Indicates how many command lists will be used inside the pipeline.
@@ -63,7 +66,6 @@ protected:
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
     bool _sync_output_with_fences = true;
-    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     Logger _logger;
 };
 

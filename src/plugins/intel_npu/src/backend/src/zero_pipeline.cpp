@@ -20,16 +20,14 @@ namespace intel_npu {
 Pipeline::Pipeline(const Config& config,
                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                    const std::shared_ptr<IGraph>& graph,
-                   zeroProfiling::ProfilingPool& profiling_pool,
-                   zeroProfiling::ProfilingQuery& profiling_query,
-                   const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
                    const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
                    const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors)
     : _graph(graph),
       _config(config),
       _id(_graph->get_unique_id()),
+      _profiling_pool(init_structs, _graph, zeroProfiling::POOL_SIZE),
+      _profiling_query(init_structs, 0),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
-      _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
     _logger.debug("Pipeline - initialize started");
@@ -37,8 +35,14 @@ Pipeline::Pipeline(const Config& config,
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>(),
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
-    if (profiling_pool.create()) {
-        profiling_query.create(profiling_pool._handle);
+    auto proftype = config.get<PROFILING_TYPE>();
+    if (proftype == ov::intel_npu::ProfilingType::INFER) {
+        _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
+        _npu_profiling = std::make_shared<zeroProfiling::NpuInferProfiling>(init_structs, _config.get<LOG_LEVEL>());
+    }
+
+    if (_profiling_pool.create()) {
+        _profiling_query.create(_profiling_pool._handle);
     }
 
     if (!_sync_output_with_fences || _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
@@ -131,7 +135,7 @@ Pipeline::Pipeline(const Config& config,
         }
 
         _command_lists.at(i)->appendGraphExecute(static_cast<ze_graph_handle_t>(graph->get_handle()),
-                                                 profiling_query.getHandle());
+                                                 _profiling_query.getHandle());
 
         /// append timestamp command if feature was activated
         if (_npu_profiling != nullptr) {
@@ -269,5 +273,30 @@ void Pipeline::updateCommandListIndex(uint32_t arg_index, const void* arg_data, 
     _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
     _command_lists.at(command_list_index)->close();
 };
+
+std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
+    _logger.debug("InferRequest::get_profiling_info started");
+    if (!_config.get<PERF_COUNT>()) {
+        _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
+        return {};
+    }
+
+    auto compilerType = _config.get<COMPILER_TYPE>();
+    if (compilerType == ov::intel_npu::CompilerType::MLIR) {
+        // For plugin compiler retreive raw profiling data from backend and delegate
+        // processing to the compiler
+        _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
+        return _graph->process_profiling_output(_profiling_query.getData<uint8_t>(), _config);
+    } else {
+        auto proftype = _config.get<PROFILING_TYPE>();
+        if (proftype == ov::intel_npu::ProfilingType::INFER) {
+            _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
+            return _npu_profiling->getNpuInferStatistics();
+        } else {  /// proftype = MODEL or undefined = fallback to model profiling
+            _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
+            return _profiling_query.getLayerStatistics();
+        }
+    }
+}
 
 }  // namespace intel_npu
