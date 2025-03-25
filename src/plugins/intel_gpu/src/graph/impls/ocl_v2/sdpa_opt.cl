@@ -273,6 +273,10 @@ KERNEL(sdpa_opt)(
 #endif
 #endif
                 uint head_idx_index = 0;
+                #ifdef KEY_BLOCK_SIZE
+                #undef KEY_BLOCK_SIZE
+                #endif
+
                 #define KEY_BLOCK_SIZE 8
                 for (; head_idx_index + (KEY_BLOCK_SIZE * SUBGROUP_SIZE) <= K_HEAD_SIZE; head_idx_index += SUBGROUP_SIZE * KEY_BLOCK_SIZE) {
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, KEY_BLOCK_SIZE, ptr, offset);
