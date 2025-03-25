@@ -6,6 +6,7 @@
 
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <pybind11/typing.h>
 
 #include "openvino/runtime/tensor.hpp"
 #include "pyopenvino/core/common.hpp"

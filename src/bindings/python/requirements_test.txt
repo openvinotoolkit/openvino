@@ -36,3 +36,5 @@ retrying
 tox
 types-setuptools
 wheel
+pybind11-stubgen<2.6
+pre-commit<4.3
