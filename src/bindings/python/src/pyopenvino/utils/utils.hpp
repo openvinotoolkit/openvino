@@ -110,7 +110,7 @@ protected:
 
 };
 
-    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE, ModelDistributionPolicy };
+    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE, MODEL_DISTRIBUTION_POLICY };
 
     struct EmptyList {};
 

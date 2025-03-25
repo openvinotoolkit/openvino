@@ -33,11 +33,11 @@ PY_TYPE check_container_element_type(const T& container) {
             detected_type = type;
             return;
         }
-        OPENVINO_THROW("Incorrect attribute. Mixed types in the list are not allowed.");
+        OPENVINO_THROW("Incorrect attribute. Mixed types in the container are not allowed.");
     };
 
     for (const auto& it : container) {
-        // Check the type of elements in the list
+        // Check the type of elements in the container
         if (py::isinstance<py::str>(it)) {
             check_type(PY_TYPE::STR);
         } else if (py::isinstance<py::int_>(it)) {
@@ -49,7 +49,7 @@ PY_TYPE check_container_element_type(const T& container) {
         } else if (py::isinstance<ov::PartialShape>(it)) {
             check_type(PY_TYPE::PARTIAL_SHAPE);
         } else if (py::isinstance<ov::hint::ModelDistributionPolicy>(it)) {
-            check_type(PY_TYPE::ModelDistributionPolicy);
+            check_type(PY_TYPE::MODEL_DISTRIBUTION_POLICY);
         }
     }
 
@@ -474,7 +474,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             return ov::Any(EmptyList());
 
         switch (detected_type) {
-        case PY_TYPE::ModelDistributionPolicy:
+        case PY_TYPE::MODEL_DISTRIBUTION_POLICY:
             return _set.cast<std::set<ov::hint::ModelDistributionPolicy>>();
         case PY_TYPE::STR:
             return _set.cast<std::set<std::string>>();
