@@ -1445,7 +1445,7 @@ std::vector<float> softmax(std::vector<float>& tensor) {
     return results;
 }
 
-bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
+bool testNRMSE(TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
                 "The testcase 'nrmse' doesn't support any `override_model_batch_size` values besides 1 yet");
@@ -1459,7 +1459,7 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
     std::vector<std::string> skipped_layers;
     skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
 
-    for (const auto& [tensorName, output] : outputs) {
+    for (auto& [tensorName, output] : outputs) {
         if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
             std::cout << "Skip NRMSE test for layers: " << tensorName << std::endl;
             continue;
@@ -1481,7 +1481,10 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
             auto refSoftMax = softmax(refOutput);
 
             std::copy_n(actSoftMax.begin(), output.get_size(), output.data<float>());
-            std::copy_n(refSoftMax.begin(), referencesIterator->second.get_size(), referencesIterator->second.data<float>());
+            // Why reference data is not updated?
+            std::copy_n(refSoftMax.begin(),
+                        referencesIterator->second.get_size(),
+                        const_cast<float*>(referencesIterator->second.data<float>()));
         }
 
         std::cout << "Compare " << tensorName << " with reference" << std::endl;
@@ -2281,10 +2284,10 @@ static int runSingleImageTest() {
             std::cout << "Run inference on " << FLAGS_device << std::endl;
 
             const auto startTime = Time::now();
-            const auto outInference = runInfer(inferRequest, compiledModel, inTensors, dumpedInputsPaths);
+            auto outInference = runInfer(inferRequest, compiledModel, inTensors, dumpedInputsPaths);
             const auto endTime = Time::now();
 
-            const TensorMap& outputTensors = outInference.first;
+            TensorMap& outputTensors = outInference.first;
 
             printPerformanceCountsAndLatency(numberOfTestCase, outInference.second, endTime - startTime);
 
