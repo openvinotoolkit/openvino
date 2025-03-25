@@ -6,17 +6,11 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_12 {
 OutputVector softmax_cross_entropy_loss(const Node& node);
 }  // namespace opset_12
 namespace opset_13 {
 OutputVector softmax_cross_entropy_loss(const Node& node);
 }  // namespace opset_13
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

@@ -15,14 +15,11 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
-
 #include "softmax_crossentropy_loss.hpp"
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 namespace {
 
 OutputVector onnx_softmax_crossentropy_loss(const Node& node, int64_t axis_default) {
@@ -153,6 +150,4 @@ OutputVector softmax_cross_entropy_loss(const Node& node) {
 ONNX_OP("SoftmaxCrossEntropyLoss", OPSET_SINCE(13), ai_onnx::opset_13::softmax_cross_entropy_loss);
 }  // namespace opset_13
 }  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx
