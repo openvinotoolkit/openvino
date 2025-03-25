@@ -41,7 +41,7 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
         ov::replace_node_update_name(node, tpp_eltwise);
         for (size_t i = 0; i < node->get_input_size(); i++) {
             auto subtensor = snippets::VectorDims{M_block, N_block};
-            if (tpp_eltwise->input(i).get_partial_shape().size() < 2) {
+            if (tpp_eltwise->get_input_partial_shape(i).size() < 2) {
                 subtensor = snippets::VectorDims{N_block};
             }
             ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(tpp_eltwise->input(i), subtensor);
