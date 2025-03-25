@@ -145,6 +145,7 @@ DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Thresho
 DEFINE_double(nrmse_loss_threshold, 1.0, "Threshold for 'nrmse' mode");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
 DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
+DEFINE_bool(apply_soft_max, false, "Apply SoftMax for 'nrmse' mode");
 
 DEFINE_double(psnr_reference, 30.0, "PSNR reference value in dB");
 DEFINE_double(psnr_tolerance, 1e-4, "Tolerance for 'psnr' mode");
@@ -1419,6 +1420,31 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
+std::vector<float> softmax(std::vector<float>& tensor) {
+    std::vector<double> probabilities(tensor.size());
+    std::vector<float> results(tensor.size());
+
+    // Find the maximum value for numerical stability
+    float max_value = *std::max_element(tensor.begin(), tensor.end());
+
+    // Compute the exponentials of the tensor after subtracting max_value for numerical stability
+    double sum_exp = 0.0;
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        probabilities[i] = exp(tensor[i] - max_value);  // exp(tensor_value - max_value) for stability
+        sum_exp += probabilities[i];
+    }
+
+    // Normalize the probabilities by dividing by the sum of exponentials
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        probabilities[i] /= sum_exp;
+    }
+
+    std::transform(probabilities.begin(), probabilities.end(), results.begin(),
+                   [](double value) { return static_cast<float>(value); });
+
+    return results;
+}
+
 bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
@@ -1441,6 +1467,22 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
 
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
+        bool applySoftMax = FLAGS_apply_soft_max;
+
+        if (applySoftMax) {
+            std::vector<float> actOutput;
+            std::vector<float> refOutput;
+
+            std::copy_n((npu::utils::toFP32(output)).data<const float>(), output.get_size(), std::back_insert_iterator(actOutput));
+            std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(), referencesIterator->second.get_size(),
+                std::back_insert_iterator(refOutput));
+
+            auto actSoftMax = softmax(actOutput);
+            auto refSoftMax = softmax(refOutput);
+
+            std::copy_n(actSoftMax.begin(), output.get_size(), output.data<float>());
+            std::copy_n(refSoftMax.begin(), referencesIterator->second.get_size(), referencesIterator->second.data<float>());
+        }
 
         std::cout << "Compare " << tensorName << " with reference" << std::endl;
         if (!computeNRMSE(output, referencesIterator->second)) {
