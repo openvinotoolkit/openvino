@@ -738,10 +738,14 @@ JitTerm FusedOpsCodeGenerator::get_input_var_name(size_t input_id, bool is_shuff
 
 JitTerm FusedOpsCodeGenerator::get_output_var_name(const JitTerm& input_var, size_t op_id) const {
     auto copy = input_var.str();
-    std::replace(copy.begin(), copy.end(), '[', '_');
-    std::replace(copy.begin(), copy.end(), ']', '_');
-    std::replace(copy.begin(), copy.end(), ' ', '_');
-    std::replace(copy.begin(), copy.end(), '.', '_');
+    std::replace_if(
+        copy.begin(),
+        copy.end(),
+        [](char& c) {
+            return c == '[' || c == ']' || c == ' ' || c == '.';
+        },
+        '_');
+
     return concat(copy, "_out_", op_id);
 }
 
