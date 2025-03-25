@@ -727,6 +727,8 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
 }
 
 std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
+    OPENVINO_ASSERT(_pipeline, "Profiling information isn't available before running an inference!");
+
     return _pipeline->get_profiling_info();
 }
 
