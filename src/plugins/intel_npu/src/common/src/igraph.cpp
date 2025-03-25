@@ -157,8 +157,4 @@ const std::optional<std::size_t> IGraph::get_batch_size() const {
     return _batch_size;
 }
 
-size_t IGraph::get_blob_size() const {
-    return _blobPtr->size();
-}
-
 }  // namespace intel_npu

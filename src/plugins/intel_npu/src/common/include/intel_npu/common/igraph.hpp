@@ -57,8 +57,6 @@ public:
 
     const std::optional<std::size_t> get_batch_size() const;
 
-    size_t get_blob_size() const;
-
     std::vector<uint8_t> _blob;
 
 protected:

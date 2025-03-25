@@ -1106,7 +1106,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         CompilerAdapterFactory compilerAdapterFactory;
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
-        uint64_t graphSize;
+        uint64_t mainSize;
         std::vector<uint64_t> initSizes;
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
         if (!skipCompatibility) {
@@ -1115,26 +1115,28 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                 OPENVINO_THROW("Incompatible blob version!");
             }
 
-            graphSize = storedMeta->get_blob_size();
+            size_t accumulator = 0;
             initSizes = storedMeta->get_init_sizes();
+            mainSize = storedMeta->get_blob_size() - std::accumulate(initSizes.begin(), initSizes.end(), accumulator);
         } else {
             _logger.info("Blob compatibility check skipped.");
-            graphSize = MetadataBase::getFileSize(stream);
+            mainSize = MetadataBase::getFileSize(stream);
         }
 
         std::unique_ptr<BlobContainer> blobPtr;
 
         if (modelBuffer == nullptr) {
-            std::vector<uint8_t> blob(graphSize);
-            stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
+            std::vector<uint8_t> blob(mainSize);
+            stream.read(reinterpret_cast<char*>(blob.data()), mainSize);
             if (!stream) {
                 OPENVINO_THROW("Failed to read data from stream!");
             }
-            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
+            _logger.debug("Successfully read %zu bytes into blob.", mainSize);
 
             blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
         } else {
-            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
+            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), mainSize);
+            stream.seekg(mainSize, std::ios_base::cur);
         }
 
         auto graph = compiler->parse(std::move(blobPtr), localConfig);
@@ -1159,7 +1161,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
                     blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
                 } else {
-                    blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
+                    blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), initSize);
+                    stream.seekg(initSize, std::ios_base::cur);
                 }
 
                 std::shared_ptr<IGraph> initGraph = compiler->parse(std::move(blobPtr), localConfig);
@@ -1175,9 +1178,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                 const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
                 const size_t weightsPathLength = weightsPath.length();
                 if (weightsPathLength < WEIGHTS_EXTENSION.length() ||
-                    !weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
-                                         WEIGHTS_EXTENSION.length(),
-                                         WEIGHTS_EXTENSION)) {
+                    weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                        WEIGHTS_EXTENSION.length(),
+                                        WEIGHTS_EXTENSION)) {
                     OPENVINO_THROW("Invalid path to the weights: ",
                                    weightsPath,
                                    ". A \".bin\" extension was expected.");
@@ -1186,7 +1189,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                 std::string xmlPath = weightsPath;
                 xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
                                 WEIGHTS_EXTENSION.length(),
-                                WEIGHTS_EXTENSION);
+                                XML_EXTENSION);
                 originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
             } else {
                 OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");

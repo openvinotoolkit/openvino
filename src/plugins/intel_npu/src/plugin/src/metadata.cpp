@@ -75,7 +75,7 @@ void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
     uint64_t numberOfInits;
     stream.read(reinterpret_cast<char*>(&numberOfInits), sizeof(numberOfInits));
 
-    _initSizes.reserve(numberOfInits);
+    _initSizes.resize(numberOfInits);
     for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
         stream.read(reinterpret_cast<char*>(&_initSizes.at(initIndex)), sizeof(_initSizes.at(initIndex)));
     }
@@ -84,7 +84,6 @@ void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
 void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
     _ovVersion.write(stream);
-    stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
 
     uint64_t numberOfInits = _initSizes.size();
     stream.write(reinterpret_cast<const char*>(&numberOfInits), sizeof(numberOfInits));
@@ -92,6 +91,7 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
         stream.write(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
     }
 
+    stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
 

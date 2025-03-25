@@ -125,10 +125,11 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
-    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning,
+    size_t mainBlobSizeBeforeVersioning = _graph->export_blob(stream);
+    size_t initBlobSizeBeforeVersioning = _initGraph->export_blob(stream);
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(initBlobSizeBeforeVersioning + mainBlobSizeBeforeVersioning,
                                                    CURRENT_OPENVINO_VERSION,
-                                                   {_initGraph->get_blob_size()});
+                                                   {initBlobSizeBeforeVersioning});
     meta.write(stream);
 }
 
