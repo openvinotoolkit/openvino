@@ -6,7 +6,7 @@ Stub files (`.pyi`) are used to provide type hints for Python code. They describ
 
 ## Automation of stub file generation in OpenVINO
 
-In OpenVINO, the generation of stub files is automated as part of the development workflow. When building the Python API for the first time, a Git pre-commit hook is installed into the OpenVINO repository's `.git` directory. The related Python dependencies are pybind11-stubgen for stub generation and pre-commit for automating git hooks.
+In OpenVINO, the generation of stub files is automated as part of the development workflow. When building the Python API for the first time, a Git pre-commit hook is installed into the OpenVINO repository's `.git` directory. The related Python dependencies are `pybind11-stubgen` for stub generation and `pre-commit` for automating git hooks.
 
 ### What is a git pre-commit hook?
 
