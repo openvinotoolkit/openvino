@@ -174,6 +174,7 @@ public:
     std::vector<uint64_t> get_init_sizes() const override;
 };
 
+// TODO inherit v2.0 instead, reuse common code instead of copy-pasting
 template <>
 struct Metadata<METADATA_VERSION_2_1> : public MetadataBase {
 protected:
