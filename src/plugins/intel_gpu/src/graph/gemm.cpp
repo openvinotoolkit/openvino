@@ -132,8 +132,8 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
                                                                           prim->output_transpose_order);
 
     cldnn::format output_format = input0_layout.format;
-    // Format update for rank > 4 case
-    if (output_shapes[0].size() > output_format.dims_order().size())
+    // Format update when format dim is different with output shape size
+    if (output_shapes[0].size() > output_format.dimension())
         output_format = cldnn::format::get_default_format(output_shapes[0].size());
     if (node.get_preferred_output_fmt() != format::any)
         output_format = node.get_preferred_output_fmt();
@@ -144,7 +144,8 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
 template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(gemm_node const& node, const kernel_impl_params& impl_param);
 
 std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<const gemm> primitive,
-                                                       const std::vector<layout>& input_layouts) {
+                                                       const std::vector<layout>& input_layouts,
+                                                       const bool allow_new_shape_infer) {
     auto get_transposed_input_shape = [&](const ov::PartialShape& input_pshape, size_t input_rank, size_t output_rank, bool transpose, bool first_input) {
         ov::PartialShape transposed_input_pshape;
 
@@ -184,8 +185,9 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
 
     bool reordered = primitive->input_rank > 4 || primitive->weight_rank > 4;
     size_t output_rank = std::max(primitive->input_rank, primitive->weight_rank);
-    size_t input_rank = (reordered && (input0_pshape.size() > primitive->input_rank))  ? output_rank : primitive->input_rank;
-    size_t weight_rank = (reordered && (input1_pshape.size() > primitive->weight_rank)) ? output_rank : primitive->weight_rank;
+    // No need to get output_rank for rank>4 inputs when allow_new_shape_infer=true
+    size_t input_rank = (reordered && !allow_new_shape_infer) ? output_rank : primitive->input_rank;
+    size_t weight_rank = (reordered && !allow_new_shape_infer) ? output_rank : primitive->weight_rank;
 
     auto transposed_input0_pshape = get_transposed_input_shape(input0_pshape, input_rank, output_rank, primitive->transpose_input0, true);
     auto transposed_input1_pshape = get_transposed_input_shape(input1_pshape, weight_rank, output_rank, primitive->transpose_input1, false);
