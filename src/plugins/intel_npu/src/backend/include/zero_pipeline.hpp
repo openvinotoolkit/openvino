@@ -35,9 +35,9 @@ public:
     void pull();
     void reset() const;
 
-    void updateCommandList(uint32_t arg_index, const void* arg_data, size_t byte_size);
-    void updateCommandList(const std::vector<arg_info>& args_info);
-    void updateCommandListIndex(uint32_t arg_index, const void* arg_data, size_t command_list_index);
+    void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
+    void update_graph_arguments(const std::vector<arg_info>& args_info);
+    void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 

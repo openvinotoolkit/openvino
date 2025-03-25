@@ -222,7 +222,7 @@ void Pipeline::reset() const {
     _logger.debug("Pipeline - rest() completed");
 };
 
-void Pipeline::updateCommandList(uint32_t arg_index, const void* arg_data, size_t byte_size) {
+void Pipeline::update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
@@ -237,7 +237,7 @@ void Pipeline::updateCommandList(uint32_t arg_index, const void* arg_data, size_
     }
 };
 
-void Pipeline::updateCommandList(const std::vector<arg_info>& args_info) {
+void Pipeline::update_graph_arguments(const std::vector<arg_info>& args_info) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
     bool close_pipeline = false;
@@ -260,7 +260,7 @@ void Pipeline::updateCommandList(const std::vector<arg_info>& args_info) {
     }
 }
 
-void Pipeline::updateCommandListIndex(uint32_t arg_index, const void* arg_data, size_t command_list_index) {
+void Pipeline::update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t command_list_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
     _logger.debug("Pipeline - updateCommandListIndex");
 

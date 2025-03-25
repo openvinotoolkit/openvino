@@ -227,8 +227,8 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
 
         OPENVINO_ASSERT(levelZeroTensors->data(), "Empty buffer");
 
-        OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "updateCommandList");
-        _pipeline->updateCommandList(
+        OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "update_graph_arguments");
+        _pipeline->update_graph_arguments(
             isInput ? _graph->get_input_descriptors().at(index).idx : _graph->get_output_descriptors().at(index).idx,
             levelZeroTensors->data(),
             levelZeroTensors->get_byte_size());
@@ -254,8 +254,8 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
         auto data = tensor->get_original_memory();
         OPENVINO_ASSERT(data, "Empty buffer");
 
-        OV_ITT_TASK_NEXT(ZERO_SET_REMOTE_TENSOR, "updateCommandList");
-        _pipeline->updateCommandList(
+        OV_ITT_TASK_NEXT(ZERO_SET_REMOTE_TENSOR, "update_graph_arguments");
+        _pipeline->update_graph_arguments(
             isInput ? _graph->get_input_descriptors().at(index).idx : _graph->get_output_descriptors().at(index).idx,
             data,
             tensor->get_byte_size());
@@ -368,11 +368,12 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 }
 
                 if (_pipelineIsCreated) {
+                    OPENVINO_ASSERT(data, "Empty buffer");
                     OV_ITT_TASK_NEXT(SET_TENSORS, "updateCommandList");
 
-                    OPENVINO_ASSERT(data, "Empty buffer");
-
-                    _pipeline->updateCommandListIndex(_graph->get_input_descriptors().at(foundPort.idx).idx, data, i);
+                    _pipeline->update_graph_arguments_batching(_graph->get_input_descriptors().at(foundPort.idx).idx,
+                                                               data,
+                                                               i);
                 }
             }
         }
@@ -478,7 +479,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
     }
 
     if (!args_info.empty()) {
-        _pipeline->updateCommandList(args_info);
+        _pipeline->update_graph_arguments(args_info);
     }
 }
 
@@ -518,7 +519,7 @@ void ZeroInferRequest::update_states_if_memory_changed() {
     }
 
     if (!args_info.empty()) {
-        _pipeline->updateCommandList(args_info);
+        _pipeline->update_graph_arguments(args_info);
     }
 }
 
