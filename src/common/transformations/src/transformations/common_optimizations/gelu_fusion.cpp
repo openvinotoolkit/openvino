@@ -45,7 +45,7 @@ Predicate check_value(float ref, float eps = std::numeric_limits<float>::epsilon
 
 bool gelu_replacer(ov::pass::pattern::Matcher& m, const std::shared_ptr<ov::Node>& pattern_input_to_relu) {
     ov::pass::NodeRegistry rg;
-    auto pattern_to_output = m.get_pattern_map();
+    auto pattern_to_output = m.get_pattern_value_map();
     auto x_output = pattern_to_output.at(pattern_input_to_relu);
 
     auto gelu = rg.make<ov::op::v7::Gelu>(x_output);
