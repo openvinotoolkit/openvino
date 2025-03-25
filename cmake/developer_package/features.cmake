@@ -115,7 +115,7 @@ if(ENABLE_AVX512F)
 endif()
 
 if(ENABLE_SVE)
-    ov_check_compiler_supports_sve("-march=armv8-a+sve")
+    ov_check_compiler_supports_sve("-march=armv8-a+sve+fp16")
 
     if(NOT CXX_HAS_SVE)
         set(ENABLE_SVE OFF CACHE BOOL "Enables ARM64 SVE support" FORCE)

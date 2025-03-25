@@ -74,10 +74,16 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<ov::op::v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
         auto value_cache = ov::as_type_ptr<ov::op::v0::Parameter>(pa_op->get_input_node_shared_ptr(4));
+#if defined(OPENVINO_ARCH_ARM64)
+        auto format_cache_precision = [](ov::element::Type cache_precision, ov::element::Type infer_precision) {
+            return ov::element::u8;
+        };
+#else
         auto format_cache_precision = [](ov::element::Type cache_precision, ov::element::Type infer_precision) {
             return cache_precision == ov::element::f16 && infer_precision == ov::element::bf16 ? infer_precision
                                                                                                : cache_precision;
         };
+#endif
         auto init_cache_shape = [&](const size_t head_nums,
                                     const size_t head_size,
                                     const size_t block_size,
