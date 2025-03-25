@@ -25,7 +25,7 @@ Performance Information F.A.Q.
 
 .. dropdown:: How can I run the benchmark results on my own?
 
-   All of the performance benchmarks on traditional network models are generated using the
+   All of the performance benchmarks on conventional network models are generated using the
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
    called :doc:`benchmark_app <../../get-started/learn-openvino/openvino-samples/benchmark-tool>`.
 

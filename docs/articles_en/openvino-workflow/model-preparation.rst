@@ -1,4 +1,4 @@
-Traditional Model Preparation
+Conventional Model Preparation
 ===============================================================================================
 
 
