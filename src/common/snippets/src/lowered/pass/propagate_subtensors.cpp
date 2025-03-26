@@ -153,8 +153,12 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
     // After subtensor propagation, the original shapes must be restored
     for (const auto& elem : original_shapes)
         elem.first->set_shape(elem.second);
-    for (auto expr_it = begin; expr_it != shape_inference_end_it; expr_it++)
-        (*expr_it)->updateShapes();
+    for (auto expr_it = begin; expr_it != shape_inference_end_it; expr_it++) {
+        const auto expr = *expr_it;
+        if (ov::is_type<snippets::op::LoopEnd>(expr->get_node()))
+            continue;
+        expr->updateShapes();
+    }
 }
 }  // namespace
 
