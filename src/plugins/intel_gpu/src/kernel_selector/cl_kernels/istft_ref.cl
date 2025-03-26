@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 // #if __OPENCL_C_VERSION__ >= CL_VERSION_3_0
-  #pragma OPENCL EXTENSION cl_ext_float_atomics : enable
-  #define atomicadd(a,b) atomic_fetch_add((volatile atomic_float *)(a),(b)) 
+#pragma OPENCL EXTENSION cl_ext_float_atomics : enable
+#define atomicadd(a, b) atomic_fetch_add((volatile atomic_float*)(a), (b))
 // #else
 //   inline float atomicadd(volatile __global float* address, const float value) {
 //     float old = value, orig;
@@ -15,14 +14,14 @@
 // #endif
 
 inline int calcDivisor(int idx, int frameSize, int frameStep, int bufferSize) {
-    int earliestStartIdx = max(0,idx-frameSize+1);
-    int realStartIdx = ((earliestStartIdx+frameStep-1)/frameStep)*frameStep;
-    int lastPossibleIdx = bufferSize-frameSize;
+    int earliestStartIdx = max(0, idx - frameSize + 1);
+    int realStartIdx = ((earliestStartIdx + frameStep - 1) / frameStep) * frameStep;
+    int lastPossibleIdx = bufferSize - frameSize;
 
-    if(lastPossibleIdx<realStartIdx)
+    if (lastPossibleIdx < realStartIdx)
         return 0;
 
-    int ret = ((min(lastPossibleIdx,idx)-realStartIdx)/frameStep) + 1;
+    int ret = ((min(lastPossibleIdx, idx) - realStartIdx) / frameStep) + 1;
     return ret;
 }
 
@@ -57,34 +56,38 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
 
     const float windowVal = (float)window[window_id];
     const float windowValPow2 = windowVal * windowVal;
-    
+
     const int frameIdxStart = frame_id * frame_step;
 
-    const int outputIdxWithinBatch =  OUTPUT_GET_INDEX(0, 0, 0, window_id + frameIdxStart);
+    const int outputIdxWithinBatch = OUTPUT_GET_INDEX(0, 0, 0, window_id + frameIdxStart);
     const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, window_id + frameIdxStart);
 
     float sum = 0.0f;
     const int binSize = calcDivisor(window_id + frameIdxStart, frame_size, frame_step, OUTPUT_SIZE_X);
 
-    int startIDx = window_id%frame_step;
-    
-    while((outputIdxWithinBatch + (frame_size - startIDx-1)) >= OUTPUT_SIZE_X)
+    int startIDx = window_id % frame_step;
+
+    while ((outputIdxWithinBatch + (frame_size - startIDx - 1)) >= OUTPUT_SIZE_X)
         startIDx += frame_step;
 
-    for( int i = 0; i < binSize; ++i ) {
+    for (int i = 0; i < binSize; ++i) {
         const int idx = startIDx + i * frame_step;
         const float val = window[idx];
-        sum += val*val;
-        //printf("Sum calc: globalOutputIdx: %i, window_id: %i, i: %i, idx: %i, startIDx: %i, sum: %f\n", globalOutputIdx, window_id, i, idx, startIDx, sum);
+        sum += val * val;
+        // printf("Sum calc: globalOutputIdx: %i, window_id: %i, i: %i, idx: %i, startIDx: %i, sum: %f\n", globalOutputIdx, window_id, i, idx, startIDx, sum);
     }
 
     // idft_power = 2*PI*(n/N) from idft def.
     const float idft_power = 2.0f * M_PI_F * (float)window_id / (float)frame_size;
 
+    const bool frame_size_even = frame_size % 2 == 0;
+
+    const int freqsHandledInLoop = frame_size_even ? freqs - 1 : freqs;
+
     cfloat res;
     real(res) = signal[INPUT0_GET_INDEX(batch, 0, frame_id, 0)];
     imag(res) = signal[INPUT0_GET_INDEX(batch, 0, frame_id, 1)];
-    for (int freq_id = 1; freq_id < freqs - 1; ++freq_id) {
+    for (int freq_id = 1; freq_id < freqsHandledInLoop; ++freq_id) {
         cfloat freqVal_i;
         real(freqVal_i) = signal[INPUT0_GET_INDEX(batch, freq_id, frame_id, 0)];
         imag(freqVal_i) = signal[INPUT0_GET_INDEX(batch, freq_id, frame_id, 1)];
@@ -98,33 +101,33 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
         res = cadd(res, val_i_n);
     }
 
-    cfloat lastFreq;
-    real(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs - 1, frame_id, 0)];
-    imag(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs - 1, frame_id, 1)];
+    if (frame_size_even) {
+        cfloat lastFreq;
+        real(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs - 1, frame_id, 0)];
+        imag(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs - 1, frame_id, 1)];
 
-    const cfloat e_i = expi(idft_power * (float)(freqs - 1));
-    const cfloat val_i = cmult(lastFreq, e_i);
-    res = cadd(res, val_i);
+        const cfloat e_i = expi(idft_power * (float)(freqs - 1));
+        const cfloat val_i = cmult(lastFreq, e_i);
+        res = cadd(res, val_i);
+    }
 
     const float finalIRDFTVal = real(res) / frame_size;
 
-
-
     // printf("window_id=%i, real(res)=%f\n", window_id, real(res)/frame_size);
 
-    
     // TODO: handle case when windowVal == 0.0
-    //const float finalVAl = finalIRDFTVal / (windowVal*divisor);
-    const float finalVAl = (finalIRDFTVal*windowVal) / (sum);
+    // const float finalVAl = finalIRDFTVal / (windowVal*divisor);
+    const float finalVAl = (finalIRDFTVal * windowVal) / (sum);
 
     // TODO: Handle sumation from different frames...(atomics?)
     const OUTPUT_TYPE finalVal = (OUTPUT_TYPE)(finalVAl);
 
     //*(output+globalOutputIdx)=finalVal;
 
-    const float prev = atomicadd(output+globalOutputIdx, finalVal);
+    const float prev = atomicadd(output + globalOutputIdx, finalVal);
 
-    //printf("globalOutputIdx: %i, finalIRDFTVal: %f, finalVal: %f, divisior: %i, prev: %f, sum: %f\n", globalOutputIdx, finalIRDFTVal, finalVal, binSize, prev, sum);
+    // printf("globalOutputIdx: %i, finalIRDFTVal: %f, finalVal: %f, divisior: %i, prev: %f, sum: %f\n", globalOutputIdx, finalIRDFTVal, finalVal, binSize,
+    // prev, sum);
 
-    //output[OUTPUT_GET_INDEX(0, 0, batch, window_id + frameOffset)] = finalVal;
+    // output[OUTPUT_GET_INDEX(0, 0, batch, window_id + frameOffset)] = finalVal;
 }
