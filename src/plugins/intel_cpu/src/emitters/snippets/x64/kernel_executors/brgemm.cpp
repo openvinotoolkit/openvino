@@ -24,7 +24,8 @@ BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype,
                                        dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
                                        const dnnl_post_ops& post_ops)
     : BrgemmBaseKernelConfig(),
-      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, out_dtype, is_with_comp, primitive_isa, post_ops)) {
+      m_static_params(
+          std::make_shared<StaticParams>(in0_dtype, in1_dtype, out_dtype, is_with_comp, primitive_isa, post_ops)) {
     m_hash = compute_hash();
 }
 

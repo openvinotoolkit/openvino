@@ -75,26 +75,30 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
         auto postops = brgemm->get_postops();
         postops.push_back(post_op->get_type_info());
 
-        auto new_brgemm = std::make_shared<BrgemmCPU>(
-            brgemm_inputs,
-            brgemm->get_type(),
-            input_descs,
-            // TODO: rewrite
-            brgemm->get_output_port_descriptors().back(),
-            PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0))->get_layout(),
-            PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1))->get_layout(),
-            PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0))->get_layout(),
-            postops);
+        auto new_brgemm =
+            std::make_shared<BrgemmCPU>(brgemm_inputs,
+                                        brgemm->get_type(),
+                                        input_descs,
+                                        // TODO: rewrite
+                                        brgemm->get_output_port_descriptors().back(),
+                                        PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0))->get_layout(),
+                                        PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1))->get_layout(),
+                                        PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0))->get_layout(),
+                                        postops);
         new_brgemm->set_friendly_name(brgemm->get_friendly_name());
         ov::copy_runtime_info({brgemm, post_op}, new_brgemm);
 
         // PortDescriptors are copied manually since it is not copyable attribute
         for (size_t i = 0; i < brgemm->get_input_size(); ++i) {
             const auto in_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(i));
-            PortDescriptorUtils::set_port_descriptor(new_brgemm->input(i), in_desc->get_subtensor(), in_desc->get_layout());
+            PortDescriptorUtils::set_port_descriptor(new_brgemm->input(i),
+                                                     in_desc->get_subtensor(),
+                                                     in_desc->get_layout());
         }
         const auto out_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0));
-        PortDescriptorUtils::set_port_descriptor(new_brgemm->output(0), out_desc->get_subtensor(), out_desc->get_layout());
+        PortDescriptorUtils::set_port_descriptor(new_brgemm->output(0),
+                                                 out_desc->get_subtensor(),
+                                                 out_desc->get_layout());
 
         ov::replace_node(post_op, new_brgemm);
         return true;

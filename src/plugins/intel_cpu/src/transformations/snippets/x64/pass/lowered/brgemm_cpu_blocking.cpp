@@ -56,7 +56,7 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
     // Note: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
     // the low precision cases (ticket: 156014)
-    if (!std::getenv("ENABLE_BLOCKING") && with_repacking(brgemm->get_type())) {
+    if (with_repacking(brgemm->get_type())) {
         n_blk = get_full_dim_value();
         k_blk = get_full_dim_value();
     }

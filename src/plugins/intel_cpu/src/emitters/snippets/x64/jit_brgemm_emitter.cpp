@@ -41,7 +41,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
         const auto N = out_shape.back();
         if (!fused_ops.empty()) {
             OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(N),
-            "Postops are supported only for static output channels");
+                            "Postops are supported only for static output channels");
         }
         const auto& subtensor = expr->get_output_port_descriptor(0)->get_subtensor();
         auto n_block = *subtensor.rbegin();
@@ -112,7 +112,11 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     }
 
     if (brgemm_utils::with_amx(brgemm_type)) {
-        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgOutPrc, brgemm_utils::get_primitive_isa(brg0Prc, true), post_ops);
+        BrgemmAMXKernelConfig kernel_config(brg0Prc,
+                                            brg1Prc,
+                                            brgOutPrc,
+                                            brgemm_utils::get_primitive_isa(brg0Prc, true),
+                                            post_ops);
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     } else {
@@ -250,7 +254,7 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
         h->add(aux_reg, static_cast<size_t>(m_binary_postops_offset) * sizeof(void**));
         h->mov(h->qword[h->rsp + GET_OFF_CALL_ARGS(post_ops_binary_arg_vec)], aux_reg);
     }
-    #undef GET_OFF_CALL_ARGS
+#undef GET_OFF_CALL_ARGS
 
     // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
     if (std::is_same<T, BrgemmAMXKernelExecutor>()) {

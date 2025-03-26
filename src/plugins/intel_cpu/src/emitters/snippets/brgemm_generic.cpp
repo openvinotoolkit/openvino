@@ -198,8 +198,7 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         // Quick validation check: Should we check that port is really Brgemm port?
         OPENVINO_ASSERT(in_ports.size() >= 2 && in_ports.front().get_dim_idx() == 0 &&
                             in_ports.front().is_processed() && in_ports[1].get_dim_idx() == 1 &&
-                            in_ports[1].is_processed() && out_ports.size() == 1 &&
-                            !out_ports.front().is_processed(),
+                            in_ports[1].is_processed() && out_ports.size() == 1 && !out_ports.front().is_processed(),
                         "Incorrect Loop by Brgemm dimension K");
         K = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[0]->set_subtensor_dim(0, K);
