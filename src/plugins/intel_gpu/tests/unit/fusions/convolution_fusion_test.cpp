@@ -1763,7 +1763,7 @@ TEST_P(conv_fp32_activation_eltwise_in_u8_fp32, basic) {
         data("bias", get_mem(get_per_channel_layout(p))),
         data("eltwise_data", get_mem(layout{ p.out_shape, data_types::i8, p.input_format })),
         convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        activation("activation", input_info("conv_prim"), activation_func::relu_negative_slope),
+        activation("activation", input_info("conv_prim"), activation_func::relu),
         eltwise("sum", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum, data_types::f32),
         reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
