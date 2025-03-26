@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import io
-from types import TracebackType
+from types import TracebackType, MappingProxyType
 from typing import Any, Iterable, Union, Optional, Dict
 from typing import Type as TypingType
 from pathlib import Path
@@ -27,6 +27,20 @@ from openvino.package_utils import deprecatedclassproperty
 class ModelMeta(type):
     def __dir__(cls) -> list:
         return list(set(cls.__dict__.keys()) | set(dir(ModelBase)))
+    
+    def __getattribute__(cls, name: str) -> Any:
+        if name == "__dict__":
+            _ov_model_dict = super().__getattribute__("__dict__")
+            _py_model_dict = getattr(ModelBase, "__dict__")
+
+            return MappingProxyType({**_ov_model_dict, **_py_model_dict})
+        return super().__getattribute__(name)
+    
+    def __getattr__(cls, name: str) -> Any:
+        # Sphinx uses methods from ModelBase for documentation purposes.
+        if name in ModelBase.__dict__.keys():
+            return getattr(ModelBase, name)
+        return super().__getattr__(name)
 
 
 class Model(object, metaclass=ModelMeta):
