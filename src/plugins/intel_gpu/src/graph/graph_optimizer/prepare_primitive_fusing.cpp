@@ -745,6 +745,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
                     return;
                 }
+
+                if (activation_func == cldnn::activation_func::relu_negative_slope && !additional_params_input.empty() &&
+                    input.get_output_layout().batch() > 1 && input.is_type<convolution>()) {
+                    return;
+                }
+
                 // Activation should not be fused if oneDNN does NOT support it
                 if (lo.is_primitive_implemented_for_onednn(input))  {
                     #ifdef ENABLE_ONEDNN_FOR_GPU
