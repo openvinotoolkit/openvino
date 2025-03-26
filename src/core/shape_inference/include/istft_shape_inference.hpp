@@ -63,6 +63,15 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
                                "Window input dimension must be in range [1, ",
                                frame_size_val,
                                "].");
+
+        if (data_shape.is_static()) {
+            const auto& in_fft_dim = data_shape[data_shape.size() - 3];
+            const auto expected_fft_dim = TDim(frame_size_val / 2 + 1);
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   in_fft_dim.compatible(expected_fft_dim),
+                                   "The dimension at data_shape[-3] must be equal to: (frame_size // 2 + 1) ");
+        }
     }
 
     if (frame_step) {
@@ -102,9 +111,9 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
 
         const int64_t frames_axis = 1 + (is_data_3D ? 0 : 1);
         const TDim& num_frames_dim = data_shape[frames_axis];
-        TDim signal_length = (num_frames_dim - 1) * frame_step_val;
-        if (!op->get_center()) {
-            signal_length += frame_size_val;
+        TDim signal_length = (num_frames_dim - 1) * frame_step_val + frame_size_val;
+        if (op->get_center()) {
+            signal_length = signal_length - (frame_size_val & ~1);
         }
         output_shapes[0][0] = std::move(signal_length);
     }

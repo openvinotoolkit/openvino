@@ -141,9 +141,9 @@ protected:
     }
 
     void push_entries_of(const table_t& t) {
-        for (auto it = t.begin(); it != t.end(); it++) {
-            auto key = (*it).first;
-            auto te = (*it).second;  // copy values from table
+        for (const auto& it : t) {
+            auto key = it.first;
+            auto te = it.second;  // copy values from table
             push_arg_entry_of(key, te.val, te.bcast);
         }
     }

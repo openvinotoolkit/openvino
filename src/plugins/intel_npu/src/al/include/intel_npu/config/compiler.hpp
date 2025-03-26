@@ -379,4 +379,47 @@ struct COMPILER_DYNAMIC_QUANTIZATION final : OptionBase<COMPILER_DYNAMIC_QUANTIZ
     }
 };
 
+//
+// NPU_QDQ_OPTIMIZATION
+//
+
+struct QDQ_OPTIMIZATION final : OptionBase<QDQ_OPTIMIZATION, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::qdq_optimization.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
+
+//
+// BATCH_COMPILER_MODE_SETTINGS
+//
+
+struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTINGS, std::string> {
+    static std::string_view key() {
+        return ov::intel_npu::batch_compiler_mode_settings.name();
+    }
+
+    static std::string defaultValue() {
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+};
 }  // namespace intel_npu

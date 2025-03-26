@@ -39,7 +39,7 @@ using namespace ov::element;
 
 namespace ov::intel_cpu::node {
 
-ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
+ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes(bool apply_fp8) {
     using ov::element::Type_t;
 
     bool useMatmulPrim = false;
@@ -47,13 +47,17 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
 
     if (useMatmulPrim) {
         return {Type_t::u8, Type_t::i8};
-    } else {
-#if defined(OPENVINO_ARCH_X86_64)
-        return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
-#else
-        return {};
-#endif
     }
+#if defined(OPENVINO_ARCH_X86_64)
+    ov::element::TypeVector supportedDataTypes =
+        {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
+    if (apply_fp8) {
+        supportedDataTypes.insert(supportedDataTypes.end(), {Type_t::f8e4m3, Type_t::f8e5m2});
+    }
+    return supportedDataTypes;
+#else
+    return {};
+#endif
 }
 
 ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes() {
@@ -64,23 +68,20 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
 
     if (useMatmulPrim) {
         return {Type_t::f32, Type_t::f16};
-    } else {
-#if defined(OPENVINO_ARCH_X86_64)
-        // @todo enable for bf16 as well
-        // after EnforceInferencePrecision is replaced with ConvertPrecision
-        return {Type_t::f32};
-#else
-        return {};
-#endif
     }
+#if defined(OPENVINO_ARCH_X86_64)
+    // @todo enable for bf16 as well
+    // after EnforceInferencePrecision is replaced with ConvertPrecision
+    return {Type_t::f32};
+#else
+    return {};
+#endif
 }
 
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<const ov::op::internal::FullyConnected>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedQuantizedLegacy>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
+        if (!ov::is_type<const ov::op::internal::FullyConnected>(op)) {
             return false;
         }
 
@@ -600,24 +601,33 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         memory[ARG_DST] = getDstMemoryAtPort(0);
         tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
-        memory[ARG_DST | ARG_ATTR_SCALES] =
-            split_horizontal(context->getEngine(), memory[ARG_DST | ARG_ATTR_SCALES], 0, tp_cfg.w_rank, tp_cfg.w_size);
+        if (memory.count(ARG_DST | ARG_ATTR_SCALES)) {
+            memory[ARG_DST | ARG_ATTR_SCALES] = split_horizontal(context->getEngine(),
+                                                                 memory[ARG_DST | ARG_ATTR_SCALES],
+                                                                 0,
+                                                                 tp_cfg.w_rank,
+                                                                 tp_cfg.w_size);
+        }
 
-        auto scale_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_SCALES]);
-        memory[ARG_WEI | ARG_ATTR_SCALES] =
-            attrs.weightsNonTransposed
-                ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
-
-        auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_ZERO_POINTS]);
-        auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
-        if (element_num == 1) {
-            tp_cfg.cached_zeropoint = zeropoint_mem;
-        } else {
-            tp_cfg.cached_zeropoint =
+        if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
+            auto scale_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_SCALES]);
+            memory[ARG_WEI | ARG_ATTR_SCALES] =
                 attrs.weightsNonTransposed
-                    ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                    : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+                    ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                    : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+        }
+
+        if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
+            auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_ZERO_POINTS]);
+            auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
+            if (element_num == 1) {
+                tp_cfg.cached_zeropoint = zeropoint_mem;
+            } else {
+                tp_cfg.cached_zeropoint =
+                    attrs.weightsNonTransposed
+                        ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                        : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            }
         }
     }
 }
@@ -628,9 +638,7 @@ void FullyConnected::needUpdateTensorParalelConfig() {
     // 2. last dim can be splited.
     if (tp_cfg.enable_tensor_parallel) {
         const auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
-        if (shape.isDynamic()) {
-            tp_cfg.enable_tensor_parallel = false;
-        } else if (shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
+        if (shape.isDynamic() || shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
             tp_cfg.enable_tensor_parallel = false;
         }
     }

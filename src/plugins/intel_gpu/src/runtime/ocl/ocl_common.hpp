@@ -22,18 +22,6 @@ public:
 
 #define OCL_ERR_MSG_FMT(error) ("[GPU] " + std::string(error.what()) + std::string(", error code: ") + std::to_string(error.err()))
 
-
-/// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
-inline void force_exit() {
-    std::cerr << "[GPU] force exit.\n"
-              << "\tDue to the driver bug any subsequent OpenCL API call will cause application hang, "
-              << "so GPU plugin can't finish correctly.\n"
-              << "\tPlease try to update the driver or reduce memory consumption "
-              << "(use smaller batch size, less streams, lower precision, etc)"
-              << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
-    std::_Exit(-1);
-}
-
 inline bool is_device_available(const device_info& info) {
     ocl_device_detector detector;
     auto devices = detector.get_available_devices(nullptr, nullptr);
@@ -46,22 +34,32 @@ inline bool is_device_available(const device_info& info) {
     return false;
 }
 
-inline void rethrow_or_exit(std::string message, cl_int error, const device_info& info) {
+inline void rethrow(std::string message, cl_int error, const device_info& info) {
     if (error != CL_OUT_OF_RESOURCES) {
         OPENVINO_THROW(message);
     }
     // For CL_OUT_OF_RESOURCES exception there are 2 possible cases:
-    // 1. Real out of resource which means that plugin must exit
+    // 1. Real out of resource
     // 2. Device is lost during application run, plugin may throw an exception
     if (is_device_available(info)) {
-        force_exit();
+        std::stringstream ss;
+        ss << "[GPU] CL_OUT_OF_RESOURCES exception.\n"
+           << "\tDue to a driver bug, any subsequent OpenCL API call may cause the application to hang, "
+           << "so the GPU plugin may be unable to finish correctly.\n"
+           << "\tThe CL_OUT_OF_RESOURCES error typically occurs in two cases:\n"
+           << "\t1. An actual lack of memory for the current inference.\n"
+           << "\t2. An out-of-bounds access to GPU memory from a kernel.\n"
+           << "\tFor case 1, you may try adjusting some model parameters (e.g., using a smaller batch size, lower inference precision, fewer streams, etc.)"
+           << " to reduce the required memory size. For case 2, please submit a bug report to the OpenVINO team.\n"
+           << "\tAdditionally, please try updating the driver to the latest version.\n";
+        OPENVINO_THROW(ss.str());
     } else {
         OPENVINO_THROW(message);
     }
 }
 
-inline void rethrow_or_exit(const cl::Error& error, const device_info& info) {
-    rethrow_or_exit(OCL_ERR_MSG_FMT(error), error.err(), info);
+inline void rethrow(const cl::Error& error, const device_info& info) {
+    rethrow(OCL_ERR_MSG_FMT(error), error.err(), info);
 }
 
 }  // namespace ocl

@@ -22,8 +22,7 @@ public:
              zeroProfiling::ProfilingQuery& profiling_query,
              const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
              const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-             const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
-             uint32_t group_ordinal);
+             const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors);
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
