@@ -16,7 +16,6 @@ using namespace ov::op;
 
 OutputVector translate_quantized_relu(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
-    
     const auto x = context.get_input(0);
     const auto scale = context.get_input(1);
     const auto zero_point = context.get_input(2);
