@@ -143,6 +143,34 @@ std::shared_ptr<BrgemmAMXBatchedCompiledKernel> BrgemmAMXBatchedKernelExecutor::
                              k.get_beta(),
                              true,
                              ker->palette);
+        cpu::x64::brgemm_desc_t desc;
+        OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_init(&desc,
+                                                k.get_isa(),
+                                                cpu::x64::brgemm_addr,
+                                                k.get_dt_in0(),
+                                                k.get_dt_in1(),
+                                                false,
+                                                false,
+                                                cpu::x64::brgemm_row_major,
+                                                1.f,
+                                                k.get_beta(),
+                                                k.get_LDA(),
+                                                k.get_LDB(),
+                                                k.get_LDC(),
+                                                k.get_M(),
+                                                k.get_N(),
+                                                k.get_K(),
+                                                nullptr) == dnnl_success,
+                                "Cannot initialize brgemm descriptor due to invalid params");
+
+        OV_CPU_JIT_EMITTER_ASSERT(ker->palette && brgemm_init_tiles(desc, ker->palette) == dnnl_success,
+                                "Cannot initialize brgemm tiles due to invalid params");
+
+        cpu::x64::brgemm_kernel_t* kernel_ = nullptr;
+        OV_CPU_JIT_EMITTER_ASSERT(brgemm_kernel_create(&kernel_, desc) == dnnl_success,
+                                "Cannot create brgemm kernel due to invalid params");
+        ker->brgemm_kernel = std::unique_ptr<brgemm_kernel_t>(kernel_);
+
         return ker;
     };
 
@@ -153,7 +181,7 @@ std::shared_ptr<BrgemmAMXBatchedCompiledKernel> BrgemmAMXBatchedKernelExecutor::
     };
 
     auto K_tail = config.get_K() % config.get_inner_K_blk();
-    auto K_body = config.get_K() - K_tail;
+    auto K_body = (config.get_K() - K_tail) / config.get_iter_count();
 
     float beta = config.get_beta();
 
@@ -279,7 +307,7 @@ void BrgemmAMXBatchedKernelExecutor::execute(const BrgemmAMXBatchedKernelExecuto
     auto* scratch = args->scratch;
 
     const auto K_tail = config.get_K() % config.get_inner_K_blk();
-    const auto K_body = config.get_K() - K_tail;
+    const auto K_body = (config.get_K() - K_tail) / config.get_iter_count();
 
     if (K_body != 0) {
         const auto& K_body_kernel = kernel->K_body_kernel;
@@ -288,7 +316,11 @@ void BrgemmAMXBatchedKernelExecutor::execute(const BrgemmAMXBatchedKernelExecuto
                                   config.get_M(),
                                   config.get_N(),
                                   K_body);
-        execute_brgemm_kernel(K_body_kernel->brgemm_kernel, src_ptr, wei_ptr, args->C, scratch, false);
+
+        size_t stride_A = K_body * dnnl_data_type_size(config.get_dt_in0());
+        size_t stride_B = (config.get_LDB() * K_body) * dnnl_data_type_size(config.get_dt_in1());
+
+        BrgemmAMXBatchedKernelExecutor::execute_brgemm(K_body_kernel->brgemm_kernel, config.get_iter_count(), stride_A, stride_B, src_ptr, wei_ptr, args->C, scratch, false);
 
         src_ptr = src_ptr + K_body * dnnl_data_type_size(config.get_dt_in0());
         wei_ptr = wei_ptr + (K_body * config.get_LDB()) * dnnl_data_type_size(config.get_dt_in1());
@@ -308,8 +340,7 @@ void BrgemmAMXBatchedKernelExecutor::execute(const BrgemmAMXBatchedKernelExecuto
                                   config.get_M(),
                                   config.get_N(),
                                   K_tail);
-        execute_brgemm(K_tail_kernel->brgemm_kernel,
-                       config.get_iter_count(),
+        execute_brgemm_kernel(K_tail_kernel->brgemm_kernel,
                        src_ptr,
                        wei_ptr,
                        args->C,
@@ -318,19 +349,23 @@ void BrgemmAMXBatchedKernelExecutor::execute(const BrgemmAMXBatchedKernelExecuto
     }
 }
 
-void BrgemmAMXBatchedKernelExecutor::execute_brgemm(
-    const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
-    size_t bs,
-    const void* pin0,
-    const void* pin1,
-    void* dst,
-    void* scratch,
-    bool with_comp) {
+void BrgemmAMXBatchedKernelExecutor::execute_brgemm(const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
+                                                 size_t bs,
+                                                 size_t stride_A,
+                                                 size_t stride_B,
+                                                 const void* pin0,
+                                                 const void* pin1,
+                                                 void* dst,
+                                                 void* scratch,
+                                                 bool with_comp) {
     cpu::x64::brgemm_kernel_params_t brgemm_p;
-    brgemm_batch_element_t addr_batch;
-    addr_batch.ptr.A = pin0;
-    addr_batch.ptr.B = pin1;
-    brgemm_p.batch = &addr_batch;
+    std::vector<brgemm_batch_element_t> addr_batch(bs);
+
+    for (size_t i = 0; i < bs; i++) {
+        addr_batch[i].ptr.A = (char*)(pin0) + i * stride_A;
+        addr_batch[i].ptr.B = (char*)(pin1) + i * stride_B;
+    }
+    brgemm_p.batch = addr_batch.data();
     brgemm_p.ptr_A = nullptr;
     brgemm_p.ptr_B = nullptr;
     brgemm_p.ptr_C = dst;
