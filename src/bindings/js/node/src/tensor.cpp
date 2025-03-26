@@ -44,7 +44,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
-                        InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
+                        InstanceMethod("isContinuous", &TensorWrap::is_continuous), 
+                        InstanceMethod("copyTo", &TensorWrap::copy_to)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -191,3 +192,25 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
     }
     return Napi::Boolean::New(env, _tensor.is_continuous());
 }
+
+Napi::Value TensorWrap::copy_to(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() != 1 || !info[0].IsObject()) {
+        reportError(env, "The copyTo method requires one argument of type Tensor.");
+        return env.Undefined();
+    }
+
+    TensorWrap* target_tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].As<Napi::Object>());
+    ov::Tensor target_tensor = target_tensor_wrap->get_tensor();
+
+    try {
+        _tensor.copy_to(target_tensor);
+    } catch (const std::exception& e) {
+        reportError(env, std::string("Failed to copy tensor: ") + e.what());
+        return env.Undefined();
+    }
+
+    return Napi::Boolean::New(env, true);  // Successo
+}
+
