@@ -69,11 +69,9 @@ static void test_col_to_im_output(bool is_caching_test) {
         3.0f, 6.0f, 6.0f, 3.0f
     };
 
-    printf(">> ");
     for (size_t i = 0; i < 16; ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
-    printf("<<\n");
 }
 
 TEST(col_to_im_gpu_simple, fp32_input_fp32_output) {
