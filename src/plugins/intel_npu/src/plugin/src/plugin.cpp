@@ -186,32 +186,18 @@ Plugin::Plugin()
     _globalConfig.parseEnvVars();
     Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
 
-    // TODO: generation of available backends list can be done during execution of CMake scripts
-    std::vector<AvailableBackends> backendRegistry;
+    OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
+    // backend registry shall be created after configs are updated
+    _backendsRegistry = std::make_unique<BackendsRegistry>();
+    _backend = _backendsRegistry->getEngineBackend();
 
-#if defined(OPENVINO_STATIC_LIBRARY)
-    backendRegistry.push_back(AvailableBackends::LEVEL_ZERO);
-#else
-#    if defined(ENABLE_IMD_BACKEND)
-    if (const auto* envVar = std::getenv("IE_NPU_USE_IMD_BACKEND")) {
-        if (envVarStrToBool("IE_NPU_USE_IMD_BACKEND", envVar)) {
-            backendRegistry.push_back(AvailableBackends::IMD);
-        }
+    if (_backend) {
+        OV_ITT_TASK_NEXT(PLUGIN, "registerBackendOptions");
+        _backend->registerOptions(*_options);
     }
-#    endif
 
-#    if defined(_WIN32) || defined(_WIN64) || (defined(__linux__) && defined(__x86_64__))
-    backendRegistry.push_back(AvailableBackends::LEVEL_ZERO);
-#    endif
-#endif
-
-    OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "NPUBackends");
-    _backends = std::make_shared<NPUBackends>(backendRegistry, _globalConfig);
-    OV_ITT_TASK_NEXT(PLUGIN, "registerOptions");
-    _backends->registerOptions(*_options);
-
-    OV_ITT_TASK_NEXT(PLUGIN, "Metrics");
-    _metrics = std::make_unique<Metrics>(_backends);
+    OV_ITT_TASK_NEXT(PLUGIN, "createMetrics");
+    _metrics = std::make_unique<Metrics>(_backend);
 
     // parse again env_variables after backend is initialized to get backend proprieties
     _globalConfig.parseEnvVars();
@@ -294,7 +280,7 @@ Plugin::Plugin()
               return _metrics->GetAvailableDevicesNames();
           }}},
         {ov::workload_type.name(),
-         {_backends->isCommandQueueExtSupported(),
+         {_backend == nullptr ? false : _backend->isCommandQueueExtSupported(),
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<WORKLOAD_TYPE>();
@@ -311,7 +297,10 @@ Plugin::Plugin()
           [&](const Config& config) {
               return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
                   config,
-                  _backends->getCompilationPlatform(config.get<PLATFORM>(), config.get<DEVICE_ID>()))));
+                  utils::getCompilationPlatform(
+                      config.get<PLATFORM>(),
+                      config.get<DEVICE_ID>(),
+                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()))));
           }}},
         {ov::range_for_async_infer_requests.name(),
          {true,
@@ -346,7 +335,7 @@ Plugin::Plugin()
               return decltype(ov::device::uuid)::value_type{devUuid};
           }}},
         {ov::device::luid.name(),
-         {_backends->isLUIDExtSupported(),
+         {_backend == nullptr ? false : _backend->isLUIDExtSupported(),
           ov::PropertyMutability::RO,
           [&](const Config& config) {
               const auto specifiedDeviceName = get_specified_device_name(config);
@@ -448,7 +437,7 @@ Plugin::Plugin()
           [&](const Config& config) {
               /// create dummy compiler
               CompilerAdapterFactory compilerAdapterFactory;
-              auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), config);
+              auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, config);
               return dummyCompiler->get_version();
           }}},
         {ov::intel_npu::compilation_mode_params.name(),
@@ -470,7 +459,7 @@ Plugin::Plugin()
               return config.get<QDQ_OPTIMIZATION>();
           }}},
         {ov::intel_npu::turbo.name(),
-         {_backends->isCommandQueueExtSupported(),
+         {_backend == nullptr ? false : _backend->isCommandQueueExtSupported(),
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<TURBO>();
@@ -588,9 +577,16 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
           }}},
-        {ov::intel_npu::disable_version_check.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
-                                                           return config.getString<DISABLE_VERSION_CHECK>();
-                                                       }}}};
+        {ov::intel_npu::disable_version_check.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<DISABLE_VERSION_CHECK>();
+          }}},
+        {ov::intel_npu::batch_compiler_mode_settings.name(),
+         {false, ov::PropertyMutability::RW, [](const Config& config) {
+              return config.get<BATCH_COMPILER_MODE_SETTINGS>();
+          }}}};
 }
 
 void Plugin::reset_supported_properties() const {
@@ -609,7 +605,7 @@ void Plugin::reset_compiler_dependent_properties() const {
     // get active compiler version
     try {
         CompilerAdapterFactory compilerAdapterFactory;
-        auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), _globalConfig);
+        auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, _globalConfig);
         active_compiler_version = dummyCompiler->get_version();
     } catch (...) {
         _logger.warning(
@@ -626,6 +622,7 @@ void Plugin::reset_compiler_dependent_properties() const {
             std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = false;  // mark unsupported
         }
     }
+
     // NPU_QDQ_OPTIMIZATION
     // unpublish if compiler version requirement is not met
     if (_properties.find(ov::intel_npu::qdq_optimization.name()) != _properties.end()) {
@@ -656,8 +653,8 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     }
 
     _globalConfig.update(config);
-    if (_backends != nullptr) {
-        _backends->setup(_globalConfig);
+    if (_backend != nullptr) {
+        _backend->updateInfo(_globalConfig);
     }
 
     for (const auto& entry : config) {
@@ -723,11 +720,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
-    auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
+    const auto platform =
+        utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
+                                      localConfig.get<DEVICE_ID>(),
+                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+    auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    set_batch_config(_backends->isBatchingSupported(), localConfig);
+    set_batch_config(_backend == nullptr ? false : _backend->isBatchingSupported(), localConfig);
 
     if (!model->get_variables().empty()) {
         if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
@@ -768,7 +768,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     auto originalModel = model->clone();
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig);
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
     std::shared_ptr<intel_npu::IGraph> graph;
@@ -809,11 +809,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
-    return std::make_shared<RemoteContextImpl>(_backends, _globalConfig, remoteProperties);
+    return std::make_shared<RemoteContextImpl>(_backend, _globalConfig, remoteProperties);
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
-    return std::make_shared<RemoteContextImpl>(_backends, _globalConfig);
+    return std::make_shared<RemoteContextImpl>(_backend, _globalConfig);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
@@ -855,11 +855,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
-    const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
+    const auto platform =
+        utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
+                                      localConfig.get<DEVICE_ID>(),
+                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
-    auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
+    auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
 
-    set_batch_config(_backends->isBatchingSupported(), localConfig);
+    set_batch_config(_backend == nullptr ? false : _backend->isBatchingSupported(), localConfig);
 
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {
@@ -873,7 +876,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     try {
         CompilerAdapterFactory compilerAdapterFactory;
-        auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
+        auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig);
 
         uint64_t graphSize;
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
@@ -938,11 +941,14 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
-    const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
+    const auto platform =
+        utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
+                                      localConfig.get<DEVICE_ID>(),
+                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig);
     ov::SupportedOpsMap supportedOpsMap;
     try {
         supportedOpsMap = compiler->query(model, localConfig);
