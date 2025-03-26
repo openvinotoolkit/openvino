@@ -252,7 +252,7 @@ jobs:
     name: C++ unit tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
-    timeout-minutes: 120
+    timeout-minutes: 180
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
@@ -499,7 +499,7 @@ jobs:
     name: C++ func tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
-    timeout-minutes: 120
+    timeout-minutes: 180
     runs-on: aks-linux-8-cores-16gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
