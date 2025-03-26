@@ -1,28 +1,27 @@
-#include "openvino/op/relu.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/quantized_linear_relu.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/relu.hpp"
+#include "utils_quantize.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
 
-ov::OutputVector translate_quantized_relu(const NodeContext& context) {
-    auto input = context.get_input(0);  // Quantized input tensor
+using namespace ov::op;
 
-    // Step 1: Dequantize input tensor (convert from int8/uint8 to float32)
-    auto dequantized_input = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+OutputVector translate_quantized_relu(const NodeContext& context) {
+    num_inputs_check(context, 3, 3);
+    
+    const auto x = context.get_input(0);
+    const auto scale = context.get_input(1);
+    const auto zero_point = context.get_input(2);
 
-    // Step 2: Apply ReLU activation (ReLU(x) = max(0, x))
-    auto relu_output = std::make_shared<ov::op::v0::Relu>(dequantized_input);
+    // Step 1: Apply ReLU activation
+    const auto quantized_relu = context.mark_node(std::make_shared<v0::Relu>(x));
 
-    // Step 3: Requantize the output tensor (convert back to original quantized type)
-    auto requantized_output = std::make_shared<ov::op::v0::Convert>(relu_output, input.get_element_type());
-
-    return {requantized_output};
+    // Step 2: Requantize the output
+    return {quantize(context, quantized_relu, scale, zero_point, x)};
 }
 
 }  // namespace op
