@@ -36,6 +36,14 @@ public:
     /// \brief Default destructor
     ~PreProcessSteps();
 
+    /// \brief Add clamp preprocess operation. Clamp each element of input to the specified range [min_value, max_value]
+    ///
+    /// \param min_value Minimum value to clamp to.
+    /// \param max_value Maximum value to clamp to.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps& clamp(double min_value, double max_value);
+
     /// \brief Add convert element type preprocess operation
     ///
     /// \param type Desired type of input.
