@@ -113,21 +113,13 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
 
     const float finalIRDFTVal = real(res) / frame_size;
 
-    // printf("window_id=%i, real(res)=%f\n", window_id, real(res)/frame_size);
+#if NORMALIZED
+    const float scale = sqrt((float)frame_size);
+#else
+    const float scale = 1.0f;
+#endif
+    const float finalVAl = (finalIRDFTVal * windowVal * scale) / (sum);
 
-    // TODO: handle case when windowVal == 0.0
-    // const float finalVAl = finalIRDFTVal / (windowVal*divisor);
-    const float finalVAl = (finalIRDFTVal * windowVal) / (sum);
-
-    // TODO: Handle sumation from different frames...(atomics?)
     const OUTPUT_TYPE finalVal = (OUTPUT_TYPE)(finalVAl);
-
-    //*(output+globalOutputIdx)=finalVal;
-
     const float prev = atomicadd(output + globalOutputIdx, finalVal);
-
-    // printf("globalOutputIdx: %i, finalIRDFTVal: %f, finalVal: %f, divisior: %i, prev: %f, sum: %f\n", globalOutputIdx, finalIRDFTVal, finalVal, binSize,
-    // prev, sum);
-
-    // output[OUTPUT_GET_INDEX(0, 0, batch, window_id + frameOffset)] = finalVal;
 }
