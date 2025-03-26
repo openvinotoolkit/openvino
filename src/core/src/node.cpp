@@ -784,6 +784,8 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     return true;
 }
 
+AttributeAdapter<std::shared_ptr<ov::Node>>::~AttributeAdapter() = default;
+
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 
 bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
@@ -807,4 +809,6 @@ bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
     }
     return true;
 }
+
+AttributeAdapter<ov::NodeVector>::~AttributeAdapter() = default;
 }  // namespace ov

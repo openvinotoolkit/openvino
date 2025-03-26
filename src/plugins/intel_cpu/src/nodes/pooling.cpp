@@ -53,7 +53,7 @@ struct PoolingKey {
     dnnl::algorithm alg;
     impl_desc_type implType;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
@@ -182,8 +182,8 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 
     auto get_attributes = [](std::vector<ptrdiff_t>& internal_attribute,
                              const std::vector<size_t>& external_attribute) {
-        for (size_t i = 0; i < external_attribute.size(); i++) {
-            internal_attribute.push_back(static_cast<ptrdiff_t>(external_attribute[i]));
+        for (uint64_t i : external_attribute) {
+            internal_attribute.push_back(static_cast<ptrdiff_t>(i));
         }
     };
 
@@ -224,29 +224,30 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 }
 
 std::vector<memory::format_tag> Pooling::getAvailableFormatsForDims(const Shape& dims) const {
-    if (dims.getRank() == 0) {
+    switch (dims.getRank()) {
+    case 0:
+    case 1:
         return {memory::format_tag::x};
-    } else if (dims.getRank() == 1) {
-        return {memory::format_tag::x};
-    } else if (dims.getRank() == 2) {
+    case 2:
         return {memory::format_tag::nc};
-    } else if (dims.getRank() == 3) {
+    case 3:
         return {memory::format_tag::nCw8c,
                 memory::format_tag::nCw16c,
                 memory::format_tag::nwc,
                 memory::format_tag::ncw};
-    } else if (dims.getRank() == 4) {
+    case 4:
         return {memory::format_tag::nChw8c,
                 memory::format_tag::nChw16c,
                 memory::format_tag::nhwc,
                 memory::format_tag::nchw};
-    } else if (dims.getRank() == 5) {
+    case 5:
         return {memory::format_tag::nCdhw8c,
                 memory::format_tag::nCdhw16c,
                 memory::format_tag::ndhwc,
                 memory::format_tag::ncdhw};
+    default:
+        return {memory::format_tag::any};
     }
-    return {memory::format_tag::any};
 }
 
 void Pooling::initEffectiveAttributes(const Shape& inShape, const Shape& outShape) {
@@ -569,14 +570,13 @@ dnnl::algorithm Pooling::getPoolingAlgorithm() const {
         }
         if (!poolingAttrs.exclude_pad && (not_zero_l || not_zero_r)) {
             return dnnl::algorithm::pooling_avg_include_padding;
-        } else {
-            return dnnl::algorithm::pooling_avg_exclude_padding;
         }
-    } else if (algorithm == Algorithm::PoolingMax) {
-        return dnnl::algorithm::pooling_max;
-    } else {
-        return dnnl::algorithm::undef;
+        return dnnl::algorithm::pooling_avg_exclude_padding;
     }
+    if (algorithm == Algorithm::PoolingMax) {
+        return dnnl::algorithm::pooling_max;
+    }
+    return dnnl::algorithm::undef;
 }
 
 dnnl::pooling_forward::primitive_desc Pooling::createDescriptorInternal(const dnnl::memory::desc& in_candidate,

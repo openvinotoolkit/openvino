@@ -62,11 +62,11 @@ public:
         return getType() == Type::MemoryOutput;
     }
 
-    void execute(const dnnl::stream& strm) override final;             // NOLINT
-    void executeDynamicImpl(const dnnl::stream& strm) override final;  // NOLINT
+    void execute(const dnnl::stream& strm) override final;
+    void executeDynamicImpl(const dnnl::stream& strm) override final;
 
-    bool isExecutable() const override final;  // NOLINT
-    bool neverExecute() const override final;  // NOLINT
+    bool isExecutable() const override final;
+    bool neverExecute() const override final;
 
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
@@ -141,22 +141,22 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
-    void execute(const dnnl::stream& strm) override final;             // NOLINT
-    void executeDynamicImpl(const dnnl::stream& strm) override final;  // NOLINT
+    void execute(const dnnl::stream& strm) override final;
+    void executeDynamicImpl(const dnnl::stream& strm) override final;
     bool needShapeInfer() const override {
         return false;
     }
     bool needPrepareParams() const override {
         return false;
     }
-    bool neverExecute() const override final;  // NOLINT
-    bool isExecutable() const override final;  // NOLINT
+    bool neverExecute() const override final;
+    bool isExecutable() const override final;
 
     void registerOutputNode(MemoryOutputBase* node);
     void deregisterSibling(MemoryOutputBase* node);
 
     MemoryOutputBase& getOutputNode();
-    void assignState(MemStatePtr newState) override final;  // NOLINT
+    void assignState(MemStatePtr newState) override final;
 
 protected:
     MemoryInputBase(const std::string& id,
@@ -178,7 +178,7 @@ protected:
     }
 
 private:
-    using executeHookPtr = void (MemoryInputBase::*)(void);
+    using executeHookPtr = void (MemoryInputBase::*)();
 
 private:
     void assignState();

@@ -184,8 +184,15 @@ ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::
                                                             ov::intel_npu::TensorType tensor_type,
                                                             ov::intel_npu::MemType mem_type,
                                                             void* mem) {
-    return {std::make_shared<
-        ZeroRemoteTensor>(context, _initStructs, element_type, shape, config, tensor_type, mem_type, mem)};
+    return {std::make_shared<ZeroRemoteTensor>(context,
+                                               _initStructs,
+                                               device_properties,
+                                               element_type,
+                                               shape,
+                                               config,
+                                               tensor_type,
+                                               mem_type,
+                                               mem)};
 };
 
 ov::SoPtr<ov::ITensor> ZeroDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
@@ -193,5 +200,11 @@ ov::SoPtr<ov::ITensor> ZeroDevice::createHostTensor(std::shared_ptr<ov::IRemoteC
                                                     const ov::Shape& shape,
                                                     const Config& config,
                                                     ov::intel_npu::TensorType tensor_type) {
-    return {std::make_shared<ZeroHostTensor>(context, _initStructs, element_type, shape, config, tensor_type)};
+    return {std::make_shared<ZeroHostTensor>(context,
+                                             _initStructs,
+                                             device_properties,
+                                             element_type,
+                                             shape,
+                                             config,
+                                             tensor_type)};
 };

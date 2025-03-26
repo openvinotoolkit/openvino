@@ -25,7 +25,7 @@ Performance Information F.A.Q.
 
 .. dropdown:: How can I run the benchmark results on my own?
 
-   All of the performance benchmarks on traditional network models are generated using the
+   All of the performance benchmarks on conventional network models are generated using the
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
    called :doc:`benchmark_app <../../get-started/learn-openvino/openvino-samples/benchmark-tool>`.
 
@@ -47,7 +47,19 @@ Performance Information F.A.Q.
         - Public Network
         - Task
         - Input Size
-      * - `chatGLM4-9B <https://huggingface.co/THUDM/glm-4-9b-chat/tree/main>`__
+      * - `DeepSeek-R1-Distill-Llama-8B <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-8B>`__
+        - DeepSeek, HF
+        - Auto regressive language
+        - 128K
+      * - `DeepSeek-R1-Distill-Qwen-1.5B <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B>`__
+        - DeepSeek, HF
+        - Auto regressive language
+        - 128K
+      * - `DeepSeek-R1-Distill-Qwen-7B <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B>`__
+        - DeepSeek, HF
+        - Auto regressive language
+        - 128K
+      * - `GLM4-9B-chat <https://huggingface.co/THUDM/glm-4-9b-chat/tree/main>`__
         - THUDM
         - Transformer
         - 128K

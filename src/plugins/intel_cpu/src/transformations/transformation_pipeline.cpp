@@ -27,6 +27,7 @@
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
@@ -114,15 +115,24 @@
 
 // LPT transformations
 #include "low_precision/add.hpp"
+#include "low_precision/avg_pool.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/interpolate.hpp"
 #include "low_precision/mat_mul.hpp"
+#include "low_precision/max_pool.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/normalize_l2.hpp"
 #include "low_precision/recurrent_cell.hpp"
+#include "low_precision/reduce_max.hpp"
+#include "low_precision/reduce_mean.hpp"
+#include "low_precision/reduce_min.hpp"
+#include "low_precision/reduce_sum.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
@@ -158,11 +168,12 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/fc_tokenization.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
 #if defined(SNIPPETS_LIBXSMM_TPP)
-#    include "transformations/tpp/x64/pass/brgemm_to_brgemm_tpp.hpp"
+#    include "transformations/tpp/common/pass/brgemm_to_brgemm_tpp.hpp"
 #endif
 
 // Misc
@@ -172,6 +183,7 @@
 #include "nodes/mha.h"
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
+#include "nodes/paged_attn.h"
 #include "nodes/qkv_proj.h"
 #include "nodes/rms_norm.h"
 #include "nodes/rnn.h"
@@ -331,7 +343,7 @@ void Transformations::UpToLpt() {
     }
 }
 
-void Transformations::CpuSpecificOpSet(void) {
+void Transformations::CpuSpecificOpSet() {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Specific);
 
     ConvertToCPUSpecificOpset(model, config);
@@ -347,12 +359,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
     const bool useLpt = !defaultPrecisions.empty();
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::CompressedGatherTransformation);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_ARM(decompression_handling_manager, ov::pass::TransposeMatMul);
-    const auto& decompression_precisions = ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes();
+    const auto& decompression_precisions =
+        ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(true);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
                              ov::pass::MarkDequantization,
                              decompression_precisions,
@@ -421,7 +434,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     if (config.inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        type_to_fuse_map fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
+        type_to_fuse_map fuse_map = {};
 #else
         type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
@@ -446,6 +459,36 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.keyCachePrecision = config.keyCachePrecision;
+    cacheConfig.valueCachePrecision = config.valueCachePrecision;
+    cacheConfig.inferencePrecision = config.inferencePrecision;
+    cacheConfig.keyCacheGroupSize = config.keyCacheGroupSize;
+    cacheConfig.valueCacheGroupSize = config.valueCacheGroupSize;
+    cacheConfig.keyCacheBlockSize = 32;
+    cacheConfig.valueCacheBlockSize = 32;
+
+    bool byChannel = node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode);
+    cacheConfig.keyCacheQuantBychannel = byChannel;
+    cacheConfig.valueCacheQuantBychannel = false;
+    cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
+    cacheConfig.valueCacheDimOrder = {0, 1, 2, 3};
+    auto update_paged_attention_shape_func = [](const ov::element::Type& precision,
+                                                const bool bychannel,
+                                                const size_t group_num,
+                                                int64_t& head_size,
+                                                int64_t& block_size) {
+        if (precision == ov::element::u8) {
+            if (bychannel) {
+                block_size += 2 * sizeof(float);
+            } else {
+                head_size += sizeof(float) * 2 * group_num;
+            }
+        } else if (precision == ov::element::u4) {
+            head_size += sizeof(float) * 2 * group_num * 2;
+        }
+    };
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
@@ -749,12 +792,58 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.run_passes(model);
 }
 
-void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecisions) {
-    CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
-
+void Transformations::runLptPasses(const std::vector<ov::element::Type>& defaultPrecisions) {
     using namespace ov::pass::low_precision;
-    CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
+    ov::pass::Manager lptManager("CPU:LPT");
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    auto supportedPrecisions = std::vector<PrecisionsRestriction>({
+        PrecisionsRestriction::create<ov::opset1::MatMul>({{{0, 1}, {ov::element::i8}}}),
+    });
+
+    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>();
+
+    CPU_REGISTER_PASS_COMMON(lptManager,
+                             LowPrecision,
+                             supportedPrecisions,
+                             quantizationRestrictions,
+                             LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+    CPU_DISABLE_PASS_COMMON(lptManager, AvgPoolTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ConvolutionTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ConvolutionBackpropDataTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, InterpolateTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, GroupConvolutionTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, MaxPoolTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, MVNTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, NormalizeL2Transformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, RecurrentCellTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMaxTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMeanTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMinTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceSumTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
+
+    CPU_SET_CALLBACK_COMMON(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return ov::marked_as_bias(node);
+        },
+        AddTransformation);
+
+    // Enable MatMulTransformation against FC nodes only
+    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
+    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
+    // oneDNN ticket #2696
+    CPU_SET_CALLBACK_COMMON(
+        lptManager,
+        [&](const_node_ptr& node) -> bool {
+            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
+                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
+                return false;
+            }
+            return true;
+        },
+        MatMulTransformation);
+#else
     // Only enable conv/group conv signed input on AMX and avx2_vnni_2 platform.
     std::vector<ov::element::Type> input0LowPrecisionList;
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
@@ -792,7 +881,6 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
          QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})});
 
-    ov::pass::Manager lptManager("CPU:LPT");
     CPU_REGISTER_PASS_COMMON(lptManager,
                              LowPrecision,
                              supportedPrecisions,
@@ -830,7 +918,8 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         [&](const_node_ptr& node) -> bool {
             if (ov::is_type<ov::opset1::Multiply>(node)) {
                 return ov::is_type<ov::opset1::Multiply>(node) && is_decompression_multiply(node);
-            } else if (ov::is_type<ov::opset1::Subtract>(node)) {
+            }
+            if (ov::is_type<ov::opset1::Subtract>(node)) {
                 const auto& consumers = node->get_output_target_inputs(0);
                 if (consumers.size() == 1) {
                     const auto consumer = consumers.begin()->get_node()->shared_from_this();
@@ -841,25 +930,18 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         },
         FuseConvertTransformation);
 
-    // Enable MatMulTransformation against FC nodes only
-    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
-    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
-    // oneDNN ticket #2696
-    CPU_SET_CALLBACK_ARM(
-        lptManager,
-        [&](const_node_ptr& node) -> bool {
-            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
-                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
-                return false;
-            }
-            return true;
-        },
-        MatMulTransformation);
-
-    CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
-
+#endif
     lptManager.run_passes(model);
+}
+
+void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecisions) {
+    CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
+
+    CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
+
+    runLptPasses(defaultPrecisions);
 }
 
 void Transformations::PostLpt() {
@@ -980,7 +1062,20 @@ void Transformations::PostLpt() {
     postLPTPassManager.run_passes(model);
 }
 
-void Transformations::MainSnippets(void) {
+void Transformations::MainSnippets() {
+// Disable MainSnippets for int8 models on arm platforms due to performance issues
+// Ticket: 163408
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    using namespace ov::pass::low_precision;
+    static const std::set<levels>& supported_fq_levels = {levels::int4,
+                                                          levels::int4_narrow_range,
+                                                          levels::int8,
+                                                          levels::int8_narrow_range};
+    if (LowPrecision::isFunctionQuantized(model, supported_fq_levels)) {
+        return;
+    }
+#endif
+
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
@@ -1120,7 +1215,7 @@ void Transformations::MainSnippets(void) {
             return false;
         }
         const auto parallel_work_amount =
-            std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<ov::Dimension>());
+            std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<>());
         // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
@@ -1276,38 +1371,34 @@ void Transformations::MainSnippets(void) {
         },
         snippets::pass::TokenizeSnippets);
 
-    auto mm_supports_transpose_b = [this, ignoreCallback](const std::shared_ptr<const ov::Node>& n) {
+    auto mm_supports_transpose_b = [this](const std::shared_ptr<const ov::Node>& n) {
         MAYBE_UNUSED(config.inferencePrecision);
-        if (!ignoreCallback) {
-            return false;
-        }
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
         // TPP doesn't support dynamic shapes -> there will be BrgemmCPU node
-        if (n->is_dynamic())
-            return true;
-        std::vector<std::vector<size_t>> layouts(3);
-        const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
-        OPENVINO_ASSERT(matmul, "ExplicitTransposeMatMulInputs callback must be called for matmul node");
-        if (matmul->get_transpose_b()) {
-            std::vector<size_t> transposed_layout(n->get_input_partial_shape(1).size());
-            std::iota(transposed_layout.begin(), transposed_layout.end(), 0);
-            std::swap(*transposed_layout.rbegin(), *(transposed_layout.rbegin() + 1));
-            layouts[1] = std::move(transposed_layout);
+        if (!n->is_dynamic()) {
+            std::vector<std::vector<size_t>> layouts(3);
+            const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
+            OPENVINO_ASSERT(matmul, "ExplicitTransposeMatMulInputs callback must be called for matmul node");
+            if (matmul->get_transpose_b()) {
+                std::vector<size_t> transposed_layout(n->get_input_partial_shape(1).size());
+                std::iota(transposed_layout.begin(), transposed_layout.end(), 0);
+                std::swap(*transposed_layout.rbegin(), *(transposed_layout.rbegin() + 1));
+                layouts[1] = std::move(transposed_layout);
+            }
+            ov::element::TypeVector precisions;
+            auto push_precision = [&](const ov::element::Type& precision) {
+                if (config.inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
+                    precisions.push_back(ov::element::bf16);
+                else
+                    precisions.push_back(precision);
+            };
+            push_precision(n->get_input_element_type(0));
+            push_precision(n->get_input_element_type(1));
+            push_precision(n->get_output_element_type(0));
+            return !ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP::is_supported_brgemm_configuration(layouts, precisions);
         }
-        ov::element::TypeVector precisions;
-        auto push_precision = [&](const ov::element::Type& precision) {
-            if (config.inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
-                precisions.push_back(ov::element::bf16);
-            else
-                precisions.push_back(precision);
-        };
-        push_precision(n->get_input_element_type(0));
-        push_precision(n->get_input_element_type(1));
-        push_precision(n->get_output_element_type(0));
-        if (ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP::is_supported_brgemm_configuration(layouts, precisions))
-            return false;
 #endif
         return true;
     };
@@ -1322,11 +1413,11 @@ void Transformations::MainSnippets(void) {
     snippetsManager.run_passes(model);
 }
 
-void Transformations::PostSnippets(void) {
+void Transformations::PostSnippets() {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
-    CPU_SET_CALLBACK_COMMON(
+    CPU_SET_CALLBACK_X64(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
             std::string errMsg;
@@ -1338,7 +1429,7 @@ void Transformations::PostSnippets(void) {
     postSnippetsManager.run_passes(model);
 }
 
-void Transformations::Snippets(void) {
+void Transformations::Snippets() {
     const bool useSnippets = config.snippetsMode != Config::SnippetsMode::Disable &&
                              CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
     if (!useSnippets) {

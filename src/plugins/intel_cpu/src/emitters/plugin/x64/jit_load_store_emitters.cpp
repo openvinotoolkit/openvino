@@ -4,6 +4,7 @@
 
 #include "jit_load_store_emitters.hpp"
 
+#include <memory>
 #include <utility>
 
 #include "utils/bfloat16.hpp"
@@ -718,7 +719,7 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator* host,
       dst_prc_(dst_prc),
       mode_(mode) {
     prepare_table();
-    uni_vcvtneps2bf16_.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
+    uni_vcvtneps2bf16_ = std::make_shared<jit_uni_vcvtneps2bf16>(host, host_isa);
 }
 
 inline bool jit_store_emitter::is_saturation() const {

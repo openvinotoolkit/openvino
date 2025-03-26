@@ -39,8 +39,8 @@ from openvino._pyopenvino import Strides
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Layout
-from openvino._pyopenvino import Type
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import Type
 from openvino._pyopenvino import OVAny
 from openvino._pyopenvino import get_batch
 from openvino._pyopenvino import set_batch
@@ -52,12 +52,12 @@ from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
 
 # Import public classes from _ov_api
+from openvino._op_base import Op
 from openvino._ov_api import Model
 from openvino._ov_api import Core
 from openvino._ov_api import CompiledModel
 from openvino._ov_api import InferRequest
 from openvino._ov_api import AsyncInferQueue
-from openvino._ov_api import Op
 
 # Import all public modules
 from openvino.package_utils import LazyLoader
