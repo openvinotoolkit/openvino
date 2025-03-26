@@ -16,10 +16,10 @@ OutputVector translate_polar(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     auto abs = context.get_input(0);
     auto angle = context.get_input(1);
-    auto real =
-        context.mark_node(std::make_shared<v1::Multiply>(abs, context.mark_node(std::make_shared<v0::Cos>(angle))));
-    auto imag =
-        context.mark_node(std::make_shared<v1::Multiply>(abs, context.mark_node(std::make_shared<v0::Sin>(angle))));
+    auto cos_node = context.mark_node(std::make_shared<v0::Cos>(angle));
+    auto real = context.mark_node(std::make_shared<v1::Multiply>(abs, cos_node));
+    auto sin_node = context.mark_node(std::make_shared<v0::Sin>(angle));
+    auto imag = context.mark_node(std::make_shared<v1::Multiply>(abs, sin_node));
     auto complex_tensor = context.mark_node(std::make_shared<ComplexTypeMark>(real, imag));
     return {complex_tensor};
 }
