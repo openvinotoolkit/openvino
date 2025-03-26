@@ -2697,9 +2697,7 @@ class jit_erf_emitter : public jit_emitter {
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& node)
             : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
-            if (!host) {
-                throw std::invalid_argument("Host generator cannot be null");
-            }
+                OPENVINO_ASSERT(host, "Host generator cannot be null");
             prepare_table();
             exp_emitter = create_exp_emitter(host, host_isa, node);
         }
@@ -2784,12 +2782,9 @@ class jit_erf_emitter : public jit_emitter {
             h->fmul(vmm_aux0.s, src.s, src.s);
             h->fneg(vmm_aux0.s, vmm_aux0.s);
             
-            if (exp_emitter) {
-                exp_emitter->emit_code({vmm_aux0.getIdx()}, {vmm_aux1.getIdx()}, aux_vec_idxs, aux_gpr_idxs);
-            } else {
-                OPENVINO_THROW("Exponential emitter is not initialized");
-            }
-    
+            OPENVINO_ASSERT(exp_emitter, "Exponential emitter is not initialized");
+	        exp_emitter->emit_code({vmm_aux0.getIdx()}, {
+            vmm_aux1.getIdx()}, aux_vec_idxs, aux_gpr_idxs);
             h->ld1r(vmm_aux2.s, table_val2("erf_p"));
             h->fmul(vmm_aux2.s, vmm_aux2.s, src.s);
             h->ld1r(vmm_aux3.s, table_val2("one"));
