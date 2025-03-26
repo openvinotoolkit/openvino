@@ -82,7 +82,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         PSROIPoolingSpecificParams psroiPoolingParams;
-        auto netPrecision = ov::element::undefined;
+        auto netPrecision = ov::element::dynamic;
         std::tie(psroiPoolingParams, netPrecision, targetDevice) = basicParamsSet;
         inType = outType = netPrecision;
         std::tie(featureMapShape, proposal, outputDim, groupSize, spatialScale, spatialBinsX, spatialBinsY, mode) =

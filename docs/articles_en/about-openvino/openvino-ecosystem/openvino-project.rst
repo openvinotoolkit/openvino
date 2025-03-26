@@ -21,7 +21,7 @@ hosted in repositories under the OpenVINO project:
 
 | **GenAI**
 | :bdg-link-dark:`GitHub <https://github.com/openvinotoolkit/openvino.genai>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/learn-openvino/llm_inference_guide/genai-guide.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-genai.html>`
 
 OpenVINO™ GenAI Library simplifies running inference of generative AI
 models. Check the LLM-powered Chatbot Jupyter notebook to see how GenAI works.
@@ -38,7 +38,7 @@ and TensorFlow models during training.
 
 | **OpenVINO Model Server**
 | :bdg-link-dark:`GitHub <https://github.com/openvinotoolkit/model_server>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/openvino-workflow/model-server/ovms_what_is_openvino_model_server.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/model-server/ovms_what_is_openvino_model_server.html>`
 
 A high-performance system that can be used to access the host models via request to the model
 server.
@@ -46,7 +46,7 @@ server.
 
 | **OpenVINO Notebooks**
 | :bdg-link-dark:`GitHub <https://github.com/openvinotoolkit/openvino_notebooks>`
-  :bdg-link-success:`Jupyter Notebook Collection <https://docs.openvino.ai/2025/learn-openvino/interactive-tutorials-python.html>`
+  :bdg-link-success:`Jupyter Notebook Collection <https://docs.openvino.ai/2025/get-started/learn-openvino/interactive-tutorials-python.html>`
 
 A collection of Jupyter notebooks for learning and experimenting with the OpenVINO™ Toolkit.
 |hr|
@@ -94,7 +94,7 @@ development process, empowering teams to produce custom AI models at scale.
 
 | **Tokenizers**
 | :bdg-link-dark:`GitHub <https://github.com/openvinotoolkit/openvino_tokenizers>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/learn-openvino/llm_inference_guide/ov-tokenizers.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/openvino-workflow-generative/ov-tokenizers.html>`
 
 OpenVINO Tokenizers add text processing operations to OpenVINO.
 |hr|

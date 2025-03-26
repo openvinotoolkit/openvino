@@ -88,6 +88,128 @@ TEST_F(IRFrontendTests, elementary_model_reading_v11) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
+TEST_F(IRFrontendTests, elementary_model_reading_v11_undefined_precisoin) {
+    std::string testModelV11 = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="input" type="Parameter" id="0" version="opset1">
+            <data element_type="undefined" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="UNSPECIFIED">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="UNSPECIFIED">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+    ov::RTMap rtInfo;
+    uint64_t version = 0;
+
+    OV_ASSERT_NO_THROW(model = getWithIRFrontend(testModelV11));
+    ASSERT_TRUE(!!model);
+    OV_ASSERT_NO_THROW(rtInfo = model->get_rt_info());
+    OV_ASSERT_NO_THROW(version = rtInfo["version"].as<int64_t>());
+    ASSERT_EQ(11, version);
+
+    std::shared_ptr<ov::Model> modelRef;
+    {
+        auto parameter = std::make_shared<ov::opset1::Parameter>(ov::element::dynamic, ov::Shape{1, 3, 22, 22});
+        parameter->set_friendly_name("input");
+        auto result = std::make_shared<ov::opset1::Result>(parameter);
+        result->set_friendly_name("output");
+        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+    }
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::NAMES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(model, modelRef);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+
+TEST_F(IRFrontendTests, elementary_model_reading_v11_dynamic_precisoin) {
+    std::string testModelV11 = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="input" type="Parameter" id="0" version="opset1">
+            <data element_type="dynamic" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="dynamic">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="dynamic">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+    ov::RTMap rtInfo;
+    uint64_t version = 0;
+
+    OV_ASSERT_NO_THROW(model = getWithIRFrontend(testModelV11));
+    ASSERT_TRUE(!!model);
+    OV_ASSERT_NO_THROW(rtInfo = model->get_rt_info());
+    OV_ASSERT_NO_THROW(version = rtInfo["version"].as<int64_t>());
+    ASSERT_EQ(11, version);
+
+    std::shared_ptr<ov::Model> modelRef;
+    {
+        auto parameter = std::make_shared<ov::opset1::Parameter>(ov::element::dynamic, ov::Shape{1, 3, 22, 22});
+        parameter->set_friendly_name("input");
+        auto result = std::make_shared<ov::opset1::Result>(parameter);
+        result->set_friendly_name("output");
+        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+    }
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::NAMES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(model, modelRef);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+
 TEST_F(IRFrontendTests, elementary_model_reading_v10) {
     std::string testModelV10 = R"V0G0N(
 <net name="Network" version="10">
@@ -1181,7 +1303,7 @@ TEST_F(IRFrontendTests, model_with_tensor_names_with_spaces) {
                 <layer id="0" name="input2" type="Parameter" version="opset1">
                     <data shape="1,4,512" element_type="f32"/>
                     <output>
-                        <port id="0" precision="FP32" names="input2">
+                        <port id="0" precision="FP32" names="model/bert/encoder/layer_0/attention/self/query/Tensordot/MatMul;model/bert/encoder/layer_0/attention/self/query/BiasAdd;model/bert/encoder/layer_0/attention/output/dense/Tensordot/shape;model/bert/encoder/layer_0/attention/self/query/Tensordot;model/bert/encoder/layer_0/attention/self/query/BiasAdd/ReadVariableOp_Gemm__32:0">
                             <dim>1</dim>
                             <dim>4</dim>
                             <dim>512</dim>

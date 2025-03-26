@@ -140,7 +140,7 @@ bool RandomUniform::needPrepareParams() const {
 
 void RandomUniform::prepareParams() {
     m_out_shape = getDstMemoryAtPort(0)->getShape().getStaticDims();
-    m_output_elements_count = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<Dim>());
+    m_output_elements_count = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<>());
 
     if (m_algo == PHILOX) {
         m_skip_count = m_output_elements_count * SKIP_CONST;
@@ -442,9 +442,9 @@ inline void raiseKey(uint32_t* key) {
 }
 
 inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res) {
-    uint32_t* key_32 = reinterpret_cast<uint32_t*>(&key);
-    uint32_t* counter_32 = reinterpret_cast<uint32_t*>(&counter);
-    uint32_t* n_32 = reinterpret_cast<uint32_t*>(&n);
+    auto* key_32 = reinterpret_cast<uint32_t*>(&key);
+    auto* counter_32 = reinterpret_cast<uint32_t*>(&counter);
+    auto* n_32 = reinterpret_cast<uint32_t*>(&n);
 
     // Loop unwarping for better performance
     calculateRound(key_32, counter_32, n_32);
@@ -486,7 +486,7 @@ inline void convertToOutputTypePhilox(const uint32_t* in, float16 min, float16 r
     RandomUniform::OutputType out_val;
 
     for (size_t i = 0lu; i < el_to_copy; i++) {
-        uint16_t x_uint16 = static_cast<uint16_t>(in[i]);
+        auto x_uint16 = static_cast<uint16_t>(in[i]);
         out_val.u16 = 0x3c00 | (x_uint16 & 0x03ffu);
         out[i] = (out_val.f16 - static_cast<float16>(1)) * range + min;
     }
@@ -500,7 +500,7 @@ inline void convertToOutputTypePhilox(const uint32_t* in,
     RandomUniform::OutputType out_val;
 
     for (size_t i = 0lu; i < el_to_copy; i++) {
-        uint16_t x_uint16 = static_cast<uint16_t>(in[i]);
+        auto x_uint16 = static_cast<uint16_t>(in[i]);
         out_val.u16 = 0x3f80 | (x_uint16 & 0x7fu);
         out[i] = (out_val.bf16 - static_cast<bfloat16>(1)) * range + min;
     }

@@ -61,7 +61,7 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
 
     std::vector<Input::OutputConfig> graphOutputConfig;
     // enforce the same memory descriptor on the output as on the input to allow inPlace memory
-    graphOutputConfig.emplace_back(node::Input::OutputConfig{inConfs.front().getMemDesc(), isInPlace});
+    graphOutputConfig.emplace_back(inConfs.front().getMemDesc(), isInPlace);
 
     // configure the inner graph to get the information about output memory descriptors
     m_graph.Init(m_body, context, graphInputConfig, graphOutputConfig);

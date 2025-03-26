@@ -147,7 +147,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
-        auto bias = std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});
+        auto bias = std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
         new_ops.push_back(bias);
 
         auto fc = std::make_shared<ov::op::internal::FullyConnected>(fc_input_a,

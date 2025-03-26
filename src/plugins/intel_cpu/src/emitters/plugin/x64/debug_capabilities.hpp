@@ -55,15 +55,11 @@ namespace ov::intel_cpu {
 class RegPrinter {
 public:
     using jit_generator = dnnl::impl::cpu::x64::jit_generator;
-    template <typename PRC_T,
-              typename REG_T,
-              typename std::enable_if<std::is_base_of<Xbyak::Xmm, REG_T>::value, int>::type = 0>
+    template <typename PRC_T, typename REG_T, std::enable_if_t<std::is_base_of_v<Xbyak::Xmm, REG_T>, int> = 0>
     static void print(jit_generator& h, REG_T reg, const char* name = nullptr) {
         print_vmm<PRC_T, REG_T>(h, reg, name);
     }
-    template <typename PRC_T,
-              typename REG_T,
-              typename std::enable_if<!std::is_base_of<Xbyak::Xmm, REG_T>::value, int>::type = 0>
+    template <typename PRC_T, typename REG_T, std::enable_if_t<!std::is_base_of_v<Xbyak::Xmm, REG_T>, int> = 0>
     static void print(jit_generator& h, REG_T reg, const char* name = nullptr) {
         print_reg<PRC_T, REG_T>(h, reg, name);
     }

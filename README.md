@@ -6,7 +6,7 @@ Open-source software toolkit for optimizing and deploying deep learning models.
 </h3>
 
 <p align="center">
- <a href="https://docs.openvino.ai/2025/index.html"><b>Documentation</b></a> • <a href="https://blog.openvino.ai"><b>Blog</b></a> • <a href="https://docs.openvino.ai/2025/about-openvino/key-features.html"><b>Key Features</b></a> • <a href="https://docs.openvino.ai/2025/learn-openvino.html"><b>Tutorials</b></a> • <a href="https://docs.openvino.ai/2025/documentation/openvino-ecosystem.html"><b>Integrations</b></a> • <a href="https://docs.openvino.ai/2025/about-openvino/performance-benchmarks.html"><b>Benchmarks</b></a> • <a href="https://github.com/openvinotoolkit/openvino.genai"><b>Generative AI</b></a>
+ <a href="https://docs.openvino.ai/2025/index.html"><b>Documentation</b></a> • <a href="https://blog.openvino.ai"><b>Blog</b></a> • <a href="https://docs.openvino.ai/2025/about-openvino/key-features.html"><b>Key Features</b></a> • <a href="https://docs.openvino.ai/2025/get-started/learn-openvino.html"><b>Tutorials</b></a> • <a href="https://docs.openvino.ai/2025/documentation/openvino-ecosystem.html"><b>Integrations</b></a> • <a href="https://docs.openvino.ai/2025/about-openvino/performance-benchmarks.html"><b>Benchmarks</b></a> • <a href="https://github.com/openvinotoolkit/openvino.genai"><b>Generative AI</b></a>
 </p>
 
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
@@ -21,7 +21,7 @@ Open-source software toolkit for optimizing and deploying deep learning models.
 
 - **Inference Optimization**: Boost deep learning performance in computer vision, automatic speech recognition, generative AI, natural language processing with large and small language models, and many other common tasks.
 - **Flexible Model Support**: Use models trained with popular frameworks such as PyTorch, TensorFlow, ONNX, Keras, PaddlePaddle, and JAX/Flax. Directly integrate models built with transformers and diffusers from the Hugging Face Hub using Optimum Intel. Convert and deploy models without original frameworks.
-- **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud. OpenVINO™ supports inference on CPU (x86, ARM), GPU (OpenCL capable, integrated and discrete) and AI accelerators (Intel NPU).
+- **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud. OpenVINO™ supports inference on CPU (x86, ARM), GPU (Intel integrated & discrete GPU) and AI accelerators (Intel NPU).
 - **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
 
 Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2025/_static/download/OpenVINO_Quick_Start_Guide.pdf) and [Key Features](https://docs.openvino.ai/2025/about-openvino/key-features.html) for a quick reference.
@@ -35,7 +35,7 @@ Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2025/_static/downl
 pip install -U openvino
 ```
 
-Check [system requirements](https://docs.openvino.ai/2025/about-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2025/about-openvino/compatibility-and-support/supported-devices.html) for detailed information.
+Check [system requirements](https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-devices.html) for detailed information.
 
 ## Tutorials and Examples
 
@@ -48,7 +48,7 @@ Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](ht
 - [Multimodal assistant with LLaVa and OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llava-multimodal-chatbot/llava-multimodal-chatbot-genai.ipynb)
 - [Automatic speech recognition using Whisper and OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/whisper-asr-genai/whisper-asr-genai.ipynb)
 
-Discover more examples in the [OpenVINO Samples (Python & C++)](https://docs.openvino.ai/2025/learn-openvino/openvino-samples.html) and [Notebooks (Python)](https://docs.openvino.ai/2025/learn-openvino/interactive-tutorials-python.html).
+Discover more examples in the [OpenVINO Samples (Python & C++)](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples.html) and [Notebooks (Python)](https://docs.openvino.ai/2025/get-started/learn-openvino/interactive-tutorials-python.html).
 
 Here are easy-to-follow code examples demonstrating how to run PyTorch and TensorFlow model inference using OpenVINO:
 
@@ -102,7 +102,7 @@ OpenVINO supports the CPU, GPU, and NPU [devices](https://docs.openvino.ai/2025/
 
 Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2025/openvino-workflow-generative/generative-inference.html) to explore the capabilities of Generative AI using OpenVINO.
 
-Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) in the [OpenVINO™ GenAI repo](https://github.com/openvinotoolkit/openvino.genai). See GenAI in action with Jupyter notebooks: [LLM-powered Chatbot](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/README.md) and [LLM Instruction-following pipeline](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-question-answering/README.md).
+Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) in the [OpenVINO™ GenAI repo](https://github.com/openvinotoolkit/openvino.genai). See GenAI in action with Jupyter notebooks: [LLM-powered Chatbot](https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-chatbot) and [LLM Instruction-following pipeline](https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-question-answering).
 
 ## Documentation
 

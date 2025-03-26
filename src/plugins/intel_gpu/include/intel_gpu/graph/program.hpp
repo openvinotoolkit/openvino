@@ -309,12 +309,11 @@ private:
     std::vector<primitive_id> allocating_order;
     std::unique_ptr<pass_manager> pm;
     std::unique_ptr<layout_optimizer> _layout_optimizer;
-    bool is_internal;
-    bool _is_body_program;
+    bool is_internal = false;
+    bool _is_body_program = false;
     // if subgraph can be optimized if it consists of only inputs and corresponding outputs
     bool _can_be_optimized;
     std::unique_ptr<ImplementationsCache> _impls_cache;
-    const size_t _impls_cache_capacity = 300;
     std::shared_ptr<ICompilationContext> _compilation_context;
     bool _loaded_from_cache = false;
 

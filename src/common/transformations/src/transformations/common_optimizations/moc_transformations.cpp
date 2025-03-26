@@ -131,8 +131,15 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
-        manager.register_pass<ov::pass::MarkDequantization>(
-            element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
+        manager.register_pass<ov::pass::MarkDequantization>(element::TypeVector{ov::element::i8,
+                                                                                ov::element::u8,
+                                                                                ov::element::i4,
+                                                                                ov::element::u4,
+                                                                                ov::element::nf4,
+                                                                                ov::element::f4e2m1,
+                                                                                ov::element::f8e4m3,
+                                                                                ov::element::f8e5m2,
+                                                                                ov::element::f8e8m0});
     }
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();

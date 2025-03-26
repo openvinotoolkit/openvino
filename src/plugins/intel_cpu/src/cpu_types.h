@@ -90,6 +90,7 @@ enum class Type {
     DFT,
     RDFT,
     STFT,
+    ISTFT,
     Math,
     CTCLoss,
     Bucketize,
@@ -134,6 +135,7 @@ enum class Type {
     QKVProjection,
     RMS,
     SearchSorted,
+    SegmentMax,
     LoRA
 };
 

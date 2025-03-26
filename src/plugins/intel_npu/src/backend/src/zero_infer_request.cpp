@@ -89,10 +89,6 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_initStructs, _config.get<LOG_LEVEL>());
     }
 
-    _properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_initStructs->getDevice(), &_properties));
-
     _outputAllocator = std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs);
     _inputAllocator =
         std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
@@ -171,10 +167,6 @@ void ZeroInferRequest::create_pipeline() {
                                                                   *_outputAllocator,
                                                                   _graph->get_batch_size());
     }
-
-    // Find the corresponding command queue group.
-    _logger.debug("ZeroInferRequest::create_pipeline - findGroupOrdinal");
-    auto groupOrdinal = zeroUtils::findGroupOrdinal(_initStructs->getDevice(), _properties);
     _logger.debug("ZeroInferRequest::create_pipeline - init completed");
 
     // Set new tensors and reset variable state flag if memory updated before creating the pipeline
@@ -210,8 +202,7 @@ void ZeroInferRequest::create_pipeline() {
                                            _profilingQuery,
                                            _npuProfiling,
                                            _levelZeroInputTensors,
-                                           _levelZeroOutputTensors,
-                                           groupOrdinal);
+                                           _levelZeroOutputTensors);
 
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }
@@ -322,7 +313,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         _userOutputTensors.at(foundPort.idx) = tensor;
     }
 
-    if (_initStructs->getMutableCommandListVersion()) {
+    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
         auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensor._ptr);
 
         if (remoteTensor == nullptr) {
@@ -356,7 +347,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
     void* data = nullptr;
 
-    if (_initStructs->getMutableCommandListVersion()) {
+    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
         if (_graph->get_batch_size().has_value()) {
             for (size_t i = 0; i < tensors.size(); i++) {
                 auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensors[i]._ptr);
@@ -455,7 +446,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
     size_t ioIndex = 0;
 
     for (const auto& levelZeroTensor : _levelZeroInputTensors) {
-        const auto inputDescriptor = _metadata.inputs.at(ioIndex);
+        const auto& inputDescriptor = _metadata.inputs.at(ioIndex);
         auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor.at(SINGLE_TENSOR));
 
         if (is_batched_input(ioIndex) || inputDescriptor.isShapeTensor ||
@@ -484,7 +475,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
     ioIndex = 0;
 
     for (const auto& levelZeroTensor : _levelZeroOutputTensors) {
-        const auto outputDescriptor = _metadata.outputs.at(ioIndex);
+        const auto& outputDescriptor = _metadata.outputs.at(ioIndex);
         auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor);
 
         if (outputDescriptor.isShapeTensor || is_remote_tensor(levelZeroTensor) || zeroTensor == nullptr) {
@@ -576,7 +567,7 @@ void ZeroInferRequest::infer_async() {
 
             _pipelineIsCreated = true;
         } else {
-            if (_initStructs->getMutableCommandListVersion()) {
+            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
                 update_pipeline_if_memory_changed();
                 update_states_if_memory_changed();
             }
@@ -790,7 +781,7 @@ std::shared_ptr<ov::ITensor> ZeroInferRequest::create_tensor(ov::element::Type t
                                                              const ov::Allocator& allocator) const {
     OPENVINO_ASSERT(allocator, "Allocator mush be provided when creating a zero tensor!");
 
-    return std::make_shared<ZeroTensor>(_initStructs, type, shape, allocator);
+    return std::make_shared<ZeroTensor>(_initStructs, _config, type, shape, allocator);
 }
 
 void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIndex) const {
@@ -802,7 +793,7 @@ void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIn
                                                                   descriptor.nameFromCompiler,
                                                                   get_user_input(tensorIndex),
                                                                   tensorIndex,
-                                                                  *descriptor.relatedDescriptorIndex,
+                                                                  descriptor.relatedDescriptorIndex.value(),
                                                                   _config));
 }
 

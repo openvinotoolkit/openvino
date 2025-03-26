@@ -45,5 +45,6 @@ public:
     AttributeAdapter(Coordinate& value) : IndirectVectorValueAccessor<Coordinate, std::vector<int64_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<Coordinate>");
+    ~AttributeAdapter() override;
 };
 }  // namespace ov

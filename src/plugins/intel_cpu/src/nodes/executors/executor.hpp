@@ -51,6 +51,12 @@ namespace ov::intel_cpu {
 #    define OV_CPU_INSTANCE_DNNL(...)
 #endif
 
+#if defined(OV_CPU_WITH_KLEIDIAI)
+#    define OV_CPU_INSTANCE_KLEIDIAI(...) {__VA_ARGS__},
+#else
+#    define OV_CPU_INSTANCE_KLEIDIAI(...)
+#endif
+
 #if defined(OPENVINO_ARCH_X86_64)
 #    define OV_CPU_INSTANCE_X64(...) {__VA_ARGS__},
 #else
@@ -74,7 +80,7 @@ namespace ov::intel_cpu {
 // @todo another option is to determine shape relation by executor type
 enum class ShapeTolerance { Agnostic, Dependant };
 
-enum class ExecutorType { Undefined, Graph, Common, jit_x64, Dnnl, Acl, Mlas, jit_aarch64, Shl };
+enum class ExecutorType { Undefined, Graph, Common, jit_x64, Dnnl, Acl, Mlas, jit_aarch64, Shl, Kleidiai };
 
 enum class OperationType { FullyConnected, MatMul, Convolution };
 
@@ -100,29 +106,29 @@ public:
         curNumaNodeId = std::max(0, cpuStreamsExecutor ? cpuStreamsExecutor->get_numa_node_id() : curNumaNodeId);
     }
 
-    MultiCachePtr getRuntimeCache() const {
+    [[nodiscard]] MultiCachePtr getRuntimeCache() const {
         auto runtimeCachePtr = runtimeCache.lock();
         assert(runtimeCachePtr);
         return runtimeCachePtr;
     }
 
-    DnnlScratchPadPtr getScratchPad() const {
+    [[nodiscard]] DnnlScratchPadPtr getScratchPad() const {
         return scratchPads[curNumaNodeId];
     }
 
-    std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeighCache() const {
+    [[nodiscard]] std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeighCache() const {
         return privateWeighCache;
     }
 
-    const dnnl::engine& getEngine() const {
+    [[nodiscard]] const dnnl::engine& getEngine() const {
         return engine;
     }
 
-    const std::vector<impl_desc_type>& getImplPriorities() const {
+    [[nodiscard]] const std::vector<impl_desc_type>& getImplPriorities() const {
         return implPriorities;
     }
 
-    const WeightsSharing::Ptr getWeightsCache() const {
+    [[nodiscard]] const WeightsSharing::Ptr getWeightsCache() const {
         return weightsCache;
     }
 
@@ -167,7 +173,7 @@ public:
     virtual void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
     }
-    virtual impl_desc_type implType() const = 0;
+    [[nodiscard]] virtual impl_desc_type implType() const = 0;
     virtual void moveMemToNumaNode(int numaID) {
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'moveMemToNumaNode' method is not implemented by executor");
     }

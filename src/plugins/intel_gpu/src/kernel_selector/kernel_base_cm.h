@@ -27,8 +27,7 @@ protected:
 
         if (codes.size()) {
             kernel_string->str = codes[0];
-            kernel_string->jit = "#include <cm/cm.h>\n#include <cm/cmtl.h>\n";
-            kernel_string->jit += jit.first;
+            kernel_string->jit = jit.first;
             kernel_string->undefs = jit.second;
             kernel_string->options = " -cmc ";
 
@@ -38,6 +37,19 @@ protected:
         }
 
         return kernel_string;
+    }
+    std::pair<std::string, std::string> CreateJit(const JitConstants& constants) const {
+        std::string defs, undefs;
+        for (auto& definition : constants.GetDefinitions()) {
+            auto &name = definition.first;
+            auto &value = definition.second;
+            defs += "\n#define " + name + " " + value + "\n";
+            undefs += "\n#ifdef " + name + "\n";
+            undefs += "\n#undef " + name + "\n";
+            undefs += "\n#endif\n";
+        }
+
+        return std::pair<std::string, std::string>(defs, undefs);
     }
 };
 }  // namespace kernel_selector

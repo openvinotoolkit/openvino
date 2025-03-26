@@ -157,7 +157,7 @@ std::ostream& operator<<(std::ostream& os, const NodeDesc& desc) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Node& c_node) {
-    Node& node = const_cast<Node&>(c_node);
+    auto& node = const_cast<Node&>(c_node);
     const int align_col = 50;
     const char* comma = "";
     auto node_id = [](Node& node) {
@@ -328,9 +328,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             auto pmem = input_node->getMemoryPtr();
             void* data = pmem->getData();
             auto shape = pmem->getDesc().getShape().getDims();
-
-            if (shape_size(shape) <= 8 && pmem->getDesc().getPrecision() != ov::element::undefined) {
-                auto type = pmem->getDesc().getPrecision();
+            if (auto type = pmem->getDesc().getPrecision(); shape_size(shape) <= 8 && type.is_static()) {
                 auto tensor = ov::Tensor(type, shape, data);
                 auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
                 comma = "";
@@ -664,7 +662,7 @@ std::string to_string(const T* values, size_t N, size_t maxsize) {
             ss << "..." << N << "in total";
             break;
         }
-        if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value) {
+        if (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>) {
             ss << static_cast<int>(values[i]);
         } else {
             ss << values[i];
@@ -689,6 +687,16 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
         }
         os << "]";
     }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record) {
+    os << "Memory profile record: " << record.id << "\n";
+    os << "Total regions: " << record.total_regions << "\n";
+    os << "Total unique blocks: " << record.total_unique_blocks << "\n";
+    os << "Total size: " << record.total_size << " bytes\n";
+    os << "Optimal total size: " << record.optimal_total_size << " bytes\n";
+    os << "Max region size: " << record.max_region_size << " bytes\n";
     return os;
 }
 

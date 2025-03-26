@@ -511,12 +511,23 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_InferencePrecision, ChangeCorre
     OV_ASSERT_NO_THROW(default_property = core->get_property(target_device, ov::hint::inference_precision));
     ASSERT_FALSE(default_property.empty());
 
-    const std::vector<ov::element::Type> ovElemTypes = {
-        ov::element::f64, ov::element::f32, ov::element::f16, ov::element::bf16,
-        ov::element::i64, ov::element::i32, ov::element::i16, ov::element::i8, ov::element::i4,
-        ov::element::u64, ov::element::u32, ov::element::u16, ov::element::u8, ov::element::u4,  ov::element::u1,
-        ov::element::boolean, ov::element::undefined, ov::element::dynamic
-    };
+    const std::vector<ov::element::Type> ovElemTypes = {ov::element::f64,
+                                                        ov::element::f32,
+                                                        ov::element::f16,
+                                                        ov::element::bf16,
+                                                        ov::element::i64,
+                                                        ov::element::i32,
+                                                        ov::element::i16,
+                                                        ov::element::i8,
+                                                        ov::element::i4,
+                                                        ov::element::u64,
+                                                        ov::element::u32,
+                                                        ov::element::u16,
+                                                        ov::element::u8,
+                                                        ov::element::u4,
+                                                        ov::element::u1,
+                                                        ov::element::boolean,
+                                                        ov::element::dynamic};
 
     bool any_supported = false;
     for (ov::element::Type type : ovElemTypes) {

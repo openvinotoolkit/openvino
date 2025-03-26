@@ -16,3 +16,4 @@ _OPENVINO_OP_REG(ShapeOf, ov::op::v3)
 // New operations added in opset16
 _OPENVINO_OP_REG(Identity, ov::op::v16)
 _OPENVINO_OP_REG(ISTFT, ov::op::v16)
+_OPENVINO_OP_REG(SegmentMax, ov::op::v16)

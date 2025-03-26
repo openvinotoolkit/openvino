@@ -133,12 +133,14 @@ jobs:
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}"}'
 
   Conformance:
-    needs: [ Build, Smart_CI ]
-    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 20 }}
+    needs: [ Docker, Build, Smart_CI ]
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 10 || 20 }}
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-22.04-16-cores
+    runs-on: aks-linux-16-cores-64gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -165,13 +167,13 @@ jobs:
       #
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -202,10 +204,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install Dependencies
-        run: |
-          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
-          python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
+        run: python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
       # Tests
@@ -363,6 +362,7 @@ jobs:
       runner: 'aks-linux-8-cores-32gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       python-version: '3.11'
+      scope: ${{ contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event_name)  && 'nightly' || 'smoke' }}
 
   TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
@@ -395,37 +395,35 @@ jobs:
       model_scope: 'nightly_hf'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
-  # TODO: Switch back to self-hosted runners
-  # container:
-  #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
-  #   volumes:
-  #     - /mount:/mount
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     if: ${{ github.event_name != 'schedule' && fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test }}
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'ubuntu-22.04-8-cores'
+      runner: 'aks-linux-8-cores-64gb'
       model_scope: 'precommit'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   PyTorch_Models_Tests_Nightly_Scope1:
     name: PyTorch Models Nightly Scope1 tests
     if: ${{ github.event_name == 'schedule' }}
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'ubuntu-22.04-16-cores'
+      runner: 'aks-linux-16-cores-64gb'
       model_scope: 'nightly_scope1'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   PyTorch_Models_Tests_Nightly_Scope2:
     name: PyTorch Models Nightly Scope2 tests
     if: ${{ github.event_name == 'schedule' }}
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'ubuntu-22.04-16-cores'
+      runner: 'aks-linux-16-cores-64gb'
       model_scope: 'nightly_scope2'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   JAX_Models_Tests_Precommit:
     name: JAX/Flax Models tests
@@ -471,13 +469,13 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO Developer package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: openvino_developer_package
           path: ${{ env.INSTALL_DIR }}

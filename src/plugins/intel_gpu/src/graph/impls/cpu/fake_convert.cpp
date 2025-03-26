@@ -5,7 +5,7 @@
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "fake_convert_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/fake_convert.hpp"
 
@@ -74,7 +74,7 @@ struct fake_convert_impl : public typed_primitive_impl<fake_convert> {
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read_write> output_lock(output_mem_ptr, stream);
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));

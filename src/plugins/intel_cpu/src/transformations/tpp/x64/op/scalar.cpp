@@ -4,8 +4,6 @@
 
 #include "scalar.hpp"
 
-#include "modifiers.hpp"
-
 namespace ov::intel_cpu::tpp::op {
 
 Scalar::Scalar(const snippets::op::Scalar& other) : ov::snippets::op::Scalar(other) {
