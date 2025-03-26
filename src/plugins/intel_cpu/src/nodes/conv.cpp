@@ -1656,13 +1656,15 @@ void Convolution::execute(const dnnl::stream& strm) {
     }
 
     primArgs[DNNL_ARG_SRC].set_data_handle(getSrcDataAtPort(0));
-    primArgs[DNNL_ARG_DST].set_data_handle(getDstDataAtPort(0));
     if (!constWeights) {
         primArgs[DNNL_ARG_WEIGHTS].set_data_handle(getSrcDataAtPort(1));
     }
     if (withBiases) {
         primArgs[DNNL_ARG_BIAS].set_data_handle(getSrcDataAtPort(2));
     }
+
+    // to safely get the output memory object we have to use the accessor (since there may be the sum-broadcast)
+    primArgs[DNNL_ARG_DST].set_data_handle(getOutputMemory()->getData());
 
     execPtr->exec(primArgs, strm);
 }
