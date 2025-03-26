@@ -31,3 +31,24 @@ std::string utils::getPlatformByDeviceName(const std::string& deviceName) {
 
     return platformName;
 }
+
+std::string utils::getCompilationPlatform(const std::string_view platform,
+                                          const std::string& deviceId,
+                                          std::vector<std::string> availableDevicesNames) {
+    // Platform parameter has a higher priority than deviceID
+    if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
+        return std::string(platform);
+    }
+
+    // Get compilation platform from deviceID
+    if (!deviceId.empty()) {
+        return utils::getPlatformByDeviceName(deviceId);
+    }
+
+    // Automatic detection of compilation platform
+    if (availableDevicesNames.empty()) {
+        OPENVINO_THROW("No NPU devices were found.");
+    }
+
+    return utils::getPlatformByDeviceName(availableDevicesNames.at(0));
+}
