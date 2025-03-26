@@ -61,7 +61,7 @@ std::vector<layout> col_to_im_inst::calc_output_layouts(col_to_im_node const& no
     output_shapes[0][-1] = node.get_primitive()->output_shape[1];
     output_shapes[0][-2] = node.get_primitive()->output_shape[0];
     size_t prod = 1;
-    for (auto t: node.get_primitive()->kernel_shape) {
+    for (auto t : node.get_primitive()->kernel_shape) {
         prod *= t;
     }
     auto C = input_shapes[0][-2] / prod;

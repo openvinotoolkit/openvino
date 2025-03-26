@@ -18,7 +18,7 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
     auto inputPrimitives = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    // The total number of blocks calculated(L) = product from d=1 to 2 of 
+    // The total number of blocks calculated(L) = product from d=1 to 2 of
     //  floor((output_size[d] + pads_begin[d] + pads_end[d] - dilation[d] * (kernel_size[d] - 1) - 1) / stride[d] + 1)
     //  d : all spatial dimension
     auto strides = op->get_strides();
@@ -28,9 +28,9 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
     ov::CoordinateDiff padding_begin;
     ov::CoordinateDiff padding_end;
 
-    for (auto p: op->get_pads_begin())
+    for (auto p : op->get_pads_begin())
         padding_begin.push_back(p);
-    for (auto p: op->get_pads_end())
+    for (auto p : op->get_pads_end())
         padding_end.push_back(p);
 
     // std::cout << ">> col2im : " << op->get_friendly_name() << std::endl;
