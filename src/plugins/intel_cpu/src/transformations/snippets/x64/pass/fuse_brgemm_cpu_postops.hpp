@@ -9,14 +9,24 @@
 namespace ov::intel_cpu::pass {
 
 /**
- * @interface FuseBrgemmCPUPostops
+ * @interface FuseBrgemmCPUPostopsLegacy
  * @brief TODO
  * @ingroup snippets
  */
-class FuseBrgemmCPUPostops : public ov::pass::MatcherPass {
+class FuseBrgemmCPUPostopsLegacy : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FuseBrgemmCPUPostops");
-    FuseBrgemmCPUPostops();
+    OPENVINO_MATCHER_PASS_RTTI("FuseBrgemmCPUPostopsLegacy");
+    FuseBrgemmCPUPostopsLegacy();
+};
+
+class FuseBrgemmCPUPostops : public ov::pass::GraphRewrite {
+public:
+    OPENVINO_GRAPH_REWRITE_RTTI("FuseBrgemmCPUPostops");
+    FuseBrgemmCPUPostops() {
+        if (std::getenv("LEGACY")) {
+            add_matcher<FuseBrgemmCPUPostopsLegacy>();
+        }
+    }
 };
 
 }  // namespace ov::intel_cpu::pass

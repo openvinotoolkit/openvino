@@ -4,6 +4,7 @@
 
 #include "brgemm_cpu.hpp"
 
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/snippets_isa.hpp"

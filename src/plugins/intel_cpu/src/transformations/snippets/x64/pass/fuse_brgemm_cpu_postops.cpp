@@ -19,8 +19,8 @@ namespace ov::intel_cpu {
 using namespace snippets::lowered;
 using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
 
-pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
-    MATCHER_SCOPE(FuseBrgemmCPUPostops);
+pass::FuseBrgemmCPUPostopsLegacy::FuseBrgemmCPUPostopsLegacy() {
+    MATCHER_SCOPE(FuseBrgemmCPUPostopsLegacy);
     using namespace ov::pass::pattern;
     auto brgemm_predicate = [](const Output<Node>& output) {
         return has_static_shape()(output) && consumers_count(1)(output);
@@ -55,7 +55,8 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
         }
 
         const auto postop_input_shape = post_op->get_input_shape(1);
-        if (ov::shape_size(postop_input_shape) != post_op->get_output_shape(0).back()) {
+        if (ov::shape_size(postop_input_shape) != post_op->get_output_shape(0).back() &&
+            ov::shape_size(postop_input_shape) != 1) {
             return false;
         }
 

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <common/primitive_attr.hpp>
+
 #include "brgemm_copy_b.hpp"
 #include "brgemm_utils.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
@@ -46,6 +48,10 @@ public:
         return m_post_ops;
     }
 
+    const dnnl_post_ops& get_postops_2() const {
+        return post_ops_2;
+    }
+
     size_t get_main_inputs_count() const {
         return m_main_inputs_count;
     }
@@ -68,6 +74,8 @@ private:
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
 
     PostopsConfig m_post_ops = {};
+
+    dnnl_post_ops post_ops_2;
 
     const size_t m_main_inputs_count = 0lu;
 };

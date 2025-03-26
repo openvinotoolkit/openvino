@@ -513,12 +513,12 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                ov::intel_cpu::pass::FuseBrgemmCPUPostops);
         if (std::getenv("SERIALIZE")) {
             SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
-                                                   ov::intel_cpu::pass::FuseBrgemmCPUPostops,
+                                                   ov::intel_cpu::pass::FuseBrgemmCPUPostopsLegacy,
                                                    ov::pass::Serialize,
                                                    std::string("before_FuseBrgemmCPUPostops.xml"),
                                                    std::string(""));
             SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                                   ov::intel_cpu::pass::FuseBrgemmCPUPostops,
+                                                   ov::intel_cpu::pass::FuseBrgemmCPUPostopsLegacy,
                                                    ov::pass::Serialize,
                                                    std::string("after_FuseBrgemmCPUPostops.xml"),
                                                    std::string(""));
