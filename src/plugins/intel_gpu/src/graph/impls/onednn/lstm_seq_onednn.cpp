@@ -187,9 +187,9 @@ public:
         std::swap(mod_src_shape[0], mod_src_shape[1]);
         auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0).clone_with_other_shape(mod_src_shape), dnnl::memory::format_tag::abc);
         auto initial_hidden_shape_mod = impl_params->get_input_layout(1).get_shape();
-        initial_hidden_shape_mod = { 1, num_dir, initial_hidden_shape_mod[0], initial_hidden_shape_mod[2] };
-        auto initial_hidden_md =  onednn::layout_to_memory_desc(impl_params->get_input_layout(1).clone_with_other_shape(initial_hidden_shape_mod));
-        auto initial_cell_md =  onednn::layout_to_memory_desc(impl_params->get_input_layout(2).clone_with_other_shape(initial_hidden_shape_mod));
+        initial_hidden_shape_mod = {1, num_dir, initial_hidden_shape_mod[0], initial_hidden_shape_mod[2]};
+        auto initial_hidden_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1).clone_with_other_shape(initial_hidden_shape_mod));
+        auto initial_cell_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2).clone_with_other_shape(initial_hidden_shape_mod));
         auto W_shape_mod = impl_params->get_input_layout(3).get_shape();
         W_shape_mod = {1, num_dir, W_shape_mod[1], 4, W_shape_mod[2]/4};
         auto w_layout = impl_params->get_input_layout(3).clone_with_other_shape(W_shape_mod);
@@ -203,7 +203,6 @@ public:
         auto B_shape_mod = impl_params->get_input_layout(5).get_shape();
         B_shape_mod = {1, num_dir, 4, B_shape_mod[1]/4};
         auto b_layout = impl_params->get_input_layout(5).clone_with_other_shape(B_shape_mod);
-        b_layout.format = cldnn::format::bfyx;
         auto B_md = onednn::layout_to_memory_desc(b_layout);
         auto out_shape = impl_params->get_output_layout().get_shape();
         out_shape = {out_shape[2], out_shape[0], out_shape[3]*num_dir};
