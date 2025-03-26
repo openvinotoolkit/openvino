@@ -79,32 +79,22 @@ bool Validate::is_supported_transpose(const std::shared_ptr<const ov::Node>& nod
 }
 
 bool Validate::is_supported_op(const std::shared_ptr<const ov::Node>& node) {
-    if (ov::is_type<ov::op::v1::LogicalAnd>(node) ||
-        ov::is_type<ov::op::v1::LogicalOr>(node) ||
-        ov::is_type<ov::op::v1::LogicalXor>(node) ||
-        ov::is_type<ov::op::v1::LogicalNot>(node)) {
-        return true;
-    }
     return false;
 }
 
 bool Validate::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(Validate);
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::Validate");
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::Validate")
 
     for (const auto& op : m->get_ordered_ops()) {
-        VALIDATE(op, ov::op::v0::Constant, is_supported_constant);
-        VALIDATE(op, ov::op::v0::Convert, is_supported_convert);
-        VALIDATE(op, ov::op::v0::MatMul, is_supported_matmul);
-        VALIDATE(op, ov::op::v1::Softmax, is_supported_softmax);
-        VALIDATE(op, ov::op::v8::Softmax, is_supported_softmax);
-        VALIDATE(op, ov::op::v0::FakeQuantize, is_supported_fq);
-        VALIDATE(op, ov::op::v1::Transpose, is_supported_transpose);
+        VALIDATE(op, ov::op::v0::Constant, is_supported_constant)
+        VALIDATE(op, ov::op::v0::Convert, is_supported_convert)
+        VALIDATE(op, ov::op::v0::MatMul, is_supported_matmul)
+        VALIDATE(op, ov::op::v1::Softmax, is_supported_softmax)
+        VALIDATE(op, ov::op::v8::Softmax, is_supported_softmax)
+        VALIDATE(op, ov::op::v0::FakeQuantize, is_supported_fq)
+        VALIDATE(op, ov::op::v1::Transpose, is_supported_transpose)
         VALIDATE(op, ov::op::v1::Reshape, is_supported_op);
-        VALIDATE(op, ov::op::v1::LogicalAnd, is_supported_op);
-        VALIDATE(op, ov::op::v1::LogicalOr, is_supported_op);
-        VALIDATE(op, ov::op::v1::LogicalXor, is_supported_op);
-        VALIDATE(op, ov::op::v1::LogicalNot, is_supported_op);
     }
     return true;
 }
