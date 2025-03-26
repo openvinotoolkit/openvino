@@ -60,7 +60,7 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
         n_blk = get_full_dim_value();
         k_blk = get_full_dim_value();
     }
-    if (!brgemm->get_postop_inputs().empty()) {
+    if (brgemm->get_postops().len() != 0) {
         // TODO: support postops in case of K blocking
         // Disable K/N blocking for now
         k_blk = get_full_dim_value();

@@ -34,10 +34,10 @@ BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c,
-                     PostopsConfig post_ops)
+                     const PostopsConfig& post_ops)
     : Brgemm(),
       m_type(type),
-      m_post_ops(std::move(post_ops)),
+      m_post_ops(post_ops),
       m_main_inputs_count(compute_main_inputs_count(type)) {
     set_arguments(inputs);
     set_output_size(1);
@@ -103,13 +103,14 @@ void BrgemmCPU::validate_with_scratchpad() const {
 }
 
 void BrgemmCPU::validate_inputs() const {
-    const auto expected_input_size = m_main_inputs_count + m_post_ops.size();
-    OPENVINO_ASSERT(get_input_size() == expected_input_size,
-                    "BrgemmCPU expects ",
-                    expected_input_size,
-                    " inputs whereas it got ",
-                    get_input_size(),
-                    " inputs");
+    // TODO: take into account only binary postops since other ones don't have inputs
+    // const auto expected_input_size = m_main_inputs_count + m_post_ops.size();
+    // OPENVINO_ASSERT(get_input_size() == expected_input_size,
+    //                 "BrgemmCPU expects ",
+    //                 expected_input_size,
+    //                 " inputs whereas it got ",
+    //                 get_input_size(),
+    //                 " inputs");
 }
 
 std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -139,7 +140,7 @@ bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
 }
 
 ov::element::Type BrgemmCPU::get_output_type() const {
-    return m_post_ops.empty() ? Brgemm::get_output_type() : input_values().back().get_element_type();
+    return m_forced_output_type != ov::element::undefined ? m_forced_output_type : Brgemm::get_output_type();
 }
 
 ov::OutputVector BrgemmCPU::get_postop_inputs() const {

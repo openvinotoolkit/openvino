@@ -8,24 +8,17 @@
 
 namespace ov::intel_cpu::pass {
 
-/**
- * @interface FuseBrgemmCPUPostopsLegacy
- * @brief TODO
- * @ingroup snippets
- */
-class FuseBrgemmCPUPostopsLegacy : public ov::pass::MatcherPass {
+class FuseScaleShift : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FuseBrgemmCPUPostopsLegacy");
-    FuseBrgemmCPUPostopsLegacy();
+    OPENVINO_MATCHER_PASS_RTTI("FuseScaleShift");
+    FuseScaleShift();
 };
 
 class FuseBrgemmCPUPostops : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("FuseBrgemmCPUPostops");
     FuseBrgemmCPUPostops() {
-        if (std::getenv("LEGACY")) {
-            add_matcher<FuseBrgemmCPUPostopsLegacy>();
-        }
+        add_matcher<FuseScaleShift>();
     }
 };
 
