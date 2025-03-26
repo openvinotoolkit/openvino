@@ -50,7 +50,20 @@ const VectorDims& PortDescriptor::get_shape() const {
 
 void PortDescriptor::set_shape(const VectorDims& tensor) {
     OPENVINO_ASSERT(m_tensor_shape, "Failed to set_shape: Tensor Shape is nullptr");
+    OPENVINO_ASSERT(tensor.size() == m_tensor_shape->size(),
+                    "Failed to set_shape: Shape size must be equal to the current shape size");
     *m_tensor_shape = tensor;
+}
+
+void PortDescriptor::set_layout(const std::vector<size_t>& layout) {
+    OPENVINO_ASSERT(layout.size() == m_tensor_shape->size(),
+                    "Snippets tensor descriptor: Layout size must be equal to the shape size");
+    m_layout = layout;
+}
+void PortDescriptor::set_subtensor(const VectorDims& subtensor) {
+    OPENVINO_ASSERT(subtensor.size() <= m_tensor_shape->size(),
+                    "Subtensor shape must be less than or equal to tensor shape");
+    m_subtensor_shape = subtensor;
 }
 
 void PortDescriptor::set_subtensor_dim(size_t idx, VectorDims::value_type value) {
