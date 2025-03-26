@@ -22,16 +22,16 @@ layout col_to_im_inst::calc_output_layout(col_to_im_node const& node, kernel_imp
     // TODO : do sth here for col2im.(Copied dummy from depth_to_space)
     auto out_size = input_layout.get_tensor();
     if (format::spatial_num(input_layout.format) == 3) {
-        // const size_t feature = input_layout.feature() / block_size / block_size / block_size;
-        // const size_t z = input_layout.spatial(2) * block_size;
-        // const size_t y = input_layout.spatial(1) * block_size;
-        // const size_t x = input_layout.spatial(0) * block_size;
-        // out_size = tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z));
+        const size_t feature = input_layout.feature() / (desc->kernel_shape[0] * desc->kernel_shape[1]);
+        const size_t z = 1;
+        const size_t y = desc->output_shape[1];
+        const size_t x = desc->output_shape[0];
+        out_size = tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z));
     } else {
-        // const size_t feature = input_layout.feature() / block_size / block_size;
-        // const size_t y = input_layout.spatial(1) * block_size;
-        // const size_t x = input_layout.spatial(0) * block_size;
-        // out_size = tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y));
+        const size_t feature = input_layout.feature() / (desc->kernel_shape[0] * desc->kernel_shape[1]);
+        const size_t y = desc->output_shape[1];
+        const size_t x = desc->output_shape[0];
+        out_size = tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y));
     }
 
     if (impl_param.has_fused_primitives()) {
