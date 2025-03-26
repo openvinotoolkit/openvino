@@ -1235,8 +1235,9 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
     }};
 }
 
-template <typename Data_t = float>
+template <element::Type_t ET>
 std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_float() {
+    using Data_t = typename element_type_traits<ET>::value_type;
     return {
         {
             "bilinear.downsample_2D_sizes",
@@ -1361,8 +1362,9 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
         }};
 }
 
-template <typename Data_t = float>
+template <element::Type_t ET>
 std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_float() {
+    using Data_t = typename element_type_traits<ET>::value_type;
     return {
         {
             "bicubic.downsample_2D_sizes",
@@ -1589,11 +1591,11 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_f
 
 std::vector<InterpolateV11TestParams> generateCombinedParamsForInterpolate_v11() {
     const std::vector<std::vector<InterpolateV11TestParams>> allTypeParamsV11{
-        generateParamsForInterpolate_bilinear_pil_float<float>(),
-        generateParamsForInterpolate_bicubic_pil_float<float>(),
-        generateParamsForInterpolate_bilinear_pil_f16<element::Type_t::bf16>(),
+        generateParamsForInterpolate_bilinear_pil_float<element::Type_t::f32>(),
+        generateParamsForInterpolate_bicubic_pil_float<element::Type_t::f32>(),
+        generateParamsForInterpolate_bilinear_pil_float<element::Type_t::bf16>(),
+        generateParamsForInterpolate_bicubic_pil_float<element::Type_t::bf16>(),
         generateParamsForInterpolate_bilinear_pil_f16<element::Type_t::f16>(),
-        generateParamsForInterpolate_bicubic_pil_f16<element::Type_t::bf16>(),
         generateParamsForInterpolate_bicubic_pil_f16<element::Type_t::f16>(),
         generateParamsForInterpolate_bilinear_pil_int_common<uint8_t>(),
         generateParamsForInterpolate_bilinear_pil_int_common<int32_t>(),
