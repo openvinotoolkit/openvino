@@ -100,7 +100,8 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
 }
 
 void PreStepsList::add_clamp(double min_value, double max_value) {
-    std::string name = "clamp(min " + std::to_string(min_value) + ", max " + std::to_string(max_value) + ")";
+    std::stringstream name_builder;
+    name_builder << "clamp(min " << min_value << ", max " << max_value << ")";
 
     m_actions.emplace_back(
         [min_value, max_value](const std::vector<Output<Node>>& nodes,
@@ -114,7 +115,7 @@ void PreStepsList::add_clamp(double min_value, double max_value) {
             auto clamp_op = std::make_shared<ov::op::v0::Clamp>(node, min_value, max_value);
             return std::make_tuple(std::vector<Output<Node>>{clamp_op}, true);
         },
-        name);
+        name_builder.str());
 }
 
 void PreStepsList::add_mean_impl(const std::vector<float>& values) {
@@ -707,14 +708,15 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::cut_last_channel(const
 
 //------------- Post processing ------
 void PostStepsList::add_clamp(double min_value, double max_value) {
-    std::string name = "clamp(min " + std::to_string(min_value) + ", max " + std::to_string(max_value) + ")";
+    std::stringstream name_builder;
+    name_builder << "clamp(min " << min_value << ", max " << max_value << ")";
 
     m_actions.emplace_back(
         [min_value, max_value](const Output<Node>& node, PostprocessingContext& ctxt) {
             auto clamp_op = std::make_shared<ov::op::v0::Clamp>(node, min_value, max_value);
             return std::make_tuple(Output<Node>{clamp_op}, true);
         },
-        name);
+        name_builder.str());
 }
 
 void PostStepsList::add_convert_impl(const element::Type& type) {
