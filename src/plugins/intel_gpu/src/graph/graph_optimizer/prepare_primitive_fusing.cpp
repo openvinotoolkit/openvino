@@ -746,8 +746,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     return;
                 }
 
-                if (activation_func == cldnn::activation_func::relu_negative_slope &&
-                    input.get_output_layout().batch() > 1 && input.is_type<convolution>()) {
+                auto input_layout = input.get_output_layout();
+                if (input.is_type<convolution>() && activation_func == cldnn::activation_func::relu_negative_slope &&
+                    input_layout.is_static() && input_layout.batch() > 1) {
                     return;
                 }
 
