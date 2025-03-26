@@ -177,38 +177,36 @@ bool evaluate_interpolate(const ov::Node* node,
                           const ov::ITensorAccessor& ta,
                           ov::TensorVector& outputs,
                           const ov::TensorVector& inputs) {
-    using namespace ov;
     outputs[0].set_shape(out_shape);
-
     auto padded_input_shape =
-        op::interpolate::make_padded_shape(input_shapes.front(), pads_begin.begin(), pads_end.begin()).to_shape();
+        ov::op::interpolate::make_padded_shape(input_shapes.front(), pads_begin.begin(), pads_end.begin()).to_shape();
     const auto has_axes_input = (input_shapes.size() == max_num_of_ports);
     const auto has_scale_size_merged = (max_num_of_ports == 3);
 
-    const auto axes = op::interpolate::get_axes<PartialShape>(node,
-                                                              axes_port - size_t(has_scale_size_merged),
-                                                              has_axes_input,
-                                                              out_shape.size(),
-                                                              ta);
+    const auto axes = ov::op::interpolate::get_axes<ov::PartialShape>(node,
+                                                                      axes_port - size_t(has_scale_size_merged),
+                                                                      has_axes_input,
+                                                                      out_shape.size(),
+                                                                      ta);
     const auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, *axes, has_scale_size_merged);
 
     const auto input_et = inputs[0].get_element_type();
     const auto type_size = input_et.size();
-    const auto bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
+    const auto bytes_in_padded_input = ov::shape_size(padded_input_shape) * type_size;
     auto padded_input_data = std::vector<uint8_t>(bytes_in_padded_input, 0);
 
     auto* data_ptr = static_cast<const uint8_t*>(inputs[data_port].data());
     auto* padded_data_ptr = padded_input_data.data();
 
-    reference::pad_input_data(data_ptr,
-                              padded_data_ptr,
-                              type_size,
-                              inputs[data_port].get_shape(),
-                              padded_input_shape,
-                              pads_begin);
-
+    ov::reference::pad_input_data(data_ptr,
+                                  padded_data_ptr,
+                                  type_size,
+                                  inputs[data_port].get_shape(),
+                                  padded_input_shape,
+                                  pads_begin);
+    using ov::element::Type_t;
     switch (input_et) {
-    case element::Type_t::f32:
+    case Type_t::f32:
         ov::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
                                           padded_input_shape,
                                           scales,
@@ -217,10 +215,10 @@ bool evaluate_interpolate(const ov::Node* node,
                                           out_shape,
                                           m_attrs);
         break;
-    case element::Type_t::f16:
-    case element::Type_t::bf16:
+    case Type_t::f16:
+    case Type_t::bf16:
         return ov::util::evaluate_node_with_unsupported_precision(node, outputs, inputs);
-    case element::Type_t::i8:
+    case Type_t::i8:
         ov::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
                                            padded_input_shape,
                                            scales,
@@ -229,7 +227,7 @@ bool evaluate_interpolate(const ov::Node* node,
                                            out_shape,
                                            m_attrs);
         break;
-    case element::Type_t::u8:
+    case Type_t::u8:
         ov::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
                                             padded_input_shape,
                                             scales,
