@@ -24,6 +24,12 @@ using Nearest_mode = op::v4::Interpolate::NearestMode;
 using Transform_mode = op::v4::Interpolate::CoordinateTransformMode;
 using InterpolateMode = op::v4::Interpolate::InterpolateMode;
 
+/// \brief Gets the function to calculate the nearest pixel.
+///
+/// \param mode the calculation mode
+///
+/// \return The function to calculate the nearest pixel.
+std::function<int64_t(float, bool)> get_func(Nearest_mode mode);
 /// \brief Calculation of nearest pixel.
 class GetNearestPixel final {
 public:
@@ -51,44 +57,14 @@ private:
     using Func = std::function<int64_t(float, bool)>;
 
     Func m_func;
-
-    /// \brief Gets the function to calculate the nearest pixel.
-    ///
-    /// \param mode the calculation mode
-    ///
-    /// \return The function to calculate the nearest pixel.
-    Func get_func(Nearest_mode mode) {
-        switch (mode) {
-        case Nearest_mode::ROUND_PREFER_CEIL:
-            return [](float x_original, bool) {
-                return static_cast<int64_t>(std::round(x_original));
-            };
-        case Nearest_mode::FLOOR:
-            return [](float x_original, bool) {
-                return static_cast<int64_t>(std::floor(x_original));
-            };
-        case Nearest_mode::CEIL:
-            return [](float x_original, bool) {
-                return static_cast<int64_t>(std::ceil(x_original));
-            };
-        case Nearest_mode::SIMPLE:
-            return [](float x_original, bool is_downsample) {
-                if (is_downsample) {
-                    return static_cast<int64_t>(std::ceil(x_original));
-                } else {
-                    return static_cast<int64_t>(x_original);
-                }
-            };
-        default:;
-        }
-        return [](float x_original, bool) {
-            if (x_original == static_cast<int64_t>(x_original) + 0.5f) {
-                return static_cast<int64_t>(std::floor(x_original));
-            }
-            return static_cast<int64_t>(std::round(x_original));
-        };
-    }
 };
+
+/// \brief Gets the function to calculate the source coordinate.
+///
+/// \param mode the calculation mode
+///
+/// \return The function to calculate the source coordinate.
+std::function<float(float, float, float, float)> get_func(Transform_mode mode);
 
 /// \brief Calculation of the source coordinate using the resized coordinate
 class GetOriginalCoordinate final {
@@ -122,40 +98,6 @@ private:
     using Func = std::function<float(float, float, float, float)>;
 
     Func m_func;
-
-    /// \brief Gets the function to calculate the source coordinate.
-    ///
-    /// \param mode the calculation mode
-    ///
-    /// \return The function to calculate the source coordinate.
-    Func get_func(Transform_mode mode) {
-        switch (mode) {
-        case Transform_mode::PYTORCH_HALF_PIXEL:
-            return [](float x_resized, float x_scale, float length_resized, float) {
-                return length_resized > 1 ? (x_resized + 0.5f) / x_scale - 0.5f : 0.0f;
-            };
-            break;
-        case Transform_mode::ASYMMETRIC:
-            return [](float x_resized, float x_scale, float, float) {
-                return x_resized / x_scale;
-            };
-            break;
-        case Transform_mode::TF_HALF_PIXEL_FOR_NN:
-            return [](float x_resized, float x_scale, float, float) {
-                return (x_resized + 0.5f) / x_scale;
-            };
-            break;
-        case Transform_mode::ALIGN_CORNERS:
-            return [](float x_resized, float, float length_resized, float length_original) {
-                return length_resized == 1 ? 0 : x_resized * (length_original - 1) / (length_resized - 1);
-            };
-            break;
-        default:;
-        }
-        return [](float x_resized, float x_scale, float, float) {
-            return ((x_resized + 0.5f) / x_scale) - 0.5f;
-        };
-    }
 };
 
 /// \brief Helper class to implent non-template parts of the interpolation calculation.

@@ -9,6 +9,67 @@
 namespace ov {
 namespace reference {
 
+std::function<int64_t(float, bool)> get_func(Nearest_mode mode) {
+    switch (mode) {
+    case Nearest_mode::ROUND_PREFER_CEIL:
+        return [](float x_original, bool) {
+            return static_cast<int64_t>(std::round(x_original));
+        };
+    case Nearest_mode::FLOOR:
+        return [](float x_original, bool) {
+            return static_cast<int64_t>(std::floor(x_original));
+        };
+    case Nearest_mode::CEIL:
+        return [](float x_original, bool) {
+            return static_cast<int64_t>(std::ceil(x_original));
+        };
+    case Nearest_mode::SIMPLE:
+        return [](float x_original, bool is_downsample) {
+            if (is_downsample) {
+                return static_cast<int64_t>(std::ceil(x_original));
+            } else {
+                return static_cast<int64_t>(x_original);
+            }
+        };
+    default:;
+    }
+    return [](float x_original, bool) {
+        if (x_original == static_cast<int64_t>(x_original) + 0.5f) {
+            return static_cast<int64_t>(std::floor(x_original));
+        }
+        return static_cast<int64_t>(std::round(x_original));
+    };
+}
+
+std::function<float(float, float, float, float)> get_func(Transform_mode mode) {
+    switch (mode) {
+    case Transform_mode::PYTORCH_HALF_PIXEL:
+        return [](float x_resized, float x_scale, float length_resized, float) {
+            return length_resized > 1 ? (x_resized + 0.5f) / x_scale - 0.5f : 0.0f;
+        };
+        break;
+    case Transform_mode::ASYMMETRIC:
+        return [](float x_resized, float x_scale, float, float) {
+            return x_resized / x_scale;
+        };
+        break;
+    case Transform_mode::TF_HALF_PIXEL_FOR_NN:
+        return [](float x_resized, float x_scale, float, float) {
+            return (x_resized + 0.5f) / x_scale;
+        };
+        break;
+    case Transform_mode::ALIGN_CORNERS:
+        return [](float x_resized, float, float length_resized, float length_original) {
+            return length_resized == 1 ? 0 : x_resized * (length_original - 1) / (length_resized - 1);
+        };
+        break;
+    default:;
+    }
+    return [](float x_resized, float x_scale, float, float) {
+        return ((x_resized + 0.5f) / x_scale) - 0.5f;
+    };
+}
+
 float InterpolateEvalHelper::triangle_coeff(float dz) {
     return std::max(0.0f, 1.0f - std::fabs(dz));
 }
