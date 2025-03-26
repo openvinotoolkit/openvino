@@ -589,11 +589,6 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     }
 #endif  // SNIPPETS_DEBUG_CAPS
 
-#if defined(OPENVINO_ARCH_X86_64)
-    const auto configurator =
-        ov::as_type_ptr<CPURuntimeConfigurator>(subgraph_attrs->snippet->get_runtime_configurator());
-#endif
-
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::snippets::lowered::pass::InitLoops,
                                            ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts);
@@ -606,7 +601,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
                                            ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd,
                                            ov::intel_cpu::pass::InitRepackedConstantInputs,
-                                           configurator->get_cache(),
+                                           context->getParamsCache(),
                                            repacked_constant_input_config);
 
 #ifdef SNIPPETS_LIBXSMM_TPP

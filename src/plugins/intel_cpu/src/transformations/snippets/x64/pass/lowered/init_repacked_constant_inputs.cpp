@@ -26,6 +26,11 @@ bool InitRepackedConstantInputs::run(const snippets::lowered::LinearIR& linear_i
         ov::snippets::lowered::ExpressionPtr desc_expr = param;
         ov::snippets::lowered::PortDescriptorPtr port_desc = nullptr;
         if (!shape_infer_seq.empty()) {
+            // [160048] Reorder, as any another ShapeInferOp, should just propagate input shape to output using target
+            // order
+            //          without data movement. However, currently we have to save desc of input of the Reorder
+            //          to support correct input data offsets calculations.
+            //          Please, remove this code part when the mentioned ticket is completed.
             const auto& reorder_it = std::find_if(shape_infer_seq.cbegin(),
                                                   shape_infer_seq.cend(),
                                                   [](const ov::snippets::lowered::ExpressionPtr& expr) {

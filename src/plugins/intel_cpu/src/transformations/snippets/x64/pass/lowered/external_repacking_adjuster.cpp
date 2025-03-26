@@ -26,7 +26,6 @@ BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snipp
         OPENVINO_ASSERT(idx < params.size(), "Incorrect index of repacked input");
 
         m_executors[idx] = create_executor(params[idx], configurator->get_cache());
-        OPENVINO_ASSERT(m_executors[idx], "Repacked input executor must be inited!");
     }
     OPENVINO_ASSERT(repacked_inputs_config.size() == m_executors.size(), "Incorrect count of repacked inputs");
 }
@@ -34,10 +33,13 @@ BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snipp
 BrgemmExternalRepackingAdjuster::RepackExecutorPtr BrgemmExternalRepackingAdjuster::create_executor(
     const ov::snippets::lowered::ExpressionPtr& param,
     const ov::intel_cpu::MultiCacheWeakPtr& cache) {
+    RepackExecutorPtr executor = nullptr;
+
     const auto& shape_infer_consumers = ov::snippets::utils::get_first_child_shape_infer_expr_seq(param);
     const auto& out =
         shape_infer_consumers.empty() ? param->get_output_port(0) : shape_infer_consumers.back()->get_output_port(0);
     const auto consumers = out.get_connected_ports();
+
     for (const auto& consumer : consumers) {
         auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(consumer.get_expr()->get_node());
         if (brgemm && brgemm_utils::with_repacking(brgemm->get_type()) && consumer.get_index() == 1) {
@@ -46,6 +48,7 @@ BrgemmExternalRepackingAdjuster::RepackExecutorPtr BrgemmExternalRepackingAdjust
             const auto isa = brgemm_utils::get_primitive_isa(src_prc, brgemm_utils::with_amx(brgemm->get_type()));
             const auto inner_n_block = brgemm_utils::repacking::compute_inner_n_block(wei_prc);
 
+            // [160048] After BrgemmCopyB elimination, there might be `Reorder` that describes repacking layout.
             ov::snippets::VectorDims layout;
             if (!shape_infer_consumers.empty()) {
                 const auto& reorder_it =
@@ -61,10 +64,12 @@ BrgemmExternalRepackingAdjuster::RepackExecutorPtr BrgemmExternalRepackingAdjust
 
             const auto is_transposed_b = BrgemmCopyB::is_transposed(layout);
             const auto config = BrgemmCopyBKernelConfig(src_prc, wei_prc, isa, false, is_transposed_b, inner_n_block);
-            return std::make_shared<BrgemmCopyBKernelExecutor>(cache, config);
+            executor = std::make_shared<BrgemmCopyBKernelExecutor>(cache, config);
+            break;
         }
     }
-    return nullptr;
+    OPENVINO_ASSERT(executor, "The executor of the repacked input must be inited!");
+    return executor;
 }
 
 VectorDims BrgemmExternalRepackingAdjuster::get_blk_order(size_t shape_rank) {

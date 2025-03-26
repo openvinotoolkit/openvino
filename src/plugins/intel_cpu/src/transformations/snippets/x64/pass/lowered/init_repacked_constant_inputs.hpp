@@ -11,8 +11,8 @@ namespace ov::intel_cpu::pass {
 
 /**
  * @class InitRepackedConstantInputs
- * @brief The pass initialize RepackedInputConfig of constant inputs of Brgemms which
- *        should be repacked in model compilation stage
+ * @brief The pass initializes RepackedInputConfig of Brgemms' constant inputs which
+ *        should be repacked at model compilation stage
  */
 class InitRepackedConstantInputs : public ov::snippets::lowered::pass::ConstPass {
 public:
