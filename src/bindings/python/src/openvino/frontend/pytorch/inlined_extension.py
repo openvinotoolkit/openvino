@@ -15,6 +15,8 @@ class ConstWrap:
         self.value = value
     def __eq__(self, x):
         return self.value == x
+    def __repr__(self):
+        return f'ConstWrap({str(self.value)})'
 
 
 def unpack(packed, types, index=0):
@@ -29,6 +31,7 @@ def unpack(packed, types, index=0):
         packer_result = []
         for el in packed:
             unpacked, packer, index = unpack(el, types, index)
+            unpacked_result += unpacked
             packer_result.append(packer)
     elif isinstance(packed, dict):
         packer_result = {}
@@ -175,7 +178,9 @@ def make_trampoline_class(func, op, op_attrs):
         @staticmethod
         def convert(node_context):
             inputs = [node_context.get_input(i) for i in range(node_context.get_input_size())]
-            return __class__.op(*inputs, **op_attrs).outputs()
+            node = __class__.op(*inputs, **op_attrs)
+            node.get_rt_info()['__torch_tuple_unpackable__'] = True  # to trigger prim::TupleUnpack bypass in PyTorch FrontEnd transformation
+            return node.outputs()
 
     return Trampoline
 
