@@ -24,7 +24,7 @@
 #include "primitive.hpp"
 #include "transformations/convert_precision.hpp"
 
-using weights_memory_ptr = std::variant<std::shared_ptr<ov::MappedMemory>, std::shared_ptr<ov::Model>>;
+using weights_memory_ptr = std::variant<std::shared_ptr<ov::MappedMemory>, std::shared_ptr<const ov::Model>>;
 using offset_const_map_t = std::map<size_t, std::shared_ptr<ov::op::v0::Constant>>;
 using shared_mapped_memory_ptr = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
 using constant_memory_ptr = std::variant<shared_mapped_memory_ptr, std::shared_ptr<ov::op::v0::Constant>>;
@@ -53,7 +53,7 @@ namespace cldnn {
 
 class WeightsMemory {
 public:
-    WeightsMemory(std::shared_ptr<ov::Model> model) : weights_memory(model) {
+    WeightsMemory(std::shared_ptr<const ov::Model> model) : weights_memory(model) {
         fill_offset_to_constant_map(model);
     }
 
@@ -67,7 +67,7 @@ public:
                 original_size,
                 mapped_memory);
         } else {
-            auto model_ptr = std::get<std::shared_ptr<ov::Model>>(weights_memory);
+            auto model_ptr = std::get<std::shared_ptr<const ov::Model>>(weights_memory);
             auto const_it = offset_to_constant_map.find(bin_offset);
             if (const_it == offset_to_constant_map.end()) {
                 OPENVINO_THROW("Constant with bin_offset ", bin_offset, " not found in the model");
@@ -78,7 +78,7 @@ public:
     }
 
 private:
-    void fill_offset_to_constant_map(std::shared_ptr<ov::Model> model) {
+    void fill_offset_to_constant_map(std::shared_ptr<const ov::Model> model) {
         const auto& ops = model->get_ops();
         for (const auto& node : ops) {
             if (ov::op::util::is_constant(node)) {
