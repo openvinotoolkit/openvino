@@ -36,6 +36,8 @@ class TestSortedRandperm(PytorchLayerTest):
         (5, 2, 4),
         (5, 5, 4),
     ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_sorted_randperm(self, n, num_inputs, dtype_value, ie_device, precision, ir_version):
         self.n = n
         self._test(*self.create_model(n, num_inputs, dtype_value), ie_device, precision, ir_version)
