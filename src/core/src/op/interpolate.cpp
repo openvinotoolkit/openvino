@@ -167,7 +167,7 @@ std::vector<float> get_scales_vector(const ov::TensorVector& args,
     }
 }
 
-bool evaluate_interpolate(const ov::Node* node,
+bool evaluate_interpolate(const ov::op::util::InterpolateBase* node,
                           const ov::op::util::InterpolateBase::InterpolateAttrs& m_attrs,
                           const std::vector<ov::PartialShape>& input_shapes,
                           const ov::Shape& out_shape,
