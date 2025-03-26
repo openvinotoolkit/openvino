@@ -71,19 +71,12 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     while((outputIdxWithinBatch + (frame_size - startIDx-1)) >= OUTPUT_SIZE_X)
         startIDx += frame_step;
 
-    // for( int i = 0; i < binSize; ++i ) {
-    //     const int idx = startIDx + i * frame_step;
-    //     const float val = window[idx];
-    //     sum += val*val;
-    //     //printf("Sum calc: globalOutputIdx: %i, window_id: %i, i: %i, idx: %i, startIDx: %i, sum: %f\n", globalOutputIdx, window_id, i, idx, startIDx, sum);
-    // }
-
-    do {
-        const float val = window[startIDx];
+    for( int i = 0; i < binSize; ++i ) {
+        const int idx = startIDx + i * frame_step;
+        const float val = window[idx];
         sum += val*val;
-        startIDx += frame_step;
-        //printf("Sum calc: globalOutputIdx: %i, window_id: %i, i: %i, idx: %i, startIDx: %i, sum: %f\n", globalOutputIdx, window_id, binSize, idx, startIDx, sum);
-    } while(startIDx < frame_size);
+        //printf("Sum calc: globalOutputIdx: %i, window_id: %i, i: %i, idx: %i, startIDx: %i, sum: %f\n", globalOutputIdx, window_id, i, idx, startIDx, sum);
+    }
 
     // idft_power = 2*PI*(n/N) from idft def.
     const float idft_power = 2.0f * M_PI_F * (float)window_id / (float)frame_size;
