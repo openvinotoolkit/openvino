@@ -5,6 +5,7 @@
 #include "jit_kernel_emitter.hpp"
 
 #include "jit_snippets_emitters.hpp"
+#include "snippets/rt_info/external_parameter.hpp"
 #include "snippets/utils/reg_utils.hpp"
 #include "utils.hpp"
 
@@ -27,15 +28,10 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
     const auto& results = body->get_results();
     const auto& buffers = body->get_buffers();
     std::vector<snippets::Reg> data_ptr_regs;
-    size_t count = 0;
     for (const auto& param : parameters) {
-        if (param->get_node()->get_rt_info().count("POSTOP_INPUT")) {
-            std::cout << "[ INFO ] jit_kernel_emitter: parameter is skipped: " << param->get_node() << std::endl;
-            count++;
-            continue;
+        if (!ov::snippets::is_external_parameter(param->get_node())) {
+            data_ptr_regs.push_back(param->get_output_port_descriptor(0)->get_reg());
         }
-        data_ptr_regs.push_back(param->get_output_port_descriptor(0)->get_reg());
-        count++;
     }
     num_inputs = data_ptr_regs.size();
     for (const auto& result : results) {

@@ -43,8 +43,6 @@ public:
      */
     void update_loop_args(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
 
-    void init_external_ptrs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
-
     // Note: This method is temporarily used only by `BrgemmExternalRepackingAdjuster` to create kernels for repacking.
     //       Please, remove this method when the adjuster is deprecated
     [[nodiscard]] const ov::intel_cpu::MultiCacheWeakPtr& get_cache() const {

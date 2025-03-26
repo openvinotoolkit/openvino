@@ -38,7 +38,6 @@ std::string CPURuntimeConfig::to_string() const {
         }
         out << "\n";
     }
-    // TODO: rename
     out << "External indices:"
         << "\n";
     for (const auto& idx : brgemm_external_ptrs_idces) {
@@ -55,7 +54,6 @@ CPURuntimeConfigurator::CPURuntimeConfigurator(ov::intel_cpu::MultiCacheWeakPtr 
 
 void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::initialization(linear_ir);
-    init_external_ptrs(linear_ir);
 #ifdef OPENVINO_ARCH_X86_64
     using namespace pass;
     RuntimeOptimizer::register_if_applicable<BrgemmCopyBLoopPortsAdjuster>(m_intermediate_optimizers, linear_ir, this);
@@ -99,40 +97,6 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
         for (int64_t i = 0; i < loop_arg.m_num_data_ptrs; ++i) {
             loop_arg.m_ptr_increments[i] *= (increment * data_sizes[i]);
             loop_arg.m_finalization_offsets[i] *= data_sizes[i];
-        }
-    }
-}
-
-void CPURuntimeConfigurator::init_external_ptrs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {
-    const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
-    OPENVINO_ASSERT(cpu_config, "CPURuntimeConfigurator expects CPURuntimeConfig");
-
-    std::unordered_set<snippets::lowered::ExpressionPtr> visited_brgemms;
-
-    const auto& parameters = linear_ir->get_parameters();
-    size_t external_ptrs_count = 0;
-    for (size_t i = 0; i < parameters.size(); ++i) {
-        const auto& param_expr = parameters[i];
-        const auto& param_info = param_expr->get_node()->get_rt_info();
-        if (param_info.count("POSTOP_INPUT")) {
-            std::cout << "[ INFO ] CPURuntimeConfigurator::init_external_ptrs - POSTOP_INPUT: " << i << std::endl;
-            cpu_config->brgemm_external_ptrs_idces.insert(i);
-            for (const auto& connector : param_expr->get_output_port_connectors()) {
-                for (const auto& consumer : connector->get_consumers()) {
-                    const auto& consumer_expr = consumer.get_expr();
-                    const auto& consumer_node = consumer_expr->get_node();
-                    auto& rt_info = consumer_node->get_rt_info();
-                    // TODO: this communication must be done in a more transparent way then using RT info
-                    if (ov::is_type<ov::intel_cpu::BrgemmCPU>(consumer_node)) {
-                        if (visited_brgemms.count(consumer_expr) == 0) {
-                            rt_info["EXTERNAL_PTR_OFFSET"] = external_ptrs_count;
-
-                            visited_brgemms.insert(consumer_expr);
-                        }
-                    }
-                }
-            }
-            external_ptrs_count++;
         }
     }
 }

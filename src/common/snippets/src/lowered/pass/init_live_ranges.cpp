@@ -3,9 +3,11 @@
 //
 
 #include "snippets/lowered/pass/init_live_ranges.hpp"
+
 #include "snippets/itt.hpp"
-#include "snippets/op/subgraph.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/rt_info/external_parameter.hpp"
 
 namespace ov {
 namespace snippets {
@@ -17,10 +19,10 @@ inline bool pass_through_expr(const ExpressionPtr& expr) {
     const auto& node = expr->get_node();
     return op::Subgraph::is_shape_infer_op(node)
 #ifdef SNIPPETS_DEBUG_CAPS
-            || ov::is_type_any_of<op::PerfCountBeginBase, op::PerfCountEndBase>(node)
+           || ov::is_type_any_of<op::PerfCountBeginBase, op::PerfCountEndBase>(node)
 #endif
-            || ov::is_type<BufferExpression>(expr) ||
-            expr->get_node()->get_rt_info().count("POSTOP_INPUT");
+           // TODO: investigate if we need to check external parameters here
+           || ov::is_type<BufferExpression>(expr) || ov::snippets::is_external_parameter(node);
 }
 
 } // namespace
