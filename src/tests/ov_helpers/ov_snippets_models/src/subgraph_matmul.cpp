@@ -387,25 +387,26 @@ std::shared_ptr<ov::Model> MatMulEltwiseChainCascadeFunction::initOriginal() con
         ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
 
     auto build_eltwise_chain = [&](const ov::Output<ov::Node>& out) {
-        auto scale = ov::test::utils::make_constant(precision, {});
-        auto mul = std::make_shared<ov::op::v1::Multiply>(out, scale);
-
-        ov::Shape bias_shape(out.get_partial_shape().size(), 1);
+        ov::Shape chain_shape(out.get_partial_shape().size(), 1);
         auto OC = *out.get_partial_shape().rbegin();
         if (OC.is_static())
-            bias_shape.back() = OC.get_length();
-        auto bias = ov::test::utils::make_constant(precision, bias_shape);
+            chain_shape.back() = OC.get_length();
+
+        auto scale = ov::test::utils::make_constant(precision, chain_shape);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(out, scale);
+
+        auto bias = ov::test::utils::make_constant(precision, chain_shape);
         auto bias_op = std::make_shared<op::v1::Add>(mul, bias);
         return bias_op;
     };
 
     auto eltwise_chain_1 = build_eltwise_chain(matmul1);
-    auto add = std::make_shared<op::v1::Add>(matmul1, eltwise_chain_1);
+    // auto add = std::make_shared<op::v1::Add>(matmul1, eltwise_chain_1);
 
     const auto matmul2 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{element::f32},
-        ov::op::TemporaryReplaceOutputType(add, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(eltwise_chain_1, element::f32).get(),
         ov::op::TemporaryReplaceOutputType(data2, element::f32).get());
 
     auto eltwise_chain_2 = build_eltwise_chain(matmul2);
