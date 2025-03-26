@@ -250,7 +250,7 @@ jobs:
           }
           Compress-Archive @compress
 
-          $file=Get-ChildItem -Path "${{ env.INSTALL_WHEELS_DIR }}"
+          $file=Get-ChildItem -Path "${{ env.INSTALL_DEV_PACKAGE }}"
           $compress = @{
             Path = $file
             CompressionLevel = "Optimal"
