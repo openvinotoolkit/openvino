@@ -52,9 +52,10 @@ public:
     memory::ptr block_indices_memory_ptr() const { return input_memory_ptr(7); }
     memory::ptr block_indices_begins_memory_ptr() const { return input_memory_ptr(8); }
     memory::ptr alibi_memory_ptr() const { return input_memory_ptr(11); }
-    memory::ptr rotated_block_indices_memory_ptr() const { return input_memory_ptr(13); }
-    memory::ptr rotation_deltas_memory_ptr() const { return input_memory_ptr(14); }
-    memory::ptr rotation_trig_lut_memory_ptr() const { return input_memory_ptr(15); }
+    memory::ptr score_aggregation_window_ptr() const { return input_memory_ptr(13); }
+    memory::ptr rotated_block_indices_memory_ptr() const { return input_memory_ptr(14); }
+    memory::ptr rotation_deltas_memory_ptr() const { return input_memory_ptr(15); }
+    memory::ptr rotation_trig_lut_memory_ptr() const { return input_memory_ptr(16); }
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;

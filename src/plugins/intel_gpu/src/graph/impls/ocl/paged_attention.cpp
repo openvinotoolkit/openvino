@@ -112,6 +112,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         ib >> make_data(&has_scores_output, sizeof(bool));
+        ib >> make_data(&has_score_aggregation, sizeof(bool));
         ib >> make_data(&has_rotated_blocks, sizeof(bool));
         ib >> make_data(&use_micro_sdpa, sizeof(bool));
         if (is_dynamic()) {
@@ -138,6 +139,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
         ob << make_data(&has_scores_output, sizeof(bool));
+        ob << make_data(&has_score_aggregation, sizeof(bool));
         ob << make_data(&has_rotated_blocks, sizeof(bool));
         ob << make_data(&use_micro_sdpa, sizeof(bool));
     }
@@ -657,6 +659,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             config.has_const_scale_val = false;
         }
 
+        config.has_score_aggregation = desc->has_score_aggregation;
         config.has_rotated_blocks = desc->has_rotated_blocks;
 
         if (desc->heads_num != desc->kv_heads_num) {
@@ -1005,6 +1008,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         auto impl = std::make_unique<paged_attention_impl>(kernels_data);
         impl->has_scores_output = desc->has_scores_output();
+        impl->has_score_aggregation = desc->has_score_aggregation;
         impl->has_rotated_blocks = desc->has_rotated_blocks;
 
         if (!kernels_data[Stage::SDPA].kernels[0].micro_kernels.empty()) {
@@ -1016,6 +1020,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
 private:
     bool has_scores_output = false;
+    bool has_score_aggregation = false;
     bool has_rotated_blocks = false;
     bool use_micro_sdpa = false;
 };

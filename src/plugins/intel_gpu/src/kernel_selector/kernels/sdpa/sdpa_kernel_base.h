@@ -104,6 +104,7 @@ struct sdpa_configuration {
     float scale_val = 0.f;
     bool has_const_attn_mask_val = false;
     float attn_mask_val = 0.f;
+    bool has_score_aggregation = false;
     bool has_rotated_blocks = false;
 };
 

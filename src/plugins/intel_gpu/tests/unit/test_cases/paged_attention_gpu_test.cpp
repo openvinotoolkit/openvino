@@ -44,11 +44,12 @@ using namespace ::tests;
 * [11]: alibi_slopes, optional
 * [12]: max_context_len
 * shape: [], type: i32
-* [13]: rotated_block_indices​, optional​
+* [13]: score_aggregation_window​, optional​, shape: [batch_size_in_sequences]
+* [14]: rotated_block_indices​, optional​
 * shape: [num_rotated_blocks]​, type: i32
-* [14]: rotation_deltas​, optional​
+* [15]: rotation_deltas​, optional​
 * shape: [num_rotated_blocks, BLOCK_SIZE]​ || [num_rotated_blocks, 1]​, type: i32
-* [15]: rotation_trig_lut​, optional​
+* [16]: rotation_trig_lut​, optional​
 * shape: [max_num_batched_tokens / BLOCK_SIZE, head_size]​ || [max_num_batched_tokens, head_size], type: f16
 */
 
@@ -85,6 +86,7 @@ struct PagedAttentionManager {
     std::vector<int> block_indices;
     std::vector<int> block_indices_begins;
     std::vector<int> max_context_len;
+    std::vector<int> score_aggregation_window;
 
     // rotation related inputs
     std::vector<int> rotated_block_indices;
