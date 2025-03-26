@@ -383,5 +383,4 @@ std::shared_ptr<ov::Model> MatMulEltwiseChainCascadeFunction::initOriginal() con
 }
 
 }  // namespace snippets
-}  // namespace test
 }  // namespace ov

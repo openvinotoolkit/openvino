@@ -517,9 +517,14 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                            ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU);
     if (subgraph_attrs->snippet->has_domain_sensitive_ops() && !std::getenv("REF")) {
+#if defined(OPENVINO_ARCH_X86_64)
+        const auto cpu_config =
+            ov::as_type_ptr<CPURuntimeConfig>(subgraph_attrs->snippet->get_runtime_configurator()->get_config());
+#endif
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                                ov::intel_cpu::pass::BrgemmToBrgemmCPU,
-                                               ov::intel_cpu::pass::FuseBrgemmCPUPostops);
+                                               ov::intel_cpu::pass::FuseBrgemmCPUPostops,
+                                               cpu_config->brgemm_external_ptrs_idces);
         if (std::getenv("SERIALIZE")) {
             SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                                    ov::intel_cpu::pass::FuseBrgemmCPUPostops,

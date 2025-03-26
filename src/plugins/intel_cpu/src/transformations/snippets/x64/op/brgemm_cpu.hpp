@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <common/primitive_attr.hpp>
+#include <optional>
+
 #include "brgemm_copy_b.hpp"
 #include "brgemm_utils.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
@@ -22,7 +25,16 @@ public:
     using BRGEMM_TYPE = brgemm_utils::BRGEMM_TYPE;
     OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
-    using PostopsConfig = std::vector<type_info_t>;
+    struct PostopsConfig {
+        dnnl_post_ops post_ops = {};
+        std::optional<size_t> binary_postops_offset = std::nullopt;
+        ov::element::Type forced_output_type = ov::element::undefined;
+
+        PostopsConfig()
+            : post_ops({}),
+              binary_postops_offset({std::nullopt}),
+              forced_output_type(ov::element::undefined) {}
+    };
     BrgemmCPU(const ov::OutputVector& inputs,
               BRGEMM_TYPE type,
               const std::vector<PortDescriptor>& input_descs = {},
@@ -30,7 +42,7 @@ public:
               const std::vector<size_t>& layout_a = {},
               const std::vector<size_t>& layout_b = {},
               const std::vector<size_t>& layout_c = {},
-              PostopsConfig post_ops = {});
+              const PostopsConfig& post_ops = PostopsConfig{});
     BrgemmCPU() = default;
 
     void validate_and_infer_types() override;
@@ -42,8 +54,8 @@ public:
 
     size_t get_offset_scratch() const;
 
-    const PostopsConfig& get_postops() const {
-        return m_post_ops;
+    const PostopsConfig& get_postops_config() const {
+        return m_post_ops_config;
     }
 
     size_t get_main_inputs_count() const {
@@ -67,7 +79,7 @@ private:
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
 
-    PostopsConfig m_post_ops = {};
+    PostopsConfig m_post_ops_config = {};
 
     const size_t m_main_inputs_count = 0lu;
 };
