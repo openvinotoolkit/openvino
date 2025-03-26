@@ -238,7 +238,8 @@ bool evaluate_interpolate(const ov::Node* node,
                                             out_shape,
                                             m_attrs);
         break;
-    default:;
+    default:
+        return false;
     }
 
     return true;
