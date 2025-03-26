@@ -392,10 +392,10 @@ std::shared_ptr<ov::Model> MatMulEltwiseChainCascadeFunction::initOriginal() con
         if (OC.is_static())
             chain_shape.back() = OC.get_length();
 
-        auto scale = ov::test::utils::make_constant(precision, chain_shape);
+        auto scale = ov::test::utils::make_constant(precision, {});
         auto mul = std::make_shared<ov::op::v1::Multiply>(out, scale);
 
-        auto bias = ov::test::utils::make_constant(precision, chain_shape);
+        auto bias = ov::test::utils::make_constant(precision, {});
         auto bias_op = std::make_shared<op::v1::Add>(mul, bias);
         return bias_op;
     };
