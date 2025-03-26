@@ -1000,8 +1000,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
                       << std::endl;
 
-            initGraph = initMainGraph.at(0);
-            graph = initMainGraph.at(1);
+            initGraph = initMainGraph[0];
+            graph = initMainGraph[1];
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -1172,7 +1172,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
             // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
             std::shared_ptr<ov::Model> originalModel;
-            if (localConfig.get<MODEL_PTR>()) {
+            if (!localConfig.get<MODEL_PTR>()) {
                 originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>();
             } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
                 const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
@@ -1195,27 +1195,24 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                 OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
             }
 
-            const std::shared_ptr<ov::Model> modelModifiedByPasses = originalModel->clone();
-            runOVPasses(modelModifiedByPasses);
+            runOVPasses(originalModel);
 
             if (!localConfig.get<BENCHMARK_INIT>()) {
-                compiledModel = std::make_shared<CompiledModel>(originalModel,
+                const std::shared_ptr<ov::Model> modelDummy =
+                    create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+                compiledModel = std::make_shared<CompiledModel>(modelDummy,
                                                                 shared_from_this(),
                                                                 device,
                                                                 graph,
                                                                 localConfig,
-                                                                initGraphs.at(0),
-                                                                modelModifiedByPasses);
+                                                                initGraphs[0],
+                                                                originalModel);
             } else {
-                const std::shared_ptr<ov::Model> modelDummy =
-                    create_dummy_model(initGraphs.at(0)->get_metadata().inputs,
-                                       initGraphs.at(0)->get_metadata().outputs,
-                                       true);
-                compiledModel = std::make_shared<CompiledModel>(modelDummy,
-                                                                shared_from_this(),
-                                                                device,
-                                                                initGraphs.at(0),
-                                                                localConfig);
+                const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(initGraphs[0]->get_metadata().inputs,
+                                                                                 initGraphs[0]->get_metadata().outputs,
+                                                                                 true);
+                compiledModel =
+                    std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, initGraphs[0], localConfig);
             }
         }
     } catch (const std::exception& ex) {
