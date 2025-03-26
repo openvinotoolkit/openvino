@@ -555,7 +555,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node);
 
                     auto &engine = m_context->get_engine();
-                    if (!cldnn::check_cm_jit_support(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2) {
+                    if (!cldnn::check_cm_jit_support(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2 || !config.get_use_cm()) {
                         return false;
                     }
 
