@@ -32,13 +32,15 @@ namespace test {
  *             Matmul                                                Matmul
  */
 
-using MatmulSharedWeightsDecompressionParams = std::tuple<std::string,                 // target device
-                                                          MatMulDecompressionShapeParams,
-                                                          ElementType,                 // weights precision
-                                                          ElementType,                 // decompression precision
-                                                          bool,                        // transpose on weights
-                                                          DecompressionType,           // decompression subtract type
-                                                          bool>;                       // use matmul decompression implementation
+using MatmulSharedWeightsDecompressionParams =
+    std::tuple<std::string,  // target device
+               MatMulDecompressionShapeParams,
+               ElementType,                          // weights precision
+               ElementType,                          // decompression precision
+               bool,                                 // transpose on weights
+               DecompressionType,                    // decompression subtract type
+               bool,                                 // use matmul decompression implementation
+               std::map<std::string, std::string>>;  // additional configeration
 
 class SharedMatmulWeightsDecompression : public testing::WithParamInterface<MatmulSharedWeightsDecompressionParams>,
                                          virtual public SubgraphBaseTest {
