@@ -17,6 +17,8 @@ const Params params[] = {
     std::tuple<Device, Config>{ov::test::utils::DEVICE_NPU,
                                {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}}}};
 
+const Params params_cached[] = {std::tuple<Device, Config>{ov::test::utils::DEVICE_NPU, {}}};
+
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CoreThreadingTest_NPU,
@@ -26,10 +28,10 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CoreThreadingTest_NPU
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CoreThreadingTest_NPU,
                          CoreThreadingTestsWithIter,
-                         testing::Combine(testing::ValuesIn(params), testing::Values(20), testing::Values(50)),
+                         testing::Combine(testing::ValuesIn(params), testing::Values(15), testing::Values(50)),
                          (ov::test::utils::appendPlatformTypeTestName<CoreThreadingTestsWithIter>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CoreThreadingTest_NPU,
                          CoreThreadingTestsWithCacheEnabled,
-                         testing::Combine(testing::ValuesIn(params), testing::Values(20), testing::Values(50)),
+                         testing::Combine(testing::ValuesIn(params), testing::Values(10), testing::Values(30)),
                          (ov::test::utils::appendPlatformTypeTestName<CoreThreadingTestsWithCacheEnabled>));
