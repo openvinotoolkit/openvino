@@ -53,18 +53,37 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     const int frame_size = (int)frame_size_buff[0];
     const int frame_step = (int)frame_step_buff[0];
     const int window_size = INPUT1_SIZE_X;
-
     const int freqs = INPUT0_FEATURE_NUM;
 
-    // printf("batch=%i, frame_id=%i, window_id=%i, fregs=%i\n", batch, frame_id, window_id, freqs);
-
-    // printf("INPUT0_BATCH_NUM=%i, INPUT0_FEATURE_NUM=%i, INPUT0_SIZE_Y=%i, INPUT0_SIZE_X=%i\n",
-    //        INPUT0_BATCH_NUM,
-    //        INPUT0_FEATURE_NUM,
-    //        INPUT0_SIZE_Y,
-    //        INPUT0_SIZE_X);
-
     const float windowVal = (float)window[window_id];
+    const float windowValPow2 = windowVal * windowVal;
+    
+    const int frameIdxStart = frame_id * frame_step;
+
+    const int outputIdxWithinBatch =  OUTPUT_GET_INDEX(0, 0, 0, window_id + frameIdxStart);
+    const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, window_id + frameIdxStart);
+
+    float sum = 0.0f;
+    const int binSize = calcDivisor(window_id + frameIdxStart, frame_size, frame_step, OUTPUT_SIZE_X);
+
+    int startIDx = window_id%frame_step;
+    
+    while((outputIdxWithinBatch + (frame_size - startIDx-1)) >= OUTPUT_SIZE_X)
+        startIDx += frame_step;
+
+    // for( int i = 0; i < binSize; ++i ) {
+    //     const int idx = startIDx + i * frame_step;
+    //     const float val = window[idx];
+    //     sum += val*val;
+    //     //printf("Sum calc: globalOutputIdx: %i, window_id: %i, i: %i, idx: %i, startIDx: %i, sum: %f\n", globalOutputIdx, window_id, i, idx, startIDx, sum);
+    // }
+
+    do {
+        const float val = window[startIDx];
+        sum += val*val;
+        startIDx += frame_step;
+        //printf("Sum calc: globalOutputIdx: %i, window_id: %i, i: %i, idx: %i, startIDx: %i, sum: %f\n", globalOutputIdx, window_id, binSize, idx, startIDx, sum);
+    } while(startIDx < frame_size);
 
     // idft_power = 2*PI*(n/N) from idft def.
     const float idft_power = 2.0f * M_PI_F * (float)window_id / (float)frame_size;
@@ -96,23 +115,23 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
 
     const float finalIRDFTVal = real(res) / frame_size;
 
-    const int frameIdxStart = frame_id * frame_step;
-    const int offset = OUTPUT_GET_INDEX(0, 0, batch, window_id + frameIdxStart);
+
 
     // printf("window_id=%i, real(res)=%f\n", window_id, real(res)/frame_size);
 
-    const float divisor = (float)calcDivisor(window_id + frameIdxStart, frame_size, frame_step, OUTPUT_SIZE_X);
+    
     // TODO: handle case when windowVal == 0.0
-    const float finalVAl = finalIRDFTVal / (windowVal*divisor);
+    //const float finalVAl = finalIRDFTVal / (windowVal*divisor);
+    const float finalVAl = (finalIRDFTVal*windowVal) / (sum);
 
     // TODO: Handle sumation from different frames...(atomics?)
     const OUTPUT_TYPE finalVal = (OUTPUT_TYPE)(finalVAl);
 
-    // *(output+offset)=finalVal;
+    //*(output+globalOutputIdx)=finalVal;
 
-    const float prev = atomicadd(output+offset, finalVal);
+    const float prev = atomicadd(output+globalOutputIdx, finalVal);
 
-    // printf("offset: %i, finalIRDFTVal: %f, finalVal: %f, divisior: %f, prev: %f, windowVal: %f\n", offset, finalIRDFTVal, finalVal, divisor, prev, windowVal);
+    //printf("globalOutputIdx: %i, finalIRDFTVal: %f, finalVal: %f, divisior: %i, prev: %f, sum: %f\n", globalOutputIdx, finalIRDFTVal, finalVal, binSize, prev, sum);
 
     //output[OUTPUT_GET_INDEX(0, 0, batch, window_id + frameOffset)] = finalVal;
 }
