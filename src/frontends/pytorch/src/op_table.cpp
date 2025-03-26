@@ -139,6 +139,7 @@ OP_CONVERTER(translate_inverse);
 OP_CONVERTER(translate_istft);
 OP_CONVERTER(translate_is_nonzero);
 OP_CONVERTER(translate_layer_norm);
+OP_CONVERTER(translate_quantized_relu);
 OP_CONVERTER(translate_len);
 OP_CONVERTER(translate_lerp);
 OP_CONVERTER(translate_linalg_cross);
@@ -778,6 +779,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"quantized::hardswish", op::translate_quantized_hardswish},
         {"quantized::linear", op::translate_quantized_linear},
         {"quantized::mul", op::translate_quantized_mul},
+        {"quantized::linear_relu", op::translate_quantized_relu},
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
