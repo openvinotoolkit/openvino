@@ -59,10 +59,10 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
 
     const int frameIdxStart = frame_id * frame_step;
 
-    const int outputIdxWithinBatch = OUTPUT_GET_INDEX(0, 0, 0, window_id + frameIdxStart);
+    const int outputIdxWithinBatch = window_id + frameIdxStart;
     const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, window_id + frameIdxStart);
 
-    float sum = 0.0f;
+    float normalizationSum = 0.0f;
     const int binSize = calcDivisor(window_id + frameIdxStart, frame_size, frame_step, OUTPUT_SIZE_X);
 
     int startIDx = window_id % frame_step;
@@ -73,8 +73,8 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     for (int i = 0; i < binSize; ++i) {
         const int idx = startIDx + i * frame_step;
         const float val = window[idx];
-        sum += val * val;
-        // printf("Sum calc: globalOutputIdx: %i, window_id: %i, i: %i, idx: %i, startIDx: %i, sum: %f\n", globalOutputIdx, window_id, i, idx, startIDx, sum);
+        normalizationSum += val * val;
+        // printf("normalizationSum calc: globalOutputIdx: %i, window_id: %i, i: %i, idx: %i, startIDx: %i, normalizationSum: %f\n", globalOutputIdx, window_id, i, idx, startIDx, normalizationSum);
     }
 
     // idft_power = 2*PI*(n/N) from idft def.
@@ -118,7 +118,7 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
 #else
     const float scale = 1.0f;
 #endif
-    const float finalVAl = (finalIRDFTVal * windowVal * scale) / (sum);
+    const float finalVAl = (finalIRDFTVal * windowVal * scale) / (normalizationSum);
 
     const OUTPUT_TYPE finalVal = (OUTPUT_TYPE)(finalVAl);
     const float prev = atomicadd(output + globalOutputIdx, finalVal);
