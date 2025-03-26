@@ -23,9 +23,9 @@ public:
                  const std::vector<MemoryPtr>& inMemPtrs,
                  const std::vector<MemoryPtr>& outMemPtrs) override;
 
-    static std::vector<MemoryPtr> prepareWeights(const std::vector<MemoryPtr>& inMemPtrs,
-                                                 const RepackedInputConfig& repacked_const_input_config,
-                                                 const GraphContext::CPtr& context);
+    static std::vector<MemoryPtr> prepare_weights(const std::vector<MemoryPtr>& inMemPtrs,
+                                                  const RepackedInputConfig& repacked_const_input_config,
+                                                  const GraphContext::CPtr& context);
 
 protected:
     static void separately_repack_input(const MemoryPtr& srcMemPtr,

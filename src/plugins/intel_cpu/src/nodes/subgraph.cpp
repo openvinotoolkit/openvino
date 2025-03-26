@@ -706,7 +706,7 @@ void Subgraph::prepareWeights() {
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
-    srcMemPtrs = SubgraphExecutor::prepareWeights(srcMemPtrs, repacked_constant_input_config, context);
+    srcMemPtrs = SubgraphExecutor::prepare_weights(srcMemPtrs, repacked_constant_input_config, context);
 #else
     OPENVINO_THROW("Weight repacking is unimplemented on this platform");
 #endif

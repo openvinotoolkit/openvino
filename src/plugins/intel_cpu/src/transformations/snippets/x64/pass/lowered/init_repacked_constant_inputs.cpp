@@ -50,6 +50,7 @@ bool InitRepackedConstantInputs::run(const snippets::lowered::LinearIR& linear_i
             }
         }
 
+        OPENVINO_ASSERT(port_desc, "The target Port Descriptor has not been initialized!");
         const auto& layout = port_desc->get_layout();
         const auto& shape = port_desc->get_shape();
 

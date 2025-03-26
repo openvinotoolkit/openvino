@@ -62,7 +62,6 @@ bool pass::EliminateBrgemmCopyB::run_on_model(const std::shared_ptr<ov::Model>& 
 
             OPENVINO_ASSERT(ov::replace_node_update_name(copy_b_node, reshape),
                             "Failed to replace output in EliminateBrgemmCopyB transformation");
-            status = true;
         } else {
             OPENVINO_ASSERT(ov::replace_output_update_name(copy_b_out, copy_b_node->input_value(0)),
                             "Failed to replace output in EliminateBrgemmCopyB transformation");

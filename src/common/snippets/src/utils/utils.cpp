@@ -341,6 +341,7 @@ int64_t get_dim_out_stride(const VectorDims& shape, const VectorDims& layout, si
 }
 
 void init_strides(const VectorDims& shape, size_t rank, size_t data_size, size_t start_idx, VectorDims& offsets) {
+    OPENVINO_ASSERT(start_idx < rank, "Incorrect start index. Should be less than target rank");
     auto dim_step = data_size;
     offsets.resize(rank);
     std::fill(offsets.begin(), offsets.end(), 0);
