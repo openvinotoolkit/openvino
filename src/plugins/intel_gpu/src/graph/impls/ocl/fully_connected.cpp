@@ -208,7 +208,7 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        params._single_batch_optimized = fully_connected_inst::can_apply_single_batch_optimization(updated_impl_param);
+        params.single_batch_optimized = fully_connected_inst::can_apply_single_batch_optimization(updated_impl_param);
         params.dynamic_quantization_group_size =
             impl_param.get_program().get_config().get_dynamic_quantization_group_size();
 

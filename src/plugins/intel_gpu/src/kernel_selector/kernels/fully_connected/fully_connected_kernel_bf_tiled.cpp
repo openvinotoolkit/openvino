@@ -288,7 +288,7 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     auto& output = fc_params.outputs[0];
     auto& weights = fc_params.weights;
 
-    if (fc_params._single_batch_optimized) {
+    if (fc_params.single_batch_optimized) {
         return false;
     }
 

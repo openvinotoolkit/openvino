@@ -331,7 +331,7 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
 }
 
 bool fully_connected_inst::can_apply_single_batch_optimization(const kernel_impl_params& impl_param) {
-    if ((impl_param.output_layouts.size() == 0) || impl_param.output_layouts[0].is_dynamic())
+    if (impl_param.output_layouts.empty() || impl_param.output_layouts[0].is_dynamic())
         return false;
 
     // Only support i4/u4 weight so far
