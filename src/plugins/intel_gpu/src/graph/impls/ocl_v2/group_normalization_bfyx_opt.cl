@@ -225,7 +225,7 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
         FUSED_OPS;
         output[output_data_index] = FUSED_OPS_RESULT;
     #else
-        output[output_data_index] = TO_OUTPUT_TYPE(ACTIVATION(normalized, ACTIVATION_PARAMS));
+        output[output_data_index] = TO_OUTPUT_TYPE(normalized);
     #endif
 }
 #endif

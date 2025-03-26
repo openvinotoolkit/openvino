@@ -1929,6 +1929,8 @@ void primitive_inst::prepare_primitive() {
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this) || _use_shared_kernels) {
+        // For ocl_v2 impls we call set args based in flag in the execute() impl, so need to update the flag here
+        set_flag(ExecutionFlags::MEMORY_CHANGED);
         set_arguments();
     }
     on_execute();
