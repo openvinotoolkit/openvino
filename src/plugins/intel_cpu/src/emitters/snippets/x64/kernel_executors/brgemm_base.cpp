@@ -156,12 +156,6 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_set_postops(&desc, &attr, dst_desc.get(), LDC) == dnnl_success,
                               "Cannot set postops to brgemm descriptor");
 
-    std::cout << "[ INFO ] Brgemm desc creation:" << std::endl;
-    std::cout << "\t desc.dt_a: " << desc.dt_a << std::endl;
-    std::cout << "\t desc.dt_b: " << desc.dt_b << std::endl;
-    std::cout << "\t desc.dt_c: " << desc.dt_c << std::endl;
-    std::cout << "\t desc.dt_d: " << desc.dt_d << std::endl;
-
     if (with_amx) {
         OV_CPU_JIT_EMITTER_ASSERT(palette && brgemm_init_tiles(desc, palette) == dnnl_success,
                                   "Cannot initialize brgemm tiles due to invalid params");
@@ -197,11 +191,6 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.post_ops_binary_rhs_arg_vec = post_ops_binary_arg_vec;
     // This ptr must be initialized if binary postops are applied
     brgemm_p.data_C_ptr_ = reinterpret_cast<char*>(dst);
-
-    if (std::getenv("DEBUG_PRINT")) {
-        std::cout << "[ INFO ] execute_brgemm_kernel: " << std::endl;
-        std::cout << "\t Pointer value: " << post_ops_binary_arg_vec << std::endl;
-    }
 
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
     (*kernel)(&brgemm_p);
