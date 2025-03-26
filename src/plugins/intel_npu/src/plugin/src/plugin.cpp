@@ -766,7 +766,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    auto copyModel = model->clone();
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig);
 
@@ -774,7 +773,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<intel_npu::IGraph> graph;
     try {
         _logger.debug("performing compile");
-        graph = compiler->compile(copyModel, localConfig);
+        graph = compiler->compile(model->clone(), localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
