@@ -30,8 +30,8 @@ static void test_col_to_im_output(bool is_caching_test) {
         8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f,
         9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f,
     });
-    ov::Shape output_size({ov::float16(4.0f), ov::float16(4.0f)});
-    ov::Shape kernel_size({ov::float16(2.0f), ov::float16(2.0f)});
+    ov::Shape output_size({4, 4});
+    ov::Shape kernel_size({2, 2});
 
     topology topology;
     topology.add(cldnn::input_layout("input", input->get_layout()));
