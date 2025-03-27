@@ -42,10 +42,9 @@ SDPAFusion::SDPAFusion() {
 
     // Optional k scale
     auto attn_scale = any_input();
-    // K transpose + optional scale
+    // K optional transpose + optional scale
     auto k_trans_dims = any_input();
     auto k_opt_transposed = optional<ov::op::v1::Transpose>({k, k_trans_dims});
-    // auto k_transposed_opt_scaled = optional<ov::op::v1::Multiply>({_optk_transposed, attn_scale});
     auto k_opt_transposed_scaled = wrap_type<ov::op::v1::Multiply>({k_opt_transposed, attn_scale});
     auto k_opt_transposed_opt_scaled = k_opt_transposed_scaled | k_opt_transposed;
 

@@ -104,7 +104,7 @@ KernelsData SDPAKernelRef::GetKernelsData(const Params& params) const {
     TransposedDimensionAccessHelperBase dims_q(in_q, prim_params.input0_order);
     TransposedDimensionAccessHelperBase dims_k(in_k, prim_params.input1_order);
 
-    if (in_q.LogicalSize() > 0) {
+    if (in_q.LogicalSize() > 0 && in_k.LogicalSize() > 0) {
         auto elem_size = in_q.ElementSize();
         auto batch_size = in_q.LogicalSize() / dims_q.x_dim().v / dims_q.y_dim().v;
         kd.internalBuffers.clear();

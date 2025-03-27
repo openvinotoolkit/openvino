@@ -157,7 +157,6 @@ TEST_F(TransformationTestsF, SDPAFusionTest4) {
                                                                                    casual);
         model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
     }
-    // model_ref = model->clone();
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
