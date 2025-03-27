@@ -258,6 +258,12 @@ public:
     virtual int get_streams_num() = 0;
 
     /**
+     * @brief Return the total number of threads
+     * @return The total number of threads.
+     */
+    virtual int get_threads_num() = 0;
+
+    /**
      * @brief Return the id of current NUMA Node
      *        Return 0 when current stream cross some NUMA Nodes
      * @return `ID` of current NUMA Node, or throws exceptions if called not from stream thread

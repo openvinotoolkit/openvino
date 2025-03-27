@@ -51,6 +51,8 @@ public:
 
     int get_streams_num() override;
 
+    int get_threads_num() override;
+
     int get_numa_node_id() override;
 
     int get_socket_id() override;

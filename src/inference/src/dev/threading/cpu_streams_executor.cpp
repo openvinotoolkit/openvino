@@ -474,6 +474,10 @@ int CPUStreamsExecutor::get_streams_num() {
     return _impl->_config.get_streams();
 }
 
+int CPUStreamsExecutor::get_threads_num() {
+    return _impl->_config.get_threads();
+}
+
 int CPUStreamsExecutor::get_numa_node_id() {
     if (!_impl->_streams.find_thread_id()) {
         return 0;

@@ -100,6 +100,19 @@ bool check_cpu_pinning(const bool cpu_pinning,
     }
 #endif
 
+    // Disable cpu pinning when nstreams=1 and nthreads=1
+    if (result_value) {
+        int total_streams = 0, total_threads = 0;
+        for (size_t i = 0; i < streams_info_table.size(); i++) {
+            total_streams += std::abs(streams_info_table[i][NUMBER_OF_STREAMS]);
+            total_threads += std::abs(streams_info_table[i][NUMBER_OF_STREAMS]) *
+                             std::abs(streams_info_table[i][THREADS_PER_STREAM]);
+        }
+        if (1 == total_streams && 1 == total_threads) {
+            result_value = false;
+        }
+    }
+
     return result_value;
 }
 
