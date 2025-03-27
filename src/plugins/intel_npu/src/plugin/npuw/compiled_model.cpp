@@ -879,8 +879,10 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
             if (comp_model_desc.closure[tidx]) {
+                std::cout << "bank already in the bank" << std::endl;
                 continue;  // host-side closure
             }
+            std::cout << "bank register LT" << std::endl;
             comp_model_desc.closure_uid[tidx] =
                 m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
         }
