@@ -2521,8 +2521,6 @@ struct MHAHelper {
             auto block_number = block_table[i];
             for (size_t pq = 0; pq < q_len; pq++) {
                 for (size_t h = hq_beg; h < hq_end; h++) {
-                    auto* v_ptr =
-                        present_value.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
                     if constexpr (one_of(VALUE_PREC, ov::element::u8, ov::element::u4)) {
                         attn_acc_value_block_quantized<uint8_t, VALUE_PREC>(
                             _output.ptr<float>(ithr, pq, h),
@@ -2533,6 +2531,8 @@ struct MHAHelper {
                             std::min(_block_size, cur_kv_len - pv),
                             _value_group_size);
                     } else {
+                        auto* v_ptr =
+                            present_value.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
                         attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
                             _output.ptr<float>(ithr, pq, h),
                             _weight.ptr<float>(ithr, h, pq) + pv,
@@ -2720,8 +2720,6 @@ struct MHAHelper {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pv_in_blocks];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        auto* v_ptr =
-                            value_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
                         if constexpr (one_of(VALUE_PREC, ov::element::u8, ov::element::u4)) {
                             attn_acc_value_block_quantized<uint8_t, VALUE_PREC>(
                                 _output_bhl.ptr<float>(ithr, b, pq, h),
@@ -2732,6 +2730,8 @@ struct MHAHelper {
                                 std::min(_block_size, context_len - pv),
                                 _value_group_size);
                         } else {
+                            auto* v_ptr =
+                                value_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
                             attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
                                 _output_bhl.ptr<float>(ithr, b, pq, h),
                                 _weight_bhl.ptr<float>(b, h, pq) + pv,

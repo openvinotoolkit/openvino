@@ -590,18 +590,18 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const size_t value_group_size) {
     // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
-    constexpr auto DST_TYPE = intel_cpu::precision_of<T2>::value;
     if (quant_key_by_channel) {
         if (L0 == 0) {
             parallel_for3d(ov::intel_cpu::div_up(L1, key_group_size), B, H, [&](size_t group_id, size_t b, size_t h) {
-                quantize_by_channel<T, DST_TYPE>(k_src.ptr<T>(b, h, group_id * key_group_size),
-                                                 k_dst.ptr<T2>(b, h, group_id * key_group_size),
-                                                 std::min(key_group_size, L1 - group_id * key_group_size),
-                                                 S,
-                                                 k_src.m_strides[2],
-                                                 k_dst.m_strides[2],
-                                                 k_scale_zp.ptr<float>(group_id * 2, b, h),
-                                                 k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                quantize_by_channel<T, intel_cpu::precision_of<T2>::value>(
+                    k_src.ptr<T>(b, h, group_id * key_group_size),
+                    k_dst.ptr<T2>(b, h, group_id * key_group_size),
+                    std::min(key_group_size, L1 - group_id * key_group_size),
+                    S,
+                    k_src.m_strides[2],
+                    k_dst.m_strides[2],
+                    k_scale_zp.ptr<float>(group_id * 2, b, h),
+                    k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
             });
         } else {
             size_t group_id = L0 / key_group_size;
@@ -611,14 +611,15 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                 float* thread_temp_buffer = temp_buffer + thread_id * key_group_size * S;
                 size_t remaining_group_size = prev_nums ? (key_group_size - prev_nums) : 0;
                 if (prev_nums) {
-                    attn_dequant_by_channel_kernel<float, DST_TYPE>(k_dst.ptr<uint8_t>(b, h, group_id * key_group_size),
-                                                                    thread_temp_buffer,
-                                                                    prev_nums,
-                                                                    S,
-                                                                    k_dst.stride_bytes(2),
-                                                                    S,
-                                                                    k_scale_zp.ptr<float>(group_id * 2, b, h),
-                                                                    k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                    attn_dequant_by_channel_kernel<float, intel_cpu::precision_of<T2>::value>(
+                        k_dst.ptr<uint8_t>(b, h, group_id * key_group_size),
+                        thread_temp_buffer,
+                        prev_nums,
+                        S,
+                        k_dst.stride_bytes(2),
+                        S,
+                        k_scale_zp.ptr<float>(group_id * 2, b, h),
+                        k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
                     remaining_group_size = std::min(remaining_group_size, L1);
                     cvt_copy(thread_temp_buffer + prev_nums * S,
                              k_src.ptr<T>(b, h),
@@ -626,14 +627,15 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                              S,
                              k_src.m_strides[2],
                              S);
-                    quantize_by_channel<float, DST_TYPE>(thread_temp_buffer,
-                                                         k_dst.ptr<T2>(b, h, group_id * key_group_size),
-                                                         remaining_group_size + prev_nums,
-                                                         S,
-                                                         S,
-                                                         k_dst.m_strides[2],
-                                                         k_scale_zp.ptr<float>(group_id * 2, b, h),
-                                                         k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                    quantize_by_channel<float, intel_cpu::precision_of<T2>::value>(
+                        thread_temp_buffer,
+                        k_dst.ptr<T2>(b, h, group_id * key_group_size),
+                        remaining_group_size + prev_nums,
+                        S,
+                        S,
+                        k_dst.m_strides[2],
+                        k_scale_zp.ptr<float>(group_id * 2, b, h),
+                        k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
                 }
 
                 if (L1 > remaining_group_size) {
@@ -641,14 +643,15 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                     for (size_t new_group_id = prev_nums ? group_id + 1 : group_id, src_offset = 0;
                          new_group_id < ov::intel_cpu::div_up(L0 + L1, key_group_size);
                          new_group_id++, src_offset += key_group_size) {
-                        quantize_by_channel<T, DST_TYPE>(k_src.ptr<T>(b, h, remaining_group_size + src_offset),
-                                                         k_dst.ptr<T2>(b, h, new_group_id * key_group_size),
-                                                         std::min(key_group_size, new_seq - src_offset),
-                                                         S,
-                                                         k_src.m_strides[2],
-                                                         k_dst.m_strides[2],
-                                                         k_scale_zp.ptr<float>(new_group_id * 2, b, h),
-                                                         k_scale_zp.ptr<float>(new_group_id * 2 + 1, b, h));
+                        quantize_by_channel<T, intel_cpu::precision_of<T2>::value>(
+                            k_src.ptr<T>(b, h, remaining_group_size + src_offset),
+                            k_dst.ptr<T2>(b, h, new_group_id * key_group_size),
+                            std::min(key_group_size, new_seq - src_offset),
+                            S,
+                            k_src.m_strides[2],
+                            k_dst.m_strides[2],
+                            k_scale_zp.ptr<float>(new_group_id * 2, b, h),
+                            k_scale_zp.ptr<float>(new_group_id * 2 + 1, b, h));
                     }
                 }
             });
