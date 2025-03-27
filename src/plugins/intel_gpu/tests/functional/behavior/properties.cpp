@@ -68,7 +68,7 @@ TEST_F(TestPropertiesGPU, RTInfoPropertiesWithUserValuesFromCore) {
     model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
     model->set_rt_info("0", "runtime_options", ov::hint::dynamic_quantization_group_size.name());
     model->set_rt_info("8.0", "runtime_options", ov::hint::activations_scale_factor.name());
-    core.set_property(ov::hint::kv_cache_precision(ov::element::u8));
+    core.set_property(ov::hint::kv_cache_precision(ov::element::i4));
     core.set_property(ov::hint::dynamic_quantization_group_size(16));
     core.set_property(ov::hint::activations_scale_factor(4.0f));
 
@@ -76,7 +76,7 @@ TEST_F(TestPropertiesGPU, RTInfoPropertiesWithUserValuesFromCore) {
     OV_ASSERT_NO_THROW(type = compiled_model.get_property(ov::hint::kv_cache_precision));
     OV_ASSERT_NO_THROW(size = compiled_model.get_property(ov::hint::dynamic_quantization_group_size));
     OV_ASSERT_NO_THROW(scale = compiled_model.get_property(ov::hint::activations_scale_factor));
-    ASSERT_EQ(type.as<ov::element::Type>(), ov::element::u8);
+    ASSERT_EQ(type.as<ov::element::Type>(), ov::element::i4);
     ASSERT_EQ(size.as<uint64_t>(), 16);
     ASSERT_EQ(scale.as<float>(), 4.0f);
 }
