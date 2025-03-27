@@ -43,11 +43,12 @@ Predicate check_value(float ref, float eps = std::numeric_limits<float>::epsilon
         "has_constant_value(" + std::to_string(ref) + ")");
 }
 
-bool gelu_replacer(ov::pass::pattern::Matcher& m, const std::shared_ptr<ov::Node>& pattern_input_to_relu,
-                    ov::op::GeluApproximationMode mode = ov::op::GeluApproximationMode::ERF) {
+bool gelu_replacer(ov::pass::pattern::Matcher& m,
+                   const std::shared_ptr<ov::Node>& pattern_input_to_gelu,
+                   ov::op::GeluApproximationMode mode = ov::op::GeluApproximationMode::ERF) {
     ov::pass::NodeRegistry rg;
-    auto pattern_to_output = m.get_pattern_value_map();
-    auto x_output = pattern_to_output.at(pattern_input_to_relu);
+    auto pattern_to_output = m.get_pattern_map();
+    auto x_output = pattern_to_output.at(pattern_input_to_gelu);
 
     auto gelu = rg.make<ov::op::v7::Gelu>(x_output, mode);
 
@@ -180,7 +181,6 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     // Replaces a sub-graph with a Gelu (ov::op::v0::Tanh) op
     // Gaussian Error Linear Unit, TanH based approximation:
     // x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3]))
-
     auto input = pass::pattern::any_input();
     auto pow_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(3.0f));
     auto pow = ov::pass::pattern::wrap_type<ov::op::v1::Power>({input, pow_constant});
@@ -288,7 +288,7 @@ ov::pass::GeluFusionWithTanhNoPower2::GeluFusionWithTanhNoPower2() {
     auto mul_4_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_4_constant});
     auto mul_5_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, mul_4_2});
 
-    // (0.5 * x) * (1 + tanh)
+    // 0.5 * ( x * (1 + tanh))
     auto mul_4_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, input});
     auto mul_5_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul_4_3, mul_4_constant});
 
