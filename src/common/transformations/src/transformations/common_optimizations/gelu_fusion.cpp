@@ -32,6 +32,7 @@ using namespace ov::pass::pattern::op;
 
 constexpr auto SQRT2 = static_cast<float>(M_SQRT2);
 constexpr auto SQRT1_2 = static_cast<float>(M_SQRT1_2);
+constexpr auto F_2_PI = static_cast<float>(M_2_PI);
 
 namespace {
 
@@ -190,7 +191,7 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
 
     auto add_0 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, mul_0});
 
-    auto mul_1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(std::sqrt(M_2_PI), 0.01));
+    auto mul_1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(std::sqrt(F_2_PI), 0.01));
     auto mul_1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_0, mul_1_constant});
 
     auto tanh = ov::pass::pattern::wrap_type<ov::op::v0::Tanh>({mul_1});
@@ -232,7 +233,7 @@ ov::pass::GeluFusionWithTanhNoPower::GeluFusionWithTanhNoPower() {
     auto const2 = pattern::wrap_type<ov::op::v0::Constant>(check_value(1.0f));
     auto add1 = pattern::wrap_type<ov::op::v1::Add>({const2, mul2});
 
-    auto const3 = pattern::wrap_type<ov::op::v0::Constant>(check_value(std::sqrt(M_2_PI), 0.01));
+    auto const3 = pattern::wrap_type<ov::op::v0::Constant>(check_value(std::sqrt(F_2_PI), 0.01));
     auto mul3 = pattern::wrap_type<ov::op::v1::Multiply>({input, const3});
 
     auto mul4 = pattern::wrap_type<ov::op::v1::Multiply>({add1, mul3});
@@ -269,7 +270,7 @@ ov::pass::GeluFusionWithTanhNoPower2::GeluFusionWithTanhNoPower2() {
 
     auto add_0 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, mul_2});
 
-    auto mul_3_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(std::sqrt(M_2_PI), 0.01));
+    auto mul_3_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(std::sqrt(F_2_PI), 0.01));
 
     auto mul_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_0, mul_3_constant});
 
