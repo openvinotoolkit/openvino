@@ -56,7 +56,8 @@ ov::OutputVector skip_simplified_layer_normalization(const ov::frontend::onnx::N
     float epsilon = node.get_attribute_value<float>("epsilon");
     ov::element::Type element_type = input->get_output_element_type(0);
 
-    auto squared_input = std::make_shared<v1::Multiply>(input, input);
+    auto powerConst = ov::op::v0::Constant::create(element_type, {}, {2.f});
+    auto squared_input =  std::make_shared<ov::op::v1::Power>(input, powerConst);
     auto mean = std::make_shared<v1::ReduceMean>(squared_input,
                                                  v0::Constant::create(element::i64, {}, {-1}),
                                                  true);  // mean = (1/N) * Σ(j=1 to N) X_j^2
