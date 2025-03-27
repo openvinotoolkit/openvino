@@ -59,6 +59,8 @@ public:
         m_primArgs[DNNL_ARG_SRC].set_data_handle(memory.at(ARG_SRC)->getData());
         m_primArgs[DNNL_ARG_DST].set_data_handle(memory.at(ARG_DST)->getData());
 
+        m_primArgs[DNNL_ARG_SCRATCHPAD].set_data_handle(m_scratchPadMemory->getData());
+
         m_primitive->execute(m_primArgs);
     }
 
