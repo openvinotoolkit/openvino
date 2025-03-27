@@ -12,7 +12,7 @@ ZeroApi::ZeroApi() {
     const std::string baseName = "ze_loader";
     try {
         auto libpath = ov::util::make_plugin_library_name({}, baseName);
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(ANDROID)
         libpath = libpath + LIB_ZE_LOADER_SUFFIX;
 #endif
 
