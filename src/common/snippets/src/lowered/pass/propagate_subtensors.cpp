@@ -155,7 +155,7 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
         elem.first->set_shape(elem.second);
     for (auto expr_it = begin; expr_it != shape_inference_end_it; expr_it++) {
         const auto expr = *expr_it;
-        if (ov::is_type<snippets::op::LoopEnd>(expr->get_node()))
+        if (ov::is_type<snippets::op::LoopBase>(expr->get_node()))
             continue;
         expr->updateShapes();
     }
