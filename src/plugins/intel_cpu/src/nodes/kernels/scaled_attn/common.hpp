@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>

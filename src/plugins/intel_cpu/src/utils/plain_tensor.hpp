@@ -408,7 +408,8 @@ struct PlainTensor {
 
     template <typename... Is>
     void* ptr_v(Is... indices) const {
-        return reinterpret_cast<void*>(m_ptr.get() + offset<0>(indices...) * m_element_size / sub_byte_data_type_multiplier());
+        return reinterpret_cast<void*>(m_ptr.get() +
+                                       offset<0>(indices...) * m_element_size / sub_byte_data_type_multiplier());
     }
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.
