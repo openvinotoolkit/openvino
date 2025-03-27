@@ -1929,6 +1929,8 @@ void primitive_inst::prepare_primitive() {
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this) || _use_shared_kernels) {
+        // For ocl_v2 impls we call set args based in flag in the execute() impl, so need to update the flag here
+        set_flag(ExecutionFlags::MEMORY_CHANGED);
         set_arguments();
     }
     on_execute();
@@ -2473,6 +2475,7 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
     outputs.reserve(get_node().get_outputs_count());
     const auto& impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
     const auto& out_layouts = impl_params.output_layouts;
+    set_flag(ExecutionFlags::MEMORY_CHANGED);
     for (size_t i = 0; i < get_node().get_outputs_count(); ++i) {
         if (out_layouts[i].is_dynamic() && !out_layouts[i].has_upper_bound()) {
             outputs.push_back(memory::ptr());
@@ -2713,7 +2716,7 @@ bool primitive_inst::is_valid_fusion() const {
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
 
-            if (gemm_dims[0] != data_dims[0])
+            if (gemm_dims[0] != data_dims[0] && gemm_dims[1] != 1)
                 return false;
         } else if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
             const auto& fc_layout = _impl_params->get_output_layout();
