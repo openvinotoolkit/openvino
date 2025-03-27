@@ -15,6 +15,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 
 #include <transformations/utils/utils.hpp>
@@ -26,8 +27,6 @@
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/read_value.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
-
-#include "openvino/pass/visualize_tree.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -201,9 +200,12 @@ TEST_F(TransformationTestsF, IndirectKVCache5) {
         auto key_gather_past = std::make_shared<ov::op::v8::Gather>(key_past, beam_idx, axis);
         auto value_gather_past = std::make_shared<ov::op::v8::Gather>(value_past, beam_idx, axis);
 
-        auto parameter_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 80});
+        auto key_data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 240});
+        auto vs_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
+        auto split_lengths = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int64_t>{80, 80, -1});
+        auto var_split = std::make_shared<ov::op::v1::VariadicSplit>(key_data, vs_axis, split_lengths);
         auto parameter_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 80});
-        auto key_cache = std::make_shared<ov::intel_gpu::op::KVCache>(key_gather_past, parameter_key, key_variable, 0, ov::element::f16);
+        auto key_cache = std::make_shared<ov::intel_gpu::op::KVCache>(key_gather_past, var_split->output(0), key_variable, 0, ov::element::f16);
         auto value_cache = std::make_shared<ov::intel_gpu::op::KVCache>(value_gather_past, parameter_value, value_variable, 0, ov::element::f16);
 
         auto sdpa_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 80});
@@ -213,9 +215,8 @@ TEST_F(TransformationTestsF, IndirectKVCache5) {
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
         auto result = std::make_shared<ov::op::v0::Result>(sdpa);
 
-        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter_key, parameter_value, beam_idx, sdpa_q, attn_mask, scale});
+        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{key_data, parameter_value, beam_idx, sdpa_q, attn_mask, scale});
         manager.register_pass<IndirectKVCache>();
-        manager.register_pass<ov::pass::VisualizeTree>("after.svg");
     }
     {
         auto indirect_axis = 0;
@@ -225,9 +226,12 @@ TEST_F(TransformationTestsF, IndirectKVCache5) {
         auto key_past = std::make_shared<ov::intel_gpu::op::ReadValue>(key_variable);
         auto value_past = std::make_shared<ov::intel_gpu::op::ReadValue>(value_variable);
 
-        auto parameter_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 80});
+        auto key_data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 240});
+        auto vs_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
+        auto split_lengths = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int64_t>{80, 80, -1});
+        auto var_split = std::make_shared<ov::op::v1::VariadicSplit>(key_data, vs_axis, split_lengths);
         auto parameter_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 80});
-        auto key_cache = std::make_shared<ov::intel_gpu::op::KVCache>(key_past, parameter_key, beam_idx, key_variable, 0, 0, ov::element::f16);
+        auto key_cache = std::make_shared<ov::intel_gpu::op::KVCache>(key_past, var_split->output(0), beam_idx, key_variable, 0, 0, ov::element::f16);
         auto value_cache = std::make_shared<ov::intel_gpu::op::KVCache>(value_past, parameter_value, beam_idx, key_variable, 0, 0, ov::element::f16);
 
         auto sdpa_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 80});
@@ -238,8 +242,7 @@ TEST_F(TransformationTestsF, IndirectKVCache5) {
         auto sdpa = std::make_shared<ov::intel_gpu::op::IndirectSDPA>(inputs, key_cache->output(1), is_causal, indirect_axis, in0_order, in1_order, in2_order, out_order);
         auto result = std::make_shared<ov::op::v0::Result>(sdpa);
 
-        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter_key, parameter_value, beam_idx, sdpa_q, attn_mask, scale});
-        ov::pass::VisualizeTree("ref.svg").run_on_model(model_ref);
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{key_data, parameter_value, beam_idx, sdpa_q, attn_mask, scale});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }

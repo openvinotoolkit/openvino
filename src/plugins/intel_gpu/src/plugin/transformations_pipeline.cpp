@@ -1144,6 +1144,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeSDPAFusion>();
 
         manager.register_pass<ov::pass::GLUFusion>();
+        manager.register_pass<ov::pass::VisualizeTree>("before_IndirectKVCache.svg");
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
         auto kv_cache_compression_dt = config.get_kv_cache_precision();
