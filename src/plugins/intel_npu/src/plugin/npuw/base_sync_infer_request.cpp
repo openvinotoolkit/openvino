@@ -382,17 +382,48 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
         auto clparam = request->get_tensor(iport);
 
         if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx] && comp_model_desc.zerops[cidx]) {
+            // std::cout << "here 1" << std::endl;
+            // if (!comp_model_desc.closure_permutes[cidx].empty()) {
+            //     closure = ov::npuw::util::permute(closure, comp_model_desc.closure_permutes[cidx]);
+            // }
+            // std::cout << "here 11" << std::endl;
+            // if (!comp_model_desc.scale_permutes[cidx].empty()) {
+            //     comp_model_desc.scales[cidx] = ov::npuw::util::permute(comp_model_desc.scales[cidx],
+            //     comp_model_desc.scale_permutes[cidx]);
+            // }
+            // std::cout << "here 111" << std::endl;
+            // if (!comp_model_desc.zerop_permutes[cidx].empty()) {
+            //     comp_model_desc.zerops[cidx] = ov::npuw::util::permute(comp_model_desc.zerops[cidx],
+            //     comp_model_desc.zerop_permutes[cidx]);
+            // }
+            // std::cout << "here 1 done" << std::endl;
             // Unpacking this weight requires scaling with zero points...
             ov::npuw::util::unpack(ov::get_tensor_impl(closure),
                                    ov::get_tensor_impl(comp_model_desc.zerops[cidx]),
                                    ov::get_tensor_impl(comp_model_desc.scales[cidx]),
                                    clparam);
         } else if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx]) {
+            // std::cout << "here 2" << std::endl;
+            // if (!comp_model_desc.closure_permutes[cidx].empty()) {
+            //     closure = ov::npuw::util::permute(closure, comp_model_desc.closure_permutes[cidx]);
+            // }
+            // std::cout << "here 22" << std::endl;
+            // std::cout << cidx << ' ' << comp_model_desc.scales.size() << ' ' << comp_model_desc.scale_permutes.size()
+            // << std::endl; if (!comp_model_desc.scale_permutes[cidx].empty()) {
+            //     comp_model_desc.scales[cidx] = ov::npuw::util::permute(comp_model_desc.scales[cidx],
+            //     comp_model_desc.scale_permutes[cidx]);
+            // }
+            // std::cout << "here 2 done" << std::endl;
             // Unpacking this weight requires scaling
             ov::npuw::util::unpack(ov::get_tensor_impl(closure),
                                    ov::get_tensor_impl(comp_model_desc.scales[cidx]),
                                    clparam);
         } else {
+            // std::cout << "here 3" << std::endl;
+            // if (!comp_model_desc.closure_permutes[cidx].empty()) {
+            //     closure = ov::npuw::util::permute(closure, comp_model_desc.closure_permutes[cidx]);
+            // }
+            // std::cout << "here 3 done" << std::endl;
             // Unpacking this weight doesn't require scaling
             ov::npuw::util::unpack(ov::get_tensor_impl(closure), clparam);
         }

@@ -362,6 +362,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].zerops = subgraph._zerops;
             m_compiled_submodels[id].forced_to_fcall = subgraph._forced_to_fcall;
             m_compiled_submodels[id].is_remote.resize(m_compiled_submodels[id].closure.size(), false);
+            // m_compiled_submodels[id].closure_permutes = subgraph._closure_permutes;
+            // m_compiled_submodels[id].scale_permutes = subgraph._scale_permutes;
+            // m_compiled_submodels[id].zerop_permutes = subgraph._zerop_permutes;
         }  // if(!funcall)
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {

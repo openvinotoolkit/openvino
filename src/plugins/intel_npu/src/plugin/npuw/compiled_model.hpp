@@ -163,6 +163,11 @@ private:
         std::vector<ov::Tensor> zerops;
         std::vector<bool> is_remote;
 
+        // Additional transposes to apply during unpack
+        // std::vector<std::vector<std::size_t>> closure_permutes;
+        // std::vector<std::vector<std::size_t>> scale_permutes;
+        // std::vector<std::vector<std::size_t>> zerop_permutes;
+
         bool forced_to_fcall = false;
 
         // FIXME: Take it out of structure

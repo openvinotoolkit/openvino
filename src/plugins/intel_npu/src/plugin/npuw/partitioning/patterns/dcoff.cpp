@@ -130,6 +130,9 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     std::vector<ov::npuw::weights::LazyTensor> new_lazy_closure;
     std::vector<ov::Tensor> new_scales;
     std::vector<ov::Tensor> new_zerops;
+    // std::vector<std::vector<std::size_t>> closure_permutes(fcall._closure.size(), std::vector<std::size_t>{});
+    // std::vector<std::vector<std::size_t>> scale_permutes(fcall._scales.size(), std::vector<std::size_t>{});
+    // std::vector<std::vector<std::size_t>> zerop_permutes(fcall._zerops.size(), std::vector<std::size_t>{});
 
     // For a new_lazy_closure vector by rearranging the old one.  Also
     // reserve a new_scales vector to have the same size, filled with
@@ -139,22 +142,60 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
         if (fcall._closure[i]) {
             new_closure.push_back(fcall._closure[i]);
         } else {
-            new_closure.push_back(m.weights_to_unpack.count(i) ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
+            std::cout << "DCOFF calculating weight LT:" << std::endl;
+            // Only support permute transformations
+            auto transforms = fcall._lazy_closure[i].get_transformations();
+            // FIXME: Should we only support PERMUTE or storing CONSTS for DCOFF is also fine?
+            if (((transforms.size() == 2 && std::holds_alternative<ov::npuw::weights::op::Permute>(transforms[0])) ||
+                 (transforms.size() == 1)) /* && DCOFF_SHARED == YES */) {
+                new_closure.push_back(fcall._closure[i]);
+                auto permute = std::get<ov::npuw::weights::op::Permute>(transforms[0]);
+                // closure_permutes[new_closure.size() - 1] = permute.axes;
+            } else {
+                new_closure.push_back(m.weights_to_unpack.count(i) ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
+            }
         }
 
         auto scale_iter = m.scale_remap.find(i);
         auto zerop_iter = m.zerop_remap.find(i);
 
-        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._lazy_closure[scale_iter->second].eval()
-                                                               : ov::Tensor());
+        std::cout << "DCOFF calculating scale LT:" << std::endl;
+        auto stransforms = scale_iter != m.scale_remap.end()
+                               ? fcall._lazy_closure[scale_iter->second].get_transformations()
+                               : std::vector<ov::npuw::weights::LazyTensor::Transform>{};
+        // FIXME: Should we only support PERMUTE or storing CONSTS for DCOFF is also fine?
+        if (((stransforms.size() == 2 && std::holds_alternative<ov::npuw::weights::op::Permute>(stransforms[0])) ||
+             (stransforms.size() == 1)) /* && DCOFF_SHARED == YES */) {
+            new_scales.push_back(ov::Tensor());
+            auto permute = std::get<ov::npuw::weights::op::Permute>(stransforms[0]);
+            // scale_permutes[new_scales.size() - 1] = permute.axes;
+        } else {
+            new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._lazy_closure[scale_iter->second].eval()
+                                                                   : ov::Tensor());
+        }
         // Check for asymmetric zero points and add them to new_zerops
-        new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
-                                                               : m.zero_points[i]);
+        std::cout << "DCOFF calculating zerop LT:" << std::endl;
+        auto ztransforms = zerop_iter != m.zerop_remap.end()
+                               ? fcall._lazy_closure[zerop_iter->second].get_transformations()
+                               : std::vector<ov::npuw::weights::LazyTensor::Transform>{};
+        // FIXME: Should we only support PERMUTE or storing CONSTS for DCOFF is also fine?
+        if (((ztransforms.size() == 2 && std::holds_alternative<ov::npuw::weights::op::Permute>(ztransforms[0])) ||
+             (ztransforms.size() == 1)) /* && DCOFF_SHARED == YES */) {
+            new_zerops.push_back(m.zero_points[i]);
+            auto permute = std::get<ov::npuw::weights::op::Permute>(ztransforms[0]);
+            // zerop_permutes[new_zerops.size() - 1] = permute.axes;
+        } else {
+            new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
+                                                                   : m.zero_points[i]);
+        }
     }
     fcall._scales = std::move(new_scales);
     fcall._zerops = std::move(new_zerops);
     fcall._closure = std::move(new_closure);
     fcall._lazy_closure = std::move(new_lazy_closure);
+    // fcall._closure_permutes = std::move(closure_permutes);
+    // fcall._scale_permutes = std::move(scale_permutes);
+    // fcall._zerop_permutes = std::move(zerop_permutes);
 }
 
 void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
