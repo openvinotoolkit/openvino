@@ -82,9 +82,7 @@ protected:
             auto dtype = from_data_type(_kernels_data[kernel_idx].internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
             for (const auto& buffer : _kernels_data[kernel_idx].internalBuffers) {
-                layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                        {1, 1, 1, (tensor::value_type)(buffer.byte_count / bpp)}};
-                internal_buffers.emplace_back(inbuf_layout, buffer.lockable);
+                internal_buffers.emplace_back(buffer.byte_count / bpp, dtype, buffer.lockable);
             }
         }
 
@@ -254,7 +252,7 @@ protected:
         if (query_shape[num_heads_dim].is_static() && key_shape[num_heads_dim].is_static() && value_shape[num_heads_dim].is_static()) {
             if (query_shape[num_heads_dim].get_length() > key_shape[num_heads_dim].get_length()) {
                 config.broadcast_axis = desc->input_k_transpose_order[num_heads_dim];
-                config.group_size = query_shape[num_heads_dim].get_length() / key_shape[num_heads_dim].get_length();
+                config.kv_group_size = query_shape[num_heads_dim].get_length() / key_shape[num_heads_dim].get_length();
             }
         }
 

@@ -253,7 +253,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     }
 
     // update output precisions of producers to avoid extra reorders
-    // do this only in case output configration is not provided explicitly
+    // do this only in case output configuration is not provided explicitly
     if (outputConfigs.empty()) {
         for (auto& output : outputNodesMap) {
             const auto& outputNode = output.second;
@@ -1368,16 +1368,6 @@ using UpdateNodes = UpdateNodesSeq;
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
 
-#    if (defined(_MSVC_LANG) && (_MSVC_LANG > 201703L)) || (defined(__cplusplus) && (__cplusplus > 201703L))
-#        define ov_memory_order_release std::memory_order_release
-#        define ov_memory_order_relaxed std::memory_order_relaxed
-#        define ov_memory_order_acquire std::memory_order_acquire
-#    else
-#        define ov_memory_order_release std::memory_order::memory_order_release
-#        define ov_memory_order_relaxed std::memory_order::memory_order_relaxed
-#        define ov_memory_order_acquire std::memory_order::memory_order_acquire
-#    endif
-
 class UpdateNodesBase {
 public:
     explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes)
@@ -1389,21 +1379,21 @@ public:
                 if (node->isDynamicNode()) {
                     node->updateShapes();
                 }
-                m_prepareCounter.store(i, ov_memory_order_release);
+                m_prepareCounter.store(i, std::memory_order_release);
             }
         } catch (...) {
-            m_completion.store(true, ov_memory_order_relaxed);
+            m_completion.store(true, std::memory_order_relaxed);
             throw;
         }
-        m_prepareCounter.store(stop_indx, ov_memory_order_relaxed);
-        m_completion.store(true, ov_memory_order_release);
+        m_prepareCounter.store(stop_indx, std::memory_order_relaxed);
+        m_completion.store(true, std::memory_order_release);
     }
 
     void updateDynParams(size_t node_indx, size_t /*unused*/) {
         size_t local_counter = node_indx;
         while (true) {
-            const bool completion = m_completion.load(ov_memory_order_acquire);
-            const size_t prepareCounter = m_prepareCounter.load(ov_memory_order_relaxed);
+            const bool completion = m_completion.load(std::memory_order_acquire);
+            const size_t prepareCounter = m_prepareCounter.load(std::memory_order_relaxed);
             if (completion && local_counter == prepareCounter) {
                 break;
             }
@@ -1583,11 +1573,11 @@ public:
 /* group all the profiling macros into a single one
  * to avoid cluttering a core logic */
 #define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
-    VERBOSE(node, config.debugCaps.verbose);                    \
-    PERF(node, config.collectPerfCounters);                     \
-    DUMP(node, config.debugCaps, infer_count);                  \
-    OV_ITT_SCOPED_TASK(ittScope, node->profiling.execute);      \
-    DEBUG_LOG(*node);
+    VERBOSE(node, (config).debugCaps.verbose);                  \
+    PERF(node, (config).collectPerfCounters);                   \
+    DUMP(node, (config).debugCaps, infer_count);                \
+    OV_ITT_SCOPED_TASK(ittScope, (node)->profiling.execute);    \
+    DEBUG_LOG(*(node));
 
 inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
     if (request) {
@@ -1664,7 +1654,7 @@ void Graph::Infer(SyncInferRequest* request) {
 void Graph::SortTopologically() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::SortTopologically");
 
-    // Set execIndex of all nodes to default invaild value
+    // Set execIndex of all nodes to default invalid value
     for (auto& node : graphNodes) {
         node->execIndex = -1;
     }
@@ -1999,8 +1989,8 @@ void Graph::EnforceInferencePrecision() {
                 if (one_of(parent->getType(),
                            Type::Convolution,     // conv nets
                            Type::FullyConnected,  // conv / bert nets
-                           Type::RNNCell,         // recurent nets
-                           Type::RNNSeq,          // recurent nets
+                           Type::RNNCell,         // recurrent nets
+                           Type::RNNSeq,          // recurrent nets
                            Type::MatMul,          // bert nets
                            Type::ROIPooling,      // object detection nets
                            Type::Interpolate,     // super resolution nets
@@ -2033,7 +2023,7 @@ void Graph::EnforceInferencePrecision() {
 
     /* Skip low-precision float point enforcement for tail of the graph by forming set of nodes to skip.
      * Necessary to maintain accuracy.
-     * Experiments show zero peformance impact on average */
+     * Experiments show zero performance impact on average */
     std::unordered_set<NodePtr> nodesToSkip;
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
@@ -2088,7 +2078,7 @@ void Graph::EnforceInferencePrecision() {
                     return true;
                 }
 
-                // exclude Convert after Range since it may cause precision loss when integter type to LP.
+                // exclude Convert after Range since it may cause precision loss when integer type to LP.
                 if (parent->getType() == Type::Range && node->getType() == Type::Convert) {
                     return true;
                 }
@@ -2119,7 +2109,7 @@ void Graph::EnforceInferencePrecision() {
                 continue;
             }
 
-            // exclude Convert before Range since it may cause precision loss when integter type to LP.
+            // exclude Convert before Range since it may cause precision loss when integer type to LP.
             // TODO: Incorrect subgraph is generated by ONNX FE + ticket 117861.
             const auto& child = node->getChildEdgeAt(i)->getChild();
             if (child->getType() == Type::Range && node->getType() == Type::Convert) {

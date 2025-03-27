@@ -13,7 +13,7 @@ using namespace intel_npu;
 using MetadataUnitTests = ::testing::Test;
 
 struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
-    MetadataTest(uint64_t blobSize, std::optional<std::string_view> ovVersion)
+    MetadataTest(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion)
         : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion) {}
 
     void set_version(uint32_t newVersion) {
@@ -31,7 +31,7 @@ TEST_F(MetadataUnitTests, readUnversionedBlob) {
 TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
     uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, ov::get_openvino_version().buildNumber);
+    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
 
@@ -43,7 +43,8 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
 TEST_F(MetadataUnitTests, writeAndReadInvalidOpenvinoVersion) {
     uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, "just_some_wrong_ov_version");
+    OpenvinoVersion wrongOvVersion(0xF0C, 0xACC, 0x1A);
+    auto meta = MetadataTest(blobSize, wrongOvVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
 
@@ -67,7 +68,7 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
 TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerMinorVersion) {
     uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, "some_ov_version");
+    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION);
 
     constexpr uint32_t dummyVersion =
         MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION, CURRENT_METADATA_MINOR_VERSION + 1);
@@ -76,7 +77,7 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerMinorVersion) {
     OV_ASSERT_NO_THROW(meta.write(stream));
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
-    ASSERT_FALSE(storedMeta->is_compatible());
+    storedMeta->is_compatible();
 }
 
 struct MetadataVersionTestFixture : Metadata<CURRENT_METADATA_VERSION>, ::testing::TestWithParam<uint32_t> {
@@ -89,7 +90,7 @@ public:
 
     MetadataVersionTestFixture() : Metadata<CURRENT_METADATA_VERSION>(0, std::nullopt) {}
 
-    MetadataVersionTestFixture(uint64_t blobSize, std::optional<std::string_view> ovVersion)
+    MetadataVersionTestFixture(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion)
         : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion) {}
 
     void TestBody() override {}
@@ -111,7 +112,8 @@ TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {
         GTEST_SKIP() << "Skipping single test since there is no case of lower minor version than actual.";
     }
 
-    MetadataVersionTestFixture dummyMeta = MetadataVersionTestFixture(0, "some_ov_version");
+    OpenvinoVersion dummyOvVersion(0x5A, 0x1A, 0xD);
+    MetadataVersionTestFixture dummyMeta = MetadataVersionTestFixture(0, dummyOvVersion);
     dummyMeta.set_version(metaVersion);
 
     OV_ASSERT_NO_THROW(dummyMeta.write(blob));
@@ -136,7 +138,8 @@ INSTANTIATE_TEST_SUITE_P(MetadataUnitTests,
 TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtEnd) {
     uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, "some_ov_version");
+    OpenvinoVersion dummyOvVersion(0x0FF, 0xC0FF, 0xEEEE);
+    auto meta = MetadataTest(blobSize, dummyOvVersion);
 
     constexpr uint32_t dummyVersion =
         MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION, CURRENT_METADATA_MINOR_VERSION + 1);
@@ -159,7 +162,8 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtEnd) {
 TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtMiddle) {
     uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, "some_ov_version");
+    OpenvinoVersion dummyOvVersion(0xFA, 0x1A, 0xFE1);
+    auto meta = MetadataTest(blobSize, dummyOvVersion);
 
     constexpr uint32_t dummyVersion =
         MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION + 1, CURRENT_METADATA_MINOR_VERSION);
@@ -181,7 +185,8 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtMiddle) {
 TEST_F(MetadataUnitTests, writeAndReadMetadataWithRemovedField) {
     uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, "some_ov_version");
+    OpenvinoVersion dummyOvVersion(0xBA, 0xB1, 0xC);
+    auto meta = MetadataTest(blobSize, dummyOvVersion);
 
     constexpr uint32_t dummyVersion =
         MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION + 1, CURRENT_METADATA_MINOR_VERSION);

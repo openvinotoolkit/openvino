@@ -632,7 +632,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
 
         // Also read weights into LazyTensors
         for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
-            if (closure_uid[cidx] != -1) {  // previously registered before serialization
+            if (closure_uid[cidx] != -1 && lazy_closure[cidx]) {  // previously registered before serialization
                 lazy_closure[cidx].read_weight(weights);
             }
         }
@@ -680,6 +680,13 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     // FIXME: utilize overload instead
     write(stream, m_non_npuw_props.size());
     for (const auto& p : m_non_npuw_props) {
+        // Skip properties which don't need to/can't be serialized
+        // FIXME: extend the logic
+        if (p.first == ov::cache_encryption_callbacks.name()) {
+            write(stream, false);
+            continue;
+        }
+        write(stream, true);
         write(stream, p.first);
         write_any(stream, p.second);
     }
@@ -760,6 +767,13 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     std::size_t props_size;
     read(stream, props_size);
     for (std::size_t i = 0; i < props_size; ++i) {
+        bool should_read = true;
+        read(stream, should_read);
+        // Skip properties which don't need to/can't be deserialized
+        // FIXME: extend the logic
+        if (!should_read) {
+            continue;
+        }
         std::string key;
         read(stream, key);
         ov::Any val;
@@ -1427,6 +1441,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
+                          BIND(npuw::partitioning::f16_interconnect, NPUW_F16IC),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),

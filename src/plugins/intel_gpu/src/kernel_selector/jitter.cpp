@@ -756,7 +756,18 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             } else if (l == WeightsLayout::os_is_yx_osv16_isv16 || l == WeightsLayout::os_is_zyx_osv32_isv16 ||
                        l == WeightsLayout::os_is_zyx_osv64_isv16) {
                 args macroNameArgs = {"prefix", "o", "i", "z", "y", "x"};
-                args funcArgs = {"o", "i", "z", "y", "x", "x_size", "y_size", "z_size", "i_size", "o_size", "osv_size", "isv_size"};
+                args funcArgs = {"int o",
+                                 "int i",
+                                 "int z",
+                                 "int y",
+                                 "int x",
+                                 "int x_size",
+                                 "int y_size",
+                                 "int z_size",
+                                 "int i_size",
+                                 "int o_size",
+                                 "int osv_size",
+                                 "int isv_size"};
                 const auto body = R"V0G0N( \
     const uint isv = i % isv_size; \
     const uint osv = o % osv_size; \
@@ -791,7 +802,20 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             } else if (l == WeightsLayout::g_os_zyx_is_osv16_isv16 || l == WeightsLayout::g_os_zyx_is_osv16_isv32 ||
                        l == WeightsLayout::g_os_zyx_is_osv32_isv16 || l == WeightsLayout::g_os_zyx_is_osv32_isv32) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x"};
-                args funcArgs = {"g", "o", "i", "z", "y", "x", "g_size", "o_size", "i_size", "z_size", "y_size", "x_size", "osv", "isv"};
+                args funcArgs = {"int g",
+                                 "int o",
+                                 "int i",
+                                 "int z",
+                                 "int y",
+                                 "int x",
+                                 "int g_size",
+                                 "int o_size",
+                                 "int i_size",
+                                 "int z_size",
+                                 "int y_size",
+                                 "int x_size",
+                                 "int osv",
+                                 "int isv"};
                 const auto body = R"V0G0N( \
     uint is_size = (i_size + isv - 1) / isv; \
     uint os_size = (o_size + osv - 1) / osv; \
@@ -834,7 +858,8 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                                                          Cat("_SIZE_Y"), Cat("_SIZE_X"), osv, isv});
             } else if (l == WeightsLayout::os_is_yx_osv16_isv4 || l == WeightsLayout::os_is_yx_osv32_isv4) {
                 args macroNameArgs = {"prefix", "o", "i", "y", "x"};
-                args funcArgs = {"o", "i", "y", "x", "i_size", "o_size", "x_size", "otd"};
+                args funcArgs =
+                    {"int o", "int i", "int y", "int x", "int i_size", "int o_size", "int x_size", "int otd"};
                 const auto body = R"V0G0N( \
     uint out_depth_tile = o / otd; \
     uint od             = o - out_depth_tile * otd; \

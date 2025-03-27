@@ -10,7 +10,7 @@
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
-#define PRINT(X)      ss << #X << " = " << X << "\n"
+#define PRINT(X)      ss << #X << " = " << (X) << "\n"
 #define EQ(X)         X == rhs.X
 #define HASH(X)       seed = hash_combine(seed, X)
 

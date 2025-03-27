@@ -22,7 +22,7 @@ function(ov_create_acl_version_file)
     string(REGEX MATCH "v([0-9]+\\.[0-9]+\\.?[0-9]*)" ACL_VERSION "${ACL_SCONSCRIPT_FILE_CONTENT}")
     set(ACL_VERSION "${CMAKE_MATCH_1}")
 
-    set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/src/core/arm_compute_version.embed")
+    set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed")
     file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
 endfunction()
 
@@ -182,6 +182,12 @@ endif()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     ov_build_kleidiai_static()
     ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
+endif()
+
+if(RISCV64)
+    set(XBYAK_RISCV_V ON)
+    add_subdirectory(xbyak_riscv)
+    ov_install_static_lib(xbyak_riscv ${OV_CPACK_COMP_CORE})
 endif()
 
 ov_add_onednn()
