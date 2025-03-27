@@ -102,8 +102,7 @@ protected:
 class SubgraphStaticBaseExecutor {
 public:
     SubgraphStaticBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config)
-        : m_external_ptrs_idces(snippet_config->brgemm_external_ptrs_idces) {
-    };
+        : m_external_ptrs_idces(snippet_config->brgemm_external_ptrs_idces) {};
     virtual ~SubgraphStaticBaseExecutor() = default;
 
 protected:
