@@ -36,9 +36,8 @@ class ModelMeta(type):
 
     def __getattr__(cls, name: str) -> Any:
         # Return the attribute defined in _pyopenvino.Model if it exists
-        if name in ModelBase.__dict__.keys():
-            return getattr(ModelBase, name)
-        return super().__getattr__(name)
+        # otherwise AttributeError will be raised
+        return getattr(ModelBase, name)
 
 
 class Model(object, metaclass=ModelMeta):
