@@ -267,7 +267,17 @@ void BrgemmBatchedKernelExecutor::execute_brgemm(const std::shared_ptr<dnnl::imp
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = bs;
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
-    fprintf(stderr, "BrgemmBatchedKernelExecutor::execute_brgemm: bs=%zu, stride_A=%zu, stride_B=%zu, pin0=%p, pin1=%p, dst=%p, scratch=%p, with_comp=%d\n", bs, stride_A, stride_B, pin0, pin1, dst, scratch, with_comp);
+    fprintf(stderr,
+            "BrgemmBatchedKernelExecutor::execute_brgemm: bs=%zu, stride_A=%zu, stride_B=%zu, pin0=%p, pin1=%p, "
+            "dst=%p, scratch=%p, with_comp=%d\n",
+            bs,
+            stride_A,
+            stride_B,
+            pin0,
+            pin1,
+            dst,
+            scratch,
+            with_comp);
     (*kernel)(&brgemm_p);
 }
 

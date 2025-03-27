@@ -145,30 +145,30 @@ std::shared_ptr<BrgemmAMXBatchedCompiledKernel> BrgemmAMXBatchedKernelExecutor::
                              ker->palette);
         cpu::x64::brgemm_desc_t desc;
         OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_init(&desc,
-                                                k.get_isa(),
-                                                cpu::x64::brgemm_addr,
-                                                k.get_dt_in0(),
-                                                k.get_dt_in1(),
-                                                false,
-                                                false,
-                                                cpu::x64::brgemm_row_major,
-                                                1.f,
-                                                k.get_beta(),
-                                                k.get_LDA(),
-                                                k.get_LDB(),
-                                                k.get_LDC(),
-                                                k.get_M(),
-                                                k.get_N(),
-                                                k.get_K(),
-                                                nullptr) == dnnl_success,
-                                "Cannot initialize brgemm descriptor due to invalid params");
+                                                   k.get_isa(),
+                                                   cpu::x64::brgemm_addr,
+                                                   k.get_dt_in0(),
+                                                   k.get_dt_in1(),
+                                                   false,
+                                                   false,
+                                                   cpu::x64::brgemm_row_major,
+                                                   1.f,
+                                                   k.get_beta(),
+                                                   k.get_LDA(),
+                                                   k.get_LDB(),
+                                                   k.get_LDC(),
+                                                   k.get_M(),
+                                                   k.get_N(),
+                                                   k.get_K(),
+                                                   nullptr) == dnnl_success,
+                                  "Cannot initialize brgemm descriptor due to invalid params");
 
         OV_CPU_JIT_EMITTER_ASSERT(brgemm_init_tiles(desc, ker->palette) == dnnl_success,
-                                "Cannot initialize brgemm tiles due to invalid params");
+                                  "Cannot initialize brgemm tiles due to invalid params");
 
         cpu::x64::brgemm_kernel_t* kernel_ = nullptr;
         OV_CPU_JIT_EMITTER_ASSERT(brgemm_kernel_create(&kernel_, desc) == dnnl_success,
-                                "Cannot create brgemm kernel due to invalid params");
+                                  "Cannot create brgemm kernel due to invalid params");
         ker->brgemm_kernel = std::unique_ptr<brgemm_kernel_t>(kernel_);
 
         return ker;
@@ -320,7 +320,15 @@ void BrgemmAMXBatchedKernelExecutor::execute(const BrgemmAMXBatchedKernelExecuto
         size_t stride_A = K_body * dnnl_data_type_size(config.get_dt_in0());
         size_t stride_B = (config.get_LDB() * K_body) * dnnl_data_type_size(config.get_dt_in1());
 
-        BrgemmAMXBatchedKernelExecutor::execute_brgemm(K_body_kernel->brgemm_kernel, config.get_iter_count(), stride_A, stride_B, src_ptr, wei_ptr, args->C, scratch, false);
+        BrgemmAMXBatchedKernelExecutor::execute_brgemm(K_body_kernel->brgemm_kernel,
+                                                       config.get_iter_count(),
+                                                       stride_A,
+                                                       stride_B,
+                                                       src_ptr,
+                                                       wei_ptr,
+                                                       args->C,
+                                                       scratch,
+                                                       false);
 
         src_ptr = src_ptr + K_body * dnnl_data_type_size(config.get_dt_in0());
         wei_ptr = wei_ptr + (K_body * config.get_LDB()) * dnnl_data_type_size(config.get_dt_in1());
@@ -340,24 +348,20 @@ void BrgemmAMXBatchedKernelExecutor::execute(const BrgemmAMXBatchedKernelExecuto
                                   config.get_M(),
                                   config.get_N(),
                                   K_tail);
-        execute_brgemm_kernel(K_tail_kernel->brgemm_kernel,
-                       src_ptr,
-                       wei_ptr,
-                       args->C,
-                       scratch,
-                       false);
+        execute_brgemm_kernel(K_tail_kernel->brgemm_kernel, src_ptr, wei_ptr, args->C, scratch, false);
     }
 }
 
-void BrgemmAMXBatchedKernelExecutor::execute_brgemm(const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
-                                                 size_t bs,
-                                                 size_t stride_A,
-                                                 size_t stride_B,
-                                                 const void* pin0,
-                                                 const void* pin1,
-                                                 void* dst,
-                                                 void* scratch,
-                                                 bool with_comp) {
+void BrgemmAMXBatchedKernelExecutor::execute_brgemm(
+    const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
+    size_t bs,
+    size_t stride_A,
+    size_t stride_B,
+    const void* pin0,
+    const void* pin1,
+    void* dst,
+    void* scratch,
+    bool with_comp) {
     cpu::x64::brgemm_kernel_params_t brgemm_p;
     std::vector<brgemm_batch_element_t> addr_batch(bs);
 

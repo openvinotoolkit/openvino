@@ -94,7 +94,8 @@ std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter) {
     if (const auto& batched = std::dynamic_pointer_cast<BrgemmBatchedKernelExecutor>(emitter->m_kernel_executor)) {
         ss << batched->to_string();
     }
-    if (const auto& amx_batched = std::dynamic_pointer_cast<BrgemmAMXBatchedKernelExecutor>(emitter->m_kernel_executor)) {
+    if (const auto& amx_batched =
+            std::dynamic_pointer_cast<BrgemmAMXBatchedKernelExecutor>(emitter->m_kernel_executor)) {
         ss << amx_batched->to_string();
     }
     ss << " m_memory_offset:" << vector_to_string(emitter->m_memory_offsets)
