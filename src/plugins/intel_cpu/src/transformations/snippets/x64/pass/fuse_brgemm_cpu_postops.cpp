@@ -146,8 +146,6 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             return false;
         }
 
-        // Form 2 types of shapes supported by postops
-        // TODO: it is not clear which OC to set in case of blocking by N
         VectorDims per_channel_shape = {1, OC};
         DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape(per_channel_shape));
 

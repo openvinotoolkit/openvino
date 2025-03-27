@@ -41,7 +41,7 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
 
 std::vector<std::vector<ov::test::InputShape>> fc_input_shapes{
     {
-        {PartialShape{}, {{2, 1, 32, 2500}}},
+        {PartialShape{-1, -1, -1, 2500}, {{2, 1, 32, 2500}, {1, 3, 80, 2500}}},
         {{}, {{2500, 256}}}
     },
 };
@@ -78,7 +78,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedEltwiseChain, MatMulEltwis
 
 std::vector<std::vector<ov::test::InputShape>> fc_cascade_shapes{
     {
-        {PartialShape{}, {{2, 1, 32, 2500}}},
+        {PartialShape{-1, -1, -1, 2500}, {{2, 1, 32, 2500}, {1, 3, 80, 2500}, {2, 1, 32, 2500}}},
         {PartialShape{}, {{2500, 128}}},
         {PartialShape{}, {{128, 64}}},
     },
