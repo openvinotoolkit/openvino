@@ -39,8 +39,7 @@ protected:
     const Config _config;
     const uint32_t _id;
 
-    zeroProfiling::ProfilingPool _profiling_pool;
-    zeroProfiling::ProfilingQuery _profiling_query;
+    std::unique_ptr<zeroProfiling::ProfilingQuery> _profiling_query;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
 
     /**

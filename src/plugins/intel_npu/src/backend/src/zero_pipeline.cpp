@@ -25,8 +25,6 @@ Pipeline::Pipeline(const Config& config,
     : _graph(graph),
       _config(config),
       _id(_graph->get_unique_id()),
-      _profiling_pool(init_structs, _graph, zeroProfiling::POOL_SIZE),
-      _profiling_query(init_structs, 0),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
@@ -35,14 +33,19 @@ Pipeline::Pipeline(const Config& config,
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>(),
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
-    auto proftype = config.get<PROFILING_TYPE>();
-    if (proftype == ov::intel_npu::ProfilingType::INFER) {
-        _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
-        _npu_profiling = std::make_shared<zeroProfiling::NpuInferProfiling>(init_structs, _config.get<LOG_LEVEL>());
-    }
+    if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
+        auto profiling_pool =
+            std::make_shared<zeroProfiling::ProfilingPool>(init_structs, _graph, zeroProfiling::POOL_SIZE);
+        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(init_structs, 0);
 
-    if (_profiling_pool.create()) {
-        _profiling_query.create(_profiling_pool._handle);
+        if (profiling_pool->create()) {
+            _profiling_query->create(profiling_pool);
+        }
+
+        if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
+            _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
+            _npu_profiling = std::make_shared<zeroProfiling::NpuInferProfiling>(init_structs, _config.get<LOG_LEVEL>());
+        }
     }
 
     if (!_sync_output_with_fences || _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
@@ -135,7 +138,7 @@ Pipeline::Pipeline(const Config& config,
         }
 
         _command_lists.at(i)->appendGraphExecute(static_cast<ze_graph_handle_t>(graph->get_handle()),
-                                                 _profiling_query.getHandle());
+                                                 _profiling_query ? _profiling_query->getHandle() : nullptr);
 
         /// append timestamp command if feature was activated
         if (_npu_profiling != nullptr) {
@@ -251,26 +254,24 @@ void Pipeline::update_graph_arguments_batching(uint32_t arg_index, const void* a
 
 std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     _logger.debug("InferRequest::get_profiling_info started");
-    if (!_config.get<PERF_COUNT>()) {
+    if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
         _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
         return {};
     }
 
-    auto compilerType = _config.get<COMPILER_TYPE>();
-    if (compilerType == ov::intel_npu::CompilerType::MLIR) {
+    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
+        _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
+        return _npu_profiling->getNpuInferStatistics();
+    }
+    /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
+    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::MLIR) {
         // For plugin compiler retreive raw profiling data from backend and delegate
         // processing to the compiler
         _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
-        return _graph->process_profiling_output(_profiling_query.getData<uint8_t>(), _config);
+        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>(), _config);
     } else {
-        auto proftype = _config.get<PROFILING_TYPE>();
-        if (proftype == ov::intel_npu::ProfilingType::INFER) {
-            _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
-            return _npu_profiling->getNpuInferStatistics();
-        } else {  /// proftype = MODEL or undefined = fallback to model profiling
-            _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
-            return _profiling_query.getLayerStatistics();
-        }
+        _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
+        return _profiling_query->getLayerStatistics();
     }
 }
 
