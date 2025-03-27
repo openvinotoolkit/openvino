@@ -586,12 +586,7 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
     std::map<std::string, uint64_t> t5;
     OV_ASSERT_NO_THROW(t5 = ie.get_property(target_device, ov::intel_gpu::memory_statistics));
 
-    ASSERT_FALSE(t5.empty());
-    for (auto&& kv : t5) {
-        if (kv.first.find("_cur") != std::string::npos) {
-            ASSERT_EQ(kv.second, 0);
-        }
-    }
+    ASSERT_TRUE(t5.empty()); //in case of zero memory it is returned empty map
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::memory_statistics);
 }
