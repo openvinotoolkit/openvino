@@ -23,6 +23,7 @@
 
 #include "cpu/x64/jit_generator.hpp"
 #include "dnnl_types.h"
+#include "emitters/plugin/x64/jit_conversion_emitters.hpp"
 #include "jit_kernel_base.hpp"
 
 namespace ov::intel_cpu {
@@ -112,7 +113,7 @@ protected:
 
     int shortPermIdx[16];
     int shortBeforeAxisDiff[16];
-    bool is_real16_to_f32 = false;
+    const bool is_real16_to_f32 = false;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -222,6 +223,7 @@ protected:
     const unsigned* permMask8bitUni;
     const unsigned* permMask16bitUni;
     size_t dstStep = 0;
+    std::unique_ptr<jit_convert_saturation_emitter> convert_emitter = nullptr;
 };
 
 }  // namespace ov::intel_cpu
