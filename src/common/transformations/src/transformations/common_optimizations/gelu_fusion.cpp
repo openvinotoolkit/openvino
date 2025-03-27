@@ -32,7 +32,7 @@ using namespace ov::pass::pattern::op;
 
 constexpr auto SQRT2 = static_cast<float>(M_SQRT2);
 constexpr auto SQRT1_2 = static_cast<float>(M_SQRT1_2);
-constexpr auto SQRT_2_PI = 0.79788456080286535588f;     // std::sqrt(M_2_PI)
+constexpr auto SQRT_2_PI = 0.79788456080286535588f; // std::sqrt(M_2_PI)
 
 namespace {
 
