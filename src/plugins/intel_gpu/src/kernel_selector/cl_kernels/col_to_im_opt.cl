@@ -11,32 +11,26 @@ KERNEL(col_to_im_opt)(const __global INPUT0_TYPE* input,
 #endif
 )
 {
-    const uint output_size[2] = {OUT_SIZE_X, OUT_SIZE_Y};
-    const uint kernel_size[2] = {KERNEL_SIZE_X, KERNEL_SIZE_Y};
-    const uint strides[2] = {STRIDE_SIZE_X, STRIDE_SIZE_Y};
-    const uint dilations[2] = {DILATION_SIZE_X, DILATION_SIZE_Y};
-    const uint pads_begin[2] = {PAD_BEGIN_SIZE_X, PAD_BEGIN_SIZE_Y};
-
     const uint batch = get_global_id(2);
     const uint channel_idx = get_global_id(0);
 
     const int channel_offset = batch * NUM_CHANNELS + channel_idx;
 
     for (int idx = 0; idx < KERNEL_PRODUCT; ++idx) {
-        const int width_offset = idx % kernel_size[1];
-        const int height_offset = (idx / kernel_size[1]) % kernel_size[0];
+        const int width_offset = idx % KERNEL_SIZE_Y;
+        const int height_offset = (idx / KERNEL_SIZE_Y) % KERNEL_SIZE_X;
         const int column = channel_idx * KERNEL_PRODUCT + idx;
         const int column_offset = batch * NUM_ELEMENTS_FOR_BLOCK + column;
 
         for (int column_height_idx = 0; column_height_idx < ORIG_HEIGHT; ++column_height_idx) {
-            const int image_height_idx = column_height_idx * strides[0] - pads_begin[0] + height_offset * dilations[0];
+            const int image_height_idx = column_height_idx * STRIDE_SIZE_X - PAD_BEGIN_SIZE_X + height_offset * DILATION_SIZE_X;
 
-            if (image_height_idx >= 0 && image_height_idx < output_size[0]) {
+            if (image_height_idx >= 0 && image_height_idx < OUT_SIZE_X) {
                 for (int column_width_idx = 0; column_width_idx < ORIG_WIDTH; ++column_width_idx) {
-                    const int image_width_idx = column_width_idx * strides[1] - pads_begin[1] + width_offset * dilations[1];
+                    const int image_width_idx = column_width_idx * STRIDE_SIZE_Y - PAD_BEGIN_SIZE_Y + width_offset * DILATION_SIZE_Y;
 
-                    if (image_width_idx >= 0 && image_width_idx < output_size[1]) {
-                        const int img_idx = (channel_offset * output_size[0] + image_height_idx) * output_size[1] + image_width_idx;
+                    if (image_width_idx >= 0 && image_width_idx < OUT_SIZE_Y) {
+                        const int img_idx = (channel_offset * OUT_SIZE_X + image_height_idx) * OUT_SIZE_Y + image_width_idx;
                         const int data_idx = (column_offset * ORIG_HEIGHT + column_height_idx) * ORIG_WIDTH + column_width_idx;
 
                         // sum the overlapping values

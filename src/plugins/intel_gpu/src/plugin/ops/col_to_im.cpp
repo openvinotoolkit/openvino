@@ -33,8 +33,6 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
     for (auto p : op->get_pads_end())
         padding_end.push_back(p);
 
-    // std::cout << ">> col2im : " << op->get_friendly_name() << std::endl;
-
     auto output_shape_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto vec_output_shape = output_shape_const->cast_vector<size_t>();
     ov::Shape output_shape(vec_output_shape);
@@ -42,9 +40,6 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
     auto kernel_size_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
     auto kernel_size = kernel_size_const->cast_vector<size_t>();
     ov::Shape kernel_shape(kernel_size);
-
-    // std::cout << "  -- output shape : " << vec_output_shape[0] << ", " << vec_output_shape[1] << std::endl;
-    // std::cout << "  -- kernel size : " << kernel_shape.to_string() << std::endl;
 
     // Create col2im prim
     // iputs : data, output size,  kernel_size(required)
