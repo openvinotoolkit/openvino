@@ -1885,25 +1885,13 @@ void GraphOptimizer::FuseGatherAndConvert(Graph& graph) {
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseGatherAndConvert);
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        if (!parentNode->canFuse(childNode)) {
+        // currently Gather could only fuse Convert. If extend to fuse other nodes, this pass should be updated.
+        if (childNode->getType() != Type::Convert || !parentNode->canFuse(childNode)) {
             parent++;
             continue;
         }
 
         childNode->fuseInto(parentNode);
-
-        if (childNode->getType() == Type::Convert) {
-            auto parentEdges = childNode->parentEdges;
-            for (auto& parentEdge : parentEdges) {
-                auto p_edge = parentEdge.lock();
-                if (p_edge->getParent()->getType() == Type::Gather) {
-                    continue;
-                }
-
-                graph.RemoveEdge(p_edge);
-            }
-        }
-
         graph.DropNode(childNode);
     }
 }

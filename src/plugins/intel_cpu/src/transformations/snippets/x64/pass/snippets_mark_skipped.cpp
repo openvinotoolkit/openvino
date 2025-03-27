@@ -176,8 +176,7 @@ int getChannelAxis(const ov::AxisSet& axes, bool keep_dims) {
     return channelAxis;
 }
 bool isSuitableGatherParent(const std::shared_ptr<const Node>& node) {
-    const bool is_suitable_node =
-        ov::is_type_any_of<ov::op::v8::Gather>(node) || ov::is_type_any_of<ov::op::v7::Gather>(node);
+    const bool is_suitable_node = ov::is_type_any_of<ov::op::v7::Gather, ov::op::v8::Gather>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
