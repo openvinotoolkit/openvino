@@ -38,9 +38,7 @@ typedef float2 cfloat;
 #define czero()      ((cfloat)(0))
 #define conj(x)      ((cfloat)(real(x), -imag(x)))
 
-// Unoptimized, the most obvious istft impl from the definition.
-// __attribute__((reqd_work_group_size(1, 1, 128)))
-// __attribute__((intel_reqd_sub_group_size(16)))
+// Unoptimized, the istft impl.
 KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict signal,
                   const __global INPUT1_TYPE* restrict window,
                   const __global INPUT2_TYPE* restrict frame_size_buff,

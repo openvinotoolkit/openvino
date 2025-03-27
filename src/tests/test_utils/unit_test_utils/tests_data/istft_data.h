@@ -15,7 +15,7 @@
 //           expectedOutput,
 //           testcaseName)
 
-// NOTE: expected output were generated using pyTorch.searchsorted implementation.
+// NOTE: expected output were generated using pyTorch.
 
 TEST_DATA(LIST(9, 1, 2),
           LIST(16),
