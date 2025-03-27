@@ -61,8 +61,8 @@ jobs:
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       build-additional-python-wheels: true
-      cmake-generator: 'Ninja Multi-Config'
       cmake-options: >-
+            -G 'Ninja Multi-Config'
             -DENABLE_PYTHON=ON
             -DENABLE_WHEEL=ON
             -DENABLE_CPPLINT=OFF
