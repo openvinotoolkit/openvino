@@ -10,9 +10,6 @@
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/loop.hpp"
-#include "openvino/op/search_sorted.hpp"
-#include "openvino/op/stft.hpp"
-#include "openvino/op/istft.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "openvino/runtime/properties.hpp"
 
