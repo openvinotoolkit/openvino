@@ -167,7 +167,8 @@ jobs:
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}
         run: |
-          cmake $CMAKE_OPTIONS -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} | Invoke-Expression
+          $cmakeCommand = "cmake $CMAKE_OPTIONS -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}"
+          Invoke-Expression $cmakeCommand
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
