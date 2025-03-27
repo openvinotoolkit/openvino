@@ -12,6 +12,8 @@
 #include "to_string_utils.h"
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
+#include "gather_inst.h"
+#include "gather_nd_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -411,12 +413,26 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
     return is_weights_dep;
 }
 
+static bool should_type_skip_reorder(program_node* node) {
+    if (node->is_type<gather>() ||
+        node->is_type<gather_nd>()) {
+        // In case of Gather, GatherND, the dimension of input and output can be different.
+        // So adding Reorder may have unintended consequences.
+        return true;
+    } else {
+        return false;
+    }
+}
+
 // If there is layout mismatch between two layers, add reorder
 template <direction_e dir>
 void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
     auto next_cpy = travel_direction_wrapper<dir>::next_nodes(node);
     for (auto next : next_cpy) {
         if (!get_node(next)->is_in_data_flow())
+            continue;
+
+        if (should_type_skip_reorder(next))
             continue;
 
         // We have three (potentially) conflicting information here for format
