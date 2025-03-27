@@ -1256,7 +1256,11 @@ void Transformations::MainSnippets() {
                                    ov::op::v0::Sqrt,
                                    ov::op::v1::Subtract,
                                    ov::op::v4::Swish,
-                                   ov::op::v0::Tanh>(n));
+                                   ov::op::v0::Tanh,
+                                   ov::op::v1::LogicalAnd,
+                                   ov::op::v1::LogicalOr,
+                                   ov::op::v1::LogicalXor,
+                                   ov::op::v1::LogicalNot>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
