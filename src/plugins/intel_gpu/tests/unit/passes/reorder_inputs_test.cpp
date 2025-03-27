@@ -21,6 +21,8 @@
 #include "permute_inst.h"
 #include "concatenation_inst.h"
 #include "fully_connected_inst.h"
+#include "gather_inst.h"
+#include "gather_nd_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -450,6 +452,77 @@ TEST(reorder_inputs, add_reorder_between_single_output_type_node_and_multiple_us
 
     ASSERT_TRUE(fc1.get_dependency(0).is_type<reorder>());
     ASSERT_TRUE(fc2.get_dependency(0).is_type<reorder>());
+}
+
+TEST(reorder_inputs, prevent_reorder_from_being_added_to_gather) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto data_layout = layout{ ov::PartialShape{ 4, 1, 6, 2500, 2 }, data_types::f16, format::bfzyx };
+    auto output_layout = layout{ ov::PartialShape{ 4, 1, 6, 2500}, data_types::f16, format::bfyx };
+    auto indices_layout = layout{ ov::PartialShape{ 4, 1 }, data_types::i32, format::bfyx };
+
+    int64_t input_rank = static_cast<int64_t>(data_layout.get_rank());
+    int64_t batch_dims = static_cast<int64_t>(2);
+    int64_t axis = static_cast<int64_t>(4);
+
+    topology topology(
+        input_layout("data", data_layout),
+        input_layout("indices", indices_layout),
+        gather("gather", input_info("data"), input_info("indices"), axis, input_rank, output_layout.get_shape(), batch_dims),
+        reorder("result", input_info("gather"), output_layout)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config);
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, rf);
+
+    ASSERT_NE(program, nullptr);
+
+    for (auto dep : program->get_node("gather").get_dependencies()) {
+        ASSERT_NE(dep.first->is_type<reorder>(), true);
+    }
+
+    auto actual_shape = program->get_node("result").get_output_layout().get_partial_shape();
+    ASSERT_EQ(output_layout.get_partial_shape(), actual_shape);
+}
+
+TEST(reorder_inputs, prevent_reorder_from_being_added_to_gather_nd) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto data_layout = layout{ ov::PartialShape{ 1, 1, 262, 262, 64 }, data_types::f16, format::bfzyx };
+    auto indices_layout = layout{ ov::PartialShape{ 1, 1, 3211264, 2 }, data_types::i32, format::bfyx };
+
+    uint8_t indices_rank = static_cast<uint8_t>(indices_layout.get_rank());
+    uint8_t input_rank = static_cast<uint8_t>(data_layout.get_rank());
+    uint8_t batch_dims = static_cast<uint8_t>(2);
+
+    topology topology(
+        input_layout("data", data_layout),
+        input_layout("indices", indices_layout),
+        gather_nd("gather_nd", input_info("data"), input_info("indices"), input_rank, indices_rank, batch_dims, false)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config);
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, rf);
+
+    ASSERT_NE(program, nullptr);
+
+    for (auto dep : program->get_node("gather_nd").get_dependencies()) {
+        ASSERT_NE(dep.first->is_type<reorder>(), true);
+    }
+
+    auto actual_shape = program->get_node("gather_nd").get_output_layout().get_partial_shape();
+    ov::PartialShape expected_shape { 1, 1, 3211264, 64 };
+    ASSERT_EQ(expected_shape, actual_shape);
 }
 
 // TODO Not yet implemented

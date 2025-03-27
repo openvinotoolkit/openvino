@@ -12,6 +12,8 @@
 #include "to_string_utils.h"
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
+#include "gather_inst.h"
+#include "gather_nd_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -538,6 +540,17 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
     return is_weights_dep;
 }
 
+static bool should_type_skip_reorder(program_node* node) {
+    if (node->is_type<gather>() ||
+        node->is_type<gather_nd>()) {
+        // In case of Gather, GatherND, the dimension of input and output can be different.
+        // So adding Reorder may have unintended consequences.
+        return true;
+    } else {
+        return false;
+    }
+}
+
 // If there is layout mismatch between two layers, add reorder
 template <direction_e dir>
 void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
@@ -547,6 +560,9 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
             continue;
 
         if (is_weights_dependency(node, next))
+            continue;
+
+        if (should_type_skip_reorder(next))
             continue;
 
         // We have three (potentially) conflicting information here for format
@@ -592,17 +608,15 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
 template <>
 void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<program_node*, format::type>& fmt_map,
                                                     reorder_factory& rf, layout_optimizer& lo, program_node* node) {
-    auto fmt = fmt_map.at(node);
-
     auto next_cpy = travel_direction_wrapper<direction_e::backwards>::next_nodes(node);
     for (const auto& next : next_cpy) {
         if (!next.first->is_in_data_flow())
             continue;
 
-        if (fmt_map.count(next.first) > 0 && fmt_map.at(next.first) == fmt)
+        if (is_weights_dependency(next.first, node))
             continue;
 
-        if (is_weights_dependency(next.first, node))
+        if (should_type_skip_reorder(node))
             continue;
 
         // We have three (potentially) conflicting information here for format
@@ -618,6 +632,8 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
 
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
+        if (in_layout.format == out_layout.format)
+            continue;
 
         GPU_DEBUG_LOG << dir_msg(direction_e::backwards) << "  " << node->id() << " --> " << next.first->id() << " ## "
                       << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
