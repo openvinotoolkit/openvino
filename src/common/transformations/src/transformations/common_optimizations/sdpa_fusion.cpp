@@ -17,6 +17,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/gen_pattern.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace pass {
@@ -103,6 +104,16 @@ SDPAFusion::SDPAFusion() {
             return false;
         }
 
+        // make sure there is only one scaling
+        if (pattern_map.count(k_opt_transposed_scaled) > 0 && pattern_map.count(qk_scaled) > 0)
+            return false;
+        // make sure that if inputs are reshaped the output is reshaped back
+        bool inputs_reshaped =
+            pattern_map.count(q_reshaped) > 0 && pattern_map.count(k_reshaped) > 0 && pattern_map.count(v_reshaped) > 0;
+        bool output_reshaped = pattern_map.count(qkv_reshaped) > 0;
+        if ((inputs_reshaped && !output_reshaped) || (!inputs_reshaped && output_reshaped))
+            return false;
+
         auto q_node = pattern_map.at(q_base);
         auto q_node_ps = q_node.get_partial_shape();
         if (q_node_ps[-1].is_dynamic() || q_node_ps[-3].is_dynamic())
@@ -116,9 +127,8 @@ SDPAFusion::SDPAFusion() {
         if (v_node_ps[-1].is_dynamic() || v_node_ps[-3].is_dynamic())
             return false;
 
-        std::shared_ptr<ov::op::v1::Transpose> k_transpose;
-
         if (q_node_ps[-1] != k_node_ps[-1]) {
+            std::shared_ptr<ov::op::v1::Transpose> k_transpose;
             k_transpose = std::make_shared<ov::op::v1::Transpose>(
                 k_node,
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1}));
@@ -156,16 +166,6 @@ SDPAFusion::SDPAFusion() {
         if (k_node_ps[-1] != E)
             return false;
 
-        // make sure there is only one scaling
-        if (pattern_map.count(k_opt_transposed_scaled) > 0 && pattern_map.count(qk_scaled) > 0)
-            return false;
-        // make sure that if inputs are reshaped the output is reshaped back
-        bool inputs_reshaped =
-            pattern_map.count(q_reshaped) > 0 && pattern_map.count(k_reshaped) > 0 && pattern_map.count(v_reshaped) > 0;
-        bool output_reshaped = pattern_map.count(qkv_reshaped) > 0;
-        if ((inputs_reshaped && !output_reshaped) || (!inputs_reshaped && output_reshaped))
-            return false;
-
         if (!valid_qk_shapes(ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(qk).get_node_shared_ptr()))) {
             return false;
         }
@@ -184,18 +184,13 @@ SDPAFusion::SDPAFusion() {
         if (pattern_map.count(attn_scale) > 0) {
             scale_node = pattern_map.at(attn_scale);
             auto attn_scale_out_ps = scale_node.get_partial_shape();
-            if (attn_scale_out_ps.is_dynamic())
-                return false;
-            // attn_scale layer should have only single output scalar value
-            if (ov::shape_size(attn_scale_out_ps.get_shape()) != 1)
-                return false;
             // we need to be able to cast attn_scale layer to Constant layer
             // in order to read actual scale value
-            auto attn_scale_const_m = ov::as_type_ptr<ov::op::v0::Constant>(scale_node.get_node_shared_ptr());
-            if (!attn_scale_const_m)
+            float attn_scale_val = 0;
+            if (!ov::op::util::get_constant_value<float>(scale_node.get_node_shared_ptr(), attn_scale_val))
                 return false;
-            auto attn_scale_val = attn_scale_const_m->cast_vector<float>();
-            scale_node = ov::op::v0::Constant::create(T, ov::Shape{}, attn_scale_val);
+
+            scale_node = ov::op::v0::Constant::create(T, ov::Shape{}, {attn_scale_val});
         } else {
             scale_node = ov::op::v0::Constant::create(T, ov::Shape{}, {1.0});
         }
@@ -209,16 +204,17 @@ SDPAFusion::SDPAFusion() {
             mask_input = pattern_map.at(mask);
             auto mask_input_ps = mask_input.get_partial_shape();
 
-            if (qk_out_ps.size() > 4) {
+            if (!qk_out_ps.rank().is_static() || !mask_input_ps.rank().is_static())
                 return false;
-            }
+            if (qk_out_ps.size() > 4)
+                return false;
 
             std::shared_ptr<ov::op::v0::Unsqueeze> mask_unsqueeze;
             // mask should be broadcastable to qk shape
             if (!ov::PartialShape::broadcast_merge_into(qk_out_ps, mask_input_ps, ov::op::AutoBroadcastType::NUMPY))
                 return false;
 
-            if (mask_input_ps.rank() != qk_out_ps.rank()) {
+            if (mask_input_ps.size() < qk_out_ps.size()) {
                 size_t rank_diff = qk_out_ps.size() - mask_input_ps.size();
                 std::vector<int64_t> axes(rank_diff);
                 std::iota(axes.begin(), axes.end(), 0);
