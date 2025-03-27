@@ -27,7 +27,7 @@ static Dim batchDim(const VectorDims& dims) {
 }
 
 static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
-                                     const ExecutorContext::CPtr context,
+                                     const ExecutorContext::CPtr& context,
                                      const bool weightsTransposed) {
     DEBUG_LOG("MlasGemmExecutor: prepack weights");
     const auto& wgtDims = weightsMemory->getStaticDims();

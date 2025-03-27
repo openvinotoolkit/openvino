@@ -728,7 +728,7 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaini
         }
     };
 
-    auto allocateStringMemory = [&context](const EdgePtr& edge) {
+    auto allocateStringMemory = [](const EdgePtr& edge) {
         auto memory = std::make_shared<StringMemory>(edge->getOriginalDesc());
         edge->reuse(memory);
         return memory->getStringMemoryBlockPtr();
@@ -737,7 +737,7 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaini
     auto notAllocatedPartitionEnd = std::partition(
         clusters.begin(),
         clusters.begin() + remaining,
-        [&allocateStringMemory, &allocateConstantEdge, &context](const EdgeCluster& cluster) {
+        [&allocateStringMemory, &allocateConstantEdge](const EdgeCluster& cluster) {
             const auto& baseEdge = cluster.at(0);
 
             // Allocate a cluster of the constants
