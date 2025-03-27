@@ -70,7 +70,7 @@ inline size_t hash_combine(const std::vector<size_t>& list) {
     return seed;
 }
 
-inline size_t hash_combine(const std::initializer_list<size_t>& list) {
+inline size_t hash_combine(std::initializer_list<size_t>&& list) {
     size_t seed = 0;
     for (size_t v : list) {
         seed ^= hash_combine(v, seed);
