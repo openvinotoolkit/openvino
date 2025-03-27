@@ -17,8 +17,6 @@ struct col_to_im : public primitive_base<col_to_im> {
     /// @brief Constructs col_to_im primitive.
     /// @param id This primitive id.
     /// @param input Input dictionary primitive id.
-    /// @param output_size Input
-    /// @param kernel_size Input
     /// @param stride Defines shift in input buffer
     /// @param dilation Defines gaps in the input
     /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
@@ -27,15 +25,13 @@ struct col_to_im : public primitive_base<col_to_im> {
     /// @param kernel_shape Defines size of the sliding blocks
     col_to_im(const primitive_id& id,
                    const input_info& input,
-                   const input_info& output_size,
-                   const input_info& kernel_size,
                    ov::Strides stride,
                    ov::Strides dilation,
                    ov::CoordinateDiff padding_begin,
                    ov::CoordinateDiff padding_end,
                    ov::Shape output_shape,
                    ov::Shape kernel_shape)
-        : primitive_base(id, {input, output_size, kernel_size})
+        : primitive_base(id, {input})
         , stride(stride)
         , dilation(dilation)
         , padding_begin(padding_begin)

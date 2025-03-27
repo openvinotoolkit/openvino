@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::Col2Im>& op) {
-    validate_inputs_count(op, {3}); // XXX Please check whether 3 is correct number
+    validate_inputs_count(op, {3});
     auto inputPrimitives = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -45,8 +45,6 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
     // iputs : data, output size,  kernel_size(required)
     auto CallToImPrim = cldnn::col_to_im(layerName,
                                             inputPrimitives[0],
-                                            inputPrimitives[1],
-                                            inputPrimitives[2],
                                             strides,
                                             dilations,
                                             padding_begin,

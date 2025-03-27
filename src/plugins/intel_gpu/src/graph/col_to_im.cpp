@@ -19,18 +19,15 @@ layout col_to_im_inst::calc_output_layout(col_to_im_node const& node, kernel_imp
     auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 
-    // TODO : do sth here for col2im.(Copied dummy from depth_to_space)
     auto out_size = input_layout.get_tensor();
+    const size_t feature = input_layout.feature() / (desc->kernel_shape[0] * desc->kernel_shape[1]);
+    const size_t y = desc->output_shape[1];
+    const size_t x = desc->output_shape[0];
+
     if (format::spatial_num(input_layout.format) == 3) {
-        const size_t feature = input_layout.feature() / (desc->kernel_shape[0] * desc->kernel_shape[1]);
         const size_t z = 1;
-        const size_t y = desc->output_shape[1];
-        const size_t x = desc->output_shape[0];
         out_size = tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z));
     } else {
-        const size_t feature = input_layout.feature() / (desc->kernel_shape[0] * desc->kernel_shape[1]);
-        const size_t y = desc->output_shape[1];
-        const size_t x = desc->output_shape[0];
         out_size = tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y));
     }
 
@@ -50,22 +47,26 @@ std::vector<layout> col_to_im_inst::calc_output_layouts(col_to_im_node const& no
 
     ov::op::v15::Col2Im op;
 
+    // output_size is 1D tensor of two positive integer numbers (height and width).
+    std::vector<size_t> output_size = {desc->output_shape[0], desc->output_shape[1]};
+    // kernel_size is 1D tensor of non-negative integer numbers
+    std::vector<size_t> kernel_size = {desc->kernel_shape[0], desc->kernel_shape[1]};
+
+    auto output_tensor = ov::Tensor(ov::element::Type_t::u64, ov::Shape{ output_size.size() }, output_size.data());
+    auto kernel_tensor = ov::Tensor(ov::element::Type_t::u64, ov::Shape{ kernel_size.size() }, kernel_size.data());
+
+    std::unordered_map<size_t, ov::Tensor> const_data;
+    const_data.emplace(1, output_tensor);
+    const_data.emplace(2, kernel_tensor);
+
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
-        impl_param.get_input_layout(1).get<ShapeType>(),
-        impl_param.get_input_layout(2).get<ShapeType>(),
+        output_tensor.get_shape(),
+        kernel_tensor.get_shape(),
     };
-    std::vector<ShapeType> output_shapes = ov::op::v15::shape_infer(&op, input_shapes);
 
-    // XXX: quick and dirty implementation of output shape inference. It should have been fed into shape_infer function
-    output_shapes[0][-1] = node.get_primitive()->output_shape[1];
-    output_shapes[0][-2] = node.get_primitive()->output_shape[0];
-    size_t prod = 1;
-    for (auto t : node.get_primitive()->kernel_shape) {
-        prod *= t;
-    }
-    auto C = input_shapes[0][-2] / prod;
-    output_shapes[0][-3] = C;
+    std::vector<ShapeType> output_shapes;
+    output_shapes = ov::op::v15::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data), false);
 
     return { layout{output_shapes[0], output_type, output_format} };
 }

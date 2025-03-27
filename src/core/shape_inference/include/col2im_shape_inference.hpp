@@ -15,7 +15,8 @@ namespace v15 {
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const Col2Im* op,
                                  const std::vector<TShape>& input_shapes,
-                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor(),
+                                 bool needs_calculate_L = true) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
     const auto& data_shape = input_shapes[0];
     const auto& output_size_shape = input_shapes[1];
@@ -94,7 +95,7 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
                 const auto& strides = op->get_strides();
                 const auto& dilations = op->get_dilations();
 
-                if (kernel_val) {
+                if (kernel_val && needs_calculate_L) {
                     using TVal = typename TShape::value_type::value_type;
                     TVal L_calculated = 1;
                     for (size_t d = 0; d < spatial_dims; ++d) {
