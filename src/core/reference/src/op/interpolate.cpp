@@ -31,14 +31,14 @@ std::function<int64_t(float, bool)> get_func(Nearest_mode mode) {
                 return static_cast<int64_t>(x_original);
             }
         };
-    default:;
+    default:
+        return [](float x_original, bool) {
+            if (x_original == static_cast<int64_t>(x_original) + 0.5f) {
+                return static_cast<int64_t>(std::floor(x_original));
+            }
+            return static_cast<int64_t>(std::round(x_original));
+        };
     }
-    return [](float x_original, bool) {
-        if (x_original == static_cast<int64_t>(x_original) + 0.5f) {
-            return static_cast<int64_t>(std::floor(x_original));
-        }
-        return static_cast<int64_t>(std::round(x_original));
-    };
 }
 
 std::function<float(float, float, float, float)> get_func(Transform_mode mode) {
@@ -63,11 +63,11 @@ std::function<float(float, float, float, float)> get_func(Transform_mode mode) {
             return length_resized == 1 ? 0 : x_resized * (length_original - 1) / (length_resized - 1);
         };
         break;
-    default:;
+    default:
+        return [](float x_resized, float x_scale, float, float) {
+            return ((x_resized + 0.5f) / x_scale) - 0.5f;
+        };
     }
-    return [](float x_resized, float x_scale, float, float) {
-        return ((x_resized + 0.5f) / x_scale) - 0.5f;
-    };
 }
 
 float InterpolateEvalHelper::triangle_coeff(float dz) {
