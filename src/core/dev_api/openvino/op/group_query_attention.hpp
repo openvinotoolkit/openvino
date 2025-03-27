@@ -38,6 +38,9 @@ public:
     bool get_rotary_interleaved() const {
         return m_rotary_interleaved;
     }
+    bool get_is_static_input() const {
+        return m_is_static_input;
+    }
 
 private:
     int64_t m_num_heads = 0;
@@ -45,6 +48,7 @@ private:
     float m_scale = 0;
     bool m_do_rotary = false;
     bool m_rotary_interleaved = false;
+    bool m_is_static_input = false;
 };
 
 }  // namespace ov::op::internal
