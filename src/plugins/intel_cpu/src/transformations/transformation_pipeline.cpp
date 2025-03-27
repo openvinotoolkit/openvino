@@ -359,7 +359,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
     const bool useLpt = !defaultPrecisions.empty();
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::CompressedGatherTransformation);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
@@ -1256,7 +1256,11 @@ void Transformations::MainSnippets() {
                                    ov::op::v0::Sqrt,
                                    ov::op::v1::Subtract,
                                    ov::op::v4::Swish,
-                                   ov::op::v0::Tanh>(n));
+                                   ov::op::v0::Tanh,
+                                   ov::op::v1::LogicalAnd,
+                                   ov::op::v1::LogicalOr,
+                                   ov::op::v1::LogicalXor,
+                                   ov::op::v1::LogicalNot>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64

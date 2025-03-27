@@ -18,7 +18,7 @@ Deploy Locally
 
 .. note::
 
-   Note that :doc:`running inference in OpenVINO Runtime <running-inference>` is the most basic form of deployment. Before moving forward, make sure you know how to create a proper Inference configuration and :doc:`develop your application properly <running-inference/integrate-openvino-with-your-application>`.
+   Note that :doc:`running inference in OpenVINO Runtime <running-inference>` is the most basic form of deployment. Before moving forward, make sure you know how to create a proper Inference configuration and :doc:`develop your application properly <running-inference>`.
 
 Local Deployment Options
 ########################

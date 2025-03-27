@@ -187,6 +187,12 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[op::v1::GreaterEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_greater_equal_emitter);
     jitters[op::v1::LessEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_less_equal_emitter);
 
+    // Logical ops
+    jitters[op::v1::LogicalAnd::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_and_emitter);
+    jitters[op::v1::LogicalOr::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_or_emitter);
+    jitters[op::v1::LogicalNot::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_not_emitter);
+    jitters[op::v1::LogicalXor::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_xor_emitter);
+
     // unary
     jitters[ov::op::v0::Abs::get_type_info_static()] = CREATE_CPU_EMITTER(jit_abs_emitter);
     jitters[ov::op::v0::Ceiling::get_type_info_static()] = CREATE_CPU_EMITTER(jit_ceiling_emitter);
