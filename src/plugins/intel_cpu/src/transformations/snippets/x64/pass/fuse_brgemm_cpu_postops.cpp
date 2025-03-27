@@ -113,7 +113,8 @@ pass::FuseScaleShift::FuseScaleShift() {
     register_matcher(m, callback);
 }
 
-pass::FuseBinaryEltwise::FuseBinaryEltwise() {
+pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::Parameter>>& external_params)
+    : m_external_params(external_params) {
     MATCHER_SCOPE(FuseBinaryEltwise);
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
@@ -138,6 +139,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise() {
         const size_t OC = OC_dim.get_length();
 
         const auto& postop_input = pattern_map.at(m_postop_input);
+        auto postop_input_node = ov::as_type_ptr<ov::op::v0::Parameter>(postop_input.get_node_shared_ptr());
         const auto& postop_shape = postop_input.get_shape();
         if (ov::shape_size(postop_shape) != OC || postop_shape.back() != OC) {
             return false;
@@ -170,7 +172,8 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise() {
         brgemm_inputs.push_back(postop_input);
         input_descs.push_back(ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0});
         // TODO: change naming at least
-        postop_input.get_node_shared_ptr()->get_rt_info()["POSTOP_INPUT"] = true;
+        postop_input_node->get_rt_info()["POSTOP_INPUT"] = true;
+        m_external_params.insert(postop_input_node);
 
         auto new_brgemm = clone_with_new_params(brgemm, postops_config, brgemm_inputs, input_descs);
         ov::copy_runtime_info({brgemm, post_op}, new_brgemm);
@@ -181,6 +184,18 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise() {
 
     auto m = std::make_shared<Matcher>(m_postop, matcher_name);
     register_matcher(m, callback);
+}
+
+bool pass::FuseBrgemmCPUPostops::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    RUN_ON_MODEL_SCOPE(FuseBrgemmCPUPostops);
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseBrgemmCPUPostops")
+    const auto res = GraphRewrite::run_on_model(m);
+    for (const auto& param : m_external_params) {
+        std::cout << " [ INFO ] FuseBrgemmCPUPostops::run_on_model: adding param with index "
+                  << m->get_parameter_index(param) << std::endl;
+        m_brgemm_external_params_idces.insert(m->get_parameter_index(param));
+    }
+    return res;
 }
 
 }  // namespace ov::intel_cpu
