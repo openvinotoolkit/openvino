@@ -35,7 +35,17 @@ void GroupQueryAttention::validate_and_infer_types() {
     const auto& sequence_len = q_shape[2];
     const auto& head_size = q_shape[3];
     const auto& past_sequence_len = get_input_partial_shape(3)[2];
-    const auto& output_kv_len = past_sequence_len + sequence_len;
+
+    ov::Dimension output_kv_len;
+    if (past_sequence_len.is_static() && sequence_len.is_static()) {
+        // NPU case. Assume past_k.shape[2] + k.shape[2] = max_seqlen, there is padding in the front of past_k.
+        // We throw away the first row of present_k, so that there is still one slot available for the next inference.
+        output_kv_len = past_sequence_len + sequence_len - 1;
+        m_is_static_input = true;
+    } else {
+        // CPU and GPU case. Assume past KV and input QKV contain valid data, no padding.
+        output_kv_len = past_sequence_len + sequence_len;   
+    }
 
     const auto& element_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
