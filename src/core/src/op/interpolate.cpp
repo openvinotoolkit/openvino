@@ -209,7 +209,7 @@ bool evaluate_interpolate(const ov::op::util::InterpolateBase* node,
     const auto& m_attrs = node->get_attrs();
     const auto scales = get_scales_vector(node, inputs, padded_input_shape, m_attrs, *axes);
 
-    const auto input_et = inputs[0].get_element_type();
+    const auto& input_et = inputs[0].get_element_type();
     const auto type_size = input_et.size();
     const auto bytes_in_padded_input = ov::shape_size(padded_input_shape) * type_size;
     auto padded_input_data = std::vector<uint8_t>(bytes_in_padded_input, 0);
