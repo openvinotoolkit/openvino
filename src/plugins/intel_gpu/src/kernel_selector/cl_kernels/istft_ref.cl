@@ -48,37 +48,37 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
                   volatile __global OUTPUT_TYPE* restrict output) {
     const int batch = get_global_id(0);
     const int frame_id = get_global_id(1);
-    const int window_id = get_global_id(2);
+    const int windowIdx = get_global_id(2);
     const int frame_size = (int)frame_size_buff[0];
     const int frame_step = (int)frame_step_buff[0];
     const int window_size = INPUT1_SIZE_X;
     const int freqs = INPUT0_FEATURE_NUM;
+    const int DEFAULT_OUTPUT_SIZE = (INPUT0_SIZE_Y - 1) * frame_step + frame_size;
 
-    const float windowVal = (float)window[window_id];
+    const float windowVal = (float)window[windowIdx];
     const float windowValPow2 = windowVal * windowVal;
 
     const int frameIdxStart = frame_id * frame_step;
 
-    const int outputIdxWithinBatch = window_id + frameIdxStart;
-    const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, window_id + frameIdxStart);
-
+    // Gather normalization sum for current windowIdx.
+    const int outputIdxWithinBatch = windowIdx + frameIdxStart;
     float normalizationSum = 0.0f;
-    const int binSize = calcDivisor(window_id + frameIdxStart, frame_size, frame_step, OUTPUT_SIZE_X);
-
-    int startIDx = window_id % frame_step;
-
-    while ((outputIdxWithinBatch + (frame_size - startIDx - 1)) >= OUTPUT_SIZE_X)
+    const int binSize = calcDivisor(windowIdx + frameIdxStart, frame_size, frame_step, DEFAULT_OUTPUT_SIZE);
+    int startIDx = windowIdx % frame_step;
+    while ((outputIdxWithinBatch + (frame_size - startIDx - 1)) >= DEFAULT_OUTPUT_SIZE)
         startIDx += frame_step;
 
     for (int i = 0; i < binSize; ++i) {
         const int idx = startIDx + i * frame_step;
         const float val = window[idx];
         normalizationSum += val * val;
-        // printf("normalizationSum calc: globalOutputIdx: %i, window_id: %i, i: %i, idx: %i, startIDx: %i, normalizationSum: %f\n", globalOutputIdx, window_id, i, idx, startIDx, normalizationSum);
+        // printf("normalizationSum calc: globalOutputIdx: %i, windowIdx: %i, i: %i, idx: %i, startIDx: %i, normalizationSum: %f\n", globalOutputIdx, windowIdx,
+        // i, idx, startIDx, normalizationSum);
     }
 
+    // Calculate the irDFT value for the current windowIdx.
     // idft_power = 2*PI*(n/N) from idft def.
-    const float idft_power = 2.0f * M_PI_F * (float)window_id / (float)frame_size;
+    const float idft_power = 2.0f * M_PI_F * (float)windowIdx / (float)frame_size;
 
     const bool frame_size_even = frame_size % 2 == 0;
 
@@ -111,6 +111,7 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
         res = cadd(res, val_i);
     }
 
+    // Apply any normalization.
     const float finalIRDFTVal = real(res) / frame_size;
 
 #if NORMALIZED
@@ -121,5 +122,18 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     const float finalVAl = (finalIRDFTVal * windowVal * scale) / (normalizationSum);
 
     const OUTPUT_TYPE finalVal = (OUTPUT_TYPE)(finalVAl);
+
+#if CENTER
+    const int margin = frame_size / 2;
+    const int outputIdx = windowIdx + frameIdxStart;
+    if (outputIdx < margin || outputIdx > OUTPUT_SIZE_X + margin)
+        return;
+
+    const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, outputIdx - margin);
+#else
+    const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, windowIdx + frameIdxStart);
+#endif
+
+    // Perform last reduction atomically.
     const float prev = atomicadd(output + globalOutputIdx, finalVal);
 }
