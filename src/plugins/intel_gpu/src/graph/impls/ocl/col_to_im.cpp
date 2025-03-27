@@ -45,11 +45,11 @@ struct col_to_im_impl : typed_primitive_impl_ocl<col_to_im> {
         col2im_params.padding_end = {pad_end_x, pad_end_y, pad_end_z};
 
         // Col2Im-15 implementation : required
-        // output size is 1D tensor of two positive integer numbers (height and width)
-        std::vector<uint32_t> output_size(primitive->output_shape.begin(), primitive->output_shape.end());
-        std::vector<uint32_t> kernel_size(primitive->kernel_shape.begin(), primitive->kernel_shape.end());
-        col2im_params.output_size = {output_size[0], output_size[1], (uint32_t)1};
-        col2im_params.kernel_size = {kernel_size[0], kernel_size[1], (uint32_t)1};
+        // Output size is 1D tensor of two positive integer numbers (height and width). Kernel size is non-negative integer numbers.
+        std::vector<size_t> output_size((primitive->output_shape.begin()), primitive->output_shape.end());
+        std::vector<size_t> kernel_size(primitive->kernel_shape.begin(), primitive->kernel_shape.end());
+        col2im_params.output_size = {(uint32_t)output_size[0], (uint32_t)output_size[1], (uint32_t)1};
+        col2im_params.kernel_size = {(uint32_t)kernel_size[0], (uint32_t)kernel_size[1], (uint32_t)1};
 
         return col2im_params;
     }
