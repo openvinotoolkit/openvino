@@ -69,7 +69,6 @@ std::shared_ptr<BrgemmBatchedCompiledKernel> BrgemmBatchedKernelExecutor::compil
     }
 
     cpu::x64::brgemm_desc_t desc;
-    fprintf(stderr, "config.get_K() = %zu, config.get_iter_count() = %zu\n", config.get_K(), config.get_iter_count());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_init(&desc,
                                                config.get_isa(),
                                                cpu::x64::brgemm_addr,
