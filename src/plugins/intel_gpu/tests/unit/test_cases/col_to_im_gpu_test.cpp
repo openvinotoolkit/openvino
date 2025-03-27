@@ -18,8 +18,6 @@ static void test_col_to_im_output(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 12, 9, 1 } });
-    auto output_size = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, 1, 2 } });
-    auto kernel_size = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, 1, 2 } });
 
     set_values(input, {
         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -32,20 +30,13 @@ static void test_col_to_im_output(bool is_caching_test) {
         8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f, 8.0f,
         9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f,
     });
-    set_values(output_size, {
-        ov::float16(4.0f), ov::float16(4.0f)
-    });
-    set_values(kernel_size, {
-        ov::float16(2.0f), ov::float16(2.0f)
-    });
+    ov::Shape output_size({ov::float16(4.0f), ov::float16(4.0f)});
+    ov::Shape kernel_size({ov::float16(2.0f), ov::float16(2.0f)});
 
     topology topology;
     topology.add(cldnn::input_layout("input", input->get_layout()));
-    topology.add(cldnn::data("output_size", output_size));
-    topology.add(cldnn::data("kernel_size", kernel_size));
     topology.add(cldnn::reorder("reorder_input", input_info("input"), cldnn::layout(data_types::f16, format::byxf, { 1, 12, 9, 1 })));
-    topology.add(cldnn::col_to_im("col_to_im", input_info("reorder_input"), input_info("reorder_input"), input_info("reorder_input"),
-                                    {1, 1}, {1, 1}, {0, 0}, {0, 0}, {4, 4}, {2, 2}));
+    topology.add(cldnn::col_to_im("col_to_im", input_info("reorder_input"), {1, 1}, {1, 1}, {0, 0}, {0, 0}, output_size, kernel_size));
     topology.add(cldnn::activation("activate", input_info("col_to_im"), cldnn::activation_func::relu_negative_slope, {0.25f, 0.f}));
     topology.add(cldnn::reorder("convert:output", input_info("activate"), format::any, data_types::f32, {}, reorder_mean_mode::subtract, padding(), true));
     topology.add(cldnn::reorder("result:output/sink_port_0", input_info("convert:output"), format::bfyx, data_types::f32, {}, reorder_mean_mode::subtract, padding(), false));
@@ -69,7 +60,7 @@ static void test_col_to_im_output(bool is_caching_test) {
         3.0f, 6.0f, 6.0f, 3.0f
     };
 
-    for (size_t i = 0; i < 16; ++i) {
+    for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
