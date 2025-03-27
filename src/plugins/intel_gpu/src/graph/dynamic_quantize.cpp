@@ -95,7 +95,6 @@ void dynamic_quantize_inst::update_output_memory() {
         && output_memory().get_layout().identical(get_output_layout()))
         return;
 
-    // XXX: what is the purpose of this build_deps?
     if (_node != nullptr)
         build_deps();
 

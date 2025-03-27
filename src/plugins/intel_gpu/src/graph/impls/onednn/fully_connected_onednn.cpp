@@ -291,7 +291,11 @@ public:
         // There may be a performance difference between InnerProduct and MatMul primitives in oneDNN,
         // so use MatMul only for weights compression and IP for all other cases.
         if (prim->compressed_weights) {
-            attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+            bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
+
+            if (!is_dyn_quan_input)
+                attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+
             auto weights_layout = impl_params.get_input_layout(1);
             is_four_bit_weight = weights_layout.data_type == data_types::u4 || weights_layout.data_type == data_types::i4;
             if (!prim->decompression_scale.empty()) {
@@ -326,7 +330,6 @@ public:
                 }
             }
 
-            bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
             
             if (is_dyn_quan_input && prim->dynamic_quantized_activation) {
                 auto src_scale_idx = ++idx;
