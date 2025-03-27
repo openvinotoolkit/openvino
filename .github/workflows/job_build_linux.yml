@@ -31,11 +31,6 @@ on:
         description: 'A string of options passed to CMake'
         type: string
         required: true
-      cmake-generator:
-        description: 'A generator that will be passed to CMake. E.g., "Ninja"'
-        type: string
-        required: false
-        default: ''
       build-js:
         description: 'Whether to build OpenVINO JS Bindings'
         type: boolean
@@ -181,7 +176,6 @@ jobs:
         run: eval cmake $CMAKE_OPTIONS -S ${OPENVINO_REPO} -B ${BUILD_DIR}
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}
-          CMAKE_GENERATOR: ${{ inputs.cmake-generator }}
 
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats

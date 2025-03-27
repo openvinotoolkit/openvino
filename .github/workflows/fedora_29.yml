@@ -85,8 +85,8 @@ jobs:
       build-debian-packages: false
       build-js: false
       build-rpm-packages: true
-      cmake-generator: 'Ninja'
       cmake-options: >-
+        -G 'Ninja'
         -DENABLE_CPPLINT=OFF 
         -DENABLE_NCC_STYLE=OFF 
         -DENABLE_INTEL_NPU=OFF 
