@@ -54,9 +54,11 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
 
     size_t m_blk, n_blk, k_blk;
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
-    // Note: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
-    // the low precision cases (ticket: 156014)
-    if (with_repacking(brgemm->get_type())) {
+    // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
+    //         the low precision cases (ticket: 156014)
+    //         Please note that FP32 MatMul with `transposed_b=true` has type `with_repacking` despite the precision.
+    const auto precision = brgemm_expr->get_node()->get_input_element_type(1);
+    if (with_repacking(brgemm->get_type()) && precision != element::f32) {
         n_blk = get_full_dim_value();
         k_blk = get_full_dim_value();
     }
