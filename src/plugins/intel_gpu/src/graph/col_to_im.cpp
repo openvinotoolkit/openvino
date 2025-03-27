@@ -67,7 +67,6 @@ std::vector<layout> col_to_im_inst::calc_output_layouts(col_to_im_node const& no
     auto C = input_shapes[0][-2] / prod;
     output_shapes[0][-3] = C;
 
-    // std::cout << __FILE__ << ":" << __LINE__ << "   " << node.id() << "   " << output_shapes[0] << "   " << input_shapes[1] << " x "<< std::endl;
     return { layout{output_shapes[0], output_type, output_format} };
 }
 
