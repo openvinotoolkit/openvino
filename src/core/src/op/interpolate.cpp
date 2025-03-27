@@ -283,9 +283,8 @@ bool ov::op::v4::Interpolate::has_evaluate() const {
     case ov::element::f32:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
 
 namespace ov {
@@ -359,9 +358,8 @@ bool ov::op::v11::Interpolate::has_evaluate() const {
     case ov::element::f32:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
 
 }  // namespace ov
