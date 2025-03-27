@@ -774,17 +774,12 @@ public:
 
 #elif defined(OPENVINO_ARCH_ARM64)
         if (one_of(algorithm,
-                   Algorithm::EltwisePowerDynamic,
                    Algorithm::EltwiseHsigmoid,
                    Algorithm::EltwiseErf,
                    Algorithm::EltwiseBitwiseAnd,
                    Algorithm::EltwiseBitwiseNot,
                    Algorithm::EltwiseBitwiseOr,
                    Algorithm::EltwiseBitwiseXor)) {
-            return false;
-        }
-
-        if ((algorithm == Algorithm::EltwiseRelu) && ((alpha != 0.f) || (beta != 0.f) || (gamma != 0.f))) {
             return false;
         }
 

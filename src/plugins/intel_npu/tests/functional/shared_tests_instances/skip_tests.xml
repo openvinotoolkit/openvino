@@ -1,5 +1,5 @@
 <!--
-Example: 
+Example:
     <skip_config>
         <message>skip_message_xxxxxx</message>
         <enable_rules>
@@ -79,7 +79,7 @@ Example:
     </skip_config>
 
     <!-- EISW 30810 -->
-    <skip_config>    
+    <skip_config>
         <message>Hetero plugin doesn't throw an exception in case of big device ID</message>
         <filters>
             <filter>.*OVClassLoadNetworkTestNPU.*LoadNetworkHETEROWithBigDeviceIDThrows.*</filter>
@@ -376,7 +376,7 @@ Example:
     </skip_config>
 
     <!-- EISW 111510 -->
-    <skip_config>    
+    <skip_config>
         <message>Failing test for NPU device</message>
         <filters>
             <filter>.*OVClassImportExportTestP.*OVClassCompiledModelImportExportTestP.*ImportNetworkThrowWithDeviceName.*</filter>
@@ -551,7 +551,7 @@ Example:
             <filter>.*smoke_RandomUniform/RandomLayerTest_NPU3720.SW.*</filter>
         </filters>
     </skip_config>
-    
+
     <!-- EISW ##### -->
     <skip_config>
         <message>GetExecGraphInfo function is not implemented for NPU plugin</message>
@@ -870,11 +870,14 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- EISW ##### -->
+    <!-- CACHE_MODE is not supported on NPU, update test with correct property to make weightless compiled model -->
     <skip_config>
-        <message>get_runtime_model method is not supported on NPU</message>
+        <message>compiled_blob test use `CACHE_MOD` which is not supported on NPU</message>
         <filters>
-            <filter>.*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*</filter>
+            <filter>.*OVCompiledModelBaseTest.*import_from_.*_blob.*</filter>
+            <filter>.*OVCompiledModelBaseTest.*compile_from_.*_blob.*</filter>
+            <filter>.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*</filter>
+            <filter>.*OVCompiledModelBaseTest.*use_blob_hint_.*</filter>
         </filters>
     </skip_config>
 </skip_configs>
