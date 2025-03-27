@@ -3803,7 +3803,7 @@ TEST_P(post_ops_optimizations_onednn_eltw_any_sum_eltw_linear, basic) {
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("eltwise_data", get_mem(get_output_layout(p))),
         convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        activation("activation", input_info("conv_prim"), activation_func::relu_negative_slope),
+        activation("activation", input_info("conv_prim"), activation_func::relu),
         eltwise("sum", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum),
         quantize("quantize", input_info("sum"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 128, data_types::u8),
