@@ -288,7 +288,7 @@ ov::pass::GeluFusionWithTanhNoPower2::GeluFusionWithTanhNoPower2() {
     auto mul_4_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_4_constant});
     auto mul_5_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, mul_4_2});
 
-    // 0.5 * ( x * (1 + tanh))
+    // 0.5 * (x * (1 + tanh))
     auto mul_4_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, input});
     auto mul_5_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul_4_3, mul_4_constant});
 
