@@ -4,12 +4,12 @@
 
 #include "snippets/lowered/pass/assign_registers.hpp"
 
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/kernel.hpp"
-
+#include "snippets/rt_info/external_parameter.hpp"
+#include "snippets/snippets_isa.hpp"
+#include "snippets/utils/utils.hpp"
 
 // This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
 #include <iterator>
@@ -21,13 +21,19 @@ namespace pass {
 
 AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& linear_ir, std::set<Reg>& gpr_pool, std::set<Reg>& vec_pool) {
     RegMap manually_assigned;
-    // TODO: need to exclude params from this check that are used by brgemm kernel
-    OPENVINO_ASSERT(gpr_pool.size() >= (linear_ir.get_parameters().size() + linear_ir.get_results().size()),
-                    "Not enough gp registers in the pool to perform manual assignment");
-    for (const auto& param : linear_ir.get_parameters()) {
-        if (param->get_node()->get_rt_info().count("POSTOP_INPUT")) {
-            continue;
+    const auto internal_parameters = [&]() {
+        std::vector<ExpressionPtr> internal_parameters;
+        internal_parameters.reserve(linear_ir.get_parameters().size());
+        for (const auto& param : linear_ir.get_parameters()) {
+            if (!ov::snippets::is_external_parameter(param->get_node())) {
+                internal_parameters.push_back(param);
+            }
         }
+        return internal_parameters;
+    }();
+    OPENVINO_ASSERT(gpr_pool.size() >= (internal_parameters.size() + linear_ir.get_results().size()),
+                    "Not enough gp registers in the pool to perform manual assignment");
+    for (const auto& param : internal_parameters) {
         manually_assigned[param->get_output_port_descriptor(0)->get_reg()] = *gpr_pool.begin();
         gpr_pool.erase(gpr_pool.begin());
     }
@@ -178,7 +184,8 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     assigned_reg_map.insert(map_gpr.begin(), map_gpr.end());
 
     for (const auto& expr : exprs) {
-        if (expr->get_node()->get_rt_info().count("POSTOP_INPUT")) {
+        // TODO: investigate if we need to skip external parameters here
+        if (ov::snippets::is_external_parameter(expr->get_node())) {
             continue;
         }
         // Note: manually assigned regs are always live => add them to all expressions

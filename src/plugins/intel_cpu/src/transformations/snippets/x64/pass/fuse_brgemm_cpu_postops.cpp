@@ -13,6 +13,7 @@
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/scalar.hpp"
+#include "snippets/rt_info/external_parameter.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
@@ -171,8 +172,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         auto input_descs = brgemm->get_input_port_descriptors();
         brgemm_inputs.push_back(postop_input);
         input_descs.push_back(ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0});
-        // TODO: change naming at least
-        postop_input_node->get_rt_info()["POSTOP_INPUT"] = true;
+        ov::snippets::mark_as_external_parameter(postop_input_node);
         m_external_params.insert(postop_input_node);
 
         auto new_brgemm = clone_with_new_params(brgemm, postops_config, brgemm_inputs, input_descs);

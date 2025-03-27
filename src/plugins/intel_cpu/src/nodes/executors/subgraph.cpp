@@ -64,10 +64,9 @@ SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs
     jcp.data_offsets.reserve(config->io_data_offsets.size());
     const auto& brgemm_external_ptrs_idces = config->brgemm_external_ptrs_idces;
     for (size_t i = 0; i < config->io_data_offsets.size(); ++i) {
+        // Note: external ptrs must be ignored by the kernel during compilation
         if (!brgemm_external_ptrs_idces.count(i)) {
             jcp.data_offsets.push_back(config->io_data_offsets[i]);
-        } else {
-            std::cout << "[ WARNING ] jcp.data_offsets push back skipped" << std::endl;
         }
     }
     SubgraphBaseExecutor::init_parallel_domain(config, jcp.exec_domain);
