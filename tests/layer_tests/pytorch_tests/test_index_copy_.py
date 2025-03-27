@@ -79,7 +79,6 @@ class TestIndexCopy(PytorchLayerTest):
         ),
     )
     @pytest.mark.nightly
-    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit
     @pytest.mark.parametrize('inplace', [True, False])
     def test_index_copy_single_index(self, inplace, ie_device, precision, ir_version, input_data):
