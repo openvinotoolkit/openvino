@@ -7,7 +7,7 @@ def replace(cfg, commit=None):
     prepCfg = cfg["runConfig"]["preprocess"]
     filePath = prepCfg["file"]
     curDir = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), "../../../../../../../"))
+        os.path.dirname(__file__), "../../../../"))
     filePath = os.path.join(curDir, filePath)
     pattern = prepCfg["pattern"]
     replacement = ''
