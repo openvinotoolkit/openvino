@@ -207,15 +207,12 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         } else if (name == ov::loaded_from_cache) {
             return m_compiled_model_without_batch->get_property(ov::loaded_from_cache.name());
         } else if (name == ov::supported_properties) {
-            auto hw_properties = m_compiled_model_without_batch->get_property(ov::supported_properties.name())
+            auto device_supported_props = m_compiled_model_without_batch->get_property(ov::supported_properties.name())
                                    .as<std::vector<ov::PropertyName>>();
             std::vector<ov::PropertyName> properties{
                 ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RW}};
-            properties.insert(properties.end(), hw_properties.begin(), hw_properties.end());
+            properties.insert(properties.end(), device_supported_props.begin(), device_supported_props.end());
             return properties;
         } else if (name == ov::auto_batch_timeout) {
             uint32_t time_out = m_time_out;
