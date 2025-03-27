@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "shared_test_classes/base/benchmark.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_op/eltwise.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -40,6 +41,8 @@ private:
                                  const ov::element::Type_t& element_type,
                                  const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const;
 };
+
+struct BenchmarkEltwiseLayerCPUTest : BenchmarkLayerTest<EltwiseLayerCPUTest> {};
 
 namespace Eltwise {
 
