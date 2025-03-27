@@ -91,7 +91,7 @@ TEST_F(TestPropertiesGPU, RTInfoPropertiesWithUserValuesFromCompileModel) {
     model->set_rt_info("0", "runtime_options", ov::hint::dynamic_quantization_group_size.name());
     model->set_rt_info("8.0", "runtime_options", ov::hint::activations_scale_factor.name());
     ov::AnyMap config;
-    config[ov::hint::kv_cache_precision.name()] = "u8";
+    config[ov::hint::kv_cache_precision.name()] = "i4";
     config[ov::hint::dynamic_quantization_group_size.name()] = "16";
     config[ov::hint::activations_scale_factor.name()] = "4.0";
 
@@ -99,7 +99,7 @@ TEST_F(TestPropertiesGPU, RTInfoPropertiesWithUserValuesFromCompileModel) {
     OV_ASSERT_NO_THROW(type = compiled_model.get_property(ov::hint::kv_cache_precision));
     OV_ASSERT_NO_THROW(size = compiled_model.get_property(ov::hint::dynamic_quantization_group_size));
     OV_ASSERT_NO_THROW(scale = compiled_model.get_property(ov::hint::activations_scale_factor));
-    ASSERT_EQ(type.as<ov::element::Type>(), ov::element::u8);
+    ASSERT_EQ(type.as<ov::element::Type>(), ov::element::i4);
     ASSERT_EQ(size.as<uint64_t>(), 16);
     ASSERT_EQ(scale.as<float>(), 4.0f);
 }
