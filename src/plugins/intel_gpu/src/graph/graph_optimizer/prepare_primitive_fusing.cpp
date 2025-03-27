@@ -743,6 +743,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     return;
                 }
 
+                // Fusing prelu to multi batch onednn conv caused an accuracy issue. Blocked fusing of the case.
                 auto input_layout = input.get_output_layout();
                 if (input.is_type<convolution>() && (lo.get_preferred_impl_type(input, format::any /*dummy*/) == impl_types::onednn) &&
                     activation_func == cldnn::activation_func::relu_negative_slope &&
