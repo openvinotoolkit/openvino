@@ -61,8 +61,6 @@
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
-#include "impls/onednn/primitive_onednn_base.h"
-#include "impls/onednn/fully_connected_onednn.hpp"
 #endif
 
 namespace cldnn {
@@ -1380,7 +1378,7 @@ void primitive_inst::do_runtime_skip_dynamic_quantize() {
         || !get_node().is_runtime_skippable())
         return;
 
-    if (get_config().get_dynamic_quantization_all())
+    GPU_DEBUG_IF (get_config().get_disable_dynamic_quantization_opt())
         return;
 
     // Do not skip dynamic quantization if this node is not fully connected.(such as SDPA)
