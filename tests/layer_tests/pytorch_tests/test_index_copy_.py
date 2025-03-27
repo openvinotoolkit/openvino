@@ -87,4 +87,4 @@ class TestIndexCopy(PytorchLayerTest):
         self.values = np.random.randn(*input_data["values_shape"]).astype(np.float32)
         index = input_data["index"]
         dim = input_data["dim"]
-        self._test(*self.create_model(dim, index, inplace), "CPU", precision, ir_version)
+        self._test(*self.create_model(dim, index, inplace), ie_device, precision, ir_version)
