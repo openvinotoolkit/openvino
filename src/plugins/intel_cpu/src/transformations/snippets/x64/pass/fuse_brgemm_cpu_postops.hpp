@@ -14,11 +14,21 @@ public:
     FuseScaleShift();
 };
 
+class FuseBinaryEltwise : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("FuseBinaryEltwise");
+    FuseBinaryEltwise();
+
+private:
+    size_t m_fused_postops_count = 0;
+};
+
 class FuseBrgemmCPUPostops : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("FuseBrgemmCPUPostops");
     FuseBrgemmCPUPostops() {
         add_matcher<FuseScaleShift>();
+        add_matcher<FuseBinaryEltwise>();
     }
 };
 

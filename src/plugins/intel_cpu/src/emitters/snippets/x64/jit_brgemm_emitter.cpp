@@ -32,14 +32,15 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     const auto& brgOutPrc = brgemm_node->get_output_element_type(0);
     const auto brgemm_type = brgemm_node->get_type();
-    const auto& post_ops = brgemm_node->get_postops();
+    const auto& post_ops_config = brgemm_node->get_postops_config();
 
+    m_binary_postops_offset = post_ops_config.binary_postops_offset;
     if (brgemm_utils::with_amx(brgemm_type)) {
         BrgemmAMXKernelConfig kernel_config(brg0Prc,
                                             brg1Prc,
                                             brgOutPrc,
                                             brgemm_utils::get_primitive_isa(brg0Prc, true),
-                                            post_ops);
+                                            post_ops_config.post_ops);
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     } else {
@@ -48,7 +49,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
                                          brgOutPrc,
                                          with_compensations(brgemm_type),
                                          brgemm_utils::get_primitive_isa(brg0Prc, false),
-                                         post_ops);
+                                         post_ops_config.post_ops);
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     }
@@ -80,7 +81,7 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
                         "precisions size should be equal to the number of main inputs");
         auto res = precisions;
         // Note: all postops are supported only in f32 precision
-        for (size_t i = brgemm->get_main_inputs_count(); i < brgemm->get_input_count(); ++i) {
+        for (size_t i = brgemm->get_main_inputs_count(); i < brgemm->input_values().size(); ++i) {
             res.push_back(element::f32);
         }
         return res;

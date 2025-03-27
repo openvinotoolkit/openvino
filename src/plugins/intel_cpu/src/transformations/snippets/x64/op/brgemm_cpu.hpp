@@ -24,8 +24,12 @@ public:
     using BRGEMM_TYPE = brgemm_utils::BRGEMM_TYPE;
     OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
-    // using PostopsConfig = std::vector<type_info_t>;
-    using PostopsConfig = dnnl_post_ops;
+    struct PostopsConfig {
+        dnnl_post_ops post_ops = {};
+        int binary_postops_offset = -1;
+
+        PostopsConfig() : post_ops({}), binary_postops_offset(-1) {}
+    };
     BrgemmCPU(const ov::OutputVector& inputs,
               BRGEMM_TYPE type,
               const std::vector<PortDescriptor>& input_descs = {},
@@ -33,7 +37,7 @@ public:
               const std::vector<size_t>& layout_a = {},
               const std::vector<size_t>& layout_b = {},
               const std::vector<size_t>& layout_c = {},
-              const PostopsConfig& post_ops = {});
+              const PostopsConfig& post_ops = PostopsConfig{});
     BrgemmCPU() = default;
 
     void validate_and_infer_types() override;
@@ -45,7 +49,7 @@ public:
 
     size_t get_offset_scratch() const;
 
-    const PostopsConfig& get_postops() const {
+    const PostopsConfig& get_postops_config() const {
         return m_post_ops;
     }
 
