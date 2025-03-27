@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import io
-from types import TracebackType, MappingProxyType
+from types import TracebackType
 from typing import Any, Iterable, Union, Optional, Dict
 from typing import Type as TypingType
 from pathlib import Path
