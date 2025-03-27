@@ -144,10 +144,8 @@ std::shared_ptr<ov::Node> ov::op::v4::Interpolate::clone_with_new_inputs(const O
 namespace {
 static constexpr size_t data_port = 0;
 static constexpr size_t target_shape_port = 1;
-static constexpr size_t scales_port = 2;
-static constexpr size_t axes_port = 3;
-static constexpr size_t max_num_of_ports = 4;
 size_t get_scales_port(const ov::op::util::InterpolateBase* node) {
+    constexpr size_t scales_port = 2;
     if (ov::is_type<ov::op::v11::Interpolate>(node)) {
         return scales_port - 1;
     }
@@ -155,6 +153,7 @@ size_t get_scales_port(const ov::op::util::InterpolateBase* node) {
 }
 
 size_t get_axes_port(const ov::op::util::InterpolateBase* node) {
+    constexpr size_t axes_port = 3;
     if (ov::is_type<ov::op::v11::Interpolate>(node)) {
         return axes_port - 1;
     }
@@ -162,6 +161,7 @@ size_t get_axes_port(const ov::op::util::InterpolateBase* node) {
 }
 
 size_t get_max_num_of_ports(const ov::op::util::InterpolateBase* node) {
+    constexpr size_t max_num_of_ports = 4;
     if (ov::is_type<ov::op::v11::Interpolate>(node)) {
         return max_num_of_ports - 1;
     }
