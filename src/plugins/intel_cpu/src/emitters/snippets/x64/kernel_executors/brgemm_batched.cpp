@@ -69,6 +69,7 @@ std::shared_ptr<BrgemmBatchedCompiledKernel> BrgemmBatchedKernelExecutor::compil
     }
 
     cpu::x64::brgemm_desc_t desc;
+    fprintf(stderr, "config.get_K() = %zu, config.get_iter_count() = %zu\n", config.get_K(), config.get_iter_count());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_init(&desc,
                                                config.get_isa(),
                                                cpu::x64::brgemm_addr,
@@ -224,12 +225,8 @@ void BrgemmBatchedKernelExecutor::execute(const BrgemmBatchedKernelExecutor* exe
     auto iter_count = config.get_iter_count();
     auto iter_size = config.get_K();
 
-    OPENVINO_ASSERT(iter_size % iter_count == 0, "Incompatible iterations count in brgemm");
-    iter_size /= iter_count;
-
     size_t stride_A = iter_size * dnnl_data_type_size(config.get_dt_in0());
-    size_t stride_B = (config.get_N() * iter_size) * dnnl_data_type_size(config.get_dt_in1());
-    const_cast<BrgemmBatchedKernelConfig&>(config).m_K = iter_size;
+    size_t stride_B = (iter_size * config.get_LDB()) * dnnl_data_type_size(config.get_dt_in1());
 
     execute_brgemm(kernel->brgemm_kernel,
                    iter_count,
@@ -270,6 +267,7 @@ void BrgemmBatchedKernelExecutor::execute_brgemm(const std::shared_ptr<dnnl::imp
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = bs;
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
+    fprintf(stderr, "BrgemmBatchedKernelExecutor::execute_brgemm: bs=%zu, stride_A=%zu, stride_B=%zu, pin0=%p, pin1=%p, dst=%p, scratch=%p, with_comp=%d\n", bs, stride_A, stride_B, pin0, pin1, dst, scratch, with_comp);
     (*kernel)(&brgemm_p);
 }
 

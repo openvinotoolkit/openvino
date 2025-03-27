@@ -55,8 +55,6 @@ private:
 
     std::shared_ptr<StaticParams> m_static_params{nullptr};
     size_t m_iter_count{1};
-
-    friend class BrgemmBatchedKernelExecutor;  // temp
 };
 
 // The `update_kernel` method verifies that a compiled kernel is not nullptr.

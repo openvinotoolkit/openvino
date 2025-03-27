@@ -163,7 +163,7 @@ std::shared_ptr<BrgemmAMXBatchedCompiledKernel> BrgemmAMXBatchedKernelExecutor::
                                                 nullptr) == dnnl_success,
                                 "Cannot initialize brgemm descriptor due to invalid params");
 
-        OV_CPU_JIT_EMITTER_ASSERT(ker->palette && brgemm_init_tiles(desc, ker->palette) == dnnl_success,
+        OV_CPU_JIT_EMITTER_ASSERT(brgemm_init_tiles(desc, ker->palette) == dnnl_success,
                                 "Cannot initialize brgemm tiles due to invalid params");
 
         cpu::x64::brgemm_kernel_t* kernel_ = nullptr;
