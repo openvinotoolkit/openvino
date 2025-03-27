@@ -427,7 +427,6 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
 void ZeroInferRequest::update_pipeline_if_memory_changed() {
     size_t ioIndex = 0;
-    std::vector<arg_info> args_info;
 
     for (const auto& levelZeroTensor : _levelZeroInputTensors) {
         const auto& inputDescriptor = _metadata.inputs.at(ioIndex);
@@ -443,8 +442,9 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             _logger.debug("Update input graph descriptor with the new tensor");
             OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
 
-            args_info.push_back(
-                {_graph->get_input_descriptors().at(ioIndex).idx, zeroTensor->data(), zeroTensor->get_byte_size()});
+            _pipeline->update_graph_arguments(_graph->get_input_descriptors().at(ioIndex).idx,
+                                              zeroTensor->data(),
+                                              zeroTensor->get_byte_size());
 
             if (!inputDescriptor.isStateInput) {
                 zeroTensor->reset_memory_flag();
@@ -469,23 +469,18 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             _logger.debug("Update output graph descriptor with the new tensor");
             OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
 
-            args_info.push_back(
-                {_graph->get_output_descriptors().at(ioIndex).idx, zeroTensor->data(), zeroTensor->get_byte_size()});
+            _pipeline->update_graph_arguments(_graph->get_output_descriptors().at(ioIndex).idx,
+                                              zeroTensor->data(),
+                                              zeroTensor->get_byte_size());
 
             zeroTensor->reset_memory_flag();
         }
 
         ++ioIndex;
     }
-
-    if (!args_info.empty()) {
-        _pipeline->update_graph_arguments(args_info);
-    }
 }
 
 void ZeroInferRequest::update_states_if_memory_changed() {
-    std::vector<arg_info> args_info;
-
     for (const auto& variableState : _variableStates) {
         auto zeroState = std::dynamic_pointer_cast<ZeroVariableState>(variableState._ptr);
 
@@ -502,13 +497,13 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
                 void* userBuffer = !remoteTensor ? zeroState->get_state()->data() : remoteTensor->get_original_memory();
 
-                args_info.push_back({_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
-                                     userBuffer,
-                                     zeroState->get_state()->get_byte_size()});
+                _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
+                                                  userBuffer,
+                                                  zeroState->get_state()->get_byte_size());
 
-                args_info.push_back({_graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
-                                     userBuffer,
-                                     zeroState->get_state()->get_byte_size()});
+                _pipeline->update_graph_arguments(_graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
+                                                  userBuffer,
+                                                  zeroState->get_state()->get_byte_size());
 
                 zeroState->reset_zero_tensor_updated_flag();
 
@@ -516,10 +511,6 @@ void ZeroInferRequest::update_states_if_memory_changed() {
                 _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_state()._ptr;
             }
         }
-    }
-
-    if (!args_info.empty()) {
-        _pipeline->update_graph_arguments(args_info);
     }
 }
 

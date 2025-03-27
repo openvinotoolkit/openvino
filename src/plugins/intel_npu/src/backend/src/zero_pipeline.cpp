@@ -157,7 +157,6 @@ Pipeline::Pipeline(const Config& config,
             _command_lists.at(i)->appendBarrier();
             _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
         }
-        _command_lists.at(i)->close();
     }
     _logger.debug("Pipeline - initialize completed");
 }
@@ -178,6 +177,8 @@ void Pipeline::push() {
     }
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
+        _command_lists.at(i)->close();
+
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
         if (_sync_output_with_fences) {
             _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));
@@ -232,33 +233,8 @@ void Pipeline::update_graph_arguments(uint32_t arg_index, const void* arg_data, 
         _command_lists.at(i)->updateMutableCommandList(
             arg_index,
             static_cast<const unsigned char*>(arg_data) + (i * byte_size) / number_of_command_lists);
-
-        _command_lists.at(i)->close();
     }
 };
-
-void Pipeline::update_graph_arguments(const std::vector<arg_info>& args_info) {
-    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
-    _logger.debug("Pipeline - updateCommandList");
-    bool close_pipeline = false;
-
-    const size_t number_of_command_lists = _command_lists.size();
-
-    for (auto& arg_info : args_info) {
-        for (size_t i = 0; i < number_of_command_lists; i++) {
-            _command_lists.at(i)->updateMutableCommandList(arg_info.arg_index,
-                                                           static_cast<const unsigned char*>(arg_info.arg_data) +
-                                                               (i * arg_info.byte_size) / number_of_command_lists);
-            close_pipeline = true;
-        }
-    }
-
-    if (close_pipeline) {
-        for (size_t i = 0; i < number_of_command_lists; i++) {
-            _command_lists.at(i)->close();
-        }
-    }
-}
 
 void Pipeline::update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t command_list_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
@@ -271,7 +247,6 @@ void Pipeline::update_graph_arguments_batching(uint32_t arg_index, const void* a
                     command_list_index);
 
     _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
-    _command_lists.at(command_list_index)->close();
 };
 
 std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {

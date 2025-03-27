@@ -13,12 +13,6 @@
 
 namespace intel_npu {
 
-struct arg_info {
-    uint32_t arg_index;
-    const void* arg_data;
-    size_t byte_size;
-};
-
 struct Pipeline {
 public:
     Pipeline(const Config& config,
@@ -36,7 +30,6 @@ public:
     void reset() const;
 
     void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
-    void update_graph_arguments(const std::vector<arg_info>& args_info);
     void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
