@@ -538,6 +538,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::imag", common_translators::translate_imag},
         // aten::index - Supported in limited set of patterns
         {"aten::index_copy_", op::inplace_op<op::translate_index_copy_>},
+        {"aten::index_copy", op::translate_index_copy_},
         {"aten::index_fill_", op::inplace_op<op::translate_index_fill_>},
         {"aten::index_put", op::translate_index_put},
         {"aten::index_add", op::translate_index_add},
@@ -921,6 +922,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.index.Tensor", op::translate_index_fx},
         {"aten._unsafe_index.Tensor", op::translate_index_fx},
         {"aten.index_select.default", op::translate_index_select},
+        {"aten.index_copy.default", op::translate_index_copy_},
         {"aten.isfinite.default", op::translate_1to1_match_1_inputs<opset10::IsFinite>},
         {"aten.isinf.default", op::translate_1to1_match_1_inputs<opset10::IsInf>},
         {"aten.isnan.default", op::translate_1to1_match_1_inputs<opset10::IsNaN>},
