@@ -160,7 +160,7 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
         ov::replace_node(gather_node_1, gather_input_node_1);
 
         auto indirect_kv_cache_0 = std::make_shared<op::KVCache>(gather_input_node_0,
-                                                                 kv_cache_node_1->input(1).get_source_output(),
+                                                                 kv_cache_node_0->input(1).get_source_output(),
                                                                  beam_idx_node,
                                                                  kv_cache_node_0->get_variable(),
                                                                  kv_cache_node_0->get_concat_axis(),
