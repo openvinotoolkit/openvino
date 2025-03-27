@@ -95,6 +95,7 @@ const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 constexpr std::string_view WEIGHTS_EXTENSION = ".bin";
 constexpr std::string_view XML_EXTENSION = ".xml";
+constexpr std::string_view ONNX_EXTENSION = ".onnx";
 
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
@@ -1000,8 +1001,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
                       << std::endl;
 
-            initGraph = initMainGraph[0];
-            graph = initMainGraph[1];
+            initGraph = initMainGraph.at(0);
+            graph = initMainGraph.at(1);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -1172,24 +1173,29 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
             // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
             std::shared_ptr<ov::Model> originalModel;
-            if (!localConfig.get<MODEL_PTR>()) {
+            if (localConfig.get<MODEL_PTR>()) {
                 originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>();
             } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
                 const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
                 const size_t weightsPathLength = weightsPath.length();
-                if (weightsPathLength < WEIGHTS_EXTENSION.length() ||
+                std::string xmlPath = weightsPath;
+
+                if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
                     weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
                                         WEIGHTS_EXTENSION.length(),
-                                        WEIGHTS_EXTENSION)) {
+                                        WEIGHTS_EXTENSION) == 0) {
+                    xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                    WEIGHTS_EXTENSION.length(),
+                                    XML_EXTENSION);
+                } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
+                           weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
+                                               ONNX_EXTENSION.length(),
+                                               ONNX_EXTENSION)) {
                     OPENVINO_THROW("Invalid path to the weights: ",
                                    weightsPath,
-                                   ". A \".bin\" extension was expected.");
+                                   ". A \".bin\" or \".onnx\" extension was expected.");
                 }
 
-                std::string xmlPath = weightsPath;
-                xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
-                                WEIGHTS_EXTENSION.length(),
-                                XML_EXTENSION);
                 originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
             } else {
                 OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
@@ -1205,14 +1211,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                                                                 device,
                                                                 graph,
                                                                 localConfig,
-                                                                initGraphs[0],
+                                                                initGraphs.at(0),
                                                                 originalModel);
             } else {
-                const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(initGraphs[0]->get_metadata().inputs,
-                                                                                 initGraphs[0]->get_metadata().outputs,
-                                                                                 true);
-                compiledModel =
-                    std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, initGraphs[0], localConfig);
+                const std::shared_ptr<ov::Model> modelDummy =
+                    create_dummy_model(initGraphs.at(0)->get_metadata().inputs,
+                                       initGraphs.at(0)->get_metadata().outputs,
+                                       true);
+                compiledModel = std::make_shared<CompiledModel>(modelDummy,
+                                                                shared_from_this(),
+                                                                device,
+                                                                initGraphs.at(0),
+                                                                localConfig);
             }
         }
     } catch (const std::exception& ex) {
