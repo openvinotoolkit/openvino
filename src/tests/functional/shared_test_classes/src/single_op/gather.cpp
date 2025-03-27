@@ -321,16 +321,9 @@ std::string GatherMixedPrecLayerTest::getTestCaseName(const testing::TestParamIn
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
-        result << ov::test::utils::partialShape2str({shapes[i].first}) << (i < shapes.size() - 1lu ? "_" : "");
+        result << shapes[i] << (i < shapes.size() - 1lu ? "_" : "");
     }
-    result << ")_TS=";
-    for (size_t i = 0lu; i < shapes.front().second.size(); i++) {
-        result << "{";
-        for (size_t j = 0lu; j < shapes.size(); j++) {
-            result << ov::test::utils::vec2str(shapes[j].second[i]) << (j < shapes.size() - 1lu ? "_" : "");
-        }
-        result << "}_";
-    }
+    result << ")";
     result << "axis=" << std::get<0>(axis_batch_idx) << "_";
     result << "batch_idx=" << std::get<1>(axis_batch_idx) << "_";
     result << "indices_shape=" << ov::test::utils::vec2str(indices_shape) << "_";
