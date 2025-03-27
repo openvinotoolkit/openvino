@@ -317,14 +317,7 @@ void GatherStringWithIndicesDataLayerTest::generate_inputs(const std::vector<ov:
 }
 
 std::string GatherMixedPrecLayerTest::getTestCaseName(const testing::TestParamInfo<gatherMixPrecParamsTuple>& obj) {
-    std::tuple<int, int> axis_batch_idx;
-    std::vector<int> indices;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    ov::element::Type out_type;
-    std::string device_name;
-    std::tie(shapes, indices_shape, axis_batch_idx, model_type, out_type, device_name) = obj.param;
+    auto [ shapes, indices_shape, axis_batch_idx, model_type, out_type, device_name ] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
@@ -348,11 +341,9 @@ std::string GatherMixedPrecLayerTest::getTestCaseName(const testing::TestParamIn
 }
 
 void GatherMixedPrecLayerTest::SetUp() {
-    std::tuple<int, int> axis_batch_idx;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::tie(shapes, indices_shape, axis_batch_idx, model_type, outType, targetDevice) = GetParam();
+    auto [ shapes, indices_shape, axis_batch_idx, model_type, out_type, device_name ] = GetParam();
+    outType = out_type;
+    targetDevice = device_name;
     init_input_shapes(shapes);
 
     int axis = std::get<0>(axis_batch_idx);

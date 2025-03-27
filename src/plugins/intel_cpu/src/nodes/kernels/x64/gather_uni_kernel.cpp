@@ -70,6 +70,10 @@ jitUniGatherKernel<isa>::jitUniGatherKernel(const jGatherConfParams& jcp)
         permMask16bitUni = permMask16bitA5;
     }
     dstStep = is_real16_to_f32 ? 2 * vlen : vlen;
+    if (is_real16_to_f32) {
+        convert_emitter =
+            std::make_unique<jit_convert_saturation_emitter>(this, isa, jcp.in_prec, jcp.out_prec, ov::element::f32);
+    }
 }
 
 template <x64::cpu_isa_t isa>
@@ -321,6 +325,10 @@ void jitUniGatherKernel<isa>::generate() {
     }
 
     this->postamble();
+
+    if (convert_emitter) {
+        convert_emitter->emit_data();
+    }
 }
 
 template <>
@@ -764,45 +772,23 @@ void jitUniGatherKernel<isa>::store(const Xbyak::Reg64& reg_dst, Vmm& vmmSrc) {
             // last(31) is used as temp
             Xbyak::Zmm zmmTemp(31);
             Xbyak::Ymm ymmTemp(31);
-            if (jcp.in_prec == element::bf16) {
-                uni_vpmovzxwd(zmmTemp, ymmSrc);
-                uni_vpslld(zmmTemp, zmmTemp, 16);
-                uni_vmovups(ptr[reg_dst], zmmTemp);
-
-                vshuff64x2(zmmTemp, vmmSrc, vmmSrc, 0b00001110);
-                uni_vpmovzxwd(zmmTemp, ymmTemp);
-                uni_vpslld(zmmTemp, zmmTemp, 16);
-                uni_vmovups(ptr[reg_dst + vlen], zmmTemp);
-            } else {
-                vcvtph2ps(zmmTemp, ymmSrc);
-                uni_vmovups(ptr[reg_dst], zmmTemp);
-
-                vshuff64x2(zmmTemp, vmmSrc, vmmSrc, 0b00001110);
-                vcvtph2ps(zmmTemp, ymmTemp);
-                uni_vmovups(ptr[reg_dst + vlen], zmmTemp);
-            }
+            convert_emitter->emit_code({static_cast<size_t>(ymmSrc.getIdx())}, {static_cast<size_t>(zmmTemp.getIdx())});
+            uni_vmovups(ptr[reg_dst], zmmTemp);
+            vshuff64x2(zmmTemp, vmmSrc, vmmSrc, 0b00001110);
+            convert_emitter->emit_code({static_cast<size_t>(ymmTemp.getIdx())},
+                                       {static_cast<size_t>(zmmTemp.getIdx())});
+            uni_vmovups(ptr[reg_dst + vlen], zmmTemp);
         } else {
             // if ymm, split to 2 xmms, up convert to 2 ymms, store
             // vmmZeros is used as temp
             Xbyak::Ymm ymmTemp(vmmZeros.getIdx());
             Xbyak::Xmm xmmTemp(vmmZeros.getIdx());
-            if (jcp.in_prec == element::bf16) {
-                uni_vpmovzxwd(ymmTemp, xmmSrc);
-                uni_vpslld(ymmTemp, ymmTemp, 16);
-                uni_vmovups(ptr[reg_dst], ymmTemp);
-
-                vperm2f128(ymmTemp, ymmSrc, ymmSrc, 0x1);
-                uni_vpmovzxwd(ymmTemp, xmmTemp);
-                uni_vpslld(ymmTemp, ymmTemp, 16);
-                uni_vmovups(ptr[reg_dst + vlen], ymmTemp);
-            } else {
-                vcvtph2ps(ymmTemp, xmmSrc);
-                uni_vmovups(ptr[reg_dst], ymmTemp);
-
-                vperm2f128(ymmTemp, ymmSrc, ymmSrc, 0x1);
-                vcvtph2ps(ymmTemp, xmmTemp);
-                uni_vmovups(ptr[reg_dst + vlen], ymmTemp);
-            }
+            convert_emitter->emit_code({static_cast<size_t>(xmmSrc.getIdx())}, {static_cast<size_t>(ymmTemp.getIdx())});
+            uni_vmovups(ptr[reg_dst], ymmTemp);
+            vperm2f128(ymmTemp, ymmSrc, ymmSrc, 0x1);
+            convert_emitter->emit_code({static_cast<size_t>(xmmTemp.getIdx())},
+                                       {static_cast<size_t>(ymmTemp.getIdx())});
+            uni_vmovups(ptr[reg_dst + vlen], ymmTemp);
             uni_vpxor(vmmZeros, vmmZeros, vmmZeros);
         }
     } else {
@@ -1132,13 +1118,8 @@ void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst,
                     uni_vpextrw(ptr[rDst], xAux, k * 2);
                 } else if (jcp.out_prec == element::f32) {
                     // xAux should not changed
-                    if (jcp.in_prec == element::bf16) {
-                        uni_vpmovzxwd(ymmTemp, xAux);
-                        uni_vpslld(ymmTemp, ymmTemp, 16);
-                    }
-                    if (jcp.in_prec == element::f16) {
-                        vcvtph2ps(ymmTemp, xAux);
-                    }
+                    convert_emitter->emit_code({static_cast<size_t>(xAux.getIdx())},
+                                               {static_cast<size_t>(ymmTemp.getIdx())});
                     if (k < 2) {
                         uni_vpextrd(ptr[rDst], xmmTemp, k * 2);
                     } else {
