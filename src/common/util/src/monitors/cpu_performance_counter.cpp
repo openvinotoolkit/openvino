@@ -62,7 +62,7 @@ public:
         }
     }
 
-    std::map<std::string, double> get_load() {
+    std::map<std::string, double> getUtilization() {
         PDH_STATUS status;
         auto ts = std::chrono::system_clock::now();
         if (ts > lastTimeStamp) {
@@ -165,7 +165,7 @@ class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl() : prevIdleCpuStat{getIdleCpuStat()}, prevTimePoint{std::chrono::steady_clock::now()} {}
 
-    std::map<std::string, double> get_load() {
+    std::map<std::string, double> getUtilization() {
         // TODO: Implement.
         return {{"Total", 0.0}};
     }
@@ -182,7 +182,7 @@ namespace monitor {
 // not implemented
 class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
-    std::map<std::string, double> get_load() {
+    std::map<std::string, double> getUtilization() {
         return {{"Total", 0.0}};
     }
 };
@@ -190,11 +190,11 @@ public:
 CpuPerformanceCounter::CpuPerformanceCounter(int numCores)
     : PerformanceCounter("CPU"),
       n_cores(numCores >= 0 ? numCores : 0) {}
-std::map<std::string, double> CpuPerformanceCounter::get_load() {
+std::map<std::string, double> CpuPerformanceCounter::getUtilization() {
     if (!performance_counter)
         performance_counter = std::make_shared<PerformanceCounterImpl>();
     if (n_cores == 0)
-        return performance_counter->get_load();
+        return performance_counter->getUtilization();
     std::map<std::string, double> ret;
     ret["Total"] = 0.0;
     for (int i = 0; i < n_cores; i++) {

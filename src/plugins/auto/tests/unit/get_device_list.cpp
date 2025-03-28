@@ -246,10 +246,6 @@ public:
         std::vector<std::string> npuCability = {"FP32", "FP16", "INT8", "BIN"};
         ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_NPU), StrEq(ov::device::capabilities.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(npuCability));
-        std::map<std::string, double> npuUtilization = {};
-        if (deviceUtilization.count("NPU")) {
-            npuUtilization = deviceUtilization["NPU"];
-        }
         ov::AnyMap config = {};
         ON_CALL(*plugin, get_property(StrEq(ov::intel_auto::device_utilization_threshold.name()), config))
             .WillByDefault(Return(ov::Any(threshold)));
@@ -259,10 +255,8 @@ public:
             .WillByDefault(Return(ov::Any("00000001")));
         ON_CALL(*core, get_property(StrEq("GPU.1"), StrEq(ov::device::luid.name()), _))
             .WillByDefault(Return(ov::Any("00000002")));
-        ON_CALL(*core, get_property(StrEq("NPU"), StrEq(ov::device::uuid.name()), _))
+        ON_CALL(*core, get_property(StrEq("NPU"), StrEq(ov::device::luid.name()), _))
             .WillByDefault(Return(ov::Any(npuUuid)));
-        ON_CALL(*core, get_property(StrEq("NPU"), StrEq(ov::internal::device_utilization.name()), _))
-            .WillByDefault(Return(ov::Any(npuUtilization)));
         ON_CALL(*core,
                 get_property(StrEq(ov::test::utils::DEVICE_AUTO),
                              StrEq(ov::intel_auto::device_utilization_threshold.name()),
