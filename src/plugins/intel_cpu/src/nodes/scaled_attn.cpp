@@ -1238,10 +1238,17 @@ void ScaledDotProductAttention::createPrimitive() {
         std::shared_ptr<Executor> executor = nullptr;
 #ifdef OPENVINO_ARCH_X86_64
         if (rtPrecision == ov::element::bf16) {
-            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context,
-                                                                                    m_key_quant_param.groupSize,
-                                                                                    m_value_quant_param.groupSize,
-                                                                                    m_key_quant_param.isByChannel);
+            if (ov::with_cpu_x86_bfloat16()) {
+                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context,
+                                                                                        m_key_quant_param.groupSize,
+                                                                                        m_value_quant_param.groupSize,
+                                                                                        m_key_quant_param.isByChannel);
+            } else {
+                executor = std::make_shared<AttentionExecutor<KT_REF, ov::bfloat16>>(context,
+                                                                                     m_key_quant_param.groupSize,
+                                                                                     m_value_quant_param.groupSize,
+                                                                                     m_key_quant_param.isByChannel);
+            }
         } else if (rtPrecision == ov::element::f16) {
             if (with_cpu_x86_avx512_core_fp16()) {
                 executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::float16>>(context,
@@ -2075,7 +2082,7 @@ const ScaledDotProductAttention::SDPAQuantParam& ScaledDotProductAttention::getV
 ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
     // bf16 should be enabled only when platform supports
-    if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
+    if (rtPrecision == ov::element::bf16 && (ov::with_cpu_x86_bfloat16() || mayiuse(cpu_isa_t::avx2_vnni_2))) {
         rtPrecision = ov::element::bf16;
     } else if (rtPrecision == ov::element::f16 && ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         rtPrecision = ov::element::f16;
