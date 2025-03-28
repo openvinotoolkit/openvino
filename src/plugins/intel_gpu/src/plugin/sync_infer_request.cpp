@@ -402,6 +402,8 @@ void SyncInferRequest::wait() {
                     need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
                 else if (!is_remote_tensor_impl && output_memory)
                     need_reallocate = output_tensor_wrapper.actual_size < output_memory->size();
+                else if (is_remote_tensor_impl && output_memory)
+                    need_reallocate = false;
 
                 if (need_reallocate) {
                     std::string internal_name = m_output_names_map.at(port_idx);
