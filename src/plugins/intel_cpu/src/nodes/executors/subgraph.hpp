@@ -89,7 +89,7 @@ protected:
     size_t m_internal_buffer_size = 0;
     size_t m_tensor_rank = 0;
 
-    static const size_t rank6D;
+    static constexpr size_t rank6D = 6;
 
     // Count of threads for parallel_nt
     int m_nthreads = 0;
