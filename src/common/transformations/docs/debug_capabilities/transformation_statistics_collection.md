@@ -1,6 +1,6 @@
 # Transformation statistics collection and visualization
 
-## There are 3 environment variables which can be set for Transformations debugging:
+There are 3 environment variables which can be set for Transformations debugging:
 
 1. OV_ENABLE_PROFILE_PASS - Enables profiling of transformation passes to log their execution times.
 
@@ -40,4 +40,4 @@
     export OV_ENABLE_SERIALIZE_TRACING=true
     export OV_ENABLE_SERIALIZE_TRACING="Pass1,Pass2,Pass3"
 
-If you have any suggestions for improvement, or you observe a bug in statistics collection, feel free to submit changes or contact Ivan Tikhonov <ivan.tikhonov@intel.com>
+If you have suggestions for improvements or encounter any issues with statistics collection, feel free to submit your feedback or contact Ivan Tikhonov <ivan.tikhonov@intel.com>
