@@ -35,8 +35,6 @@ class TestPolar(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_polar(self, input_case, dtype, ie_device, precision, ir_version):
-        atol = 1e-4 if precision == "FP32" else 1e-3
-        rtol = 1e-4
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"input_shape": input_case, "dtype": dtype},
-                   trace_model=True, use_convert_model=True, custom_eps=atol, dynamic_shapes=False)
+                   trace_model=True, use_convert_model=True, dynamic_shapes=False)
