@@ -140,6 +140,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
         # TODO: use data_type_support to disable useless kernels
         data_layout_support=all
         arch=${OV_CPU_ARM_TARGET_ARCH}
+        build_dir=${OV_CPU_ARM_TARGET_ARCH}
     )
 
     if(THREADING STREQUAL "OMP")
@@ -343,9 +344,9 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endif()
 
     if(MSVC64)
-        set(arm_compute build/arm_compute-static.lib)
+        set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/arm_compute-static.lib)
     else()
-        set(arm_compute build/libarm_compute-static.a)
+        set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a)
     endif()
     set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
 

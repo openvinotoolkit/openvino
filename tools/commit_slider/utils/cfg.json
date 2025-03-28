@@ -1,0 +1,140 @@
+{
+    "modeMap" : {
+        "checkOutput" : "CheckOutputMode",
+        "bmPerf" : "BenchmarkAppPerformanceMode",
+        "compareBlobs" : "CompareBlobsMode",
+        "ac" : "AccuracyCheckerMode",
+        "llmBench" : "LLMBenchMode",
+        "nop" : "NopMode"
+    },
+    "traversalMap" : {
+        "firstFailedVersion" : "FirstFailedVersion",
+        "firstFixedVersion" : "FirstFixedVersion",
+        "allBreaks" : "AllBreakVersions",
+        "bruteForce" : "BruteForce"
+    },
+    "utilMap" : {
+        "map_builder" : "printMap",
+        "log_parser" : "logParser",
+        "break_validator": "breakValidator",
+        "e2e_preparator": "getWheelMap"
+    },
+    "extendBuildCommand" : false,
+    "commandList" : [
+        {"cmd" : "git checkout -- .", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
+        {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
+        {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
+        {"cmd" : "git checkout {commit}", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
+        {"cmd" : "git submodule init", "path" : "{gitPath}"},
+        {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+        {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
+        {"cmd" : "make --jobs=4", "catchMsg" : "(.)*make(.)*Error(.)*", "path" : "{buildPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
+    ],
+    "extendedCommandList" : [
+        {"cmd" : "git rm --cached -r .", "path" : "{gitPath}"},
+        {"cmd" : "git reset --hard", "path" : "{gitPath}"},
+        {"cmd" : "git rm .gitattributes", "path" : "{gitPath}"},
+        {"cmd" : "git reset .", "path" : "{gitPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
+        {"cmd" : "git rm --cached -r .", "path" : "{gitPath}"},
+        {"cmd" : "git reset --hard", "path" : "{gitPath}"},
+        {"cmd" : "git rm .gitattributes", "path" : "{gitPath}"},
+        {"cmd" : "git reset .", "path" : "{gitPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
+        {"cmd" : "git clean -fxd", "path" : "{gitPath}"},
+        {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
+        {"cmd" : "git checkout {commit}", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
+        {"cmd" : "git submodule init", "path" : "{gitPath}"},
+        {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+        {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
+        {"cmd" : "make --jobs=4", "catchMsg" : "(.)*make(.)*Error(.)*", "path" : "{buildPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
+    ],
+    "skipMode" : {
+        "modeName" : "rebuild",
+        "flagSet" : {
+            "comment_1" : "\"flagSet\" ignored if modeName is defined",
+            "enforceSkips" : "enabled automatically when double-build failed",
+            "enableRebuild" : false,
+            "switchOnExtendedBuild" : false,
+            "switchOnSimpleBuild" : false,
+            "comment_2" : "additional params, to-be considered in complex modes",
+            "buildTryCount" : 0,
+            "failedCommand" : "checkout | make"
+        },
+        "comment" : "modes: {skip (for developer purpose) | rebuild (simple user mode)}"
+    },
+    "makeCmd" : "cmake ..",
+    "returnCmd" : "git checkout master",
+    "gitPath" : "../../",
+    "appPath" : "../../bin/intel64/Release/",
+    "buildPath" : "../../build/",
+    "cachePath" : "{workPath}/slider_cache/",
+    "userCachePath" : "",
+    "logPath" : "{workPath}/log/",
+    "userLogPath" : "",
+    "clearLogsAposteriori" : false,
+    "workPath" : "will be defined in runtime",
+    "linWorkPath" : "/tmp/commit_slider_tool",
+    "winWorkPath" : "%tmp%\\commit_slider",
+    "clearCache" : false,
+    "checkIfBordersDiffer" : true,
+    "printCSV" : true,
+    "usePrevRunCache" : false,
+    "verboseOutput": false,
+    "venvCfg": {
+        "venvEnabled": false,
+        "venvDir": "{workPath}/venv/",
+        "venvName": "tempVenv"
+    },
+    "buildEnvVars": [],
+    "preliminaryCheckCfg": {
+        "leftCheck": true,
+        "rightCheck": false,
+        "tryCount": 5,
+        "checkBenchmarkModelPath": true
+    },
+    "serviceConfig" : {
+        "comment" : "For inner purpose. Data will be overwritten during script running."
+    },
+    "dlbConfig" : {
+        "launchedAsJob" : false,
+        "toolName" : "{e2e|ac} - specified outside tool, supposed to be downloaded by job",
+        "wheelVersionsMap": {},
+        "commonPath": "",
+        "subPath": "",
+        "appPath" : "path, substituted by job",
+        "appCmd": ""
+    },
+    "cachedPathConfig": {
+        "enabled" : false,
+        "scheme" : "optional | mandatory",
+        "comment" : "'mandatory' skips lacking hash-appPath pair for given key, 'optional' tries to handle it by building",
+        "passCmdList": true,
+        "changeAppPath": true,
+        "commonPath": "",
+        "subPath": "",
+        "cashMap" : {}
+    },
+    "subscriptions" : [
+        {
+            "name": "wheelPathsMap",
+            "enabled": false
+        },
+        {
+            "name": "wheelVersionsMap",
+            "enabled": false
+        }
+    ],
+    "substitutionRules": [
+        {
+            "name": "ruleName",
+            "enabled": false,
+            "type": "commit_map | static",
+            "placeholder": "placeholder",
+            "from": "$.json.path.expression.to.cfg.value",
+            "to": "$.json.path.expression.to.commit.map"
+        }
+    ]
+}

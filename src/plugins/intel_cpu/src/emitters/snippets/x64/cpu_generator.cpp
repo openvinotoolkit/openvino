@@ -285,9 +285,9 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 
 #ifdef SNIPPETS_DEBUG_CAPS
     jitters[snippets::op::PerfCountBegin::get_type_info_static()] =
-        CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_chrono_start_emitter);
+        CREATE_SNIPPETS_EMITTER(ov::intel_cpu::jit_perf_count_chrono_start_emitter);
     jitters[snippets::op::PerfCountEnd::get_type_info_static()] =
-        CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_chrono_end_emitter);
+        CREATE_SNIPPETS_EMITTER(ov::intel_cpu::jit_perf_count_chrono_end_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscBegin::get_type_info_static()] =
         CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_start_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscEnd::get_type_info_static()] =

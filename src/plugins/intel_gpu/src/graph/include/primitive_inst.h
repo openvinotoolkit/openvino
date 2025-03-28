@@ -12,6 +12,7 @@
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -514,7 +515,6 @@ struct typed_primitive_impl : public primitive_impl {
 
     using primitive_impl::primitive_impl;
 
-private:
     event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
