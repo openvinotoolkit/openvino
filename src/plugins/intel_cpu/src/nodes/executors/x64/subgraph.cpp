@@ -158,7 +158,7 @@ void SubgraphExecutor::separately_repack_input(const MemoryPtr& src_mem_ptr,
 std::vector<MemoryPtr> SubgraphExecutor::prepare_weights(const std::vector<MemoryPtr>& in_mem_ptrs,
                                                          const RepackedInputConfig& repacked_const_input_config,
                                                          const GraphContext::CPtr& context) {
-    std::vector<MemoryPtr> repackedMemPtrs = in_mem_ptrs;
+    std::vector<MemoryPtr> repacked_mem_ptrs = in_mem_ptrs;
     for (const auto& p : repacked_const_input_config) {
         const auto idx = p.first;
         const auto& repacked_input = p.second;
