@@ -870,14 +870,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- EISW ##### -->
-    <skip_config>
-        <message>get_runtime_model method is not supported on NPU</message>
-        <filters>
-            <filter>.*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- CACHE_MODE is not supported on NPU, update test with correct property to make weightless compiled model -->
     <skip_config>
         <message>compiled_blob test use `CACHE_MOD` which is not supported on NPU</message>
