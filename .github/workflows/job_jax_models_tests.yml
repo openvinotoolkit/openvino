@@ -58,10 +58,11 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "MODEL_HUB_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/model_hub_tests" >> "$GITHUB_ENV"
-          echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV"
+          # echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV" # Ticket: 165172
 
       - name: Setup HuggingFace Cache Directory (Windows)
-        if: runner.os == 'Windows'
+        # if: runner.os == 'Windows'
+        if: ${{ 'false' }} # Ticket: 165172
         run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
 
       - name: Extract OpenVINO packages and tests

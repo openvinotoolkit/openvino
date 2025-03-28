@@ -61,10 +61,11 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "MODELS_SHARE_PATH=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))" >> "$GITHUB_ENV"
           echo "LOGS_FOLDER=$GITHUB_WORKSPACE/onnx_models_tests_logs" >> "$GITHUB_ENV"
-          echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV"
+          # echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV" # Ticket: 165172
 
       - name: Setup HuggingFace Cache Directory (Windows)
-        if: runner.os == 'Windows'
+        # if: runner.os == 'Windows'
+        if: ${{ 'false' }} # Ticket: 165172
         run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
 
       - name: Extract OpenVINO packages and tests
