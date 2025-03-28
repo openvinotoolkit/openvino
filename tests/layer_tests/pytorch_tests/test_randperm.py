@@ -28,6 +28,7 @@ class TestSortedRandperm(PytorchLayerTest):
                                          device=x.device, pin_memory=False)
                 else:
                     raise ValueError("Invalid num_inputs")
+                # sort to get a deterministic order for verifying the permutation.
                 x_permuted = x[p]
                 sorted_tensor, _ = torch.sort(x_permuted)
                 return sorted_tensor
@@ -44,7 +45,5 @@ class TestSortedRandperm(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_sorted_randperm(self, n, num_inputs, dtype_value, ie_device, precision, ir_version):
-        if n == 0:
-            pytest.skip("Skipping n==0 test as dynamic n==0 results in shape [1, 0] in OV vs [0] in PyTorch")
         self.n = n
         self._test(*self.create_model(n, num_inputs, dtype_value), ie_device, precision, ir_version)
