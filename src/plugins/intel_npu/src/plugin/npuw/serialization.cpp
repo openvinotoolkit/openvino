@@ -320,7 +320,7 @@ void ov::npuw::s11n::read(std::istream& stream, ov::element::Type& var) {
 // FIXME: all serialization needs a good rewriting
 void ov::npuw::s11n::write_weightless(std::ostream& stream,
                                       const std::vector<ov::Tensor>& var,
-                                      const ov::npuw::s11n::CompiledDescSerializeContext& ctx) {
+                                      const ov::npuw::s11n::WeightsContext& ctx) {
     write(stream, var.size());
     for (const auto& t : var) {
         if (!t) {
@@ -345,7 +345,7 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream,
 
 void ov::npuw::s11n::read_weightless(std::istream& stream,
                                      std::vector<ov::Tensor>& var,
-                                     const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+                                     const ov::npuw::s11n::WeightsContext& ctx) {
     var.clear();
     std::size_t size;
     read(stream, size);

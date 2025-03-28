@@ -222,7 +222,7 @@ struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
 //
 // MODEL_PTR
 //
-struct MODEL_PTR final : OptionBase<MODEL_PTR, std::shared_ptr<ov::Model>> {
+struct MODEL_PTR final : OptionBase<MODEL_PTR, std::shared_ptr<const ov::Model>> {
     static std::string_view key() {
         return ov::hint::model.name();
     }
@@ -231,14 +231,14 @@ struct MODEL_PTR final : OptionBase<MODEL_PTR, std::shared_ptr<ov::Model>> {
         return "std::shared_ptr<ov::Model>";
     }
 
-    static std::shared_ptr<ov::Model> defaultValue() {
+    static std::shared_ptr<const ov::Model> defaultValue() {
         return nullptr;
     }
 
-    static std::shared_ptr<ov::Model> parse(std::string_view) {
+    static std::shared_ptr<const ov::Model> parse(std::string_view) {
         return nullptr;
     }
-    static std::string toString(const std::shared_ptr<ov::Model>& m) {
+    static std::string toString(const std::shared_ptr<const ov::Model>& m) {
         return "";
     }
 

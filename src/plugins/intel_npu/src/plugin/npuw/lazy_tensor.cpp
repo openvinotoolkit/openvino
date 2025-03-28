@@ -63,7 +63,7 @@ struct Const {
         NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first!");
         return m_read_from_bin;
     }
-    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
         NPUW_ASSERT(!m_node &&
                     "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
         m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
@@ -125,7 +125,7 @@ struct Concat {
         }
         return ov::npuw::util::concat(to_concat, axis);
     }
-    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
         for (auto& lt : tensors) {
             lt.read_weight(ctx);
         }
@@ -184,7 +184,7 @@ struct Unpack {
         }
         return dst;
     }
-    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
         w.read_weight(ctx);
         if (z) {  // could be empty
             z.read_weight(ctx);
@@ -236,7 +236,7 @@ struct Permute {
     ov::Tensor eval() const {
         return ov::npuw::util::permute(tensor.eval(), axes);
     }
-    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
         tensor.read_weight(ctx);
     }
     void detach() {
@@ -273,7 +273,7 @@ struct Convert {
         NPUW_ASSERT(ov::element::f16 == type);
         return ov::npuw::util::to_f16(tensor.eval());
     }
-    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
         tensor.read_weight(ctx);
     }
     void detach() {
@@ -313,7 +313,7 @@ public:
 
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<LazyTensorImpl> deserialize(std::istream& stream);
-    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx);
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
 
     Transform m_transform;
     std::size_t m_hash = 0;
@@ -362,7 +362,7 @@ ov::Tensor LazyTensorImpl::eval() const {
                       m_transform);
 }
 
-void LazyTensorImpl::read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+void LazyTensorImpl::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     std::visit(overloaded{[&ctx](auto& op) {
                    return op.read_weight(ctx);
                }},
@@ -480,7 +480,7 @@ ov::Tensor LazyTensor::eval() const {
     return m_impl->eval();
 }
 
-void LazyTensor::read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx) {
+void LazyTensor::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     NPUW_ASSERT(m_impl && "Trying to read weights into uninitialized tensor!");
     m_impl->read_weight(ctx);
 }
