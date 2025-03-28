@@ -66,7 +66,7 @@ std::shared_ptr<BrgemmCPU> clone_with_new_params(
     return new_brgemm;
 }
 
-} // namespace
+}  // namespace
 
 pass::FuseScaleShift::FuseScaleShift() {
     MATCHER_SCOPE(FuseScaleShift);
@@ -156,7 +156,8 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             postops_config.binary_postops_offset = m_fused_postops_count;
             std::cout << "[ INFO ] binary_postops_offset is set to " << m_fused_postops_count << std::endl;
         } else {
-            std::cout << "[ INFO ] binary postops is already set to " << postops_config.binary_postops_offset.value() << std::endl;
+            std::cout << "[ INFO ] binary postops is already set to " << postops_config.binary_postops_offset.value()
+                      << std::endl;
         }
         if (pattern_map.count(m_mul)) {
             OPENVINO_ASSERT(postops_config.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_mul,
