@@ -208,6 +208,8 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
 
     if (params.conf.is_paged_attention)
         jit.AddConstant(MakeJitConstant("IS_PAGED_ATTENTION", 1));
+    else if (params.could_use_flashattn_v2)
+        jit.AddConstant(MakeJitConstant("IS_FLASHATTEN_V2", 1));
 
     if (params.engineInfo.supports_immad && params.conf.broadcast_axis == -1 && params.conf.head_size >= 128)
         jit.AddConstant(MakeJitConstant("LOAD_KEY_LEFTOVERS_IN_CALC_LOOP", 1));
