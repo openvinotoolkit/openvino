@@ -1328,7 +1328,7 @@ void primitive_inst::do_runtime_skip_reorder() {
                     update_memory_dependencies = [&](std::vector<primitive_inst*> users) {
                         for (auto& user : users) {
                             GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
-                            user->_runtime_memory_dependencies.insert(get_node().get_unique_id());
+                            user->_runtime_memory_dependencies.insert(static_cast<uint32_t>(get_node().get_unique_id()));
                             if (user->can_be_optimized())
                                 update_memory_dependencies(user->get_user_insts());
                         }
