@@ -22,9 +22,6 @@ OutputVector translate_rad2deg(const NodeContext& context) {
     // Retrieve the input tensor
     auto input = context.get_input(0);
 
-    // Get the input element type dynamically
-    auto input_type = input.get_element_type();
-
     const double pi_val = std::atan(1.0) * 4;
 
     // Create a constant node with the conversion factor (180 / π) using fp64 type
