@@ -19,7 +19,9 @@
 #    include <utility>
 #endif
 
-#include <cstdlib>
+#ifdef _WIN32
+#    include <malloc.h>
+#endif
 
 namespace ov::intel_cpu {
 template <>
@@ -91,6 +93,27 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz, bool bf16sat
     auto* memData = static_cast<float*>(dst.getData());
     memData += offset;
     setSubnormalsToZeroAndbf16Saturation(memData, dst.getSize() / sizeof(float), ftz, bf16saturation);
+}
+
+void* _malloc(size_t size, size_t alignment) {
+    void* ptr;
+
+#ifdef _WIN32
+    ptr = _aligned_malloc(size, alignment);
+    int rc = ptr ? 0 : -1;
+#else
+    int rc = ::posix_memalign(&ptr, alignment, size);
+#endif
+
+    return (rc == 0) ? ptr : nullptr;
+}
+
+void _free(void* ptr) {
+#ifdef _WIN32
+    _aligned_free(ptr);
+#else
+    ::free(ptr);
+#endif
 }
 
 }  // namespace
@@ -194,7 +217,7 @@ bool MemoryBlockWithReuse::resize(size_t size) {
     if (size > m_memUpperBound) {
         // ensure the size is an integral multiple of cacheLineSize
         size = (size + cacheLineSize - 1) & ~(cacheLineSize - 1);
-        void* ptr = std::aligned_alloc(cacheLineSize, size);
+        void* ptr = _malloc(size, cacheLineSize);
         if (!ptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
@@ -229,7 +252,7 @@ size_t MemoryBlockWithReuse::size() const {
 void MemoryBlockWithReuse::release(void* ptr) {}
 
 void MemoryBlockWithReuse::destroy(void* ptr) {
-    std::free(ptr);
+    _free(ptr);
 }
 
 /////////////// StringMemory ///////////////
