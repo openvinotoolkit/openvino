@@ -6,15 +6,16 @@
 #pragma OPENCL EXTENSION cl_ext_float_atomics : enable
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 
-#define str(TYPE) TYPE
-#define atomicadd(TYPE, a, b) _atomicadd(TYPE, a, b)
+#define str(TYPE)              TYPE
+#define atomicadd(TYPE, a, b)  _atomicadd(TYPE, a, b)
 #define _atomicadd(TYPE, a, b) atomicadd_##TYPE(a, b)
-#define atomicadd_float(a, b) atomic_fetch_add((volatile atomic_float*)(a), (b))
-#define atomicadd_half(a, b) _atomicadd_half((volatile atomic_half*)(a), (b))
+#define atomicadd_float(a, b)  atomic_fetch_add((volatile atomic_float*)(a), (b))
+#define atomicadd_half(a, b)   _atomicadd_half((volatile atomic_half*)(a), (b))
 
 inline half _atomicadd_half(volatile atomic_half* address, const half value) {
     half old = value, orig;
-    while ((old = atomic_exchange(address, (orig = atomic_exchange(address, 0)) + old)) != 0);
+    while ((old = atomic_exchange(address, (orig = atomic_exchange(address, 0)) + old)) != 0)
+        ;
     return orig;
 }
 
@@ -36,6 +37,10 @@ inline int calcDivisor(int idx, int frameSize, int frameStep, int bufferSize) {
 
     int ret = ((min(lastPossibleIdx, idx) - realStartIdx) / frameStep) + 1;
     return ret;
+}
+
+inline bool IsNotBetween(int value, int min, int max) {
+    return (value < min || value >= max);
 }
 
 // alternative: https://github.com/OpenCL/ComplexMath/blob/master/clcomplex.h
@@ -66,7 +71,7 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     const int freqs = INPUT0_FEATURE_NUM;
     const int DEFAULT_OUTPUT_SIZE = (INPUT0_SIZE_Y - 1) * frame_step + frame_size;
 
-    //printf("frame_size: %i\n", frame_size);
+    // printf("frame_size: %i\n", frame_size);
 
     const float windowVal = (float)window[windowIdx];
     const float windowValPow2 = windowVal * windowVal;
@@ -132,19 +137,19 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
 #else
     const float scale = 1.0f;
 #endif
-    const float finalVAl = (finalIRDFTVal * windowVal * scale) / (normalizationSum);
 
+    const float finalVAl = (finalIRDFTVal * windowVal * scale) / (normalizationSum);
     const OUTPUT_TYPE finalVal = (OUTPUT_TYPE)(finalVAl);
 
 #if CENTER
     const int margin = frame_size / 2;
-    const int outputIdx = windowIdx + frameIdxStart;
-    if (outputIdx < margin || outputIdx > OUTPUT_SIZE_X + margin)
+
+    if (IsNotBetween(outputIdxWithinBatch, margin, DEFAULT_OUTPUT_SIZE - margin))
         return;
 
-    const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, outputIdx - margin);
+    const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, outputIdxWithinBatch - margin);
 #else
-    const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, windowIdx + frameIdxStart);
+    const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, outputIdxWithinBatch);
 #endif
 
     // Perform last reduction atomically.
