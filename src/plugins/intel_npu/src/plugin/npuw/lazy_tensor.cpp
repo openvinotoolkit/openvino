@@ -44,7 +44,6 @@ bool Const::operator==(const Const& other) const {
             m_cached_ptr == other.m_cached_ptr);
 }
 ov::Tensor Const::eval() const {
-    // std::cout << "CONST eval" << std::endl;
     if (m_node) {
         return ov::npuw::util::tensor_from_const(m_node);
     }
@@ -92,7 +91,6 @@ bool Concat::operator==(const Concat& other) const {
     return (axis == other.axis && tensors == other.tensors);
 }
 ov::Tensor Concat::eval() const {
-    // std::cout << "CONCAT eval" << std::endl;
     std::vector<ov::Tensor> to_concat;
     for (const auto& lt : tensors) {
         to_concat.push_back(lt.eval());
@@ -136,7 +134,6 @@ bool Unpack::operator==(const Unpack& other) const {
     return (type == other.type && shape == other.shape && w == other.w && z == other.z && s == other.s);
 }
 ov::Tensor Unpack::eval() const {
-    // std::cout << "UNPACK eval" << std::endl;
     const auto& gti = ov::get_tensor_impl;
     const auto& tw = w.eval();
     const auto& tz = z.eval();
@@ -196,7 +193,6 @@ bool Permute::operator==(const Permute& other) const {
     return (axes == other.axes && tensor == other.tensor);
 }
 ov::Tensor Permute::eval() const {
-    // std::cout << "PERMUTE eval" << std::endl;
     return ov::npuw::util::permute(tensor.eval(), axes);
 }
 void Permute::read_weight(const ov::npuw::s11n::Weights& weights) {
@@ -227,7 +223,6 @@ bool Convert::operator==(const Convert& other) const {
     return (type == other.type && tensor == other.tensor);
 }
 ov::Tensor Convert::eval() const {
-    // std::cout << "CONVERT eval" << std::endl;
     NPUW_ASSERT(ov::element::f16 == type);
     return ov::npuw::util::to_f16(tensor.eval());
 }

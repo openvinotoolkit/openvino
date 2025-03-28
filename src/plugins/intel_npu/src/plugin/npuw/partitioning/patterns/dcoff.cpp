@@ -126,9 +126,6 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     std::vector<ov::npuw::weights::LazyTensor> new_lazy_closure;
     std::vector<ov::Tensor> new_scales;
     std::vector<ov::Tensor> new_zerops;
-    // std::vector<std::vector<std::size_t>> closure_permutes(fcall._closure.size(), std::vector<std::size_t>{});
-    // std::vector<std::vector<std::size_t>> scale_permutes(fcall._scales.size(), std::vector<std::size_t>{});
-    // std::vector<std::vector<std::size_t>> zerop_permutes(fcall._zerops.size(), std::vector<std::size_t>{});
 
     // For a new_lazy_closure vector by rearranging the old one.  Also
     // reserve a new_scales vector to have the same size, filled with
@@ -138,15 +135,11 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
         if (fcall._closure[i]) {
             new_closure.push_back(fcall._closure[i]);
         } else {
-            std::cout << "DCOFF calculating weight LT:" << std::endl;
             // Only support permute transformations
             auto transforms = fcall._lazy_closure[i].get_transformations();
-            // FIXME: Should we only support PERMUTE or storing CONSTS for DCOFF is also fine?
-            if (transforms.size() == 2 && std::holds_alternative<ov::npuw::weights::op::Permute>(transforms[0]) /* && DCOFF_SHARED == YES */) {
+            if (transforms.size() == 2 && std::holds_alternative<ov::npuw::weights::op::Permute>(transforms[0])) {
+                // Assuming we only match weights where DQ did set Transpose after - thus nothing extra to do here
                 new_closure.push_back(ov::Tensor());
-                std::cout << "dcoff weight in bank" << std::endl;
-                auto permute = std::get<ov::npuw::weights::op::Permute>(transforms[0]);
-                // closure_permutes[new_closure.size() - 1] = permute.axes;
             } else {
                 new_closure.push_back(m.weights_to_unpack.count(i) ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
             }
@@ -155,43 +148,15 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
         auto scale_iter = m.scale_remap.find(i);
         auto zerop_iter = m.zerop_remap.find(i);
 
-        std::cout << "DCOFF calculating scale LT:" << std::endl;
-        auto stransforms = scale_iter != m.scale_remap.end()
-                               ? fcall._lazy_closure[scale_iter->second].get_transformations()
-                               : std::vector<ov::npuw::weights::LazyTensor::Transform>{};
-        // FIXME: Should we only support PERMUTE or storing CONSTS for DCOFF is also fine?
-        // if (stransforms.size() == 2 && std::holds_alternative<ov::npuw::weights::op::Permute>(stransforms[0]) /* && DCOFF_SHARED == YES */) {
-        //     new_scales.push_back(ov::Tensor());
-        //     std::cout << "dcoff scale in bank" << std::endl;
-        //     auto permute = std::get<ov::npuw::weights::op::Permute>(stransforms[0]);
-        //     // scale_permutes[new_scales.size() - 1] = permute.axes;
-        // } else {
-            new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._lazy_closure[scale_iter->second].eval()
-                                                                   : ov::Tensor());
-        // }
-        // Check for asymmetric zero points and add them to new_zerops
-        std::cout << "DCOFF calculating zerop LT:" << std::endl;
-        auto ztransforms = zerop_iter != m.zerop_remap.end()
-                               ? fcall._lazy_closure[zerop_iter->second].get_transformations()
-                               : std::vector<ov::npuw::weights::LazyTensor::Transform>{};
-        // FIXME: Should we only support PERMUTE or storing CONSTS for DCOFF is also fine?
-        // if (ztransforms.size() == 2 && std::holds_alternative<ov::npuw::weights::op::Permute>(ztransforms[0]) /* && DCOFF_SHARED == YES */) {
-        //     new_zerops.push_back(m.zero_points[i]);
-        //     std::cout << "dcoff zerop in bank" << std::endl;
-        //     auto permute = std::get<ov::npuw::weights::op::Permute>(ztransforms[0]);
-        //     // zerop_permutes[new_zerops.size() - 1] = permute.axes;
-        // } else {
-            new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
-                                                                   : m.zero_points[i]);
-        // }
+        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._lazy_closure[scale_iter->second].eval()
+                                                               : ov::Tensor());
+        new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
+                                                               : m.zero_points[i]);
     }
     fcall._scales = std::move(new_scales);
     fcall._zerops = std::move(new_zerops);
     fcall._closure = std::move(new_closure);
     fcall._lazy_closure = std::move(new_lazy_closure);
-    // fcall._closure_permutes = std::move(closure_permutes);
-    // fcall._scale_permutes = std::move(scale_permutes);
-    // fcall._zerop_permutes = std::move(zerop_permutes);
 }
 
 void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
@@ -318,10 +283,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             // Record mapping from the Scale coeff paramter to the Real weight parameter
             m_params_to.get().scales[matched_paramB] = matched_paramA;
 
-            std::cout << "ALEX DCOFFPassBase matched" << std::endl;
-
             // Disconnect Multiply and Convert from their outputs
-            // FIXME: can we use get_node_shared_ptr() with at_or_at() ???
+            // FIXME: can we use get_node_shared_ptr() with at_or_at()
             auto matched_mulply = uat::_(node_to_output).at_or_at(transposeopt, mulply).get_node_shared_ptr();
             auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
             auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
@@ -354,7 +317,6 @@ void DCOFFPassMatMul::build() {
 }
 
 void DCOFFPassMatMul::reconnect_root_to_convert(ov::pass::pattern::Matcher& m) {
-    std::cout << "ALEX DCOFFPassMatMul reconnect_root_to_convert matched" << std::endl;
     // In this pattern, Convert goes to the MatMul's (root) 1st (0-based) input
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
@@ -379,7 +341,6 @@ void DCOFFPassGather::build() {
 }
 
 void DCOFFPassGather::reconnect_root_to_convert(ov::pass::pattern::Matcher& m) {
-    std::cout << "ALEX DCOFFPassGather reconnect_root_to_convert matched" << std::endl;
     // In this pattern, Convert goes to the Gathers's (root) 0's input
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
@@ -478,8 +439,6 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             m_params_to.get().zerops[matched_paramA] = matched_valueB;
             m_params_to.get().scales[matched_paramC] = matched_paramA;
 
-            std::cout << "ALEX zp DCOFFPassBase matched" << std::endl;
-
             // Disconnect Multiply and Convert from their outputs
             auto matched_mulply = uat::_(node_to_output).at_or_at(transposeopt, mulply).get_node_shared_ptr();
             auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
@@ -511,7 +470,6 @@ void DCOFFPassReshape1::build() {
 }
 
 void DCOFFPassReshape1::reconnect_root(ov::pass::pattern::Matcher& m) {
-    std::cout << "ALEX DCOFFPassReshape1 reconnect_root matched" << std::endl;
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
     auto matched_reshpe = node_to_output.at(reshpe).get_node_shared_ptr();
@@ -526,7 +484,6 @@ void DCOFFPassConvert1::build() {
 }
 
 void DCOFFPassConvert1::reconnect_root(ov::pass::pattern::Matcher& m) {
-    std::cout << "ALEX DCOFFPassConvert1 reconnect_root matched" << std::endl;
     // FIXME: Two converts can be further squashed into one!
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
@@ -614,8 +571,6 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
                 // Record mapping from the Scale coeff parameter to the Real weight parameter
                 pref.get().zerops[matched_paramA] = matched_valueB;
                 pref.get().scales[matched_paramC] = matched_paramA;
-
-                std::cout << "ALEX DCOFFPassReshape2 matched" << std::endl;
 
                 // Disconnect Multiply and Convert from their outputs
                 auto matched_mulply = uat::_(node_to_output).at_or_at(transposeopt, mulply).get_node_shared_ptr();
@@ -714,8 +669,6 @@ DCOFFPassReshape3::DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dco
                 drop_outputs(matched_mulply);
                 drop_outputs(matched_convrt);
 
-                std::cout << "ALEX DCOFFPassReshape3 matched" << std::endl;
-
                 LOG_DEBUG("Reconnecting the Root...");
                 auto matched_cvt = uat::_(node_to_output).at_or_at(transposeopt, cvt).get_node_shared_ptr();
                 matched_cvt->input(0).replace_source_output(matched_paramA);
@@ -788,8 +741,6 @@ DCOFFPassReshape4::DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dco
                 if (matched_out_mulply.get_element_type() == ov::element::f32) {
                     new_rshp_in = std::make_shared<ov::op::v0::Convert>(matched_paramA, ov::element::f32);
                 }
-
-                std::cout << "ALEX DCOFFPassReshape4 matched" << std::endl;
 
                 LOG_DEBUG("Reconnecting the Root...");
                 auto matched_reshape = uat::_(node_to_output).at_or_at(transposeopt, reshape).get_node_shared_ptr();
@@ -1094,8 +1045,6 @@ DCOFFPassReshape::DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff
                 LOG_DEBUG("Dropping the connections...");
                 drop_outputs(matched_mulply);
                 drop_outputs(matched_convrt);
-
-                std::cout << "ALEX asymm zp DCOFFPassReshape matched" << std::endl;
 
                 LOG_DEBUG("Reconnecting the Root...");
                 auto matched_reshpe = node_to_output.at(reshpe).get_node_shared_ptr();

@@ -362,9 +362,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].zerops = subgraph._zerops;
             m_compiled_submodels[id].forced_to_fcall = subgraph._forced_to_fcall;
             m_compiled_submodels[id].is_remote.resize(m_compiled_submodels[id].closure.size(), false);
-            // m_compiled_submodels[id].closure_permutes = subgraph._closure_permutes;
-            // m_compiled_submodels[id].scale_permutes = subgraph._scale_permutes;
-            // m_compiled_submodels[id].zerop_permutes = subgraph._zerop_permutes;
         }  // if(!funcall)
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {
@@ -879,10 +876,8 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
             if (comp_model_desc.closure[tidx]) {
-                std::cout << "bank already in the bank" << std::endl;
                 continue;  // host-side closure
             }
-            std::cout << "bank register LT" << std::endl;
             comp_model_desc.closure_uid[tidx] =
                 m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
         }

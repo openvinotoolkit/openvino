@@ -49,12 +49,6 @@ struct Subgraph {
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::vector<bool> _is_lazy_unpack;
 
-    // During DCOFF we might keep some tensors in weights bank,
-    // but during unpack() calls we need to transpose some of them
-    // std::vector<std::vector<std::size_t>> _closure_permutes;
-    // std::vector<std::vector<std::size_t>> _scale_permutes;
-    // std::vector<std::vector<std::size_t>> _zerop_permutes;
-
     bool _forced_to_fcall = false;
 
     struct Gather {
