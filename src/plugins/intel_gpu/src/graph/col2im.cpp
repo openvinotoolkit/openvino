@@ -66,6 +66,7 @@ std::vector<layout> col2im_inst::calc_output_layouts(col2im_node const& node, ke
     };
 
     std::vector<ShapeType> output_shapes;
+    // Only support static shape. For dynamic support, it may need to add output and kernel size input.
     output_shapes = ov::op::v15::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data), false);
 
     return { layout{output_shapes[0], output_type, output_format} };

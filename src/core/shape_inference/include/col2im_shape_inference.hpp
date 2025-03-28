@@ -12,6 +12,7 @@
 namespace ov {
 namespace op {
 namespace v15 {
+// Currently, only static shape is supported
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const Col2Im* op,
                                  const std::vector<TShape>& input_shapes,
