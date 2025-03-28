@@ -24,6 +24,7 @@
 #    include <system_error>
 #    include <thread>
 
+#    include "openvino/util/wstring_convert_util.hpp"
 #    include "query_wrapper.hpp"
 #    define RENDER_ENGINE_COUNTER_INDEX  0
 #    define COMPUTE_ENGINE_COUNTER_INDEX 1
@@ -34,96 +35,58 @@ namespace util {
 namespace monitor {
 class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
-    PerformanceCounterImpl() {
-        auto devices = getNumberOfCores();
-        numDevices = devices.size();
-        int gpuIndex = 0;
-        for (auto item : devices) {
-            coreTimeCounters[item.first] = {};
-            coreTimeCounters[item.first].resize(MAX_COUNTER_INDEX);
+    PerformanceCounterImpl(const std::string& deviceLuid) {
+        luid = deviceLuid;
+        if (!luid.empty()) {
+            coreTimeCounters[luid] = {};
+            coreTimeCounters[luid].resize(MAX_COUNTER_INDEX);
         }
-        initCoreCounters(devices);
+        initCoreCounters(deviceLuid);
     }
 
-    std::map<std::string, LUID> getNumberOfCores() {
-        auto LuidToString = [](LUID luid) -> std::string {
-            uint8_t highBytes[sizeof(luid.HighPart)] = {0};
-            uint8_t lowBytes[sizeof(luid.LowPart)] = {0};
-            std::stringstream ss;
-            for (int index = 0; index < sizeof(luid.LowPart); index++) {
-                lowBytes[sizeof(luid.LowPart) - 1 - index] = (luid.LowPart >> index * 8) & 0xFF;
-                ss << std::hex << std::setw(2) << std::setfill('0')
-                   << static_cast<int>(lowBytes[sizeof(luid.LowPart) - 1 - index]);
-            }
-            for (int index = 0; index < sizeof(luid.HighPart); index++) {
-                highBytes[index] = (luid.HighPart >> index * 8) & 0xFF;
-                ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(highBytes[index]);
-            }
-            return ss.str();
-        };
-        IDXGIFactory* pFactory;
-        HRESULT hr = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)(&pFactory));
-        if (FAILED(hr))
-            return {};
-        int gpuIndex = 0;
-        std::map<std::string, LUID> gpuCores;
-        IDXGIAdapter* pAdapter;
-        while (pFactory->EnumAdapters(gpuIndex, &pAdapter) != DXGI_ERROR_NOT_FOUND) {
-            DXGI_ADAPTER_DESC desc;
-            pAdapter->GetDesc(&desc);
-            if (wcscmp(desc.Description, L"Microsoft Basic Render Driver") != 0 && desc.VendorId == 0x8086) {
-                auto luidStr = LuidToString(desc.AdapterLuid);
-                gpuCores[luidStr] = desc.AdapterLuid;
-            }
-            gpuIndex++;
-        }
-        return gpuCores;
-    }
-
-    void initCoreCounters(const std::map<std::string, LUID>& devices) {
-        if (devices.empty())
+    void initCoreCounters(const std::string& deviceLuid) {
+        if (deviceLuid.empty() || deviceLuid.length() % 2 != 0)
             return;
-        auto LuidToString = [](LUID luid) -> std::string {
-            std::stringstream ss;
-            ss << std::hex << ((long long)luid.HighPart << 32 | luid.LowPart);
-            return ss.str();
-        };
-        int gpuIndex = 0;
-        for (auto item : devices) {
-            std::string full3DCounterPath = std::string("\\GPU Engine(*_luid_*" + LuidToString(item.second) +
-                                                        "_phys*engtype_3D)\\Utilization Percentage");
-            std::string fullComputeCounterPath = std::string("\\GPU Engine(*_luid_*" + LuidToString(item.second) +
-                                                             "_phys*engtype_Compute)\\Utilization Percentage");
-            coreTimeCounters[item.first][RENDER_ENGINE_COUNTER_INDEX] =
-                addCounter(query, expandWildCardPath(full3DCounterPath.c_str()));
-            coreTimeCounters[item.first][COMPUTE_ENGINE_COUNTER_INDEX] =
-                addCounter(query, expandWildCardPath(fullComputeCounterPath.c_str()));
+        auto deviceLuidLow = deviceLuid.substr(0, 8);
+        std::string luid_win;
+        for (std::size_t i = 0; i < deviceLuidLow.length(); i += 2) {
+            luid_win.insert(0, deviceLuidLow.substr(i, 2));
         }
-        auto status = PdhCollectQueryData(query);
+        std::transform(luid_win.begin(), luid_win.end(), luid_win.begin(), std::toupper);
+        std::string full3DCounterPath =
+            std::string("\\GPU Engine(*_luid_*" + luid_win + "_phys*engtype_3D)\\Utilization Percentage");
+        std::string fullComputeCounterPath =
+            std::string("\\GPU Engine(*_luid_*" + luid_win + "_phys*engtype_Compute)\\Utilization Percentage");
+        std::wstring full3DCounterPathW = ov::util::string_to_wstring(full3DCounterPath);
+        std::wstring fullComputeCounterPathW = ov::util::string_to_wstring(fullComputeCounterPath);
+        coreTimeCounters[luid][RENDER_ENGINE_COUNTER_INDEX] =
+            addCounter(expandWildCardPath(full3DCounterPathW.c_str()));
+        coreTimeCounters[luid][COMPUTE_ENGINE_COUNTER_INDEX] =
+            addCounter(expandWildCardPath(fullComputeCounterPathW.c_str()));
+        query.pdhCollectQueryData();
     }
 
-    std::vector<std::string> expandWildCardPath(LPCSTR WildCardPath) {
-        PDH_STATUS Status = ERROR_SUCCESS;
+    std::vector<std::wstring> expandWildCardPath(LPCWSTR WildCardPath) {
         DWORD PathListLength = 0;
         DWORD PathListLengthBufLen;
-        std::vector<std::string> pathList;
-        Status = PdhExpandWildCardPathA(NULL, WildCardPath, NULL, &PathListLength, 0);
-        if (Status != ERROR_SUCCESS && Status != PDH_MORE_DATA) {
+        std::vector<std::wstring> pathList;
+        auto ret = query.pdhExpandWildCardPathW(NULL, WildCardPath, NULL, &PathListLength, 0);
+        if (!ret) {
             return pathList;
         }
         PathListLengthBufLen = PathListLength + 100;
-        PZZSTR ExpandedPathList = (PZZSTR)malloc(PathListLengthBufLen);
-        Status = PdhExpandWildCardPathA(NULL, WildCardPath, ExpandedPathList, &PathListLength, 0);
-        if (Status != ERROR_SUCCESS) {
+        PZZWSTR ExpandedPathList = (PZZWSTR)malloc(PathListLengthBufLen * sizeof(WCHAR));
+        ret = query.pdhExpandWildCardPathW(NULL, WildCardPath, ExpandedPathList, &PathListLength, 0);
+        if (!ret) {
             free(ExpandedPathList);
             return pathList;
         }
         for (size_t i = 0; i < PathListLength;) {
-            std::string path(ExpandedPathList + i);
-            if (path.length() > 0) {
+            std::wstring wpath(ExpandedPathList + i);
+            if (wpath.length() > 0) {
                 // std::cout << path << std::endl;
-                pathList.push_back(path);
-                i += path.length() + 1;
+                pathList.push_back(wpath);
+                i += wpath.length() + 1;
             } else {
                 break;
             }
@@ -132,17 +95,16 @@ public:
         return pathList;
     }
 
-    std::vector<PDH_HCOUNTER> addCounter(PDH_HQUERY Query, std::vector<std::string> pathList) {
-        PDH_STATUS Status;
+    std::vector<PDH_HCOUNTER> addCounter(std::vector<std::wstring> pathList) {
         std::vector<PDH_HCOUNTER> CounterList;
-        for (std::string path : pathList) {
+        for (std::wstring path : pathList) {
             PDH_HCOUNTER Counter;
-            Status = PdhAddCounterA(Query, path.c_str(), NULL, &Counter);
-            if (Status != ERROR_SUCCESS) {
+            auto ret = query.pdhAddCounterW(path.c_str(), NULL, &Counter);
+            if (!ret) {
                 return CounterList;
             }
-            Status = PdhSetCounterScaleFactor(Counter, -2);  // scale counter to [0, 1]
-            if (ERROR_SUCCESS != Status) {
+            ret = query.pdhSetCounterScaleFactor(Counter, -2);  // scale counter to [0, 1]
+            if (!ret) {
                 return CounterList;
             }
             CounterList.push_back(Counter);
@@ -150,10 +112,9 @@ public:
         return CounterList;
     }
 
-    std::map<std::string, double> get_load() {
-        if (numDevices == 0)
-            return {{"00000000", 0}};
-        PDH_STATUS status;
+    std::map<std::string, double> get_utilization() {
+        if (luid.empty())
+            return {};
         auto ts = std::chrono::system_clock::now();
         if (ts > lastTimeStamp) {
             auto delta =
@@ -163,33 +124,34 @@ public:
             }
         }
         lastTimeStamp = std::chrono::system_clock::now();
-        status = PdhCollectQueryData(query);
+        auto ret = query.pdhCollectQueryData();
         PDH_FMT_COUNTERVALUE displayValue;
-        std::map<std::string, double> gpuLoad;
+        std::map<std::string, double> utilizationMap;
         for (auto item : coreTimeCounters) {
-            double value = 0;
+            double utilization = 0.0;
+            auto luid = item.first;
             auto coreCounters = item.second;
             for (int counterIndex = 0; counterIndex < MAX_COUNTER_INDEX; counterIndex++) {
                 auto countersList = coreCounters[counterIndex];
                 for (auto counter : countersList) {
-                    status = PdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, NULL, &displayValue);
+                    auto status = query.pdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, NULL, &displayValue);
                     if (status != ERROR_SUCCESS) {
                         continue;
                     }
-                    value += displayValue.doubleValue;
+                    utilization += displayValue.doubleValue;
                 }
             }
-            gpuLoad[item.first] = value;
+            utilizationMap[luid] = utilization;
         }
-        return gpuLoad;
+        return utilizationMap;
     }
 
 private:
     QueryWrapper query;
     std::map<std::string, std::vector<std::vector<PDH_HCOUNTER>>> coreTimeCounters;
     std::chrono::time_point<std::chrono::system_clock> lastTimeStamp = std::chrono::system_clock::now();
-    std::size_t numDevices = 0;
-    int monitor_duration = 500;
+    std::string luid;
+    int monitor_duration = 1000;
 };
 
 #elif defined(__linux__)
@@ -205,11 +167,11 @@ namespace util {
 namespace monitor {
 class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
-    PerformanceCounterImpl() {}
+    PerformanceCounterImpl(const std::string& deviceLuid) {}
 
-    std::map<std::string, double> get_load() {
+    std::map<std::string, double> get_utilization() {
         // TODO: Implement.
-        return {{"00000000", 0}};
+        return {};
     }
 };
 
@@ -220,16 +182,16 @@ namespace monitor {
 // not implemented
 class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
-    std::map<std::string, double> get_load() {
-        return {{"00000000", 0}};
+    std::map<std::string, double> get_utilization() {
+        return {};
     }
 };
 #endif
-GpuPerformanceCounter::GpuPerformanceCounter() : PerformanceCounter("GPU") {}
-std::map<std::string, double> GpuPerformanceCounter::get_load() {
+GpuPerformanceCounter::GpuPerformanceCounter(const std::string& luid) : PerformanceCounter("GPU"), deviceLuid(luid) {}
+std::map<std::string, double> GpuPerformanceCounter::get_utilization() {
     if (!performance_counter)
-        performance_counter = std::make_shared<PerformanceCounterImpl>();
-    return performance_counter->get_load();
+        performance_counter = std::make_shared<PerformanceCounterImpl>(deviceLuid);
+    return performance_counter->get_utilization();
 }
 }
 }

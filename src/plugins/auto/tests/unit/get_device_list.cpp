@@ -209,10 +209,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_GetDeviceListNotInteldGPU,
 // toDo need add test for ParseMetaDevices(_, config) to check device config of
 // return metaDevices
 
-using ConfigFilterParams = std::tuple<double,                                                // utilization threshold,
-                                      std::vector<ov::auto_plugin::DeviceInformation>,       // device candidate list
-                                      std::map<std::string, std::map<std::string, double>>,  // device utilization
-                                      std::list<ov::auto_plugin::DeviceInformation>          // expected device list
+using ConfigFilterParams = std::tuple<double,                                           // utilization threshold,
+                                      std::vector<ov::auto_plugin::DeviceInformation>,  // device candidate list
+                                      std::map<std::string, double>,                    // device utilization
+                                      std::list<ov::auto_plugin::DeviceInformation>     // expected device list
                                       >;
 class GetValidDeviceListTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigFilterParams> {
 public:
@@ -220,7 +220,7 @@ public:
         double threshold;
         std::vector<ov::auto_plugin::DeviceInformation> devicesInfo;
         std::list<ov::auto_plugin::DeviceInformation> filteredDevicesInfo;
-        std::map<std::string, std::map<std::string, double>> deviceUtilization;
+        std::map<std::string, double> deviceUtilization;
         std::tie(threshold, devicesInfo, deviceUtilization, filteredDevicesInfo) = obj.param;
         std::ostringstream result;
         result << "utilizationThreshold_" << threshold << "_";
@@ -229,10 +229,8 @@ public:
             result << dev.device_name << "_priority_" << dev.device_priority << "_";
 
         result << "deviceUtilization_";
-        for (auto dev : deviceUtilization) {
-            result << dev.first << "_";
-            for (auto& item : dev.second)
-                result << item.first << "_" << item.second << "_";
+        for (auto item : deviceUtilization) {
+            result << item.first << "_" << item.second << "_";
         }
 
         result << "expectedFilteredDeviceList_";
@@ -246,10 +244,6 @@ public:
         std::vector<std::string> npuCability = {"FP32", "FP16", "INT8", "BIN"};
         ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_NPU), StrEq(ov::device::capabilities.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(npuCability));
-        std::map<std::string, double> npuUtilization = {};
-        if (deviceUtilization.count("NPU")) {
-            npuUtilization = deviceUtilization["NPU"];
-        }
         ov::AnyMap config = {};
         ON_CALL(*plugin, get_property(StrEq(ov::intel_auto::device_utilization_threshold.name()), config))
             .WillByDefault(Return(ov::Any(threshold)));
@@ -259,21 +253,15 @@ public:
             .WillByDefault(Return(ov::Any("00000001")));
         ON_CALL(*core, get_property(StrEq("GPU.1"), StrEq(ov::device::luid.name()), _))
             .WillByDefault(Return(ov::Any("00000002")));
-        ON_CALL(*core, get_property(StrEq("NPU"), StrEq(ov::device::uuid.name()), _))
+        ON_CALL(*core, get_property(StrEq("NPU"), StrEq(ov::device::luid.name()), _))
             .WillByDefault(Return(ov::Any(npuUuid)));
-        ON_CALL(*core, get_property(StrEq("NPU"), StrEq(ov::internal::device_utilization.name()), _))
-            .WillByDefault(Return(ov::Any(npuUtilization)));
         ON_CALL(*core,
                 get_property(StrEq(ov::test::utils::DEVICE_AUTO),
                              StrEq(ov::intel_auto::device_utilization_threshold.name()),
                              _))
             .WillByDefault(Return(ov::Any(threshold)));
-        ON_CALL(*plugin, get_device_utilization).WillByDefault([this](const std::string& device) {
-            ov::DeviceIDParser parsed{device};
-            std::map<std::string, double> ret = {};
-            if (deviceUtilization.count(parsed.get_device_name()))
-                ret = deviceUtilization[parsed.get_device_name()];
-            return ret;
+        ON_CALL(*plugin, get_device_utilization).WillByDefault([this](const std::string& luid) {
+            return deviceUtilization;
         });
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
@@ -287,7 +275,7 @@ protected:
     double threshold;
     std::vector<ov::auto_plugin::DeviceInformation> devicesInfo;
     std::list<ov::auto_plugin::DeviceInformation> filteredDevicesInfo;
-    std::map<std::string, std::map<std::string, double>> deviceUtilization;
+    std::map<std::string, double> deviceUtilization;
 };
 
 TEST_P(GetValidDeviceListTest, GetValidFilteredDeviceListTest) {
@@ -305,113 +293,109 @@ TEST_P(GetValidDeviceListTest, GetValidFilteredDeviceListTest) {
 const std::vector<ConfigFilterParams> testValidConfigs = {
     ConfigFilterParams{80,                                     // utilization threshold
                        {{"CPU", {}, -1, "01", "CPU_01", 0}},   // device candidates list
-                       {{"CPU", {{"Total", 15.3}}}},           // device utilization
+                       {{"Total", 15.3}},                      // device utilization
                        {{"CPU", {}, -1, "01", "CPU_01", 0}}},  // expected list of device candidates after filtering
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}},
-                       {{"CPU", {{"Total", 85.2}}}},
+                       {{"Total", 85.2}},
                        {{"CPU", {}, -1, "01", "CPU_01", 0}}},
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}},
-                       {{"CPU", {{"Total", 15.3}}}, {"GPU", {{"00000000", 20}}}},
+                       {{"Total", 15.3}, {"00000000", 20}},
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}}},
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU", 0}},
-                       {{"CPU", {{"Total", 15.3}}}, {"NPU", {{npuUuid, 20}}}},
+                       {{"Total", 15.3}, {npuUuid, 20}},
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU", 0}}},
     ConfigFilterParams{
         80,
         {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}, {"NPU", {}, -1, "01", "NPU", 0}},
-        {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}, {"NPU", {{npuUuid, 20}}}},
+        {{"Total", 85.2}, {"00000000", 20}, {npuUuid, 20}},
         {{"GPU", {}, -1, "01", "GPU", 0}, {"NPU", {}, -1, "01", "NPU", 0}}},
     ConfigFilterParams{15,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}},
-                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}},
+                       {{"Total", 85.2}, {"00000000", 20}},
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}}},
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU", {}, -1, "01", "GPU", 2}},
-                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}},
+                       {{"Total", 85.2}, {"00000000", 20}},
                        {{"GPU", {}, -1, "01", "GPU", 2}}},
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"NPU", {}, -1, "01", "NPU", 2}},
-                       {{"CPU", {{"Total", 85.2}}}, {"NPU", {{npuUuid, 20}}}},
+                       {{"Total", 85.2}, {npuUuid, 20}},
                        {{"NPU", {}, -1, "01", "NPU", 2}}},
     ConfigFilterParams{15,
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU", {}, -1, "01", "GPU", 2}},
-                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}},
+                       {{"Total", 85.2}, {"00000000", 20}},
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU", {}, -1, "01", "GPU", 2}}},
     ConfigFilterParams{15,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU.0", {}, -1, "01", "iGPU_01", 0}},
-                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000001", 20}}}},
+                       {{"Total", 85.2}, {"00000001", 20}},
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU.0", {}, -1, "01", "iGPU_01", 0}}},
     ConfigFilterParams{15,
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
-                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000001", 20}, {"00000002", 50}}}},
+                       {{"Total", 85.2}, {"00000001", 20}, {"00000002", 50}},
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 0}}},
-    ConfigFilterParams{
-        80,
-        {{"CPU", {}, -1, "01", "CPU_01", 0},
-         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
-         {"GPU.1", {}, -1, "01", "dGPU_01", 0},
-         {"NPU", {}, -1, "01", "NPU", 0}},
-        {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000001", 20}, {"00000002", 50}}}, {"NPU", {{npuUuid, 30}}}},
-        {{"GPU.0", {}, -1, "01", "iGPU_01", 0},
-         {"GPU.1", {}, -1, "01", "dGPU_01", 0},
-         {"NPU", {}, -1, "01", "NPU", 0}}},
-    ConfigFilterParams{
-        80,
-        {{"CPU", {}, -1, "01", "CPU_01", 0},
-         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
-         {"GPU.1", {}, -1, "01", "dGPU_01", 0},
-         {"NPU", {}, -1, "01", "NPU", 0}},
-        {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000001", 82}, {"00000002", 50}}}, {"NPU", {{npuUuid, 30}}}},
-        {{"GPU.1", {}, -1, "01", "dGPU_01", 0}, {"NPU", {}, -1, "01", "NPU", 0}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 0},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 0},
+                        {"NPU", {}, -1, "01", "NPU", 0}},
+                       {{"Total", 85.2}, {"00000001", 20}, {"00000002", 50}, {npuUuid, 30}},
+                       {{"GPU.0", {}, -1, "01", "iGPU_01", 0},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 0},
+                        {"NPU", {}, -1, "01", "NPU", 0}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 0},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 0},
+                        {"NPU", {}, -1, "01", "NPU", 0}},
+                       {{"Total", 85.2}, {"00000001", 82}, {"00000002", 50}, {npuUuid, 30}},
+                       {{"GPU.1", {}, -1, "01", "dGPU_01", 0}, {"NPU", {}, -1, "01", "NPU", 0}}},
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
-                       {{"CPU", {{"Total", 15.2}}}, {"GPU", {{"00000001", 90}, {"00000002", 50}}}},
+                       {{"Total", 15.2}, {"00000001", 90}, {"00000002", 50}},
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU.1", {}, -1, "01", "dGPU_01", 0}}},
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
-                       {{"CPU", {{"Total", 15.2}}}, {"GPU", {{"00000001", 10}, {"00000002", 90}}}},
+                       {{"Total", 15.2}, {"00000001", 10}, {"00000002", 90}},
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU.0", {}, -1, "01", "iGPU_01", 0}}},
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 1},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 2},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 3}},
-                       {{"CPU", {{"Total", 15.2}}}, {"GPU", {{"00000001", 10}, {"00000002", 90}}}},
+                       {{"Total", 15.2}, {"00000001", 10}, {"00000002", 90}},
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU.0", {}, -1, "01", "iGPU_01", 2}}},
-    ConfigFilterParams{
-        80,
-        {{"CPU", {}, -1, "01", "CPU_01", 1},
-         {"GPU.0", {}, -1, "01", "iGPU_01", 2},
-         {"GPU.1", {}, -1, "01", "dGPU_01", 3},
-         {"NPU", {}, -1, "01", "NPU", 4}},
-        {{"CPU", {{"Total", 15.2}}}, {"GPU", {{"00000001", 10}, {"00000002", 90}}}, {"NPU", {{npuUuid, 88}}}},
-        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU.0", {}, -1, "01", "iGPU_01", 2}}},
-    ConfigFilterParams{
-        100,
-        {{"CPU", {}, -1, "01", "CPU_01", 1},
-         {"GPU.0", {}, -1, "01", "iGPU_01", 2},
-         {"GPU.1", {}, -1, "01", "dGPU_01", 3},
-         {"NPU", {}, -1, "01", "NPU", 4}},
-        {{"CPU", {{"Total", 200}}}, {"GPU", {{"00000001", 200}, {"00000002", 200}}}, {"NPU", {{npuUuid, 200}}}},
-        {{"CPU", {}, -1, "01", "CPU_01", 1},
-         {"GPU.0", {}, -1, "01", "iGPU_01", 2},
-         {"GPU.1", {}, -1, "01", "dGPU_01", 3},
-         {"NPU", {}, -1, "01", "NPU", 4}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 1},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 2},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 3},
+                        {"NPU", {}, -1, "01", "NPU", 4}},
+                       {{"Total", 15.2}, {"00000001", 10}, {"00000002", 90}, {npuUuid, 88}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU.0", {}, -1, "01", "iGPU_01", 2}}},
+    ConfigFilterParams{100,
+                       {{"CPU", {}, -1, "01", "CPU_01", 1},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 2},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 3},
+                        {"NPU", {}, -1, "01", "NPU", 4}},
+                       {{"Total", 200}, {"00000001", 200}, {"00000002", 200}, {npuUuid, 200}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 1},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 2},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 3},
+                        {"NPU", {}, -1, "01", "NPU", 4}}},
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 1},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 2},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 3}},
-                       {{"CPU", {{"Total", 15.2}}}, {"GPU", {{"00000001", 90}, {"00000002", 10}}}},
+                       {{"Total", 15.2}, {"00000001", 90}, {"00000002", 10}},
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU.1", {}, -1, "01", "dGPU_01", 3}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_GetValidDeviceList,

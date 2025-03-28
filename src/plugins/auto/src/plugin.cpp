@@ -545,19 +545,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::map<std::string, double> Plugin::get_device_utilization(const std::string& device) const {
-    ov::DeviceIDParser parsed{device};
-    if (device.find("NPU") == 0) {
-        std::map<std::string, double> utilization;
-        try {
-            utilization = get_core()->get_property(parsed.get_device_name(), ov::internal::device_utilization, {});
-        } catch (const ov::Exception&) {
-            LOG_DEBUG_TAG("get property :%s for %s failed ", ov::internal::device_utilization.name(), device.c_str());
-        }
-        return utilization;
-    }
+std::map<std::string, double> Plugin::get_device_utilization(const std::string& device_luid) const {
     ov::util::monitor::DeviceMonitor devices_monitor;
-    return devices_monitor.get_mean_device_load(parsed.get_device_name());
+    return devices_monitor.get_utilization(device_luid);
 }
 
 std::list<DeviceInformation> Plugin::get_valid_device(
@@ -597,92 +587,41 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         // check if device support this model precision
         if (!is_supported_model(device_info.device_name) && meta_devices.size() > 1)
             continue;
-        std::map<std::string, double> device_utilization;
         if (utilization_threshold > 0 && utilization_threshold <= 100) {
-            device_utilization = get_device_utilization(device_info.device_name);
-            for (const auto& item : device_utilization)
-                LOG_DEBUG_TAG("Device: %s\tID: %s\tutilization: %s",
-                              device_info.device_name.c_str(),
-                              item.first.c_str(),
-                              std::to_string(item.second).c_str());
-        }
-        if (device_info.device_name.find("CPU") == 0) {
-            // checking utilization
-            if (device_utilization.count("Total") == 0 || device_utilization["Total"] < utilization_threshold) {
-                CPU.push_back(device_info);
-            } else {
-                is_excluded = true;
-                LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
-                              device_info.device_name.c_str(),
-                              std::to_string(device_utilization["Total"]).c_str(),
-                              std::to_string(utilization_threshold).c_str());
-            }
-        } else if (device_info.device_name.find("GPU") == 0) {
-            // checking utilization
             std::string device_luid;
-            if (!device_utilization.empty()) {
-                try {
-                    device_luid = get_core()
-                                      ->get_property(device_info.device_name, ov::device::luid.name(), {})
-                                      .as<std::string>();
-                } catch (const ov::Exception&) {
-                    LOG_DEBUG_TAG("get property :%s for %s failed ", "DEVICE_TYPE", device_info.device_name.c_str());
+            std::map<std::string, double> device_utilization;
+            try {
+                device_luid = device_info.device_name.find("CPU") == std::string::npos
+                                  ? get_core()
+                                        ->get_property(device_info.device_name, ov::device::luid.name(), {})
+                                        .as<std::string>()
+                                  : "";
+                device_utilization = get_device_utilization(device_luid);
+                for (const auto& item : device_utilization)
+                    LOG_DEBUG_TAG("Device: %s\tID: %s\tutilization: %s",
+                                  device_info.device_name.c_str(),
+                                  item.first.c_str(),
+                                  std::to_string(item.second).c_str());
+                if (device_utilization.empty() || (device_luid.empty() && device_utilization.count("Total") == 0) ||
+                    (!device_luid.empty() && device_utilization.count(device_luid) == 0)) {
+                    LOG_DEBUG_TAG("Cannot get utilization for %s", device_info.device_name.c_str());
+                    continue;
                 }
-            }
-            if (device_utilization.count(device_luid) == 0 || device_utilization[device_luid] < utilization_threshold) {
-                std::string device_type;
-                try {
-                    // can optimize to typed function when gpu swith to 2.0 api
-                    device_type = get_core()
-                                      ->get_property(device_info.device_name, ov::device::type.name(), {})
-                                      .as<std::string>();
-                } catch (const ov::Exception&) {
-                    LOG_DEBUG_TAG("get property :%s for %s failed ", "DEVICE_TYPE", device_info.device_name.c_str());
+                if (device_luid.empty()) {
+                    device_luid = "Total";
                 }
-                if (device_type == "integrated") {
-                    iGPU.push_back(device_info);
-                } else if (device_type == "discrete") {
-                    dGPU.push_back(device_info);
-                } else {
-                    LOG_DEBUG_TAG("Unknown device type for %s", device_info.device_name.c_str());
-                }
-            } else {
-                is_excluded = true;
-                LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
-                              device_info.device_name.c_str(),
-                              std::to_string(device_utilization[device_luid]).c_str(),
-                              std::to_string(utilization_threshold).c_str());
-            }
-        } else {
-            // checking utilization
-            // TODO: to be implemented for other device
-            if (!device_utilization.empty()) {
-                std::string device_id;
-                if (device_info.device_name.find("NPU") == 0) {
-                    try {
-                        auto uuid = get_core()->get_property(device_info.device_name, ov::device::uuid, {});
-                        std::stringstream ss_uuid;
-                        ss_uuid << uuid;
-                        device_id = ss_uuid.str();
-                    } catch (const ov::Exception&) {
-                        LOG_DEBUG_TAG("get property :%s for %s failed ",
-                                      ov::internal::device_utilization.name(),
-                                      device_info.device_name.c_str());
-                    }
-                }
-                if (device_utilization.count(device_id) == 0 || device_utilization[device_id] < utilization_threshold) {
-                    Others.push_back(device_info);
-                } else {
+                if (device_utilization[device_luid] >= utilization_threshold) {
                     is_excluded = true;
                     LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
                                   device_info.device_name.c_str(),
-                                  std::to_string(device_utilization[device_id]).c_str(),
+                                  std::to_string(device_utilization[device_luid]).c_str(),
                                   std::to_string(utilization_threshold).c_str());
                 }
-            } else {
-                Others.push_back(device_info);
+            } catch (const ov::Exception&) {
+                LOG_DEBUG_TAG("Failed to get luid for %s", device_info.device_name.c_str());
             }
         }
+
         if (!is_excluded)
             valid_filtered_devices.push_back(device_info);
         valid_devices.push_back(device_info);
@@ -696,7 +635,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         return valid_devices;
     }
 
-    if (is_default_list) {
+    if (is_default_list && valid_filtered_devices.empty()) {
         // Generate the default device priority for selecting logic of AUTO.
         // Default priority of selecting device: dGPU > iGPU > 3rd part devices > CPU
         std::list<DeviceInformation> default_valid_devices;

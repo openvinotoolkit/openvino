@@ -28,42 +28,39 @@ namespace monitor {
 class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl() {
-        PDH_STATUS status;
         int n_cores = getNumberOfCores();
         if (n_cores == 0) {
             coreTimeCounters.resize(1);
             std::wstring fullCounterPath{L"\\Processor(_Total)\\% Processor Time"};
-            status = PdhAddCounterW(query, fullCounterPath.c_str(), 0, &coreTimeCounters[0]);
-            if (ERROR_SUCCESS != status) {
-                throw std::runtime_error("PdhAddCounterW() failed. Error status: " + std::to_string(status));
+            auto ret = query.pdhAddCounterW(fullCounterPath.c_str(), 0, &coreTimeCounters[0]);
+            if (!ret) {
+                throw std::runtime_error("PdhAddCounterW() failed. Error status: " + std::to_string(ret));
             }
-            status = PdhSetCounterScaleFactor(coreTimeCounters[0], -2);  // scale counter to [0, 1]
-            if (ERROR_SUCCESS != status) {
-                throw std::runtime_error("PdhSetCounterScaleFactor() failed. Error status: " + std::to_string(status));
+            ret = query.pdhSetCounterScaleFactor(coreTimeCounters[0], -2);  // scale counter to [0, 1]
+            if (!ret) {
+                throw std::runtime_error("PdhSetCounterScaleFactor() failed. Error status: " + std::to_string(ret));
             }
         } else {
             coreTimeCounters.resize(n_cores);
             for (std::size_t i = 0; i < n_cores; ++i) {
                 std::wstring fullCounterPath{L"\\Processor(" + std::to_wstring(i) + L")\\% Processor Time"};
-                status = PdhAddCounterW(query, fullCounterPath.c_str(), 0, &coreTimeCounters[i]);
-                if (ERROR_SUCCESS != status) {
-                    throw std::runtime_error("PdhAddCounterW() failed. Error status: " + std::to_string(status));
+                auto ret = query.pdhAddCounterW(fullCounterPath.c_str(), 0, &coreTimeCounters[i]);
+                if (!ret) {
+                    throw std::runtime_error("PdhAddCounterW() failed. Error status: " + std::to_string(ret));
                 }
-                status = PdhSetCounterScaleFactor(coreTimeCounters[i], -2);  // scale counter to [0, 1]
-                if (ERROR_SUCCESS != status) {
-                    throw std::runtime_error("PdhSetCounterScaleFactor() failed. Error status: " +
-                                             std::to_string(status));
+                ret = query.pdhSetCounterScaleFactor(coreTimeCounters[i], -2);  // scale counter to [0, 1]
+                if (!ret) {
+                    throw std::runtime_error("PdhSetCounterScaleFactor() failed. Error status: " + std::to_string(ret));
                 }
             }
         }
-        status = PdhCollectQueryData(query);
-        if (ERROR_SUCCESS != status) {
-            throw std::runtime_error("PdhCollectQueryData() failed. Error status: " + std::to_string(status));
+        auto ret = query.pdhCollectQueryData();
+        if (!ret) {
+            throw std::runtime_error("PdhCollectQueryData() failed. Error status: " + std::to_string(ret));
         }
     }
 
-    std::map<std::string, double> get_load() {
-        PDH_STATUS status;
+    std::map<std::string, double> get_utilization() {
         auto ts = std::chrono::system_clock::now();
         if (ts > lastTimeStamp) {
             auto delta =
@@ -73,24 +70,16 @@ public:
             }
         }
         lastTimeStamp = std::chrono::system_clock::now();
-        status = PdhCollectQueryData(query);
-        if (ERROR_SUCCESS != status) {
-            throw std::runtime_error("PdhCollectQueryData() failed. Error status: " + std::to_string(status));
+        auto ret = query.pdhCollectQueryData();
+        if (!ret) {
+            return {};
         }
         PDH_FMT_COUNTERVALUE displayValue;
         std::vector<double> cpuLoad(coreTimeCounters.size());
         for (std::size_t i = 0; i < coreTimeCounters.size(); ++i) {
-            status = PdhGetFormattedCounterValue(coreTimeCounters[i], PDH_FMT_DOUBLE, NULL, &displayValue);
-            switch (status) {
-            case ERROR_SUCCESS:
-                break;
-            // PdhGetFormattedCounterValue() can sometimes return PDH_CALC_NEGATIVE_DENOMINATOR for some reason
-            case PDH_CALC_NEGATIVE_DENOMINATOR:
+            auto ret = query.pdhGetFormattedCounterValue(coreTimeCounters[i], PDH_FMT_DOUBLE, NULL, &displayValue);
+            if (!ret)
                 return {};
-            default:
-                throw std::runtime_error("PdhGetFormattedCounterValue() failed. Error status: " +
-                                         std::to_string(status));
-            }
             if (PDH_CSTATUS_VALID_DATA != displayValue.CStatus && PDH_CSTATUS_NEW_DATA != displayValue.CStatus) {
                 throw std::runtime_error("Error in counter data");
             }
@@ -165,7 +154,7 @@ class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl() : prevIdleCpuStat{getIdleCpuStat()}, prevTimePoint{std::chrono::steady_clock::now()} {}
 
-    std::map<std::string, double> get_load() {
+    std::map<std::string, double> get_utilization() {
         // TODO: Implement.
         return {{"Total", 0.0}};
     }
@@ -182,7 +171,7 @@ namespace monitor {
 // not implemented
 class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
-    std::map<std::string, double> get_load() {
+    std::map<std::string, double> get_utilization() {
         return {{"Total", 0.0}};
     }
 };
@@ -190,11 +179,11 @@ public:
 CpuPerformanceCounter::CpuPerformanceCounter(int numCores)
     : PerformanceCounter("CPU"),
       n_cores(numCores >= 0 ? numCores : 0) {}
-std::map<std::string, double> CpuPerformanceCounter::get_load() {
+std::map<std::string, double> CpuPerformanceCounter::get_utilization() {
     if (!performance_counter)
         performance_counter = std::make_shared<PerformanceCounterImpl>();
     if (n_cores == 0)
-        return performance_counter->get_load();
+        return performance_counter->get_utilization();
     std::map<std::string, double> ret;
     ret["Total"] = 0.0;
     for (int i = 0; i < n_cores; i++) {

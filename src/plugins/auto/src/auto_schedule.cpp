@@ -53,8 +53,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
             m_compile_context[FALLBACKDEVICE].m_device_info =
                 m_plugin->select_device(m_context->m_device_priorities,
                                         m_compile_context[FALLBACKDEVICE].m_model_precision,
-                                        m_context->m_model_priority,
-                                        m_context->m_utilization_threshold);
+                                        m_context->m_model_priority);
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
