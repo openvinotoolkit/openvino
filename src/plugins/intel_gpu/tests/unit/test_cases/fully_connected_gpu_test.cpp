@@ -1999,20 +1999,6 @@ public:
 
         long int ifm_num = 1024;
         long int ofm_num = 14336;
-
-        char* IFM_NUM = getenv("OV_IFM_NUM");
-        char* OFM_NUM = getenv("OV_OFM_NUM");
-        char* GROUP_SIZE = getenv("OV_GROUP_SIZE");
-        if (IFM_NUM)
-            ifm_num = atoi(IFM_NUM);
-        if (OFM_NUM)
-            ofm_num = atoi(OFM_NUM);
-        if (GROUP_SIZE)
-            scales_group_size = atoi(GROUP_SIZE);
-
-        std::cout << " weight_shape = " << ifm_num << " x " << ofm_num << std::endl;
-        std::cout << " batch_num = " << batch_num << std::endl;
-
         auto wei_type = is_uint4 ? data_types::u4 : data_types::i4;
 
         auto input_mem = engine.allocate_memory({{batch_num, ifm_num}, data_types::f16, format::bfyx});
@@ -2105,6 +2091,11 @@ public:
         network->set_input_data("input", input_mem);
 
         auto outputs = network->execute();
+        if (batch_num == 1) {
+            // Wait for switching to gemv kernel due to it is async switch for dynamic shape
+            network->get_program()->get_compilation_context().wait_all();
+            outputs = network->execute();
+        }
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
@@ -2115,7 +2106,6 @@ public:
 
         for (auto& it : fc_kernels) {
             auto kernel_name = it->get_id();
-            std::cout << "   check kernel: " << kernel_name << std::endl;
             if (batch_num == 1) {
                 ASSERT_TRUE(kernel_name.find("fully_connected_gpu_gemv") != kernel_name.npos);
             } else {
@@ -2136,40 +2126,9 @@ public:
         auto ref_output_mem = get_ref_results();
         cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
 
-        size_t count[4] = {0, 0, 0, 0};
-        auto max_diff = 0.0f;
-        auto total_diff = 0.0f;
         for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
             EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 30.0) << "i = " << i;
-            // EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 0.2 * fabs(output_ptr_ref[i])) << "i = " << i;
-            auto diff = fabs(output_ptr_ref[i] - output_ptr[i]);
-            if (diff <= 0.01 * fabs(output_ptr_ref[i])) {
-                count[0]++;
-            }
-            if (diff > 0.1 * fabs(output_ptr_ref[i])) {
-                count[1]++;
-            }
-            if (diff > 0.2 * fabs(output_ptr_ref[i])) {
-                count[2]++;
-            }
-            if (diff > 0.5 * fabs(output_ptr_ref[i])) {
-                count[3]++;
-            }
-            total_diff += diff;
-            if (diff > max_diff) {
-                max_diff = diff;
-            }
         }
-        std::cout << "correct = " << count[0] << "/" << output_ptr_ref.size() / batch_num
-                  << ", ratio = " << 100.0 * count[0] / output_ptr_ref.size() * batch_num << "%" << std::endl;
-        std::cout << "diff_10 = " << count[1] << "/" << output_ptr_ref.size() / batch_num
-                  << ", ratio = " << 100.0 * count[1] / output_ptr_ref.size() * batch_num << "%" << std::endl;
-        std::cout << "diff_20 = " << count[2] << "/" << output_ptr_ref.size() / batch_num
-                  << ", ratio = " << 100.0 * count[2] / output_ptr_ref.size() * batch_num << "%" << std::endl;
-        std::cout << "diff_50 = " << count[3] << "/" << output_ptr_ref.size() / batch_num
-                  << ", ratio = " << 100.0 * count[3] / output_ptr_ref.size() * batch_num << "%" << std::endl;
-        std::cout << "max_diff = " << max_diff << std::endl;
-        std::cout << "avg_diff = " << total_diff / output_ptr_ref.size() * batch_num << std::endl;
     }
 
     void test_compressed_int4_scale_zp_gemv(bool is_caching_test,
@@ -2187,20 +2146,6 @@ public:
 
         long int ifm_num = 256;
         long int ofm_num = 512;
-
-        char* IFM_NUM = getenv("OV_IFM_NUM");
-        char* OFM_NUM = getenv("OV_OFM_NUM");
-        char* GROUP_SIZE = getenv("OV_GROUP_SIZE");
-        if (IFM_NUM)
-            ifm_num = atoi(IFM_NUM);
-        if (OFM_NUM)
-            ofm_num = atoi(OFM_NUM);
-        if (GROUP_SIZE)
-            scales_group_size = atoi(GROUP_SIZE);
-
-        std::cout << " weight_shape = " << ifm_num << " x " << ofm_num << std::endl;
-        std::cout << " batch_num = " << batch_num << std::endl;
-
         auto wei_type = is_uint4 ? data_types::u4 : data_types::i4;
 
         auto input_mem = engine.allocate_memory({{batch_num, ifm_num}, data_types::f16, format::bfyx});
@@ -2287,10 +2232,15 @@ public:
         config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
-
         network->set_input_data("input", input_mem);
 
         auto outputs = network->execute();
+        if (batch_num == 1) {
+            // Wait for switching to gemv kernel due to it is async switch for dynamic shape
+            network->get_program()->get_compilation_context().wait_all();
+            outputs = network->execute();
+        }
+
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
@@ -2301,7 +2251,6 @@ public:
 
         for (auto& it : fc_kernels) {
             auto kernel_name = it->get_id();
-            std::cout << "   check kernel: " << kernel_name << std::endl;
             if (batch_num == 1) {
                 ASSERT_TRUE(kernel_name.find("fully_connected_gpu_gemv") != kernel_name.npos);
             } else {
@@ -2322,40 +2271,9 @@ public:
         auto ref_output_mem = get_ref_results();
         cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
 
-        size_t count[4] = {0, 0, 0, 0};
-        auto max_diff = 0.0f;
-        auto total_diff = 0.0f;
         for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
             EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 10.0) << "i = " << i;
-            // EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 0.2 * fabs(output_ptr_ref[i])) << "i = " << i;
-            auto diff = fabs(output_ptr_ref[i] - output_ptr[i]);
-            if (diff <= 0.01 * fabs(output_ptr_ref[i])) {
-                count[0]++;
-            }
-            if (diff > 0.1 * fabs(output_ptr_ref[i])) {
-                count[1]++;
-            }
-            if (diff > 0.2 * fabs(output_ptr_ref[i])) {
-                count[2]++;
-            }
-            if (diff > 0.5 * fabs(output_ptr_ref[i])) {
-                count[3]++;
-            }
-            total_diff += diff;
-            if (diff > max_diff) {
-                max_diff = diff;
-            }
         }
-        std::cout << "correct = " << count[0] << "/" << output_ptr_ref.size() / batch_num
-                  << ", ratio = " << 100.0 * count[0] / output_ptr_ref.size() * batch_num << "%" << std::endl;
-        std::cout << "diff_10 = " << count[1] << "/" << output_ptr_ref.size() / batch_num
-                  << ", ratio = " << 100.0 * count[1] / output_ptr_ref.size() * batch_num << "%" << std::endl;
-        std::cout << "diff_20 = " << count[2] << "/" << output_ptr_ref.size() / batch_num
-                  << ", ratio = " << 100.0 * count[2] / output_ptr_ref.size() * batch_num << "%" << std::endl;
-        std::cout << "diff_50 = " << count[3] << "/" << output_ptr_ref.size() / batch_num
-                  << ", ratio = " << 100.0 * count[3] / output_ptr_ref.size() * batch_num << "%" << std::endl;
-        std::cout << "max_diff = " << max_diff << std::endl;
-        std::cout << "avg_diff = " << total_diff / output_ptr_ref.size() * batch_num << std::endl;
     }
 
     void test_compressed_int4_scale_activation_gemv(bool is_caching_test,
@@ -2372,9 +2290,6 @@ public:
 
         long int ifm_num = 256;
         long int ofm_num = 512;
-
-        std::cout << " weight_shape = " << ifm_num << " x " << ofm_num << std::endl;
-        std::cout << " batch_num = " << batch_num << std::endl;
 
         auto input_mem = engine.allocate_memory({{batch_num, ifm_num}, data_types::f16, format::bfyx});
         auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::i4, format::bfyx});
@@ -2467,9 +2382,14 @@ public:
         network->set_input_data("input", input_mem);
 
         auto outputs = network->execute();
+        if (batch_num == 1) {
+            // Wait for switching to gemv kernel due to it is async switch for dynamic shape
+            network->get_program()->get_compilation_context().wait_all();
+            outputs = network->execute();
+        }
+
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "out");
-
         auto inst = network->get_primitive("fc_prim");
         auto impl = inst->get_impl();
         ASSERT_TRUE(impl != NULL);
@@ -2477,7 +2397,6 @@ public:
 
         for (auto& it : fc_kernels) {
             auto kernel_name = it->get_id();
-            std::cout << "   check kernel: " << kernel_name << std::endl;
             if (batch_num == 1) {
                 ASSERT_TRUE(kernel_name.find("fully_connected_gpu_gemv") != kernel_name.npos);
             } else {
@@ -2493,37 +2412,6 @@ public:
 
         for (size_t i = 0; i < output_ptr_ref.size(); i++)
             ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
-
-        size_t rel_count = 0;
-        size_t abs_count = 0;
-        for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
-            EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
-            EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 0.2 * fabs(output_ptr_ref[i])) << "i = " << i;
-            if (fabs(output_ptr_ref[i] - output_ptr[i]) > 0.2 * fabs(output_ptr_ref[i])) {
-                rel_count++;
-            }
-            if (fabs(output_ptr_ref[i] - output_ptr[i]) > 9.0) {
-                abs_count++;
-            }
-        }
-        std::cout << "rel_miss_count = " << rel_count << "/" << output_ptr_ref.size() / batch_num
-                  << ", ratio = " << 100.0 * rel_count / output_ptr_ref.size() * batch_num << "%" << std::endl;
-        std::cout << "abs_miss_count = " << abs_count << "/" << output_ptr_ref.size() / batch_num
-                  << ", ratio = " << 100.0 * abs_count / output_ptr_ref.size() * batch_num << "%" << std::endl;
-
-        size_t count = 0;
-        float max_diff = 0.f;
-        float avg = 0.f;
-        for (size_t i = 0; i < output_ptr_ref.size() / batch_num; ++i) {
-            auto abs_diff = std::abs((float)output_ptr_ref[i] - (float)output_ptr[i]);
-            if (max_diff < abs_diff)
-                max_diff = abs_diff;
-            avg += abs_diff;
-            count++;
-            OPENVINO_ASSERT(abs_diff < 256);
-        }
-        std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg / count)
-                  << std::endl;
     }
 
     void test_compressed_int4_scale_large_n_gemv(bool is_caching_test,
@@ -2540,19 +2428,6 @@ public:
         long int ifm_num = 4096;
         long int ofm_num = 14336;
         long int scales_group_size = 128;
-
-        char* IFM_NUM = getenv("OV_IFM_NUM");
-        char* OFM_NUM = getenv("OV_OFM_NUM");
-        char* GROUP_SIZE = getenv("OV_GROUP_SIZE");
-        if (IFM_NUM)
-            ifm_num = atoi(IFM_NUM);
-        if (OFM_NUM)
-            ofm_num = atoi(OFM_NUM);
-        if (GROUP_SIZE)
-            scales_group_size = atoi(GROUP_SIZE);
-
-        std::cout << " weight_shape = " << ifm_num << " x " << ofm_num << std::endl;
-        std::cout << " batch_num = " << batch_num << std::endl;
 
         auto input_mem = engine.allocate_memory({{batch_num, 1, ifm_num}, data_types::f16, format::bfyx});
         auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::i4, format::bfyx});
@@ -2646,6 +2521,11 @@ public:
         network->set_input_data("input", input_mem);
 
         auto outputs = network->execute();
+        if (batch_num == 1) {
+            // Wait for switching to gemv kernel due to it is async switch for dynamic shape
+            network->get_program()->get_compilation_context().wait_all();
+            outputs = network->execute();
+        }
 
         auto inst = network->get_primitive("fc_prim");
         auto impl = inst->get_impl();
@@ -2654,7 +2534,6 @@ public:
 
         for (auto& it : fc_kernels) {
             auto kernel_name = it->get_id();
-            std::cout << "   check kernel: " << kernel_name << std::endl;
             if (batch_num == 1) {
                 ASSERT_TRUE(kernel_name.find("fully_connected_gpu_gemv") != kernel_name.npos);
             } else {
@@ -2679,15 +2558,9 @@ public:
         auto ref_output_mem = get_ref_results();
         cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
 
-        size_t count = 0;
         for (size_t i = 0; i < output_ptr_ref.size(); i++) {
             EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
-            if (fabs(output_ptr_ref[i] - output_ptr[i]) > 0.5 * fabs(output_ptr_ref[i])) {
-                count++;
-            }
         }
-        std::cout << "miss_count = " << count << "/" << output_ptr_ref.size()
-                  << ", ratio = " << 100.0 * count / output_ptr_ref.size() << "%" << std::endl;
     }
 
     void test_compressed_int4_scale_reuse_gemv(bool is_caching_test,
@@ -2797,6 +2670,11 @@ public:
         network->set_input_data("input", input_mem);
 
         auto outputs = network->execute();
+        if (batch_num == 1) {
+            // Wait for switching to gemv kernel due to it is async switch for dynamic shape
+            network->get_program()->get_compilation_context().wait_all();
+            outputs = network->execute();
+        }
         ASSERT_EQ(outputs.size(), size_t(2));
 
         auto inst = network->get_primitive("fc_prim1");
@@ -2806,7 +2684,6 @@ public:
 
         for (auto& it : fc_kernels) {
             auto kernel_name = it->get_id();
-            std::cout << "   check kernel: " << kernel_name << std::endl;
             if (batch_num == 1) {
                 ASSERT_TRUE(kernel_name.find("fully_connected_gpu_gemv") != kernel_name.npos);
             } else {
@@ -2928,9 +2805,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         for(const auto& batch_num : batch_num_list) {
-            std::cout << " weight_shape = " << ifm_num << " x " << ofm_num << std::endl;
-            std::cout << " batch_num = " << batch_num << std::endl;
-
             input_mem = engine.allocate_memory({{batch_num, ifm_num}, data_types::f16, format::bfyx});
             auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
             set_values(input_mem, input_data);
@@ -2938,6 +2812,11 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             network->set_input_data("input", input_mem);
 
             auto outputs = network->execute();
+            if (batch_num == 1) {
+                // Wait for switching to gemv kernel due to it is async switch for dynamic shape
+                network->get_program()->get_compilation_context().wait_all();
+                outputs = network->execute();
+            }
 
             ASSERT_EQ(outputs.size(), size_t(1));
             ASSERT_EQ(outputs.begin()->first, "fc_prim");
@@ -2948,7 +2827,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             auto fc_kernels = impl->get_kernels();
             for (auto& it : fc_kernels) {
                 auto kernel_name = it->get_id();
-                std::cout << "   check kernel: " << kernel_name << std::endl;
                 if (batch_num == 1) {
                     ASSERT_TRUE(kernel_name.find("fully_connected_gpu_gemv") != kernel_name.npos);
                 } else {
