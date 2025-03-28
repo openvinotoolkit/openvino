@@ -43,7 +43,7 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
 
     // Create col2im prim
     // iputs : data, output size,  kernel_size(required)
-    auto CallToImPrim = cldnn::col2im(layerName,
+    auto Col2ImPrim = cldnn::col2im(layerName,
                                             inputPrimitives[0],
                                             strides,
                                             dilations,
@@ -52,7 +52,7 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
                                             vec_output_shape,
                                             kernel_shape);
 
-    p.add_primitive(*op, CallToImPrim);
+    p.add_primitive(*op, Col2ImPrim);
 }
 
 REGISTER_FACTORY_IMPL(v15, Col2Im);
