@@ -171,20 +171,20 @@ std::vector<MemoryPtr> SubgraphExecutor::prepare_weights(const std::vector<Memor
             return dst_mem_ptr;
         };
 
-        auto weightCache = context->getWeightsCache();
-        if (weightCache != nullptr) {
-            const auto& wgtDims = src_mem_ptr->getStaticDims();
-            OPENVINO_ASSERT(wgtDims.size() > 1, "Unexpected weight shape rank");
+        auto weight_cache = context->getWeightsCache();
+        if (weight_cache != nullptr) {
+            const auto& wgt_dims = src_mem_ptr->getStaticDims();
+            OPENVINO_ASSERT(wgt_dims.size() > 1, "Unexpected weight shape rank");
             const auto string_hash =
                 "brgemm_snippets_" + DnnlExtensionUtils::computeWeightsStringHash(
                                          src_mem_ptr,
                                          MemoryDescUtils::convertToDnnlMemoryDesc(repacked_input.desc()));
-            repackedMemPtrs[idx] = *weightCache->findOrCreate(string_hash, create);
+            repacked_mem_ptrs[idx] = *weight_cache->findOrCreate(string_hash, create);
         } else {
-            repackedMemPtrs[idx] = create();
+            repacked_mem_ptrs[idx] = create();
         }
     }
-    return repackedMemPtrs;
+    return repacked_mem_ptrs;
 }
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
