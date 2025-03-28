@@ -28,18 +28,15 @@ SDPAFusion::SDPAFusion() {
 
     auto q_base = makePattern(ov::Rank(4));
     auto q_shape = any_input();
-    auto q_reshaped = wrap_type<ov::op::v1::Reshape>({q_base, q_shape});
-    auto q = q_reshaped | q_base;
+    auto q = optional<ov::op::v1::Reshape>({q_base, q_shape});
 
     auto k_base = makePattern(ov::Rank(4));
     auto k_shape = any_input();
-    auto k_reshaped = wrap_type<ov::op::v1::Reshape>({k_base, k_shape});
-    auto k = k_reshaped | k_base;
+    auto k = optional<ov::op::v1::Reshape>({k_base, k_shape});
 
     auto v_base = makePattern(ov::Rank(4));
     auto v_proj_shape_m = any_input();
-    auto v_reshaped = wrap_type<ov::op::v1::Reshape>({v_base, v_proj_shape_m});
-    auto v = v_reshaped | v_base;
+    auto v = optional<ov::op::v1::Reshape>({v_base, v_proj_shape_m});
 
     // Optional k scale
     auto attn_scale = any_input();
@@ -54,8 +51,7 @@ SDPAFusion::SDPAFusion() {
 
     // Optional unsqueeze that is converted to Reshape
     auto unsqueeze_axis = wrap_type<ov::op::v0::Constant>();
-    auto qk_unsqueeze = wrap_type<ov::op::v1::Reshape>({qk, unsqueeze_axis});
-    auto qk_opt_unsqueeze = qk_unsqueeze | qk;
+    auto qk_opt_unsqueeze = optional<ov::op::v1::Reshape>({qk, unsqueeze_axis});
 
     auto qk_scaled = wrap_type<ov::op::v1::Multiply>({qk_opt_unsqueeze, attn_scale});
     auto qk_opt_scaled = qk_scaled | qk_opt_unsqueeze;
@@ -64,12 +60,10 @@ SDPAFusion::SDPAFusion() {
     auto mask = makePattern();
     // Optional reshape befor adding mask
     auto qk_opt_scaled_pre_mask_shape = any_input();
-    auto qk_opt_scaled_pre_mask_reshaped =
-        wrap_type<ov::op::v1::Reshape>({qk_opt_scaled, qk_opt_scaled_pre_mask_shape});
-    auto qk_opt_scaled_pre_mask_opt_reshaped = qk_opt_scaled_pre_mask_reshaped | qk_opt_scaled;
+    auto qk_opt_scaled_pre_mask_opt_reshaped =
+        optional<ov::op::v1::Reshape>({qk_opt_scaled, qk_opt_scaled_pre_mask_shape});
     // Optional mask add
-    auto qk_opt_scaled_mask_added = wrap_type<ov::op::v1::Add>({qk_opt_scaled_pre_mask_opt_reshaped, mask});
-    auto qk_opt_scaled_opt_mask_added = qk_opt_scaled_mask_added | qk_opt_scaled_pre_mask_opt_reshaped;
+    auto qk_opt_scaled_opt_mask_added = optional<ov::op::v1::Add>({qk_opt_scaled_pre_mask_opt_reshaped, mask});
     // Optional reshape after adding mask
     auto qk_post_mask_shape = any_input();
     auto qk_post_mask_opt_reshaped = optional<ov::op::v1::Reshape>({qk_opt_scaled_opt_mask_added, qk_post_mask_shape});
@@ -81,8 +75,7 @@ SDPAFusion::SDPAFusion() {
     auto qkv_base =
         makePattern<ov::op::v0::MatMul>({softmax_opt_reshaped, v}, {{"transpose_a", false}, {"transpose_b", false}});
     auto qkv_shape = any_input();
-    auto qkv_reshaped = wrap_type<ov::op::v1::Reshape>({qkv_base, qkv_shape});
-    auto qkv = qkv_reshaped | qkv_base;
+    auto qkv = optional<ov::op::v1::Reshape>({qkv_base, qkv_shape});
 
     auto valid_qk_shapes = [](const std::shared_ptr<ov::op::v0::MatMul>& qk_matmul) {
         auto q_pshape = qk_matmul->get_input_partial_shape(0);
@@ -108,9 +101,8 @@ SDPAFusion::SDPAFusion() {
         if (pattern_map.count(k_opt_transposed_scaled) > 0 && pattern_map.count(qk_scaled) > 0)
             return false;
         // make sure that if inputs are reshaped the output is reshaped back
-        bool inputs_reshaped =
-            pattern_map.count(q_reshaped) > 0 && pattern_map.count(k_reshaped) > 0 && pattern_map.count(v_reshaped) > 0;
-        bool output_reshaped = pattern_map.count(qkv_reshaped) > 0;
+        bool inputs_reshaped = pattern_map.count(q) > 0 && pattern_map.count(k) > 0 && pattern_map.count(v) > 0;
+        bool output_reshaped = pattern_map.count(qkv) > 0;
         if ((inputs_reshaped && !output_reshaped) || (!inputs_reshaped && output_reshaped))
             return false;
 
@@ -174,8 +166,8 @@ SDPAFusion::SDPAFusion() {
             pattern_map.at(softmax).get_target_inputs().size() > 1) {
             return false;
         }
-        if (pattern_map.count(qk_opt_scaled_mask_added) &&
-            (pattern_map.at(qk_opt_scaled_mask_added).get_target_inputs().size() > 1 ||
+        if (pattern_map.count(qk_opt_scaled_opt_mask_added) &&
+            (pattern_map.at(qk_opt_scaled_opt_mask_added).get_target_inputs().size() > 1 ||
              pattern_map.at(mask).get_partial_shape().size() > 4)) {
             return false;
         }
@@ -196,8 +188,8 @@ SDPAFusion::SDPAFusion() {
         }
 
         Output<ov::Node> mask_input;
-        if (pattern_map.count(mask) > 0 && pattern_map.count(qk_opt_scaled_mask_added) > 0) {
-            ov::Output<ov::Node> qk_out = pattern_map.at(qk_opt_scaled_mask_added);
+        if (pattern_map.count(mask) > 0 && pattern_map.count(qk_opt_scaled_opt_mask_added) > 0) {
+            ov::Output<ov::Node> qk_out = pattern_map.at(qk_opt_scaled_opt_mask_added);
             // Get shape of the first input
             auto qk_out_ps = qk_out.get_target_inputs().begin()->get_partial_shape();
 
