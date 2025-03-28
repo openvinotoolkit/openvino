@@ -63,8 +63,10 @@ void SegmentMax::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 
     // Update lastSegmentIds
-    const auto* srcSegmentIds = getSrcDataAtPortAs<const int32_t>(1);
-    lastSegmentIds.assign(srcSegmentIds, srcSegmentIds + getSrcMemoryAtPort(1)->getSize());
+    auto srcSegmentIdsMem = getSrcMemoryAtPort(1);
+    const auto* srcSegmentIds = srcSegmentIdsMem->getDataAs<const int32_t>();
+    const auto elementsCount = srcSegmentIdsMem->getShape().getElementsCount();
+    lastSegmentIds.assign(srcSegmentIds, srcSegmentIds + elementsCount);
 
     // Update lastNumSegments
     if (getOriginalInputsNumber() == 3) {
