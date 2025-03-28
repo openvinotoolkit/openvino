@@ -423,6 +423,8 @@ interface Tensor {
    * Reports whether the tensor is continuous or not.
    */
   isContinuous(): boolean;
+
+  copyTo(): boolean;
 }
 
 /**
