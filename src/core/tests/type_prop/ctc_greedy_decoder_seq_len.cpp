@@ -5,7 +5,9 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
 using namespace ov;

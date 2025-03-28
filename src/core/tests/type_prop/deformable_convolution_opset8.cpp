@@ -5,12 +5,15 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset8;
 using namespace testing;
+
+using ov::op::v0::Parameter;
+using ov::op::v8::DeformableConvolution;
 
 TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same) {
     PartialShape data_batch_pshape{1, 4, 5, 5};

@@ -6,10 +6,12 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace ov;
-using namespace ov::opset11;
 using namespace testing;
 
 template <class TOp>
@@ -42,8 +44,8 @@ protected:
 TYPED_TEST_SUITE_P(PriorBoxClusteredTest);
 
 TYPED_TEST_P(PriorBoxClusteredTest, default_ctor) {
-    const auto output_size = Constant::create(element::i32, Shape{2}, {2, 5});
-    const auto image_size = std::make_shared<Parameter>(element::i32, Shape{2});
+    const auto output_size = op::v0::Constant::create(element::i32, Shape{2}, {2, 5});
+    const auto image_size = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
 
     const auto op = this->make_op();
     op->set_arguments(OutputVector{output_size, image_size});
@@ -58,8 +60,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, default_ctor) {
 }
 
 TYPED_TEST_P(PriorBoxClusteredTest, simple_inference) {
-    const auto output_size = Constant::create(element::i8, Shape{2}, {2, 5});
-    const auto image_size = Constant::create(element::i8, Shape{2}, {300, 300});
+    const auto output_size = op::v0::Constant::create(element::i8, Shape{2}, {2, 5});
+    const auto image_size = op::v0::Constant::create(element::i8, Shape{2}, {300, 300});
 
     const auto op = this->make_op(output_size, image_size, this->attrs);
 
@@ -70,8 +72,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, simple_inference) {
 }
 
 TYPED_TEST_P(PriorBoxClusteredTest, inputs_dynamic_rank) {
-    const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
-    const auto image_size = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
+    const auto output_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
+    const auto image_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
 
     const auto op = this->make_op(output_size, image_size, this->attrs);
 
@@ -83,8 +85,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, inputs_dynamic_rank) {
 }
 
 TYPED_TEST_P(PriorBoxClusteredTest, input_output_size_is_dynamic_rank) {
-    const auto output_size = std::make_shared<Parameter>(element::u64, PartialShape::dynamic());
-    const auto image_size = Constant::create(element::u64, Shape{2}, {300, 300});
+    const auto output_size = std::make_shared<op::v0::Parameter>(element::u64, PartialShape::dynamic());
+    const auto image_size = op::v0::Constant::create(element::u64, Shape{2}, {300, 300});
 
     const auto op = this->make_op(output_size, image_size, this->attrs);
 
@@ -98,8 +100,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, input_output_size_is_static_rank_with_dynami
     auto out_size_shape = PartialShape::dynamic(1);
     set_shape_symbols(out_size_shape);
 
-    const auto output_size = std::make_shared<Parameter>(element::u32, out_size_shape);
-    const auto image_size = Constant::create(element::u32, Shape{2}, {300, 300});
+    const auto output_size = std::make_shared<op::v0::Parameter>(element::u32, out_size_shape);
+    const auto image_size = op::v0::Constant::create(element::u32, Shape{2}, {300, 300});
 
     const auto op = this->make_op(output_size, image_size, this->attrs);
 
@@ -110,8 +112,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, input_output_size_is_static_rank_with_dynami
 }
 
 TYPED_TEST_P(PriorBoxClusteredTest, input_image_size_is_dynamic_rank) {
-    const auto output_size = Constant::create(element::u8, Shape{2}, {32, 32});
-    const auto image_size = std::make_shared<Parameter>(element::u8, PartialShape::dynamic());
+    const auto output_size = op::v0::Constant::create(element::u8, Shape{2}, {32, 32});
+    const auto image_size = std::make_shared<op::v0::Parameter>(element::u8, PartialShape::dynamic());
 
     const auto op = this->make_op(output_size, image_size, this->attrs);
 
@@ -125,8 +127,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, input_image_size_is_static_rank_dynamic_dim)
     auto img_size_shape = PartialShape::dynamic(1);
     set_shape_symbols(img_size_shape);
 
-    const auto output_size = Constant::create(element::u16, Shape{2}, {32, 32});
-    const auto image_size = std::make_shared<Parameter>(element::u16, img_size_shape);
+    const auto output_size = op::v0::Constant::create(element::u16, Shape{2}, {32, 32});
+    const auto image_size = std::make_shared<op::v0::Parameter>(element::u16, img_size_shape);
 
     const auto op = this->make_op(output_size, image_size, this->attrs);
 
@@ -142,8 +144,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, inputs_are_interval_shapes) {
     auto symbols = set_shape_symbols(out_size_shape);
     set_shape_symbols(img_size_shape, symbols);
 
-    const auto output_size = std::make_shared<Parameter>(element::u64, out_size_shape);
-    const auto image_size = std::make_shared<Parameter>(element::u64, img_size_shape);
+    const auto output_size = std::make_shared<op::v0::Parameter>(element::u64, out_size_shape);
+    const auto image_size = std::make_shared<op::v0::Parameter>(element::u64, img_size_shape);
 
     const auto op = this->make_op(output_size, image_size, this->attrs);
 
@@ -157,9 +159,9 @@ TYPED_TEST_P(PriorBoxClusteredTest, preseve_values_and_symbols_on_inputs) {
     auto out_size_shape = PartialShape{6, 8};
     out_size_shape[0].set_symbol(std::make_shared<Symbol>());
 
-    const auto output_size = std::make_shared<Parameter>(element::i16, out_size_shape);
-    const auto image_size = Constant::create(element::i16, Shape{2}, {300, 300});
-    const auto out_shape_of = std::make_shared<ShapeOf>(output_size);
+    const auto output_size = std::make_shared<op::v0::Parameter>(element::i16, out_size_shape);
+    const auto image_size = op::v0::Constant::create(element::i16, Shape{2}, {300, 300});
+    const auto out_shape_of = std::make_shared<op::v3::ShapeOf>(output_size);
 
     const auto op = this->make_op(out_shape_of, image_size, this->attrs);
 
@@ -173,9 +175,9 @@ TYPED_TEST_P(PriorBoxClusteredTest, preseve_partial_values_and_symbols_on_inputs
     auto out_size_shape = PartialShape{{1, 4}, {5, 10}};
     set_shape_symbols(out_size_shape);
 
-    const auto output_size = std::make_shared<Parameter>(element::u64, out_size_shape);
-    const auto image_size = Constant::create(element::u64, Shape{2}, {300, 300});
-    const auto out_shape_of = std::make_shared<ShapeOf>(output_size);
+    const auto output_size = std::make_shared<op::v0::Parameter>(element::u64, out_size_shape);
+    const auto image_size = op::v0::Constant::create(element::u64, Shape{2}, {300, 300});
+    const auto out_shape_of = std::make_shared<op::v3::ShapeOf>(output_size);
 
     const auto op = this->make_op(out_shape_of, image_size, this->attrs);
 
@@ -189,9 +191,9 @@ TYPED_TEST_P(PriorBoxClusteredTest, preseve_partial_values_inf_bound) {
     auto out_size_shape = PartialShape{{1, 4}, {5, -1}};
     set_shape_symbols(out_size_shape);
 
-    const auto output_size = std::make_shared<Parameter>(element::u64, out_size_shape);
-    const auto image_size = Constant::create(element::u64, Shape{2}, {300, 300});
-    const auto out_shape_of = std::make_shared<ShapeOf>(output_size);
+    const auto output_size = std::make_shared<op::v0::Parameter>(element::u64, out_size_shape);
+    const auto image_size = op::v0::Constant::create(element::u64, Shape{2}, {300, 300});
+    const auto out_shape_of = std::make_shared<op::v3::ShapeOf>(output_size);
 
     const auto op = this->make_op(out_shape_of, image_size, this->attrs);
 
@@ -202,8 +204,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, preseve_partial_values_inf_bound) {
 }
 
 TYPED_TEST_P(PriorBoxClusteredTest, out_size_input_not_integer) {
-    const auto output_size = Constant::create(element::f16, Shape{2}, {5, 5});
-    const auto image_size = Constant::create(element::i16, Shape{2}, {300, 300});
+    const auto output_size = op::v0::Constant::create(element::f16, Shape{2}, {5, 5});
+    const auto image_size = op::v0::Constant::create(element::i16, Shape{2}, {300, 300});
 
     OV_EXPECT_THROW(std::ignore = this->make_op(output_size, image_size, this->attrs),
                     NodeValidationFailure,
@@ -211,8 +213,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, out_size_input_not_integer) {
 }
 
 TYPED_TEST_P(PriorBoxClusteredTest, img_size_input_not_integer) {
-    const auto output_size = Constant::create(element::i16, Shape{2}, {5, 5});
-    const auto image_size = Constant::create(element::bf16, Shape{2}, {300, 300});
+    const auto output_size = op::v0::Constant::create(element::i16, Shape{2}, {5, 5});
+    const auto image_size = op::v0::Constant::create(element::bf16, Shape{2}, {300, 300});
 
     OV_EXPECT_THROW(std::ignore = this->make_op(output_size, image_size, this->attrs),
                     NodeValidationFailure,
@@ -220,8 +222,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, img_size_input_not_integer) {
 }
 
 TYPED_TEST_P(PriorBoxClusteredTest, out_and_img_size_inputs_ranks_not_compatible) {
-    const auto output_size = std::make_shared<Parameter>(element::u64, PartialShape{2});
-    const auto image_size = std::make_shared<Parameter>(element::u64, PartialShape{2, 1});
+    const auto output_size = std::make_shared<op::v0::Parameter>(element::u64, PartialShape{2});
+    const auto image_size = std::make_shared<op::v0::Parameter>(element::u64, PartialShape{2, 1});
 
     OV_EXPECT_THROW(std::ignore = this->make_op(output_size, image_size, this->attrs),
                     NodeValidationFailure,
@@ -229,8 +231,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, out_and_img_size_inputs_ranks_not_compatible
 }
 
 TYPED_TEST_P(PriorBoxClusteredTest, out_and_img_size_same_rank_not_1d) {
-    const auto output_size = std::make_shared<Parameter>(element::u64, PartialShape{2, 1});
-    const auto image_size = std::make_shared<Parameter>(element::u64, PartialShape{2, 1});
+    const auto output_size = std::make_shared<op::v0::Parameter>(element::u64, PartialShape{2, 1});
+    const auto image_size = std::make_shared<op::v0::Parameter>(element::u64, PartialShape{2, 1});
 
     OV_EXPECT_THROW(std::ignore = this->make_op(output_size, image_size, this->attrs),
                     NodeValidationFailure,
@@ -238,9 +240,9 @@ TYPED_TEST_P(PriorBoxClusteredTest, out_and_img_size_same_rank_not_1d) {
 }
 
 TYPED_TEST_P(PriorBoxClusteredTest, out_size_input_not_two_elements_tensor) {
-    const auto output_size = std::make_shared<Parameter>(element::u64, PartialShape{5, 5, 5});
-    const auto out_shape_of = std::make_shared<ShapeOf>(output_size);
-    const auto image_size = std::make_shared<Parameter>(element::u64, PartialShape::dynamic());
+    const auto output_size = std::make_shared<op::v0::Parameter>(element::u64, PartialShape{5, 5, 5});
+    const auto out_shape_of = std::make_shared<op::v3::ShapeOf>(output_size);
+    const auto image_size = std::make_shared<op::v0::Parameter>(element::u64, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = this->make_op(out_shape_of, image_size, this->attrs),
                     NodeValidationFailure,
@@ -251,8 +253,8 @@ TYPED_TEST_P(PriorBoxClusteredTest, widths_heights_different) {
     this->attrs.widths = {4.0f, 2.0f, 3.2f};
     this->attrs.heights = {1.0f, 2.0f};
 
-    const auto output_size = Constant::create(element::i16, Shape{2}, {5, 5});
-    const auto image_size = Constant::create(element::i16, Shape{2}, {300, 300});
+    const auto output_size = op::v0::Constant::create(element::i16, Shape{2}, {5, 5});
+    const auto image_size = op::v0::Constant::create(element::i16, Shape{2}, {300, 300});
 
     OV_EXPECT_THROW(std::ignore = this->make_op(output_size, image_size, this->attrs),
                     NodeValidationFailure,

@@ -8,7 +8,8 @@
 #include <utility>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/gather_tree.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
 using namespace ov;

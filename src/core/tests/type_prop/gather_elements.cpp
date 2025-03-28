@@ -6,7 +6,8 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/gather_elements.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
 using namespace ov;

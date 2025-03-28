@@ -4,7 +4,7 @@
 
 #include "visitors.hpp"
 
-#include "openvino/op/ops.hpp"
+#include "openvino/opsets/opset.hpp"
 
 namespace ov {
 namespace test {

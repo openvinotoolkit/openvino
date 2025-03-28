@@ -6,10 +6,10 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/experimental_detectron_detection_output.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace ov;
-using namespace ov::opset11;
 using namespace testing;
 
 class TypePropExperimentalDetectronDetectionOutputV6Test
@@ -28,10 +28,10 @@ protected:
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, default_ctor) {
     constexpr size_t max_detection = 100;
 
-    const auto rois = std::make_shared<Parameter>(element::f32, Shape{1000, 4});
-    const auto deltas = std::make_shared<Parameter>(element::f32, Shape{1000, 324});
-    const auto scores = std::make_shared<Parameter>(element::f32, Shape{1000, 81});
-    const auto im_info = std::make_shared<Parameter>(element::f32, Shape{1, 3});
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f32, Shape{1000, 4});
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, Shape{1000, 324});
+    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, Shape{1000, 81});
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
 
     const auto op = make_op();
     op->set_arguments(OutputVector{rois, deltas, scores, im_info});
@@ -51,10 +51,10 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, default_ctor) {
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, basic_shape_inference) {
-    const auto rois = std::make_shared<Parameter>(element::f64, Shape{1000, 4});
-    const auto deltas = std::make_shared<Parameter>(element::f64, Shape{1000, 324});
-    const auto scores = std::make_shared<Parameter>(element::f64, Shape{1000, 81});
-    const auto im_info = std::make_shared<Parameter>(element::f64, Shape{1, 3});
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f64, Shape{1000, 4});
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::f64, Shape{1000, 324});
+    const auto scores = std::make_shared<op::v0::Parameter>(element::f64, Shape{1000, 81});
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::f64, Shape{1, 3});
 
     const auto op = make_op(rois, deltas, scores, im_info, make_attrs(exp_detection, num_classes));
 
@@ -69,10 +69,10 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, basic_shape_inference
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, all_input_got_dynamic_type) {
-    const auto rois = std::make_shared<Parameter>(element::dynamic, Shape{1000, 4});
-    const auto deltas = std::make_shared<Parameter>(element::dynamic, Shape{1000, 324});
-    const auto scores = std::make_shared<Parameter>(element::dynamic, Shape{1000, 81});
-    const auto im_info = std::make_shared<Parameter>(element::dynamic, Shape{1, 3});
+    const auto rois = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{1000, 4});
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{1000, 324});
+    const auto scores = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{1000, 81});
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{1, 3});
 
     const auto op = make_op(rois, deltas, scores, im_info, make_attrs(exp_detection, num_classes));
 
@@ -87,10 +87,10 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, all_input_got_dynamic
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, some_input_got_dynamic_type) {
-    const auto rois = std::make_shared<Parameter>(element::dynamic, Shape{1000, 4});
-    const auto deltas = std::make_shared<Parameter>(element::f64, Shape{1000, 324});
-    const auto scores = std::make_shared<Parameter>(element::dynamic, Shape{1000, 81});
-    const auto im_info = std::make_shared<Parameter>(element::f64, Shape{1, 3});
+    const auto rois = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{1000, 4});
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::f64, Shape{1000, 324});
+    const auto scores = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{1000, 81});
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::f64, Shape{1, 3});
 
     const auto op = make_op(rois, deltas, scores, im_info, make_attrs(exp_detection, num_classes));
 
@@ -114,10 +114,10 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, interval_shapes) {
     set_shape_symbols(scores_shape);
     set_shape_symbols(im_info_shape);
 
-    const auto rois = std::make_shared<Parameter>(element::f16, rois_shape);
-    const auto deltas = std::make_shared<Parameter>(element::f16, deltas_shape);
-    const auto scores = std::make_shared<Parameter>(element::f16, scores_shape);
-    const auto im_info = std::make_shared<Parameter>(element::f16, im_info_shape);
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f16, rois_shape);
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::f16, deltas_shape);
+    const auto scores = std::make_shared<op::v0::Parameter>(element::f16, scores_shape);
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::f16, im_info_shape);
 
     const auto op = make_op(rois, deltas, scores, im_info, make_attrs(25, num_classes));
 
@@ -138,10 +138,10 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, interval_shapes) {
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, all_inputs_dynamic_rank) {
-    const auto rois = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
-    const auto deltas = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
-    const auto scores = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
-    const auto im_info = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
+    const auto rois = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape::dynamic());
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape::dynamic());
+    const auto scores = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape::dynamic());
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape::dynamic());
 
     const auto op = make_op(rois, deltas, scores, im_info, make_attrs(25, num_classes));
 
@@ -162,8 +162,8 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, all_inputs_dynamic_ra
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, input_not_floating_point) {
-    const auto bad_param = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
-    const auto ok_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto bad_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    const auto ok_param = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = make_op(bad_param, ok_param, ok_param, ok_param, make_attrs(25, num_classes)),
                     NodeValidationFailure,
@@ -183,8 +183,8 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, input_not_floating_po
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, input_mixed_floating_point_type) {
-    const auto f32_param = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto f16_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto f32_param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto f16_param = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = make_op(f32_param, f16_param, f16_param, f16_param, make_attrs(100, 20)),
                     NodeValidationFailure,
@@ -204,11 +204,11 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, input_mixed_floating_
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, rois_shape_not_2d) {
-    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
-    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{2}),
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2}),
                                           deltas,
                                           scores,
                                           im_info,
@@ -216,7 +216,7 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, rois_shape_not_2d) {
                     NodeValidationFailure,
                     HasSubstr("Input rois rank must be equal to 2."));
 
-    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 1}),
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 1}),
                                           deltas,
                                           scores,
                                           im_info,
@@ -226,12 +226,12 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, rois_shape_not_2d) {
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, inputs_deltas_not_2d) {
-    const auto rois = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = make_op(rois,
-                                          std::make_shared<Parameter>(element::f32, PartialShape{2}),
+                                          std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2}),
                                           scores,
                                           im_info,
                                           make_attrs(25, num_classes)),
@@ -239,7 +239,7 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, inputs_deltas_not_2d)
                     HasSubstr("Input deltas rank must be equal to 2."));
 
     OV_EXPECT_THROW(std::ignore = make_op(rois,
-                                          std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 1}),
+                                          std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 1}),
                                           scores,
                                           im_info,
                                           make_attrs(25, num_classes)),
@@ -248,13 +248,13 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, inputs_deltas_not_2d)
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, scores_not_2d) {
-    const auto rois = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = make_op(rois,
                                           deltas,
-                                          std::make_shared<Parameter>(element::f32, PartialShape{2}),
+                                          std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2}),
                                           im_info,
                                           make_attrs(25, num_classes)),
                     NodeValidationFailure,
@@ -262,7 +262,7 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, scores_not_2d) {
 
     OV_EXPECT_THROW(std::ignore = make_op(rois,
                                           deltas,
-                                          std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 1}),
+                                          std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 1}),
                                           im_info,
                                           make_attrs(25, num_classes)),
                     NodeValidationFailure,
@@ -270,14 +270,14 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, scores_not_2d) {
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, im_infos_not_2d) {
-    const auto rois = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = make_op(rois,
                                           deltas,
                                           scores,
-                                          std::make_shared<Parameter>(element::f32, PartialShape{2}),
+                                          std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2}),
                                           make_attrs(25, num_classes)),
                     NodeValidationFailure,
                     HasSubstr("Input image info shape must be compatible with [1,3]"));
@@ -285,7 +285,7 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, im_infos_not_2d) {
     OV_EXPECT_THROW(std::ignore = make_op(rois,
                                           deltas,
                                           scores,
-                                          std::make_shared<Parameter>(element::f32, PartialShape{1, 3, 1}),
+                                          std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 1}),
                                           make_attrs(25, num_classes)),
                     NodeValidationFailure,
                     HasSubstr("Input image info shape must be compatible with [1,3]"));
@@ -293,18 +293,18 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, im_infos_not_2d) {
     OV_EXPECT_THROW(std::ignore = make_op(rois,
                                           deltas,
                                           scores,
-                                          std::make_shared<Parameter>(element::f32, PartialShape{2, 3}),
+                                          std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3}),
                                           make_attrs(25, num_classes)),
                     NodeValidationFailure,
                     HasSubstr("Input image info shape must be compatible with [1,3]"));
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, rois_2nd_dim_not_compatible_4) {
-    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
-    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{-1, {0, 3}}),
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {0, 3}}),
                                           deltas,
                                           scores,
                                           im_info,
@@ -312,7 +312,7 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, rois_2nd_dim_not_comp
                     NodeValidationFailure,
                     HasSubstr("The last dimension of the 'input_rois' input must be compatible with 4."));
 
-    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{-1, {5, -1}}),
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {5, -1}}),
                                           deltas,
                                           scores,
                                           im_info,
@@ -322,13 +322,13 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, rois_2nd_dim_not_comp
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, deltas_2nd_dim_not_compatible_with_num_classes) {
-    const auto rois = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     OV_EXPECT_THROW(
         std::ignore = make_op(rois,
-                              std::make_shared<Parameter>(element::f32, PartialShape{-1, {0, 4 * num_classes - 1}}),
+                              std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {0, 4 * num_classes - 1}}),
                               scores,
                               im_info,
                               make_attrs(25, num_classes)),
@@ -338,7 +338,7 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, deltas_2nd_dim_not_co
 
     OV_EXPECT_THROW(
         std::ignore = make_op(rois,
-                              std::make_shared<Parameter>(element::f32, PartialShape{-1, {4 * num_classes + 1, -1}}),
+                              std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {4 * num_classes + 1, -1}}),
                               scores,
                               im_info,
                               make_attrs(25, num_classes)),
@@ -348,14 +348,14 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, deltas_2nd_dim_not_co
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, scores_2nd_dim_not_compatible_with_num_classes) {
-    const auto rois = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     OV_EXPECT_THROW(
         std::ignore = make_op(rois,
                               deltas,
-                              std::make_shared<Parameter>(element::f32, PartialShape{-1, {0, num_classes - 1}}),
+                              std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {0, num_classes - 1}}),
                               im_info,
                               make_attrs(25, num_classes)),
         NodeValidationFailure,
@@ -365,7 +365,7 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, scores_2nd_dim_not_co
     OV_EXPECT_THROW(
         std::ignore = make_op(rois,
                               deltas,
-                              std::make_shared<Parameter>(element::f32, PartialShape{-1, {num_classes + 1, -1}}),
+                              std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {num_classes + 1, -1}}),
                               im_info,
                               make_attrs(25, num_classes)),
         NodeValidationFailure,
@@ -374,12 +374,12 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, scores_2nd_dim_not_co
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, 1st_dim_rois_and_scores_compatible_with_num_batches) {
-    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape{{5, 10}, -1});
-    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{5, 10}, -1});
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     OV_EXPECT_THROW(
-        std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{{2, 6}, -1}),
-                              std::make_shared<Parameter>(element::f32, PartialShape{{9, 15}, -1}),
+        std::ignore = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{2, 6}, -1}),
+                              std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{9, 15}, -1}),
                               scores,
                               im_info,
                               make_attrs(25, num_classes)),
@@ -387,8 +387,8 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, 1st_dim_rois_and_scor
         HasSubstr("The first dimension of inputs 'input_rois', 'input_deltas', 'input_scores' must be the compatible"));
 
     OV_EXPECT_THROW(
-        std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{{2, 6}, -1}),
-                              std::make_shared<Parameter>(element::f32, PartialShape{{2, 4}, -1}),
+        std::ignore = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{2, 6}, -1}),
+                              std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{2, 4}, -1}),
                               scores,
                               im_info,
                               make_attrs(25, num_classes)),
@@ -396,8 +396,8 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, 1st_dim_rois_and_scor
         HasSubstr("The first dimension of inputs 'input_rois', 'input_deltas', 'input_scores' must be the compatible"));
 
     OV_EXPECT_THROW(
-        std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{{11, 12}, -1}),
-                              std::make_shared<Parameter>(element::f32, PartialShape{{9, 15}, -1}),
+        std::ignore = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{11, 12}, -1}),
+                              std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{9, 15}, -1}),
                               scores,
                               im_info,
                               make_attrs(25, num_classes)),
@@ -436,10 +436,10 @@ INSTANTIATE_TEST_SUITE_P(
     PrintToStringParamName());
 
 TEST_P(ExperimentalDetectronDetectionOutputV6Test, static_rank_shape_inference) {
-    const auto rois = std::make_shared<Parameter>(element::bf16, rois_shape);
-    const auto deltas = std::make_shared<Parameter>(element::bf16, deltas_shape);
-    const auto scores = std::make_shared<Parameter>(element::bf16, scores_shape);
-    const auto im_info = std::make_shared<Parameter>(element::bf16, im_info_shape);
+    const auto rois = std::make_shared<op::v0::Parameter>(element::bf16, rois_shape);
+    const auto deltas = std::make_shared<op::v0::Parameter>(element::bf16, deltas_shape);
+    const auto scores = std::make_shared<op::v0::Parameter>(element::bf16, scores_shape);
+    const auto im_info = std::make_shared<op::v0::Parameter>(element::bf16, im_info_shape);
 
     const auto op = make_op(rois, deltas, scores, im_info, make_attrs(25, num_classes));
 

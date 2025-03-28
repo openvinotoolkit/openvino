@@ -4,7 +4,8 @@
 
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/softsign.hpp"
 
 using namespace std;
 using namespace ov;

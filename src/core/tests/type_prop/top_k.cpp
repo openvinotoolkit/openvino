@@ -4,11 +4,21 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/topk.hpp"
 #include "topk_shape_inference.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/topk.hpp"
 
 using namespace ov;
-using namespace ov::opset11;
 using namespace testing;
 template <typename T>
 class topk_type_prop : public TypePropOpTest<T> {
@@ -16,7 +26,7 @@ protected:
     PartialShapes make_broadcast_shapes_of_topk_outs(T* topk) {
         PartialShapes bcs_outputs;
         for (size_t i = 0; i < topk->get_output_size(); ++i) {
-            auto bc = std::make_shared<Broadcast>(std::make_shared<Parameter>(element::i64, PartialShape{1}),
+            auto bc = std::make_shared<op::v3::Broadcast>(std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1}),
                                                   topk->output(i),
                                                   "BIDIRECTIONAL");
             bcs_outputs.push_back(bc->get_output_partial_shape(0));
@@ -39,8 +49,8 @@ TYPED_TEST_P(topk_type_prop, default_ctor) {
     constexpr auto exp_idx_type = element::i64;
     constexpr auto exp_data_type = element::f32;
 
-    const auto data = std::make_shared<Parameter>(exp_data_type, Shape{1, 2, 3, 4});
-    const auto k = Constant::create(element::i64, Shape{}, {2});
+    const auto data = std::make_shared<op::v0::Parameter>(exp_data_type, Shape{1, 2, 3, 4});
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {2});
 
     const auto op = this->make_op();
     op->set_arguments(OutputVector{data, k});
@@ -93,8 +103,8 @@ TYPED_TEST_P(topk_type_prop, negative_axis_support) {
 
     auto data_shape = PartialShape{1, 2, 3, 4};
     auto symbols = set_shape_symbols(data_shape);
-    const auto data = std::make_shared<Parameter>(exp_data_type, data_shape);
-    const auto k = Constant::create(exp_idx_type, Shape{}, {2});
+    const auto data = std::make_shared<op::v0::Parameter>(exp_data_type, data_shape);
+    const auto k = op::v0::Constant::create(exp_idx_type, Shape{}, {2});
 
     const auto op = this->make_op(data, k, exp_axis, "max", "value", exp_idx_type);
 
@@ -116,8 +126,8 @@ TYPED_TEST_P(topk_type_prop, negative_axis_support) {
 TYPED_TEST_P(topk_type_prop, default_index_element_type) {
     constexpr auto exp_data_type = element::f32;
 
-    const auto data = std::make_shared<Parameter>(exp_data_type, Shape{1, 2, 3, 4});
-    const auto k = Constant::create(element::i64, Shape{}, {3});
+    const auto data = std::make_shared<op::v0::Parameter>(exp_data_type, Shape{1, 2, 3, 4});
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {3});
     {
         // k > dimension
         const auto op = this->make_op(data, k, 0, "max", "value");
@@ -139,8 +149,8 @@ TYPED_TEST_P(topk_type_prop, default_index_element_type) {
 }
 
 TYPED_TEST_P(topk_type_prop, k_is_negative) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{-1, {-1, 2}});
-    const auto k = Constant::create(element::i64, Shape{}, {-1});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {-1, 2}});
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {-1});
 
     OV_EXPECT_THROW(const auto op = this->make_op(data, k, 0, "max", "value"),
                     NodeValidationFailure,
@@ -148,8 +158,8 @@ TYPED_TEST_P(topk_type_prop, k_is_negative) {
 }
 
 TYPED_TEST_P(topk_type_prop, k_for_dynamic_dimension) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{-1, {-1, 2}});
-    const auto k = Constant::create(element::i64, Shape{}, {5});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {-1, 2}});
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {5});
     const auto op = this->make_op(data, k, 0, "max", "value");
 
     EXPECT_THAT(op->outputs(),
@@ -157,8 +167,8 @@ TYPED_TEST_P(topk_type_prop, k_for_dynamic_dimension) {
 }
 
 TYPED_TEST_P(topk_type_prop, k_for_interval_dimension) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{{2, 12}, {-1, 2}});
-    const auto k = Constant::create(element::i64, Shape{}, {6});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{2, 12}, {-1, 2}});
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {6});
     const auto op = this->make_op(data, k, 0, "max", "value");
 
     EXPECT_THAT(op->outputs(),
@@ -166,8 +176,8 @@ TYPED_TEST_P(topk_type_prop, k_for_interval_dimension) {
 }
 
 TYPED_TEST_P(topk_type_prop, k_is_unknown_for_static_dimension) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{2, 10});
-    const auto k = std::make_shared<Parameter>(element::i32, PartialShape({}));
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 10});
+    const auto k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape({}));
     const auto op = this->make_op(data, k, 1, "max", "value");
 
     EXPECT_THAT(op->outputs(),
@@ -175,8 +185,8 @@ TYPED_TEST_P(topk_type_prop, k_is_unknown_for_static_dimension) {
 }
 
 TYPED_TEST_P(topk_type_prop, k_is_unknown_for_dynamic_dimension) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{-1, {-1, 2}});
-    const auto k = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {-1, 2}});
+    const auto k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
     const auto op = this->make_op(data, k, 0, "max", "value");
 
     EXPECT_THAT(op->outputs(),
@@ -184,8 +194,8 @@ TYPED_TEST_P(topk_type_prop, k_is_unknown_for_dynamic_dimension) {
 }
 
 TYPED_TEST_P(topk_type_prop, k_is_unknown_for_interval_dimension) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{{2, 100}, {-1, 2}});
-    const auto k = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{2, 100}, {-1, 2}});
+    const auto k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
     const auto op = this->make_op(data, k, 0, "max", "value");
 
     EXPECT_THAT(op->outputs(),
@@ -193,8 +203,8 @@ TYPED_TEST_P(topk_type_prop, k_is_unknown_for_interval_dimension) {
 }
 
 TYPED_TEST_P(topk_type_prop, k_is_unknown_for_interval_with_no_upper_bound_dimension) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{{2, -1}, {-1, 2}});
-    const auto k = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{2, -1}, {-1, 2}});
+    const auto k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
     const auto op = this->make_op(data, k, 0, "max", "value");
 
     EXPECT_THAT(op->outputs(),
@@ -202,8 +212,8 @@ TYPED_TEST_P(topk_type_prop, k_is_unknown_for_interval_with_no_upper_bound_dimen
 }
 
 TYPED_TEST_P(topk_type_prop, data_and_k_shapes_are_dynamic) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto k = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
     const auto op = this->make_op(data, k, 1, "max", "value");
 
     EXPECT_THAT(op->outputs(),
@@ -215,10 +225,10 @@ TYPED_TEST_P(topk_type_prop_with_evaluate, propagate_symbol_and_not_interval_val
     set_shape_symbols(p_shape);
 
     constexpr auto et = element::i64;
-    const auto symboled_param = std::make_shared<Parameter>(et, p_shape);
-    const auto symboled_shape_of = std::make_shared<ShapeOf>(symboled_param);
+    const auto symboled_param = std::make_shared<op::v0::Parameter>(et, p_shape);
+    const auto symboled_shape_of = std::make_shared<op::v3::ShapeOf>(symboled_param);
 
-    const auto k = Constant::create(et, Shape{}, {3});
+    const auto k = op::v0::Constant::create(et, Shape{}, {3});
     const auto op = this->make_op(symboled_shape_of, k, 0, "max", "index", element::i32);
 
     const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
@@ -232,10 +242,10 @@ TYPED_TEST_P(topk_type_prop_with_evaluate, propagate_symbol_and_not_interval_val
     set_shape_symbols(p_shape);
 
     constexpr auto et = element::i64;
-    const auto symboled_param = std::make_shared<Parameter>(et, p_shape);
-    const auto symboled_shape_of = std::make_shared<ShapeOf>(symboled_param);
+    const auto symboled_param = std::make_shared<op::v0::Parameter>(et, p_shape);
+    const auto symboled_shape_of = std::make_shared<op::v3::ShapeOf>(symboled_param);
 
-    const auto k = Constant::create(et, Shape{}, {3});
+    const auto k = op::v0::Constant::create(et, Shape{}, {3});
     const auto op = this->make_op(symboled_shape_of, k, 0, "min", "index", element::i32);
 
     const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
@@ -250,13 +260,13 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_symbols_k_is_interval) 
     auto k_symbol = std::make_shared<Symbol>();
     k_dim.set_symbol(k_symbol);
 
-    const auto p_k = std::make_shared<Parameter>(element::i64, shape);
-    const auto shape_of_k = std::make_shared<ShapeOf>(p_k);
-    const auto k = std::make_shared<Squeeze>(shape_of_k, Constant::create(element::i64, Shape{}, {0}));
+    const auto p_k = std::make_shared<op::v0::Parameter>(element::i64, shape);
+    const auto shape_of_k = std::make_shared<op::v3::ShapeOf>(p_k);
+    const auto k = std::make_shared<op::v0::Squeeze>(shape_of_k, op::v0::Constant::create(element::i64, Shape{}, {0}));
 
     auto data_shape = PartialShape{{2, 5}, {12, 18}, {2, 30}, {30, 40}, {-1, 15}, {15, -1}};
     auto symbols = set_shape_symbols(data_shape);
-    const auto data = std::make_shared<Parameter>(element::f32, data_shape);
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
 
     {
         // dim{2,5} k{10,20} -> {2,5}
@@ -312,14 +322,14 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_symbols_k_is_interval_w
     auto shape = PartialShape{{4, -1}};
     auto k_symbols = set_shape_symbols(shape);
 
-    const auto p_k = std::make_shared<Parameter>(element::i64, shape);
-    const auto shape_of_k = std::make_shared<ShapeOf>(p_k);
-    // Squeeze make scalar of interval value {4,inf}
-    const auto k = std::make_shared<Squeeze>(shape_of_k, Constant::create(element::i64, Shape{}, {0}));
+    const auto p_k = std::make_shared<op::v0::Parameter>(element::i64, shape);
+    const auto shape_of_k = std::make_shared<op::v3::ShapeOf>(p_k);
+    // op::v0::Squeeze make scalar of interval value {4,inf}
+    const auto k = std::make_shared<op::v0::Squeeze>(shape_of_k, op::v0::Constant::create(element::i64, Shape{}, {0}));
 
     auto data_shape = PartialShape{5, {2, 8}, {2, 100}};
     auto symbols = set_shape_symbols(data_shape);
-    const auto data = std::make_shared<Parameter>(element::f32, data_shape);
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
 
     {
         // dim{5} k{4,inf} -> {4,5}
@@ -345,17 +355,17 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_symbols_k_is_interval_w
 }
 
 TYPED_TEST_P(topk_type_prop, negative_axis_dynamic_rank) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto k = Constant::create(element::i64, Shape{}, {2});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {2});
     const int64_t axis = -2;
     const auto op = this->make_op(data, k, axis, "max", "value");
 
-    OV_EXPECT_THROW(op->get_axis(), NodeValidationFailure, HasSubstr("Normalized axis of TopK is unknown"));
+    OV_EXPECT_THROW(op->get_axis(), NodeValidationFailure, HasSubstr("Normalized axis of op::v11::TopK is unknown"));
 }
 
 TYPED_TEST_P(topk_type_prop, incorrect_index_element_type) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto k = Constant::create(element::i64, Shape{}, {2});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {2});
     const int64_t axis = -2;
 
     OV_EXPECT_THROW(const auto op = this->make_op(data, k, axis, "max", "value", element::i16),
@@ -395,8 +405,8 @@ INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, topk_type_prop_with_evaluate, TopKType
 class TypePropTopKV1Test : public TypePropOpTest<op::v1::TopK> {};
 
 TEST_F(TypePropTopKV1Test, k_is_u32) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{5, {-1, 2}});
-    const auto k = Constant::create(element::u32, Shape{}, {1});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, {-1, 2}});
+    const auto k = op::v0::Constant::create(element::u32, Shape{}, {1});
 
     OV_EXPECT_THROW(const auto op = this->make_op(data, k, 0, "max", "value"),
                     NodeValidationFailure,
@@ -406,8 +416,8 @@ TEST_F(TypePropTopKV1Test, k_is_u32) {
 class TypePropTopKV3Test : public TypePropOpTest<op::v3::TopK> {};
 
 TEST_F(TypePropTopKV3Test, k_is_u32) {
-    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{5, {-1, 2}});
-    const auto k = Constant::create(element::u32, Shape{}, {1});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, {-1, 2}});
+    const auto k = op::v0::Constant::create(element::u32, Shape{}, {1});
 
     const auto op = this->make_op(data, k, 0, "max", "value");
 
@@ -416,18 +426,18 @@ TEST_F(TypePropTopKV3Test, k_is_u32) {
 }
 
 TEST(type_prop, top_k_partial_value) {
-    const auto data = std::make_shared<opset11::Parameter>(element::f32, PartialShape{{0, 16000}});
-    const auto shape = std::make_shared<opset11::ShapeOf>(data);
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{0, 16000}});
+    const auto shape = std::make_shared<op::v3::ShapeOf>(data);
     const auto concat =
-        std::make_shared<Concat>(ov::OutputVector{shape, Constant::create(element::i64, {1}, {200})}, 0);
-    const auto reduce_min = std::make_shared<opset11::ReduceMin>(concat, Constant::create(element::i64, {1}, {0}));
+        std::make_shared<op::v0::Concat>(ov::OutputVector{shape, op::v0::Constant::create(element::i64, {1}, {200})}, 0);
+    const auto reduce_min = std::make_shared<op::v1::ReduceMin>(concat, op::v0::Constant::create(element::i64, {1}, {0}));
     const auto op = std::make_shared<op::v3::TopK>(data, reduce_min, 0, "max", "value");
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{0, 200}}));
 }
 
 TEST(type_prop, topk_v11_stable_sort_by_none) {
-    const auto data = std::make_shared<Parameter>(element::f32, Shape{2, 3, 4});
-    const auto k = Constant::create(element::u32, Shape{}, {1});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4});
+    const auto k = op::v0::Constant::create(element::u32, Shape{}, {1});
     OV_EXPECT_THROW(const auto op = std::make_shared<ov::op::v11::TopK>(data,
                                                                         k,
                                                                         2,
@@ -436,5 +446,5 @@ TEST(type_prop, topk_v11_stable_sort_by_none) {
                                                                         element::i64,
                                                                         true),
                     NodeValidationFailure,
-                    HasSubstr("Stable sort can only be used when TopK's sorting mode is set to 'VALUE' or 'INDEX'"));
+                    HasSubstr("Stable sort can only be used when op::v11::TopK's sorting mode is set to 'VALUE' or 'INDEX'"));
 }

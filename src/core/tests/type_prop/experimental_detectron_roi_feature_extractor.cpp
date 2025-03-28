@@ -8,10 +8,10 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace ov;
-using namespace ov::opset11;
 using namespace testing;
 
 class TypePropExperimentalDetectronROIFeatureExtractorV6Test
@@ -28,11 +28,11 @@ using Attrs = op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes;
 using ExperimentalROI = op::v6::ExperimentalDetectronROIFeatureExtractor;
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, default_ctor) {
-    const auto rois = std::make_shared<Parameter>(element::f16, Shape{1000, 4});
-    const auto pyramid_layer0 = std::make_shared<Parameter>(element::f16, PartialShape{1, 256, 200, 336});
-    const auto pyramid_layer1 = std::make_shared<Parameter>(element::f16, PartialShape{1, 256, 100, 168});
-    const auto pyramid_layer2 = std::make_shared<Parameter>(element::f16, PartialShape{1, 256, 50, 84});
-    const auto pyramid_layer3 = std::make_shared<Parameter>(element::f16, PartialShape{1, 256, 25, 42});
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f16, Shape{1000, 4});
+    const auto pyramid_layer0 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 256, 200, 336});
+    const auto pyramid_layer1 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 256, 100, 168});
+    const auto pyramid_layer2 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 256, 50, 84});
+    const auto pyramid_layer3 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, 256, 25, 42});
 
     const auto op = make_op();
     op->set_arguments(OutputVector{rois, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3});
@@ -48,11 +48,11 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, default_ctor) {
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, static_shapes) {
-    const auto rois = std::make_shared<Parameter>(element::f32, Shape{1000, 4});
-    const auto pyramid_layer0 = std::make_shared<Parameter>(element::f32, Shape{1, 256, 200, 336});
-    const auto pyramid_layer1 = std::make_shared<Parameter>(element::f32, Shape{1, 256, 100, 168});
-    const auto pyramid_layer2 = std::make_shared<Parameter>(element::f32, Shape{1, 256, 50, 84});
-    const auto pyramid_layer3 = std::make_shared<Parameter>(element::f32, Shape{1, 256, 25, 42});
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f32, Shape{1000, 4});
+    const auto pyramid_layer0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 256, 200, 336});
+    const auto pyramid_layer1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 256, 100, 168});
+    const auto pyramid_layer2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 256, 50, 84});
+    const auto pyramid_layer3 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 256, 25, 42});
 
     const auto op =
         make_op(NodeVector{rois, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3}, make_attrs(14));
@@ -72,10 +72,10 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, dims_and_labels_p
     set_shape_symbols(l1_shape);
     set_shape_symbols(l2_shape);
 
-    const auto rois = std::make_shared<Parameter>(element::f64, in_shape);
-    const auto pyramid_layer0 = std::make_shared<Parameter>(element::f64, l0_shape);
-    const auto pyramid_layer1 = std::make_shared<Parameter>(element::f64, l1_shape);
-    const auto pyramid_layer2 = std::make_shared<Parameter>(element::f64, l2_shape);
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f64, in_shape);
+    const auto pyramid_layer0 = std::make_shared<op::v0::Parameter>(element::f64, l0_shape);
+    const auto pyramid_layer1 = std::make_shared<op::v0::Parameter>(element::f64, l1_shape);
+    const auto pyramid_layer2 = std::make_shared<op::v0::Parameter>(element::f64, l2_shape);
 
     const auto op = make_op(OutputVector{rois, pyramid_layer0, pyramid_layer1, pyramid_layer2}, make_attrs(7));
 
@@ -103,10 +103,10 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, dims_and_labels_p
     auto l0_symbol = set_shape_symbols(l0_shape);
     set_shape_symbols(l1_shape);
 
-    const auto rois = std::make_shared<Parameter>(element::bf16, in_shape);
-    const auto pyramid_layer0 = std::make_shared<Parameter>(element::bf16, l0_shape);
-    const auto pyramid_layer1 = std::make_shared<Parameter>(element::bf16, l1_shape);
-    const auto pyramid_layer2 = std::make_shared<Parameter>(element::bf16, l2_shape);
+    const auto rois = std::make_shared<op::v0::Parameter>(element::bf16, in_shape);
+    const auto pyramid_layer0 = std::make_shared<op::v0::Parameter>(element::bf16, l0_shape);
+    const auto pyramid_layer1 = std::make_shared<op::v0::Parameter>(element::bf16, l1_shape);
+    const auto pyramid_layer2 = std::make_shared<op::v0::Parameter>(element::bf16, l2_shape);
 
     const auto op = make_op(NodeVector{rois, pyramid_layer0, pyramid_layer1, pyramid_layer2}, make_attrs(7));
 
@@ -125,9 +125,9 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, dims_and_labels_p
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, all_inputs_dynamic_rank) {
-    const auto rois = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
-    const auto pyramid_layer0 = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
-    const auto pyramid_layer1 = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
+    const auto pyramid_layer0 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
+    const auto pyramid_layer1 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
 
     const auto op = make_op(OutputVector{rois, pyramid_layer0, pyramid_layer1}, make_attrs(7));
 
@@ -142,12 +142,12 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, all_inputs_dynami
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, all_inputs_static_rank_but_dynamic_dims) {
-    const auto rois = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(2));
-    const auto pyramid_layer0 = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(4));
-    const auto pyramid_layer1 = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(4));
-    const auto pyramid_layer2 = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(4));
-    const auto pyramid_layer3 = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(4));
-    const auto pyramid_layer4 = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(4));
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(2));
+    const auto pyramid_layer0 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(4));
+    const auto pyramid_layer1 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(4));
+    const auto pyramid_layer2 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(4));
+    const auto pyramid_layer3 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(4));
+    const auto pyramid_layer4 = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(4));
 
     const auto op =
         make_op(OutputVector{rois, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3, pyramid_layer4},
@@ -164,8 +164,8 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, all_inputs_static
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, input_not_floating_point) {
-    const auto bad_param = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
-    const auto ok_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto bad_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    const auto ok_param = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = make_op(OutputVector{bad_param, ok_param, ok_param}, make_attrs(7)),
                     NodeValidationFailure,
@@ -186,8 +186,8 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, input_not_floatin
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, input_mixed_floating_point_type) {
-    const auto f32_param = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto f16_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto f32_param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto f16_param = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = make_op(OutputVector{f32_param, f16_param, f16_param, f16_param}, make_attrs(100)),
                     NodeValidationFailure,
@@ -207,81 +207,81 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, input_mixed_float
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, rois_not_2d) {
-    const auto layer = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(4));
+    const auto layer = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(4));
 
     OV_EXPECT_THROW(
         std::ignore =
-            make_op(OutputVector{std::make_shared<Parameter>(element::f16, PartialShape{20}), layer}, make_attrs(7)),
+            make_op(OutputVector{std::make_shared<op::v0::Parameter>(element::f16, PartialShape{20}), layer}, make_attrs(7)),
         NodeValidationFailure,
         HasSubstr("Input rois rank must be equal to 2"));
 
     OV_EXPECT_THROW(std::ignore = make_op(
-                        OutputVector{std::make_shared<Parameter>(element::f16, PartialShape{20, 4, 1}), layer, layer},
+                        OutputVector{std::make_shared<op::v0::Parameter>(element::f16, PartialShape{20, 4, 1}), layer, layer},
                         make_attrs(10)),
                     NodeValidationFailure,
                     HasSubstr("Input rois rank must be equal to 2"));
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, rois_2nd_dim_not_compatible) {
-    const auto layer = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(4));
+    const auto layer = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(4));
 
     OV_EXPECT_THROW(
-        std::ignore = make_op(OutputVector{std::make_shared<Parameter>(element::f16, PartialShape{20, {0, 3}}), layer},
+        std::ignore = make_op(OutputVector{std::make_shared<op::v0::Parameter>(element::f16, PartialShape{20, {0, 3}}), layer},
                               make_attrs(7)),
         NodeValidationFailure,
         HasSubstr("The last dimension of the 'input_rois' input must be equal to 4"));
 
     OV_EXPECT_THROW(
         std::ignore =
-            make_op(OutputVector{std::make_shared<Parameter>(element::f16, PartialShape{20, {5, -1}}), layer, layer},
+            make_op(OutputVector{std::make_shared<op::v0::Parameter>(element::f16, PartialShape{20, {5, -1}}), layer, layer},
                     make_attrs(10)),
         NodeValidationFailure,
         HasSubstr("The last dimension of the 'input_rois' input must be equal to 4"));
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, layers_not_4d) {
-    const auto rois = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(2));
-    const auto layer = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(4));
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(2));
+    const auto layer = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(4));
 
     OV_EXPECT_THROW(
-        std::ignore = make_op(OutputVector{rois, std::make_shared<Parameter>(element::f16, PartialShape::dynamic(3))},
+        std::ignore = make_op(OutputVector{rois, std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(3))},
                               make_attrs(10)),
         NodeValidationFailure,
         HasSubstr("Rank of each element of the pyramid must be equal to 4"));
 
     OV_EXPECT_THROW(
-        std::ignore = make_op(OutputVector{rois, std::make_shared<Parameter>(element::f16, PartialShape::dynamic(5))},
+        std::ignore = make_op(OutputVector{rois, std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(5))},
                               make_attrs(10)),
         NodeValidationFailure,
         HasSubstr("Rank of each element of the pyramid must be equal to 4"));
 
     OV_EXPECT_THROW(std::ignore = make_op(
-                        OutputVector{rois, layer, std::make_shared<Parameter>(element::f16, PartialShape::dynamic(3))},
+                        OutputVector{rois, layer, std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(3))},
                         make_attrs(10)),
                     NodeValidationFailure,
                     HasSubstr("Rank of each element of the pyramid must be equal to 4"));
 
     OV_EXPECT_THROW(
         std::ignore = make_op(
-            OutputVector{rois, layer, std::make_shared<Parameter>(element::f16, PartialShape::dynamic(3)), layer},
+            OutputVector{rois, layer, std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(3)), layer},
             make_attrs(10)),
         NodeValidationFailure,
         HasSubstr("Rank of each element of the pyramid must be equal to 4"));
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, layers_1st_dim_not_compatible_1) {
-    const auto rois = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(2));
-    const auto layer = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(4));
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(2));
+    const auto layer = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(4));
 
     OV_EXPECT_THROW(
-        std::ignore = make_op(OutputVector{rois, std::make_shared<Parameter>(element::f16, PartialShape{2, 5, 16, 16})},
+        std::ignore = make_op(OutputVector{rois, std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 5, 16, 16})},
                               make_attrs(10)),
         NodeValidationFailure,
         HasSubstr("The first dimension of each pyramid element must be equal to 1"));
 
     OV_EXPECT_THROW(
         std::ignore = make_op(
-            OutputVector{rois, layer, std::make_shared<Parameter>(element::f16, PartialShape{{2, -1}, -1, -1, -1})},
+            OutputVector{rois, layer, std::make_shared<op::v0::Parameter>(element::f16, PartialShape{{2, -1}, -1, -1, -1})},
             make_attrs(10)),
         NodeValidationFailure,
         HasSubstr("The first dimension of each pyramid element must be equal to 1"));
@@ -290,7 +290,7 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, layers_1st_dim_no
         std::ignore = make_op(OutputVector{rois,
                                            layer,
                                            layer,
-                                           std::make_shared<Parameter>(element::f16, PartialShape{5, -1, -1, -1}),
+                                           std::make_shared<op::v0::Parameter>(element::f16, PartialShape{5, -1, -1, -1}),
                                            layer},
                               make_attrs(10)),
         NodeValidationFailure,
@@ -298,22 +298,22 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, layers_1st_dim_no
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, num_channels_not_same_on_all_layers) {
-    const auto rois = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(2));
-    const auto layer = std::make_shared<Parameter>(element::f16, PartialShape::dynamic(4));
+    const auto rois = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(2));
+    const auto layer = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic(4));
 
     OV_EXPECT_THROW(
         std::ignore = make_op(OutputVector{rois,
-                                           std::make_shared<Parameter>(element::f16, PartialShape{1, {0, 3}, -1, -1}),
-                                           std::make_shared<Parameter>(element::f16, PartialShape{1, {14, 5}, -1, -1})},
+                                           std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, {0, 3}, -1, -1}),
+                                           std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, {14, 5}, -1, -1})},
                               make_attrs(10)),
         NodeValidationFailure,
         HasSubstr("The number of channels must be the same for all layers of the pyramid"));
 
     OV_EXPECT_THROW(
         std::ignore = make_op(OutputVector{rois,
-                                           std::make_shared<Parameter>(element::f16, PartialShape{1, {2, 3}, -1, -1}),
+                                           std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, {2, 3}, -1, -1}),
                                            layer,
-                                           std::make_shared<Parameter>(element::f16, PartialShape{1, {4, 5}, -1, -1}),
+                                           std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, {4, 5}, -1, -1}),
                                            layer},
                               make_attrs(10)),
         NodeValidationFailure,
@@ -321,8 +321,8 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, num_channels_not_
 
     OV_EXPECT_THROW(
         std::ignore = make_op(OutputVector{rois,
-                                           std::make_shared<Parameter>(element::f16, PartialShape{1, {2, 3}, -1, -1}),
-                                           std::make_shared<Parameter>(element::f16, PartialShape{1, {4, 5}, -1, -1}),
+                                           std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, {2, 3}, -1, -1}),
+                                           std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, {4, 5}, -1, -1}),
                                            layer},
                               make_attrs(10)),
         NodeValidationFailure,
@@ -458,11 +458,11 @@ TEST_P(ROIFeatureIntervalsTest, interval_shape_inference) {
     auto layer2_shape = PartialShape{first_dims[2], channels[2], 50, 84};
     auto layer3_shape = PartialShape{first_dims[3], channels[3], 25, 42};
 
-    auto rois = std::make_shared<Parameter>(element::f32, input_shape);
-    auto pyramid_layer0 = std::make_shared<Parameter>(element::f32, layer0_shape);
-    auto pyramid_layer1 = std::make_shared<Parameter>(element::f32, layer1_shape);
-    auto pyramid_layer2 = std::make_shared<Parameter>(element::f32, layer2_shape);
-    auto pyramid_layer3 = std::make_shared<Parameter>(element::f32, layer3_shape);
+    auto rois = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto pyramid_layer0 = std::make_shared<op::v0::Parameter>(element::f32, layer0_shape);
+    auto pyramid_layer1 = std::make_shared<op::v0::Parameter>(element::f32, layer1_shape);
+    auto pyramid_layer2 = std::make_shared<op::v0::Parameter>(element::f32, layer2_shape);
+    auto pyramid_layer3 = std::make_shared<op::v0::Parameter>(element::f32, layer3_shape);
 
     auto op = make_op(NodeVector{rois, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3},
                       make_attrs(exp_out_size));
@@ -477,11 +477,11 @@ TEST_P(ROIFeatureIntervalsTest, interval_shape_inference_layers_1st_dim_static) 
     auto layer2_shape = PartialShape{1, channels[2], 50, 84};
     auto layer3_shape = PartialShape{1, channels[3], 25, 42};
 
-    auto rois = std::make_shared<Parameter>(element::f32, input_shape);
-    auto pyramid_layer0 = std::make_shared<Parameter>(element::f32, layer0_shape);
-    auto pyramid_layer1 = std::make_shared<Parameter>(element::f32, layer1_shape);
-    auto pyramid_layer2 = std::make_shared<Parameter>(element::f32, layer2_shape);
-    auto pyramid_layer3 = std::make_shared<Parameter>(element::f32, layer3_shape);
+    auto rois = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto pyramid_layer0 = std::make_shared<op::v0::Parameter>(element::f32, layer0_shape);
+    auto pyramid_layer1 = std::make_shared<op::v0::Parameter>(element::f32, layer1_shape);
+    auto pyramid_layer2 = std::make_shared<op::v0::Parameter>(element::f32, layer2_shape);
+    auto pyramid_layer3 = std::make_shared<op::v0::Parameter>(element::f32, layer3_shape);
 
     auto op = make_op(NodeVector{rois, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3},
                       make_attrs(exp_out_size));

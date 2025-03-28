@@ -6,7 +6,9 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset12.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/rnn_cell.hpp"
 
 namespace rnn_cell_test {
 using namespace std;
