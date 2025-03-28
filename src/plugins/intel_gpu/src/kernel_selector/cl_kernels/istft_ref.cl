@@ -4,7 +4,20 @@
 
 // #if __OPENCL_C_VERSION__ >= CL_VERSION_3_0
 #pragma OPENCL EXTENSION cl_ext_float_atomics : enable
-#define atomicadd(a, b) atomic_fetch_add((volatile atomic_float*)(a), (b))
+#pragma OPENCL EXTENSION cl_khr_fp16 : enable
+
+#define str(TYPE) TYPE
+#define atomicadd(TYPE, a, b) _atomicadd(TYPE, a, b)
+#define _atomicadd(TYPE, a, b) atomicadd_##TYPE(a, b)
+#define atomicadd_float(a, b) atomic_fetch_add((volatile atomic_float*)(a), (b))
+#define atomicadd_half(a, b) _atomicadd_half((volatile atomic_half*)(a), (b))
+
+inline half _atomicadd_half(volatile atomic_half* address, const half value) {
+    half old = value, orig;
+    while ((old = atomic_exchange(address, (orig = atomic_exchange(address, 0)) + old)) != 0);
+    return orig;
+}
+
 // #else
 //   inline float atomicadd(volatile __global float* address, const float value) {
 //     float old = value, orig;
@@ -52,6 +65,8 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     const int window_size = INPUT1_SIZE_X;
     const int freqs = INPUT0_FEATURE_NUM;
     const int DEFAULT_OUTPUT_SIZE = (INPUT0_SIZE_Y - 1) * frame_step + frame_size;
+
+    //printf("frame_size: %i\n", frame_size);
 
     const float windowVal = (float)window[windowIdx];
     const float windowValPow2 = windowVal * windowVal;
@@ -133,5 +148,5 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
 #endif
 
     // Perform last reduction atomically.
-    const float prev = atomicadd(output + globalOutputIdx, finalVal);
+    const float prev = atomicadd(OUTPUT_TYPE, output + globalOutputIdx, finalVal);
 }
