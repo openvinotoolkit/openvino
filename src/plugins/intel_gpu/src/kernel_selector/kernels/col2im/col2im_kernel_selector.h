@@ -7,16 +7,16 @@
 #include "kernel_selector.h"
 
 namespace kernel_selector {
-class col_to_im_kernel_selector : public kernel_selector_base {
+class col2im_kernel_selector : public kernel_selector_base {
 public:
-    static col_to_im_kernel_selector& Instance() {
-        static col_to_im_kernel_selector instance_;
+    static col2im_kernel_selector& Instance() {
+        static col2im_kernel_selector instance_;
         return instance_;
     }
 
-    col_to_im_kernel_selector();
+    col2im_kernel_selector();
 
-    virtual ~col_to_im_kernel_selector() {}
+    virtual ~col2im_kernel_selector() {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "col_to_im_kernel_opt.h"
+#include "col2im_kernel_ref.h"
 #include "kernel_selector_utils.h"
 #include <string>
 #include <vector>
 
 namespace kernel_selector {
 
-ParamsKey ColToImKernelOpt::GetSupportedKey() const {
+ParamsKey Col2ImKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -28,29 +28,24 @@ ParamsKey ColToImKernelOpt::GetSupportedKey() const {
     return k;
 }
 
-CommonDispatchData ColToImKernelOpt::SetDefault(const col_to_im_params& params) const {
+CommonDispatchData Col2ImKernelRef::SetDefault(const col2im_params& params) const {
     CommonDispatchData dispatchData;
 
-    auto input = params.inputs[0];
-    const auto num_elements_for_block = input.Feature().v;
-    const auto kernel_product = params.kernel_size.x * params.kernel_size.y;
-    const auto num_channels = num_elements_for_block / kernel_product;
-
-    dispatchData.gws = {num_channels, 1, params.outputs[0].Batch().v};
+    dispatchData.gws = {1, 1, params.outputs[0].Batch().v};
     dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
 }
 
-KernelsData ColToImKernelOpt::GetKernelsData(const Params& params) const {
+KernelsData Col2ImKernelRef::GetKernelsData(const Params& params) const {
     return GetCommonKernelsData(params);
 }
 
-KernelsPriority ColToImKernelOpt::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_2;
+KernelsPriority Col2ImKernelRef::GetKernelsPriority(const Params& /*params*/) const {
+    return FORCE_PRIORITY_9;
 }
 
-JitConstants ColToImKernelOpt::GetJitConstants(const col_to_im_params& params) const {
+JitConstants Col2ImKernelRef::GetJitConstants(const col2im_params& params) const {
     auto jit = Parent::GetJitConstants(params);
 
     return jit;

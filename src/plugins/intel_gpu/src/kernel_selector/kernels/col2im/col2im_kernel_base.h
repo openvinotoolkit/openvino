@@ -9,11 +9,11 @@
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// col_to_im_params
+// col2im_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct col_to_im_params : public base_params {
-    col_to_im_params()
-    : base_params(KernelType::COL_TO_IM) {}
+struct col2im_params : public base_params {
+    col2im_params()
+    : base_params(KernelType::COL2IM) {}
     // Required
     uSize output_size;
     uSize kernel_size;
@@ -24,25 +24,25 @@ struct col_to_im_params : public base_params {
     uSize padding_end;
 };
 
-struct col_to_im_fuse_params : fuse_params {
-    col_to_im_fuse_params() : fuse_params(KernelType::COL_TO_IM) {}
+struct col2im_fuse_params : fuse_params {
+    col2im_fuse_params() : fuse_params(KernelType::COL2IM) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ColToImKernelBase
+// Col2ImKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class ColToImKernelBase : public KernelBaseOpenCL {
+class Col2ImKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~ColToImKernelBase() {}
+    virtual ~Col2ImKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {
     };
 
 protected:
     bool Validate(const Params&) const override;
-    virtual JitConstants GetJitConstants(const col_to_im_params& params) const;
-    virtual CommonDispatchData SetDefault(const col_to_im_params& params) const = 0;
+    virtual JitConstants GetJitConstants(const col2im_params& params) const;
+    virtual CommonDispatchData SetDefault(const col2im_params& params) const = 0;
     KernelsData GetCommonKernelsData(const Params& params) const;
 };
 }  // namespace kernel_selector

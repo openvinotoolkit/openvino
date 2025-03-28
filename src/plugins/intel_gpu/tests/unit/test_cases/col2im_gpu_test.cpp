@@ -7,14 +7,14 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/col_to_im.hpp>
+#include <intel_gpu/primitives/col2im.hpp>
 
 #include <cstddef>
 
 using namespace cldnn;
 using namespace ::tests;
 
-static void test_col_to_im_output(bool is_caching_test) {
+static void test_col2im_output(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 12, 9, 1 } });
@@ -36,8 +36,8 @@ static void test_col_to_im_output(bool is_caching_test) {
     topology topology;
     topology.add(cldnn::input_layout("input", input->get_layout()));
     topology.add(cldnn::reorder("reorder_input", input_info("input"), cldnn::layout(data_types::f16, format::byxf, { 1, 12, 9, 1 })));
-    topology.add(cldnn::col_to_im("col_to_im", input_info("reorder_input"), {1, 1}, {1, 1}, {0, 0}, {0, 0}, output_size, kernel_size));
-    topology.add(cldnn::activation("activate", input_info("col_to_im"), cldnn::activation_func::relu_negative_slope, {0.25f, 0.f}));
+    topology.add(cldnn::col2im("col2im", input_info("reorder_input"), {1, 1}, {1, 1}, {0, 0}, {0, 0}, output_size, kernel_size));
+    topology.add(cldnn::activation("activate", input_info("col2im"), cldnn::activation_func::relu_negative_slope, {0.25f, 0.f}));
     topology.add(cldnn::reorder("convert:output", input_info("activate"), format::any, data_types::f32, {}, reorder_mean_mode::subtract, padding(), true));
     topology.add(cldnn::reorder("result:output/sink_port_0", input_info("convert:output"), format::bfyx, data_types::f32, {}, reorder_mean_mode::subtract, padding(), false));
 
@@ -65,6 +65,6 @@ static void test_col_to_im_output(bool is_caching_test) {
     }
 }
 
-TEST(col_to_im_gpu_simple, fp32_input_fp32_output) {
-    test_col_to_im_output(false);
+TEST(col2im_gpu_simple, fp32_input_fp32_output) {
+    test_col2im_output(false);
 }
