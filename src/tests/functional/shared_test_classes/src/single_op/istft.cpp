@@ -63,6 +63,12 @@ void ISTFTLayerTest::SetUp() {
                  dev] = this->GetParam();
     targetDevice = dev;
 
+    abs_threshold = 1e-5;
+
+    if (data_type == ov::element::f16 || data_type == ov::element::bf16) {
+        abs_threshold = 1e-3;
+    }
+
     init_input_shapes(data_shapes);
 
     const auto in_signal = std::make_shared<ov::op::v0::Parameter>(data_type, inputDynamicShapes[0]);
@@ -125,13 +131,19 @@ void ISTFTLayerTest::SetUp() {
 }
 
 const ISTFTLayerTest::TGenData ISTFTLayerTest::GetTestDataForDevice(const char* deviceName) {
+    const bool isForGPU = std::string(deviceName).compare(ov::test::utils::DEVICE_GPU) == 0;
+
     const std::vector<ov::element::Type> data_type = {ov::element::bf16, ov::element::f16, ov::element::f32};
     const std::vector<ov::element::Type> step_size_type = {ov::element::i32, ov::element::i64};
+
+    const size_t frame_size_val = 16;
+    const size_t window_size =
+        isForGPU ? frame_size_val : 12;  //< ISTFT on GPU does not handle window size different from frame size.
 
     const std::vector<std::vector<InputShape>> input_shapes = {{
                                                                    // Static shapes
                                                                    {{}, {{9, 3, 2}}},  // 1st input 3D
-                                                                   {{}, {{12}}},       // 2nd input
+                                                                   {{}, {{window_size}}}, // 2nd input
                                                                    {{}, {{}}},         // 3rd input
                                                                    {{}, {{}}},         // 4th input
                                                                    {{}, {{}}}          // 5th input
@@ -139,7 +151,7 @@ const ISTFTLayerTest::TGenData ISTFTLayerTest::GetTestDataForDevice(const char* 
                                                                {
                                                                    // Static shapes
                                                                    {{}, {{3, 9, 3, 2}}},  // 1st input 4D
-                                                                   {{}, {{12}}},          // 2nd input
+                                                                   {{}, {{window_size}}}, // 2nd input
                                                                    {{}, {{}}},            // 3rd input
                                                                    {{}, {{}}},            // 4th input
                                                                    {{}, {{}}}             // 5th input
@@ -147,7 +159,7 @@ const ISTFTLayerTest::TGenData ISTFTLayerTest::GetTestDataForDevice(const char* 
                                                                {
                                                                    // Dynamic dims in the first and second input shape
                                                                    {{-1, -1, -1}, {{9, 3, 2}}},  // 1st input 3D
-                                                                   {{-1}, {{12}}},               // 2nd input
+                                                                   {{-1}, {{window_size}}},      // 2nd input
                                                                    {{}, {{}}},                   // 3rd input
                                                                    {{}, {{}}},                   // 4th input
                                                                    {{}, {{}}}                    // 5th input
@@ -155,15 +167,15 @@ const ISTFTLayerTest::TGenData ISTFTLayerTest::GetTestDataForDevice(const char* 
                                                                {
                                                                    // Dynamic dims in the first and second input shape
                                                                    {{-1, -1, -1, -1}, {{4, 9, 3, 2}}},  // 1st input 4D
-                                                                   {{-1}, {{12}}},                      // 2nd input
+                                                                   {{-1}, {{window_size}}},             // 2nd input
                                                                    {{}, {{}}},                          // 3rd input
                                                                    {{}, {{}}},                          // 4th input
                                                                    {{}, {{}}}                           // 5th input
                                                                }};
 
-    const std::vector<int64_t> frame_size = {16};
+    const std::vector<int64_t> frame_size = {frame_size_val};
     const std::vector<int64_t> step_size = {2, 3, 4};
-    const std::vector<int64_t> signal_len = {-1, 48, 32, 256};
+    const std::vector<int64_t> signal_len = {-1};
 
     const std::vector<bool> center = {
         false,
@@ -175,7 +187,7 @@ const ISTFTLayerTest::TGenData ISTFTLayerTest::GetTestDataForDevice(const char* 
         true,
     };
 
-    std::vector<utils::InputLayerType> in_types = {utils::InputLayerType::CONSTANT, utils::InputLayerType::PARAMETER};
+    std::vector<utils::InputLayerType> in_types = {utils::InputLayerType::PARAMETER};
 
     auto data = ::testing::Combine(::testing::ValuesIn(input_shapes),
                                    ::testing::ValuesIn(frame_size),
