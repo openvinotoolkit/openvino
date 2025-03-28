@@ -20,21 +20,22 @@ public:
                      const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache);
 
     void execute(const dnnl::stream& strm,
-                 const std::vector<MemoryPtr>& inMemPtrs,
-                 const std::vector<MemoryPtr>& outMemPtrs) override;
+                 const std::vector<MemoryPtr>& in_mem_ptrs,
+                 const std::vector<MemoryPtr>& out_mem_ptrs) override;
 
-    static std::vector<MemoryPtr> prepare_weights(const std::vector<MemoryPtr>& inMemPtrs,
+    static std::vector<MemoryPtr> prepare_weights(const std::vector<MemoryPtr>& in_mem_ptrs,
                                                   const RepackedInputConfig& repacked_const_input_config,
                                                   const GraphContext::CPtr& context);
 
 protected:
-    static void separately_repack_input(const MemoryPtr& srcMemPtr,
-                                        const MemoryPtr& dstMemPtr,
+    static void separately_repack_input(const MemoryPtr& src_mem_ptr,
+                                        const MemoryPtr& dst_mem_ptr,
                                         const ov::intel_cpu::RepackedInput& repacked_input,
                                         size_t tensor_rank);
 
-    std::vector<MemoryPtr> separately_repack_inputs(const dnnl::stream& strm, const std::vector<MemoryPtr>& srcMemPtrs);
-    void in_parallel_repack_inputs(const std::vector<MemoryPtr>& inMemPtrs,
+    std::vector<MemoryPtr> separately_repack_inputs(const dnnl::stream& strm,
+                                                    const std::vector<MemoryPtr>& src_mem_ptrs);
+    void in_parallel_repack_inputs(const std::vector<MemoryPtr>& in_mem_ptrs,
                                    const std::vector<size_t>& indexes,
                                    int ithr,
                                    jit_snippets_call_args& call_args);
@@ -87,7 +88,7 @@ public:
         : SubgraphExecutor(std::forward<T>(first), std::forward<Args>(rest)...),
           SubgraphStaticBaseExecutor() {}
 
-    void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+    void exec_impl(const std::vector<MemoryPtr>& in_mem_ptrs, const std::vector<MemoryPtr>& out_mem_ptrs) override;
 };
 
 class SubgraphDynamicSpecializedExecutor : public SubgraphExecutor, public SubgraphDynamicSpecializedBaseExecutor {
@@ -97,7 +98,7 @@ public:
         : SubgraphExecutor(std::forward<T>(first), std::forward<Args>(rest)...),
           SubgraphDynamicSpecializedBaseExecutor(std::forward<T>(first)) {}
 
-    void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+    void exec_impl(const std::vector<MemoryPtr>& in_mem_ptrs, const std::vector<MemoryPtr>& out_mem_ptrs) override;
 };
 
 }  // namespace ov::intel_cpu

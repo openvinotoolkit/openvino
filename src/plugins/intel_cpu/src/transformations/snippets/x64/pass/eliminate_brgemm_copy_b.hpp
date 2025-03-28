@@ -30,7 +30,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    std::set<size_t> m_constant_inputs_idxs;
+    const std::set<size_t> m_constant_inputs_idxs;
     ov::intel_cpu::RepackedInputConfig& m_repacked_runtime_inputs_config;
     ov::intel_cpu::RepackedInputConfig& m_repacked_constant_inputs_config;
 };

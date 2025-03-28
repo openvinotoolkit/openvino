@@ -639,7 +639,9 @@ uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shap
 }
 
 std::set<size_t> Subgraph::getConstantInputIndexes() const {
-    // Add constant path support
+    // TODO [153480]: Some constant inputs can have additional operations
+    //                between Constant and target node input: Convert, Transpose etc.
+    //                Need to support such constant paths on inputs
     std::set<size_t> constant_inputs_idxs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
         if (getParentEdgeAt(i)->getParent()->isConstant() &&
