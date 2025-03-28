@@ -9,7 +9,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 
 namespace ov::intel_cpu {
 
@@ -22,7 +22,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
         const auto& p = *loop_port.get_expr_port();
         if (p.get_type() == snippets::lowered::ExpressionPort::Input && p.get_index() == 1) {
             const auto& node = p.get_expr()->get_node();
-            if (auto brg = as_type_ptr<BrgemmCPU>(node)) {
+            if (auto brg = as_type_ptr<GemmCPU>(node)) {
                 const auto precision = node->get_input_element_type(1);
                 /*
                  * The BrgemmCopyB operation repacks the weights in the following way:
@@ -82,7 +82,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
     };
 
     for (const auto& expr : linear_ir) {
-        const auto brgemm = ov::as_type_ptr<BrgemmCPU>(expr->get_node());
+        const auto brgemm = ov::as_type_ptr<GemmCPU>(expr->get_node());
         if (!brgemm || !brgemm_utils::with_repacking(brgemm->get_type())) {
             continue;
         }
