@@ -473,6 +473,7 @@ void primitive_inst::update_shape() {
 
         _impl_params->output_layouts[idx].data_padding = new_layout.data_padding;
         _impl_params->output_layouts[idx].set_partial_shape(new_layouts[idx].get_partial_shape());
+        _impl_params->output_layouts[idx].data_type = new_layouts[idx].data_type;
     }
 
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
@@ -511,6 +512,14 @@ void primitive_inst::update_shape() {
 }
 
 void primitive_inst::update_data_type() {
+    if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
+        auto &layout = _impl_params->get_output_layout(0);
+        if (layout.data_type == data_types::f16)
+            set_can_be_optimized(true);
+        else
+            set_can_be_optimized(false);
+    }
+    return;
     if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
         auto desc = get_node().as<dynamic_quantize>().get_primitive();
         auto &layout = _impl_params->get_output_layout(0);
@@ -787,7 +796,8 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 if (get_node().is_type<dynamic_quantize>()) {
                     const auto& desc = get_node().as<dynamic_quantize>().get_primitive();
                     auto dyn_quan_scale_layout =
-                        dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(updated_layouts[dep_idx],
+                        dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(get_node().as<dynamic_quantize>(),
+                                                                                        updated_layouts[dep_idx],
                                                                                        desc->attrs);
                     GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize scale parameter layout "
                                         << dyn_quan_scale_layout[1].to_short_string() << std::endl;
@@ -1373,13 +1383,15 @@ void primitive_inst::do_runtime_skip_reorder() {
 }
 
 void primitive_inst::do_runtime_skip_dynamic_quantize() {
+    return;
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_dynamic_quantize: " + id()));
     if (!_node->is_type<dynamic_quantize>()
         || !get_node().is_runtime_skippable())
         return;
 
-    GPU_DEBUG_IF (get_config().get_disable_dynamic_quantization_opt())
+    GPU_DEBUG_IF (get_config().get_disable_dynamic_quantization_opt()) {
         return;
+    }
 
     // Do not skip dynamic quantization if this node is not fully connected.(such as SDPA)
     if (!get_user_insts()[0]->get_node().is_type<fully_connected>())
@@ -1892,10 +1904,10 @@ void primitive_inst::prepare_primitive() {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
-
-        do_runtime_skip_dynamic_quantize();
-        update_data_type();
-
+    
+        do_runtime_skip_dynamic_quantize();  // TO BE REMOVED
+        update_data_type();   // TO BE REMOVED
+    
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             set_flag(ExecutionFlags::SKIP);
