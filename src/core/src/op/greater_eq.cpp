@@ -57,7 +57,7 @@ bool GreaterEqual::evaluate(TensorVector& outputs, const TensorVector& inputs) c
                                       this,
                                       outputs,
                                       inputs,
-                                      OV_PP_ET_LIST(boolean, f32, i32, i64, u32, u64),
+                                      OV_PP_ET_LIST(boolean, f32, i32, i64, u32, u64, i8, u8),
                                       greater_equal::Evaluate,
                                       inputs[0].get_element_type(),
                                       inputs[0],
@@ -78,6 +78,8 @@ bool GreaterEqual::has_evaluate() const {
     case element::i64:
     case element::u32:
     case element::u64:
+    case element::i8:
+    case element::u8:
         return true;
     default:
         return false;
