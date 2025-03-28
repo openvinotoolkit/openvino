@@ -11,6 +11,7 @@
 #include "crop_inst.h"
 #include "eltwise_inst.h"
 #include "gemm_inst.h"
+#include "assign_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
 #include "permute_inst.h"
@@ -475,6 +476,10 @@ bool crop_in_place_optimization::match(const program_node& node,
         if (user->is_type<concatenation>() && !user->is_output())
             return false;
         if (user->is_type<loop>() || user->is_type<non_max_suppression>())
+            return false;
+        // Read_value and assign don't handle data paddings internally, thus disable
+        // crop optimization for now
+        if (user->is_type<read_value>() || user->is_type<assign>())
             return false;
         // If the input tensor of convolution includes dynamic padding, there is an issue
         // where the total size of tensor is not properly calculated and becomes 0
