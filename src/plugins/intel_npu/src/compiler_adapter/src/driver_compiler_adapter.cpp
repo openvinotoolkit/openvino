@@ -562,6 +562,16 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content, std::regex(qdqstr.str()), "");
     }
 
+    // BATCH_COMPILER_MODE_SETTINGS is not supported in versions < 7.4 - need to remove it
+    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 4)) {
+        std::ostringstream dqstr;
+        dqstr << ov::intel_npu::batch_compiler_mode_settings.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+              << VALUE_DELIMITER;
+        logger.warning("BATCH_COMPILER_MODE_SETTINGS property is not supported by this compiler version. Removing from "
+                       "parameters");
+        content = std::regex_replace(content, std::regex(dqstr.str()), "");
+    }
+
     // Remove properties that are not used by the compiler
     auto remove_unused_property = [&](const char* property_name) {
         std::ostringstream propertystream;

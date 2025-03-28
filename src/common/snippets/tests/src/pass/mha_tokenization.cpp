@@ -240,6 +240,16 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM) {
     run();
 }
 
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM_ScalarParams) {
+    const auto& f = MHASelectSplitMFunction(std::vector<PartialShape>{{8, 512, 18}, {8, 18, 64}, {1}, {64}, {8, 64, 512}},
+                                            std::vector<Shape>{{8, 2, 256, 18}, {8, 1, 18, 64}, {}, {},
+                                                               {8, 1, 64, 512}, {8, 512, 512}});
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    config.set_concurrency(16);
+    run();
+}
+
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Reshape_extraction) {
     const auto& f = MHAWithExtractedReshapeFunction(std::vector<PartialShape>{{400, 196, 80},
                                                                               {400, 80, 196},

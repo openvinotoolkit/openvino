@@ -969,6 +969,9 @@ void network::allocate_primitive_instance(program_node const& node) {
     if (inst->is_dynamic()) {
         _is_dynamic = true;
     }
+    inst->set_flag(ExecutionFlags::IMPL_CHANGED);
+    inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
+    inst->set_flag(ExecutionFlags::MEMORY_CHANGED);
 
     _primitives[node.id()] = inst;
     if (node.is_type<input_layout>()) {
