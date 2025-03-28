@@ -511,35 +511,6 @@ void primitive_inst::update_shape() {
     }
 }
 
-void primitive_inst::update_data_type() {
-    if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
-        auto &layout = _impl_params->get_output_layout(0);
-        if (layout.data_type == data_types::f16)
-            set_can_be_optimized(true);
-        else
-            set_can_be_optimized(false);
-    }
-    return;
-    if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
-        auto desc = get_node().as<dynamic_quantize>().get_primitive();
-        auto &layout = _impl_params->get_output_layout(0);
-        auto old_type = layout.data_type;
-        
-        if (can_be_optimized()) {
-            // Skip dynamic quantize for better 2nd token performance
-            layout.data_type = data_types::f16;
-        } else {
-            // Execute dynamic quantize for better 1st token performance
-            if (desc->attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric)
-                layout.data_type = data_types::i8;
-            else
-                layout.data_type = data_types::u8;
-        }
-        GPU_DEBUG_TRACE_DETAIL << "Now update data type of " << get_node().id() << " " << layout.get_shape() << "  " << old_type << " -> " << layout.data_type << std::endl;
-    }
-}
-
-
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
     auto updated_params = _node->type()->get_fake_aligned_params(orig_impl_param);
 
@@ -1383,39 +1354,14 @@ void primitive_inst::do_runtime_skip_reorder() {
 }
 
 void primitive_inst::do_runtime_skip_dynamic_quantize() {
-    return;
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_dynamic_quantize: " + id()));
-    if (!_node->is_type<dynamic_quantize>()
-        || !get_node().is_runtime_skippable())
-        return;
-
-    GPU_DEBUG_IF (get_config().get_disable_dynamic_quantization_opt()) {
-        return;
-    }
-
-    // Do not skip dynamic quantization if this node is not fully connected.(such as SDPA)
-    if (!get_user_insts()[0]->get_node().is_type<fully_connected>())
-        return;
-    set_can_be_optimized(false);
-
-    OPENVINO_ASSERT(_impl_params->fused_desc.size() == 0, "Dynamic quantization is not supposed to have fused ops: ", get_node().id());
-
-    // If batch size is small, dynamic_quantize is disabled for performance reason
-    size_t input_batch = _impl_params->output_layouts[0].batch();
-    // 3D input
-    if (_impl_params->output_layouts[0].format == format::bfyx) {
-        input_batch = _impl_params->output_layouts[0].batch() * _impl_params->output_layouts[0].feature();
-    }
-
-    if (input_batch <= 1) {
-        GPU_DEBUG_TRACE_DETAIL << "[" << __func__ << "]"
-                               << "  can_be_optimized - " << get_node().id() << " - " << _impl_params->output_layouts[0].get_shape() << std::endl;
-        set_can_be_optimized(true);
-
-        OPENVINO_ASSERT(get_user_insts().size() == _node->get_outputs_count(), "Dynamic quantization is supposed to have only one user-node with duplicated connection: ", get_node().id());
+    if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
+        auto &layout = _impl_params->get_output_layout(0);
+        if (layout.data_type == data_types::f16) // XXX: need to generalize this format
+            set_can_be_optimized(true);
+        else
+            set_can_be_optimized(false);
     }
 }
-
 
 void primitive_inst::do_runtime_in_place_kv_cache() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_kv_cache: " + id()));
@@ -1905,9 +1851,6 @@ void primitive_inst::prepare_primitive() {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
     
-        do_runtime_skip_dynamic_quantize();  // TO BE REMOVED
-        update_data_type();   // TO BE REMOVED
-    
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             set_flag(ExecutionFlags::SKIP);
@@ -1946,6 +1889,7 @@ void primitive_inst::prepare_primitive() {
         do_runtime_skip_broadcast();
         do_runtime_skip_scatter_update();
         do_runtime_in_place_crop();
+        do_runtime_skip_dynamic_quantize();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
