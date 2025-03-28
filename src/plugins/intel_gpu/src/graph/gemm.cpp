@@ -132,9 +132,12 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
                                                                           prim->output_transpose_order);
 
     cldnn::format output_format = input0_layout.format;
-    // Format update when format dim is different with output shape size
-    if (output_shapes[0].size() > output_format.dimension())
-        output_format = cldnn::format::get_default_format(output_shapes[0].size());
+    if (output_shapes[0].size() > output_format.dimension()) {
+        // This happened when input0.rank=2, input1.rank=5, output0.rank=5.
+        // Output should use format like bfzyx, but it was taken from input0_layout which is bfyx.
+        // Therefore, adjust output_format to proper rank.(say, bfzyx)
+        output_format = cldnn::format::adjust_to_rank(output_format, output_shapes[0].size());
+    }
     if (node.get_preferred_output_fmt() != format::any)
         output_format = node.get_preferred_output_fmt();
 
