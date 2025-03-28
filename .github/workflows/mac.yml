@@ -165,6 +165,7 @@ jobs:
 
       - name: CMake configure
         run: |
+          python_exec_path=$(python${{ env.PYTHON_VERSION }} -c "import sys; print(sys.executable)")
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_TESTS=ON \
@@ -176,6 +177,7 @@ jobs:
             -DCMAKE_POLICY_DEFAULT_CMP0068=NEW \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -DPython3_EXECUTABLE=${python_exec_path} \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
 
