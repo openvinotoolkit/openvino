@@ -777,7 +777,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
+        if (util::contains(plugin.get_property(ov::supported_properties), ov::cache_mode) &&
+            parsed._config.find(ov::cache_mode.name()) != parsed._config.end() &&
+            parsed._config.at(ov::cache_mode.name()).as<ov::CacheMode>() == ov::CacheMode::OPTIMIZE_SIZE) {
+            cacheContent.model = std::const_pointer_cast<ov::Model>(model);
+        }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
@@ -813,7 +817,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
+        if (util::contains(plugin.get_property(ov::supported_properties), ov::cache_mode) &&
+            parsed._config.find(ov::cache_mode.name()) != parsed._config.end() &&
+            parsed._config.at(ov::cache_mode.name()).as<ov::CacheMode>() == ov::CacheMode::OPTIMIZE_SIZE) {
+            cacheContent.model = std::const_pointer_cast<ov::Model>(model);
+        }
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
         });
