@@ -27,7 +27,7 @@ using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
 
 namespace {
 auto brgemm_predicate = [](const Output<Node>& output) {
-    return has_static_shape()(output) && consumers_count(1)(output);
+    return has_static_rank()(output) && consumers_count(1)(output);
 };
 
 auto binary_input_predicate = [](const Output<Node>& output) {
