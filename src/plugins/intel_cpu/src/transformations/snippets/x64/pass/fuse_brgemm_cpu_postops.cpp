@@ -88,6 +88,7 @@ pass::FuseScaleShift::FuseScaleShift() {
         const auto scalar_value = scalar->get_value<float>();
 
         auto postops_config = brgemm->get_postops_config();
+        postops_config.forced_output_type = post_op->get_output_element_type(0);
         if (pattern_map.count(m_scale)) {
             OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f,
                                                                    dnnl::impl::alg_kind_t::dnnl_eltwise_linear,
@@ -150,6 +151,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape(per_channel_shape));
 
         auto postops_config = brgemm->get_postops_config();
+        postops_config.forced_output_type = post_op->get_output_element_type(0);
         if (!postops_config.binary_postops_offset) {
             postops_config.binary_postops_offset = m_fused_postops_count;
             std::cout << "[ INFO ] binary_postops_offset is set to " << m_fused_postops_count << std::endl;
