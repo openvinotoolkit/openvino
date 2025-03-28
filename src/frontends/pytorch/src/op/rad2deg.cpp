@@ -6,7 +6,6 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
 #include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
@@ -22,21 +21,18 @@ OutputVector translate_rad2deg(const NodeContext& context) {
     // Retrieve the input tensor
     auto input = context.get_input(0);
 
-    // Get the input element type dynamically
-    auto input_type = input.get_element_type();
-
+    // Define the value of π
     const double pi_val = std::atan(1.0) * 4;
 
     // Create a constant node with the conversion factor (180 / π) using fp64 type
     auto conversion_factor_fp64 =
         context.mark_node(ov::op::v0::Constant::create(ov::element::f64, Shape{}, {180.0 / pi_val}));
 
-    // Convert the constant to the same type as the input tensor using ConvertLike
-    auto conversion_factor =
-        context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(conversion_factor_fp64, input));
+    // Align elementwise input types to handle integer cases correctly
+    auto aligned_inputs = align_eltwise_input_types(input, conversion_factor_fp64, true);
 
     // Apply the multiplication operation to convert radians to degrees
-    auto result = context.mark_node(std::make_shared<ov::op::v1::Multiply>(input, conversion_factor));
+    auto result = context.mark_node(std::make_shared<ov::op::v1::Multiply>(aligned_inputs[0], aligned_inputs[1]));
 
     // Return the computed result as an OutputVector
     return {result};
