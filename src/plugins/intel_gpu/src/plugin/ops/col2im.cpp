@@ -7,7 +7,7 @@
 
 #include "openvino/op/col2im.hpp"
 
-#include "intel_gpu/primitives/col_to_im.hpp"
+#include "intel_gpu/primitives/col2im.hpp"
 #include "openvino/op/constant.hpp"
 
 namespace ov {
@@ -43,7 +43,7 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
 
     // Create col2im prim
     // iputs : data, output size,  kernel_size(required)
-    auto CallToImPrim = cldnn::col_to_im(layerName,
+    auto CallToImPrim = cldnn::col2im(layerName,
                                             inputPrimitives[0],
                                             strides,
                                             dilations,

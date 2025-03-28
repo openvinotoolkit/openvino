@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "col_to_im_inst.h"
+#include "col2im_inst.h"
 #include "col2im_shape_inference.hpp"
 
 #include "primitive_type_base.h"
@@ -11,10 +11,10 @@
 #include <string>
 
 namespace cldnn {
-GPU_DEFINE_PRIMITIVE_TYPE_ID(col_to_im)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(col2im)
 
-layout col_to_im_inst::calc_output_layout(col_to_im_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<col_to_im>();
+layout col2im_inst::calc_output_layout(col2im_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<col2im>();
 
     auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
@@ -39,8 +39,8 @@ layout col_to_im_inst::calc_output_layout(col_to_im_node const& node, kernel_imp
 }
 
 template<typename ShapeType>
-std::vector<layout> col_to_im_inst::calc_output_layouts(col_to_im_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<col_to_im>();
+std::vector<layout> col2im_inst::calc_output_layouts(col2im_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<col2im>();
     auto input_layout = impl_param.get_input_layout(0);
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
     auto output_format = input_layout.format;
@@ -71,9 +71,9 @@ std::vector<layout> col_to_im_inst::calc_output_layouts(col_to_im_node const& no
     return { layout{output_shapes[0], output_type, output_format} };
 }
 
-template std::vector<layout> col_to_im_inst::calc_output_layouts<ov::PartialShape>(col_to_im_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> col2im_inst::calc_output_layouts<ov::PartialShape>(col2im_node const& node, const kernel_impl_params& impl_param);
 
-std::string col_to_im_inst::to_string(col_to_im_node const& node) {
+std::string col2im_inst::to_string(col2im_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
     auto& input = node.input();
@@ -82,20 +82,20 @@ std::string col_to_im_inst::to_string(col_to_im_node const& node) {
 
     std::stringstream primitive_description;
 
-    json_composite col_to_im_info;
-    col_to_im_info.add("input id", input.id());
-    col_to_im_info.add("stride", cldnn::to_string(strd));
-    col_to_im_info.add("dilation", cldnn::to_string(desc->dilation));
-    col_to_im_info.add("padding begin", cldnn::to_string(desc->padding_begin));
-    col_to_im_info.add("padding end", cldnn::to_string(desc->padding_end));
+    json_composite col2im_info;
+    col2im_info.add("input id", input.id());
+    col2im_info.add("stride", cldnn::to_string(strd));
+    col2im_info.add("dilation", cldnn::to_string(desc->dilation));
+    col2im_info.add("padding begin", cldnn::to_string(desc->padding_begin));
+    col2im_info.add("padding end", cldnn::to_string(desc->padding_end));
 
-    node_info->add("col_to_im info", col_to_im_info);
+    node_info->add("col2im info", col2im_info);
     node_info->dump(primitive_description);
 
     return primitive_description.str();
 }
 
-col_to_im_inst::typed_primitive_inst(network& network, col_to_im_node const& node)
+col2im_inst::typed_primitive_inst(network& network, col2im_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

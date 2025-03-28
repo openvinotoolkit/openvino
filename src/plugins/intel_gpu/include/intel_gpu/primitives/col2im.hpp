@@ -9,12 +9,12 @@ namespace cldnn {
 
 /// @brief
 /// @details
-struct col_to_im : public primitive_base<col_to_im> {
-    CLDNN_DECLARE_PRIMITIVE(col_to_im)
+struct col2im : public primitive_base<col2im> {
+    CLDNN_DECLARE_PRIMITIVE(col2im)
 
-    col_to_im() : primitive_base("", {}) {}
+    col2im() : primitive_base("", {}) {}
 
-    /// @brief Constructs col_to_im primitive.
+    /// @brief Constructs col2im primitive.
     /// @param id This primitive id.
     /// @param input Input dictionary primitive id.
     /// @param stride Defines shift in input buffer
@@ -23,7 +23,7 @@ struct col_to_im : public primitive_base<col_to_im> {
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param output_shape Defines the output tensor the output image
     /// @param kernel_shape Defines size of the sliding blocks
-    col_to_im(const primitive_id& id,
+    col2im(const primitive_id& id,
                    const input_info& input,
                    ov::Strides stride,
                    ov::Strides dilation,
@@ -65,7 +65,7 @@ struct col_to_im : public primitive_base<col_to_im> {
         if (!compare_common_params(rhs))
             return false;
 
-        auto rhs_casted = downcast<const col_to_im>(rhs);
+        auto rhs_casted = downcast<const col2im>(rhs);
 
         #define cmp_fields(name) name == rhs_casted.name
         return cmp_fields(stride) &&
@@ -78,7 +78,7 @@ struct col_to_im : public primitive_base<col_to_im> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
-        primitive_base<col_to_im>::save(ob);
+        primitive_base<col2im>::save(ob);
         ob << stride;
         ob << dilation;
         ob << padding_begin;
@@ -88,7 +88,7 @@ struct col_to_im : public primitive_base<col_to_im> {
     }
 
     void load(BinaryInputBuffer& ib) override {
-        primitive_base<col_to_im>::load(ib);
+        primitive_base<col2im>::load(ib);
         ib >> stride;
         ib >> dilation;
         ib >> padding_begin;

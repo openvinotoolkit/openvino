@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "col_to_im_kernel_base.h"
+#include "col2im_kernel_base.h"
 #include "kernel_selector_utils.h"
 #include <string>
 #include <vector>
 
 namespace kernel_selector {
 
-bool ColToImKernelBase::Validate(const Params& p) const {
-    if (p.GetType() != KernelType::COL_TO_IM) {
+bool Col2ImKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::COL2IM) {
         return false;
     }
 
-    const col_to_im_params& params = static_cast<const col_to_im_params&>(p);
+    const col2im_params& params = static_cast<const col2im_params&>(p);
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             return false;
@@ -26,7 +26,7 @@ bool ColToImKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ColToImKernelBase::GetJitConstants(const col_to_im_params& params) const {
+JitConstants Col2ImKernelBase::GetJitConstants(const col2im_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
     auto input = params.inputs[0];
     const auto& output_size = params.output_size;
@@ -60,9 +60,9 @@ JitConstants ColToImKernelBase::GetJitConstants(const col_to_im_params& params) 
     return jit;
 }
 
-KernelsData ColToImKernelBase::GetCommonKernelsData(const Params& params) const {
-    KernelData kd = KernelData::Default<col_to_im_params>(params);
-    col_to_im_params& newParams = *static_cast<col_to_im_params*>(kd.params.get());
+KernelsData Col2ImKernelBase::GetCommonKernelsData(const Params& params) const {
+    KernelData kd = KernelData::Default<col2im_params>(params);
+    col2im_params& newParams = *static_cast<col2im_params*>(kd.params.get());
 
     if (!Validate(params)) {
         return {};
