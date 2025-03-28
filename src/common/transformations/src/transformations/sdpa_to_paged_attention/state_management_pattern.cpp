@@ -340,7 +340,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     auto sdpa_variants = std::make_shared<pattern::op::Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs});
 
     ov::matcher_pass_callback callback = [=,
-                                          phi3_offset = phi3_offset,
                                           &kv_parameters,
                                           &model_remaining_params,
                                           &parameters_to_remove,
@@ -507,8 +506,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         std::shared_ptr<Node> alibi_slopes;
         if (pattern_map.find(general_alibi) != pattern_map.end()) {
             alibi_slopes = handle_general_alibi(pattern_map.at(general_alibi).get_node_shared_ptr());
-        } else if (pattern_map.find(phi3_mask) != pattern_map.end()) {
-            alibi_slopes = handle_general_alibi(pattern_map.at(phi3_mask).get_node_shared_ptr());
         } else if (pattern_map.find(jais_13b_alibi) != pattern_map.end()) {
             alibi_slopes = handle_jais_13b_alibi(pattern_map.at(jais_13b_alibi).get_node_shared_ptr());
         } else if (pattern_map.find(baichuan2_13b_alibi) != pattern_map.end()) {
