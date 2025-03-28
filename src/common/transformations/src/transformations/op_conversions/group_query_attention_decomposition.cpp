@@ -94,19 +94,25 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
     auto curr_seqlen_scalar = register_new_node<v1::Reshape>(current_seqlen, one_without_shape, false);
 
+    ov::Output<ov::Node> position_ids =
+        register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
+    position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
+    auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
+    auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
+
     if (do_rotary) {
         Q = rotaryEmbedding(Q,
                             past_seqlen,
                             curr_seqlen_scalar,
-                            cos_cache.get_node_shared_ptr(),
-                            sin_cache.get_node_shared_ptr(),
+                            cos,
+                            sin,
                             head_size_node,
                             rotary_interleaved);
         K = rotaryEmbedding(K,
                             past_seqlen,
                             curr_seqlen_scalar,
-                            cos_cache.get_node_shared_ptr(),
-                            sin_cache.get_node_shared_ptr(),
+                            cos,
+                            sin,
                             head_size_node,
                             rotary_interleaved);
     }
@@ -212,6 +218,15 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::make_split(const ov
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(
+    const ov::Output<ov::Node>& node,
+    const std::vector<int>& dims) {
+    using namespace ov::op;
+    const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+    const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
+    return register_new_node<v8::Gather>(node, dims_const, zero);
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(
     const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
     const std::vector<int>& dims) {
     using namespace ov::op;
@@ -230,26 +245,17 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
     ov::Output<ov::Node> input,
     ov::Output<ov::Node> past_seqlen,
     ov::Output<ov::Node> curr_seqlen_scalar,
-    std::shared_ptr<ov::Node> cos_cache,
-    std::shared_ptr<ov::Node> sin_cache,
+    ov::Output<ov::Node> cos_cache,
+    ov::Output<ov::Node> sin_cache,
     std::shared_ptr<ov::Node> dim_head_size,
     bool interleaved) {
     using namespace ov::op;
     auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
     auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-    auto zero_without_shape = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    auto one_without_shape = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-
-    ov::Output<ov::Node> position_ids =
-        register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-    position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
-    auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
-    auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
 
     if (interleaved) {
         auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
 
-        auto cache_shape = register_new_node<v3::ShapeOf>(cos_cache);
         auto cache_last_dim = get_dimensions(cos_cache, {-1});
 
         auto input_shape = register_new_node<v3::ShapeOf>(input);
@@ -266,10 +272,10 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
         auto in_split_0 = register_new_node<v1::Reshape>(in_split[0], split_input_shape, false);
         auto in_split_1 = register_new_node<v1::Reshape>(in_split[1], split_input_shape, false);
 
-        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split_0, cos),
-                                                     register_new_node<v1::Multiply>(in_split_1, sin));
-        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split_0, sin),
-                                                register_new_node<v1::Multiply>(in_split_1, cos));
+        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split_0, cos_cache),
+                                                     register_new_node<v1::Multiply>(in_split_1, sin_cache));
+        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split_0, sin_cache),
+                                                register_new_node<v1::Multiply>(in_split_1, cos_cache));
 
         split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, half_last_dim, one}, 0);
         auto res_0_5d = register_new_node<v1::Reshape>(res_0, split_input_shape, false);
@@ -279,10 +285,10 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
         return register_new_node<v1::Reshape>(concat_ret, input_shape, false);
     } else {
         auto in_split = make_split(input, 2, -1);
-        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split[0], cos),
-                                                     register_new_node<v1::Multiply>(in_split[1], sin));
-        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split[0], sin),
-                                                register_new_node<v1::Multiply>(in_split[1], cos));
+        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split[0], cos_cache),
+                                                     register_new_node<v1::Multiply>(in_split[1], sin_cache));
+        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split[0], sin_cache),
+                                                register_new_node<v1::Multiply>(in_split[1], cos_cache));
 
         return register_new_node<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);
     }
