@@ -5,6 +5,7 @@
 #pragma once
 
 #include <common/primitive_attr.hpp>
+#include <optional>
 
 #include "brgemm_copy_b.hpp"
 #include "brgemm_utils.hpp"
@@ -26,9 +27,13 @@ public:
 
     struct PostopsConfig {
         dnnl_post_ops post_ops = {};
-        int binary_postops_offset = -1;
+        std::optional<size_t> binary_postops_offset = std::nullopt;
+        ov::element::Type forced_output_type = ov::element::undefined;
 
-        PostopsConfig() : post_ops({}), binary_postops_offset(-1) {}
+        PostopsConfig()
+            : post_ops({}),
+              binary_postops_offset({std::nullopt}),
+              forced_output_type(ov::element::undefined) {}
     };
     BrgemmCPU(const ov::OutputVector& inputs,
               BRGEMM_TYPE type,
@@ -50,7 +55,7 @@ public:
     size_t get_offset_scratch() const;
 
     const PostopsConfig& get_postops_config() const {
-        return m_post_ops;
+        return m_post_ops_config;
     }
 
     size_t get_main_inputs_count() const {
@@ -74,9 +79,7 @@ private:
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
 
-    PostopsConfig m_post_ops = {};
-
-    ov::element::Type m_forced_output_type = ov::element::undefined;
+    PostopsConfig m_post_ops_config = {};
 
     const size_t m_main_inputs_count = 0lu;
 };

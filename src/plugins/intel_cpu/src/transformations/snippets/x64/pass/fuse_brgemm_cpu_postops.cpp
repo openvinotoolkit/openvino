@@ -31,7 +31,7 @@ auto brgemm_predicate = [](const Output<Node>& output) {
 };
 
 auto binary_input_predicate = [](const Output<Node>& output) {
-    return has_static_shape()(output) && type_matches(ov::element::f32)(output);
+    return has_static_shape()(output) && type_matches(ov::element::f32)(output) && consumers_count(1)(output);
 };
 
 auto scalar_predicate = [](const Output<Node>& output) {
@@ -150,9 +150,11 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape(per_channel_shape));
 
         auto postops_config = brgemm->get_postops_config();
-        if (postops_config.binary_postops_offset == -1) {
+        if (!postops_config.binary_postops_offset) {
             postops_config.binary_postops_offset = m_fused_postops_count;
             std::cout << "[ INFO ] binary_postops_offset is set to " << m_fused_postops_count << std::endl;
+        } else {
+            std::cout << "[ INFO ] binary postops is already set to " << postops_config.binary_postops_offset.value() << std::endl;
         }
         if (pattern_map.count(m_mul)) {
             OPENVINO_ASSERT(postops_config.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_mul,
