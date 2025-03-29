@@ -18,6 +18,7 @@ std::string SharedMatmulWeightsDecompression::getTestCaseName(testing::TestParam
     bool transpose;
     DecompressionType decompression_subtract_type;
     bool use_decompression_impl;
+    std::map<std::string, std::string> additional_config;
 
     std::tie(target_device,
              shape_params,
@@ -25,7 +26,8 @@ std::string SharedMatmulWeightsDecompression::getTestCaseName(testing::TestParam
              decompression_precision,
              transpose,
              decompression_subtract_type,
-             use_decompression_impl) = obj.param;
+             use_decompression_impl,
+             additional_config) = obj.param;
 
     std::ostringstream result;
     result << "device=" << target_device << "_";
@@ -34,7 +36,12 @@ std::string SharedMatmulWeightsDecompression::getTestCaseName(testing::TestParam
     result << "decompression_precision=" << decompression_precision << "_";
     result << "transpose_weights=" << transpose << "_";
     result << "decompression_subtract=" << decompression_subtract_type << "_";
-    result << "use_decompression_impl=" << use_decompression_impl;
+    result << "use_decompression_impl=" << use_decompression_impl << "_";
+    result << "config=(";
+    for (const auto& configEntry : additional_config) {
+        result << configEntry.first << ", " << configEntry.second << ";";
+    }
+    result << ")";
     return result.str();
 }
 
@@ -88,6 +95,7 @@ void SharedMatmulWeightsDecompression::SetUp() {
     bool transpose_weights;
     DecompressionType decompression_subtract_type;
     bool use_decompression_impl;
+    std::map<std::string, std::string> additional_config;
 
     std::tie(targetDevice,
              shape_params,
@@ -95,8 +103,10 @@ void SharedMatmulWeightsDecompression::SetUp() {
              decompression_precision,
              transpose_weights,
              decompression_subtract_type,
-             use_decompression_impl) = GetParam();
+             use_decompression_impl,
+             additional_config) = GetParam();
     init_input_shapes({shape_params.data_shape, shape_params.data_shape});
+    configuration.insert(additional_config.begin(), additional_config.end());
 
     ElementType netType = ov::element::f32;
     inType = outType = netType;
