@@ -1,0 +1,35 @@
+name: Pre-release Feedback
+description: Feedback on Pre-release OpenVINO 
+title: "[Pre-Release Feedback]:"
+labels: ["Pre-release", "support_request"]
+body:
+  - type: input
+    id: pre_version
+    attributes:
+      label: Pre-release Version
+      description: What is the pre-release version you are using?
+      placeholder: 2023.0.0.dev20230427
+    validations:
+      required: true
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Pre-release feedback
+      description: What is the issue or feedback on the pre-release?
+      placeholder: There is an inference performance drop in OpenVINO 2022.4.
+    validations:
+      required: true
+  - type: textarea
+    id: thoughts
+    attributes:
+      label: New Feature Feedback
+      description: Do you have any feedback on the new features released in the pre-release?
+      placeholder: Any thoughts on the new features are welcome.
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/intel/intel-one-mono/blob/main/CODE_OF_CONDUCT.md)
+        Have a new feature you would like to see in OpenVINO? File a feature request <a href="https://github.com/openvinotoolkit/openvino/issues/new/choose">HERE</a>. 
+        You can also implement the feature by following the <a href="https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md">CONTRIBUTING.MD</a>

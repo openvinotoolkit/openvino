@@ -1,0 +1,127 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "rois"
+    input: "pyramid_layer0"
+    output: "out1"
+    output: "out2"
+    op_type: "ExperimentalDetectronROIFeatureExtractor"
+    domain: "org.openvinotoolkit"
+    attribute {
+      name: "distribute_rois_between_levels"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "image_id"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "output_size"
+      i: 3
+      type: INT
+    }
+    attribute {
+      name: "preserve_rois_order"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "pyramid_scales"
+      ints: 4
+      type: INTS
+    }
+    attribute {
+      name: "sampling_ratio"
+      i: 2
+      type: INT
+    }
+  }
+  input {
+    name: "rois"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "pyramid_layer0" 
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out1" 
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out2" 
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 10
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  name: "test-model"
+}
+opset_import {
+  domain: ""
+  version: 10
+}
+opset_import {
+  domain: "org.openvinotoolkit"
+  version: 1
+}

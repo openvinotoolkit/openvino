@@ -1,0 +1,234 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "if graph"
+  node {
+    input: "condition"
+    output: "if"
+    name: "if"
+    op_type: "If"
+    attribute {
+      name: "then_branch"
+      g {
+        name: "then_branch"
+        node {
+          input: "x"
+          input: "y"
+          output: "greater"
+          name: "greater"
+          op_type: "Greater"
+        }
+        node {
+          input: "greater"
+          output: "cast_to_int"
+          name: "cast_to_int"
+          op_type: "Cast"
+          attribute {
+            name: "to"
+            type: INT
+            i: 6
+          }
+        }
+        node {
+          input: "cast_to_int"
+          output: "reduce_max"
+          name: "reduce_max"
+          op_type: "ReduceMax"
+          attribute {
+            name: "keepdims"
+            type: INT
+            i: 0
+          }
+        }
+        node {
+          input: "reduce_max"
+          output: "cast_to_bool"
+          name: "cast_to_bool"
+          op_type: "Cast"
+          attribute {
+            name: "to"
+            type: INT
+            i: 9
+          }
+        }
+        node {
+          input: "cast_to_bool"
+          output: "if_inside"
+          name: "if"
+          op_type: "If"
+          attribute {
+            name: "then_branch"
+            type: GRAPH
+            g {
+              name: "then_branch_inside"
+              node {
+                input: "x"
+                input: "y"
+                output: "mul"
+                name: "mul"
+                op_type: "Mul"
+              }
+              output {
+                name: "mul"
+                type {
+                  tensor_type {
+                    elem_type: 1
+                    shape {
+                      dim {
+                        dim_value: 10
+                      }
+                       dim {
+                        dim_value: 4
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          attribute {
+            name: "else_branch"
+            type: GRAPH
+            g {
+              name: "else_branch_inside"
+              node {
+                input: "x"
+                input: "y"
+                output: "add"
+                name: "add"
+                op_type: "Add"
+              }
+              output {
+                name: "add"
+                type {
+                  tensor_type {
+                    elem_type: 1
+                    shape {
+                      dim {
+                        dim_value: 10
+                      }
+                       dim {
+                        dim_value: 4
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "if_inside"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 10
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+    attribute {
+      name: "else_branch"
+      type: GRAPH
+      g {
+        name: "else_branch"
+        node {
+          input: "x"
+          input: "y"
+          output: "sub"
+          name: "sub"
+          op_type: "Sub"
+        }
+        output {
+          name: "sub"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 10
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "condition"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 10
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 10
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "if"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 10
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}

@@ -1,0 +1,64 @@
+undefined label: doxid-
+unexpected character '.'
+unexpected command endxmlonly
+unsupported xml/html tag
+invalid list item found
+found </tt> tag without matching <tt>
+title level inconsistent
+found ';' while parsing initializer list!
+preprocessing issue while doing constant expression evaluation: syntax
+detected potential recursive class relation between class ov::valueaccessor and base class ov::valueaccessor
+the name \'.+?\' supplied as the argument
+argument \'.+?\' of command
+documentation for unknown define
+detected potential recursive class relation between class
+no matching class member found for
+no matching file member found for
+documented empty return type of
+documented symbol
+explicit link request to \'.+\'
+the following parameters? of
+end of comment block while expecting command </u>
+argument \'.+\' from
+found paragraph command
+inline interpreted text or phrase reference start-string without end-string
+duplicate explicit target name:
+inline literal start-string without end-string
+inline emphasis start-string without end-string
+include file .+? not found
+@copybrief or @copydoc target
+undefined substitution referenced:
+autosummary: failed to import
+autosummary: stub file not found
+failed to import object
+failed to parse name
+type object .+? has no attribute
+unknown target name
+^undefined label:
+inline substitution_reference start-string without end-string
+bullet list ends without a blank line
+found unknown command '@args'
+unexpected unindent
+unexpected indentation
+unexpected section title
+internal inconsistency: scope for class inferenceengine
+documentation for undefined enum 'waitmode' found
+unable to resolve reference to
+duplicate id:
+invalid c\+\+ declaration
+document isn't included in any toctree
+duplicate c\+\+ declaration
+duplicate object description of
+error in declarator
+error when parsing function declaration
+could not lex literal_block as
+toctree contains reference to document
+error in postfix expression, expected primary expression or type
+error in type declaration
+parsing of expression failed. using fallback parser
+toctree contains reference to nonexisting document
+\'myst\' reference target not found
+pygments lexer name
+non-consecutive header level increase
+document headings start at
+inline strong start-string without end-string

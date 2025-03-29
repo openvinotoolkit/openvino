@@ -1,0 +1,93 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+model_version: 0
+graph {
+  name: "FusedMatMulModel"
+  node {
+    op_type: "FusedMatMul"
+    input: "A"
+    input: "B"
+    output: "output"
+    attribute {
+      name: "alpha"
+      f: 0.75
+      type: FLOAT
+    }
+    attribute {
+      name: "transA"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "transB"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "transBatchA"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "transBatchB"
+      i: 0
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 7
+}
+opset_import {
+  version: 1
+  domain: "com.microsoft"
+}

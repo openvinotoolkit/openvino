@@ -1,0 +1,39 @@
+# <TENSORFLOW_SUBGRAPH_REPLACEMENT_CONFIGURATION_FILE_ALIAS>:
+#   model_type: Type of TensorFlow model
+#
+#   config_versions: list of available replacement config versions corresponding to
+#                    TensorFlow versions
+#
+
+faster_rcnn_subgraph_replacement_config_file:
+  model_type: faster_rcnn
+  versions:
+    - 2.0
+    - 1.15
+    - 1.14
+    - 1.13
+    - 1.10
+    - 1.7
+mask_rcnn_subgraph_replacement_config_file:
+  model_type: mask_rcnn
+  versions:
+    - 2.0
+    - 1.15
+    - 1.14
+    - 1.13
+    - 1.11
+    - 1.7
+
+ssd_subgraph_replacement_config_file:
+  model_type: ssd
+  versions:
+    - 2.0
+    - 1.15
+    - 1.14
+
+rfcn_subgraph_replacement_config_file:
+  model_type: rfcn
+  versions:
+    - 1.14
+    - 1.13
+    - 1.10

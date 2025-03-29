@@ -1,53 +1,51 @@
-// -*- coding: utf-8 -*-
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
+const { testModels, isModelAvailable } = require('../utils.js');
 
 describe('ov.Model tests', () => {
-  let testXml = null;
+  const { testModelFP32 } = testModels;
   let core = null;
   let model = null;
 
   before(async () => {
-    await isModelAvailable(testModels.testModelFP32);
-    testXml = getModelPath().xml;
+    await isModelAvailable(testModelFP32);
     core = new ov.Core();
   });
 
   beforeEach(() => {
-    model = core.readModelSync(testXml);
+    model = core.readModelSync(testModelFP32.xml);
   });
 
   describe('Model.isDynamic()', () => {
     it('should return a boolean value type', () => {
       const result = model.isDynamic();
       assert.strictEqual(
-          typeof result,
-          'boolean',
-          'isDynamic() should return a boolean value',
+        typeof result,
+        'boolean',
+        'isDynamic() should return a boolean value',
       );
     });
 
     it('should not accept any arguments', () => {
       assert.throws(
-          () => {
-            model.isDynamic('unexpected argument');
-          },
-          /^Error: isDynamic\(\) does not accept any arguments\.$/,
-          'Expected isDynamic to throw an error when called with arguments',
+        () => {
+          model.isDynamic('unexpected argument');
+        },
+        /^Error: isDynamic\(\) does not accept any arguments\.$/,
+        'Expected isDynamic to throw an error when called with arguments',
       );
     });
 
     it('returns false for a static model', () => {
       const expectedStatus = false;
       assert.strictEqual(
-          model.isDynamic(),
-          expectedStatus,
-          'Expected isDynamic to return false for a static model',
+        model.isDynamic(),
+        expectedStatus,
+        'Expected isDynamic to return false for a static model',
       );
     });
   });
@@ -59,27 +57,27 @@ describe('ov.Model tests', () => {
     });
     it('throws an error when called with arguments', () => {
       assert.throws(
-          () => model.getFriendlyName('unexpected argument'),
-          /getFriendlyName\(\) does not take any arguments/,
+        () => model.getFriendlyName('unexpected argument'),
+        /getFriendlyName\(\) does not take any arguments/,
       );
     });
   });
   describe('Model.setFriendlyName()', () => {
     it('throws an error when called without a string argument', () => {
       assert.throws(
-          () => model.setFriendlyName(),
-          /Expected a single string argument for the friendly name/,
+        () => model.setFriendlyName(),
+        /Expected a single string argument for the friendly name/,
       );
       assert.throws(
-          () => model.setFriendlyName(123),
-          /Expected a single string argument for the friendly name/,
+        () => model.setFriendlyName(123),
+        /Expected a single string argument for the friendly name/,
       );
     });
 
     it('throws an error when called with multiple arguments', () => {
       assert.throws(
-          () => model.setFriendlyName('Name1', 'Name2'),
-          /Expected a single string argument for the friendly name/,
+        () => model.setFriendlyName('Name1', 'Name2'),
+        /Expected a single string argument for the friendly name/,
       );
     });
 
@@ -126,43 +124,43 @@ describe('ov.Model tests', () => {
 
     it('should accept a single integer argument', () => {
       assert.throws(
-          () => {
-            model.getOutputElementType();
-          },
-          /'getOutputElementType' method called with incorrect parameters/,
-          'Should throw when called without arguments',
+        () => {
+          model.getOutputElementType();
+        },
+        /'getOutputElementType' method called with incorrect parameters/,
+        'Should throw when called without arguments',
       );
 
       assert.throws(
-          () => {
-            model.getOutputElementType('unexpected argument');
-          },
-          /'getOutputElementType' method called with incorrect parameters/,
-          'Should throw on non-number argument',
+        () => {
+          model.getOutputElementType('unexpected argument');
+        },
+        /'getOutputElementType' method called with incorrect parameters/,
+        'Should throw on non-number argument',
       );
 
       assert.throws(
-          () => {
-            model.getOutputElementType(0, 1);
-          },
-          /'getOutputElementType' method called with incorrect parameters/,
-          'Should throw on multiple arguments',
+        () => {
+          model.getOutputElementType(0, 1);
+        },
+        /'getOutputElementType' method called with incorrect parameters/,
+        'Should throw on multiple arguments',
       );
 
       assert.throws(
-          () => {
-            model.getOutputElementType(3.14);
-          },
-          /'getOutputElementType' method called with incorrect parameters/,
-          'Should throw on non-integer number',
+        () => {
+          model.getOutputElementType(3.14);
+        },
+        /'getOutputElementType' method called with incorrect parameters/,
+        'Should throw on non-integer number',
       );
     });
 
     it('should return a valid element type for the default model', () => {
       const elementType = model.getOutputElementType(0);
       assert.ok(
-          typeof elementType === 'string' && elementType.length > 0,
-          `Expected a non-empty string, got ${elementType}`,
+        typeof elementType === 'string' && elementType.length > 0,
+        `Expected a non-empty string, got ${elementType}`,
       );
     });
 

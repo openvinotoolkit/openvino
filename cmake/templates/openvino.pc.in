@@ -1,0 +1,21 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+pc_path=${pcfiledir}
+prefix=${pc_path}/@PKGCONFIG_OpenVINO_PREFIX@
+
+exec_prefix=${prefix}/@OV_CPACK_RUNTIMEDIR@
+libdir=${exec_prefix}
+
+include_prefix=${prefix}/@OV_CPACK_INCLUDEDIR@
+includedir=${include_prefix}
+
+Name: OpenVINO
+Description: OpenVINO™ Toolkit
+URL: https://docs.openvino.ai/latest/index.html
+Version: @OpenVINO_VERSION@
+Conflicts: openvino < @OpenVINO_VERSION@
+Cflags: -I${includedir} @PKGCONFIG_OpenVINO_DEFINITIONS@
+Libs: -L${libdir} @PKGCONFIG_OpenVINO_FRONTENDS@ -lopenvino_c -lopenvino @PKGCONFIG_OpenVINO_PRIVATE_DEPS@
+Libs.private: -ldl -lm -lpthread -lrt

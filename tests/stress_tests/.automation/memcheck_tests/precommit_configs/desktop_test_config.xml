@@ -1,0 +1,23 @@
+<attributes>
+    <devices>
+        <value>CPU</value>
+        <value>GPU</value>
+    </devices>
+    <models>
+        <!--Models with FP32 precision-->
+        <model name="vgg16" precision="FP32" source="omz" />
+        <model name="mtcnn-r" precision="FP32" source="omz" />
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+        <model name="ssd300" precision="FP32" source="omz" />
+        <!--Models with FP16 precision-->
+        <model name="vgg16" precision="FP16" source="omz" />
+        <model name="mtcnn-r" precision="FP16" source="omz" />
+        <model name="mobilenet-ssd" precision="FP16" source="omz" />
+        <model name="ssd300" precision="FP16" source="omz" />
+        <!--Models with FP16-INT8 precision-->
+        <model name="vehicle-attributes-recognition-barrier-0039" precision="FP16-INT8" source="omz" />
+        <model name="person-detection-action-recognition-0006" precision="FP16-INT8" source="omz" />
+        <model name="face-detection-adas-0001" precision="FP16-INT8" source="omz" />
+        <model name="single-image-super-resolution-1032" precision="FP16-INT8" source="omz" />
+    </models>
+</attributes>

@@ -1,0 +1,143 @@
+node {
+  name: "placeholder"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 1
+        }
+        dim {
+          size: 112
+        }
+        dim {
+          size: 112
+        }
+        dim {
+          size: 32
+        }
+      }
+    }
+  }
+}
+node {
+  name: "const_add"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+        }
+        float_val: 2.0
+      }
+    }
+  }
+}
+node {
+  name: "add"
+  op: "AddV2"
+  input: "placeholder"
+  input: "const_add"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "swish_f32"
+  op: "swish_f32"
+  input: "add"
+  attr {
+    key: "_disable_call_shape_inference"
+    value {
+      b: true
+    }
+  }
+}
+node {
+  name: "main/Sigmoid"
+  op: "Sigmoid"
+  input: "swish_f32"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+library {
+  function {
+    signature {
+      name: "swish_f32"
+      input_arg {
+        name: "features"
+        type: DT_FLOAT
+      }
+      output_arg {
+        name: "mul"
+        type: DT_FLOAT
+      }
+      description: "Computes the Swish activation function: `x * sigmoid(x)`.\n\n  Source: \"Searching for Activation Functions\" (Ramachandran et al. 2017)\n  https://arxiv.org/abs/1710.05941\n\n  Args:\n    features: A `Tensor` representing preactivation values.\n    name: A name for the operation (optional).\n\n  Returns:\n    The activation value.\n  "
+    }
+    node_def {
+      name: "Sigmoid"
+      op: "Sigmoid"
+      input: "features"
+      attr {
+        key: "T"
+        value {
+          type: DT_FLOAT
+        }
+      }
+    }
+    node_def {
+      name: "mul_0"
+      op: "Mul"
+      input: "features"
+      input: "Sigmoid:y:0"
+      attr {
+        key: "T"
+        value {
+          type: DT_FLOAT
+        }
+      }
+    }
+    ret {
+      key: "mul"
+      value: "mul_0:z:0"
+    }
+    attr {
+      key: "_disable_call_shape_inference"
+      value {
+        b: true
+      }
+    }
+    attr {
+      key: "_noinline"
+      value {
+        b: true
+      }
+    }
+    arg_attr {
+      value {
+      }
+    }
+  }
+}

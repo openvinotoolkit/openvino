@@ -1,0 +1,33 @@
+# Reshape test rules configuration file
+
+[
+    {
+    rules: [
+        { model: ONNX_Runtime_ResNeXt101_32x32d_wsl, device: [ CPU ] }, # CVS-88083
+        { model: PDPD_ResNeXt101_32x32d_wsl, device: [ CPU ] }, # CVS-92692
+        { model: Pytorch_Blip, device: [ CPU ] }, # CVS-105259
+        { model: Pytorch_BridgeTower, device: [ CPU ] }, # CVS-108319
+        { model: Pytorch_Stable_Diffusion_2_1_Text_Encoder,  device: [ CPU ]}, # (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_1_Unet,  device: [ CPU ]}, #  (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_1_Vae_Decoder,  device: [ CPU ]}, # (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_1_Vae_Encoder,  device: [ CPU ]}, #  (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_Inpainting_Text_Encoder,  device: [ CPU ]}, # (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_Inpainting_Unet, device: [ CPU ] }, #  (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_Inpainting_Vae_Decoder,  device: [ CPU ]}, # (CVS-110572)
+        { model: Pytorch_Stable_Diffusion_2_Inpainting_Vae_Encoder,  device: [ CPU ]}, #  (CVS-110572)
+        { model: Pytorch_StableLM,  device: [ CPU ]}, # Model was requested only for CPU CVS-111394
+        { model: Pytorch_Llama_3b_v2, device: [ CPU ] }, # (CVS-106319)
+
+        { model: ONNX_3D_UNet, device: [ CPU ] }, # CVS-88087
+
+        { model: Pytorch_Gpt_J_6B, device: [ CPU ] }, # CVS-110556
+
+        { model: TF_BlackMagic_Model_C, device: [ CPU ] }, # CVS-88049
+        { model: TF_Faster_RCNN_Inception_ResNet_v2_atrous_coco, device: [ GPU ] },  # leave only GPU as conversion for CPU takes more than 13 minutes and this model needs to be switched to new FE (CVS-99381)
+        { model: TF_Faster_RCNN_Inception_ResNet_v2_atrous_lowproposals_coco, device: [ GPU ] },  # leave only GPU as conversion for CPU takes more than 13 minutes and this model needs to be switched to new FE (CVS-99381)
+        { model: TF_Mask_RCNN_Inception_ResNet_v2_atrous_coco, device: [ GPU ] },  # leave only GPU as conversion for CPU takes more than 13 minutes and this model needs to be switched to new FE (CVS-99381)
+    ],
+
+    filter_by: model
+    }
+]

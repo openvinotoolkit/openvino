@@ -1,0 +1,258 @@
+name: Linux RISC-V with Xuantie (Ubuntu 22.04, Python 3.10)
+on:
+  workflow_dispatch:
+    inputs:
+      testFilterType:
+        description: 'Filter for google tests {SMOKE | CONCISE}'
+        required: true
+        default: 'CONCISE'
+  pull_request:
+    paths:
+      - '.github/workflows/linux_riscv_xuantie_dev_cpu.yml'
+      - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
+      - 'src/plugins/intel_cpu/src/emitters/plugin/riscv64/**'
+      - 'src/plugins/intel_cpu/src/emitters/plugin/x64/**'
+      - 'src/plugins/intel_cpu/src/nodes/executors/aarch64/**'
+      - 'src/plugins/intel_cpu/src/nodes/executors/shl/**'
+      - 'src/plugins/intel_cpu/src/nodes/kernels/riscv64/**'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/riscv64/**'
+      - 'src/plugins/intel_cpu/thirdparty/xbyak_riscv/**'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-riscv-xuantie
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  RISCV_TOOLCHAIN_ROOT: /opt/riscv
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+      target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
+    steps:
+      - name: checkout action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+      
+      - name: Get target branch
+        id: set_target_branch
+        run: |
+          echo "target_branch=${TARGET_BRANCH#refs/heads/}" >> $GITHUB_OUTPUT
+        shell: bash
+
+  Docker:
+    needs: Smart_CI
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_22_04_riscv_xuantie
+            ov_test/ubuntu_22_04_riscv_xuantie
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
+  Build:
+    name: Build (RVV 1.0)
+    needs: [Smart_CI, Docker]
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores-32gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv_xuantie }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }}
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Ninja'
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_DIR: ${{ github.workspace }}/openvino_install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/xuantie/${{ needs.Smart_CI.outputs.target_branch }}
+      CCACHE_DIR: ${{ github.workspace }}/ccache
+      CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
+      CCACHE_MAXSIZE: 2G
+
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'true'
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+        
+      - name: Setup ccache
+        id: ccache_restore
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-size: 10
+          max-cache-size: 50
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
+
+      #
+      # Build
+      #
+      - name: Clean ccache stats
+        run: ccache --zero-stats
+      
+      - name: CMake - Configure
+        run: >
+          cmake -G "${{ env.CMAKE_GENERATOR }}"
+          -DENABLE_CPPLINT=OFF
+          -DENABLE_INTEL_GPU=OFF
+          -DENABLE_INTEL_NPU=OFF
+          -DENABLE_SAMPLES=OF
+          -DENABLE_NCC_STYLE=OFF
+          -DENABLE_PYTHON=OFF
+          -DENABLE_TESTS=ON
+          -DENABLE_STRICT_DEPENDENCIES=OFF
+          -DCMAKE_VERBOSE_MAKEFILE=ON
+          -DENABLE_WHEEL=OFF
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+          -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-100-xuantie-gnu.toolchain.cmake
+          -S ${OPENVINO_REPO}
+          -B ${BUILD_DIR}
+
+      - name: Cmake - Build
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc)
+
+      - name: Show ccache stats and cleanup
+        run: |
+          ccache --show-stats
+          ccache --cleanup
+        
+      - name: Cmake install - OpenVINO
+        run: |
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
+        working-directory: ${{ env.BUILD_DIR }}
+          
+      - name: Pack openvino_package
+        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR }}
+        
+      - name: Pack openvino_tests
+        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+        working-directory: ${{ env.INSTALL_TEST_DIR }}
+        
+      - name: Upload openvino package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+          
+      - name: Upload openvino tests package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
+  
+  CPU_Functional_Tests:
+    name: CPU functional tests
+    timeout-minutes: 30
+    needs: [Smart_CI, Docker, Build]
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_riscv_xuantie }}
+      volumes:
+        - ${{ github.workspace }}:${{ github.workspace }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*' }}
+
+    steps:
+      - name: Download OpenVINO artifacts (tarballs)
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          pattern: openvino_[package|tests]*
+          path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
+          
+      - name: Extract OpenVINO packages and tests
+        run: |
+          pigz -dc openvino_package.tar.gz | tar -xvf - -C ${INSTALL_DIR}
+          pigz -dc openvino_tests.tar.gz | tar -xvf - -C ${INSTALL_DIR}
+        working-directory: ${{ env.INSTALL_DIR }}
+        
+      - name: Intel CPU plugin func tests (parallel)
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu rv64,x-v=true,vlen=256 ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
+        timeout-minutes: ${{ inputs.testFilterType == 'SMOKE' && 125 || 25}}
+
+  Overall_Status:
+    name: ci/gha_overall_status_linux_riscv
+    needs: [Smart_CI, Build, CPU_Functional_Tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

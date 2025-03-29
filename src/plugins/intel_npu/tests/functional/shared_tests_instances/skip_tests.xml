@@ -1,0 +1,883 @@
+<!--
+Example:
+    <skip_config>
+        <message>skip_message_xxxxxx</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <backend>IMD</backend>
+            <backend></backend>  (special case for empty backend)
+            <device>3720</device>
+            <device>4000</device>
+            <operating_system>windows</operating_system>
+            <operating_system>linux</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>skip_filter_xxxxxxxxxx</filter>
+            <filter>skip_filter_xxxxxxxxxx</filter>
+            <filter>skip_filter_xxxxxxxxxx</filter>
+        </filters>
+    </skip_config>
+-->
+<skip_configs>
+    <skip_config>
+        <!-- EISW 70764 -->
+        <message>Disabled for when backend is empty (i.e., no device)</message>
+        <enable_rules>
+            <backend></backend> <!-- special case for empty backend -->
+        </enable_rules>
+        <filters>
+            <!-- Cannot run InferRequest tests without a device to infer to -->
+            <filter>.*InferRequest.*</filter>
+            <filter>.*OVInferRequest.*</filter>
+            <filter>.*OVInferenceChaining.*</filter>
+            <filter>.*ExecutableNetworkBaseTest.*</filter>
+            <filter>.*OVExecutableNetworkBaseTest.*</filter>
+            <filter>.*ExecNetSetPrecision.*</filter>
+            <filter>.*SetBlobTest.*</filter>
+            <filter>.*InferRequestCallbackTests.*</filter>
+            <filter>.*PreprocessingPrecisionConvertTest.*</filter>
+            <filter>.*SetPreProcessToInputInfo.*</filter>
+            <filter>.*InferRequestPreprocess.*</filter>
+            <filter>.*HoldersTestOnImportedNetwork.*</filter>
+            <filter>.*HoldersTest.Orders.*</filter>
+            <filter>.*HoldersTestImportNetwork.Orders.*</filter>
+            <!-- Cannot compile network without explicit specifying of the device in case of no devices -->
+            <filter>.*OVExecGraphImportExportTest.*</filter>
+            <filter>.*OVHoldersTest.*</filter>
+            <filter>.*OVClassExecutableNetworkGetMetricTest.*</filter>
+            <filter>.*OVClassExecutableNetworkGetConfigTest.*</filter>
+            <filter>.*OVClassNetworkTestP.*SetAffinityWithConstantBranches.*</filter>
+            <filter>.*OVClassNetworkTestP.*SetAffinityWithKSO.*</filter>
+            <filter>.*OVClassNetworkTestP.*LoadNetwork.*</filter>
+            <filter>.*FailGracefullyTest.*</filter>
+            <filter>.*DriverCompilerAdapterInputsOutputsTestNPU.*</filter>
+            <!-- Exception in case of network compilation without devices in system -->
+            <!-- [Track number: E#30824] -->
+            <filter>.*OVClassImportExportTestP.*</filter>
+            <filter>.*OVClassLoadNetworkTestNPU.*LoadNetwork.*</filter>
+            <!-- [Track number: E#84621] -->
+            <filter>.*DriverCompilerAdapterDowngradeInterpolate11TestNPU.*</filter>
+            <filter>.*QueryNetworkTestSuite.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>Tests break due to starting infer on IA side</message>
+        <filters>
+            <filter>.*CorrectConfigAPITests.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>ARM CPU Plugin is not available on Yocto</message>
+        <filters>
+            <filter>.*IEClassLoadNetworkTest.*HETERO.*</filter>
+            <filter>.*IEClassLoadNetworkTest.*MULTI.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 30810 -->
+    <skip_config>
+        <message>Hetero plugin doesn't throw an exception in case of big device ID</message>
+        <filters>
+            <filter>.*OVClassLoadNetworkTestNPU.*LoadNetworkHETEROWithBigDeviceIDThrows.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 30815 -->
+    <skip_config>
+        <message>NPU Plugin doesn't handle DEVICE_ID in QueryNetwork implementation</message>
+        <filters>
+            <filter>.*OVClassQueryNetworkTest.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 12774 -->
+    <skip_config>
+        <message>Cannot detect npu platform when it's not passed; Skip tests on Yocto which passes device without platform</message>
+        <filters>
+            <filter>.*IEClassLoadNetworkTest.LoadNetworkWithDeviceIDNoThrow.*</filter>
+            <filter>.*IEClassLoadNetworkTest.LoadNetworkWithBigDeviceIDThrows.*</filter>
+            <filter>.*IEClassLoadNetworkTest.LoadNetworkWithInvalidDeviceIDThrows.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 28335 -->
+    <skip_config>
+        <message>Disabled test E#28335</message>
+        <filters>
+            <filter>.*smoke_LoadNetworkToDefaultDeviceNoThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 32241 -->
+    <skip_config>
+        <message>Disabled test E#28335</message>
+        <filters>
+            <filter>.*LoadNetwork.*CheckDeviceInBlob.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 27343 -->
+    <skip_config>
+        <message>double free detected</message>
+        <filters>
+            <filter>.*InferConfigInTests\\.CanInferWithConfig.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>GetExecGraphInfo function is not implemented for NPU plugin</message>
+        <filters>
+            <filter>.*checkGetExecGraphInfoIsNotNullptr.*</filter>
+            <filter>.*CanCreateTwoExeNetworksAndCheckFunction.*</filter>
+            <filter>.*CanCreateTwoCompiledModelsAndCheckRuntimeModel.*</filter>
+            <filter>.*CheckExecGraphInfo.*</filter>
+            <filter>.*canLoadCorrectNetworkToGetExecutable.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 28335 -->
+    <skip_config>
+        <message>Disabled test E#28335</message>
+        <filters>
+            <filter>.*checkInferTime.*</filter>
+            <filter>.*OVExecGraphImportExportTest.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 31074 -->
+    <skip_config>
+        <message>Test uses legacy OpenVINO 1.0 API, no need to support it</message>
+        <filters>
+            <filter>.*ExecutableNetworkBaseTest.checkGetMetric.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 31074 -->
+    <skip_config>
+        <message>SetConfig function is not implemented for ExecutableNetwork interface (implemented only for npu plugin)</message>
+        <filters>
+            <filter>.*ExecutableNetworkBaseTest.canSetConfigToExecNet.*</filter>
+            <filter>.*ExecutableNetworkBaseTest.canSetConfigToExecNetAndCheckConfigAndCheck.*</filter>
+            <filter>.*CanSetConfigToExecNet.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 30822 -->
+    <skip_config>
+        <message>Exception 'Not implemented</message>
+        <filters>
+            <filter>.*OVClassNetworkTestP.*LoadNetworkCreateDefaultExecGraphResult.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>This is openvino specific test</message>
+        <filters>
+            <filter>.*ExecutableNetworkBaseTest.canExport.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>TensorIterator layer is not supported</message>
+        <filters>
+            <filter>.*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*</filter>
+            <filter>.*OVInferRequestDynamicTests.*</filter>
+            <filter>.*OVInferenceChaining.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 97469 -->
+    <skip_config>
+        <message>Tests with unsupported precision</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=bf16.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f64.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=i64.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 70764 -->
+    <skip_config>
+        <message>Tests enabled only for L0 NPU3720</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>!3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*</filter>
+            <filter>.*DriverCompilerAdapterDowngradeInterpolate11TestNPU.*</filter>
+            <filter>.*DriverCompilerAdapterInputsOutputsTestNPU.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 32075 -->
+    <skip_config>
+        <message>Exception during loading to the device</message>
+        <filters>
+            <filter>.*OVClassLoadNetworkTestNPU.LoadNetworkHETEROwithMULTINoThrow.*</filter>
+            <filter>.*OVClassLoadNetworkTestNPU.LoadNetworkMULTIwithHETERONoThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>compiler: Unsupported arch kind: NPUX311X</message>
+        <filters>
+            <filter>.*CompilationForSpecificPlatform.*(3800|3900).*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 67749 -->
+    <skip_config>
+        <message>Can't loadNetwork without cache for ReadConcatSplitAssign with precision f32</message>
+        <filters>
+            <filter>.*CachingSupportCase_NPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*ReadConcatSplitAssign.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 99817 -->
+    <skip_config>
+        <message>NPU Plugin currently fails to get a valid output in these test cases</message>
+        <filters>
+            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow.*</filter>
+            <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow.*</filter>
+            <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_.*</filter>
+            <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_configItem=MULTI_DEVICE_PRIORITIES_NPU_.*</filter>
+            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_.*</filter>
+            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_configItem=MULTI_DEVICE_PRIORITIES_NPU_.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 68774 -->
+    <skip_config>
+        <message>OV requires the plugin to throw when value of DEVICE_ID is unrecognized, but plugin does not throw</message>
+        <filters>
+            <filter>smoke_BehaviorTests.*IncorrectConfigTests.SetConfigWithIncorrectKey.*(SOME_DEVICE_ID|DEVICE_UNKNOWN).*</filter>
+            <filter>smoke_BehaviorTests.*IncorrectConfigTests.SetConfigWithNoExistingKey.*SOME_DEVICE_ID.*</filter>
+            <filter>smoke_BehaviorTests.*IncorrectConfigAPITests.SetConfigWithNoExistingKey.*(SOME_DEVICE_ID|DEVICE_UNKNOWN).*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 77755 -->
+    <skip_config>
+        <message>OV requires the plugin to throw on network load when config file is incorrect, but plugin does not throw</message>
+        <filters>
+            <filter>.*smoke_Auto_BehaviorTests.*IncorrectConfigTests.CanNotLoadNetworkWithIncorrectConfig.*AUTO_config.*unknown_file_MULTI_DEVICE_PRIORITIES=(NPU_|NPU,CPU_).*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 77756 -->
+    <skip_config>
+        <message>OV expects the plugin to not throw any exception on network load, but it actually throws</message>
+        <filters>
+            <filter>.*(smoke_Multi_Behavior|smoke_Auto_Behavior).*SetPropLoadNetWorkGetPropTests.*SetPropLoadNetWorkGetProperty.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 68776 -->
+    <skip_config>
+        <message>Plugin can not perform SetConfig for value like: device=NPU config key=LOG_LEVEL value=0</message>
+        <filters>
+            <filter>smoke_BehaviorTests/DefaultValuesConfigTests.CanSetDefaultValueBackToPlugin.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 48480 -->
+    <skip_config>
+        <message>Disabled with ticket number 48480</message>
+        <filters>
+            <filter>.*OVExecutableNetworkBaseTest.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 63708 -->
+    <skip_config>
+        <message>Disabled with ticket number 63708</message>
+        <filters>
+            <filter>.*smoke_BehaviorTests.*InferStaticNetworkSetInputTensor.*</filter>
+            <filter>.*smoke_Multi_BehaviorTests.*InferStaticNetworkSetInputTensor.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 64490 -->
+    <skip_config>
+        <message>Disabled with ticket number 64490</message>
+        <filters>
+            <filter>.*OVClassNetworkTestP.*SetAffinityWithConstantBranches.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 86380 -->
+    <skip_config>
+        <message>The output tensor gets freed when the inference request structure's destructor is called. The issue is unrelated to the caching feature.</message>
+        <filters>
+            <filter>.*CacheTestBase.CompareWithRefImpl.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Expected: SetConfig(configuration, target_device) throws an exception of type InferenceEngine::Exception. Throws nothing.</message>
+        <filters>
+            <!-- EISW 89274 -->
+            <filter>.*AutoBatch.*Behavior.*IncorrectConfigAPITests.SetConfigWithNoExistingKey.*AUTO_BATCH_TIMEOUT.*</filter>
+            <!-- EISW 89084 -->
+            <filter>.*AutoBatch.*Behavior.*IncorrectConfigTests.SetConfigWithIncorrectKey.*AUTO_BATCH_TIMEOUT.*</filter>
+            <filter>.*AutoBatch.*Behavior.*IncorrectConfigTests.CanNotLoadNetworkWithIncorrectConfig.*AUTO_BATCH_TIMEOUT.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>Dynamic I/O shapes are being used when running the tests. This feature is not yet supported by the NPU plugin.</message>
+        <filters>
+            <filter>.*SetPreProcessTo.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>This scenario became invalid upon refactoring the implementation as to use the 2.0 OV API.</message>
+        <filters>
+            <filter>.*smoke_BehaviorTests/VersionTest.pluginCurrentVersionIsCorrect.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 102428 -->
+    <skip_config>
+        <message>Tests throw errors as expected but drivers post-v.1657 will fail to catch them</message>
+        <filters>
+            <filter>.*FailGracefullyTest.*</filter>
+            <filter>.*QueryNetworkTestSuite3NPU.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Tests are disabled for all devices except NPU3720</message>
+        <enable_rules>
+            <device>!3720</device>
+        </enable_rules>
+        <filters>
+            <!-- EISW 49620 -->
+            <filter>.*NPU3720.*</filter>
+            <!-- EISW 84621 -->
+            <filter>.*DriverCompilerAdapterDowngradeInterpolate11TestNPU.*</filter>
+            <filter>.*DriverCompilerAdapterInputsOutputsTestNPU.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 111510 -->
+    <skip_config>
+        <message>Failing test for NPU device</message>
+        <filters>
+            <filter>.*OVClassImportExportTestP.*OVClassCompiledModelImportExportTestP.*ImportNetworkThrowWithDeviceName.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>These tests runs only on LevelZero backend</message>
+        <enable_rules>
+            <backend>!LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestRunTests.*</filter>
+            <filter>.*OVClassGetMetricAndPrintNoThrow.*</filter>
+            <filter>.*IEClassGetMetricAndPrintNoThrow.*</filter>
+            <filter>.*CompileModelLoadFromFileTestBase.*</filter>
+            <filter>.*CorrectConfigTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 85493 -->
+    <skip_config>
+        <message>Runs only on NPU3720 with Level Zero enabled #85493</message>
+        <enable_rules>
+            <device>!3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestRunTests.MultipleExecutorStreamsTestsSyncInfers.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + MLIR is not supported</message>
+        <filters>
+            <filter>.*smoke_AutoBatch_BehaviorTests/CorrectConfigTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>OpenVINO issues when using caching mechanism</message>
+        <filters>
+            <!-- CVS 119359 -->
+            <filter>.*smoke_Auto_BehaviorTests_CachingSupportCase_NPU/CompileModelLoadFromFileTestBase.*</filter>
+            <!-- CVS 120240 -->
+            <filter>.*smoke_BehaviorTests_CachingSupportCase_NPU/CompileModelLoadFromFileTestBase.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 103391 -->
+    <skip_config>
+        <message>IfTest segfaults npuFuncTest on Ubuntu</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>3720</device>
+            <operating_system>linux</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*smoke_IfTest.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 111369 -->
+    <skip_config>
+        <message>Tests fail with: ZE_RESULT_ERROR_DEVICE_LOST, code 0x70000001</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>3720</device>
+            <operating_system>linux</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*OVInferRequestMultithreadingTests.canRun3SyncRequestsConsistently.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 81065 -->
+    <skip_config>
+        <message>IMD/Simics do not support the tests</message>
+        <enable_rules>
+            <backend>IMD</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*smoke_ClassPluginProperties.*DEVICE_UUID.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 85488 -->
+    <skip_config>
+        <message>Run long time on IMD/Simics</message>
+        <enable_rules>
+            <backend>IMD</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*PreprocessingPrecisionConvertTestNPU.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 83423 -->
+    <skip_config>
+        <message>Tests enabled only for L0 NPU3720</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>!3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*smoke_VariableStateBasic.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 83708 -->
+    <skip_config>
+        <message>MemoryLSTMCellTest failing with NOT_IMPLEMENTED</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*smoke_MemoryLSTMCellTest.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 83423 -->
+    <skip_config>
+        <message>QueryNetwork is only supported by 3720 platform</message>
+        <enable_rules>
+            <backend>!LEVEL0</backend>
+            <device>!3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*QueryNetworkTestSuite.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>Some NPU Plugin metrics require single device to work in auto mode or set particular device</message>
+        <filters>
+            <filter>.*OVClassGetConfigTest.*GetConfigNoThrow.*</filter>
+            <filter>.*OVClassGetConfigTest.*GetConfigHeteroNoThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 111455 -->
+    <skip_config>
+        <message>Failing properties tests for AUTO / MULTI</message>
+        <filters>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*MULTI.*LOG_LEVEL.*</filter>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*AUTO.*LOG_LEVEL.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 99817 -->
+    <skip_config>
+        <message>Disabled tests for NPU3720</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestVariableStateTest.inferreq_smoke_VariableState_2infers.*</filter>
+            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 114903 -->
+    <skip_config>
+        <message>Tests fail when using latest OV commit from ww09</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*smoke_RandomUniform/RandomLayerTest_NPU3720.SW.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>GetExecGraphInfo function is not implemented for NPU plugin</message>
+        <filters>
+            <filter>.*CanCreateTwoCompiledModelsAndCheckRuntimeModel.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>Fails with CID</message>
+        <filters>
+            <filter>.*smoke_BehaviorTests_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.LoadNetworkHETEROWithDeviceIDNoThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- CVS 128116 -->
+    <skip_config>
+        <message>Unicode paths for ov::cache_dir are not correctly handled on Windows</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*CompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 108600 -->
+    <skip_config>
+        <message>Unsupported NPU properties</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*OVCheckMetricsPropsTests_ModelDependceProps.*</filter>
+            <filter>.*OVClassCompileModelAndCheckSecondaryPropertiesTest.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Failing properties tests</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <!-- EISW 108600 -->
+            <filter>.*OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
+            <!-- EISW 133153 -->
+            <filter>.*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 109040 -->
+    <skip_config>
+        <message>Disabled all tests CompileForDifferentPlatformsTests with config NPU_COMPILER_TYPE_DRIVER</message>
+        <filters>
+            <filter>.*smoke_BehaviorTest/CompileForDifferentPlatformsTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>Fails with CID</message>
+        <filters>
+            <filter>.*smoke_BehaviorTests_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.LoadNetworkHETEROWithDeviceIDNoThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 114623 -->
+    <skip_config>
+        <message>The private platform names cannot be identified via the \"ov::available_devices\" configuration.</message>
+        <enable_rules>
+            <device>!3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*smoke_BehaviorTests_OVClassSetDefaultDeviceIDPropTest/OVClassSetDefaultDeviceIDPropTest.SetDefaultDeviceIDNoThrow.*</filter>
+            <filter>.*smoke_BehaviorTests_OVClassSpecificDeviceTest/OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
+            <filter>.*smoke_BehaviorTests_OVClassSpecificDeviceTest/OVSpecificDeviceTestSetConfig.SetConfigSpecificDeviceNoThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 114624 -->
+    <skip_config>
+        <message>The tests are not actually running the compiler-in-driver module.</message>
+        <filters>
+            <filter>.*smoke_BehaviorTests_OVCheckSetSupportedRWMetricsPropsTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 109040 -->
+    <skip_config>
+        <message>Disabled tests for NPU3720</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=i16.*</filter>
+            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=u16.*</filter>
+            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=u64.*</filter>
+            <filter>.*smoke_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 112064 -->
+    <skip_config>
+        <message>Failing core threading tests</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*CoreThreadingTest.smoke_QueryModel.*</filter>
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel.*</filter>
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*</filter>
+            <filter>.*CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Failing properties tests</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <!-- EISW 108600 -->
+            <filter>.*OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
+            <!-- EISW 133153 -->
+            <filter>.*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 117582 -->
+    <skip_config>
+        <message>Failing core threading test with cache enabled</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*CoreThreadingTest.*CoreThreadingTestsWithCacheEnabled.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 118331 -->
+    <skip_config>
+        <message>platform and compiler_type are private</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>!3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestCallbackTests.*</filter>
+            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestCallbackTests.*</filter>
+            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestCallbackTestsNPU.*</filter>
+            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestCallbackTestsNPU.*</filter>
+            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTestNPU.*</filter>
+            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTest.*</filter>
+            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestMultithreadingTests.*</filter>
+            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestMultithreadingTestsNPU.*</filter>
+            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersExceptionTest.*</filter>
+            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersTest.*</filter>
+            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestWaitTests.*</filter>
+            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestMultithreadingTests.*</filter>
+            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestMultithreadingTestsNPU.*</filter>
+            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestPerfCountersExceptionTest.*</filter>
+            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestPerfCountersTest.*</filter>
+            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestWaitTests.*</filter>
+            <filter>.*smoke_OVClassNetworkTestP/OVClassNetworkTestPNPU.*</filter>
+            <filter>.*smoke_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests_VariableState/OVInferRequestVariableStateTest.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 125086 -->
+    <skip_config>
+        <message>Failing tests after functional tests migration to OV</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 125086 -->
+    <skip_config>
+        <message>Failing tests after functional tests migration to OV</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>3720</device>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*OVInferRequestPerfCountersExceptionTest.perfCountWereNotEnabledExceptionTest.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 125086 -->
+    <skip_config>
+        <message>Failing tests after functional tests migration to OV</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <device>3720</device>
+            <operating_system>linux</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*OVInferRequestMultithreadingTests.canRun3AsyncRequestsConsistently.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 118331 -->
+    <skip_config>
+        <message>Private properties cannot be accessed by HETERO compiled model</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+        </enable_rules>
+        <filters>
+            <filter>.*smoke_Hetero_BehaviorTests.*OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests.*OVClassCompiledModelGetPropertyTest_EXEC_DEVICES.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests.*OVCompileModelGetExecutionDeviceTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>NPU plugin doesn't support infer dynamic</message>
+        <filters>
+            <filter>.*OVInferRequestBatchedTests.SetInputTensors_Can_Infer_Dynamic.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 118381 -->
+    <skip_config>
+        <message>Comparation is failed, SLT need to be updated.</message>
+        <filters>
+            <filter>.*smoke.*GridSample_Tiling/GridSampleLayerTest.*align_corners=0.*Mode=nearest_padding_mode=zeros.*</filter>
+            <filter>.*smoke.*GridSample_Tiling/GridSampleLayerTest.*align_corners=0.*Mode=nearest_padding_mode=border.*</filter>
+            <filter>.*smoke.*GridSample_Tiling/GridSampleLayerTest.*align_corners=0.*Mode=nearest_padding_mode=reflection.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 116575 -->
+    <skip_config>
+        <message>NPU fails for `OVIterationChaining.Simple` tests</message>
+        <filters>
+            <filter>.*OVIterationChaining.Simple.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 116596 -->
+    <skip_config>
+        <message>Missing model ops in profiling info</message>
+        <filters>
+            <filter>.*OVInferRequestPerfCountersTest.CheckOperationInProfilingInfo.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 118045 -->
+    <skip_config>
+        <message>NPU needs to implement ROITensor logic in zero_infer_request</message>
+        <filters>
+            <filter>.*OVInferRequestInferenceTests.Inference_ROI_Tensor/roi_nchw.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 116761 -->
+    <skip_config>
+        <message>OVClassQueryModel tests do not work with COMPILER_TYPE=DRIVER</message>
+        <filters>
+            <filter>.*OVClassQueryModelTest.QueryModelHETEROWithDeviceIDNoThrow.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 109040 -->
+    <skip_config>
+        <message>CheckWrongGraphExtAndThrow tests do not work with COMPILER_TYPE=DRIVER</message>
+        <filters>
+            <filter>.*DriverCompilerAdapterExpectedThrowNPU.CheckWrongGraphExtAndThrow.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 109040 -->
+    <skip_config>
+        <message>Skip tests that can not wrong when DRIVER is default compiler type</message>
+        <filters>
+            <filter>.*OVClassLoadNetworkTestNPU.LoadNetworkHETEROWithDeviceIDNoThrow.*</filter>
+            <filter>.*MatMulTransposeConcatTest.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 121347 -->
+    <skip_config>
+        <message>Error message for empty model from stream must be changed to have \"device xml header\"</message>
+        <filters>
+            <filter>.*smoke_BehaviorTests/OVClassCompiledModelImportExportTestP.smoke_ImportNetworkThrowWithDeviceName.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVClassCompiledModelImportExportTestP.smoke_ImportNetworkThrowWithDeviceName.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW ##### -->
+    <skip_config>
+        <message>NPU cannot set properties for compiled models</message>
+        <filters>
+            <filter>.*OVClassCompiledModelSetCorrectConfigTest.canSetConfig.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- CVS 139118 -->
+    <skip_config>
+        <message>Failing runtime model tests</message>
+        <filters>
+            <filter>.*OVCompiledModelGraphUniqueNodeNamesTest.CheckUniqueNodeNames.*</filter>
+            <filter>.*OVExecGraphSerializationTest.ExecutionGraph.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- CACHE_MODE is not supported on NPU, update test with correct property to make weightless compiled model -->
+    <skip_config>
+        <message>compiled_blob test use `CACHE_MOD` which is not supported on NPU</message>
+        <filters>
+            <filter>.*OVCompiledModelBaseTest.*import_from_.*_blob.*</filter>
+            <filter>.*OVCompiledModelBaseTest.*compile_from_.*_blob.*</filter>
+            <filter>.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*</filter>
+            <filter>.*OVCompiledModelBaseTest.*use_blob_hint_.*</filter>
+        </filters>
+    </skip_config>
+</skip_configs>

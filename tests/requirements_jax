@@ -1,0 +1,13 @@
+numpy==1.26.4; python_version < "3.12" or platform_system == "Darwin" and platform_machine == "x86_64"
+numpy==2.2.1; python_version >= "3.12" and (platform_system != "Darwin" or platform_machine != "x86_64")
+pytest==7.0.1
+pytest-xdist[psutil]==3.6.1
+pytest-html==4.1.1
+jax==0.5.2; (platform_system != "Darwin" or platform_machine != "x86_64") and python_version > "3.9"
+# tensorflow 2.16.2 depends on ml-dtypes~=0.3.1 and jax 0.4.35 depends on ml-dtypes>=0.4.0
+jax==0.4.33; (platform_system == "Darwin" and platform_machine == "x86_64") and python_version > "3.9"
+jax==0.4.30; python_version <= "3.9"
+flax==0.10.4
+transformers==4.49.0
+defusedxml
+pillow

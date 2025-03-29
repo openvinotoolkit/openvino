@@ -1,0 +1,73 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "input"
+    input: "input_IN.weight"
+    input: "input_IN.bias"
+    output: "560"
+    op_type: "InstanceNormalization"
+    attribute {
+      name: "epsilon"
+      f: 9.9999997473787516e-06
+      type: FLOAT
+    }
+  }
+  initializer {
+    dims: 3
+    data_type: 1
+    name: "input_IN.bias"
+    raw_data: "\341\033\253>\034\013\252>\006r\256>"
+  }
+  initializer {
+    dims: 3
+    data_type: 1
+    name: "input_IN.weight"
+    raw_data: "\245\024\361>Z\271\003?\016^\337>"
+  }
+  name: "test_instancenorm_example"
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_param: "channels"
+          }
+          dim {
+            dim_param: "height"
+          }
+          dim {
+            dim_param: "width"
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "560"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 7
+}

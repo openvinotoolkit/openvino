@@ -1,0 +1,9 @@
+# good comment
+Last_name, First_name <first_name.last_name@intel.com>
+first_name.last_name@intel.com
+openvino_pushbot@intel.com
+
+# Wrong emails
+foo@foo.com
+  foo1  foo2
+foo1 foo2@intel.com

@@ -1,0 +1,103 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "data_a"
+    input: "data_b"
+    input: "data_c"
+    output: "result"
+    op_type: "Max"
+  }
+  name: "test_mean_example"
+  initializer {
+    dims: 3
+    data_type: 6
+    name: "data_a"
+    external_data {
+        key: "location",
+        value: "tensors_data/multiple_tensors.data"
+    }
+    external_data {
+        key: "offset",
+        value: "0"
+    }
+    external_data {
+        key: "length",
+        value: "12"
+    }
+    data_location: 1
+  }
+  initializer {
+    dims: 3
+    data_type: 6
+    name: "data_b"
+    external_data {
+        key: "location",
+        value: "tensors_data/multiple_tensors.data"
+    }
+    external_data {
+        key: "offset",
+        value: "4096"
+    }
+    external_data {
+        key: "length",
+        value: "12"
+    }
+    data_location: 1
+  }
+  input {
+    name: "data_a"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "data_b"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "data_c"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "result"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 8
+}

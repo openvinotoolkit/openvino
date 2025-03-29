@@ -1,0 +1,157 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "iter_count_init"
+    input: "cond_init"
+    input: "seq_init"
+    output: "seq_final"
+    output: "seq_final_scan"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "cond_in"
+          output: "cond_out"
+          op_type: "Identity"
+        }
+        node {
+          input: "iter_count"
+          output: "to_concat"
+          op_type: "Unsqueeze"
+          attribute {
+            name: "axes"
+            ints: 0
+            type: INTS
+          }
+        }
+        node {
+          input: "seq_in"
+          input: "to_concat"
+          output: "seq_out"
+          op_type: "Concat"
+          attribute {
+            name: "axis"
+            i: 0
+            type: INT
+          }
+        }
+        node {
+          input: "seq_out"
+          output: "seq_final_out"
+          op_type: "Identity"
+        }
+        name: "loop_body"
+        input {
+          name: "iter_count"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "cond_in"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "seq_in"
+          type {
+            tensor_type {
+              elem_type: 7
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        output {
+          name: "seq_out"
+          type {
+            tensor_type {
+              elem_type: 7
+            }
+          }
+        }
+        output {
+          name: "seq_final_out"
+          type {
+            tensor_type {
+              elem_type: 7
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  name: "Slice in Loop"
+  input {
+    name: "iter_count_init"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "cond_init"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "seq_init"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "seq_final"
+    type {
+      tensor_type {
+        elem_type: 7
+      }
+    }
+  }
+  output {
+    name: "seq_final_scan"
+    type {
+      tensor_type {
+        elem_type: 7
+      }
+    }
+  }
+}
+opset_import {
+  version: 12
+}

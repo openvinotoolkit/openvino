@@ -1,0 +1,113 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+    node{
+        input: "feature_maps"
+        input: "rois"
+        input: "batch_indices"
+        output: "Y"
+        op_type: "RoiAlign"
+        attribute{
+            name: "output_height"
+            i: 3
+            type: INT
+        }
+        attribute{
+            name: "output_width"
+            i: 4
+            type: INT
+        }
+        attribute{
+            name: "sampling_ratio"
+            i: 2
+            type: INT
+        }
+        attribute{
+            name: "spatial_scale"
+            f: 0.0625
+            type: FLOAT
+        }
+        attribute{
+            name: "mode"
+            s: "avg"
+            type: STRING
+        }
+    }
+    name: "test-model"
+    input{
+        name: "feature_maps"
+        type {
+            tensor_type {
+                elem_type: 1
+                shape {
+                    dim {
+                        dim_value: 1
+                    }
+                    dim {
+                        dim_value: 3
+                    }
+                    dim {
+                        dim_value: 5
+                    }
+                    dim {
+                        dim_value: 5
+                    }
+                }
+            }
+        }
+    }
+    input{
+        name: "rois"
+        type {
+            tensor_type {
+                elem_type: 1
+                shape {
+                    dim {
+                        dim_value: 5
+                    }
+                    dim {
+                        dim_value: 4
+                    }
+                }
+            }
+        }
+    }
+    input{
+        name:"batch_indices"
+        type{
+            tensor_type{
+                elem_type: 6
+                shape {
+                    dim {
+                        dim_value: 5
+                    }
+                }
+            }
+        }
+    }
+    output{
+    name: "Y"
+    type {
+        tensor_type {
+            elem_type: 1
+            shape {
+                dim {
+                    dim_value: 5
+                }
+                dim {
+                    dim_value: 3
+                }
+                dim {
+                    dim_value: 3
+                }
+                dim {
+                    dim_value: 4
+                }
+            }
+        }
+        }
+    }
+}
+opset_import {
+  version: 10
+}

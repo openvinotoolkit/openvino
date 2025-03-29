@@ -1,6 +1,7 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+#include "node/include/model_wrap.hpp"
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
@@ -218,7 +219,6 @@ Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
     }
 }
 
-
 Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo& info) {
     std::vector<ov::Node*> ops = this->model_->get_ops();
     Napi::Array result = Napi::Array::New(info.Env(), ops.size());
@@ -227,3 +227,4 @@ Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo& info) {
     }
     return result;
 }
+

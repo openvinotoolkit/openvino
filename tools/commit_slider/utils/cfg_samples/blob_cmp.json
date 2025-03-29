@@ -1,0 +1,20 @@
+{
+    "makeCmd" : "cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=OFF -DTHREADING=TBB -DENABLE_INTEL_GPU=OFF -DENABLE_SAMPLES=ON -DENABLE_TESTS=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_CPU_DEBUG_CAPS=ON -DENABLE_DEBUG_CAPS=ON -DENABLE_OPENVINO_DEBUG=ON -DCMAKE_CXX_FLAGS=-Wno-deprecated -DCMAKE_C_FLAGS=-Wno-deprecated -DCMAKE_CXX_FLAGS=-Wno-deprecated-declarations -DCMAKE_C_FLAGS=-Wno-deprecated-declarations ..",
+    "appCmd" : "./benchmark_app -m  <model_path> -t 10",
+    "envVars" : [
+        {"name" : "OV_CPU_BLOB_DUMP_NODE_TYPE", "val" : "Output"},
+        {"name" : "OV_CPU_BLOB_DUMP_FORMAT", "val" : "TEXT"},
+        {"name" : "OV_CPU_BLOB_DUMP_DIR", "val" : "<blob_dir>"}
+    ],
+    "runConfig" : {
+        "commitList" : {
+            "getCommitListCmd" : "git log <start_commit>..<end_commit> --boundary --pretty=\"%h\""
+        },
+        "mode" : "compareBlobs",
+        "traversal" : "firstFailedVersion",
+        "outputFileNamePattern" : "(.)*<out_blob_name_tail>.ieb$",
+        "outputDirectory" : "<blob_dir>",
+        "limit" : 0.05
+    }
+}
+    

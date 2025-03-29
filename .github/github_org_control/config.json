@@ -1,0 +1,48 @@
+{
+    "GITHUB_TOKEN": "<Put token here or set as arg or as env variable>",
+    "GITHUB_ORGANIZATION": "openvinotoolkit",
+    "GITHUB_REPO": "openvino",
+    "IGNORE_LOGINS": [
+        "openvino-ci",
+        "openvino-pushbot",
+        "workbench-ci-bot",
+        "sysicvvpux",
+        "ote-ci-bot"
+    ],
+    "MAX_MEMBERS_TO_REMOVE": 15,
+    "EMAILS_FILE_PATH": "dev_emails-test.txt",
+    "PROXIES": {
+        "HTTP_PROXY": null,
+        "HTTPS_PROXY": null,
+        "NO_PROXY": "localhost,127.0.0.1,.intel.com"
+    },
+    "DRY_RUN": false,
+    "TEAM_TO_LABEL": {
+        "openvino-ci-maintainers": "category: CI",
+        "openvino-maintainers": "category: inference",
+        "openvino-docs-maintainers": "category: docs",
+        "openvino-ie-maintainers": "category: inference",
+        "openvino-ie-cpu-maintainers": "category: CPU",
+        "openvino-ie-gpu-maintainers": "category: GPU",
+        "openvino-ie-lpt-maintainers": "category: LP transformations",
+        "openvino-ie-transformations-maintainers": "category: transformations",
+        "openvino-ie-auto-multi-maintainers": "category: AUTO",
+        "openvino-auto-batch-maintainers": "category: AUTO BATCH",
+        "openvino-hetero-maintainers": "category: HETERO",
+        "openvino-ie-python-api-maintainers": "category: Python API",
+        "openvino-ie-template-maintainers": "category: TEMPLATE",
+        "openvino-ir-frontend-maintainers": "category: IR FE",
+        "openvino-ie-paddle-maintainers": "category: PDPD FE",
+        "openvino-tf-frontend-maintainers": "category: TF FE",
+        "openvino-onnx-frontend-maintainers": "category: ONNX FE",
+        "openvino-ie-tests-maintainers": "category: IE Tests",
+        "openvino-ovc-maintainers": "category: OVC",
+        "openvino-ngraph-maintainers": "category: Core",
+        "openvino-scripts-maintainers": "category: build",
+        "openvino-tests-maintainers": "category: IE Tests",
+        "openvino-tools-maintainers": "category: tools",
+        "openvino-configuration-mgmt": "category: dependency_changes",
+        "openvino-samples-maintainers": "category: samples",
+        "openvino-c-api-maintainers": "category: C API"
+    }
+}

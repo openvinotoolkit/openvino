@@ -1,0 +1,20 @@
+<CustomLayer name="MyTestLayer" type="SimpleGPU" version="1">
+    <Kernel entry="add_kernel">
+        <Source filename="utils.cl"/>
+        <Source filename="MyKernel.cl"/>
+        <Define name="THRESH" param="nms_thresh" type="float" default="0.1"/><!-- #define THRESH value_of("nms_thresh") -->
+        <Define name="NUM 3"/><!-- #define NUM 3 -->
+        <Define name="factor" type="int" default="2"/>
+        <Define name="bias" type="float" param="nms_thresh"/>
+        <Define name="myArray" type="int[]" default="2,3"/> <!-- #define myArray (int[]){2,3} -->
+        <!--  Define type=int/float/int[]/float[]  param=<name> ,default=<value>   -->
+    </Kernel>
+    <Buffers><!-- use the same order as the kernel entry function, so in this case (input0,input1,output0,int,float,weights) -->
+        <Data arg-index="3" name="weights"/><!-- no format used, always considered as a BFYX 1D buffer -->
+        <Tensor arg-index="1" type="input" port-index="1" format="BFYX"/>
+        <Tensor arg-index="0" type="input" port-index="0"/>
+        <Tensor arg-index="2" type="output" port-index="0" format="BFYX"/>
+    </Buffers>
+    <CompilerOptions options="-DUSE_SOMETHING -cl-mad-enable"/>
+    <WorkSizes global="B*F*Y*X,1,1"/>
+</CustomLayer>

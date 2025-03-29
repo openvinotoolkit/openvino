@@ -1,0 +1,53 @@
+ir_version: 4
+producer_name: "OpenVINO ONNX Frontend"
+producer_version: "1.2"
+graph {
+  node {
+    input: "X"
+    output: "Y"
+    op_type: "Abs"
+  }
+  name: "torch-jit-export"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "unused_bool"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 9
+}

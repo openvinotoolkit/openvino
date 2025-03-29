@@ -1,0 +1,254 @@
+Core:
+  revalidate: 'all'
+
+transformations:
+  revalidate: 'all'
+
+LP_transformations:
+  revalidate:
+    - CPU
+    - GPU
+    - PyTorch_FE
+    - TF_FE
+    - TFL_FE
+    - ONNX_FE
+    - PDPD_FE
+    - JAX_FE
+  build:
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
+
+preprocessing:
+  revalidate:
+    - inference
+    - C_API
+    - Python_API
+
+inference:
+  revalidate: 'all'
+
+CPU:
+  revalidate:
+    - C_API
+    - Python_API
+    - samples
+    - ONNX_RT
+    - PyTorch_FE
+    - TF_FE
+    - ONNX_FE
+    - JAX_FE
+  build:
+    - AUTO
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - IR_FE
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
+
+GPU:
+  build:
+    - AUTO
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - IR_FE
+    - PROXY
+
+NPU:
+  revalidate: []
+  build: []
+
+HETERO:
+  revalidate:
+    - Python_API
+  build:
+    - TEMPLATE
+    - IR_FE
+
+AUTO_BATCH:
+  revalidate:
+    - GPU
+    - C_API
+    - Python_API
+  build:
+    - TEMPLATE
+    - IR_FE
+
+TEMPLATE:
+  revalidate:
+    - CPU
+    - GPU
+    - HETERO
+    - AUTO_BATCH
+    - AUTO
+    - C_API
+    - Python_API
+    - NVIDIA
+  build:
+    - IR_FE
+
+AUTO:
+  revalidate:
+    - C_API
+    - Python_API
+  build:
+    - TEMPLATE
+    - IR_FE
+
+PROXY:
+  revalidate:
+    - inference
+    - GPU
+  build: []
+
+IR_FE:
+  revalidate:
+    - C_API
+    - Python_API
+    - samples
+  build:
+    - CPU
+
+ONNX_FE:
+  revalidate:
+    - OVC
+    - ONNX_RT
+  build:
+    - CPU
+    - Python_API
+
+PDPD_FE:
+  revalidate:
+    - OVC
+  build:
+    - CPU
+    - Python_API
+
+TF_FE:
+  revalidate:
+    - OVC
+  build:
+    - CPU
+    - Python_API
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
+
+TFL_FE:
+  revalidate:
+    - OVC
+  build:
+    - CPU
+    - Python_API
+
+PyTorch_FE:
+  revalidate:
+    - OVC
+  build:
+    - CPU
+    - Python_API
+    - TOKENIZERS # PyTorch_FE tests depend on tokenizers build
+
+JAX_FE:
+  revalidate:
+    - OVC
+  build:
+    - CPU
+    - Python_API
+
+C_API:
+  build:
+    - CPU
+    - GPU
+    - HETERO
+    - AUTO_BATCH
+    - AUTO
+    - IR_FE
+
+Python_API:
+  revalidate:
+    - samples
+    - OVC
+    - tools
+    - TF_FE
+    - docs_snippets
+  build:
+    - CPU
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - IR_FE
+    - ONNX_FE
+    - PDPD_FE
+    - TFL_FE
+    - PyTorch_FE
+    - JAX_FE
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
+
+JS_API:
+  build:
+    - CPU
+    - IR_FE
+
+samples:
+  build:
+    - CPU
+    - AUTO_BATCH
+    - AUTO
+    - IR_FE
+    - C_API
+    - Python_API
+
+IE_Tests:
+  revalidate:
+    - CPU
+    - GPU
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - NVIDIA
+  build:
+    - IR_FE
+
+OVC:
+  revalidate:
+    - PyTorch_FE
+    - TF_FE
+    - TFL_FE
+    - ONNX_FE
+    - PDPD_FE
+    - JAX_FE
+  build:
+    - Python_API
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
+
+tools:
+  build:
+    - CPU
+    - Python_API
+
+docs:
+  revalidate: []
+  build: []
+  
+docs_snippets:
+  revalidate:
+    - docs_snippets
+  build:
+    - Python_API
+
+licensing:
+  revalidate: []
+  build: []
+
+NVIDIA:
+  revalidate: []
+  build: []
+
+ONNX_RT:
+  revalidate: []
+  build: []
+
+TOKENIZERS:
+  revalidate:
+    - TF_FE
+  build: []

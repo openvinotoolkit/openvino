@@ -1,0 +1,54 @@
+<?xml version="1.0" ?>
+<net name="add_abc_initializers" version="10">
+	<layers>
+		<layer id="0" name="add_node1/Output_0/Data__const" type="Const" version="opset1">
+			<data element_type="u1" offset="0" shape="2,2" size="1"/>
+			<output>
+				<port id="0" precision="BIN">
+					<dim>2</dim>
+					<dim>2</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="C" type="Parameter" version="opset1">
+			<data element_type="u1" shape="2,2"/>
+			<output>
+				<port id="0" precision="BIN">
+					<dim>2</dim>
+					<dim>2</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Y" type="Add" version="opset1">
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>2</dim>
+				</port>
+				<port id="1">
+					<dim>2</dim>
+					<dim>2</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="BIN">
+					<dim>2</dim>
+					<dim>2</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="Y/sink_port_0" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>2</dim>
+					<dim>2</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+	</edges>
+</net>

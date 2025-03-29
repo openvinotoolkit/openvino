@@ -1,0 +1,236 @@
+.bd-toc {
+    display: none !important;
+}
+
+h1 {
+    font-size: 60px !important;
+}
+
+#ov-homepage-banner {
+    border-bottom: 0px;
+}
+
+.ov-homepage-label {
+    font-size: 14px;
+    font-weight: bold; 
+}
+
+.ov-homepage-slide-title {
+    color: white !important;
+    font-size: 27px !important;
+    font-weight: lighter !important;
+}
+
+.ov-homepage-slide-subtitle {
+    color: white !important;
+    font-size: 18px !important;
+    font-weight: lighter !important;
+}
+
+.splide__pagination {
+    bottom: .8em !important;
+}
+
+#ov-homepage-banner #splide01-slide01 {
+    background-image: linear-gradient(350deg, #004CA9 0%, #381965 50%, #070862 100%);
+    padding: 32px 48px !important;
+}
+
+#ov-homepage-banner #splide01-slide02 {
+    background-image: linear-gradient(270deg, #034CAA 00%, #4B9D77 50%, #034CAA 100%);
+    padding: 32px 48px !important;
+}
+
+#ov-homepage-banner #splide01-slide03 {
+    background-image: linear-gradient(230deg, #030B5E 0%, #285455 40%, #030B5E 100%);
+    padding: 32px 48px !important;
+}
+
+#ov-homepage-banner #splide01-slide04 {
+    background-image: linear-gradient(110deg, #214DA4 0%, #03aadd 100%);
+    padding: 32px 48px !important;
+}
+
+#ov-homepage-banner #splide01-slide05 {
+    background-image: linear-gradient(350deg, #034CAA 20%, #034CAA 30%, #4B9D77 100%);
+    padding: 32px 48px !important;
+}
+
+#ov-homepage-banner {
+    p {
+        margin: 0.4rem 0 1.2rem 0;
+    }
+}
+.splide__pagination>li {
+    padding-right: 6px;
+}
+.is-active{
+    color: white !important;
+}
+.homepage-begin-container {
+    padding: 0px;
+}
+
+#ov-homepage-banner p:first-of-type {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    box-sizing: border-box;
+    color: rgb(38, 38, 38);
+    display: block;
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 1em;
+    text-align: left;
+}
+
+#ov-homepage-banner .line-block {
+    line-height: 1.5;
+    text-align: left;
+    color: white;
+}
+
+.ov-homepage-banner-btn {
+    font-size: 12px !important;
+    font-weight: bold !important;
+    color: #ffffff !important;
+    border: 1px solid white;
+    padding: 10px 18px !important;
+}
+
+.ov-homepage-banner-btn:hover {
+    background-color: white !important;
+    color: var(--sd-color-primary) !important;
+}
+
+#ov-homepage-banner>p:nth-child(3) {
+    margin-bottom: 0;
+}
+
+#ov-homepage-banner a,
+#ov-homepage-banner a:visited {
+    text-decoration: none;
+    color: white;
+    transition: .7s;
+    font-weight: 600;
+}
+
+#ov-homepage-banner a:hover {
+    color: white;
+}
+
+#homepage_key_container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    padding: 0px !important;
+}
+
+.homepage-begin-tile {
+    .sd-card-img-top {
+        width: 80px !important;
+        padding: 10px;
+    }
+}
+
+.homepage-begin-key {
+    .sd-card-img-top {
+        padding: 0 0 5px !important; 
+    }
+}
+
+.homepage-begin-tile:hover{
+    box-shadow: none !important;
+}
+
+.sd-card-img-top {
+    border-radius: 0;
+}
+
+.sd-card-text {
+    font-size: 0.9rem !important;
+}
+
+.homepage-begin-key {
+    height: 450px;
+    border: 0 !important;
+    .sd-card-body {
+    padding: 0%
+    }
+    .sd-card-img-top {
+        padding: 0px;
+        padding-bottom: 15px;
+    }
+}
+
+p.sd-card-text > .sd-btn-outline-primary {
+    position: absolute;
+    bottom: 20px;
+}
+
+.sd-btn-outline-primary {
+    color: #0054AE !important;
+    text-decoration: none !important;
+    background-color: #FFF !important;
+    border-radius: 0;
+}
+
+p.sd-text-right:has(a.key-feat-btn) {
+    position:relative;
+    top:-50px;
+}
+
+.homepage-begin-tile {
+    border-radius: 0;
+    margin-bottom: 5px;
+    position: relative;
+    border-width: 0.2cqb;
+}
+
+.homepage-begin-tile:hover {
+    border-color: #0054AE;
+}
+
+.homepage_begin_tile{
+    box-shadow: none !important;
+}
+.sd-btn-outline-primary:hover {
+    border-color: #0054AE !important;
+    background-color: #0054AE !important;
+}
+
+.sd-btn-outline-primary:hover a {
+    color: #fff !important;
+    background-color: #0054AE !important;
+}
+
+.ov-homepage-higlight-grid {
+    padding: 0;
+}
+
+.ov-homepage-higlight-grid>div {
+    row-gap: 16px;
+}
+
+.ov-homepage-feature-grid .sd-card {
+    background-color: var(--pst-color-panel-background);
+}
+.ov-homepage-feature-grid .sd-col {
+    max-width: 48%;
+}
+
+.ov-homepage-higlight-grid .sd-card-text {
+    font-size: 0.8rem;
+    height: 60px;
+}
+
+@media screen and (max-width: 535px) {
+    .ov-homepage-feature-grid .sd-row {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .ov-homepage-feature-grid .sd-col {
+        max-width: 100%;
+    }
+}

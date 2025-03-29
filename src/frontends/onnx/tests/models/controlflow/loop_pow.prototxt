@@ -1,0 +1,175 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "power calculation"
+  node {
+    input: "trip_count"
+    input: "cond"
+    input: "pow_init"
+    output: "pow_final"
+    output: "pow_scans"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      g {
+        name: "pow calculation subgraph"
+        node {
+          input: "i"
+          input: "i"
+          output: "pow"
+          name: "power calc"
+          op_type: "Mul"
+        }
+        node {
+          input: "cond_in"
+          output: "cond_out"
+          name: "cond_identity"
+          op_type: "Identity"
+        }
+        node {
+          input: "pow"
+          output: "pow_scan"
+          name: "output_accumulator"
+          op_type: "Identity"
+        }
+        input {
+          name: "i"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+              dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "cond_in"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              dim {
+                dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "pow_in"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              dim {
+                dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "pow"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+              dim {
+                dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "pow_scan"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+              dim {
+                dim_value: 1
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  initializer {
+    dims: 1
+    data_type: 9
+    int32_data: 00000001
+    name: "cond"
+  }
+  input {
+    name: "trip_count"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "pow_init"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "pow_final"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        dim {
+          dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "pow_scans"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

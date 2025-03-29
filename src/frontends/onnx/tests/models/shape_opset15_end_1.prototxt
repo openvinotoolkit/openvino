@@ -1,0 +1,50 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test_shape15"
+  node {
+    input: "tensor"
+    output: "shape_output"
+    op_type: "Shape"
+    attribute {
+      name: "end"
+      type: INT
+      i: 1
+    }
+  }
+  input {
+    name: "tensor"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "shape_output"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 15
+}

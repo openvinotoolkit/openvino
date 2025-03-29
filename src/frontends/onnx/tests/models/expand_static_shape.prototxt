@@ -1,0 +1,55 @@
+ir_version: 4
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "data"
+    input: "const_shape"
+    output: "expanded"
+    name: "expand_1"
+    op_type: "Expand"
+  }
+  name: "expand test"
+  initializer {
+    dims: 3
+    data_type: 7
+    int64_data: 2
+    int64_data: 1
+    int64_data: 6
+    name: "const_shape"
+  }
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "expanded"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 1
+}

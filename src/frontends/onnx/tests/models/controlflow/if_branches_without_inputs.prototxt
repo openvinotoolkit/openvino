@@ -1,0 +1,135 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "if graph"
+  node {
+    input: "condition"
+    output: "if"
+    name: "if"
+    op_type: "If"
+    attribute {
+      name: "then_branch"
+      type: GRAPH
+      g {
+        name: "then_branch"
+        node {
+          output: "const1"
+          name: "const1"
+          op_type: "Constant"
+          attribute {
+            name: "value"
+            type: TENSOR
+            t {
+              dims: 2
+              dims: 4
+              data_type: 1
+              float_data: 0
+              float_data: 1
+              float_data: 2
+              float_data: 3
+              float_data: 4
+              float_data: 5
+              float_data: 6
+              float_data: 7
+              name: "const_tensor"
+            }
+          }
+        }
+        output {
+          name: "const1"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    attribute {
+      name: "else_branch"
+      g {
+        node {
+          output: "const2"
+          name: "const2"
+          op_type: "Constant"
+          attribute {
+            name: "value"
+            t {
+              dims: 2
+              dims: 4
+              data_type: 1
+              float_data: 0
+              float_data: 5
+              float_data: 10
+              float_data: 15
+              float_data: 20
+              float_data: 25
+              float_data: 20
+              float_data: 15
+              name: "const_tensor"
+            }
+            type: TENSOR
+          }
+        }
+        name: "else_branch"
+        output {
+          name: "const2"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  input {
+    name: "condition"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "if"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}

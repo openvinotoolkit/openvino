@@ -1,0 +1,111 @@
+name: "Smart CI action"
+description: "Returns product components affected by PR or commit"
+inputs:
+  repository:
+    description: "GitHub repository"
+    required: true
+  repo_token:
+    description: "Token for access to GitHub repository"
+    required: true
+  pr:
+    description: "GitHub PR number. If not set - commit is used"
+    required: false
+  commit_sha:
+    description: "GitHub commit hash. Used if no PR number is set"
+    required: false
+  ref_name:
+    description: "GitHub ref name"
+    required: false
+  component_pattern:
+    description: "Pattern to extract component name from PR label. If not set, any label is considered a component name"
+    required: false
+  labeler_check_name:
+    description: "Name of the labeler check"
+    required: false
+    default: "triage"
+  components_config:
+    description: "Path to components configuration file"
+    required: false
+    default: ".github/components.yml"
+  components_config_schema:
+    description: "Path to the schema file for components configuration"
+    required: false
+  labeler_config:
+    description: "Path to labeler configuration file"
+    required: false
+    default: ".github/labeler.yml"
+  skip_when_only_listed_labels_set:
+    description: "Comma-separated list of labels. If PR has only these labels set, 
+                  return indicator that CI can be skipped"
+    required: false
+  skip_when_only_listed_files_changed:
+    description: "Comma-separated list of patterns (fnmatch-style). If PR has only matching files changed, 
+                  return indicator that CI can be skipped"
+    required: false
+  enable_for_org:
+    description: "Enables running workflows for a given organization; triggers from other orgs are skipped"
+    required: false
+    default: "openvinotoolkit"
+
+outputs:
+  all_components:
+    description: "All components listed in configuration"
+    value: ${{ steps.smart_ci.outputs.all_components }}
+  affected_components:
+    description: "Affected components to run validation for and their validation scope"
+    value: ${{ steps.smart_ci.outputs.affected_components }}
+  changed_components:
+    description: "Actually changed components (for push events everything is marked as changed)"
+    value: ${{ steps.smart_ci.outputs.changed_components }}
+  skip_workflow:
+    description: "Whether the workflow should be run with Smart CI rules applied or skipped completely"
+    value: ${{ steps.smart_ci.outputs.skip_workflow }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Wait for labeler to finish
+      uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc # v1.3.4
+      if: ${{ github.event_name == 'pull_request' }}
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        check-name: ${{ inputs.labeler_check_name }}
+        repo-token: ${{ inputs.repo_token }}
+        wait-interval: 10
+
+    - name: checkout components file
+      uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      with:
+        sparse-checkout: .github/components.yml
+        sparse-checkout-cone-mode: false
+
+    - name: Install Python dependencies
+      uses: py-actions/py-dependency-install@30aa0023464ed4b5b116bd9fbdab87acf01a484e # v4.1.0
+      with:
+        path: "${{ github.action_path }}/requirements.txt"
+        update-setuptools: "false"
+        update-wheel: "false"
+
+    - name: Test functionality
+      run: |
+        python ${{ github.action_path }}/smart_ci_test.py
+      shell: bash
+
+    - name: Smart CI
+      id: smart_ci
+      run: |
+          python ${{ github.action_path }}/smart_ci.py \
+          $([[ -n "${{ inputs.pr }}" ]] && echo '--pr ${{ inputs.pr }}' || echo '-s ${{ inputs.commit_sha }}') \
+          -r ${{ inputs.repository }} \
+          -f "${{ inputs.ref_name }}" \
+          -p "${{ inputs.component_pattern }}" \
+          -c "${{ inputs.components_config }}" \
+          -m "${{ inputs.components_config_schema || env.DEFAULT_CONFIG_SCHEMA }}" \
+          -l "${{ inputs.labeler_config }}" \
+          --enable_for_org "${{ inputs.enable_for_org }}" \
+          --skip-when-only-listed-labels-set "${{ inputs.skip_when_only_listed_labels_set }}" \
+          --skip-when-only-listed-files-changed "${{ inputs.skip_when_only_listed_files_changed }}"
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.repo_token }}
+        DEFAULT_CONFIG_SCHEMA: "${{ github.action_path }}/components_schema.yml"

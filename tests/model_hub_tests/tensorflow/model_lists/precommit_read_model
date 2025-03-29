@@ -1,0 +1,11 @@
+# model with HashTable and string tensors on inputs
+mil-nce/s3d,https://www.kaggle.com/models/deepmind/mil-nce/frameworks/tensorFlow1/variations/s3d/versions/1
+# models from precommit_convert_model
+yamnet,https://www.kaggle.com/models/google/yamnet/frameworks/tensorFlow2/variations/yamnet/versions/1
+universal-sentence-encoder-multilingual,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual/versions/2
+movenet/singlepose/lightning,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-lightning/versions/4
+imagenet/resnet_v2_50/feature_vector,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/50-feature-vector/versions/2
+# LookupTableImportV2 is terminating node and is needed for conversion
+openimages_v4/ssd/mobilenet_v2,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow1/variations/openimages-v4-ssd-mobilenet-v2/versions/1
+# models with TensorListConcatV2 op and element_shape containing multiple undefined dimensions
+efficientdet/lite0/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite0-detection/versions/1

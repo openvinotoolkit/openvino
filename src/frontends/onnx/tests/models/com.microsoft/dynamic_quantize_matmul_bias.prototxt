@@ -1,0 +1,105 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "A"
+    input: "B"
+    input: "b_scale"
+    input: "b_zero_point"
+    input: "bias"
+    output: "Y"
+    op_type: "DynamicQuantizeMatMul"
+    domain: "com.microsoft"
+  }
+  name: "test_dqmm_example"
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "b_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        dim {
+          dim_value: 3
+        }
+        }
+      }
+    }
+  }
+  input {
+    name: "b_zero_point"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+        dim {
+          dim_value: 3
+        }
+        }
+      }
+    }
+  }
+  input {
+    name: "bias"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        dim {
+          dim_value: 3
+        }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 1
+}

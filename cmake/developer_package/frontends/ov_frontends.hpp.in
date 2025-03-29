@@ -1,0 +1,27 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "openvino/frontend/frontend.hpp"
+
+@OV_FRONTEND_DECLARATIONS@
+
+namespace {
+
+using get_front_end_data_func = void*();
+using get_api_version_func = ov::frontend::FrontEndVersion();
+
+struct Value {
+    get_front_end_data_func* m_dataFunc;
+    get_api_version_func* m_versionFunc;
+};
+
+using FrontendsStaticRegistry = std::vector<Value>;
+
+const FrontendsStaticRegistry getStaticFrontendsRegistry() {
+@OV_FRONTEND_MAP_DEFINITION@
+}
+
+} // namespace

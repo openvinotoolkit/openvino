@@ -1,0 +1,55 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test_graph"
+  node {
+    input: "A"
+    input: "B"
+    output: "Y"
+    name: "node"
+    op_type: "And"
+  }
+  initializer {
+    data_type: 9
+    name: "A"
+    int32_data: 1
+  }
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+        }
+      }
+    }
+  }
+  initializer {
+    data_type: 9
+    name: "B"
+    raw_data: "\001"
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 4
+}

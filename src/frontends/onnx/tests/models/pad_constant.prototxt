@@ -1,0 +1,60 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "x"
+    input: "pads"
+    output: "y"
+    op_type: "Pad"
+    attribute {
+      name: "mode"
+      s: "constant"
+      type: STRING
+    }
+  }
+  name: "test_constant_pad"
+    initializer {
+    dims: 4
+    data_type: 7
+    int64_data: 0
+    int64_data: 2
+    int64_data: 0
+    int64_data: 0
+    name: "pads"
+  }
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

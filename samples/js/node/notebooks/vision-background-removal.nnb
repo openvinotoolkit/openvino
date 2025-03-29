@@ -1,0 +1,88 @@
+{
+    "cells": [
+        {
+            "language": "markdown",
+            "source": [
+                "# Image Background Removal with U^2-Net and OpenVINO™\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const { addon: ov } = require('openvino-node');\nconst { display } = require('node-kernel');\n\nconst { transform } = require('../helpers');\nconst Image = require('../image');\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Load and Compile Unet Model"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const modelXMLPath = '../../assets/models/unet_ir_model.xml';\n\nconst core = new ov.Core();\n\n// Read and compile model\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'AUTO');\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output(0);\n\nconsole.log(`inputLayer: ${inputLayer}`);\nconsole.log(`outputLayer: ${outputLayer}`);\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Utility Functions"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// Details about this normalization:\n// https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/vision-background-removal/vision-background-removal.ipynb#Load-and-Pre-Process-Input-Image\nfunction normalizeImage(imageData, width, height) {\n  // Mean and scale values\n  const inputMean = [123.675, 116.28, 103.53];\n  const inputScale = [58.395, 57.12, 57.375];\n\n  const normalizedData = new Float32Array(imageData.length);\n  const channels = 3;\n\n  for (let i = 0; i < height; i++) {\n    for (let j = 0; j < width; j++) {\n      for (let c = 0; c < channels; c++) {\n        const index = i * width * channels + j * channels + c;\n\n        normalizedData[index] =\n          (imageData[index] - inputMean[c]) / inputScale[c];\n      }\n    }\n  }\n\n  return normalizedData;\n}"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Prepare Input Image for Inference"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const foregroundImagePath = '../../assets/images/coco_hollywood.jpg';\n\n// Load foreground image\nconst originalImg = await Image.load(foregroundImagePath);\n\n// Resize image to a shape expected by the network\nconst [modelInputHeight, modelInputWidth] = inputLayer.shape.slice(2);\nconst resized = await originalImg.resize(modelInputWidth, modelInputHeight);\n\n// Create a tensor from the normalized input image\nconst transformed = transform(\n  resized.rgb,\n  {\n    width: modelInputWidth,\n    height: modelInputHeight\n  },\n  [0, 1, 2]\n);\nconst normalizedInputImage = normalizeImage(\n  transformed,\n  modelInputWidth,\n  modelInputHeight,\n);\nconst tensor = new ov.Tensor(ov.element.f32, inputLayer.shape, normalizedInputImage);\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Do Inference"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const inferRequest = compiledModel.createInferRequest();\n  const inferResult = await inferRequest.inferAsync([tensor]);\n  const { data: resultData } = inferResult[outputLayer];\n\n  // Normalize the result data from grayscale to RGB\n  const rgbData = [];\n  for (let i = 0; i < resultData.length; i += 1) {\n    const value = resultData[i] * 255;\n\n    rgbData.push(value, value, value, 255);\n  }\n\n  // Create image based on result data\n  const [outputHeight, outputWidth] = outputLayer.shape.slice(2);\n  const maskImg = await Image.fromArray(rgbData, outputWidth, outputHeight);\n\n  // Resize the result mask to the original image size and save it\n  const { width, height } = originalImg;\n  const resizedMaskImg = await maskImg.resize(originalImg.width, originalImg.height);\n  resizedMaskImg.display(display);\n\n  // Remove the foreground from the original image\n  const removedBgImg = Image.mask(originalImg, resizedMaskImg);\n  removedBgImg.display(display);\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Get the Background Image and Combine it with Foreground Image"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const backgroundImagePath = '../../assets/images/wall.jpg';\n\n// Load the background image\nconst bgrImage = await Image.load(backgroundImagePath);\n\n// Resize the background image to the same size as the original image\nconst resizedBgrImage = bgrImage.resize(width, height);\n\n// Remove object from the background image\nconst removedFgImg = Image.mask(resizedBgrImage, resizedMaskImg.invert());\nremovedFgImg.display(display);\n\n// Combine the background and foreground images\nconst resultImg = Image.merge(removedBgImg, removedFgImg);\nresultImg.display(display);\n"
+            ],
+            "outputs": []
+        }
+    ]
+}

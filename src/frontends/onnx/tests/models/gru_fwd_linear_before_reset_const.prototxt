@@ -1,0 +1,267 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    output: "W"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        dims: 15
+        dims: 2
+        data_type: 1
+        float_data: 0.31403765082359314
+        float_data: -0.16793324053287506
+        float_data: 1.3882579803466797
+        float_data: -0.690295398235321
+        float_data: -0.39940449595451355
+        float_data: -0.7833511233329773
+        float_data: -0.30992957949638367
+        float_data: 0.35575729608535767
+        float_data: -0.46826308965682983
+        float_data: 1.1741459369659424
+        float_data: -2.4147889614105225
+        float_data: -0.42783254384994507
+        float_data: -0.821994960308075
+        float_data: -0.03900860995054245
+        float_data: -0.43670088052749634
+        float_data: -0.5381056666374207
+        float_data: -0.10769882798194885
+        float_data: 0.7524239420890808
+        float_data: -0.2507970929145813
+        float_data: 1.044718623161316
+        float_data: -1.4777363538742065
+        float_data: 0.1999327391386032
+        float_data: 0.9256489872932434
+        float_data: -2.2825160026550293
+        float_data: 0.9503963589668274
+        float_data: 1.5379830598831177
+        float_data: -0.8857600688934326
+        float_data: 0.2856624722480774
+        float_data: 0.7929264307022095
+        float_data: -0.042619530111551285
+        name: "const_tensor_W"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "R"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        dims: 15
+        dims: 5
+        data_type: 1
+        float_data: 0.8490582704544067
+        float_data: 0.45121243596076965
+        float_data: -1.179901361465454
+        float_data: 0.13536448776721954
+        float_data: 0.813286542892456
+        float_data: 0.6017516255378723
+        float_data: 0.4847572445869446
+        float_data: -1.2136037349700928
+        float_data: 0.16383321583271027
+        float_data: 1.5106260776519775
+        float_data: 1.1177502870559692
+        float_data: 0.2358246147632599
+        float_data: 0.575465202331543
+        float_data: 0.4387988746166229
+        float_data: 0.7399293780326843
+        float_data: 0.4517557919025421
+        float_data: 1.3536783456802368
+        float_data: -0.4843165874481201
+        float_data: -1.1503735780715942
+        float_data: -0.2458678036928177
+        float_data: 0.5452331304550171
+        float_data: -0.08649992942810059
+        float_data: -0.6936280727386475
+        float_data: 1.0024219751358032
+        float_data: -1.770846962928772
+        float_data: -0.9464200139045715
+        float_data: -1.8135757446289062
+        float_data: 1.8819851875305176
+        float_data: -0.10852333158254623
+        float_data: -0.2612033188343048
+        float_data: 1.0223164558410645
+        float_data: -0.7468836903572083
+        float_data: 0.2856690585613251
+        float_data: 0.9232105612754822
+        float_data: 0.22521863877773285
+        float_data: 1.112382411956787
+        float_data: -0.9298287034034729
+        float_data: 1.214128851890564
+        float_data: 1.3470555543899536
+        float_data: -0.329720139503479
+        float_data: -1.6552196741104126
+        float_data: -1.0998284816741943
+        float_data: 0.7190186381340027
+        float_data: 0.9628459811210632
+        float_data: -0.1366851031780243
+        float_data: -2.6534476280212402
+        float_data: -1.499277114868164
+        float_data: -0.4579346477985382
+        float_data: 0.42904770374298096
+        float_data: 0.9893150925636292
+        float_data: 0.25110340118408203
+        float_data: 0.1290646195411682
+        float_data: 0.7491511702537537
+        float_data: 0.33167558908462524
+        float_data: 1.0576645135879517
+        float_data: -0.0461866594851017
+        float_data: 1.3556088209152222
+        float_data: 1.2842373847961426
+        float_data: 0.710301399230957
+        float_data: 0.5288901329040527
+        float_data: 0.303271621465683
+        float_data: 1.5069055557250977
+        float_data: 0.16591893136501312
+        float_data: 1.571985125541687
+        float_data: -2.0994269847869873
+        float_data: -1.0102770328521729
+        float_data: -0.5280092358589172
+        float_data: -0.22292351722717285
+        float_data: -0.5517747402191162
+        float_data: 1.3432893753051758
+        float_data: 0.8731191754341125
+        float_data: -0.010553070344030857
+        float_data: -0.0113821504637599
+        float_data: 0.8569884300231934
+        float_data: -1.2615703344345093
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "B"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        dims: 30
+        data_type: 1
+        float_data: 0.53367018699646
+        float_data: 1.6593654155731201
+        float_data: -1.1500109434127808
+        float_data: 0.0034221699461340904
+        float_data: 0.7993710041046143
+        float_data: 0.43780383467674255
+        float_data: -0.5508262515068054
+        float_data: 1.0774186849594116
+        float_data: -0.606513500213623
+        float_data: 0.6434063911437988
+        float_data: -1.5693753957748413
+        float_data: 1.4923384189605713
+        float_data: 1.1554348468780518
+        float_data: -1.328158974647522
+        float_data: 0.24995532631874084
+        float_data: 0.15112681686878204
+        float_data: -0.3469875752925873
+        float_data: -0.100888192653656
+        float_data: -0.2931624948978424
+        float_data: -0.4731961488723755
+        float_data: 0.6616785526275635
+        float_data: -1.1646721363067627
+        float_data: -0.09588219225406647
+        float_data: 0.5212928056716919
+        float_data: 0.37182366847991943
+        float_data: 0.27342286705970764
+        float_data: 1.1613404750823975
+        float_data: -0.7519622445106506
+        float_data: -1.514364242553711
+        float_data: 0.2060445249080658
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "X"
+    input: "W"
+    input: "R"
+    input: "B"
+    output: "Y"
+    output: "Y_h"
+    op_type: "GRU"
+    attribute {
+      name: "hidden_size"
+      i: 5
+      type: INT
+    }
+    attribute {
+      name: "linear_before_reset"
+      i: 1
+      type: INT
+    }
+  }
+  name: "test-model-gru"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_h"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 12
+}

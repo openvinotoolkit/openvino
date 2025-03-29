@@ -1,0 +1,87 @@
+ir_version: 10
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test_slice"
+  node {
+    input: "A"
+    input: "B"
+    output: "div_out"
+    op_type: "Div"
+  }
+  node {
+    input: "div_out"
+    input: "starts"
+    input: "ends"
+    input: "axes"
+    input: "steps"
+    output: "sliced"
+    name: "Slice"
+    op_type: "Slice"
+  }
+  initializer {
+    data_type: 7
+    dims: 1
+    int64_data: -1
+    name: "starts"
+  }
+  initializer {
+    data_type: 7
+    dims: 1
+    int64_data: -9223372036854775807
+    name: "ends"
+  }
+  initializer {
+    data_type: 7
+    dims: 1
+    int64_data: 1
+    name: "axes"
+  }
+  initializer {
+    data_type: 7
+    dims: 1
+    int64_data: -1
+    name: "steps"
+  }
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value:3
+          }
+          dim {
+            dim_value:2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value:2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "sliced"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 10
+}

@@ -1,0 +1,39 @@
+ir_version: 8
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    output: "Y"
+    op_type: "Celu"
+  }
+  name: "graph"
+  initializer {
+    dims: 2
+    dims: 2
+    data_type: 1
+    float_data: 0.5
+    float_data: 1.0
+    float_data: 1.5
+    float_data: 2.0
+    name: "X"
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 17
+}

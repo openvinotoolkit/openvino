@@ -1,0 +1,149 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+producer_version: ""
+model_version: 0
+graph {
+  name: "test_matmul_integer_to_float"
+
+  # Node definition for MatMulNBits operation
+  node {
+    input: "a"
+    input: "b"
+    input: "a_scale"
+    input: "b_scale"
+    input: "a_zero_point"
+    input: "b_zero_point"
+    input: "bias"
+    output: "c"
+    op_type: "MatMulIntegerToFloat"
+    domain: "com.microsoft"
+  }
+  input {
+    name: "a"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "b"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "a_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "b_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+
+  # Zero point for A (1D tensor)
+  input {
+    name: "a_zero_point"
+    type {
+      tensor_type {
+        elem_type: 3  # Tensor type for T1 (int8 or uint8)
+        shape {
+          dim {
+            dim_value: 3  # Per-column zero point for A (1D tensor)
+          }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "b_zero_point"
+    type {
+      tensor_type {
+        elem_type: 3  # Tensor type for T2 (int8 or uint8)
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "bias"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+
+  output {
+    name: "c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2 
+          }
+        }
+      }
+    }
+  }
+}
+
+opset_import {
+  version: 7
+}
+
+opset_import {
+  version: 1
+}

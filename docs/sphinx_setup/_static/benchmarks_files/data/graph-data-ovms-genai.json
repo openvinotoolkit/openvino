@@ -1,0 +1,290 @@
+[
+    {
+        "Platform": "Intel® Xeon® Platinum 8380",
+        "Model": "meta-llama/Llama-2-7b-chat-hf",
+        "featured_SKU": "false",
+        "whats_new_model": false,
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 94.1,
+                            "0.4": 187.74,
+                            "0.6": 272.52,
+                            "0.8": 293.4,
+                            "2.0": 295.76
+                        },
+                        "Latency": {
+                            "0.2": 176.7,
+                            "0.4": 118.58,
+                            "0.6": 432.65,
+                            "0.8": 740.36,
+                            "2.0": 762.86
+                        }
+                    }
+                ]
+            },
+            "Vllm": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.4": 187.8,
+                            "0.6": 271.96,
+                            "0.8": 288.48,
+                            "inf": 289.27
+                        },
+                        "Latency": {
+                            "0.4": 132.19,
+                            "0.6": 489.94,
+                            "0.8": 782.4,
+                            "inf": 806.93
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® Platinum 8480+",
+        "Model": "meta-llama/Llama-2-7b-chat-hf",
+        "featured_SKU": "false",
+        "whats_new_model": false,
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.8": 365.72,
+                            "1.0": 450.76,
+                            "2.0": 789.09,
+                            "inf": 838.44
+                        },
+                        "Latency": {
+                            "0.8": 98.08,
+                            "1.0": 125.44,
+                            "2.0": 238.21,
+                            "inf": 252.41
+                        }
+                    }
+                ]
+            },
+            "Vllm": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 94.84,
+                            "0.4": 188.81,
+                            "0.6": 279.7,
+                            "0.8": 367.37,
+                            "1.0": 452.54,
+                            "2.0": 776.32,
+                            "inf": 799.64
+                        },
+                        "Latency": {
+                            "0.2": 64.3,
+                            "0.4": 76.82,
+                            "0.6": 86.42,
+                            "0.8": 104.28,
+                            "1.0": 131.91,
+                            "2.0": 258.35,
+                            "inf": 268.59
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® Platinum 8580",
+        "Model": "meta-llama/Llama-2-7b-chat-hf",
+        "featured_SKU": "false",
+        "whats_new_model": false,
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 95.21,
+                            "0.4": 188.67,
+                            "0.6": 280.2,
+                            "0.8": 367.31,
+                            "1.0": 452.32,
+                            "2.0": 779.35,
+                            "inf": 803.72
+                        },
+                        "Latency": {
+                            "0.2": 51.36,
+                            "0.4": 70.72,
+                            "0.6": 85.08,
+                            "0.8": 106.68,
+                            "1.0": 137.73,
+                            "2.0": 255.67,
+                            "inf": 267.35
+                        }
+                    }
+                ]
+            },
+            "Vllm": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 94.89,
+                            "0.4": 188.19,
+                            "0.6": 279.74,
+                            "0.8": 367.71,
+                            "1.0": 451.08,
+                            "2.0": 777.0,
+                            "inf": 788.01
+                        },
+                        "Latency": {
+                            "0.2": 58.33,
+                            "0.4": 77.26,
+                            "0.6": 89.43,
+                            "0.8": 114.8,
+                            "1.0": 142.9,
+                            "2.0": 263.78,
+                            "inf": 273.84
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® Platinum 8380",
+        "Model": "mistralai/Mistral-7B-v0.1",
+        "featured_SKU": "false",
+        "whats_new_model": false,
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 89.93,
+                            "0.4": 180.57,
+                            "0.6": 262.51,
+                            "0.8": 291.1,
+                            "2.0": 292.37
+                        },
+                        "Latency": {
+                            "0.2": 167.68,
+                            "0.4": 109.87,
+                            "0.6": 291.3,
+                            "0.8": 744.04,
+                            "2.0": 769.97
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® Platinum 8480+",
+        "Model": "mistralai/Mistral-7B-v0.1",
+        "featured_SKU": "false",
+        "whats_new_model": false,
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.8": 351.26,
+                            "1.0": 430.53,
+                            "2.0": 760.33,
+                            "inf": 936.48
+                        },
+                        "Latency": {
+                            "0.8": 81.83,
+                            "1.0": 97.34,
+                            "2.0": 187.8,
+                            "inf": 223.4
+                        }
+                    }
+                ]
+            },
+            "Vllm": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 98.21,
+                            "0.4": 194.6,
+                            "0.6": 287.38,
+                            "0.8": 376.37,
+                            "1.0": 462.08,
+                            "2.0": 773.12,
+                            "inf": 753.43
+                        },
+                        "Latency": {
+                            "0.2": 64.49,
+                            "0.4": 74.28,
+                            "0.6": 84.47,
+                            "0.8": 100.89,
+                            "1.0": 125.37,
+                            "2.0": 236.31,
+                            "inf": 262.84
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Xeon® Platinum 8580",
+        "Model": "mistralai/Mistral-7B-v0.1",
+        "featured_SKU": "false",
+        "whats_new_model": false,
+        "PlatformType": "",
+        "Parameters": {
+            "Ovms": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.2": 91.31,
+                            "0.4": 180.06,
+                            "0.6": 267.92,
+                            "0.8": 351.07,
+                            "1.0": 432.01,
+                            "2.0": 748.68,
+                            "inf": 819.18
+                        },
+                        "Latency": {
+                            "0.2": 53.68,
+                            "0.4": 67.74,
+                            "0.6": 79.37,
+                            "0.8": 93.2,
+                            "1.0": 112.89,
+                            "2.0": 219.32,
+                            "inf": 246.03
+                        }
+                    }
+                ]
+            },
+            "Vllm": {
+                "Precisions": [
+                    {
+                        "Throughput": {
+                            "0.4": 194.46,
+                            "0.8": 375.65,
+                            "1.0": 459.88,
+                            "2.0": 763.63,
+                            "inf": 785.84
+                        },
+                        "Latency": {
+                            "0.4": 77.79,
+                            "0.8": 114.66,
+                            "1.0": 140.99,
+                            "2.0": 252.09,
+                            "inf": 255.55
+                        }
+                    }
+                ]
+            }
+        }
+    }
+]

@@ -1,0 +1,95 @@
+[submodule "src/plugins/intel_cpu/thirdparty/onednn"]
+	path = src/plugins/intel_cpu/thirdparty/onednn
+	url = https://github.com/openvinotoolkit/oneDNN.git
+	ignore = dirty
+[submodule "thirdparty/xbyak"]
+	path = thirdparty/xbyak
+	url = https://github.com/herumi/xbyak.git
+	ignore = dirty
+[submodule "thirdparty/zlib/zlib"]
+	path = thirdparty/zlib/zlib
+	url = https://github.com/madler/zlib.git
+	ignore = dirty
+[submodule "thirdparty/pugixml"]
+	path = thirdparty/pugixml
+	url = https://github.com/zeux/pugixml.git
+	ignore = dirty
+[submodule "thirdparty/gflags/gflags"]
+	path = thirdparty/gflags/gflags
+	url = https://github.com/gflags/gflags.git
+	ignore = dirty
+[submodule "thirdparty/gtest/gtest"]
+	path = thirdparty/gtest/gtest
+	url = https://github.com/openvinotoolkit/googletest.git
+	ignore = dirty
+[submodule "thirdparty/ocl/icd_loader"]
+	path = thirdparty/ocl/icd_loader
+	url = https://github.com/KhronosGroup/OpenCL-ICD-Loader.git
+	ignore = dirty
+[submodule "thirdparty/ocl/cl_headers"]
+	path = thirdparty/ocl/cl_headers
+	url = https://github.com/KhronosGroup/OpenCL-Headers.git
+	ignore = dirty
+[submodule "thirdparty/ocl/clhpp_headers"]
+	path = thirdparty/ocl/clhpp_headers
+	url = https://github.com/KhronosGroup/OpenCL-CLHPP.git
+	ignore = dirty
+[submodule "thirdparty/onnx"]
+	path = thirdparty/onnx/onnx
+	url = https://github.com/onnx/onnx.git
+[submodule "thirdparty/protobuf"]
+	path = thirdparty/protobuf/protobuf
+	url = https://github.com/protocolbuffers/protobuf.git
+[submodule "src/bindings/python/thirdparty/pybind11"]
+	path = src/bindings/python/thirdparty/pybind11
+	url = https://github.com/pybind/pybind11.git
+[submodule "thirdparty/ittapi/ittapi"]
+	path = thirdparty/ittapi/ittapi
+	url = https://github.com/intel/ittapi.git
+[submodule "ncc"]
+	path = cmake/developer_package/ncc_naming_style/ncc
+	url = https://github.com/nithinn/ncc.git
+[submodule "thirdparty/onednn_gpu"]
+	path = src/plugins/intel_gpu/thirdparty/onednn_gpu
+	url = https://github.com/oneapi-src/oneDNN.git
+[submodule "thirdparty/json/nlohmann_json"]
+	path = thirdparty/json/nlohmann_json
+	url = https://github.com/nlohmann/json.git
+	shallow = true
+[submodule "thirdparty/flatbuffers/flatbuffers"]
+	path = thirdparty/flatbuffers/flatbuffers
+	url = https://github.com/google/flatbuffers.git
+[submodule "thirdparty/snappy"]
+	path = thirdparty/snappy
+	url = https://github.com/google/snappy.git
+[submodule "ARMComputeLibrary"]
+	path = src/plugins/intel_cpu/thirdparty/ComputeLibrary
+	url = https://github.com/ARM-software/ComputeLibrary.git
+	ignore = dirty
+[submodule "src/plugins/intel_cpu/thirdparty/mlas"]
+	path = src/plugins/intel_cpu/thirdparty/mlas
+	url = https://github.com/openvinotoolkit/mlas.git
+[submodule "thirdparty/level_zero/level-zero"]
+	path = thirdparty/level_zero/level-zero
+	url = https://github.com/oneapi-src/level-zero.git
+[submodule "src/plugins/intel_npu/thirdparty/level-zero-ext"]
+	path = src/plugins/intel_npu/thirdparty/level-zero-ext
+	url = https://github.com/intel/level-zero-npu-extensions.git
+[submodule "src/plugins/intel_npu/thirdparty/yaml-cpp"]
+	path = src/plugins/intel_npu/thirdparty/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp.git
+[submodule "thirdparty/telemetry"]
+	path = thirdparty/telemetry
+	url = https://github.com/openvinotoolkit/telemetry.git
+[submodule "src/plugins/intel_cpu/thirdparty/libxsmm"]
+	path = src/plugins/intel_cpu/thirdparty/libxsmm
+	url = https://github.com/libxsmm/libxsmm.git
+[submodule "src/plugins/intel_cpu/thirdparty/shl"]
+	path = src/plugins/intel_cpu/thirdparty/shl
+	url = https://github.com/openvinotoolkit/shl.git
+[submodule "src/plugins/intel_cpu/thirdparty/kleidiai"]
+	path = src/plugins/intel_cpu/thirdparty/kleidiai
+	url = https://github.com/ARM-software/kleidiai.git
+[submodule "src/plugins/intel_cpu/thirdparty/xbyak_riscv"]
+	path = src/plugins/intel_cpu/thirdparty/xbyak_riscv
+	url = https://github.com/herumi/xbyak_riscv.git

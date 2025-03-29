@@ -1,0 +1,4 @@
+# external weights are not supported for ONNX Frontend
+ONNXLoadTest/FrontEndLoadFromTest.testLoadFromTwoFiles/onnx
+ONNXLoadTest/FrontEndLoadFromTest.testLoadFromTwoStreams/onnx
+
