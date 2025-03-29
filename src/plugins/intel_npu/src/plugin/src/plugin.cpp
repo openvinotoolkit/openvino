@@ -40,7 +40,7 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
  * @details Using an "ov::Model" object to create the "CompiledModel" is the preferred way of using the OV API.
- * This path allows making use of the already written funtions/attributes for handling the I/O infromation.
+ * This path allows making use of the already written functions/attributes for handling the I/O information.
  *
  * Note that a stored compiled model does not hold the original IR model within it. The only related information
  * which may be extracted is the original model's "parameter"/"result" nodes. Thus, we need to build a dummy model

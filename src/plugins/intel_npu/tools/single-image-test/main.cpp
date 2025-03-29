@@ -779,7 +779,7 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
                       << " while converting precision from " << dataPrecision << " to " << modelPrecision
                       << ". Check whether it is possible to fit it into batch loading " << std::endl;
             OPENVINO_ASSERT(ov::layout::has_batch(layout),
-                            "Input layout has no batch dimenstion: ", layout.to_string());
+                            "Input layout has no batch dimension: ", layout.to_string());
             size_t N = shape[ov::layout::batch_idx(layout)];
             OPENVINO_ASSERT(fileBytes * N == inputTensor.get_byte_size(), "File contains ", fileBytes, " bytes, but ",
                             inputTensor.get_byte_size() * N, " total in batch size ", N,
@@ -815,7 +815,7 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
                       << " when datatypes match. "
                       << "Check whether it is possible to fit it into batch loading " << std::endl;
             OPENVINO_ASSERT(ov::layout::has_batch(layout),
-                            "Input layout has no batch dimenstion: ", layout.to_string());
+                            "Input layout has no batch dimension: ", layout.to_string());
             size_t N = shape[ov::layout::batch_idx(layout)];
             OPENVINO_ASSERT(fileBytes * N == reqTensorBytes, "File contains ", fileBytes, " bytes, but ",
                             reqTensorBytes, " in batch size ", N, " expected");

@@ -107,7 +107,7 @@ ZeGraphExtWrappers::~ZeGraphExtWrappers() {
 }
 
 _ze_result_t ZeGraphExtWrappers::destroyGraph(ze_graph_handle_t graphHandle) {
-    _logger.debug("destroyGraph - perfrom pfnDestroy");
+    _logger.debug("destroyGraph - perform pfnDestroy");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnDestroy(graphHandle);
 
     if (ZE_RESULT_SUCCESS != result) {
@@ -131,7 +131,7 @@ void ZeGraphExtWrappers::getGraphBinary(ze_graph_handle_t graphHandle,
 
     if (UseCopyForNativeBinary(_graphExtVersion)) {
         // Get blob size first
-        _logger.debug("getGraphBinary - perfrom pfnGetNativeBinary to get size");
+        _logger.debug("getGraphBinary - perform pfnGetNativeBinary to get size");
         auto result = _zeroInitStruct->getGraphDdiTable().pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
         blob.resize(blobSize);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob size, Failed to compile network.",
@@ -139,7 +139,7 @@ void ZeGraphExtWrappers::getGraphBinary(ze_graph_handle_t graphHandle,
                                         _zeroInitStruct->getGraphDdiTable());
 
         // Get blob data
-        _logger.debug("getGraphBinary - perfrom pfnGetNativeBinary to get data");
+        _logger.debug("getGraphBinary - perform pfnGetNativeBinary to get data");
         result = _zeroInitStruct->getGraphDdiTable().pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob data, Failed to compile network.",
                                         result,
@@ -148,7 +148,7 @@ void ZeGraphExtWrappers::getGraphBinary(ze_graph_handle_t graphHandle,
         blobPtr = blob.data();
     } else {
         // Get blob ptr and size
-        _logger.debug("getGraphBinary - perfrom pfnGetNativeBinary2 to get size and data");
+        _logger.debug("getGraphBinary - perform pfnGetNativeBinary2 to get size and data");
         auto result = _zeroInitStruct->getGraphDdiTable().pfnGetNativeBinary2(graphHandle, &blobSize, &blobPtr);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob size, Failed to compile network.",
                                         result,
@@ -170,11 +170,11 @@ void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle, uint32_t
         _logger.debug("Initialize graph based on graph properties for ext version larger than 1.8");
         ze_graph_properties_2_t properties = {};
         properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-        _logger.debug("initializeGraph - perfrom pfnGetProperties2");
+        _logger.debug("initializeGraph - perform pfnGetProperties2");
         _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(graphHandle, &properties);
 
         if (properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
-            _logger.debug("initializeGraph - perfrom pfnGraphInitialize");
+            _logger.debug("initializeGraph - perform pfnGraphInitialize");
             _zeroInitStruct->getGraphDdiTable().pfnGraphInitialize(graphHandle);
         }
 
@@ -208,7 +208,7 @@ void ZeGraphExtWrappers::initialize_graph_through_command_list(ze_graph_handle_t
     _logger.debug("initialize_graph_through_command_list - hostSynchronize completed");
 }
 
-// Parse the result string of query from foramt <name_0><name_1><name_2> to unordered_set of string
+// Parse the result string of query from format <name_0><name_1><name_2> to unordered_set of string
 static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data) {
     std::string dataString(data.begin(), data.end());
     std::unordered_set<std::string> result;
@@ -237,7 +237,7 @@ std::unordered_set<std::string> ZeGraphExtWrappers::getQueryResultFromSupportedL
                        ZE_MINOR_VERSION(_graphExtVersion));
     }
     // Get the size of query result
-    _logger.debug("getQueryResultFromSupportLayers - perfrom pfnQueryNetworkGetSupportedLayers to get size");
+    _logger.debug("getQueryResultFromSupportLayers - perform pfnQueryNetworkGetSupportedLayers to get size");
     size_t size = 0;
     result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, nullptr);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkGetSupportedLayers get size of query result",
@@ -245,7 +245,7 @@ std::unordered_set<std::string> ZeGraphExtWrappers::getQueryResultFromSupportedL
                                     _zeroInitStruct->getGraphDdiTable());
 
     // Get the result data of query
-    _logger.debug("getQueryResultFromSupportLayers - perfrom pfnQueryNetworkGetSupportedLayers to get data");
+    _logger.debug("getQueryResultFromSupportLayers - perform pfnQueryNetworkGetSupportedLayers to get data");
     std::vector<char> supportedLayers(size);
     result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork,
                                                                                    &size,
@@ -254,7 +254,7 @@ std::unordered_set<std::string> ZeGraphExtWrappers::getQueryResultFromSupportedL
                                     result,
                                     _zeroInitStruct->getGraphDdiTable());
 
-    _logger.debug("getQueryResultFromSupportLayers - perfrom pfnQueryNetworkDestroy");
+    _logger.debug("getQueryResultFromSupportLayers - perform pfnQueryNetworkDestroy");
     result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkDestroy(hGraphQueryNetwork);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkDestroy", result, _zeroInitStruct->getGraphDdiTable());
 
@@ -456,7 +456,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
                                      std::vector<IODescriptor>& outputs) const {
     if (NotSupportArgumentMetadata(_graphExtVersion)) {
         ze_graph_argument_properties_3_t arg;
-        _logger.debug("getMetadata - perfrom pfnGetArgumentProperties3");
+        _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
         auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
@@ -474,14 +474,14 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
         }
     } else {
         ze_graph_argument_properties_3_t arg;
-        _logger.debug("getMetadata - perfrom pfnGetArgumentProperties3");
+        _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
         auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
         std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
 
         if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name)) {
-            _logger.debug("getMetadata - perfrom pfnGetArgumentMetadata");
+            _logger.debug("getMetadata - perform pfnGetArgumentMetadata");
             ze_graph_argument_metadata_t metadata;
             result = _zeroInitStruct->getGraphDdiTable().pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
             THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGraphGetArgumentMetadata", result, _zeroInitStruct->getGraphDdiTable());
@@ -507,7 +507,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(ze_graph_handle_t graphHandle) const {
     ze_graph_properties_t graphProperties{};
 
-    _logger.debug("getNetworkMeta - perfrom pfnGetProperties");
+    _logger.debug("getNetworkMeta - perform pfnGetProperties");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(graphHandle, &graphProperties);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
     NetworkMetadata meta;
