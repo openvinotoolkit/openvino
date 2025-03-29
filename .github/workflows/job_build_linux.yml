@@ -173,11 +173,9 @@ jobs:
       #
 
       - name: CMake configure - OpenVINO
-        run: |
-          cmake \
-            ${{ inputs.cmake-options }} \
-            -S ${OPENVINO_REPO} \
-            -B ${BUILD_DIR}
+        run: eval cmake $CMAKE_OPTIONS -S ${OPENVINO_REPO} -B ${BUILD_DIR}
+        env:
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
 
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
@@ -209,10 +207,12 @@ jobs:
 
       - name: Build Debian packages
         if: ${{ inputs.build-debian-packages }}
+        env:
+          OS: ${{ inputs.os }}
         run: |
           # Ubuntu 24 does not allow using the system Python directly so
           # we have to use Python from the virtual environment created in Docker
-          [[ ${{ inputs.os }} == "ubuntu_24_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
+          [[ "${OS}" == "ubuntu_24_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
           $python_exec -m pip install -U pip
           $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPython* -U_Python* -UPYTHON* \
