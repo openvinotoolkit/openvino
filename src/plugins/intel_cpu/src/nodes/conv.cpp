@@ -32,6 +32,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "ov_ops/convolution.hpp"
 #include "pooling.h"
 #include "reorder.h"
 #include "utils/cpu_utils.hpp"
@@ -224,8 +225,10 @@ private:
 
 bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>(op)) {
-            errorMessage = "Only opset1 Convolution and GroupConvolution operations are supported";
+        if (!ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution, ov::op::internal::Convolution>(
+                op)) {
+            errorMessage = "opset1 Convolution and GroupConvolution and internal Convolution operations are "
+                           "supported only";
             return false;
         }
         size_t ndims = op->get_input_partial_shape(0).rank().get_length();
@@ -266,8 +269,40 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
 
     auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(op);
     auto groupConvolutionOp = ov::as_type_ptr<ov::op::v1::GroupConvolution>(op);
+    auto internalConvolutionOp = ov::as_type_ptr<ov::op::internal::Convolution>(op);
 
-    if (convolutionOp) {
+    if (internalConvolutionOp) {
+        withBiases = internalConvolutionOp->inputs().size() > 2;
+        isGrouped = internalConvolutionOp->get_groups() > 1;
+        groupNum = isGrouped ? internalConvolutionOp->input_value(1).get_shape()[0] : 1;
+        algorithm = isGrouped ? Algorithm::ConvolutionGrouped : Algorithm::ConvolutionBiased;
+
+        weightDims = internalConvolutionOp->input_value(1).get_shape();
+
+        if (isGrouped) {
+            groupIC = weightDims[2];
+            IC = groupIC * groupNum;
+            groupOC = weightDims[1];
+            expectedBiasDims = {groupOC * groupNum};
+        } else {
+            IC = weightDims[1];
+            groupIC = IC;
+            groupOC = weightDims[0];
+            if (internalConvolutionOp->inputs().size() > 2) {
+                expectedBiasDims = internalConvolutionOp->input_value(2).get_shape();
+            }
+        }
+        for (size_t i : internalConvolutionOp->get_strides()) {
+            stride.emplace_back(i);
+        }
+        for (size_t i : internalConvolutionOp->get_dilations()) {
+            dilation.emplace_back(static_cast<ptrdiff_t>(i) - 1);
+        }
+        paddingL = internalConvolutionOp->get_pads_begin();
+        paddingR = internalConvolutionOp->get_pads_end();
+        autoPadding =
+            one_of(internalConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
+    } else if (convolutionOp) {
         algorithm = Algorithm::ConvolutionCommon;
 
         groupNum = 1;
@@ -1007,6 +1042,9 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
         definedOutMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0]);
     } else {
         std::vector<Shape> shapes = {definedInpMemDesc->getShape(), Shape(weightDims)};
+        if (withBiases) {
+            shapes.emplace_back(inputShapes[2].getDims());
+        }
         auto outDims = shapeInferGeneric(shapes);
         definedOutMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0]->cloneWithNewDims(outDims.front()));
     }
@@ -1132,7 +1170,7 @@ static bool attrContainsPostOp(const dnnl::primitive_attr& attr, const dnnl::imp
     return ops.get()->find(kind) != -1;
 }
 
-// See the src/plugins/intel_cpu/src/docs/convPostOps.md for details
+// See the src/plugins/intel_cpu/docs/convolution_post_ops.md for details
 void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr>& attrs) {
     attrs.resize(1);
     auto outputShape = outputStaticShape();
@@ -1846,7 +1884,11 @@ VectorDims Convolution::outputStaticShape() const {
     auto& outputShape = getOutputShapeAtPort(0);
     if (outputShape.isDynamic()) {
         auto inpDummyShape = makeInputDummyShape(getInputShapeAtPort(0));
-        auto outputDims = shapeInferGeneric({Shape(inpDummyShape), Shape(weightDims)});
+        std::vector<Shape> shapes = {Shape(inpDummyShape), Shape(weightDims)};
+        if (withBiases) {
+            shapes.emplace_back(inputShapes[2].getDims());
+        }
+        auto outputDims = shapeInferGeneric(shapes);
         return Shape(outputDims.front()).getStaticDims();
     }
     return outputShape.getStaticDims();
