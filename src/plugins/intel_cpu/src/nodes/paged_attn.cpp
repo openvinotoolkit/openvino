@@ -150,15 +150,15 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
-bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode) noexcept {
+bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode, const ov::element::Type precision) noexcept {
     // AUTO means select by primitive
     // for non-x86 platform, by-channel quantization is disabled
     // for x86 platform, by-channel quantization is disabled by default until further accuracy data collect
     bool byChannel = false;
-    if (mode == Config::CacheQuantMode::BY_CHANNEL) {
-        byChannel = true;
-    } else if (mode == Config::CacheQuantMode::BY_HIDDEN) {
+    if (!precision.is_integral() || mode == Config::CacheQuantMode::BY_HIDDEN) {
         byChannel = false;
+    } else if (mode == Config::CacheQuantMode::BY_CHANNEL) {
+        byChannel = true;
     }
 #if defined(OPENVINO_ARCH_ARM64)
     byChannel = false;
@@ -179,13 +179,15 @@ void PagedAttention::createPrimitive() {
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode);
+        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision);
+        bool quantValuebyChannel = isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision);
         return make_pa_executor(rtPrecision,
                                 kCachePrecision,
                                 vCachePrecision,
                                 cpuConfig.keyCacheGroupSize,
                                 cpuConfig.valueCacheGroupSize,
-                                byChannel);
+                                quantKeybyChannel,
+                                quantValuebyChannel);
 #else
         return nullptr;
 #endif
@@ -256,7 +258,12 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                    ov::element::f32,
                    ov::element::f16,
                    ov::element::bf16)) {
-            if (!one_of(kCachePrecision, ov::element::u8, ov::element::f16, ov::element::f32, ov::element::bf16)) {
+            if (!one_of(kCachePrecision,
+                        ov::element::u4,
+                        ov::element::u8,
+                        ov::element::f16,
+                        ov::element::f32,
+                        ov::element::bf16)) {
                 errorMessage = "PageAttn key value cache compression doesn't support key cache prec " +
                                kCachePrecision.to_string() + " value cache prec " + vCachePrecision.to_string();
                 return false;
