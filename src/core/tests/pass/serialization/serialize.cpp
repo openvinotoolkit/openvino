@@ -11,6 +11,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 
@@ -508,4 +509,47 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
         check_meta_info(s_model);
         check_rt_info(s_model);
     }
+}
+
+TEST_F(MetaDataSerialize, check_weightless_cache_attribute_after_serialization) {
+    auto model = ov::test::readModel(ir_with_meta);
+    size_t actual_count_of_attribs = 0;
+    size_t expected_count_of_attribs = 0;
+    auto const_node = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{-5.0f});
+    auto ref_weightless_cache_attribute =
+        ov::WeightlessCacheAttribute(/* original_size = */ const_node->get_byte_size(),
+                                     /* bin_offset = */ 0,
+                                     /* original_dtype = */ const_node->get_element_type());
+
+    for (auto&& ov_node : model->get_ops()) {
+        if (ov_node->get_friendly_name() == "activation") {  // ReLU
+            ov_node->set_argument(1, const_node->get_default_output());
+            model->set_topological_sort(
+                ov::topological_sort<std::vector<std::shared_ptr<ov::Node>>>);  // invalidate topological sort
+            const_node->get_rt_info().emplace(ov::WeightlessCacheAttribute::get_type_info_static(),
+                                              ref_weightless_cache_attribute);
+            ++expected_count_of_attribs;
+        }
+    }
+
+    // Serialize the model
+    ov::serialize(model, m_out_xml_path, m_out_bin_path);
+
+    auto s_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
+    for (auto&& ov_node : s_model->get_ops()) {
+        if (auto it_weightless_cache_attribute =
+                ov_node->get_rt_info().find(ov::WeightlessCacheAttribute::get_type_info_static());
+            it_weightless_cache_attribute != ov_node->get_rt_info().end()) {
+            auto weightless_cache_attribute =
+                (*it_weightless_cache_attribute).second.as<ov::WeightlessCacheAttribute>();
+
+            EXPECT_EQ(weightless_cache_attribute.original_size, ref_weightless_cache_attribute.original_size);
+            EXPECT_EQ(weightless_cache_attribute.bin_offset, ref_weightless_cache_attribute.bin_offset);
+            EXPECT_EQ(weightless_cache_attribute.original_dtype, ref_weightless_cache_attribute.original_dtype);
+
+            ++actual_count_of_attribs;
+        }
+    }
+
+    EXPECT_EQ(expected_count_of_attribs, actual_count_of_attribs);
 }
