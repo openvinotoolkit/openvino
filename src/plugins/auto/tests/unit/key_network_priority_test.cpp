@@ -52,8 +52,10 @@ public:
         ON_CALL(*core, get_property(HasSubstr("OTHER"), StrEq(ov::device::capabilities.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(otherCability));
         ON_CALL(*plugin, get_valid_device)
-            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
-                return plugin->Plugin::get_valid_device(metaDevices, netPrecision);
+            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
+                                  const std::string& netPrecision,
+                                  const double utilization_threshold) {
+                return plugin->Plugin::get_valid_device(metaDevices, netPrecision, utilization_threshold);
             });
     }
 
@@ -78,11 +80,11 @@ TEST_P(KeyNetworkPriorityTest, SelectDevice) {
                        {"OTHER", {}, 2, "01", "OTHER_01", 0}};
     }
 
-    EXPECT_CALL(*plugin, select_device(_, _, _)).Times(sizeOfConfigs);
+    EXPECT_CALL(*plugin, select_device(_, _, _, _)).Times(sizeOfConfigs);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AtLeast(sizeOfConfigs * 4));
 
     for (auto& item : PriorityConfigs) {
-        resDevInfo.push_back(plugin->select_device(metaDevices, netPrecision, std::get<0>(item)));
+        resDevInfo.push_back(plugin->select_device(metaDevices, netPrecision, std::get<0>(item), -1.0));
     }
     for (int i = 0; i < sizeOfConfigs; i++) {
         EXPECT_EQ(resDevInfo[i].unique_name, std::get<1>(PriorityConfigs[i]));
@@ -104,14 +106,14 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
                        {"GPU.1", {}, 2, "01", "dGPU_01", 0},
                        {"OTHER", {}, 2, "01", "OTHER_01", 0}};
     }
-    EXPECT_CALL(*plugin, select_device(_, _, _)).Times(sizeOfConfigs * 2);
+    EXPECT_CALL(*plugin, select_device(_, _, _, _)).Times(sizeOfConfigs * 2);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AtLeast(sizeOfConfigs * 4 * 2));
     // selectdevice in multi threads, and UnregisterPriority them all, should not affect the
     // Priority Map
     for (auto& item : PriorityConfigs) {
         unsigned int priority = std::get<0>(item);
         auto future = std::async(std::launch::async, [this, priority] {
-            auto deviceInfo = plugin->select_device(metaDevices, netPrecision, priority);
+            auto deviceInfo = plugin->select_device(metaDevices, netPrecision, priority, -1.0);
             plugin->unregister_priority(priority, deviceInfo.unique_name);
         });
         futureVect.push_back(std::move(future));
@@ -122,7 +124,7 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
     }
 
     for (auto& item : PriorityConfigs) {
-        resDevInfo.push_back(plugin->select_device(metaDevices, netPrecision, std::get<0>(item)));
+        resDevInfo.push_back(plugin->select_device(metaDevices, netPrecision, std::get<0>(item), -1.0));
     }
     for (int i = 0; i < sizeOfConfigs; i++) {
         EXPECT_EQ(resDevInfo[i].unique_name, std::get<1>(PriorityConfigs[i]));
