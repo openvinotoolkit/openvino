@@ -255,11 +255,10 @@ void ov::IAsyncInferRequest::stop_and_wait() {
 }
 
 void ov::IAsyncInferRequest::infer() {
-    DisableCallbackGuard disableCallbackGuard{this};
-    infer_impl([this] {
-        infer_thread_unsafe();
-    });
-    wait();
+    auto& firstStageExecutor = std::get<Stage_e::EXECUTOR>(*m_sync_pipeline.begin());
+    auto& stageTask = std::get<Stage_e::TASK>(*m_sync_pipeline.begin());
+    OPENVINO_ASSERT(nullptr != firstStageExecutor);
+    firstStageExecutor->run(stageTask);
 }
 
 void ov::IAsyncInferRequest::check_tensors() const {
