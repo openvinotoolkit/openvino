@@ -881,6 +881,10 @@ KERNEL(sdpa_opt)(
     #define sglid (uint)get_sub_group_local_id()
     #define sgid (uint)get_sub_group_id()
 
+#if IS_FLASHATTEN_V2
+    if(sgid==0 && sglid==0) printf("IS_FLASHATTEN_V2\n");
+#endif
+
     // SLM buffer for query inputs
     __local INPUT0_TYPE slm_query[HEAD_SIZE * TARGET_SEQ_LEN_BLOCK_SIZE];
 
@@ -888,12 +892,22 @@ KERNEL(sdpa_opt)(
     __local OUTPUT_TYPE slm_qk_vals[TARGET_SEQ_LEN_BLOCK_SIZE][SEQ_LEN_PARTITION_SIZE];
 
     // SLM buffers for SoftMax calculation and qk_max/qk_sums results aggregation across all WGs
+#if IS_FLASHATTEN_V2
     __local SOFTMAX_ACCUMULATOR_TYPE slm_qk_max_vals[TARGET_SEQ_LEN_BLOCK_SIZE][SUBGROUPS_PER_WG];
+#if else
+    __local SOFTMAX_ACCUMULATOR_TYPE slm_qk_max_vals[SUBGROUPS_PER_WG][TARGET_SEQ_LEN_BLOCK_SIZE];
+    __local SOFTMAX_ACCUMULATOR_TYPE slm_exp_sum_vals[SUBGROUPS_PER_WG * TARGET_SEQ_LEN_BLOCK_SIZE];
+#endif
 
     // SLM buffers for SoftMax recalculation for current iteration based on the previous results
     __local SOFTMAX_ACCUMULATOR_TYPE slm_exp_sum_prev[TARGET_SEQ_LEN_BLOCK_SIZE];
     __local SOFTMAX_ACCUMULATOR_TYPE slm_max_val_prev[TARGET_SEQ_LEN_BLOCK_SIZE];
+#if IS_FLASHATTEN_V2
     __local SOFTMAX_ACCUMULATOR_TYPE slm_update_factor[TARGET_SEQ_LEN_BLOCK_SIZE];
+#else
+    __local SOFTMAX_ACCUMULATOR_TYPE slm_exp_sum_cur[TARGET_SEQ_LEN_BLOCK_SIZE];
+    __local SOFTMAX_ACCUMULATOR_TYPE slm_max_val_cur[TARGET_SEQ_LEN_BLOCK_SIZE];
+#endif
 
 #if IS_PAGED_ATTENTION
     const uint block_start_pos = blocked_indexes_start[target_seq_dim];
@@ -1185,7 +1199,7 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
                     const OUTPUT_TYPE scale_val = TO_OUTPUT_TYPE(STATIC_SCALE_VALUE);
 #endif
                     qk_acc[i] *= scale_val;
-#endif
+#endif // !APPLY_SCALES_TO_QUERY
 
 #ifdef HAS_ALIBI
                     const int alibi_val = (1 - SOURCE_SEQ_LEN) + seq_len + i;
@@ -1199,20 +1213,36 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
                 }
 #endif  // IS_CAUSAL
                     qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]));
+#if IS_FLASHATTEN_V2
                     slm_qk_vals[sglid][sgid * TARGET_SEQ_LEN_BLOCK_SIZE + i] = qk_acc[i];
+#endif
                 }
+#if IS_FLASHATTEN_V2
                 slm_qk_max_vals[sglid][sgid] = qk_max;
+#endif
             }
+
+#if !IS_FLASHATTEN_V2
+            {
+                slm_qk_max_vals[sgid][sglid] = qk_max;
+                qk_max = SOFTMAX_ACCUMULATOR_VAL_MIN;
+            }
+#endif
 #if IS_CAUSAL
         } else { // skip triu
+#if IS_FLASHATTEN_V2
             slm_qk_max_vals[sglid][sgid] = SOFTMAX_ACCUMULATOR_VAL_MIN;
+#else
+            slm_qk_max_vals[sgid][sglid] = SOFTMAX_ACCUMULATOR_VAL_MIN;
+#endif
         }
 #endif
 
         barrier(CLK_LOCAL_MEM_FENCE);
 
+        // SoftMax calculation
+#if IS_FLASHATTEN_V2
         {
-            // SoftMax calculation
             // each sg will compute a whole row of query
             uint aligned_width = ((SUBGROUPS_PER_WG + (SUBGROUP_SIZE-1)) & ~(SUBGROUP_SIZE-1));
             for (uint m = sgid; m < seq_idx_end; m += SUBGROUPS_PER_WG) {
@@ -1241,36 +1271,38 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
                 exp_sum_new = sub_group_reduce_add(exp_sum_new);
 
 #if PAGED_ATTENTION_SCORES_OUTPUT
-                const uint subsequence_idx = gws_seq_indexes_correspondence[target_seq_dim];
-                const uint subsequence_end_pos = subsequence_begins[subsequence_idx + 1];
+                {
+                    const uint subsequence_idx = gws_seq_indexes_correspondence[target_seq_dim];
+                    const uint subsequence_end_pos = subsequence_begins[subsequence_idx + 1];
 
-                // PagedAttention is supposed to save only last "row" of the QK matrix multiplication,
-                // so save SEQ_LEN_PARTITION_SIZE elements for each partition
-                if (subsequence_end_pos == block_end_pos) {
-                    const uint last_row_idx = block_end_pos - block_start_pos - 1;
-                    if (m == last_row_idx) {
-                        const uint partition_idx = start_partition_idx / SEQ_LEN_PARTITION_SIZE;
+                    // PagedAttention is supposed to save only last "row" of the QK matrix multiplication,
+                    // so save SEQ_LEN_PARTITION_SIZE elements for each partition
+                    if (subsequence_end_pos == block_end_pos) {
+                        const uint last_row_idx = block_end_pos - block_start_pos - 1;
+                        if (m == last_row_idx) {
+                            const uint partition_idx = start_partition_idx / SEQ_LEN_PARTITION_SIZE;
 
-                        SOFTMAX_ACCUMULATOR_TYPE correction_factor = native_exp(qk_max_new - qk_max_cur);
+                            SOFTMAX_ACCUMULATOR_TYPE correction_factor = native_exp(qk_max_new - qk_max_cur);
 
-                        if (sglid == 0) {
-                            const uint max_partitions_num = aligned_max_context_len / SEQ_LEN_PARTITION_SIZE;
-                            const uint exp_sums_output_offset = subsequence_idx * NUM_HEADS * max_partitions_num +
-                                                                num_heads_dim * max_partitions_num +
-                                                                partition_idx;
-                            exp_sums[exp_sums_output_offset] = exp_sum_new * correction_factor;
-                            max_logits[exp_sums_output_offset] = qk_max_cur;
-                        }
+                            if (sglid == 0) {
+                                const uint max_partitions_num = aligned_max_context_len / SEQ_LEN_PARTITION_SIZE;
+                                const uint exp_sums_output_offset = subsequence_idx * NUM_HEADS * max_partitions_num +
+                                                                    num_heads_dim * max_partitions_num +
+                                                                    partition_idx;
+                                exp_sums[exp_sums_output_offset] = exp_sum_new * correction_factor;
+                                max_logits[exp_sums_output_offset] = qk_max_cur;
+                            }
 
-                        const uint output_offset = subsequence_idx * NUM_HEADS * aligned_max_context_len +
-                                                num_heads_dim * aligned_max_context_len +
-                                                partition_idx * SEQ_LEN_PARTITION_SIZE;
-                        for (uint i = sglid; i < partition_seq_len; i += SUBGROUP_SIZE) {
-                            softmax_results[output_offset + i] = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[m][i]) / exp_sum_new;
+                            const uint output_offset = subsequence_idx * NUM_HEADS * aligned_max_context_len +
+                                                    num_heads_dim * aligned_max_context_len +
+                                                    partition_idx * SEQ_LEN_PARTITION_SIZE;
+                            for (uint i = sglid; i < partition_seq_len; i += SUBGROUP_SIZE) {
+                                softmax_results[output_offset + i] = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[m][i]) / exp_sum_new;
+                            }
                         }
                     }
                 }
-#endif
+#endif /*end of PAGED_ATTENTION_SCORES_OUTPUT*/
 
                 // update
                 if (sglid == 0) {
@@ -1284,12 +1316,58 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
                     slm_exp_sum_prev[m] = exp_sum_new;
                 }
             }
+        }
+#else /*!IS_FLASHATTEN_V2*/
+        {
+            SOFTMAX_ACCUMULATOR_TYPE qk_max_new = SOFTMAX_ACCUMULATOR_VAL_MIN;
+
+            for (uint i = 0; i < SUBGROUPS_PER_WG; i++) {
+                SOFTMAX_ACCUMULATOR_TYPE qk_max_val = slm_qk_max_vals[i][sglid];
+                qk_max_new = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max_new, qk_max_val);
+            }
+
+            if (sgid == 0) {
+                slm_max_val_cur[sglid] = qk_max_new;
+            }
+
+            SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+
+            for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
+                qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
+                exp_sum_new += qk_acc[i];
+            }
+
+            {
+                slm_exp_sum_vals[sgid * SUBGROUP_SIZE + sglid] = exp_sum_new;
+            }
+
+            exp_sum_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
 
             barrier(CLK_LOCAL_MEM_FENCE);
-        }
 
+            for (uint i = 0; i < SUBGROUPS_PER_WG; i++) {
+                SOFTMAX_ACCUMULATOR_TYPE exp_sum = slm_exp_sum_vals[i * SUBGROUP_SIZE + sglid];
+                exp_sum_new += exp_sum;
+            }
+
+            for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
+                qk_acc[i] = qk_acc[i] / exp_sum_new;
+            }
+
+            if (sgid == 0) {
+                slm_exp_sum_cur[sglid] = exp_sum_new;
+            }
+
+            for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
+                slm_qk_vals[sglid][sgid * TARGET_SEQ_LEN_BLOCK_SIZE + i] = qk_acc[i];
+            }
+        }
+#endif /*end of softmax calc*/
+        
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        // QK*V calculation
         {
-            // QK*V calculation
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) acc_output_res = OUTPUT_VAL_ZERO;
 #if IS_PAGED_ATTENTION
             const uint value_pitch = (HEAD_SIZE * NUM_KV_HEADS + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM);
@@ -1504,11 +1582,12 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
 
             }
 
-            // protect slm_qk_vals as it is read in w*v stage and write in next round q*k stage.
-            barrier(CLK_LOCAL_MEM_FENCE);
-
+            // Rescale acc_output_res values and save current iter results to global accumulator
+#if IS_FLASHATTEN_V2
             {
-                // Rescale acc_output_res values and save current iter results to global accumulator
+                // protect slm_qk_vals as it is read in w*v stage and write in next round q*k stage.
+                barrier(CLK_LOCAL_MEM_FENCE);
+
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                     if (start_partition_idx > 0) {
                         OUTPUT_TYPE updated_prev_res = TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * slm_update_factor[seq_idx];
@@ -1517,8 +1596,52 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
                     output_acc[seq_idx] = acc_output_res[seq_idx];
                 }
             }
+#else /*!IS_FLASHATTEN_V2*/
+            {
+                SOFTMAX_ACCUMULATOR_TYPE exp_sum_prev = slm_exp_sum_prev[sglid];
+                SOFTMAX_ACCUMULATOR_TYPE exp_sum_cur = slm_exp_sum_cur[sglid];
+                SOFTMAX_ACCUMULATOR_TYPE max_val_prev = slm_max_val_prev[sglid];
+                SOFTMAX_ACCUMULATOR_TYPE max_val_cur = slm_max_val_cur[sglid];
+
+                barrier(CLK_LOCAL_MEM_FENCE);
+
+                for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
+                    SOFTMAX_ACCUMULATOR_TYPE total_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(sub_group_broadcast(max_val_prev, seq_idx), sub_group_broadcast(max_val_cur, seq_idx));
+                    SOFTMAX_ACCUMULATOR_TYPE updated_exp_sum_prev = sub_group_broadcast(exp_sum_prev, seq_idx) * native_exp(sub_group_broadcast(max_val_prev, seq_idx) - total_max);
+                    SOFTMAX_ACCUMULATOR_TYPE updated_exp_sum_cur = sub_group_broadcast(exp_sum_cur, seq_idx) * native_exp(sub_group_broadcast(max_val_cur, seq_idx) - total_max);
+                    SOFTMAX_ACCUMULATOR_TYPE updated_total_exp_sum = updated_exp_sum_prev + updated_exp_sum_cur;
+
+                    if (start_partition_idx > 0) {
+                        OUTPUT_TYPE updated_prev_res = TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * updated_exp_sum_prev / updated_total_exp_sum;;
+                        acc_output_res[seq_idx] *= updated_exp_sum_cur / updated_total_exp_sum;
+                        acc_output_res[seq_idx] += updated_prev_res;
+                    }
+
+                    output_acc[seq_idx] = acc_output_res[seq_idx];
+
+                    if (sgid == 0 && sglid == 0) {
+                        slm_exp_sum_prev[seq_idx] = updated_total_exp_sum;
+                        slm_max_val_prev[seq_idx] = total_max;
+                    }
+                }
+            }
+#endif /*!IS_FLASHATTEN_V2*/
+        } /* end of QK*V calculation */
+
+        // debug
+        if (seq_idx_end == 13 && b0_idx == 0 & b1_idx == 0 && sglid == 0 && sgid == 0) // the last block
+        {
+            printf("OPT[%d %d] start_partition_idx=%d, m=%f, l=%f, O=%f, Q*K=%f, softmax=%f, update_factor=%f\n", sgid, sglid,
+                start_partition_idx/SEQ_LEN_PARTITION_SIZE, slm_max_val_prev[seq_idx_end-1], slm_exp_sum_prev[seq_idx_end-1],
+                output_acc[seq_idx_end-1], slm_qk_vals[(seq_idx_end-1)][0], slm_qk_vals[(seq_idx_end-1)][0]/slm_exp_sum_prev[seq_idx_end-1], slm_update_factor[seq_idx_end-1]);
+            for (uint j = 0; j < TARGET_SEQ_LEN_BLOCK_SIZE; j++) {
+                for (uint i = 0; i < SEQ_LEN_PARTITION_SIZE; i++)
+                    printf("%f,", slm_qk_vals[j][i]);
+                printf("\n");
+            }
+            printf("\n\n");
         }
-    }
+    } /* end of iter over source sequence length */
 
     // Combine results from multiple SGs and store to output buffer
 
@@ -1547,13 +1670,17 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
 
         if (TARGET_SEQ_LEN_BLOCK_SIZE > seq_idx_end) {
             for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
+#if IS_FLASHATTEN_V2
                 output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
+#endif
                 OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
                 output_offset += output_pitch;
             }
         } else {
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+#if IS_FLASHATTEN_V2
                 output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
+#endif
                 OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
                 output_offset += output_pitch;
             }

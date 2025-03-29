@@ -132,7 +132,8 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 }
 
 void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {
-    apply_rt_info(context, get_rt_info(model), ov::op::util::is_large_language_model(model));
+    const auto is_LLM = ov::op::util::is_large_language_model(model);
+    apply_rt_info(context, get_rt_info(model), is_LLM);
 
     const auto& ops = model.get_ops();
 
@@ -180,6 +181,11 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         } else {
             m_kv_cache_precision = get_inference_precision();
         }
+    }
+
+    // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
+    if (!is_set_by_user(ov::intel_gpu::disable_flashattnv2_optimization) && !is_LLM) {
+        m_disable_flashattnv2_optimization = true;
     }
 
     m_optimize_data = true;
