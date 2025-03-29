@@ -306,7 +306,7 @@ public:
 
     // Program node with can_be_optimized true could also allocate from memory pool during runtime, if it cannot be
     // optimized out (with inst_impl.can_be_optimized false).
-    // If it is optimized out, alternatively, it could reuse the memory from its parent (e.g. reshape) or chilren (e.g. concat).
+    // If it is optimized out, alternatively, it could reuse the memory from its parent (e.g. reshape) or children (e.g. concat).
     // The memory dependency pass need consider both situations, by iteratively referencing to all nodes that can_be_optimized until
     // it meets the first node with can_be_optimize==false along the searching path.
     // For example, in such a subgraph like -

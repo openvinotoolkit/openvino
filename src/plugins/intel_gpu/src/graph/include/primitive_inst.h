@@ -276,6 +276,7 @@ public:
     void do_runtime_skip_permute();
     void do_runtime_skip_strided_slice();
     void do_runtime_skip_broadcast();
+    void do_runtime_skip_dynamic_quantize();
     void do_runtime_in_place_concat();
     void do_runtime_in_place_kv_cache();
     void do_runtime_in_place_crop();
@@ -365,7 +366,7 @@ protected:
     // it should be added to this set
     std::vector<std::pair<primitive_inst*, int32_t>> _deps;
 
-    // List of depandant shape_of primitives for shape_of subgraphs
+    // List of dependant shape_of primitives for shape_of subgraphs
     std::vector<primitive_inst*> dependant_shape_of_insts;
 
     std::vector<primitive_inst*> _users;
@@ -434,6 +435,7 @@ protected:
     virtual void on_execute() {}
 
     virtual void update_shape();
+    virtual void update_data_type();
     virtual void update_weights();
 
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
