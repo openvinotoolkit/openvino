@@ -72,7 +72,7 @@ std::shared_ptr<ov::Model> get_ov_model_from_blob(const ov::template_plugin::Plu
                                                   size_t offset,
                                                   const ov::AnyMap& properties) {
     if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
-        if (auto&& blob = blob_it->second.as<ov::Tensor>(); blob) {
+        if (auto blob = blob_it->second.as<ov::Tensor>(); blob) {
             ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
             std::istream blob_stream(&shared_buffer);
             blob_stream.seekg(offset, std::ios::beg);

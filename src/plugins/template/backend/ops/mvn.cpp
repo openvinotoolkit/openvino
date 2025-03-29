@@ -21,7 +21,7 @@ bool evaluate(const std::shared_ptr<ov::op::v0::MVN>& op, ov::TensorVector& outp
 namespace mvn_6_axes {
 template <typename T>
 ov::AxisSet mvn_6_reduction_axes(const ov::Tensor& axes_input, size_t rank) {
-    T* a = axes_input.data<T>();
+    const T* a = axes_input.data<T>();
     auto v = std::vector<T>(a, a + axes_input.get_shape()[0]);
     std::vector<size_t> axes(v.size(), 0);
     for (size_t i = 0; i < v.size(); i++) {
