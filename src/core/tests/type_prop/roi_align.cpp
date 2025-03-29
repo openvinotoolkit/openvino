@@ -10,6 +10,8 @@
 
 using namespace std;
 using namespace ov;
+using ov::op::v0::Parameter;
+using ov::op::v9::ROIAlign;
 using namespace testing;
 
 template <typename TOp>
@@ -31,7 +33,7 @@ protected:
     }
 
     ov::Dimension::value_type GetROISecondDimSizeForOp() const {
-        // Those magic numbers comes from definition of op::v9::ROIAlign ops.
+        // Those magic numbers comes from definition of ROIAlign ops.
         if (std::is_same<TOp, op::v15::ROIAlignRotated>::value)
             return 5;
         return 4;
@@ -42,9 +44,9 @@ TYPED_TEST_SUITE_P(ROIAlignTest);
 
 TYPED_TEST_P(ROIAlignTest, default_ctor) {
     const size_t second_roi_dim = static_cast<size_t>(this->GetROISecondDimSizeForOp());
-    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::f32, Shape{7, second_roi_dim});
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i32, Shape{7});
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{2, 3, 5, 5});
+    const auto rois = make_shared<Parameter>(element::f32, Shape{7, second_roi_dim});
+    const auto batch_indices = make_shared<Parameter>(element::i32, Shape{7});
 
     const auto op = this->make_roi_op(data, rois, batch_indices, 2, 2);
 
@@ -62,9 +64,9 @@ TYPED_TEST_P(ROIAlignTest, simple_shape_inference) {
     set_shape_symbols(rois_shape);
     auto batch_symbols = set_shape_symbols(batch_shape);
 
-    const auto data = make_shared<op::v0::Parameter>(element::f16, data_shape);
-    const auto rois = make_shared<op::v0::Parameter>(element::f16, rois_shape);
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i16, batch_shape);
+    const auto data = make_shared<Parameter>(element::f16, data_shape);
+    const auto rois = make_shared<Parameter>(element::f16, rois_shape);
+    const auto batch_indices = make_shared<Parameter>(element::i16, batch_shape);
 
     const auto op = this->make_roi_op(data, rois, batch_indices, 2, 2);
 
@@ -82,9 +84,9 @@ TYPED_TEST_P(ROIAlignTest, dynamic_channels_dim) {
     auto data_symbols = set_shape_symbols(data_shape);
     auto batch_symbols = set_shape_symbols(batch_shape);
 
-    const auto data = make_shared<op::v0::Parameter>(element::f64, data_shape);
-    const auto rois = make_shared<op::v0::Parameter>(element::f64, rois_shape);
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i64, batch_shape);
+    const auto data = make_shared<Parameter>(element::f64, data_shape);
+    const auto rois = make_shared<Parameter>(element::f64, rois_shape);
+    const auto batch_indices = make_shared<Parameter>(element::i64, batch_shape);
 
     const auto op = this->make_roi_op(data, rois, batch_indices, 3, 4);
 
@@ -95,9 +97,9 @@ TYPED_TEST_P(ROIAlignTest, dynamic_channels_dim) {
 }
 
 TYPED_TEST_P(ROIAlignTest, num_rois_from_batch_indices) {
-    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i32, PartialShape{9});
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{10, 3, 5, 5});
+    const auto rois = make_shared<Parameter>(element::f32, PartialShape::dynamic(2));
+    const auto batch_indices = make_shared<Parameter>(element::i32, PartialShape{9});
 
     const auto op = this->make_roi_op(data, rois, batch_indices, 4, 2);
 
@@ -107,9 +109,9 @@ TYPED_TEST_P(ROIAlignTest, num_rois_from_batch_indices) {
 }
 
 TYPED_TEST_P(ROIAlignTest, all_inputs_dynamic_rank) {
-    const auto data = make_shared<op::v0::Parameter>(element::bf16, PartialShape::dynamic());
-    const auto rois = make_shared<op::v0::Parameter>(element::bf16, PartialShape::dynamic());
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i8, PartialShape::dynamic());
+    const auto data = make_shared<Parameter>(element::bf16, PartialShape::dynamic());
+    const auto rois = make_shared<Parameter>(element::bf16, PartialShape::dynamic());
+    const auto batch_indices = make_shared<Parameter>(element::i8, PartialShape::dynamic());
 
     const auto op = this->make_roi_op(data, rois, batch_indices, 40, 12);
 
@@ -127,9 +129,9 @@ TYPED_TEST_P(ROIAlignTest, all_inputs_static_rank_dynamic_dims) {
     set_shape_symbols(rois_shape);
     auto batch_symbols = set_shape_symbols(batch_shape);
 
-    const auto data = make_shared<op::v0::Parameter>(element::f16, data_shape);
-    const auto rois = make_shared<op::v0::Parameter>(element::f16, rois_shape);
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::u16, batch_shape);
+    const auto data = make_shared<Parameter>(element::f16, data_shape);
+    const auto rois = make_shared<Parameter>(element::f16, rois_shape);
+    const auto batch_indices = make_shared<Parameter>(element::u16, batch_shape);
 
     const auto op = this->make_roi_op(data, rois, batch_indices, 8, 8);
 
@@ -148,9 +150,9 @@ TYPED_TEST_P(ROIAlignTest, interval_shapes) {
     set_shape_symbols(rois_shape);
     auto batch_symbols = set_shape_symbols(batch_shape);
 
-    const auto data = make_shared<op::v0::Parameter>(element::f32, data_shape);
-    const auto rois = make_shared<op::v0::Parameter>(element::f32, rois_shape);
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::u64, batch_shape);
+    const auto data = make_shared<Parameter>(element::f32, data_shape);
+    const auto rois = make_shared<Parameter>(element::f32, rois_shape);
+    const auto batch_indices = make_shared<Parameter>(element::u64, batch_shape);
 
     const auto op = this->make_roi_op(data, rois, batch_indices, 8, 18);
 
@@ -161,9 +163,9 @@ TYPED_TEST_P(ROIAlignTest, interval_shapes) {
 }
 
 TYPED_TEST_P(ROIAlignTest, incompatible_num_rois) {
-    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, -1});
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i32, PartialShape{9});
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{10, 3, 5, 5});
+    const auto rois = make_shared<Parameter>(element::f32, PartialShape{1, -1});
+    const auto batch_indices = make_shared<Parameter>(element::i32, PartialShape{9});
 
     OV_EXPECT_THROW(
         std::ignore = this->make_roi_op(data, rois, batch_indices, 8, 8),
@@ -172,9 +174,9 @@ TYPED_TEST_P(ROIAlignTest, incompatible_num_rois) {
 }
 
 TYPED_TEST_P(ROIAlignTest, incompatible_input_rank) {
-    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 5, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, -1});
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i32, PartialShape{9});
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{10, 3, 5, 5, 5});
+    const auto rois = make_shared<Parameter>(element::f32, PartialShape{1, -1});
+    const auto batch_indices = make_shared<Parameter>(element::i32, PartialShape{9});
 
     OV_EXPECT_THROW(std::ignore = this->make_roi_op(data, rois, batch_indices, 8, 8),
                     NodeValidationFailure,
@@ -182,9 +184,9 @@ TYPED_TEST_P(ROIAlignTest, incompatible_input_rank) {
 }
 
 TYPED_TEST_P(ROIAlignTest, incompatible_rois_rank) {
-    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{2});
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i32, PartialShape{9});
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{10, 3, 5, 5});
+    const auto rois = make_shared<Parameter>(element::f32, PartialShape{2});
+    const auto batch_indices = make_shared<Parameter>(element::i32, PartialShape{9});
 
     OV_EXPECT_THROW(std::ignore = this->make_roi_op(data, rois, batch_indices, 8, 8),
                     NodeValidationFailure,
@@ -192,9 +194,9 @@ TYPED_TEST_P(ROIAlignTest, incompatible_rois_rank) {
 }
 
 TYPED_TEST_P(ROIAlignTest, incompatible_batch_indicies_rank) {
-    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, this->GetROISecondDimSizeForOp()});
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i32, PartialShape{2, 1});
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{10, 3, 5, 5});
+    const auto rois = make_shared<Parameter>(element::f32, PartialShape{2, this->GetROISecondDimSizeForOp()});
+    const auto batch_indices = make_shared<Parameter>(element::i32, PartialShape{2, 1});
 
     OV_EXPECT_THROW(std::ignore = this->make_roi_op(data, rois, batch_indices, 8, 8),
                     NodeValidationFailure,
@@ -202,9 +204,9 @@ TYPED_TEST_P(ROIAlignTest, incompatible_batch_indicies_rank) {
 }
 
 TYPED_TEST_P(ROIAlignTest, incompatible_rois_2nd_dim) {
-    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, {7, -1}});
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{10, 3, 5, 5});
+    const auto rois = make_shared<Parameter>(element::f32, PartialShape{2, {7, -1}});
+    const auto batch_indices = make_shared<Parameter>(element::i32, PartialShape{2});
 
     OV_EXPECT_THROW(std::ignore = this->make_roi_op(data, rois, batch_indices, 8, 8),
                     NodeValidationFailure,
@@ -212,9 +214,9 @@ TYPED_TEST_P(ROIAlignTest, incompatible_rois_2nd_dim) {
 }
 
 TYPED_TEST_P(ROIAlignTest, incompatible_1st_dim_of_rois_and_batch) {
-    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{{11, -1}, this->GetROISecondDimSizeForOp()});
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i32, PartialShape{{0, 10}});
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{10, 3, 5, 5});
+    const auto rois = make_shared<Parameter>(element::f32, PartialShape{{11, -1}, this->GetROISecondDimSizeForOp()});
+    const auto batch_indices = make_shared<Parameter>(element::i32, PartialShape{{0, 10}});
 
     OV_EXPECT_THROW(
         std::ignore = this->make_roi_op(data, rois, batch_indices, 8, 8),
@@ -223,9 +225,9 @@ TYPED_TEST_P(ROIAlignTest, incompatible_1st_dim_of_rois_and_batch) {
 }
 
 TYPED_TEST_P(ROIAlignTest, data_not_floating_point) {
-    const auto data = make_shared<op::v0::Parameter>(element::i32, PartialShape{10, 3, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{8, 4});
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i32, PartialShape{8});
+    const auto data = make_shared<Parameter>(element::i32, PartialShape{10, 3, 5, 5});
+    const auto rois = make_shared<Parameter>(element::f32, PartialShape{8, 4});
+    const auto batch_indices = make_shared<Parameter>(element::i32, PartialShape{8});
 
     OV_EXPECT_THROW(std::ignore = this->make_roi_op(data, rois, batch_indices, 8, 8),
                     NodeValidationFailure,
@@ -233,9 +235,9 @@ TYPED_TEST_P(ROIAlignTest, data_not_floating_point) {
 }
 
 TYPED_TEST_P(ROIAlignTest, rois_not_floating_point) {
-    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::i32, PartialShape{8, this->GetROISecondDimSizeForOp()});
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i32, PartialShape{8});
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{10, 3, 5, 5});
+    const auto rois = make_shared<Parameter>(element::i32, PartialShape{8, this->GetROISecondDimSizeForOp()});
+    const auto batch_indices = make_shared<Parameter>(element::i32, PartialShape{8});
 
     OV_EXPECT_THROW(std::ignore = this->make_roi_op(data, rois, batch_indices, 8, 8),
                     NodeValidationFailure,
@@ -243,9 +245,9 @@ TYPED_TEST_P(ROIAlignTest, rois_not_floating_point) {
 }
 
 TYPED_TEST_P(ROIAlignTest, data_and_rois_not_same_type) {
-    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::f16, PartialShape{8, this->GetROISecondDimSizeForOp()});
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::i32, PartialShape{8});
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{10, 3, 5, 5});
+    const auto rois = make_shared<Parameter>(element::f16, PartialShape{8, this->GetROISecondDimSizeForOp()});
+    const auto batch_indices = make_shared<Parameter>(element::i32, PartialShape{8});
 
     OV_EXPECT_THROW(std::ignore = this->make_roi_op(data, rois, batch_indices, 8, 8),
                     NodeValidationFailure,
@@ -253,9 +255,9 @@ TYPED_TEST_P(ROIAlignTest, data_and_rois_not_same_type) {
 }
 
 TYPED_TEST_P(ROIAlignTest, batch_indicies_not_integer) {
-    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 3, 5, 5});
-    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{8, this->GetROISecondDimSizeForOp()});
-    const auto batch_indices = make_shared<op::v0::Parameter>(element::f32, PartialShape{8});
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{10, 3, 5, 5});
+    const auto rois = make_shared<Parameter>(element::f32, PartialShape{8, this->GetROISecondDimSizeForOp()});
+    const auto batch_indices = make_shared<Parameter>(element::f32, PartialShape{8});
 
     OV_EXPECT_THROW(std::ignore = this->make_roi_op(data, rois, batch_indices, 8, 8),
                     NodeValidationFailure,

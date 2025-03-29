@@ -73,7 +73,7 @@ TEST(type_prop, strided_slice_incompatible_size_of_masks_attr) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Incompatible size od masks exception not thrown.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("All masks of op::v1::StridedSlice must have the same size"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("All masks of StridedSlice must have the same size"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -90,9 +90,9 @@ TEST(type_prop, strided_slice_mask_incorrect_value) {
                                                                vector<int64_t>{1, 0, 1, 0},
                                                                vector<int64_t>{1, 0, 1, 2});
         // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect values of op::v1::StridedSlice mask exception not thrown.";
+        FAIL() << "Incorrect values of StridedSlice mask exception not thrown.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("All masks of op::v1::StridedSlice must have be 0 or 1"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("All masks of StridedSlice must have be 0 or 1"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }

@@ -12,6 +12,7 @@
 #include "openvino/op/parameter.hpp"
 
 using namespace ov;
+using ov::op::v0::Parameter;
 using namespace testing;
 
 class TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test
@@ -25,10 +26,10 @@ protected:
 };
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, default_ctor) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, Shape{3});
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::f32, Shape{201600, 4});
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 200, 336});
-    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 200, 336});
+    const auto im_info = std::make_shared<Parameter>(element::f32, Shape{3});
+    const auto anchors = std::make_shared<Parameter>(element::f32, Shape{201600, 4});
+    const auto deltas = std::make_shared<Parameter>(element::f32, Shape{12, 200, 336});
+    const auto scores = std::make_shared<Parameter>(element::f32, Shape{3, 200, 336});
 
     const auto op = make_op();
     op->set_arguments(OutputVector{im_info, anchors, deltas, scores});
@@ -48,10 +49,10 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, default_
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, basic_shape_inference) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::f64, Shape{3});
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::f64, Shape{201600, 4});
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f64, Shape{12, 200, 336});
-    const auto scores = std::make_shared<op::v0::Parameter>(element::f64, Shape{3, 200, 336});
+    const auto im_info = std::make_shared<Parameter>(element::f64, Shape{3});
+    const auto anchors = std::make_shared<Parameter>(element::f64, Shape{201600, 4});
+    const auto deltas = std::make_shared<Parameter>(element::f64, Shape{12, 200, 336});
+    const auto scores = std::make_shared<Parameter>(element::f64, Shape{3, 200, 336});
 
     const auto op = make_op(im_info, anchors, deltas, scores, make_attrs(132));
 
@@ -62,10 +63,10 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, basic_sh
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, all_input_got_dynamic_type) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{3});
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{201600, 4});
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{12, 200, 336});
-    const auto scores = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{3, 200, 336});
+    const auto im_info = std::make_shared<Parameter>(element::dynamic, Shape{3});
+    const auto anchors = std::make_shared<Parameter>(element::dynamic, Shape{201600, 4});
+    const auto deltas = std::make_shared<Parameter>(element::dynamic, Shape{12, 200, 336});
+    const auto scores = std::make_shared<Parameter>(element::dynamic, Shape{3, 200, 336});
 
     const auto op = make_op(im_info, anchors, deltas, scores, make_attrs(132));
 
@@ -76,10 +77,10 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, all_inpu
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, some_input_got_dynamic_type) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{3});
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::f64, Shape{201600, 4});
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f64, Shape{12, 200, 336});
-    const auto scores = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{3, 200, 336});
+    const auto im_info = std::make_shared<Parameter>(element::dynamic, Shape{3});
+    const auto anchors = std::make_shared<Parameter>(element::f64, Shape{201600, 4});
+    const auto deltas = std::make_shared<Parameter>(element::f64, Shape{12, 200, 336});
+    const auto scores = std::make_shared<Parameter>(element::dynamic, Shape{3, 200, 336});
 
     const auto op = make_op(im_info, anchors, deltas, scores, make_attrs(132));
 
@@ -99,10 +100,10 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, interval
     set_shape_symbols(deltas_shape);
     set_shape_symbols(scores_shape);
 
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::f16, im_info_shape);
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::f16, anchors_shape);
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f16, deltas_shape);
-    const auto scores = std::make_shared<op::v0::Parameter>(element::f16, scores_shape);
+    const auto im_info = std::make_shared<Parameter>(element::f16, im_info_shape);
+    const auto anchors = std::make_shared<Parameter>(element::f16, anchors_shape);
+    const auto deltas = std::make_shared<Parameter>(element::f16, deltas_shape);
+    const auto scores = std::make_shared<Parameter>(element::f16, scores_shape);
 
     const auto op = make_op(im_info, anchors, deltas, scores, make_attrs(44));
 
@@ -117,10 +118,10 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, interval
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, all_inputs_dynamic_rank) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape::dynamic());
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape::dynamic());
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape::dynamic());
-    const auto scores = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape::dynamic());
+    const auto im_info = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
+    const auto anchors = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
+    const auto deltas = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
+    const auto scores = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
 
     const auto op = make_op(im_info, anchors, deltas, scores, make_attrs(100));
 
@@ -135,8 +136,8 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, all_inpu
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, input_not_floating_point) {
-    const auto bad_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
-    const auto ok_param = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
+    const auto bad_param = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    const auto ok_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
 
     OV_EXPECT_THROW(auto op = make_op(bad_param, ok_param, ok_param, ok_param, make_attrs(100)),
                     NodeValidationFailure,
@@ -156,8 +157,8 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, input_no
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, input_mixed_floating_point_type) {
-    const auto f32_param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    const auto f16_param = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
+    const auto f32_param = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto f16_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
 
     OV_EXPECT_THROW(auto op = make_op(f32_param, f16_param, f16_param, f16_param, make_attrs(100)),
                     NodeValidationFailure,
@@ -177,11 +178,11 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, input_mi
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, im_infos_not_1d) {
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{10, 5});
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, 50, 20});
-    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, 50, 20});
+    const auto anchors = std::make_shared<Parameter>(element::f32, PartialShape{10, 5});
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape{5, 50, 20});
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape{15, 50, 20});
 
-    OV_EXPECT_THROW(auto op = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{}),
+    OV_EXPECT_THROW(auto op = make_op(std::make_shared<Parameter>(element::f32, PartialShape{}),
                                       anchors,
                                       deltas,
                                       scores,
@@ -189,7 +190,7 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, im_infos
                     NodeValidationFailure,
                     HasSubstr("The 'input_im_info' input is expected to be a 1D"));
 
-    OV_EXPECT_THROW(auto op = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3}),
+    OV_EXPECT_THROW(auto op = make_op(std::make_shared<Parameter>(element::f32, PartialShape{2, 3}),
                                       anchors,
                                       deltas,
                                       scores,
@@ -199,12 +200,12 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, im_infos
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, anchors_not_2d) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3});
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, 50, 20});
-    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, 50, 20});
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape{3});
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape{5, 50, 20});
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape{15, 50, 20});
 
     OV_EXPECT_THROW(auto op = make_op(im_info,
-                                      std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1}),
+                                      std::make_shared<Parameter>(element::f32, PartialShape{1}),
                                       deltas,
                                       scores,
                                       make_attrs(100)),
@@ -212,7 +213,7 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, anchors_
                     HasSubstr("The 'input_anchors' input is expected to be a 2D"));
 
     OV_EXPECT_THROW(auto op = make_op(im_info,
-                                      std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 1}),
+                                      std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 1}),
                                       deltas,
                                       scores,
                                       make_attrs(100)),
@@ -221,13 +222,13 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, anchors_
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, deltas_not_3d) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3});
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, 4});
-    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, 50, 20});
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape{3});
+    const auto anchors = std::make_shared<Parameter>(element::f32, PartialShape{5, 4});
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape{15, 50, 20});
 
     OV_EXPECT_THROW(auto op = make_op(im_info,
                                       anchors,
-                                      std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1}),
+                                      std::make_shared<Parameter>(element::f32, PartialShape{1}),
                                       scores,
                                       make_attrs(100)),
                     NodeValidationFailure,
@@ -235,7 +236,7 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, deltas_n
 
     OV_EXPECT_THROW(auto op = make_op(im_info,
                                       anchors,
-                                      std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 50, 20, 3}),
+                                      std::make_shared<Parameter>(element::f32, PartialShape{2, 50, 20, 3}),
                                       scores,
                                       make_attrs(100)),
                     NodeValidationFailure,
@@ -243,14 +244,14 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, deltas_n
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, scores_not_3d) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3});
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, 4});
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, 50, 20});
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape{3});
+    const auto anchors = std::make_shared<Parameter>(element::f32, PartialShape{5, 4});
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape{15, 50, 20});
 
     OV_EXPECT_THROW(auto op = make_op(im_info,
                                       anchors,
                                       deltas,
-                                      std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1}),
+                                      std::make_shared<Parameter>(element::f32, PartialShape{1}),
                                       make_attrs(100)),
                     NodeValidationFailure,
                     HasSubstr("The 'input_scores' input is expected to be a 3D"));
@@ -258,18 +259,18 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, scores_n
     OV_EXPECT_THROW(auto op = make_op(im_info,
                                       anchors,
                                       deltas,
-                                      std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, 50, 20, 11}),
+                                      std::make_shared<Parameter>(element::f32, PartialShape{15, 50, 20, 11}),
                                       make_attrs(100)),
                     NodeValidationFailure,
                     HasSubstr("The 'input_scores' input is expected to be a 3D"));
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, im_info_dim0_not_compatible) {
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, 4});
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, 50, 20});
-    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, 50, 20});
+    const auto anchors = std::make_shared<Parameter>(element::f32, PartialShape{5, 4});
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape{15, 50, 20});
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape{15, 50, 20});
 
-    OV_EXPECT_THROW(auto op = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{0, 2}}),
+    OV_EXPECT_THROW(auto op = make_op(std::make_shared<Parameter>(element::f32, PartialShape{{0, 2}}),
                                       anchors,
                                       deltas,
                                       scores,
@@ -277,7 +278,7 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, im_info_
                     NodeValidationFailure,
                     HasSubstr("The 'input_im_info' shape is expected to be a compatible with [3]"));
 
-    OV_EXPECT_THROW(auto op = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{4, -1}}),
+    OV_EXPECT_THROW(auto op = make_op(std::make_shared<Parameter>(element::f32, PartialShape{{4, -1}}),
                                       anchors,
                                       deltas,
                                       scores,
@@ -287,12 +288,12 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, im_info_
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, anchors_dim1_not_compatible) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3});
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, 50, 20});
-    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, 50, 20});
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape{3});
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape{15, 50, 20});
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape{15, 50, 20});
 
     OV_EXPECT_THROW(auto op = make_op(im_info,
-                                      std::make_shared<op::v0::Parameter>(element::f32, PartialShape{10, {0, 3}}),
+                                      std::make_shared<Parameter>(element::f32, PartialShape{10, {0, 3}}),
                                       deltas,
                                       scores,
                                       make_attrs(100)),
@@ -300,7 +301,7 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, anchors_
                     HasSubstr("The second dimension of 'input_anchors' should be compatible with 4"));
 
     OV_EXPECT_THROW(auto op = make_op(im_info,
-                                      std::make_shared<op::v0::Parameter>(element::f32, PartialShape{10, {5, -1}}),
+                                      std::make_shared<Parameter>(element::f32, PartialShape{10, {5, -1}}),
                                       deltas,
                                       scores,
                                       make_attrs(100)),
@@ -309,10 +310,10 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, anchors_
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, heights_deltas_and_scores_not_compatible) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3});
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, 4});
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, {0, 50}, 20});
-    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, {51, -1}, 20});
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape{3});
+    const auto anchors = std::make_shared<Parameter>(element::f32, PartialShape{5, 4});
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape{15, {0, 50}, 20});
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape{15, {51, -1}, 20});
 
     OV_EXPECT_THROW(auto op = make_op(im_info, anchors, deltas, scores, make_attrs(100)),
                     NodeValidationFailure,
@@ -320,10 +321,10 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, heights_
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, widths_deltas_and_scores_not_compatible) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3});
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, 4});
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, {0, 100}, {0, 20}});
-    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{15, {51, 60}, {21, -1}});
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape{3});
+    const auto anchors = std::make_shared<Parameter>(element::f32, PartialShape{5, 4});
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape{15, {0, 100}, {0, 20}});
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape{15, {51, 60}, {21, -1}});
 
     OV_EXPECT_THROW(auto op = make_op(im_info, anchors, deltas, scores, make_attrs(100)),
                     NodeValidationFailure,
@@ -364,10 +365,10 @@ INSTANTIATE_TEST_SUITE_P(
     PrintToStringParamName());
 
 TEST_P(ExperimentalDetectronGenerateProposalsSingleImageV6Test, static_rank_shape_inference) {
-    const auto im_info = std::make_shared<op::v0::Parameter>(element::f32, im_info_shape);
-    const auto anchors = std::make_shared<op::v0::Parameter>(element::f32, anchors_shape);
-    const auto deltas = std::make_shared<op::v0::Parameter>(element::f32, deltas_shape);
-    const auto scores = std::make_shared<op::v0::Parameter>(element::f32, scores_shape);
+    const auto im_info = std::make_shared<Parameter>(element::f32, im_info_shape);
+    const auto anchors = std::make_shared<Parameter>(element::f32, anchors_shape);
+    const auto deltas = std::make_shared<Parameter>(element::f32, deltas_shape);
+    const auto scores = std::make_shared<Parameter>(element::f32, scores_shape);
 
     const auto op = make_op(im_info, anchors, deltas, scores, make_attrs(post_nms_count));
 

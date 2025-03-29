@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/roll.hpp"
-
 #include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/roll.hpp"
 
 using namespace std;
 using namespace ov;
+using ov::op::v0::Constant;
+using ov::op::v0::Parameter;
 using namespace testing;
 
 class TypePropRollV7Test : public TypePropOpTest<op::v7::Roll> {};
@@ -150,9 +148,9 @@ TEST(type_prop, roll_static_axes_dynamic_shift) {
 TEST_F(TypePropRollV7Test, static_axes_dynamic_data) {
     auto arg_shape = PartialShape{-1, -1};
     auto symbols = set_shape_symbols(arg_shape);
-    const auto arg = make_shared<op::v0::Parameter>(element::f32, arg_shape);
-    const auto shift = op::v0::Constant::create(element::i64, Shape{}, {5});
-    const auto axes = make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    const auto arg = make_shared<Parameter>(element::f32, arg_shape);
+    const auto shift = Constant::create(element::i64, Shape{}, {5});
+    const auto axes = make_shared<Parameter>(element::i32, PartialShape{Dimension::dynamic()});
 
     const auto op = make_op(arg, shift, axes);
 
@@ -164,9 +162,9 @@ TEST_F(TypePropRollV7Test, static_axes_dynamic_data) {
 TEST_F(TypePropRollV7Test, const_shift_axes_and_interval_dim_on_arg_shape) {
     auto arg_shape = PartialShape{{2, 5}, {-1, 10}, {4, -1}, -1};
     auto symbols = set_shape_symbols(arg_shape);
-    const auto arg = make_shared<op::v0::Parameter>(element::f32, arg_shape);
-    const auto shift = op::v0::Constant::create(element::i64, Shape{}, {5});
-    const auto axes = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
+    const auto arg = make_shared<Parameter>(element::f32, arg_shape);
+    const auto shift = Constant::create(element::i64, Shape{}, {5});
+    const auto axes = Constant::create(element::i64, Shape{2}, {0, 1});
 
     const auto op = make_op(arg, shift, axes);
 
@@ -177,9 +175,9 @@ TEST_F(TypePropRollV7Test, const_shift_axes_and_interval_dim_on_arg_shape) {
 
 TEST_F(TypePropRollV7Test, default_ctor) {
     const auto arg_shape = PartialShape{{3, 5}, -1, 10};
-    const auto arg = make_shared<op::v0::Parameter>(element::f32, arg_shape);
-    const auto shift = op::v0::Constant::create(element::i64, Shape{}, {5});
-    const auto axes = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
+    const auto arg = make_shared<Parameter>(element::f32, arg_shape);
+    const auto shift = Constant::create(element::i64, Shape{}, {5});
+    const auto axes = Constant::create(element::i64, Shape{2}, {0, 1});
 
     const auto op = make_op();
     op->set_arguments(OutputVector{arg, shift, axes});

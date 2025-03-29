@@ -2,38 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/grid_sample.hpp"
-
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/grid_sample.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
 using namespace ov;
+using ov::op::v0::Parameter;
+using ov::op::v9::GridSample;
 using namespace testing;
 
 TEST(type_prop, grid_sample_default_constructor) {
-    const auto data = make_shared<op::v0::Parameter>(element::i32, PartialShape{1, 3, 4, 6});
-    const auto grid = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 7, 8, 2});
-    auto op = make_shared<op::v9::GridSample>();
+    const auto data = make_shared<Parameter>(element::i32, PartialShape{1, 3, 4, 6});
+    const auto grid = make_shared<Parameter>(element::f32, PartialShape{1, 7, 8, 2});
+    auto op = make_shared<GridSample>();
 
     const auto& default_attrs = op->get_attributes();
     EXPECT_EQ(default_attrs.align_corners, false);
-    EXPECT_EQ(default_attrs.mode, op::v9::GridSample::InterpolationMode::BILINEAR);
-    EXPECT_EQ(default_attrs.padding_mode, op::v9::GridSample::PaddingMode::ZEROS);
+    EXPECT_EQ(default_attrs.mode, GridSample::InterpolationMode::BILINEAR);
+    EXPECT_EQ(default_attrs.padding_mode, GridSample::PaddingMode::ZEROS);
 
     op->set_argument(0, data);
     op->set_argument(1, grid);
 
-    op->set_attributes(op::v9::GridSample::Attributes(true,
-                                                      op::v9::GridSample::InterpolationMode::BICUBIC,
-                                                      op::v9::GridSample::PaddingMode::BORDER));
+    op->set_attributes(
+        GridSample::Attributes(true, GridSample::InterpolationMode::BICUBIC, GridSample::PaddingMode::BORDER));
     const auto& new_attrs = op->get_attributes();
     EXPECT_EQ(new_attrs.align_corners, true);
-    EXPECT_EQ(new_attrs.mode, op::v9::GridSample::InterpolationMode::BICUBIC);
-    EXPECT_EQ(new_attrs.padding_mode, op::v9::GridSample::PaddingMode::BORDER);
+    EXPECT_EQ(new_attrs.mode, GridSample::InterpolationMode::BICUBIC);
+    EXPECT_EQ(new_attrs.padding_mode, GridSample::PaddingMode::BORDER);
 
     op->validate_and_infer_types();
 

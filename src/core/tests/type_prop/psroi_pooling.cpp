@@ -8,6 +8,7 @@
 #include "openvino/op/parameter.hpp"
 
 using namespace ov;
+using ov::op::v0::Parameter;
 using namespace testing;
 
 class TypePropPSROIPoolingV0 : public TypePropOpTest<op::v0::PSROIPooling> {
@@ -18,8 +19,8 @@ protected:
 };
 
 TEST_F(TypePropPSROIPoolingV0, basic_average) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 4, 5});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 4, 5});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     const auto op = make_op(inputs, coords, 2, 6, spatial_scale, bin_not_used, bin_not_used, "average");
 
@@ -28,8 +29,8 @@ TEST_F(TypePropPSROIPoolingV0, basic_average) {
 }
 
 TEST_F(TypePropPSROIPoolingV0, basic_bilinear) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 4, 5});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 4, 5});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     auto op = make_op(inputs, coords, 18, 6, 1.0f, 2, 2, "bilinear");
 
@@ -38,8 +39,8 @@ TEST_F(TypePropPSROIPoolingV0, basic_bilinear) {
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_features_element_type) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::i32, Shape{1, 72, 4, 5});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::i32, Shape{1, 72, 4, 5});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     OV_EXPECT_THROW(auto op = make_op(inputs, coords, 2, 6, spatial_scale, bin_not_used, bin_not_used, "average"),
                     NodeValidationFailure,
@@ -47,8 +48,8 @@ TEST_F(TypePropPSROIPoolingV0, invalid_features_element_type) {
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_rois_element_type) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 4, 5});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::u16, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 4, 5});
+    const auto coords = std::make_shared<Parameter>(element::u16, Shape{150, 5});
 
     OV_EXPECT_THROW(auto op = make_op(inputs, coords, 2, 6, spatial_scale, bin_not_used, bin_not_used, "average"),
                     NodeValidationFailure,
@@ -56,8 +57,8 @@ TEST_F(TypePropPSROIPoolingV0, invalid_rois_element_type) {
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_pooling_mode) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 4, 5});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 4, 5});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     OV_EXPECT_THROW(auto op = make_op(inputs, coords, 2, 6, spatial_scale, bin_not_used, bin_not_used, "invalid"),
                     NodeValidationFailure,
@@ -65,8 +66,8 @@ TEST_F(TypePropPSROIPoolingV0, invalid_pooling_mode) {
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_features_rank) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 4});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 4});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     OV_EXPECT_THROW(auto op = make_op(inputs, coords, 2, 6, spatial_scale, bin_not_used, bin_not_used, "average"),
                     NodeValidationFailure,
@@ -74,8 +75,8 @@ TEST_F(TypePropPSROIPoolingV0, invalid_features_rank) {
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_rois_rank) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 4, 2});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 4, 2});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150});
 
     OV_EXPECT_THROW(auto op = make_op(inputs, coords, 2, 6, spatial_scale, bin_not_used, bin_not_used, "average"),
                     NodeValidationFailure,
@@ -83,8 +84,8 @@ TEST_F(TypePropPSROIPoolingV0, invalid_rois_rank) {
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_group_size) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 4, 2});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 4, 2});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     OV_EXPECT_THROW(auto op = make_op(inputs, coords, 2, 0, spatial_scale, bin_not_used, bin_not_used, "average"),
                     NodeValidationFailure,
@@ -92,8 +93,8 @@ TEST_F(TypePropPSROIPoolingV0, invalid_group_size) {
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_number_of_channels_and_group_size_in_avg_mode) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 4, 2});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 4, 2});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     OV_EXPECT_THROW(auto op = make_op(inputs, coords, 2, 5, spatial_scale, bin_not_used, bin_not_used, "average"),
                     NodeValidationFailure,
@@ -101,8 +102,8 @@ TEST_F(TypePropPSROIPoolingV0, invalid_number_of_channels_and_group_size_in_avg_
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_output_dim_in_avg_mode) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 4, 2});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 4, 2});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     OV_EXPECT_THROW(auto op = make_op(inputs, coords, 17, 2, spatial_scale, bin_not_used, bin_not_used, "average"),
                     NodeValidationFailure,
@@ -110,8 +111,8 @@ TEST_F(TypePropPSROIPoolingV0, invalid_output_dim_in_avg_mode) {
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_spatial_bins_x) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 5, 5});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 5, 5});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     OV_EXPECT_THROW(auto op = make_op(inputs, coords, 17, 2, spatial_scale, 0, 1, "bilinear"),
                     NodeValidationFailure,
@@ -119,8 +120,8 @@ TEST_F(TypePropPSROIPoolingV0, invalid_spatial_bins_x) {
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_spatial_bins_y) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 5, 5});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 5, 5});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     OV_EXPECT_THROW(auto op = make_op(inputs, coords, 17, 2, spatial_scale, 1, 0, "bilinear"),
                     NodeValidationFailure,
@@ -128,8 +129,8 @@ TEST_F(TypePropPSROIPoolingV0, invalid_spatial_bins_y) {
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_number_of_channels_and_spatial_bins_in_bilinear_mode) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 5, 5});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 5, 5});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     OV_EXPECT_THROW(
         auto op = make_op(inputs, coords, 17, 2, spatial_scale, 2, 5, "bilinear"),
@@ -138,8 +139,8 @@ TEST_F(TypePropPSROIPoolingV0, invalid_number_of_channels_and_spatial_bins_in_bi
 }
 
 TEST_F(TypePropPSROIPoolingV0, invalid_output_dim_in_bilinear_mode) {
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 72, 5, 5});
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f32, Shape{150, 5});
+    const auto inputs = std::make_shared<Parameter>(element::f32, Shape{1, 72, 5, 5});
+    const auto coords = std::make_shared<Parameter>(element::f32, Shape{150, 5});
 
     OV_EXPECT_THROW(
         auto op = make_op(inputs, coords, 10, 2, spatial_scale, 2, 4, "bilinear"),
@@ -151,8 +152,8 @@ TEST_F(TypePropPSROIPoolingV0, features_dynamic_rank) {
     auto coords_shape = PartialShape{150, 5};
     auto symbols = set_shape_symbols(coords_shape);
 
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f16, coords_shape);
+    const auto inputs = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
     const auto op = make_op(inputs, coords, 2, 6, spatial_scale, 0, 0, "average");
 
     EXPECT_EQ(op->get_element_type(), element::f16);
@@ -164,8 +165,8 @@ TEST_F(TypePropPSROIPoolingV0, rois_dynamic_rank) {
     auto feat_shape = PartialShape{1, 72, 4, 5};
     set_shape_symbols(feat_shape);
 
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f16, feat_shape);
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
+    const auto inputs = std::make_shared<Parameter>(element::f16, feat_shape);
+    const auto coords = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
     const auto op = make_op(inputs, coords, 2, 6, spatial_scale, 0, 0, "average");
 
     EXPECT_EQ(op->get_element_type(), element::f16);
@@ -177,8 +178,8 @@ TEST_F(TypePropPSROIPoolingV0, dynamic_num_boxes) {
     auto coords_shape = PartialShape{{Dimension::dynamic(), 5}};
     auto symbols = set_shape_symbols(coords_shape);
 
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f16, coords_shape);
+    const auto inputs = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
     const auto op = make_op(inputs, coords, 2, 6, spatial_scale, 0, 0, "average");
 
     EXPECT_EQ(op->get_element_type(), element::f16);
@@ -192,8 +193,8 @@ TEST_F(TypePropPSROIPoolingV0, feat_static_rank_dynamic_shape) {
     set_shape_symbols(feat_shape);
     auto symbols = set_shape_symbols(coords_shape);
 
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f16, feat_shape);
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f16, coords_shape);
+    const auto inputs = std::make_shared<Parameter>(element::f16, feat_shape);
+    const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
     const auto op = make_op(inputs, coords, 2, 6, spatial_scale, 0, 0, "average");
 
     EXPECT_EQ(op->get_element_type(), element::f16);
@@ -207,8 +208,8 @@ TEST_F(TypePropPSROIPoolingV0, feat_and_rois_static_rank_dynamic_shape) {
     set_shape_symbols(feat_shape);
     auto symbols = set_shape_symbols(coords_shape);
 
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f16, feat_shape);
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f16, coords_shape);
+    const auto inputs = std::make_shared<Parameter>(element::f16, feat_shape);
+    const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
     const auto op = make_op(inputs, coords, 2, 6, spatial_scale, 0, 0, "average");
 
     EXPECT_EQ(op->get_element_type(), element::f16);
@@ -222,8 +223,8 @@ TEST_F(TypePropPSROIPoolingV0, feat_and_rois_interval_shapes) {
     set_shape_symbols(feat_shape);
     auto symbols = set_shape_symbols(coords_shape);
 
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f16, feat_shape);
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f16, coords_shape);
+    const auto inputs = std::make_shared<Parameter>(element::f16, feat_shape);
+    const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
     const auto op = make_op(inputs, coords, 2, 6, spatial_scale, 0, 0, "average");
 
     EXPECT_EQ(op->get_element_type(), element::f16);
@@ -237,8 +238,8 @@ TEST_F(TypePropPSROIPoolingV0, default_ctor) {
     set_shape_symbols(feat_shape);
     auto symbols = set_shape_symbols(coords_shape);
 
-    const auto inputs = std::make_shared<op::v0::Parameter>(element::f16, feat_shape);
-    const auto coords = std::make_shared<op::v0::Parameter>(element::f16, coords_shape);
+    const auto inputs = std::make_shared<Parameter>(element::f16, feat_shape);
+    const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
 
     const auto op = make_op();
     op->set_arguments(OutputVector{inputs, coords});

@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/eye.hpp"
-
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "eye_shape_inference.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/eye.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -17,6 +16,11 @@
 using namespace std;
 using namespace ov;
 using namespace testing;
+using ov::op::v0::Parameter;
+using ov::op::v0::Constant;
+using ov::op::v3::ShapeOf;
+using ov::op::v0::Squeeze;
+using ov::op::v9::Eye;
 
 TEST(type_prop, eye_constant) {
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {6});
@@ -104,11 +108,11 @@ TEST(type_prop, eye_batch_shape_shape_of) {
     auto batch_shape = PartialShape{{1, 10}, {10, 25}};
     auto symbols = set_shape_symbols(batch_shape);
 
-    auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {10});
+    auto num_rows = Constant::create(element::i64, Shape{}, {10});
     auto num_columns = num_rows;
-    auto diagonal_index = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
-    auto batch = make_shared<op::v0::Parameter>(element::i64, batch_shape);
-    auto shape_of = make_shared<op::v3::ShapeOf>(batch);
+    auto diagonal_index = make_shared<Parameter>(element::i64, PartialShape{1});
+    auto batch = make_shared<Parameter>(element::i64, batch_shape);
+    auto shape_of = make_shared<ShapeOf>(batch);
 
     auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, shape_of, element::f64);
 
@@ -328,10 +332,10 @@ TEST(type_prop, eye_dynamic_batch_shape_invalid_rank) {
 class TypePropEyeV9Test : public TypePropOpTest<op::v9::Eye> {};
 
 TEST_F(TypePropEyeV9Test, eye_batch_shape_param_other_ins_const) {
-    auto num_rows = op::v0::Constant::create(element::i64, Shape{1}, {5});
-    auto num_columns = op::v0::Constant::create(element::i64, Shape{1}, {6});
-    auto diagonal_index = op::v0::Constant::create(element::i64, Shape{1}, {0});
-    auto batch_shape = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{3});
+    auto num_rows = Constant::create(element::i64, Shape{1}, {5});
+    auto num_columns = Constant::create(element::i64, Shape{1}, {6});
+    auto diagonal_index = Constant::create(element::i64, Shape{1}, {0});
+    auto batch_shape = std::make_shared<Parameter>(element::i64, PartialShape{3});
 
     auto op = make_op(num_rows, num_columns, diagonal_index, batch_shape, element::f32);
 
@@ -341,10 +345,10 @@ TEST_F(TypePropEyeV9Test, eye_batch_shape_param_other_ins_const) {
 }
 
 TEST_F(TypePropEyeV9Test, default_ctor) {
-    auto num_rows = op::v0::Constant::create(element::i64, Shape{1}, {2});
-    auto num_columns = op::v0::Constant::create(element::i64, Shape{1}, {16});
-    auto diagonal_index = op::v0::Constant::create(element::i64, Shape{1}, {0});
-    auto batch_shape = op::v0::Constant::create(element::i64, Shape{3}, {3, 1, 2});
+    auto num_rows = Constant::create(element::i64, Shape{1}, {2});
+    auto num_columns = Constant::create(element::i64, Shape{1}, {16});
+    auto diagonal_index = Constant::create(element::i64, Shape{1}, {0});
+    auto batch_shape = Constant::create(element::i64, Shape{3}, {3, 1, 2});
 
     auto op = make_op();
 
@@ -378,21 +382,20 @@ TEST_F(TypePropEyeV9Test, default_ctor_no_arguments) {
 TEST_F(TypePropEyeV9Test, preserve_partial_values_and_symbols) {
     auto rows_shape = PartialShape{{2, 5}};
     auto rows_symbols = set_shape_symbols(rows_shape);
-    auto rows = std::make_shared<op::v0::Parameter>(element::i64, rows_shape);
-    auto num_rows = make_shared<op::v3::ShapeOf>(rows);
+    auto rows = std::make_shared<Parameter>(element::i64, rows_shape);
+    auto num_rows = make_shared<ShapeOf>(rows);
 
     auto columns_shape = PartialShape{{1, 3}};
     auto col_symbols = set_shape_symbols(columns_shape);
-    auto columns = std::make_shared<op::v0::Parameter>(element::i64, columns_shape);
-    auto shape_of_columns = make_shared<op::v3::ShapeOf>(columns);
-    auto num_columns =
-        std::make_shared<op::v0::Squeeze>(shape_of_columns, op::v0::Constant::create(element::i64, Shape{}, {0}));
+    auto columns = std::make_shared<Parameter>(element::i64, columns_shape);
+    auto shape_of_columns = make_shared<ShapeOf>(columns);
+    auto num_columns = std::make_shared<Squeeze>(shape_of_columns, Constant::create(element::i64, Shape{}, {0}));
 
     auto batch_shape = PartialShape{{1, 10}, {10, 25}};
     auto batch_symbol = set_shape_symbols(batch_shape);
 
-    auto diagonal_index = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
-    auto batch = make_shared<op::v3::ShapeOf>(make_shared<op::v0::Parameter>(element::i64, batch_shape));
+    auto diagonal_index = make_shared<Parameter>(element::i64, PartialShape{1});
+    auto batch = make_shared<ShapeOf>(make_shared<Parameter>(element::i64, batch_shape));
 
     auto op = make_op(num_rows, num_columns, diagonal_index, batch, element::i32);
 
