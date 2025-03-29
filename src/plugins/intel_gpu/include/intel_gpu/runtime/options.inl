@@ -33,6 +33,7 @@ OV_CONFIG_RELEASE_OPTION(ov::hint, activations_scale_factor, -1.0f, "Scalar floa
 OV_CONFIG_RELEASE_OPTION(ov::internal, enable_lp_transformations, false, "Enable/Disable Low precision transformations set")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, config_file, "", "Path to custom layers config file")
 OV_CONFIG_RELEASE_OPTION(ov::hint, model, nullptr, "Shared pointer to the ov::Model")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, disable_horizontal_fc_fusion, true, "Disable pass which merges QKV projections into single MatMul")
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, shape_predictor_settings, {10, 16 * 1024, 2, 1.1f}, "Preallocation settings")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, queue_type, QueueTypes::out_of_order, "Type of the queue that must be used for model execution. May be in-order or out-of-order")
@@ -73,7 +74,6 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, host_time_profiling, 0, "Measre and print 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_async_compilation, false, "Disable feature that allows to asyncrhonously prepare static-shaped implementations for the primitives with shape-agnostic kernels selected during compilation")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_buffer_fusing, false, "Disable runtime inplace optimizations for operations like concat and crop")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_post_ops_fusions, false, "Disable fusions of operations as post-ops/fused-ops")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_horizontal_fc_fusion, false, "Disable pass which merges QKV projections into single MatMul")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fc_swiglu_fusion, false, "Disable pass which merges FC and SwiGLU ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fake_alignment, false, "Disable fake alignment feature which tries to keep gpu friendly memory alignment for arbitrary tensor shapes")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memory reuse for activation tensors")
