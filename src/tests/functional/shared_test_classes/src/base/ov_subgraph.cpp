@@ -73,10 +73,14 @@ void SubgraphBaseTest::run() {
         ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
         std::string errorMessage;
         try {
+            std::cout << __FILE__ << ":" << __LINE__ << " Start compile and validation" << std::endl;
             compile_model();
+            std::cout << __FILE__ << ":" << __LINE__ << " compile_model" << std::endl;
             for (const auto& targetStaticShapeVec : targetStaticShapes) {
                 generate_inputs(targetStaticShapeVec);
+                std::cout << __FILE__ << ":" << __LINE__ << " generate_inputs" << std::endl;
                 validate();
+                std::cout << __FILE__ << ":" << __LINE__ << " validate" << std::endl;
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
@@ -97,11 +101,14 @@ void SubgraphBaseTest::run() {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
+        std::cout << __FILE__ << ":" << __LINE__ << " anyError" << std::endl;
         OPENVINO_THROW("Crash happens");
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
+        std::cout << __FILE__ << ":" << __LINE__ << " alarmErr" << std::endl;
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         OPENVINO_THROW("Crash happens");
     }
+    std::cout << __FILE__ << ":" << __LINE__ << " SubgraphBaseTest::run()" << std::endl;
 }
 
 void SubgraphBaseTest::serialize() {
