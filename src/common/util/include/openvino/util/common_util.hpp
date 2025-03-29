@@ -58,7 +58,25 @@ std::string to_lower(const std::string& s);
 
 std::string to_upper(const std::string& s);
 
-size_t hash_combine(const std::vector<size_t>& list);
+inline size_t hash_combine(size_t val, const size_t seed) {
+    return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+}
+
+inline size_t hash_combine(const std::vector<size_t>& list) {
+    size_t seed = 0;
+    for (size_t v : list) {
+        seed ^= hash_combine(v, seed);
+    }
+    return seed;
+}
+
+inline size_t hash_combine(std::initializer_list<size_t>&& list) {
+    size_t seed = 0;
+    for (size_t v : list) {
+        seed ^= hash_combine(v, seed);
+    }
+    return seed;
+}
 
 /**
  * @brief trim from start (in place)
