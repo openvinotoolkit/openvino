@@ -15,7 +15,7 @@ from test_data import FirstBadVersionData, FirstValidVersionData,\
     BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData,\
     BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData, CustomizedLogData, \
     MultiConfigData, ConfigMultiplicatorData, ConfigMultiplicatorWithKeyData, \
-    AcModeDataBitwise
+    AcModeDataBitwise, CompareBlobsData
 
 class CommitSliderTest(TestCase):
     @skip_commit_slider_devtest
@@ -367,3 +367,10 @@ class CommitSliderTest(TestCase):
             cfg["another"]["path"],
             "not updated"
         )
+
+    @skip_commit_slider_devtest
+    def testAccuracyBase(self):
+        breakCommit, updatedData = getExpectedCommit(
+            CompareBlobsData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
