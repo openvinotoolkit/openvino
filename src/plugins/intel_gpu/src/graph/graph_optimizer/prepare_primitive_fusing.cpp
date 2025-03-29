@@ -742,6 +742,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
                     return;
                 }
+
+                // Fusing prelu to multi batch onednn conv caused an accuracy issue. Blocked fusing of the case.
+                auto input_layout = input.get_output_layout();
+                if (input.is_type<convolution>() && (lo.get_preferred_impl_type(input, format::any /*dummy*/) == impl_types::onednn) &&
+                    activation_func == cldnn::activation_func::relu_negative_slope &&
+                    input_layout.is_static() && input_layout.batch() > 1) {
+                    return;
+                }
+
                 // Activation should not be fused if oneDNN does NOT support it
                 if (lo.is_primitive_implemented_for_onednn(input))  {
                     #ifdef ENABLE_ONEDNN_FOR_GPU
