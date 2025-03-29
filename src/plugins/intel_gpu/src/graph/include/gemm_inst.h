@@ -34,7 +34,8 @@ public:
     static std::string to_string(gemm_node const& node);
 
     static std::vector<layout> transform_input_layouts(const std::shared_ptr<const gemm> primitive,
-                                                       const std::vector<layout>& input_layouts);
+                                                       const std::vector<layout>& input_layouts,
+                                                       const bool allow_new_shape_infer);
     static layout transform_output_layout(const std::shared_ptr<const gemm> primitive, const std::vector<layout>& input_layouts, const layout& output_layout);
 
     static bool is_fusable_permute_input_order_onednn(const std::vector<size_t>& permute_order, format& fmt) {

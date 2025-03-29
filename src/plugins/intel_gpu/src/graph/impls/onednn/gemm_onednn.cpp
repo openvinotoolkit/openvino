@@ -84,7 +84,7 @@ protected:
         if (gemm_with_bias) {
             in_layouts.emplace_back(impl_params.get_input_layout(2));
         }
-        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts);
+        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts, impl_params.get_program().is_new_shape_infer());
         out_l = gemm_inst::transform_output_layout(prim, in_layouts, out_l);
 
         const auto& in0_l = in_layouts[0];
