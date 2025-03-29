@@ -1,0 +1,260 @@
+name: Linux-ARM CPU Plugin Snippets with LIBXSMM (Ubuntu 20.04)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      # todo: handle changes by arch - smartci ?
+      - '.github/workflows/dev_cpu_arm_snippets_libxsmm.yml'
+      - 'src/common/snippets/**'
+      - 'src/plugins/intel_cpu/src/nodes/subgraph.cpp'
+      - 'src/plugins/intel_cpu/src/nodes/subgraph.h'
+      - 'src/plugins/intel_cpu/src/emitters/snippets/**'
+      - 'src/plugins/intel_cpu/src/emitters/tpp/**'
+      - 'src/plugins/intel_cpu/src/transformations/snippets/**'
+      - 'src/plugins/intel_cpu/src/transformations/tpp/**'
+      - 'src/plugins/intel_cpu/tests/unit/snippets_transformations/**'
+      - 'src/plugins/intel_cpu/tests/functional/shared_tests_instances/snippets/**'
+
+concurrency:
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-cpu-arm-dev
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+  # ?
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+
+      - name: Show affected components
+        run: |
+          echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
+        shell: bash
+
+  Docker:
+    needs: Smart_CI
+    # ?
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    runs-on: aks-linux-4-cores-8gb-arm-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_20_04_arm64
+            ov_test/ubuntu_20_04_arm64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
+  Build:
+    needs: [ Docker, Smart_CI ]
+    uses: ./.github/workflows/job_build_linux.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb-arm'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      event-name: ${{ github.event_name }}
+      os: 'ubuntu_20_04'
+      arch: 'arm64'
+      build-js: false
+      build-contrib: false
+      build-debian-packages: false
+      build-rpm-packages: false
+      cmake-options: |-
+            -G "Ninja Multi-Config" \
+            -DENABLE_CPPLINT=OFF \
+            -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_TESTS=ON \
+            -DENABLE_SNIPPETS_LIBXSMM_TPP=ON \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DCPACK_GENERATOR=TGZ \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+
+  CPU_Unit_Tests:
+    name: C++ CPU unit tests
+    needs: [ Docker, Build, Smart_CI ]
+    timeout-minutes: 30
+    runs-on: aks-linux-8-cores-32gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+    steps:
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "SETUPVARS_COMMAND=source $GITHUB_WORKSPACE/install/setupvars.sh" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd $INSTALL_DIR
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+
+          pushd $INSTALL_TEST_DIR
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+
+      - name: Snippets func tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
+
+      - name: CPU plugin unit tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
+
+  CPU_Functional_Tests:
+    # todo: use job
+    name: CPU functional tests
+    needs: [ Docker, Build, Smart_CI ]
+    timeout-minutes: 30
+    runs-on: aks-linux-8-cores-32gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
+    steps:
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd $INSTALL_DIR
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+
+          pushd $INSTALL_TEST_DIR
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python 3.11
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.11'
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: ${{ runner.os == 'Linux' }}
+
+      - name: Install python dependencies for run_parallel.py
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+
+      - name: Intel CPU plugin func tests (parallel)
+        run: |
+          # Needed as the Linux CC does not require setupvars to work
+          if [[ -f "${INSTALL_DIR}/setupvars.sh" ]]; then
+            source ${INSTALL_DIR}/setupvars.sh
+          fi
+          # Needed as ze_loader.so is under INSTALL_TEST_DIR
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
+
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_filter=*smoke_Snippets*:*smoke_MHA* --gtest_print_time=1
+        timeout-minutes: 25
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        if: always()
+        with:
+          name: test-results-functional-cpu
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
+          if-no-files-found: 'error'
