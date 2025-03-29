@@ -238,7 +238,7 @@ ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_t* preproces
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_preprocess_steps_scale_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
                                                     const float* values,
-                                                    const int32_t value_size);
+                                                    const size_t value_size);
 
 /**
  * @brief Add mean preprocess operation. Subtract specified value from each element of input.
@@ -261,7 +261,7 @@ ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t* preprocess
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_preprocess_steps_mean_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
                                                    const float* values,
-                                                   const int32_t value_size);
+                                                   const size_t value_size);
 
 /**
  * @brief Crop input tensor between begin and end coordinates.

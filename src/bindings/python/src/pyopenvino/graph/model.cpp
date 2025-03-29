@@ -308,7 +308,7 @@ void regclass_graph_Model(py::module m) {
 
                     self.reshape(shape_map);
                 },
-                py::arg("input_shapes"),
+                py::arg("partial_shape"),
                 R"(
                 Reshape model inputs using a list of shapes.
 
