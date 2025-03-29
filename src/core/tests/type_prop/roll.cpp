@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/roll.hpp"
+
 #include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/roll.hpp"
 
 using namespace std;
 using namespace ov;

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/psroi_pooling.hpp"
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/psroi_pooling.hpp"
 #include "openvino/op/parameter.hpp"
 
 using namespace ov;

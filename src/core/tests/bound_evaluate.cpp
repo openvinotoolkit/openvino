@@ -8,13 +8,13 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/framework_node.hpp"
 
 using namespace ov;
 
@@ -22,7 +22,8 @@ class EvaluateBoundTest : public TypePropOpTest<op::util::FrameworkNode> {
 protected:
     void SetUp() override {
         const auto c_inputs =
-            ParameterVector(2, std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 24, {1, -1}, {1, -1}}));
+            ParameterVector(2,
+                            std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 24, {1, -1}, {1, -1}}));
         const auto c = std::make_shared<op::v0::Concat>(OutputVector(c_inputs.begin(), c_inputs.end()), 1);
         const auto s = std::make_shared<op::v3::ShapeOf>(c);
         const auto s_res = std::make_shared<op::v0::Result>(s);

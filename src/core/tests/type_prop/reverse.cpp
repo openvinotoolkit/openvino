@@ -170,9 +170,9 @@ TEST(type_prop, reverse_partial_rank_dynamic) {
     EXPECT_EQ(rev->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
-using ov::op::v8::If;
 using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
+using ov::op::v8::If;
 
 //
 // If the input rank is static but the shape is dynamic, we should pass if the axis indices are

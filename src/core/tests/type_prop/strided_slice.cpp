@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/strided_slice.hpp"
+
 #include <memory>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "strided_slice_shape_inference.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
+#include "strided_slice_shape_inference.hpp"
 
 using namespace std;
 using namespace ov;
@@ -495,7 +494,6 @@ public:
 };
 
 TEST_P(StridedSliceShapeInferTest, begin_end_strides_are_not_constants) {
-
     const auto& params = GetParam();
 
     const auto input_data = std::make_shared<op::v0::Parameter>(params.ref_type, params.input_shape);
@@ -721,15 +719,16 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                 StridedSliceIntervalParams({{10, 1024}}, {{20, 30}}, {{10, 15}}, 0, 0, -2, {{0, 10}})));
 
 TEST_P(StridedSliceIntervalTest, begin_end_as_interval) {
-
     const auto p_begin = std::make_shared<op::v0::Parameter>(element::i64, begin_shape);
     const auto shape_of_begin = std::make_shared<op::v3::ShapeOf>(p_begin);
     const auto begin =
-        std::make_shared<op::v1::Subtract>(shape_of_begin, op::v0::Constant::create(element::i64, Shape{1}, {begin_offset}));
+        std::make_shared<op::v1::Subtract>(shape_of_begin,
+                                           op::v0::Constant::create(element::i64, Shape{1}, {begin_offset}));
 
     const auto p_end = std::make_shared<op::v0::Parameter>(element::i64, end_shape);
     const auto shape_of_end = std::make_shared<op::v3::ShapeOf>(p_end);
-    const auto end = std::make_shared<op::v1::Subtract>(shape_of_end, op::v0::Constant::create(element::i64, Shape{1}, {end_offset}));
+    const auto end = std::make_shared<op::v1::Subtract>(shape_of_end,
+                                                        op::v0::Constant::create(element::i64, Shape{1}, {end_offset}));
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
     const auto stride = op::v0::Constant::create(element::i64, Shape{1}, {step});

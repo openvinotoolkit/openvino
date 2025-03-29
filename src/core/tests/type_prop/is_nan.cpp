@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/is_nan.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/is_nan.hpp"
 #include "openvino/op/parameter.hpp"
 
 using namespace std;

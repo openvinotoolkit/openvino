@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/reorg_yolo.hpp"
+
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/reorg_yolo.hpp"
 
 using namespace ov;
 using ov::op::v0::Parameter;

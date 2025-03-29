@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/eye.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "eye_shape_inference.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/eye.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -16,10 +17,10 @@
 using namespace std;
 using namespace ov;
 using namespace testing;
-using ov::op::v0::Parameter;
 using ov::op::v0::Constant;
-using ov::op::v3::ShapeOf;
+using ov::op::v0::Parameter;
 using ov::op::v0::Squeeze;
+using ov::op::v3::ShapeOf;
 using ov::op::v9::Eye;
 
 TEST(type_prop, eye_constant) {

@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/experimental_detectron_detection_output.hpp"
+
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/experimental_detectron_detection_output.hpp"
 #include "openvino/op/parameter.hpp"
 
 using namespace ov;

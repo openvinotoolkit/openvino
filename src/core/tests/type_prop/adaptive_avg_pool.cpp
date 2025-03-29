@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/adaptive_avg_pool.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/adaptive_avg_pool.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/shape_of.hpp"
 
 using namespace std;
 using namespace ov;
+using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
 using ov::op::v3::ShapeOf;
-using ov::op::v0::Constant;
 using namespace testing;
 
 class AdaptiveAvgPoolV8Test : public TypePropOpTest<op::v8::AdaptiveAvgPool> {};

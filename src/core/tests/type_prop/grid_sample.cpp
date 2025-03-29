@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/grid_sample.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/util/attr_types.hpp"
-#include "openvino/op/grid_sample.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 using namespace std;
 using namespace ov;

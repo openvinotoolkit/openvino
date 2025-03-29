@@ -13,8 +13,8 @@
 
 using namespace ov;
 using ov::op::v0::Constant;
-using ov::op::v3::ShapeOf;
 using ov::op::v0::Parameter;
+using ov::op::v3::ShapeOf;
 using namespace testing;
 
 template <class TOp>
