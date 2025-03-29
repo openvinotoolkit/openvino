@@ -49,7 +49,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
 
     if (memory.at(ARG_BIAS)->getDataAs<float>() == nullptr) {
         auto biasDesc = std::make_shared<CpuBlockedMemoryDesc>(f32, Shape({N}));
-        biasMem = std::make_shared<Memory>(context->getEngine(), biasDesc);
+        biasMem = std::make_shared<Memory>(biasDesc);
         biasMem->nullify();
     } else {
         biasMem = memory.at(ARG_BIAS);
@@ -71,7 +71,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     packedWeights = acl_fc_executor::reorderWeights(memory, context, aclfcAttrs, dnnlSrcDesc, dnnlDstDesc);
     const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(N, K);
     auto rhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(f32, Shape({rhsPackedSize}));
-    rhsPackedMem = std::make_shared<Memory>(context->getEngine(), rhsPackedDesc);
+    rhsPackedMem = std::make_shared<Memory>(rhsPackedDesc);
 
     float* bias = biasMem->getDataAs<float>();
     float* rhs_packed = static_cast<float*>(rhsPackedMem->getData());

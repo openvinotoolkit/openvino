@@ -161,7 +161,8 @@ void Transpose::prepareParams() {
         getSelectedPrimitiveDescriptor()->setImplementationType(
             parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));
 
-        primArgs = {{DNNL_ARG_SRC, srcMemPtr->getPrimitive()}, {DNNL_ARG_DST, dstMemPtr->getPrimitive()}};
+        primArgs = {{DNNL_ARG_SRC, DnnlExtensionUtils::createMemoryPrimitive(srcMemPtr, getEngine())},
+                    {DNNL_ARG_DST, DnnlExtensionUtils::createMemoryPrimitive(dstMemPtr, getEngine())}};
 #ifdef CPU_DEBUG_CAPS
         if (prim) {
             auto pd = prim.get_primitive_desc();
@@ -256,12 +257,14 @@ void Transpose::execute(const dnnl::stream& strm) {
         return;
     }
 
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
+
     if (prim) {
+        primArgs[DNNL_ARG_SRC].set_data_handle(srcMemPtr->getData());
+        primArgs[DNNL_ARG_DST].set_data_handle(dstMemPtr->getData());
         prim.execute(strm, primArgs);
     } else if (execPtr) {
-        auto dstMemPtr = getDstMemoryAtPort(0);
-        auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
-
         execPtr->exec({srcMemPtr}, {dstMemPtr});
     } else {
         THROW_CPU_NODE_ERR("Primitive was not created.");
