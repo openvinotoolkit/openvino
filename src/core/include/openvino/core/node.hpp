@@ -405,6 +405,7 @@ public:
     Input<const Node> input(size_t input_index) const;
 
     Output<Node> input_value(size_t input_index) const;
+    std::tuple<ov::Node*, size_t> input_value_raw(size_t input_index) const;
 
     /// \return A handle to the `output_index`th output of this node.
     /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
