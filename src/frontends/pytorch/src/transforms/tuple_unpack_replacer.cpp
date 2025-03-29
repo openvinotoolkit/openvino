@@ -29,6 +29,12 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
         auto input_node = tuple_unpack->get_input_node_shared_ptr(0);
         auto tuple_construct = cast_fw_node(input_node, "prim::TupleConstruct");
         if (!tuple_construct) {
+            if(input_node->get_rt_info().count("__torch_tuple_unpackable__")) {
+                input_node->get_rt_info().erase("__torch_tuple_unpackable__");
+                // remove TupleUnpack just bypassing it with all outputs from a custom operation which returns tuple
+                replace_node(tuple_unpack, input_node->outputs());
+                return true;
+            }
             return false;
         }
         for (const auto& input : input_node->inputs()) {
