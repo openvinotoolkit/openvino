@@ -433,11 +433,14 @@ public:
         mvn_results /= tensor_size ? tensor_size : 1;
         if (!incorrect_values_abs.empty() && equal(1.f, topk_threshold) ||
             incorrect_values_abs.size() > static_cast<int>(std::floor(topk_threshold * tensor_size))) {
-            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED! incorrect elem counter: ";
+            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED!";
+#ifdef NDEBUG
+            msg += " incorrect elem counter: ";
             msg += std::to_string(incorrect_values_abs.size());
             msg += " among ";
             msg += std::to_string(tensor_size);
             msg += " shapes.";
+#endif
             for (auto val : incorrect_values_abs) {
                 std::cout << "\nExpected: " << val.expected_value << " Actual: " << val.actual_value
                           << " Coordinate: " << val.coordinate
