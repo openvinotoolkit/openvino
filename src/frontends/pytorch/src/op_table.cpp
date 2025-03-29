@@ -218,6 +218,7 @@ OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
+OP_CONVERTER(translate_poisson);
 OP_CONVERTER(translate_rms_norm);
 OP_CONVERTER(translate_rnn);
 OP_CONVERTER(translate_roi_align);
@@ -657,6 +658,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::repeat_interleave", op::translate_repeat_interleave},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
+        {"aten::poisson", op::translate_poisson},
         // TO DO: enable behaviour for resolve_conj and resolve_neg complex tensors,
         // when complex dtype will be supported
         // for real dtypes, these operations return input tensor without changes and can be skipped
