@@ -12,7 +12,18 @@
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/erf.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/util/common_util.hpp"
 #include "preprocess/color_utils.hpp"
 
@@ -2174,8 +2185,8 @@ TEST(pre_post_process, postprocess_many) {
 
 TEST(pre_post_process, postprocess_one_node_many_outputs) {
     auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
-    auto c1 = opset8::Constant::create(element::i32, Shape{}, {0});
-    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    auto c1 = op::v0::Constant::create(element::i32, Shape{}, {0});
+    auto op = std::make_shared<op::v1::Split>(data1, c1, 3);
     op->set_friendly_name("Split");
     ResultVector results;
     for (size_t i = 0; i < op->get_num_splits(); i++) {
@@ -2212,8 +2223,8 @@ TEST(pre_post_process, postprocess_one_node_many_outputs) {
 
 TEST(pre_post_process, postprocess_one_node_many_outputs_results_created_by_model) {
     auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
-    auto c1 = opset8::Constant::create(element::i32, Shape{}, {0});
-    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    auto c1 = op::v0::Constant::create(element::i32, Shape{}, {0});
+    auto op = std::make_shared<op::v1::Split>(data1, c1, 3);
     op->set_friendly_name("Split");
     op->output(0).set_names({"tensor_Split0"});
     auto r1 = std::make_shared<op::v0::Result>(op->output(0));
@@ -2253,8 +2264,8 @@ TEST(pre_post_process, postprocess_one_node_many_outputs_results_created_by_mode
 
 TEST(pre_post_process, postprocess_one_node_many_outputs_results_created_or_added_by_model) {
     auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
-    auto c1 = opset8::Constant::create(element::i32, Shape{}, {0});
-    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    auto c1 = op::v0::Constant::create(element::i32, Shape{}, {0});
+    auto op = std::make_shared<op::v1::Split>(data1, c1, 3);
     op->set_friendly_name("Split");
     for (size_t i = 0; i < op->get_output_size(); ++i) {
         op->output(i).set_names({"tensor_Split" + std::to_string(i)});
@@ -2292,8 +2303,8 @@ TEST(pre_post_process, postprocess_one_node_many_outputs_results_created_or_adde
 
 TEST(pre_post_process, postprocess_nothing_applied) {
     auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{1, 3, 10, 20});
-    auto c1 = opset8::Constant::create(element::i32, Shape{}, {1});
-    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    auto c1 = op::v0::Constant::create(element::i32, Shape{}, {1});
+    auto op = std::make_shared<op::v1::Split>(data1, c1, 3);
     op->set_friendly_name("Split");
     ResultVector results;
     for (size_t i = 0; i < op->get_num_splits(); i++) {

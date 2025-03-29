@@ -9,6 +9,7 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/reduce_base_transformation.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace pass {
@@ -41,7 +42,7 @@ bool ReduceBaseTransformation::canBeTransformed(const std::shared_ptr<Node>& red
         return false;
     }
 
-    const auto axesConstant = ov::as_type_ptr<ov::opset1::Constant>(reduce->get_input_node_shared_ptr(1));
+    const auto axesConstant = ov::as_type_ptr<ov::op::v0::Constant>(reduce->get_input_node_shared_ptr(1));
     if (axesConstant == nullptr) {
         return false;
     }

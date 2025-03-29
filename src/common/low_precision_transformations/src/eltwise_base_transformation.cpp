@@ -11,6 +11,12 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -60,14 +66,14 @@ bool EltwiseBaseTransformation::canBeTransformed(const std::shared_ptr<Node>& op
 }
 
 static bool isTargetType(const std::shared_ptr<Node> node) {
-    return node != nullptr && (ov::is_type<ov::opset1::Convolution>(node) ||
-                               ov::is_type<ov::opset1::GroupConvolution>(node) ||
-                               ov::is_type<ov::opset1::MatMul>(node));
+    return node != nullptr && (ov::is_type<ov::op::v1::Convolution>(node) ||
+                               ov::is_type<ov::op::v1::GroupConvolution>(node) ||
+                               ov::is_type<ov::op::v0::MatMul>(node));
 }
 
 static std::shared_ptr<Node> getDataParent(const std::shared_ptr<Node> branchData) {
     std::shared_ptr<Node> parent = branchData;
-    while (ov::is_type<ov::opset1::FakeQuantize>(parent)) {
+    while (ov::is_type<ov::op::v0::FakeQuantize>(parent)) {
         parent = parent->get_input_node_shared_ptr(0);
     }
 
@@ -101,7 +107,7 @@ static bool isBranchHaveMultipleConsumers(const std::shared_ptr<Node> branchData
             return true;
         }
         const auto new_parent = parent->get_input_node_shared_ptr(0);
-        parent = !ov::is_type<ov::opset1::Constant>(new_parent) ? new_parent : parent->get_input_node_shared_ptr(1);
+        parent = !ov::is_type<ov::op::v0::Constant>(new_parent) ? new_parent : parent->get_input_node_shared_ptr(1);
     }
     return several_consumers(parent);
 }
@@ -109,12 +115,12 @@ static bool isBranchHaveMultipleConsumers(const std::shared_ptr<Node> branchData
 // return branch index with FP32 precision after eltwise transformation
 int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise) const {
     const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(eltwise, defaultPrecisions, 0ul);
-    if (ov::as_type<ov::opset1::Constant>(dequantization1.data.get_node())) {
+    if (ov::as_type<ov::op::v0::Constant>(dequantization1.data.get_node())) {
         return -1;
     }
 
     const FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(eltwise, defaultPrecisions, 1ul);
-    if (ov::as_type<ov::opset1::Constant>(dequantization2.data.get_node())) {
+    if (ov::as_type<ov::op::v0::Constant>(dequantization2.data.get_node())) {
         return -1;
     }
 
@@ -142,10 +148,10 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
         }
     }
 
-    const std::shared_ptr<ov::opset1::FakeQuantize> fakeQuantize1 =
-        ov::as_type_ptr<ov::opset1::FakeQuantize>(dequantization1.data.get_node_shared_ptr());
-    const std::shared_ptr<ov::opset1::FakeQuantize> fakeQuantize2 =
-        ov::as_type_ptr<ov::opset1::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
+    const std::shared_ptr<ov::op::v0::FakeQuantize> fakeQuantize1 =
+        ov::as_type_ptr<ov::op::v0::FakeQuantize>(dequantization1.data.get_node_shared_ptr());
+    const std::shared_ptr<ov::op::v0::FakeQuantize> fakeQuantize2 =
+        ov::as_type_ptr<ov::op::v0::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
 
     if (fakeQuantize1 && !fakeQuantize2) {
         return 0;
@@ -164,11 +170,11 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
             return 1;
     }
 
-    if (ov::is_type<ov::opset1::Constant>(dequantization1.data.get_node())) {
+    if (ov::is_type<ov::op::v0::Constant>(dequantization1.data.get_node())) {
         return 0;
     }
 
-    if (ov::is_type<ov::opset1::Constant>(dequantization2.data.get_node())) {
+    if (ov::is_type<ov::op::v0::Constant>(dequantization2.data.get_node())) {
         return 1;
     }
 
@@ -211,18 +217,18 @@ std::pair<int, int> EltwiseBaseTransformation::getMultiplyConstBranch(const std:
     const std::shared_ptr<Node> parent2 = eltwise->get_input_node_shared_ptr(1);
     const auto dequantization2 = NetworkHelper::getDequantization(eltwise, defaultPrecisions, 1);
 
-    std::shared_ptr<ov::opset1::Constant> constParent = dequantization1.empty() ?
-        ov::as_type_ptr<ov::opset1::Constant>(parent1) :
-        ov::as_type_ptr<ov::opset1::Constant>(dequantization1.data.get_node_shared_ptr());
-    std::shared_ptr<ov::opset1::Multiply> multiplyParent = ov::as_type_ptr<ov::opset1::Multiply>(parent2);
+    std::shared_ptr<ov::op::v0::Constant> constParent = dequantization1.empty() ?
+        ov::as_type_ptr<ov::op::v0::Constant>(parent1) :
+        ov::as_type_ptr<ov::op::v0::Constant>(dequantization1.data.get_node_shared_ptr());
+    std::shared_ptr<ov::op::v1::Multiply> multiplyParent = ov::as_type_ptr<ov::op::v1::Multiply>(parent2);
     int multiplyBranch = 1;
 
 
     if (constParent == nullptr || multiplyParent == nullptr) {
         constParent = dequantization2.empty() ?
-            ov::as_type_ptr<ov::opset1::Constant>(parent2) :
-            ov::as_type_ptr<ov::opset1::Constant>(dequantization2.data.get_node_shared_ptr());
-        multiplyParent = ov::as_type_ptr<ov::opset1::Multiply>(parent1);
+            ov::as_type_ptr<ov::op::v0::Constant>(parent2) :
+            ov::as_type_ptr<ov::op::v0::Constant>(dequantization2.data.get_node_shared_ptr());
+        multiplyParent = ov::as_type_ptr<ov::op::v1::Multiply>(parent1);
         multiplyBranch = 0;
     }
 
@@ -233,14 +239,14 @@ std::pair<int, int> EltwiseBaseTransformation::getMultiplyConstBranch(const std:
     auto multiplyParentParent1 = multiplyParent->get_input_node_shared_ptr(0);
     auto multiplyParentParent2 = multiplyParent->get_input_node_shared_ptr(1);
 
-    auto multiplyParentParent = ov::as_type_ptr<ov::opset1::Multiply>(multiplyParentParent1);
-    auto multiplyParentConst = ov::as_type_ptr<ov::opset1::Constant>(multiplyParentParent2);
+    auto multiplyParentParent = ov::as_type_ptr<ov::op::v1::Multiply>(multiplyParentParent1);
+    auto multiplyParentConst = ov::as_type_ptr<ov::op::v0::Constant>(multiplyParentParent2);
     int multiplyActBranch = 0;
 
 
     if (multiplyParentConst == nullptr) {
-        multiplyParentParent = ov::as_type_ptr<ov::opset1::Multiply>(multiplyParentParent2);
-        multiplyParentConst = ov::as_type_ptr<ov::opset1::Constant>(multiplyParentParent1);
+        multiplyParentParent = ov::as_type_ptr<ov::op::v1::Multiply>(multiplyParentParent2);
+        multiplyParentConst = ov::as_type_ptr<ov::op::v0::Constant>(multiplyParentParent1);
         multiplyActBranch = 1;
     }
 

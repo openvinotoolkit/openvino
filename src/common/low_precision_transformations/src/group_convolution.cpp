@@ -11,6 +11,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace pass {
@@ -18,7 +19,7 @@ namespace low_precision {
 
 GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& params) : ConvolutionTransformation(params) {
     MATCHER_SCOPE(GroupConvolutionTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::GroupConvolution>();
+    auto matcher = pattern::wrap_type<ov::op::v1::GroupConvolution>();
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

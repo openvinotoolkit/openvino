@@ -8,11 +8,12 @@
 
 #include "itt.hpp"
 #include "openvino/util/log.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace pass {
@@ -20,7 +21,7 @@ namespace low_precision {
 
 AvgPoolTransformation::AvgPoolTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(AvgPoolTransformation);
-    auto matcher = pattern::wrap_type<opset1::AvgPool>({ pattern::wrap_type<opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<op::v1::AvgPool>({ pattern::wrap_type<op::v1::Multiply>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

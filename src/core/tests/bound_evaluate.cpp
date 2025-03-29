@@ -9,19 +9,23 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
 
 class EvaluateBoundTest : public TypePropOpTest<op::util::FrameworkNode> {
 protected:
     void SetUp() override {
         const auto c_inputs =
-            ParameterVector(2, std::make_shared<Parameter>(element::f32, PartialShape{-1, 24, {1, -1}, {1, -1}}));
-        const auto c = std::make_shared<Concat>(OutputVector(c_inputs.begin(), c_inputs.end()), 1);
-        const auto s = std::make_shared<ShapeOf>(c);
-        const auto s_res = std::make_shared<Result>(s);
+            ParameterVector(2, std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 24, {1, -1}, {1, -1}}));
+        const auto c = std::make_shared<op::v0::Concat>(OutputVector(c_inputs.begin(), c_inputs.end()), 1);
+        const auto s = std::make_shared<op::v3::ShapeOf>(c);
+        const auto s_res = std::make_shared<op::v0::Result>(s);
         const auto body = std::make_shared<Model>(OutputVector{s_res}, c_inputs);
 
         fn_op = make_op(OutputVector{s}, 0, 2);
@@ -57,9 +61,9 @@ using BoundEvaluatorTest = ::testing::Test;
 TEST(BoundEvaluatorTest, no_exception_on_single_bound) {
     constexpr auto et = element::i32;
     const auto s = Shape{1, 1};
-    const auto a = std::make_shared<Parameter>(et, PartialShape{s});
-    const auto b = Constant::create(et, s, {1});
-    const auto sub = std::make_shared<Subtract>(a, b);
+    const auto a = std::make_shared<op::v0::Parameter>(et, PartialShape{s});
+    const auto b = op::v0::Constant::create(et, s, {1});
+    const auto sub = std::make_shared<op::v1::Subtract>(a, b);
 
     int32_t a_l[1] = {1};
     a->get_output_tensor(0).set_lower_value(Tensor{et, s, a_l});

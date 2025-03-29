@@ -7,11 +7,14 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace ov;
 
@@ -37,12 +40,12 @@ using namespace ov;
 //
 ov::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(const std::vector<ov::element::Type>& constantPrecisions) {
     MATCHER_SCOPE(ConvertSubtractConstant);
-    auto weightsConstantWrapper = ov::pass::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
-    auto weightsConvertWrapper = ov::pass::pattern::wrap_type<opset1::Convert>({ weightsConstantWrapper }, pattern::consumers_count(1));
-    auto subtractConstantWrapper = ov::pass::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
-    auto subtractWrapper = ov::pass::pattern::wrap_type<opset1::Subtract>({ weightsConvertWrapper, subtractConstantWrapper }, pattern::consumers_count(1));
-    auto multiplyConstantWrapper = ov::pass::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
-    auto multiplyWrapper = ov::pass::pattern::wrap_type<opset1::Multiply>({ subtractWrapper, multiplyConstantWrapper }, pattern::consumers_count(1));
+    auto weightsConstantWrapper = ov::pass::pattern::wrap_type<op::v0::Constant>(pattern::consumers_count(1));
+    auto weightsConvertWrapper = ov::pass::pattern::wrap_type<op::v0::Convert>({ weightsConstantWrapper }, pattern::consumers_count(1));
+    auto subtractConstantWrapper = ov::pass::pattern::wrap_type<op::v0::Constant>(pattern::consumers_count(1));
+    auto subtractWrapper = ov::pass::pattern::wrap_type<op::v1::Subtract>({ weightsConvertWrapper, subtractConstantWrapper }, pattern::consumers_count(1));
+    auto multiplyConstantWrapper = ov::pass::pattern::wrap_type<op::v0::Constant>(pattern::consumers_count(1));
+    auto multiplyWrapper = ov::pass::pattern::wrap_type<op::v1::Multiply>({ subtractWrapper, multiplyConstantWrapper }, pattern::consumers_count(1));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
@@ -78,18 +81,18 @@ ov::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(const 
 
         if (resultSubtractConstant == nullptr) {
             const auto multiply = opsMap.at(multiplyWrapper).get_node_shared_ptr();
-            const auto newMultiply = std::make_shared<opset1::Multiply>(weightsConvert, opsMap.at(multiplyConstantWrapper).get_node_shared_ptr());
+            const auto newMultiply = std::make_shared<op::v1::Multiply>(weightsConvert, opsMap.at(multiplyConstantWrapper).get_node_shared_ptr());
             NetworkHelper::copyInfo(multiply, newMultiply);
             replace_node(multiply, newMultiply);
         } else {
             NetworkHelper::copyInfo(subtractConstant, resultSubtractConstant);
-            const auto resultConvert = std::make_shared<opset1::Convert>(resultSubtractConstant, dequantizationPrecision);
+            const auto resultConvert = std::make_shared<op::v0::Convert>(resultSubtractConstant, dequantizationPrecision);
             NetworkHelper::copyInfo(subtractConstant, resultConvert);
             resultConvert->set_friendly_name(subtractConstant->get_friendly_name() + "/Convert");
 
             ov::disable_constant_folding(resultConvert);
 
-            const auto newSubtract = std::make_shared<opset1::Subtract>(opsMap.at(weightsConvertWrapper).get_node_shared_ptr(), resultConvert);
+            const auto newSubtract = std::make_shared<op::v1::Subtract>(opsMap.at(weightsConvertWrapper).get_node_shared_ptr(), resultConvert);
             NetworkHelper::copyInfo(subtract, newSubtract);
             replace_node(subtract, newSubtract);
         }

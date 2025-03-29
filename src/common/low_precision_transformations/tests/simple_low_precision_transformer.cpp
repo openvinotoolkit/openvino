@@ -22,6 +22,7 @@
 #include "low_precision/multiply_to_group_convolution.hpp"
 
 #include <string>
+#include "openvino/op/group_conv.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -60,7 +61,7 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
 
         cleanup->add_matcher<MultiplyToGroupConvolutionTransformation>(
             params,
-            PrecisionsRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions));
+            PrecisionsRestriction::getPrecisionsByOperationType<op::v1::GroupConvolution>(precisionRestrictions));
     }
 }
 

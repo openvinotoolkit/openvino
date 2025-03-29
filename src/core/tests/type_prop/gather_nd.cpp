@@ -5,7 +5,8 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/gather_nd.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
 using namespace ov;

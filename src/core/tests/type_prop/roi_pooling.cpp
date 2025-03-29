@@ -5,11 +5,11 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/roi_pooling.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset11;
 using namespace testing;
 
 class TypePropROIPoolingV0 : public TypePropOpTest<op::v0::ROIPooling> {
@@ -19,8 +19,8 @@ protected:
 };
 
 TEST_F(TypePropROIPoolingV0, default_ctor) {
-    const auto feat_maps = make_shared<Parameter>(element::f32, PartialShape{{0, 3}, {1, 3}, {1, 6}, {1, 6}});
-    const auto rois = make_shared<Parameter>(element::f32, PartialShape{{2, 4}, {1, 5}});
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f32, PartialShape{{0, 3}, {1, 3}, {1, 6}, {1, 6}});
+    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{{2, 4}, {1, 5}});
 
     const auto op = make_op();
     op->set_arguments(OutputVector{feat_maps, rois});
@@ -39,8 +39,8 @@ TEST_F(TypePropROIPoolingV0, default_ctor) {
 }
 
 TEST_F(TypePropROIPoolingV0, basic_shape_inference) {
-    const auto feat_maps = make_shared<Parameter>(element::f32, Shape{1, 3, 6, 6});
-    const auto rois = make_shared<Parameter>(element::f32, Shape{4, 5});
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 6, 6});
+    const auto rois = make_shared<op::v0::Parameter>(element::f32, Shape{4, 5});
     const auto op = make_op(feat_maps, rois, pooling_roi_2x2, 0.625f);
 
     EXPECT_EQ(op->get_element_type(), element::f32);
@@ -54,8 +54,8 @@ TEST_F(TypePropROIPoolingV0, dynamic_channels_dim) {
     auto feat_symbols = set_shape_symbols(feat_shape);
     auto rois_symbols = set_shape_symbols(rois_shape);
 
-    const auto feat_maps = make_shared<Parameter>(element::f32, feat_shape);
-    const auto rois = make_shared<Parameter>(element::f32, rois_shape);
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f32, feat_shape);
+    const auto rois = make_shared<op::v0::Parameter>(element::f32, rois_shape);
     const auto op = make_op(feat_maps, rois, pooling_roi_2x2, spatial_scale, "max");
 
     EXPECT_EQ(op->get_element_type(), element::f32);
@@ -70,8 +70,8 @@ TEST_F(TypePropROIPoolingV0, dynamic_num_rois_dim) {
     auto feat_symbols = set_shape_symbols(feat_shape);
     auto rois_symbols = set_shape_symbols(rois_shape);
 
-    const auto feat_maps = make_shared<Parameter>(element::f64, feat_shape);
-    const auto rois = make_shared<Parameter>(element::f64, rois_shape);
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f64, feat_shape);
+    const auto rois = make_shared<op::v0::Parameter>(element::f64, rois_shape);
     const auto op = make_op(feat_maps, rois, pooling_roi_2x2, spatial_scale, "bilinear");
 
     EXPECT_EQ(op->get_element_type(), element::f64);
@@ -81,8 +81,8 @@ TEST_F(TypePropROIPoolingV0, dynamic_num_rois_dim) {
 }
 
 TEST_F(TypePropROIPoolingV0, dynamic_rank_feat_maps) {
-    const auto feat_maps = make_shared<Parameter>(element::f16, PartialShape::dynamic());
-    const auto rois = make_shared<Parameter>(element::f16, Shape{4, 5});
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
+    const auto rois = make_shared<op::v0::Parameter>(element::f16, Shape{4, 5});
     const auto op = make_op(feat_maps, rois, pooling_roi_2x2, spatial_scale);
 
     EXPECT_EQ(op->get_element_type(), element::f16);
@@ -91,8 +91,8 @@ TEST_F(TypePropROIPoolingV0, dynamic_rank_feat_maps) {
 }
 
 TEST_F(TypePropROIPoolingV0, dynamic_rank_feat_rois) {
-    const auto feat_maps = make_shared<Parameter>(element::f32, Shape{1, 3, 6, 6});
-    const auto rois = make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 6, 6});
+    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     const auto op = make_op(feat_maps, rois, pooling_roi_2x2, spatial_scale);
 
     EXPECT_EQ(op->get_element_type(), element::f32);
@@ -101,8 +101,8 @@ TEST_F(TypePropROIPoolingV0, dynamic_rank_feat_rois) {
 }
 
 TEST_F(TypePropROIPoolingV0, incompatible_input_rank) {
-    const auto feat_maps = make_shared<Parameter>(element::f32, Shape{1, 3, 6, 6, 6});
-    const auto rois = make_shared<Parameter>(element::f32, PartialShape{3, 5});
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 6, 6, 6});
+    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
 
     OV_EXPECT_THROW(const auto op = make_op(feat_maps, rois, pooling_roi_2x2, spatial_scale, "max"),
                     NodeValidationFailure,
@@ -110,8 +110,8 @@ TEST_F(TypePropROIPoolingV0, incompatible_input_rank) {
 }
 
 TEST_F(TypePropROIPoolingV0, incompatible_pooling_shape) {
-    const auto feat_maps = make_shared<Parameter>(element::f32, Shape{3, 2, 6, 6});
-    const auto rois = make_shared<Parameter>(element::f32, PartialShape{3, 5});
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f32, Shape{3, 2, 6, 6});
+    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
 
     OV_EXPECT_THROW(const auto op = make_op(feat_maps, rois, Shape{2, 2, 2}, spatial_scale, "max"),
                     NodeValidationFailure,
@@ -119,8 +119,8 @@ TEST_F(TypePropROIPoolingV0, incompatible_pooling_shape) {
 }
 
 TEST_F(TypePropROIPoolingV0, incompatible_rois_second_dim) {
-    const auto feat_maps = make_shared<Parameter>(element::f32, Shape{3, 2, 6, 6});
-    const auto rois = make_shared<Parameter>(element::f32, PartialShape{3, 4});
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f32, Shape{3, 2, 6, 6});
+    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
 
     OV_EXPECT_THROW(const auto op = make_op(feat_maps, rois, pooling_roi_2x2, spatial_scale, "max"),
                     NodeValidationFailure,
@@ -129,8 +129,8 @@ TEST_F(TypePropROIPoolingV0, incompatible_rois_second_dim) {
 }
 
 TEST_F(TypePropROIPoolingV0, incompatible_feature_maps_element_type) {
-    const auto feat_maps = make_shared<Parameter>(element::i32, Shape{3, 2, 6, 6});
-    const auto rois = make_shared<Parameter>(element::f32, PartialShape{3, 5});
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::i32, Shape{3, 2, 6, 6});
+    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
 
     OV_EXPECT_THROW(const auto op = make_op(feat_maps, rois, pooling_roi_2x2, spatial_scale, "max"),
                     NodeValidationFailure,
@@ -138,8 +138,8 @@ TEST_F(TypePropROIPoolingV0, incompatible_feature_maps_element_type) {
 }
 
 TEST_F(TypePropROIPoolingV0, incompatible_rois_element_type) {
-    const auto feat_maps = make_shared<Parameter>(element::f32, Shape{3, 2, 6, 6});
-    const auto rois = make_shared<Parameter>(element::i16, PartialShape{3, 5});
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f32, Shape{3, 2, 6, 6});
+    const auto rois = make_shared<op::v0::Parameter>(element::i16, PartialShape{3, 5});
 
     OV_EXPECT_THROW(const auto op = make_op(feat_maps, rois, pooling_roi_2x2, spatial_scale, "bilinear"),
                     NodeValidationFailure,
@@ -147,8 +147,8 @@ TEST_F(TypePropROIPoolingV0, incompatible_rois_element_type) {
 }
 
 TEST_F(TypePropROIPoolingV0, invalid_pooling_method) {
-    const auto feat_maps = make_shared<Parameter>(element::f32, Shape{3, 2, 6, 6});
-    const auto rois = make_shared<Parameter>(element::f32, PartialShape{3, 5});
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f32, Shape{3, 2, 6, 6});
+    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
 
     OV_EXPECT_THROW(const auto op = make_op(feat_maps, rois, pooling_roi_2x2, spatial_scale, "invalid"),
                     NodeValidationFailure,
@@ -156,8 +156,8 @@ TEST_F(TypePropROIPoolingV0, invalid_pooling_method) {
 }
 
 TEST_F(TypePropROIPoolingV0, invalid_spatial_scale) {
-    const auto feat_maps = make_shared<Parameter>(element::f32, Shape{3, 2, 6, 6});
-    const auto rois = make_shared<Parameter>(element::f32, PartialShape{3, 5});
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f32, Shape{3, 2, 6, 6});
+    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
 
     OV_EXPECT_THROW(const auto op = make_op(feat_maps, rois, pooling_roi_2x2, -1.0f),
                     NodeValidationFailure,
@@ -165,8 +165,8 @@ TEST_F(TypePropROIPoolingV0, invalid_spatial_scale) {
 }
 
 TEST_F(TypePropROIPoolingV0, invalid_pooled_size) {
-    const auto feat_maps = make_shared<Parameter>(element::f32, Shape{3, 2, 6, 6});
-    const auto rois = make_shared<Parameter>(element::f32, PartialShape{3, 5});
+    const auto feat_maps = make_shared<op::v0::Parameter>(element::f32, Shape{3, 2, 6, 6});
+    const auto rois = make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
 
     OV_EXPECT_THROW(const auto op = make_op(feat_maps, rois, Shape{1, 0}, spatial_scale),
                     NodeValidationFailure,

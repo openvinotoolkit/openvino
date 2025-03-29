@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <roi_align_inst.h>
-#include "primitive_type_base.h"
-#include <sstream>
 #include <json_object.h>
+#include <roi_align_inst.h>
+
+#include <sstream>
+
 #include "openvino/core/enum_names.hpp"
-#include "roi_align_shape_inference.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
+#include "primitive_type_base.h"
 #include "roi_align_rotated_shape_inference.hpp"
+#include "roi_align_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(roi_align)

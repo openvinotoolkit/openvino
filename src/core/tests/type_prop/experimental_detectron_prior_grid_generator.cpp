@@ -6,10 +6,10 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace ov;
-using namespace ov::opset11;
 using namespace testing;
 
 class TypePropExperimentalDetectronPriorGridGeneratorV6Test
@@ -23,9 +23,9 @@ protected:
 };
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, default_ctor_no_flatten) {
-    const auto priors = std::make_shared<Parameter>(element::f32, Shape{3, 4});
-    const auto feature_map = std::make_shared<Parameter>(element::f32, Shape{1, 3, 200, 336});
-    const auto im_data = std::make_shared<Parameter>(element::f32, Shape{1, 3, 800, 1344});
+    const auto priors = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 4});
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 200, 336});
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 800, 1344});
 
     const auto op = make_op();
     op->set_arguments(OutputVector{priors, feature_map, im_data});
@@ -45,9 +45,9 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, static_shape_flatt
     set_shape_symbols(feat_map_shape);
     set_shape_symbols(im_data_shape);
 
-    const auto priors = std::make_shared<Parameter>(element::f64, priors_shape);
-    const auto feature_map = std::make_shared<Parameter>(element::f64, feat_map_shape);
-    const auto im_data = std::make_shared<Parameter>(element::f64, im_data_shape);
+    const auto priors = std::make_shared<op::v0::Parameter>(element::f64, priors_shape);
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::f64, feat_map_shape);
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::f64, im_data_shape);
 
     const auto op = make_op(priors, feature_map, im_data, make_attrs(true));
 
@@ -64,9 +64,9 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, static_shape_witho
     auto feat_symbols = set_shape_symbols(feat_map_shape);
     set_shape_symbols(im_data_shape);
 
-    const auto priors = std::make_shared<Parameter>(element::f16, priors_shape);
-    const auto feature_map = std::make_shared<Parameter>(element::f16, feat_map_shape);
-    const auto im_data = std::make_shared<Parameter>(element::f16, im_data_shape);
+    const auto priors = std::make_shared<op::v0::Parameter>(element::f16, priors_shape);
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::f16, feat_map_shape);
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::f16, im_data_shape);
 
     const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
 
@@ -84,9 +84,9 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, interval_shapes_fl
     set_shape_symbols(feat_map_shape);
     set_shape_symbols(im_data_shape);
 
-    const auto priors = std::make_shared<Parameter>(element::bf16, priors_shape);
-    const auto feature_map = std::make_shared<Parameter>(element::bf16, feat_map_shape);
-    const auto im_data = std::make_shared<Parameter>(element::bf16, im_data_shape);
+    const auto priors = std::make_shared<op::v0::Parameter>(element::bf16, priors_shape);
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::bf16, feat_map_shape);
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::bf16, im_data_shape);
 
     const auto op = make_op(priors, feature_map, im_data, make_attrs(true));
 
@@ -103,9 +103,9 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, interval_shapes_no
     auto feat_symbols = set_shape_symbols(feat_map_shape);
     set_shape_symbols(im_data_shape);
 
-    const auto priors = std::make_shared<Parameter>(element::bf16, priors_shape);
-    const auto feature_map = std::make_shared<Parameter>(element::bf16, feat_map_shape);
-    const auto im_data = std::make_shared<Parameter>(element::bf16, im_data_shape);
+    const auto priors = std::make_shared<op::v0::Parameter>(element::bf16, priors_shape);
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::bf16, feat_map_shape);
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::bf16, im_data_shape);
 
     const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
 
@@ -116,9 +116,9 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, interval_shapes_no
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_inputs_dynamic_rank_flatten) {
-    const auto priors = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
-    const auto feature_map = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
-    const auto im_data = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto priors = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
 
     const auto op = make_op(priors, feature_map, im_data, make_attrs(true));
 
@@ -128,9 +128,9 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_inputs_dynamic
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_inputs_dynamic_rank_no_flatten) {
-    const auto priors = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
-    const auto feature_map = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
-    const auto im_data = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto priors = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
 
     const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
 
@@ -140,9 +140,9 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_inputs_dynamic
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_input_got_dynamic_type) {
-    const auto priors = std::make_shared<Parameter>(element::dynamic, Shape{2, 4});
-    const auto feature_map = std::make_shared<Parameter>(element::dynamic, Shape{1, 4, 5, 5});
-    const auto im_data = std::make_shared<Parameter>(element::dynamic, Shape{1, 4, 500, 500});
+    const auto priors = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{2, 4});
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{1, 4, 5, 5});
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{1, 4, 500, 500});
 
     const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
 
@@ -151,9 +151,9 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_input_got_dyna
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, some_input_got_dynamic_type) {
-    const auto priors = std::make_shared<Parameter>(element::dynamic, Shape{2, 4});
-    const auto feature_map = std::make_shared<Parameter>(element::f32, Shape{1, 4, 5, 5});
-    const auto im_data = std::make_shared<Parameter>(element::dynamic, Shape{1, 4, 500, 500});
+    const auto priors = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{2, 4});
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 5, 5});
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{1, 4, 500, 500});
 
     const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
 
@@ -162,8 +162,8 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, some_input_got_dyn
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, input_not_floating_point) {
-    const auto bad_param = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
-    const auto ok_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto bad_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    const auto ok_param = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = make_op(bad_param, ok_param, ok_param, make_attrs(false)),
                     NodeValidationFailure,
@@ -179,8 +179,8 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, input_not_floating
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, input_mixed_floating_point_type) {
-    const auto f32_param = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto f16_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto f32_param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto f16_param = std::make_shared<op::v0::Parameter>(element::f16, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = make_op(f32_param, f16_param, f16_param, make_attrs(true)),
                     NodeValidationFailure,
@@ -196,17 +196,17 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, input_mixed_floati
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, priors_not_2d) {
-    const auto feature_map = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto im_data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
-    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{2}),
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2}),
                                           feature_map,
                                           im_data,
                                           make_attrs(false)),
                     NodeValidationFailure,
                     HasSubstr("Priors rank must be equal to 2."));
 
-    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 1}),
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 1}),
                                           feature_map,
                                           im_data,
                                           make_attrs(false)),
@@ -215,18 +215,18 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, priors_not_2d) {
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, feature_map_not_4d) {
-    const auto priors = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto im_data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto priors = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = make_op(priors,
-                                          std::make_shared<Parameter>(element::f32, PartialShape::dynamic(2)),
+                                          std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2)),
                                           im_data,
                                           make_attrs(false)),
                     NodeValidationFailure,
                     HasSubstr("Feature_map rank must be equal to 4"));
 
     OV_EXPECT_THROW(std::ignore = make_op(priors,
-                                          std::make_shared<Parameter>(element::f32, PartialShape::dynamic(5)),
+                                          std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(5)),
                                           im_data,
                                           make_attrs(false)),
                     NodeValidationFailure,
@@ -234,36 +234,36 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, feature_map_not_4d
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, im_data_not_4d) {
-    const auto priors = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto feature_map = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto priors = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     OV_EXPECT_THROW(std::ignore = make_op(priors,
                                           feature_map,
-                                          std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3)),
+                                          std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3)),
                                           make_attrs(false)),
                     NodeValidationFailure,
                     HasSubstr("Im_data rank must be equal to 4"));
 
     OV_EXPECT_THROW(std::ignore = make_op(priors,
                                           feature_map,
-                                          std::make_shared<Parameter>(element::f32, PartialShape::dynamic(15)),
+                                          std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(15)),
                                           make_attrs(false)),
                     NodeValidationFailure,
                     HasSubstr("Im_data rank must be equal to 4"));
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, priors_2nd_dim_not_compatible) {
-    const auto feature_map = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto im_data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto feature_map = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
-    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{-1, {0, 3}}),
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {0, 3}}),
                                           feature_map,
                                           im_data,
                                           make_attrs(false)),
                     NodeValidationFailure,
                     HasSubstr("The last dimension of the 'priors' input must be equal to 4"));
 
-    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{-1, {5, -1}}),
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, {5, -1}}),
                                           feature_map,
                                           im_data,
                                           make_attrs(false)),
@@ -272,20 +272,20 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, priors_2nd_dim_not
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, not_compatible_1st_dim_of_feature_map_and_im_data) {
-    const auto priors = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto priors = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     OV_EXPECT_THROW(
         std::ignore = make_op(priors,
-                              std::make_shared<Parameter>(element::f32, PartialShape{3, {0, 3}, -1, -1}),
-                              std::make_shared<Parameter>(element::f32, PartialShape{{0, 2}, {4, 0}, -1, -1}),
+                              std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, {0, 3}, -1, -1}),
+                              std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{0, 2}, {4, 0}, -1, -1}),
                               make_attrs(false)),
         NodeValidationFailure,
         HasSubstr("The first dimension of both 'feature_map' and 'im_data' must match"));
 
     OV_EXPECT_THROW(
         std::ignore = make_op(priors,
-                              std::make_shared<Parameter>(element::f32, PartialShape{{0, 1}, 4, -1, -1}),
-                              std::make_shared<Parameter>(element::f32, PartialShape{{2, -1}, {2, 10}, -1, -1}),
+                              std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{0, 1}, 4, -1, -1}),
+                              std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{2, -1}, {2, 10}, -1, -1}),
                               make_attrs(false)),
         NodeValidationFailure,
         HasSubstr("The first dimension of both 'feature_map' and 'im_data' must match"));
@@ -341,9 +341,9 @@ INSTANTIATE_TEST_SUITE_P(
     PrintToStringParamName());
 
 TEST_P(ExperimentalDetectronPriorGridGeneratorV6Test, shape_inference) {
-    const auto priors = std::make_shared<Parameter>(element::bf16, priors_shape);
-    const auto feat_map = std::make_shared<Parameter>(element::bf16, feat_map_shape);
-    const auto im_data = std::make_shared<Parameter>(element::bf16, im_data_shape);
+    const auto priors = std::make_shared<op::v0::Parameter>(element::bf16, priors_shape);
+    const auto feat_map = std::make_shared<op::v0::Parameter>(element::bf16, feat_map_shape);
+    const auto im_data = std::make_shared<op::v0::Parameter>(element::bf16, im_data_shape);
 
     const auto op = make_op(priors, feat_map, im_data, make_attrs(is_flatten));
 

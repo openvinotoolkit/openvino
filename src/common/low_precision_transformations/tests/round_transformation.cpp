@@ -12,6 +12,7 @@
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/round.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace {
 using namespace testing;
@@ -43,7 +44,7 @@ public:
 
         if (roundedConst->get_element_type() == testValues.inputPrecision) {
             const auto replacement =
-                std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(dequantization.data, roundedConst);
+                std::make_shared<ov::op::TypeRelaxed<op::v1::Subtract>>(dequantization.data, roundedConst);
             ov::pass::low_precision::NetworkHelper::copyInfo(dequantization.subtract, replacement);
             ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(
                 replacement,

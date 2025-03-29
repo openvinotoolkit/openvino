@@ -9,6 +9,9 @@
 
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_mean.hpp"
 
 namespace ov {
 namespace pass {
@@ -16,7 +19,7 @@ namespace low_precision {
 
 ReduceMeanTransformation::ReduceMeanTransformation(const Params& params) : ReduceBaseTransformation(params) {
     MATCHER_SCOPE(ReduceMeanTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::ReduceMean>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::op::v1::ReduceMean>({ pattern::wrap_type<ov::op::v1::Multiply>(), pattern::wrap_type<ov::op::v0::Constant>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -31,7 +34,7 @@ ReduceMeanTransformation::ReduceMeanTransformation(const Params& params) : Reduc
 }
 
 bool ReduceMeanTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
-    return ov::is_type<ov::opset1::ReduceMean>(reduce) ? ReduceBaseTransformation::canBeTransformed(reduce) : false;
+    return ov::is_type<ov::op::v1::ReduceMean>(reduce) ? ReduceBaseTransformation::canBeTransformed(reduce) : false;
 }
 
 bool ReduceMeanTransformation::isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept {

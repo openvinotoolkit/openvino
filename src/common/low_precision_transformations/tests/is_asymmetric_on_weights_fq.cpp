@@ -14,6 +14,8 @@
 #include "transformations/init_node_info.hpp"
 #include "low_precision/weightable_layer_transformation.hpp"
 #include "ov_lpt_models/convolution.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -86,7 +88,7 @@ public:
 TEST_P(IsAsymmetricOnWeightsFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
 
-    const auto convolutions = LayerTransformation::get<opset1::Convolution>(actualFunction);
+    const auto convolutions = LayerTransformation::get<op::v1::Convolution>(actualFunction);
     ASSERT_TRUE(convolutions.size() == 1ul) << "convolution was not found";
 
     auto defaultPrecisions = std::get<2>(GetParam()).params.defaultPrecisions;

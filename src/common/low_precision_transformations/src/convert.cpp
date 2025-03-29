@@ -17,6 +17,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace pass {
@@ -24,7 +27,7 @@ namespace low_precision {
 
 ConvertTransformation::ConvertTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(ConvertTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::Convert>();
+    auto matcher = pattern::wrap_type<ov::op::v0::Convert>();
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -39,7 +42,7 @@ ConvertTransformation::ConvertTransformation(const Params& params) : LayerTransf
 }
 
 bool ConvertTransformation::transform(ov::pass::pattern::Matcher &m) {
-    std::shared_ptr<ov::opset1::Convert> convert = ov::as_type_ptr<ov::opset1::Convert>(m.get_match_root());
+    std::shared_ptr<ov::op::v0::Convert> convert = ov::as_type_ptr<ov::op::v0::Convert>(m.get_match_root());
     if (!convert) {
         return false;
     }
@@ -50,9 +53,9 @@ bool ConvertTransformation::transform(ov::pass::pattern::Matcher &m) {
 
     const ov::element::Type precisionBefore = convert->get_input_element_type(0);
 
-    std::shared_ptr<ov::opset1::Subtract> subtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
+    std::shared_ptr<ov::op::v1::Subtract> subtract = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Subtract>>(
         convert->input_value(0),
-        std::make_shared<ov::opset1::Constant>(precisionBefore, Shape{}, std::vector<size_t>({ 0 })));
+        std::make_shared<ov::op::v0::Constant>(precisionBefore, Shape{}, std::vector<size_t>({ 0 })));
     NetworkHelper::setOutDataPrecision(subtract, convert->get_output_element_type(0));
 
     replace_node(convert, subtract);

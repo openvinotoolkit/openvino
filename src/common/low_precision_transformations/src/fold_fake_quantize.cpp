@@ -12,6 +12,8 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 namespace ov {
 namespace pass {
@@ -19,7 +21,7 @@ namespace low_precision {
 
 FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(FoldFakeQuantizeTransformation);
-    auto fakeQuantize = pattern::wrap_type<ov::opset1::FakeQuantize>();
+    auto fakeQuantize = pattern::wrap_type<ov::op::v0::FakeQuantize>();
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -34,7 +36,7 @@ FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& par
 }
 
 bool FoldFakeQuantizeTransformation::transform(ov::pass::pattern::Matcher &m) {
-    const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(m.get_match_root());
+    const auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(m.get_match_root());
     if (fakeQuantize == nullptr) {
         return false;
     }
@@ -49,7 +51,7 @@ bool FoldFakeQuantizeTransformation::transform(ov::pass::pattern::Matcher &m) {
     }
 
     const auto resultConstant = NetworkHelper::fold_fake_quantize(fakeQuantize, false);
-    if (ov::is_type<ov::opset1::Constant>(resultConstant)) {
+    if (ov::is_type<ov::op::v0::Constant>(resultConstant)) {
         replace_node(fakeQuantize, resultConstant);
         return true;
     }
@@ -58,13 +60,13 @@ bool FoldFakeQuantizeTransformation::transform(ov::pass::pattern::Matcher &m) {
 }
 
 bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ov::Node> node) const {
-    const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(node);
+    const auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node);
     if (!fakeQuantize) {
         return false;
     }
 
-    const auto outputLow = as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3));
-    const auto outputHigh = as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4));
+    const auto outputLow = as_type_ptr<ov::op::v0::Constant>(fakeQuantize->get_input_node_shared_ptr(3));
+    const auto outputHigh = as_type_ptr<ov::op::v0::Constant>(fakeQuantize->get_input_node_shared_ptr(4));
 
     if (outputLow == nullptr || outputHigh == nullptr) {
         return false;
@@ -81,7 +83,7 @@ bool FoldFakeQuantizeTransformation::canBeTransformed(const std::shared_ptr<Node
         return false;
     }
 
-    const auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(op);
+    const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(op);
     if (!fq) {
         return false;
     }
