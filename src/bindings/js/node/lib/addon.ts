@@ -21,6 +21,7 @@ type elementTypeString =
   | 'f32'
   | 'string';
 
+
 type OVAny = string | number | boolean;
 
 /**
@@ -50,6 +51,7 @@ interface Core {
   compileModel(
     model: Model,
     deviceName: string,
+
     config?: Record<string, OVAny>,
   ): Promise<CompiledModel>;
   /**
@@ -69,6 +71,7 @@ interface Core {
   compileModel(
     modelPath: string,
     deviceName: string,
+
     config?: Record<string, OVAny>,
   ): Promise<CompiledModel>;
   /**
@@ -104,7 +107,6 @@ interface Core {
    * @param propertyName A property name.
    */
   getProperty(propertyName: string): OVAny;
-
   /**
    * It gets the properties dedicated to device behaviour.
    * @param deviceName The name of a device, the properties of which you get.
@@ -152,6 +154,7 @@ interface Core {
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
    * @param modelPath The path to a model
    * in the IR / ONNX / PDPD / TF or TFLite format.
+
    * @param weightsPath The path to a data file for the IR format (.bin):
    * if the path is empty, it tries to read the bin file with the same name
    * as xml and if the bin file with the same name was not found, it loads
@@ -258,6 +261,11 @@ interface Model {
    */
   getOutputElementType(index: number): string;
   /**
+   * It gets the operations (nodes) of the model.
+   * @returns An array of Node objects representing the operations in the model.
+   */
+  getOps(): Node[];
+  /**
    * It gets the input of the model.
    * If a model has more than one input, this method throws an exception.
    */
@@ -277,6 +285,7 @@ interface Model {
    * shape.
    */
   isDynamic(): boolean;
+
   /**
    * It gets the output of the model.
    * If a model has more than one output, this method throws an exception.
@@ -308,7 +317,12 @@ interface Model {
    */
   outputs: Output[];
 }
-
+interface Node {
+  /**
+   * It gets the name of the node.
+   */
+  getName(): string;
+}
 /**
  * CompiledModel represents a model that is compiled for a specific device
  * by applying multiple optimization transformations,
@@ -462,7 +476,6 @@ interface TensorConstructor {
    */
   new (tensorData: string[]): Tensor;
 }
-
 /**
  * The {@link InferRequest} object is created using
  * {@link CompiledModel.createInferRequest} method and is specific for a given
@@ -637,7 +650,6 @@ interface PartialShape {
   toString(): string;
   getDimensions(): Dimension[];
 }
-
 /**
  * This interface contains constructor of the {@link PartialShape} class.
  */

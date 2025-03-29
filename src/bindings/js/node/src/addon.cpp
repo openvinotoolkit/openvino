@@ -30,6 +30,8 @@ void init_class(Napi::Env env,
     exports.Set(class_name, prototype);
 }
 
+Prototype func = NodeWrap::get_class();
+
 Napi::Value save_model_sync(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     try {
