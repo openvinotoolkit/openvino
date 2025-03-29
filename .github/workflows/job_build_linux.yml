@@ -67,6 +67,7 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: "/home/openvino"
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -109,6 +110,13 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
+
+      - name: Who am I
+        run: |
+          whoami
+          id
+          echo ${HOME}
+          ls -la /mount
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
@@ -339,21 +347,21 @@ jobs:
           mkdir deb && mv *.deb deb/
           popd
 
-      - name: Store artifacts to a shared drive
-        id: store_artifacts
-        if: ${{ always() }}
-        uses: ./openvino/.github/actions/store_artifacts
-        with:
-          artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-            ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
-            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-            ${{ env.BUILD_DIR }}/deb
-            ${{ env.MANIFEST_PATH }}
-            ${{ env.STORE_JS == 'true' && format('{0}/openvino_js_package.tar.gz', env.BUILD_DIR) || '' }}
-            ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
-          storage_dir: ${{ env.PRODUCT_TYPE }}
-          storage_root: ${{ env.ARTIFACTS_SHARE }}
-        env:
-          STORE_WHEELS: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
-          STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+#      - name: Store artifacts to a shared drive
+#        id: store_artifacts
+#        if: ${{ always() }}
+#        uses: ./openvino/.github/actions/store_artifacts
+#        with:
+#          artifacts: |
+#            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+#            ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+#            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+#            ${{ env.BUILD_DIR }}/deb
+#            ${{ env.MANIFEST_PATH }}
+#            ${{ env.STORE_JS == 'true' && format('{0}/openvino_js_package.tar.gz', env.BUILD_DIR) || '' }}
+#            ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
+#          storage_dir: ${{ env.PRODUCT_TYPE }}
+#          storage_root: ${{ env.ARTIFACTS_SHARE }}
+#        env:
+#          STORE_WHEELS: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
+#          STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
