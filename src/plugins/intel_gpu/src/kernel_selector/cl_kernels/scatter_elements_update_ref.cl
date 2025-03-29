@@ -8,15 +8,50 @@
 #define GET_UPDATES_INDEX(idx_order) INPUT2_GET_INDEX(idx_order)
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
 #define GET_INPUT_INDEX(idx_order) INPUT0_GET_INDEX(idx_order)
+
+#if AXIS_VALUE == 0
+    #define SIZE INPUT0_BATCH_NUM
+    #define ASSIGN_INDEX(index) b = index
+#elif AXIS_VALUE == 1
+    #define SIZE INPUT0_FEATURE_NUM
+    #define ASSIGN_INDEX(index) f = index
+#endif
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
-    #define IDX_ORDER idx_b,idx_f,idx_y,idx_x
+    #if AXIS_VALUE == 2
+        #define SIZE INPUT0_SIZE_Y
+        #define ASSIGN_INDEX(index) y = index
+    #elif AXIS_VALUE == 3
+        #define SIZE INPUT0_SIZE_X
+        #define ASSIGN_INDEX(index) x = index
+    #endif
 #elif OUTPUT_DIMS == 5
     #define ORDER b,f,z,y,x
-    #define IDX_ORDER idx_b,idx_f,idx_z,idx_y,idx_x
+    #if AXIS_VALUE == 2
+        #define SIZE INPUT0_SIZE_Z
+        #define ASSIGN_INDEX(index) z = index
+    #elif AXIS_VALUE == 3
+        #define SIZE INPUT0_SIZE_Y
+        #define ASSIGN_INDEX(index) y = index
+    #elif AXIS_VALUE == 4
+        #define SIZE INPUT0_SIZE_X
+        #define ASSIGN_INDEX(index) x = index
+    #endif
 #elif OUTPUT_DIMS == 6
     #define ORDER b,f,w,z,y,x
-    #define IDX_ORDER idx_b,idx_f,idx_w,idx_z,idx_y,idx_x
+    #if AXIS_VALUE == 2
+        #define SIZE INPUT0_SIZE_W
+        #define ASSIGN_INDEX(index) w = index
+    #elif AXIS_VALUE == 3
+        #define SIZE INPUT0_SIZE_Z
+        #define ASSIGN_INDEX(index) z = index
+    #elif AXIS_VALUE == 4
+        #define SIZE INPUT0_SIZE_Y
+        #define ASSIGN_INDEX(index) y = index
+    #elif AXIS_VALUE == 5
+        #define SIZE INPUT0_SIZE_X
+        #define ASSIGN_INDEX(index) x = index
+    #endif
 #endif
 
 #if OUTPUT_DIMS != INPUT2_DIMS
@@ -57,14 +92,42 @@
     #elif REDUCE_MODE == MAX_MODE
         return MAX(a, b);
     #elif REDUCE_MODE == MEAN_MODE
-        return (a + b) / (INPUT2_TYPE)(1 + USE_INIT_VAL);
+        return a + b;
     #else
         #error "Invalid REDUCE_MODE value"
     #endif
     }
+
+    #ifdef IS_SECOND_ITER // Socond kernel only
+        #ifdef REDUCE_MODE
+            inline void add_count(__local int count_k[], __local int count_v[], int length, int idx, int count)
+            {
+                for (int i = 0; i < length; ++i) {
+                    if (count_k[i] == -1) {
+                        count_k[i] = idx;
+                        count_v[i] = count;
+                        break;
+                    } else if (count_k[i] == idx) {
+                        count_v[i] += count;
+                        break;
+                    }
+                }
+            }
+
+            inline int get_count(__local int count_k[], __local int count_v[], int it, int *idx)
+            {
+                if (count_k[it] != -1) {
+                    *idx = count_k[it];
+                    count_k[it] = -1;
+                    return count_v[it];
+                }
+                return -1;
+            }
+        #endif
+    #endif
 #endif
 
-KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG 
+KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                    const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
                    const __global INPUT2_TYPE* updates,
@@ -108,98 +171,154 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
 #else // Second kernel
+    #ifdef REDUCE_MODE
     #if OUTPUT_DIMS == 4
-        const uint idx_x = dim0;
-        const uint idx_y = dim1;
-        const uint idx_f = dim2 % INPUT2_FEATURE_NUM;
-        const uint idx_b = dim2 / INPUT2_FEATURE_NUM;
+        const uint tgx = INPUT2_SIZE_X;
+        const uint tgy = INPUT2_SIZE_Y;
     #elif OUTPUT_DIMS == 5
-        const uint idx_x = dim0 % INPUT2_SIZE_X;
-        const uint idx_y = dim0 / INPUT2_SIZE_X;
-        const uint idx_z = dim1;
-        const uint idx_f = dim2 % INPUT2_FEATURE_NUM;
-        const uint idx_b = dim2 / INPUT2_FEATURE_NUM;
+        const uint tgx = INPUT2_SIZE_X * INPUT2_SIZE_Y;
+        const uint tgy = INPUT2_SIZE_Z;
     #elif OUTPUT_DIMS == 6
-        const uint idx_x = dim0 % INPUT2_SIZE_X;
-        const uint idx_y = dim0 / INPUT2_SIZE_X;
-        const uint idx_z = dim1 % INPUT2_SIZE_Z;
-        const uint idx_w = dim1 / INPUT2_SIZE_Z;
-        const uint idx_f = dim2 % INPUT2_FEATURE_NUM;
-        const uint idx_b = dim2 / INPUT2_FEATURE_NUM;
+        const uint tgx = INPUT2_SIZE_X * INPUT2_SIZE_Y;
+        const uint tgy = INPUT2_SIZE_Z * INPUT2_SIZE_W;
     #endif
-
-    const uint indices_idx = GET_INDICES_INDEX(IDX_ORDER);
-    INPUT1_TYPE index = indices[(int)indices_idx];
-
-    #if OUTPUT_DIMS == 4
-    #if     AXIS_VALUE == 0
-        if (index < 0) { index += INPUT0_BATCH_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint f = idx_f; const uint b = index;
-    #elif   AXIS_VALUE == 1
-        if (index < 0) { index += INPUT0_FEATURE_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint f = index; const uint b = idx_b;
-    #elif   AXIS_VALUE == 2
-        if (index < 0) { index += INPUT0_SIZE_Y; }
-        const uint x = idx_x; const uint y = index; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 3
-        if (index < 0) { index += INPUT0_SIZE_X; }
-        const uint x = index; const uint y = idx_y; const uint f = idx_f; const uint b = idx_b;
-    #endif  // AXIS_VALUE
-    #elif OUTPUT_DIMS == 5
-    #if     AXIS_VALUE == 0
-        if (index < 0) { index += INPUT0_BATCH_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint f = idx_f; const uint b = index;
-    #elif   AXIS_VALUE == 1
-        if (index < 0) { index += INPUT0_FEATURE_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint f = index; const uint b = idx_b;
-    #elif   AXIS_VALUE == 2
-        if (index < 0) { index += INPUT0_SIZE_Z; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = index; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 3
-        if (index < 0) { index += INPUT0_SIZE_Y; }
-        const uint x = idx_x; const uint y = index; const uint z = idx_z; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 4
-        if (index < 0) { index += INPUT0_SIZE_X; }
-        const uint x = index; const uint y = idx_y; const uint z = idx_z; const uint f = idx_f; const uint b = idx_b;
-    #endif  // AXIS_VALUE
-    #elif OUTPUT_DIMS == 6
-    #if     AXIS_VALUE == 0
-        if (index < 0) { index += INPUT0_BATCH_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = index;
-    #elif   AXIS_VALUE == 1
-        if (index < 0) { index += INPUT0_FEATURE_NUM; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = index; const uint b = idx_b;
-    #elif   AXIS_VALUE == 2
-        if (index < 0) { index += INPUT0_SIZE_W; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = index; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 3
-        if (index < 0) { index += INPUT0_SIZE_Z; }
-        const uint x = idx_x; const uint y = idx_y; const uint z = index; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 4
-        if (index < 0) { index += INPUT0_SIZE_Y; }
-        const uint x = idx_x; const uint y = index; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
-    #elif   AXIS_VALUE == 5
-        if (index < 0) { index += INPUT0_SIZE_X; }
-        const uint x = index; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
-    #endif  // AXIS_VALUE
-    #endif
-    const uint output_idx = GET_OUTPUT_INDEX(ORDER);
-
-    const uint updates_idx = GET_UPDATES_INDEX(IDX_ORDER);
-    INPUT2_TYPE val = updates[(int)updates_idx];
+    const uint tgz = INPUT2_FEATURE_NUM * INPUT2_BATCH_NUM;
 
     #ifdef REDUCE_MODE
-        #if USE_INIT_VAL == 0
-            output[output_idx] = REDUCTION_NEUTRAL_VALUE;
+        #if INPUT2_LENGTH == 0 || INPUT2_LENGTH > 4096
+            #define COUNT_LENGTH 4096   // Maximum number of elements to reduce in case of shape agnostic kernel or large shapes
+        #else
+            #define COUNT_LENGTH INPUT2_LENGTH
         #endif
-        val = FUNC_CALL(reduce)(output[output_idx], val);
+        __local int count_k[COUNT_LENGTH];
+        __local int count_v[COUNT_LENGTH];
+        for (int i = 0; i < COUNT_LENGTH; ++i) {
+            count_k[i] = -1;
+            count_v[i] = 0;
+        }
+        const uint input2_length = tgx * tgy * tgz > COUNT_LENGTH ? COUNT_LENGTH : tgx * tgy * tgz;
+    #endif
+    #if USE_INIT_VAL == 0
+    for (uint gz = 0; gz < tgz; gz++) {
+        for (uint gy = 0; gy < tgy; gy++) {
+            for (uint gx = 0; gx < tgx; gx++) {
+                uint ORDER;
+                #if OUTPUT_DIMS == 4
+                    x = gx;
+                    y = gy;
+                #elif OUTPUT_DIMS == 5
+                    x = gx % INPUT2_SIZE_X;
+                    y = gx / INPUT2_SIZE_X;
+                    z = gy;
+                #elif OUTPUT_DIMS == 6
+                    x = gx % INPUT2_SIZE_X;
+                    y = gx / INPUT2_SIZE_X;
+                    z = gy % INPUT2_SIZE_Z;
+                    w = gy / INPUT2_SIZE_Z;
+                #endif
+                f = gz % INPUT2_FEATURE_NUM;
+                b = gz / INPUT2_FEATURE_NUM;
+
+    const uint indices_idx = GET_INDICES_INDEX(ORDER);
+    INPUT1_TYPE index = indices[(int)indices_idx];
+
+    if (index < 0) { index += SIZE; }
+    ASSIGN_INDEX(index);
+    const uint output_idx = GET_OUTPUT_INDEX(ORDER);
+    output[output_idx] = REDUCTION_NEUTRAL_VALUE;
+            }
+        }
+    }
+    #endif
+    #endif
+    #ifdef REDUCE_MODE  // A loop is needed for a single worker item in reduce
+    for (uint gz = 0; gz < tgz; gz++) {
+        for (uint gy = 0; gy < tgy; gy++) {
+            for (uint gx = 0; gx < tgx; gx++) {
+                uint ORDER;
+                #if OUTPUT_DIMS == 4
+                    x = gx;
+                    y = gy;
+                #elif OUTPUT_DIMS == 5
+                    x = gx % INPUT2_SIZE_X;
+                    y = gx / INPUT2_SIZE_X;
+                    z = gy;
+                #elif OUTPUT_DIMS == 6
+                    x = gx % INPUT2_SIZE_X;
+                    y = gx / INPUT2_SIZE_X;
+                    z = gy % INPUT2_SIZE_Z;
+                    w = gy / INPUT2_SIZE_Z;
+                #endif
+                f = gz % INPUT2_FEATURE_NUM;
+                b = gz / INPUT2_FEATURE_NUM;
+    #else // Multiple worker items do not need a loop when REDUCE_MODE==NONE.
+        uint ORDER;
+        #if OUTPUT_DIMS == 4
+            x = dim0;
+            y = dim1;
+            f = dim2 % INPUT2_FEATURE_NUM;
+            b = dim2 / INPUT2_FEATURE_NUM;
+        #elif OUTPUT_DIMS == 5
+            x = dim0 % INPUT2_SIZE_X;
+            y = dim0 / INPUT2_SIZE_X;
+            z = dim1;
+            f = dim2 % INPUT2_FEATURE_NUM;
+            b = dim2 / INPUT2_FEATURE_NUM;
+        #elif OUTPUT_DIMS == 6
+            x = dim0 % INPUT2_SIZE_X;
+            y = dim0 / INPUT2_SIZE_X;
+            z = dim1 % INPUT2_SIZE_Z;
+            w = dim1 / INPUT2_SIZE_Z;
+            f = dim2 % INPUT2_FEATURE_NUM;
+            b = dim2 / INPUT2_FEATURE_NUM;
+        #endif
     #endif
 
-    #if HAS_FUSED_OPS
-        FUSED_OPS_SECOND_KERNEL;
-        output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
+    const uint indices_idx = GET_INDICES_INDEX(ORDER);
+    const uint updates_idx = GET_UPDATES_INDEX(ORDER);
+    INPUT2_TYPE val = updates[(int)updates_idx];
+    INPUT1_TYPE index = indices[(int)indices_idx];
+    if (index < 0) {index += SIZE;}
+    ASSIGN_INDEX(index);
+    const uint output_idx = GET_OUTPUT_INDEX(ORDER);
+
+    #ifdef REDUCE_MODE
+        val = FUNC_CALL(reduce)(output[output_idx], val);
+        output[output_idx] = val;
+        add_count(count_k, count_v, input2_length, output_idx, 1);
     #else
-        output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
+        #if HAS_FUSED_OPS
+            FUSED_OPS_SECOND_KERNEL;
+            output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
+        #else
+            output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
+        #endif
+    #endif
+    #ifdef REDUCE_MODE //The closing bracket that ends the loop in reduce mode
+            }
+        }
+    }
+    #ifdef REDUCE_MODE
+    for (int i = 0; i < input2_length; ++i) {
+        int output_idx;
+        const int count = get_count(count_k, count_v, i, &output_idx);
+
+        if (count == -1) continue;
+
+        #if REDUCE_MODE==MEAN_MODE
+            output[output_idx] = output[output_idx] / (count + USE_INIT_VAL);
+        #endif
+
+        INPUT2_TYPE val = output[output_idx];
+
+        #if HAS_FUSED_OPS
+            FUSED_OPS_SECOND_KERNEL;
+            output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
+        #else
+            output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
+        #endif
+    }
+    #endif
     #endif
 #endif
 }
@@ -216,5 +335,6 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 #undef GET_INDICES_INDEX
 #undef GET_UPDATES_INDEX
 #undef GET_OUTPUT_INDEX
-#undef IDX_ORDER
 #undef ORDER
+#undef SIZE
+#undef ASSIGN_INDEX
