@@ -19,7 +19,7 @@ namespace op {
 using namespace ov::op;
 
 namespace {
-Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context) {
+Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context,bool is_1d) {
     auto input = context.get_input(0);
     auto packed_params_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(context.get_input(1).get_node_shared_ptr());
     PYTORCH_OP_CONVERSION_CHECK(packed_params_node, "Packed params input node type is required to be FrameworkNode.");
@@ -47,6 +47,11 @@ Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context) {
     auto pad_type = ov::op::PadType::EXPLICIT;
 
     std::shared_ptr<ov::Node> conv;
+    if(is_1d){
+        strides={strides[0]};
+        pads={pads[0],pads[1]};
+        dilations={dilations[0]};
+    }
 
     if (groups == 1) {
         conv = std::make_shared<v1::Convolution>(input, weight, strides, pads, pads, dilations, pad_type);
@@ -84,9 +89,19 @@ OutputVector translate_quantized_convnd_relu(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     auto scale = context.get_input(2);
     auto zero_point = context.get_input(3);
-    auto conv = translate_quantized_convnd_base(context);
+    auto conv = translate_quantized_convnd_base(context,false);
     auto relu = context.mark_node(std::make_shared<v0::Relu>(conv));
     return {quantize(context, relu->output(0), scale, zero_point, context.get_input(0))};
+}
+
+OutputVector translate_quantized_conv1d_relu(const NodeContext& context){
+    num_inputs_check(context,4,4);
+    auto scale=context.get_input(2);
+    auto zero_point=context.get_input(3);
+    auto conv=translate_quantized_convnd_base(context,true);
+    auto relu=context.mark_node(std::make_shared<v0::Relu>(conv));
+    return{quantize(context,relu->output(0),scale,zero_point,context.get_input(0))};
+
 }
 
 
