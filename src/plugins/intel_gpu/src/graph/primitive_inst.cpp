@@ -157,7 +157,7 @@ static memory::ptr get_memory_from_pool(engine& _engine,
                                 const layout& layout,
                                 allocation_type type,
                                 bool reusable_across_network,
-                                const std::unordered_set<size_t>& memory_dependencies,
+                                const memory_restricter<uint32_t>& memory_dependencies,
                                 bool reset = true,
                                 memory* curr_memory = nullptr) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(),
@@ -1328,7 +1328,7 @@ void primitive_inst::do_runtime_skip_reorder() {
                     update_memory_dependencies = [&](std::vector<primitive_inst*> users) {
                         for (auto& user : users) {
                             GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
-                            user->_runtime_memory_dependencies.insert(get_node().get_unique_id());
+                            user->_runtime_memory_dependencies.insert(static_cast<uint32_t>(get_node().get_unique_id()));
                             if (user->can_be_optimized())
                                 update_memory_dependencies(user->get_user_insts());
                         }
@@ -2375,7 +2375,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
                                             memory_pool& pool,
                                             const program_node& _node,
                                             const kernel_impl_params& impl_params,
-                                            const std::unordered_set<size_t>& memory_dependencies,
+                                            const memory_restricter<uint32_t>& memory_dependencies,
                                             uint32_t net_id,
                                             bool is_internal,
                                             size_t idx,
