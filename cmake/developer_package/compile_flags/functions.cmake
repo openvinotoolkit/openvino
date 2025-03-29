@@ -283,7 +283,7 @@ macro(ov_arm_sve_optimization_flags flags)
     endif()
 
     # Check for compiler SVE support
-    ov_check_compiler_supports_sve("-march=armv8-a+sve")
+    ov_check_compiler_supports_sve("-march=armv8-a+sve+fp16")
     if(OV_COMPILER_IS_INTEL_LLVM)
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -305,7 +305,7 @@ macro(ov_arm_sve_optimization_flags flags)
 
             # Add flag for SVE if supported
             if(CXX_SVE_FOUND)
-                list(APPEND ${flags} -march=armv8-a+sve)
+                list(APPEND ${flags} -march=armv8-a+sve+fp16)
             endif()
             if(NOT CMAKE_CL_64)
                 list(APPEND ${flags} -ftree-vectorize)
