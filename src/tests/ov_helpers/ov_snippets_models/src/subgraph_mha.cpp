@@ -706,9 +706,8 @@ std::shared_ptr<ov::Model> MHAFQFunction::initOriginal() const {
     auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
     auto transpose3Const = ov::op::v0::Constant::create(ov::element::i64, {shape_rank}, std::vector<int64_t>{0, 2, 1, 3});
 
-    const auto fq0 = ov::test::utils::make_fake_quantize(transpose0Param, ov::element::f32, 256, {1}, {-5.217694}, {6.661877}, {-5.217694}, {6.661877});
-    const auto fq1 = ov::test::utils::make_fake_quantize(transpose1Param, ov::element::f32, 256, {1}, {-6.40245}, {6.45286}, {-6.40245}, {6.45286});
-    const auto fq_add = ov::test::utils::make_fake_quantize(addParam, ov::element::f32, 256, {1}, {-1000}, {0}, {-1000}, {0});
+    const auto fq0 = ov::test::utils::make_fake_quantize(transpose0Param, ov::element::f32, 256, {1}, {0}, {5.217694}, {0}, {5.217694});
+    const auto fq1 = ov::test::utils::make_fake_quantize(transpose1Param, ov::element::f32, 256, {1}, {-6.45}, {6.4}, {-6.45}, {6.4});
 
     bool transA = false;
     bool transB = false;
@@ -717,16 +716,22 @@ std::shared_ptr<ov::Model> MHAFQFunction::initOriginal() const {
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
     const auto mul_const = ov::op::v0::Constant::create(ov::element::i8, ov::Shape{1}, std::vector<int8_t>{127});
     const auto convert = std::make_shared<ov::opset1::Convert>(mul_const, ov::element::f32);
-    const auto mul_deq_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, std::vector<float>{0.00098425});
+    const auto mul_deq_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, std::vector<float>{0.009});
     const auto mul_deq = std::make_shared<ov::opset1::Multiply>(convert, mul_deq_const);
     const auto mul = std::make_shared<ov::opset1::Multiply>(transpose1, mul_deq);
-    const auto fq1_1 = ov::test::utils::make_fake_quantize(mul, ov::element::f32, 256, {1}, {-0.8003067}, {0.8066083}, {-0.8003067}, {0.8066083});
+    const auto fq1_1 = ov::test::utils::make_fake_quantize(mul, ov::element::f32, 256, {1}, {-7.37235}, {7.3152}, {-7.37235}, {7.3152});
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, fq1_1, transA, transB);
-    const auto fq2 = ov::test::utils::make_fake_quantize(matMul0, ov::element::f32, 256, {1}, {-14.50351}, {17.65645}, {-14.50351}, {17.65645});
-    const auto add = std::make_shared<ov::opset1::Add>(fq2, fq_add);
+
+    std::shared_ptr<ov::Node> add_in_0 = matMul0;
+    std::shared_ptr<ov::Node> add_in_1 = addParam;
+    if (m_quantized_intermediate_eltwise) {
+        add_in_0 = ov::test::utils::make_fake_quantize(matMul0, ov::element::f32, 256, {1}, {-14.5}, {17.65}, {-14.5}, {17.65});
+        add_in_1 = ov::test::utils::make_fake_quantize(addParam, ov::element::f32, 256, {1}, {-1000}, {0}, {-1000}, {0});
+    }
+    const auto add = std::make_shared<ov::opset1::Add>(add_in_0, add_in_1);
     const auto softMax = std::make_shared<ov::opset1::Softmax>(add, 3);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2, transA, transB);
-    auto fq3 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1}, {-1.895786}, {2.0028071}, {-1.895786}, {2.0028071});
+    auto fq3 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1}, {-15.35}, {15.35}, {-15.35}, {15.35});
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fq3, transpose3Const);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(transpose3)};
