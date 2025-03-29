@@ -31,6 +31,7 @@ void Context::permute(PPtr orig_param, const Context::Axes& order) {
 }
 
 void Context::to_f16(PPtr orig_param) {
+    std::cout << "to_f16" << std::endl;
     closures_to_f16.insert(orig_param);
 
     orig_param->set_element_type(ov::element::f16);
@@ -306,6 +307,7 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             // Mark W closure to transpose, and transpose the respective parameter
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
+            std::cout << "DQMatMulGQi" << std::endl;
             // Mark S closure to be lowered fo f16
             ctx.get().to_f16(matched_qcoeff);
 
@@ -591,6 +593,7 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
             // Mark W closure to transpose, and transpose the respective parameter
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
+            std::cout << "DQMatMulGQiP" << std::endl;
             // Mark S closure to be lowered fo f16
             ctx.get().to_f16(matched_qcoeff);
 
@@ -992,7 +995,7 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
-    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
 
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
@@ -1008,17 +1011,25 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
         const auto& matched_out_gather = node_to_output.at(gather);
 
         // Create new gathers on W and S, connect respectively
-        auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
+        auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, matched_out_s.get_element_type());
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
         auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
         auto new_g_s = std::make_shared<ov::op::v8::Gather>(matched_out_s, matched_out_ids, gather_c);
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_g_w, new_g_s);
-        auto new_out = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
 
         // Reconnect old gather readers to the new Multiply
-        for (auto&& r : matched_out_gather.get_target_inputs()) {
-            r.replace_source_output(new_out);
+        auto qcvtm_iter = node_to_output.find(qcvtm);
+        if (qcvtm_iter != node_to_output.end()) {
+            auto new_out = std::make_shared<ov::op::v0::Convert>(new_mul, qcvtm_iter->second.get_element_type());
+            for (auto&& r : matched_out_gather.get_target_inputs()) {
+                r.replace_source_output(new_out);
+            }
+        } else {
+            for (auto&& r : matched_out_gather.get_target_inputs()) {
+                r.replace_source_output(new_mul);
+            }
         }
+
         return true;  // root was changed
     };
     register_matcher(std::make_shared<opp::Matcher>(gather, "DQGatherSymCW"), std::move(callback));
@@ -1078,7 +1089,7 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
 
 // This is a companion to DQLiftGatherAsymCW step. This pass runs if
 // the respective block (mainly, a head) was turned a function
-// (e.g. with FUNCALL_FOR_ALL) As in this case the DQDictMatMulCWu
+// (e.g. with FUNCALL_FOR_ALL) As in this case the DQUnpackDictMatMulCWu
 // compile-time converts asymmetric MM to fp16, do the same thing here
 DQUnpackDictGatheru::DQUnpackDictGatheru(Context::Ref ctx) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
@@ -1208,6 +1219,7 @@ HostGather::HostGather(Context::Ref ctx) {
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
             if (qweight_type == ov::element::f32) {
+                std::cout << "HostGather" << std::endl;
                 ctx.get().to_f16(matched_qweight);
             }
             auto new_param = ctx.get().host_gather(matched_qweight, matched_ids);
@@ -1262,7 +1274,10 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         const auto& matched_out_qweight = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
 
-        if (out_len >= 2048 && (qweight_type == ov::element::i4 || qweight_type == ov::element::i8)) {
+        if (out_len >= 2048 && (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
+                                qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
+                                qweight_type == ov::element::f8e8m0)) {
+            std::cout << "here 1" << std::endl;
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
@@ -1271,8 +1286,8 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
-            auto fp16vocab = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
-            auto new_param = ctx.get().host_gather(fp16vocab, matched_ids);
+            auto newvocab = ctx.get().unpack(matched_qweight, matched_qcoeff, matched_qcoeff->get_element_type());
+            auto new_param = ctx.get().host_gather(newvocab, matched_ids);
             for (auto&& r : matched_out_mul.get_target_inputs()) {
                 r.replace_source_output(new_param);
             }
@@ -1339,7 +1354,72 @@ DQUnpackDictMatMulCWu::DQUnpackDictMatMulCWu(Context::Ref ctx) {
         }
         return false;  // root has changed (yet)
     };
-    register_matcher(std::make_shared<opp::Matcher>(qres, "OptDQDictMatMulCWu"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptDQUnpackDictMatMulCWu"), std::move(callback));
+}
+
+// FROM:
+//     Param(W) -> to(f16/f32) ->
+//     Param(S) ----------------> Multiply -> (to(f32)) -> MatMul -> Result
+//     ???(Act) ----------------------------------------->
+//
+// TO:
+//     Param(W) ------------>
+//     ???(Act) -> to(f16/f32) -> MatMul -> (to(f32)) -> Result
+
+DQUnpackDictMatMulCWi8f8::DQUnpackDictMatMulCWi8f8(Context::Ref ctx) {
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
+    auto qmmi = opp::any_input();
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
+    auto qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+        auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
+        auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+        auto matched_mmi = node_to_output.at(qmmi);
+        auto matched_node_res = node_to_output.at(qres).get_node_shared_ptr();
+
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+        auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_res);
+
+        auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
+
+        if ((ov::element::i8 == matched_qweight->get_element_type() ||
+             ov::element::f8e4m3 == matched_qweight->get_element_type() ||
+             ov::element::f8e5m2 == matched_qweight->get_element_type() ||
+             ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
+            qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+                std::cout << "here 2" << std::endl;
+            auto new_cvt_a =
+                std::make_shared<ov::op::v0::Convert>(matched_mmi, matched_node_qcoeff->get_element_type());
+
+            auto new_wi = ctx.get().unpack(matched_qweight, matched_qcoeff, matched_node_qcoeff->get_element_type());
+            std::cout << "here 3" << std::endl;
+            auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, new_wi, false, true);
+
+            auto qcvtm_iter = node_to_output.find(qcvtm);
+            if (qcvtm_iter != node_to_output.end()) {
+                auto matched_qcvtm = qcvtm_iter->second.get_node_shared_ptr();
+                auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, matched_qcvtm->get_element_type());
+                matched_result->input(0).replace_source_output(new_out);
+            } else {
+                matched_result->input(0).replace_source_output(new_mm);
+            }
+            std::cout << "here 4" << std::endl;
+        }
+        return false;  // root has changed (yet)
+    };
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptDQUnpackDictMatMulCWi8f8"), std::move(callback));
 }
 
 // FROM:
@@ -1428,6 +1508,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
         if (ov::element::f32 == matched_weight->get_element_type()) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 
+            std::cout << "CompressDictMatMulf32" << std::endl;
             ctx.get().to_f16(matched_weight);
             auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a,
                                                                matched_weight,
