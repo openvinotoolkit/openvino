@@ -6,6 +6,7 @@
 #ifdef CPU_DEBUG_CAPS
 
 #    include <bitset>
+#    include <cstdint>
 #    include <memory>
 #    include <unordered_map>
 #    include <utility>
