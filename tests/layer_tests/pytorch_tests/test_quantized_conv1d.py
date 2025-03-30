@@ -72,7 +72,7 @@ class TestQuantizedConv1D(PytorchLayerTest):
     @pytest.mark.precommit
     def test_conv1d(self, params, bias, ie_device, precision, ir_version, scale, zero_point):
         self._test(*self.create_model(**params, bias=bias, scale=scale, zero_point=zero_point),
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, trace_model=True, freeze_model=False, quantized_ops=True, quant_size=scale)
 
 
 
