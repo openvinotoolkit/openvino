@@ -49,6 +49,9 @@ class TestQuantizedConv1D(PytorchLayerTest):
                               {'weights_shape': [3, 1, 3], 'strides': 1, 'pads': 0, 'dilations': 1, 'groups': 3},
                               ])
     @pytest.mark.parametrize("bias", [True, False])
+    @pytest.mark.parametrize("relu", [True, False])
+    @pytest.mark.parametrize("scale", [1, 0.3, 1.3])
+    @pytest.mark.parametrize("zero_point", [0, 1])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_conv1d(self, params, bias, ie_device, precision, ir_version):
