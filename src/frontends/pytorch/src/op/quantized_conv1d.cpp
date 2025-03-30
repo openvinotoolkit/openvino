@@ -25,7 +25,8 @@ namespace{
 //adapted from translate_quantized_convnd_base(const NodeContext& context)
 Output<ov::Node> translate_quantized_conv1d_base(const NodeContext& context) {
     auto input = context.get_input(0);
-    input = std::make_shared<v0::Unsqueeze>(input, 2);
+    auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    input = std::make_shared<v0::Unsqueeze>(input, axis_node);
     auto packed_params_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(context.get_input(1).get_node_shared_ptr());
     PYTORCH_OP_CONVERSION_CHECK(packed_params_node, "Packed params input node type is required to be FrameworkNode.");
     const auto& attrs = packed_params_node->get_attrs();
@@ -66,7 +67,8 @@ Output<ov::Node> translate_quantized_conv1d_base(const NodeContext& context) {
         bias = reshape_channelwise(context, bias, conv);
     }
     conv = context.mark_node(std::make_shared<v1::Add>(conv, bias));
-    conv = std::make_shared<v0::Squeeze>(conv, 2);
+    
+    conv = std::make_shared<v0::Squeeze>(conv, axis_node);
     return conv->output(0);
 };
 };  // namespace
