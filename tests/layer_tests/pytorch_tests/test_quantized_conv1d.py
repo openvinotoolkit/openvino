@@ -17,7 +17,7 @@ class TestQuantizedConv1D(PytorchLayerTest):
         import numpy as np
         return (np.random.randn(2, 3, 25).astype(np.float32),)
 
-    def create_model(self, weights_shape, strides, pads, dilations, groups, bias):
+    def create_model(self, weights_shape, strides, pads, dilations, groups, bias, scale, zero_point):
         import torch
 
         class aten_quantized_conv1d(torch.nn.Module):
@@ -31,9 +31,24 @@ class TestQuantizedConv1D(PytorchLayerTest):
                 self.pads = pads
                 self.dilations = dilations
                 self.groups = groups
+                self.conv = torch.ao.nn.quantized.Conv1d(
+                    weights_shape[1],
+                    weights_shape[0],
+                    weights_shape[2],
+                    stride=self.strides,
+                    padding=self.pads,
+                    dilation=self.dilations,
+                    groups=self.groups,
+                )
+                if bias:
+                    torch.nn.init.normal_(self.conv.bias())
+                self.conv.scale = float(scale)
+                self.conv.zero_point = int(zero_point)
 
             def forward(self, x):
-                return qF.conv1d(x, self.weight, self.bias, self.strides, self.pads, self.dilations, self.groups)
+                x_quantized = torch.quantize_per_tensor(
+                    x, 1.0, 0, torch.quint8)
+                return qF.conv1d(x_quantized, self.weight, self.bias, self.strides, self.pads, self.dilations, self.groups)
 
         ref_net = None
 
@@ -48,14 +63,14 @@ class TestQuantizedConv1D(PytorchLayerTest):
                               {'weights_shape': [3, 3, 3], 'strides': 1, 'pads': 'valid', 'dilations': 1, 'groups': 1},
                               {'weights_shape': [3, 1, 3], 'strides': 1, 'pads': 0, 'dilations': 1, 'groups': 3},
                               ])
+
     @pytest.mark.parametrize("bias", [True, False])
-    @pytest.mark.parametrize("relu", [True, False])
     @pytest.mark.parametrize("scale", [1, 0.3, 1.3])
     @pytest.mark.parametrize("zero_point", [0, 1])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_conv1d(self, params, bias, ie_device, precision, ir_version):
-        self._test(*self.create_model(**params, bias=bias),
+    def test_conv1d(self, params, bias, ie_device, precision, ir_version, scale, zero_point):
+        self._test(*self.create_model(**params, bias=bias, scale=scale, zero_point=zero_point),
                    ie_device, precision, ir_version)
 
 
