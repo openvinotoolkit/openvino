@@ -487,7 +487,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
-    detach_memory();
+
+    if (!m_acc_check || (m_acc_check && !m_cfg.get<::intel_npu::NPUW_ACC_DUMP_FAILS>())) {
+        detach_memory();
+    }
 
     // Print stats report when possible
     {
