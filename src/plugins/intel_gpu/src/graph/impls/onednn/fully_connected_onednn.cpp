@@ -251,7 +251,8 @@ public:
             }
         }
 
-        if (dynamic_quantized_activation) {
+        bool is_dyn_quan_input = impl_params->get_input_layout(0).data_type == data_types::i8 || impl_params->get_input_layout(0).data_type == data_types::u8;
+        if (is_dyn_quan_input && dynamic_quantized_activation) {
             auto src_scale_idx = ++idx;
             auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
             auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
@@ -330,7 +331,6 @@ public:
                 }
             }
 
-            
             if (is_dyn_quan_input && prim->dynamic_quantized_activation) {
                 auto src_scale_idx = ++idx;
                 auto& partial_shape = impl_params.input_layouts[0].get_partial_shape();

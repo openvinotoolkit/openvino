@@ -509,6 +509,16 @@ void primitive_inst::update_shape() {
         if (var_mem_size < _impl_params->get_output_layout(0).get_linear_size())
             set_flag(ExecutionFlags::SHAPE_CHANGED);
     }
+
+    if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
+        auto &layout = _impl_params->get_output_layout(0);
+        OPENVINO_ASSERT(layout.data_type == data_types::f16 || layout.data_type == data_types::i8 || layout.data_type == data_types::u8,
+            "Unsupported data type of dynamic_quantize: ", layout.data_type);
+        if (layout.data_type == data_types::f16)
+            set_can_be_optimized(true);
+        else
+            set_can_be_optimized(false);
+    }
 }
 
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
@@ -1353,16 +1363,6 @@ void primitive_inst::do_runtime_skip_reorder() {
     }
 }
 
-void primitive_inst::do_runtime_skip_dynamic_quantize() {
-    if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
-        auto &layout = _impl_params->get_output_layout(0);
-        if (layout.data_type == data_types::f16) // XXX: need to generalize this format
-            set_can_be_optimized(true);
-        else
-            set_can_be_optimized(false);
-    }
-}
-
 void primitive_inst::do_runtime_in_place_kv_cache() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_kv_cache: " + id()));
     if (!_node->is_type<kv_cache>())
@@ -1850,7 +1850,7 @@ void primitive_inst::prepare_primitive() {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
-    
+
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             set_flag(ExecutionFlags::SKIP);
@@ -1889,7 +1889,6 @@ void primitive_inst::prepare_primitive() {
         do_runtime_skip_broadcast();
         do_runtime_skip_scatter_update();
         do_runtime_in_place_crop();
-        do_runtime_skip_dynamic_quantize();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
@@ -1945,15 +1944,11 @@ void primitive_inst::prepare_primitive() {
         set_arguments();
     }
     on_execute();
-    
+
     if (!_node->is_type<condition>() && !_node->is_type<loop>()) {
         for (size_t i = 0; i < _outputs.size(); ++i) {
-            GPU_DEBUG_TRACE << "TEST  " << _outputs.size() << "  "  << orig_outputs[i] << "  " << _outputs[i] << std::endl;
-            if (!orig_outputs[i] && !_outputs[i]) { // XXX: not sure why this is needed.
-                // XXX
-                // OPENVINO_ASSERT(_can_be_optimized);
+            if (!orig_outputs[i] && !_outputs[i])
                 continue;
-            }
 
             if ((!orig_outputs[i] && _outputs[i]) || (orig_outputs[i] && !_outputs[i])) {
                 set_flag(ExecutionFlags::MEMORY_CHANGED);

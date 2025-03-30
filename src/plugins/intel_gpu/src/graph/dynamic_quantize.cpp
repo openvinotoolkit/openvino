@@ -13,33 +13,30 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
 
+// We should skip dynamic_quantization execution for 2nd token of LLM because it does not show performance gain.
+// can_be_optimized flag will be turned on from primitive_inst::update_shape function
 static bool should_skip_execution(dynamic_quantize_node const& node, const layout &act_layout) {
-    // std::cout << __LINE__ << "  " << node.is_runtime_skippable() << "  " << act_layout.is_static() << "  " << act_layout.get_partial_shape() << std::endl;
     if (!node.is_runtime_skippable()
         || !act_layout.is_static())
         return false;
 
-    // XXX: need to use global configuration
-    // GPU_DEBUG_IF (get_config().get_disable_dynamic_quantization_opt()) {
-    //     return false;
-    // }
+    GPU_DEBUG_IF (node.get_program().get_config().get_disable_dynamic_quantization_opt()) {
+        return false;
+    }
 
     // Do not skip dynamic quantization if next node is not fully connected.(such as SDPA)
+    OPENVINO_ASSERT(node.get_users().size() == node.get_outputs_count(), "Dynamic quantization is supposed to have only one user-node with duplicated connection: ", node.id());
     if (!(*node.get_users().begin())->is_type<fully_connected>())
         return false;
 
-    // If batch size is small, dynamic_quantize is disabled for performance reason
+    // If batch size is 1, dynamic_quantize is disabled for performance reason
     size_t input_batch = act_layout.batch();
-    // 3D input
     if (act_layout.format == format::bfyx) {
+        // 3D input
         input_batch = act_layout.batch() * act_layout.feature();
     }
 
     if (input_batch <= 1) {
-        GPU_DEBUG_TRACE_DETAIL << "[" << __func__ << "]"
-                               << "  can_be_optimized - " << node.id() << " - " << act_layout.get_shape() << std::endl;
-        // XXX: need to restore this assertion
-        // OPENVINO_ASSERT(node.get_user_insts().size() == node.get_outputs_count(), "Dynamic quantization is supposed to have only one user-node with duplicated connection: ", get_node().id());
         return true;
     }
     return false;
@@ -66,20 +63,18 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(dynamic_quantiz
     std::vector<ShapeType> input_shapes = {
         act_layout.get<ShapeType>(),
     };
-    // std::cout << act_layout << std::endl;
 
     auto output_shapes = ov::op::internal::DynamicQuantize::shape_infer(&op, input_shapes);
 
     std::vector<layout> output_layouts = {  layout(output_shapes[0], attrs.quantization_dt, output_format),
                                             layout(output_shapes[1], attrs.scale_dt, output_format) };
 
-    if (should_skip_execution(node, act_layout)) {
-        // std::cout << "should skip execution " << node.id() << std::endl;
-        output_layouts[0] = act_layout;
-    } else { 
-        // std::cout << "do not skip execution " << node.id() << " - " << output_layouts[0].data_type << std::endl;
-    }
-        
+    auto flag_skip_execution = should_skip_execution(node, act_layout);
+
+    GPU_DEBUG_TRACE_DETAIL << node.id() << "  should_skip_execution " << flag_skip_execution << std::endl;
+    if (flag_skip_execution)
+        output_layouts[0] = act_layout; // When execution is skipped, output data type is same as input data type
+
     if (attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
         attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
         output_layouts.emplace_back(layout(output_shapes[2], attrs.zp_dt, output_format));
@@ -141,10 +136,7 @@ void dynamic_quantize_inst::update_output_memory() {
     if (_node != nullptr)
         build_deps();
 
-    // Do not update output memory when dynamic_quantize is optimized out
-    // but input memory is not allocated yet because input is dynamic.
-    // Since dep's _outputs may be empty, Check whether input memory is null by dep's outputs_allocated()
-    OPENVINO_ASSERT(dependencies().front().first->outputs_allocated(), "[GPU] Dynamic quantize is optimized out, but its predecessor does not have output buffer.");
+    OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
 
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
