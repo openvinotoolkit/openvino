@@ -3,10 +3,12 @@
 //
 
 #include "openvino/op/add.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/exp.hpp"
 #include "openvino/op/log.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
@@ -23,21 +25,23 @@ OutputVector translate_binary_cross_entropy_with_logits(const NodeContext& conte
     auto input = context.get_input(0);
     auto target = context.get_input(1);
 
-    auto sigmoid = context.mark_node(std::make_shared<ov::op::v0::Sigmoid>(input));
-    auto log_sigmoid = context.mark_node(std::make_shared<ov::op::v0::Log>(sigmoid));
+    auto zero = v0::Constant::create(input.get_element_type(), Shape{}, {0.0});
+    auto one = v0::Constant::create(input.get_element_type(), Shape{}, {1.0});
+    auto neg_one = v0::Constant::create(input.get_element_type(), Shape{}, {-1.0});
 
-    auto one = ov::op::v0::Constant::create(target.get_element_type(), Shape{}, {1.0});
-    auto one_minus_target = context.mark_node(std::make_shared<ov::op::v1::Subtract>(one, target));
-    auto one_minus_sigmoid = context.mark_node(std::make_shared<ov::op::v1::Subtract>(one, sigmoid));
-    auto log_one_minus_sigmoid = context.mark_node(std::make_shared<ov::op::v0::Log>(one_minus_sigmoid));
+    auto max_val = context.mark_node(std::make_shared<v1::Maximum>(input, zero));
 
-    // loss = - (target * log_sigmoid + (1 - target) * log(1 - sigmoid))
-    auto positive_term = context.mark_node(std::make_shared<ov::op::v1::Multiply>(target, log_sigmoid));
-    auto negative_term = context.mark_node(std::make_shared<ov::op::v1::Multiply>(one_minus_target, log_one_minus_sigmoid));
-    auto sum = context.mark_node(std::make_shared<ov::op::v1::Add>(positive_term, negative_term));
+    auto abs_input = context.mark_node(std::make_shared<v0::Abs>(input));
+    auto neg_abs_input = context.mark_node(std::make_shared<v1::Multiply>(abs_input, neg_one));
 
-    auto neg_one = ov::op::v0::Constant::create(sum->get_element_type(), Shape{}, {-1.0});
-    auto loss = context.mark_node(std::make_shared<ov::op::v1::Multiply>(sum, neg_one));
+    auto exp_neg_abs = context.mark_node(std::make_shared<v0::Exp>(neg_abs_input));
+    auto exp_plus_one = context.mark_node(std::make_shared<v1::Add>(exp_neg_abs, one));
+    auto log_term = context.mark_node(std::make_shared<v0::Log>(exp_plus_one));
+
+    auto input_mul_target = context.mark_node(std::make_shared<v1::Multiply>(input, target));
+
+    auto temp_sub = context.mark_node(std::make_shared<v1::Subtract>(max_val, input_mul_target));
+    auto loss = context.mark_node(std::make_shared<v1::Add>(temp_sub, log_term));
 
     return {loss};
 }
@@ -46,3 +50,4 @@ OutputVector translate_binary_cross_entropy_with_logits(const NodeContext& conte
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
+
