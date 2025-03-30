@@ -267,7 +267,6 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     bool is_quantized = (K.GetDType() == Datatype::UINT8 || K.GetDType() == Datatype::INT8) ||
                         (V.GetDType() == Datatype::UINT8 || V.GetDType() == Datatype::INT8);
-
     switch (params.engineInfo.arch) {
         case gpu_arch::xe_hpg: {
             config = choose_config_xehpg(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized, params.conf.is_paged_attention);
@@ -476,10 +475,16 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (params.conf.head_size > 256)
         return false;
 
-    // Do not use sdpa_micro kernel with a scalar-value mask
-    const auto scale_idx = params.conf.is_paged_attention ? 4lu : 3lu;
-    if (params.inputs.size() > scale_idx && !params.inputs[scale_idx].is_dynamic() && params.inputs[scale_idx].LogicalSize() == 1)
+    // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs
+    const auto mask_idx = params.conf.is_paged_attention ? 4lu : 3lu;
+    if (!params.conf.has_const_attn_mask_val && params.inputs.size() > mask_idx && !params.inputs[mask_idx].is_dynamic() && params.inputs[mask_idx].LogicalSize() == 1) {
         return false;
+    }
+
+    const auto scale_idx = params.conf.is_paged_attention ? 5lu : 4lu;
+    if (!params.conf.has_const_scale_val && params.inputs.size() > scale_idx && !params.inputs[scale_idx].is_dynamic() && params.inputs[scale_idx].LogicalSize() == 1) {
+        return false;
+    }
 
     // Scores output is not supported
     if (params.conf.is_paged_attention && params.outputs.size() > 1)
@@ -525,10 +530,24 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     jit.AddConstant(MakeJitConstant("INVERT_SCALE", false));
     jit.AddConstant(MakeJitConstant("SCALE_DATA_T", "half"));
     jit.AddConstant(MakeJitConstant("HEAD_SIZE", head_size));
-    jit.AddConstant(MakeJitConstant("WITH_CAUSAL_MASK", params.conf.is_causal));
 
-    jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", data_inputs > 3));
-    jit.AddConstant(MakeJitConstant("WITH_SCALE", data_inputs > 4));
+    size_t attn_input_idx = 3;
+    size_t scale_input_idx = 4;
+    if (params.conf.has_const_attn_mask_val) {
+        jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
+        jit.AddConstant(MakeJitConstant("STATIC_SCALAR_ATTN_MASK_VALUE", params.conf.attn_mask_val));
+        scale_input_idx -= 1;
+    } else {
+        jit.AddConstant(MakeJitConstant("WITH_CAUSAL_MASK", params.conf.is_causal));
+        jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", data_inputs > attn_input_idx));
+    }
+
+    if (params.conf.has_const_scale_val) {
+        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", params.conf.scale_val));
+        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", 1.0f / params.conf.scale_val));
+    } else {
+        jit.AddConstant(MakeJitConstant("WITH_SCALE", data_inputs > scale_input_idx));
+    }
     jit.AddConstant(MakeJitConstant("Q_ALIGN", micro::alignment_for_ld(ldq)));
     jit.AddConstant(MakeJitConstant("K_ALIGN", micro::alignment_for_ld(ldk)));
     jit.AddConstant(MakeJitConstant("V_ALIGN", micro::alignment_for_ld(ldv)));
@@ -685,7 +704,7 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     jit.Merge(unit_parameters("VAL"));
     jit.Merge(unit_parameters("DST"));
 
-    if (params.inputs.size() > 3) {
+    if (params.inputs.size() > 3 && !params.conf.has_const_attn_mask_val) {
         jit.Merge(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}));
         jit.Merge(unit_parameters("MSK"));
     }
@@ -758,9 +777,9 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
 
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3}); // paged attention helper buffer
     } else {
-        if (params.inputs.size() >= 4)
+        if (params.inputs.size() >= 4 && !params.conf.has_const_attn_mask_val)
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3}); // mask
-        if (params.inputs.size() >= 5)
+        if (params.inputs.size() >= 5 && !params.conf.has_const_scale_val)
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 4}); // Scale
 
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0}); // D
