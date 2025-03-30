@@ -39,7 +39,7 @@ Output<ov::Node> translate_quantized_conv1d_base(const NodeContext& context) {
     auto strides = ov::as_type_ptr<v0::Constant>(packed_params[2].get_source_output().get_node_shared_ptr())
                        ->cast_vector<Strides::value_type>();
     auto pads = ov::as_type_ptr<v0::Constant>(packed_params[3].get_source_output().get_node_shared_ptr())
-                    ->cast_vector<CoordinateDiff::value_type>();
+                    ->cast_vector<Strides::value_type>();
     auto dilations = ov::as_type_ptr<v0::Constant>(packed_params[4].get_source_output().get_node_shared_ptr())
                          ->cast_vector<Strides::value_type>();
     int64_t groups = ov::as_type_ptr<v0::Constant>(packed_params[5].get_source_output().get_node_shared_ptr())
@@ -48,7 +48,7 @@ Output<ov::Node> translate_quantized_conv1d_base(const NodeContext& context) {
     auto pad_type = ov::op::PadType::EXPLICIT;
 
     strides={strides[0]};
-    pads={pads[0],pads[1]};
+    pads={pads[0]};
     dilations={dilations[0]};
 
     std::shared_ptr<ov::Node> conv;
