@@ -20,7 +20,7 @@ using namespace ov::op;
 
 namespace{
 
-//adapted from translate_quantized_convnd_base
+//adapted from translate_quantized_convnd_base(const NodeContext& context)
 Output<ov::Node> translate_quantized_conv1d_base(const NodeContext& context) {
     auto input = context.get_input(0);
     auto packed_params_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(context.get_input(1).get_node_shared_ptr());
