@@ -338,7 +338,7 @@ static constexpr ov::Property<std::string> reference_device{"NPUW_ACC_DEVICE"};
  * Enable dumps of materials for model(s), failing accuracy check.
  * Default value: false.
  */
-static constexpr ov::Property<std::string> dump_failures{"NPUW_ACC_DUMP_FAILS"};
+static constexpr ov::Property<bool> dump_failures{"NPUW_ACC_DUMP_FAILS"};
 }  // namespace accuracy
 
 namespace dump {
