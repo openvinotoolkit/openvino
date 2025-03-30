@@ -6,6 +6,8 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
@@ -23,6 +25,7 @@ namespace{
 //adapted from translate_quantized_convnd_base(const NodeContext& context)
 Output<ov::Node> translate_quantized_conv1d_base(const NodeContext& context) {
     auto input = context.get_input(0);
+    input = std::make_shared<v0::Unsqueeze>(input, 2);
     auto packed_params_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(context.get_input(1).get_node_shared_ptr());
     PYTORCH_OP_CONVERSION_CHECK(packed_params_node, "Packed params input node type is required to be FrameworkNode.");
     const auto& attrs = packed_params_node->get_attrs();
@@ -46,11 +49,6 @@ Output<ov::Node> translate_quantized_conv1d_base(const NodeContext& context) {
                          ->cast_vector<int64_t>()[0];
 
     auto pad_type = ov::op::PadType::EXPLICIT;
-
-    strides={strides[0]};
-    pads={pads[0]};
-    dilations={dilations[0]};
-
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
         conv = std::make_shared<v1::Convolution>(input, weight, strides, pads, pads, dilations, pad_type);
@@ -68,7 +66,7 @@ Output<ov::Node> translate_quantized_conv1d_base(const NodeContext& context) {
         bias = reshape_channelwise(context, bias, conv);
     }
     conv = context.mark_node(std::make_shared<v1::Add>(conv, bias));
-
+    conv = std::make_shared<v0::Squeeze>(conv, 2);
     return conv->output(0);
 };
 };  // namespace
