@@ -20,12 +20,13 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
         || !act_layout.is_static())
         return false;
 
-    GPU_DEBUG_IF (node.get_program().get_config().get_disable_dynamic_quantization_opt()) {
+    GPU_DEBUG_IF(node.get_program().get_config().get_disable_dynamic_quantization_opt()) {
         return false;
     }
 
     // Do not skip dynamic quantization if next node is not fully connected.(such as SDPA)
-    OPENVINO_ASSERT(node.get_users().size() == node.get_outputs_count(), "Dynamic quantization is supposed to have only one user-node with duplicated connection: ", node.id());
+    OPENVINO_ASSERT(node.get_users().size() == node.get_outputs_count(),
+                    "Dynamic quantization is supposed to have only one user-node with duplicated connection: ", node.id());
     if (!(*node.get_users().begin())->is_type<fully_connected>())
         return false;
 
