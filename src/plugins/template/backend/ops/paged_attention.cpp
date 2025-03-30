@@ -20,8 +20,10 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
         inputs[3].data<T>(),                                                                                // kc
         inputs[4].data<T>(),                                                                                // vc
         inputs[0].get_shape(),                                                                              // qs
-        inputs[1].get_shape(),                                                                              // kvs
-        inputs[3].get_shape(),                                                                              // kvcs
+        inputs[1].get_shape(),                                                                              // ks
+        inputs[2].get_shape(),                                                                              // vs
+        inputs[3].get_shape(),                                                                              // kcs
+        inputs[4].get_shape(),                                                                              // vcs
         inputs[5].data<int32_t>(),                                                                          // pl
         inputs[5].get_shape(),                                                                              // pls
         inputs[6].data<int32_t>(),                                                                          // sb
