@@ -48,7 +48,8 @@ class TestQuantizedConv1D(PytorchLayerTest):
             def forward(self, x):
                 x_quantized = torch.quantize_per_tensor(
                     x, 1.0, 0, torch.quint8)
-                return qF.conv1d(x_quantized, self.weight, self.bias, self.strides, self.pads, self.dilations, self.groups)
+                conv = self.conv(x_quantized)
+                return torch.dequantize(conv)
 
         ref_net = None
 
