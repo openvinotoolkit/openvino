@@ -46,6 +46,10 @@ std::vector<layout> col2im_inst::calc_output_layouts(col2im_node const& node, ke
     auto output_format = input_layout.format;
 
     ov::op::v15::Col2Im op;
+    op.set_strides(desc->stride);
+    op.set_dilations(desc->dilation);
+    op.set_pads_begin(ov::Shape(desc->padding_begin.begin(), desc->padding_begin.end()));
+    op.set_pads_end(ov::Shape(desc->padding_end.begin(), desc->padding_end.end()));
 
     // output_size is 1D tensor of two positive integer numbers (height and width).
     std::vector<size_t> output_size = {desc->output_shape[0], desc->output_shape[1]};
@@ -67,7 +71,7 @@ std::vector<layout> col2im_inst::calc_output_layouts(col2im_node const& node, ke
 
     std::vector<ShapeType> output_shapes;
     // Only support static shape. For dynamic support, it may need to add output and kernel size input.
-    output_shapes = ov::op::v15::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data), false);
+    output_shapes = ov::op::v15::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
 
     return { layout{output_shapes[0], output_type, output_format} };
 }
