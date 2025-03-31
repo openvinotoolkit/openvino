@@ -62,7 +62,7 @@ private:
         ~PortMapHelper() = default;
         void execute(const dnnl::stream& strm);
 
-    private:
+    public:
         void redefineTo();
 
         MemoryPtr srcMemPtr;

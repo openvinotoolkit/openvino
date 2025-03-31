@@ -51,9 +51,8 @@ void If::PortMapHelper::redefineTo() {
             // Only the shape is updated, the memory type remains unchanged
             dstMemPtrs[j]->redefineDesc(originalDstMemDescs[j]->cloneWithNewDims(newShape));
         }
-
-        size = srcMemPtr->getShape().getElementsCount();
     }
+    size = srcMemPtr->getShape().getElementsCount();
 }
 
 bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
