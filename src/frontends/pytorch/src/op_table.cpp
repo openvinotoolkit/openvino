@@ -435,7 +435,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::bitwise_left_shift", op::translate_bitwise_left_shift},
         {"aten::bitwise_not", op::translate_bitwise_not},
         {"aten::bitwise_or", op::translate_bitwise_or},
-        {"aten::bitwise_right_shift", op::translate_bitwise_right_shift},
+        // {"aten::bitwise_right_shift", op::translate_bitwise_right_shift}, - temporarily disable
         {"aten::bitwise_xor", op::translate_bitwise_xor},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::Bool", op::translate_bool},
