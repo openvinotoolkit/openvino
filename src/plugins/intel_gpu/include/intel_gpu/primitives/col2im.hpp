@@ -16,7 +16,7 @@ struct col2im : public primitive_base<col2im> {
 
     /// @brief Constructs col2im primitive.
     /// @param id This primitive id.
-    /// @param input Input dictionary primitive id.
+    /// @param input Input primitive id.
     /// @param stride Defines shift in input buffer
     /// @param dilation Defines gaps in the input
     /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
