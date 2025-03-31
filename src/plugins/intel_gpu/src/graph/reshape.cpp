@@ -237,6 +237,29 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
         output_format = node.get_preferred_output_fmt();
     }
 
+    auto areVectorsCompatible = [](const ov::Shape& vec1, const ov::Shape& vec2) -> bool {
+        std::unordered_map<size_t, size_t> countMap1, countMap2;
+
+        for (int num : vec1) {
+            if (num != 1)
+                countMap1[num]++;
+        }
+        for (int num : vec2) {
+            if (num != 1)
+                countMap2[num]++;
+        }
+
+        return countMap1 == countMap2;
+    };
+
+    auto candidate_layout = layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(output_format, output_shapes[0].size()), out_pad};
+    if ((!node.is_dynamic()) && areVectorsCompatible(impl_param.get_output_layout().get_shape(), output_shapes[0].get_shape())) {
+        if (impl_param.get_output_layout().format != output_format) {
+            if (!impl_param.get_output_layout(false).compatible(candidate_layout))
+                output_format = impl_param.get_output_layout().format;
+        }
+    }
+
     auto new_out_pad = out_pad;
     if (new_out_pad == padding())
         new_out_pad = impl_param.get_output_layout(0).data_padding;
@@ -308,6 +331,8 @@ void reshape_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
+    auto t = _impl_params->get_output_layout().get_tensor();
+    std::cout << id() << ": has shape " << t.to_string();
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()) &&
         output_memory().get_layout() == _impl_params->get_output_layout())
         return;
