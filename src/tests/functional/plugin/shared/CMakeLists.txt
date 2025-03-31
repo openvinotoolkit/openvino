@@ -48,6 +48,8 @@ else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
 endif()
 
+find_package(OpenCL QUIET REQUIRED)
+
 ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -69,6 +71,7 @@ ov_add_target(
                 sharedTestClasses
             PRIVATE
                 ${LINK_LIBRARIES_PRIVATE}
+                OpenCL::OpenCL
         DEPENDENCIES
             ${DEPENDENCIES}
 )
