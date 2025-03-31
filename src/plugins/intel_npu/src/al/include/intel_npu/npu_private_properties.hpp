@@ -299,6 +299,15 @@ static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"
 static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 
 /**
+ * @brief TODO
+ */
+static constexpr ov::Property<uint32_t> separate_weights_version{"NPU_SEPARATE_WEIGHTS_VERSION"};
+
+static constexpr ov::Property<bool> benchmark_init{"NPU_BENCHMARK_INIT"};
+
+static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};
+
+/**
  * @brief [Only for NPU Plugin]
  * Type: String. Default is "".
  * This option is added for providing a fine-grained batched model compilation control, otherwise batching compilation

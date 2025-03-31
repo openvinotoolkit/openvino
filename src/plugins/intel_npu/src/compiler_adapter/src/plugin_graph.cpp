@@ -7,6 +7,8 @@
 #include "intel_npu/config/common.hpp"
 #include "intel_npu/config/runtime.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 
 namespace intel_npu {
 
@@ -28,6 +30,52 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
     }
 
     initialize(config);
+}
+
+void PluginGraph::custom_export(std::ostream& stream,
+                                const std::shared_ptr<IGraph> initGraph,
+                                const std::shared_ptr<ov::Model> initModel) const {
+    std::stringstream xmlContent;
+    std::stringstream binContent;
+
+    ov::pass::Manager manager("SaveModel");
+    manager.register_pass<ov::pass::Serialize>(xmlContent, binContent);
+    manager.run_passes(initModel);
+
+    xmlContent.seekg(0, std::ios::end);
+    uint32_t xmlSize = static_cast<uint32_t>(xmlContent.tellp());
+    xmlContent.seekg(0, std::ios::beg);
+    binContent.seekg(0, std::ios::end);
+    uint32_t binSize = static_cast<uint32_t>(binContent.tellp());
+    binContent.seekg(0, std::ios::beg);
+
+    stream << xmlSize;
+    stream << xmlContent.rdbuf();
+
+    stream << binSize;
+    stream << binContent.rdbuf();
+
+    uint32_t mainBlobSize = static_cast<uint32_t>(_blob.size());
+    stream << mainBlobSize;
+    stream.write(reinterpret_cast<const char*>(_blob.data()), _blob.size());
+
+    const auto& initBlob = initGraph->_blob;
+    uint32_t initBlobSize = static_cast<uint32_t>(initBlob.size());
+    stream << initBlobSize;
+    stream.write(reinterpret_cast<const char*>(initBlob.data()), initBlob.size());
+
+    if (!stream) {
+        _logger.error("Write blob to stream failed. Blob is broken!");
+    } else {
+        if (_logger.level() >= ov::log::Level::INFO) {
+            std::stringstream str;
+            str << "Blob size: " << _blob.size() + initBlob.size() << std::endl;
+            str << "Blob size with weights: "
+                << _blob.size() + initBlob.size() + 4 * sizeof(uint32_t) + xmlSize + binSize << std::endl;
+            _logger.info(str.str().c_str());
+        }
+        _logger.info("Write blob to stream successfully.");
+    }
 }
 
 size_t PluginGraph::export_blob(std::ostream& stream) const {

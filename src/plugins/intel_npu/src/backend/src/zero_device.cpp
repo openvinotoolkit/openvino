@@ -5,8 +5,12 @@
 #include "zero_device.hpp"
 
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "openvino/core/type/element_iterator.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "zero_host_tensor.hpp"
 #include "zero_infer_request.hpp"
 #include "zero_remote_tensor.hpp"
@@ -62,6 +66,156 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
         device_gops[ov::element::i8] = gops;
         device_gops[ov::element::f16] = 0.5f * gops;
     }
+}
+
+std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>> ZeroDevice::runInit(
+    const std::shared_ptr<IGraph>& initGraph,
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const Config& config) {
+    std::unordered_map<size_t, std::shared_ptr<ov::ITensor>> constantIdToTensorData;
+    std::vector<std::vector<std::shared_ptr<ov::ITensor>>> inputTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> outputTensors;
+    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputTensorsMap;
+
+    std::chrono::steady_clock::time_point begin;
+    std::chrono::steady_clock::time_point end;
+    std::chrono::steady_clock::time_point begin_memcpy;
+    std::chrono::steady_clock::time_point end_memcpy;
+    std::chrono::steady_clock::time_point begin_tensor_creation;
+    std::chrono::steady_clock::time_point end_tensor_creation;
+    long long memcpy_duration = 0;
+
+    // Match the inputs of the "init" model with the Constant nodes of the original model
+    begin = std::chrono::steady_clock::now();
+    size_t constantIndex = 0;
+    for (auto&& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+            continue;
+        }
+
+        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+        std::shared_ptr<ov::ITensor> tensor = ov::make_tensor(constantNode->get_element_type(),
+                                                              constantNode->get_shape(),
+                                                              const_cast<void*>(constantNode->get_data_ptr()),
+                                                              constantNode->get_strides());
+        constantIdToTensorData.emplace(constantIndex++, tensor);
+    }
+    end = std::chrono::steady_clock::now();
+    std::cout << "getting constant IDs " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
+              << "[microseconds]" << std::endl;
+
+    begin = std::chrono::steady_clock::now();
+    size_t initInputsByteSize = 0;
+
+    for (const IODescriptor& descriptor : initGraph->get_metadata().inputs) {
+        initInputsByteSize +=
+            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+    }
+
+    begin_tensor_creation = std::chrono::steady_clock::now();
+    const ov::SoPtr<ov::ITensor> initInputsTensor =
+        createHostTensor(context._ptr, ov::element::Type_t::u8, ov::Shape({initInputsByteSize}), config);
+    end_tensor_creation = std::chrono::steady_clock::now();
+    std::cout
+        << "init inputs tensor creation "
+        << std::chrono::duration_cast<std::chrono::microseconds>(end_tensor_creation - begin_tensor_creation).count()
+        << "[microseconds]" << std::endl;
+
+    size_t offset = 0;
+    for (const IODescriptor& descriptor : initGraph->get_metadata().inputs) {
+        const size_t id = std::stoi(descriptor.nameFromCompiler);
+        auto currentInputBufferLocation = static_cast<unsigned char*>(initInputsTensor->data()) + offset;
+        const size_t currentInputSize =
+            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+        OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
+        OPENVINO_ASSERT(constantIdToTensorData.at(id)->get_byte_size() == currentInputSize,
+                        "Byte size mismatch for ",
+                        descriptor.nameFromCompiler);
+        OPENVINO_ASSERT(constantIdToTensorData.at(id)->get_element_type() == descriptor.precision,
+                        "Precision mismatch for ",
+                        descriptor.nameFromCompiler);
+        OPENVINO_ASSERT(constantIdToTensorData.at(id)->get_shape() == descriptor.shapeFromCompiler.to_shape(),
+                        "Shape mismatch for ",
+                        descriptor.nameFromCompiler);
+
+        begin_memcpy = std::chrono::steady_clock::now();
+        std::memcpy(currentInputBufferLocation, constantIdToTensorData.at(id)->data(), currentInputSize);
+        end_memcpy = std::chrono::steady_clock::now();
+        memcpy_duration =
+            memcpy_duration + std::chrono::duration_cast<std::chrono::microseconds>(end_memcpy - begin_memcpy).count();
+
+        inputTensors.push_back({ov::make_tensor(constantIdToTensorData.at(id)->get_element_type(),
+                                                constantIdToTensorData.at(id)->get_shape(),
+                                                currentInputBufferLocation,
+                                                constantIdToTensorData.at(id)->get_strides())});
+        offset += currentInputSize;
+    }
+    end = std::chrono::steady_clock::now();
+    std::cout << "Setting init inputs " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
+              << "[microseconds]" << std::endl;
+    std::cout << "Memcpy duration " << memcpy_duration << "[microseconds]" << std::endl;
+
+    begin = std::chrono::steady_clock::now();
+    size_t initOutputsByteSize = 0;
+
+    for (const IODescriptor& descriptor : initGraph->get_metadata().outputs) {
+        initOutputsByteSize +=
+            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+    }
+
+    begin_tensor_creation = std::chrono::steady_clock::now();
+    const ov::SoPtr<ov::ITensor> initOutputsTensor =
+        createHostTensor(context._ptr, ov::element::Type_t::u8, ov::Shape({initOutputsByteSize}), config);
+    end_tensor_creation = std::chrono::steady_clock::now();
+    std::cout
+        << "init outputs tensor creation "
+        << std::chrono::duration_cast<std::chrono::microseconds>(end_tensor_creation - begin_tensor_creation).count()
+        << "[microseconds]" << std::endl;
+
+    offset = 0;
+    for (const IODescriptor& descriptor : initGraph->get_metadata().outputs) {
+        const auto currentOutputBufferLocation = static_cast<unsigned char*>(initOutputsTensor->data()) + offset;
+
+        const ov::SoPtr<ov::ITensor> hostTensor =
+            ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.to_shape(), currentOutputBufferLocation);
+
+        outputTensors.push_back(hostTensor._ptr);
+        outputTensorsMap.emplace(descriptor.nameFromCompiler, hostTensor._ptr);
+        offset +=
+            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+    }
+    end = std::chrono::steady_clock::now();
+    std::cout << "Creating output tensors "
+              << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
+              << std::endl;
+
+    auto progilingPool = zeroProfiling::ProfilingPool(_initStructs, initGraph, zeroProfiling::POOL_SIZE);
+    auto profilingQuery = zeroProfiling::ProfilingQuery(_initStructs, 0);
+    auto npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_initStructs, config.get<LOG_LEVEL>());
+
+    ze_device_properties_t properties = {};
+    properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties", zeDeviceGetProperties(_initStructs->getDevice(), &properties));
+
+    const auto pipeline = std::make_unique<Pipeline>(config,
+                                                     _initStructs,
+                                                     initGraph,
+                                                     progilingPool,
+                                                     profilingQuery,
+                                                     npuProfiling,
+                                                     inputTensors,
+                                                     outputTensors);
+    begin = std::chrono::steady_clock::now();
+    pipeline->push();
+    pipeline->pull();
+    end = std::chrono::steady_clock::now();
+    std::cout << "Running the pipeline " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
+              << "[microseconds]" << std::endl;
+
+    return std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>>(
+        outputTensorsMap,
+        initOutputsTensor);
 }
 
 std::string ZeroDevice::getName() const {
@@ -183,7 +337,7 @@ ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::
                                                             const Config& config,
                                                             ov::intel_npu::TensorType tensor_type,
                                                             ov::intel_npu::MemType mem_type,
-                                                            void* mem) {
+                                                            const void* mem) {
     return {std::make_shared<ZeroRemoteTensor>(context,
                                                _initStructs,
                                                device_properties,
