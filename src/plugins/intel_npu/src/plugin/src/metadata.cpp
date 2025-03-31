@@ -150,7 +150,7 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
         OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
     }
 
-    if (dynamic_cast<ov::OwningSharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
+    if (dynamic_cast<ov::SharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
         return stream.rdbuf()->in_avail();
     }
     const std::streampos streamStart = stream.tellg();

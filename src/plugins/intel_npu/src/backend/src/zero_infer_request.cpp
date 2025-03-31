@@ -832,7 +832,7 @@ void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIn
                                                                   descriptor.nameFromCompiler,
                                                                   get_user_input(tensorIndex),
                                                                   tensorIndex,
-                                                                  *descriptor.relatedDescriptorIndex,
+                                                                  descriptor.relatedDescriptorIndex.value(),
                                                                   _config));
 }
 

@@ -115,7 +115,7 @@ struct travel_direction_wrapper<direction_e::backwards> {
 };
 
 static format get_target_output_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node, program_node *next) {
-    auto user_idx = node->get_user_index(*next);
+    auto user_idx = next->get_dependency_output_port(*node);
 
     // 1. Check selected preferred_output_format
     auto ret = node->get_preferred_output_fmt(user_idx);
@@ -541,14 +541,9 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
 // If there is layout mismatch between two layers, add reorder
 template <direction_e dir>
 void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
-    auto fmt = fmt_map.at(node);
-
     auto next_cpy = travel_direction_wrapper<dir>::next_nodes(node);
     for (auto next : next_cpy) {
         if (!next->is_in_data_flow())
-            continue;
-
-        if (fmt_map.count(next) > 0 && fmt_map.at(next) == fmt)
             continue;
 
         if (is_weights_dependency(node, next))
@@ -567,6 +562,8 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
 
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
+        if (in_layout.format == out_layout.format)
+            continue;
 
         GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << next->id() << " ## "
                       << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
