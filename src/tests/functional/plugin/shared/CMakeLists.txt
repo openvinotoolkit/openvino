@@ -48,8 +48,6 @@ else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
 endif()
 
-find_package(OpenCL QUIET REQUIRED)
-
 ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC

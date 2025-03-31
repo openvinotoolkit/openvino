@@ -611,7 +611,6 @@ TEST_P(OVClassSetDefaultDeviceIDPropTest, SetDefaultDeviceIDNoThrow) {
     if (get_num_gpus() == 1 && target_device == "GPU" && deviceID == "1") {
         GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
     }
-    std::cout << "deviceid si" << deviceID << "target_device" << target_device << std::endl;
     ov::Core ie = ov::test::utils::create_core();
     // sw plugins are not requested to support `ov::available_devices` and ` ov::device::id` property
     auto deviceIDs = ie.get_property(target_device, ov::available_devices);
