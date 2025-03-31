@@ -29,7 +29,7 @@ OutputVector translate_rad2deg(const NodeContext& context) {
         context.mark_node(ov::op::v0::Constant::create(ov::element::f64, Shape{}, {180.0 / pi_val}));
 
     // Align elementwise input types to handle integer cases correctly
-    align_eltwise_input_types(context, input, conversion_factor_fp64, true, false);
+    align_eltwise_input_types(context, input, conversion_factor_fp64, is_python_scalar_input(context, 0), true);
 
     // Apply the multiplication operation to convert radians to degrees
     auto result = context.mark_node(std::make_shared<ov::op::v1::Multiply>(input, conversion_factor_fp64));
