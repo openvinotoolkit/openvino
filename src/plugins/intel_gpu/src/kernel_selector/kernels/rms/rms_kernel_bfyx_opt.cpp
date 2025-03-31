@@ -133,6 +133,7 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         jit.AddConstant(MakeJitConstant("SLICE_START", params.slice_start));
         jit.AddConstant(MakeJitConstant("SLICE_STOP", params.slice_stop));
         jit.AddConstant(MakeJitConstant("SLICE_STRIDE", params.slice_stride));
+        jit.AddConstant(MakeJitConstant("SLICE_ELEM_SIZE", params.slice_elem_size));
     } else {
         jit.AddConstant(MakeJitConstant("DYNAMIC_PADDING", 0));
     }

@@ -58,6 +58,7 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
             const auto& upper_pads = data_padding._upper_size;
             rms_params->slice_start = lower_pads[mask_idx];
             rms_params->slice_stop = lower_pads[mask_idx] + pshape[mask_idx];
+            rms_params->slice_elem_size = x_dim;
             rms_params->slice_stride = (lower_pads[mask_idx] + pshape[mask_idx] + upper_pads[mask_idx]) * x_dim;
         }
     }

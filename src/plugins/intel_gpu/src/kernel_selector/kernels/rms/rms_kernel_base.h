@@ -18,6 +18,7 @@ struct rms_params : public base_params {
     size_t slice_start = 0;
     size_t slice_stop = 0;
     size_t slice_stride = 0;
+    size_t slice_elem_size = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
