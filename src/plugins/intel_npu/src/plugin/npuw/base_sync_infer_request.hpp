@@ -77,9 +77,9 @@ protected:
     void try_accurate_subinfer(std::size_t idx, bool& accuracy_failover);
     void try_accurate_subinfer(std::size_t idx, std::size_t offset, std::size_t len,
                                bool& accuracy_failover);
-    void try_accurate_substart_async(std::size_t idx);
-    void try_accurate_subwait(std::size_t idx, bool& accuracy_failover);
-    void ensure_subrequest_is_accurate(std::size_t idx, bool& accuracy_failover);
+    virtual void try_accurate_substart_async(std::size_t idx);
+    virtual void try_accurate_subwait(std::size_t idx, bool& accuracy_failover);
+    virtual void ensure_subrequest_is_accurate(std::size_t idx, bool& accuracy_failover);
 
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
     std::vector<IBaseInferRequest::Completed> m_completion_cbs;
