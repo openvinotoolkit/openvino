@@ -960,7 +960,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
     auto output_memory = output_tensor->get_memory();
     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
-    return network->set_output_memory(internal_name, output_memory, is_remote_tensor_impl);
+    return network->set_output_memory(internal_name, output_memory, is_dynamic && (is_remote_tensor_impl || user_tensor));
 }
 
 void SyncInferRequest::init_mappings() {
