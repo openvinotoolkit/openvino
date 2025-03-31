@@ -177,7 +177,7 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
 
         return padding(pad_low, pad_up, input_padding._dynamic_dims_mask);
     };
-  
+
     auto get_transposed_input_shape = [&](const ov::PartialShape& input_pshape, size_t input_rank, size_t output_rank, bool transpose, bool first_input) {
         ov::PartialShape transposed_input_pshape;
 
@@ -223,7 +223,7 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     // No need to get output_rank for rank>4 inputs when allow_new_shape_infer=true
     size_t input_rank = (reordered && !allow_new_shape_infer) ? output_rank : primitive->input_rank;
     size_t weight_rank = (reordered && !allow_new_shape_infer) ? output_rank : primitive->weight_rank;
-  
+
     auto transposed_input0_pshape = get_transposed_input_shape(input0_pshape, input_rank, output_rank, primitive->transpose_input0, true);
     auto transposed_input1_pshape = get_transposed_input_shape(input1_pshape, weight_rank, output_rank, primitive->transpose_input1, false);
 
