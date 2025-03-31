@@ -1502,8 +1502,6 @@ struct MHAHelper {
         auto want_score_stride = rnd_up(kv_len, _block_size);
         auto new_score_stride = std::max(prev_score_stride, want_score_stride);
         // resize temporary buffers, weight.size(3) will be aligned to block_size
-        std::cout << "_weight" << &_weight <<  " _nthr:" << _nthr << " H:" << H << " _block_size:" << _block_size
-                  << " _new_score_stride:" << new_score_stride << " SV:" << SV << std::endl;
         _weight.resize<float>({static_cast<size_t>(_nthr), H / Hk, _block_size, new_score_stride});
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
         if (_quant_key_bychannel)

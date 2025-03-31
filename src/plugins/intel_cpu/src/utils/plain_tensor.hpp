@@ -356,23 +356,10 @@ struct PlainTensor {
 #ifdef _WIN32
                 ptr = _aligned_malloc(capacity_new, 64);
 #else
-                size_t capacity_new_2n = 1;
-                while (capacity_new_2n < capacity_new) {
-                    capacity_new_2n *= 2;
-                }
-                capacity_new = capacity_new_2n;
-                //m_ptr.reset();
-                //malloc_trim(0);
-                std::cout << "capacity_new:" << capacity_new << std::endl;
                 int rc = ::posix_memalign(&ptr, 64, capacity_new);
                 if (rc) {
                     OPENVINO_ASSERT(false, "PlainTensor call posix_memalign failed: ", rc);
                 }
-                //ptr = ::aligned_alloc(64, capacity_new);
-                //if (ptr == nullptr) {
-                //    OPENVINO_ASSERT(false, "PlainTensor call aligned_alloc failed: ");
-                //}
-                memset(ptr, 0, capacity_new);
 #endif
                 m_ptr = std::shared_ptr<uint8_t>(static_cast<uint8_t*>(ptr), [](uint8_t* ptr) {
 #ifdef _WIN32
