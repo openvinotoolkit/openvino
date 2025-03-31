@@ -831,6 +831,8 @@ class TestParallelRunner:
                                         line.rfind("(") + 1 : line.rfind("ms)") - 1
                                     ]
                                 test_times.append((int(time), test_name))
+                                if dir == INTERAPTED_DIR:
+                                    logger.info(f"{test_name} is INTERAPTED_DIR")
                                 if dir in test_results.keys():
                                     test_results[dir] += 1
                                 else:
@@ -847,7 +849,7 @@ class TestParallelRunner:
                     if __save_log(logs_dir, dir, test_name):
                         interapted_tests.add(test_name)
                         fix_priority.append((ref_k or 0, test_name))
-
+                        logger.info(f"interapted_tests: {test_name}")
                 if self._split_unit == constants.SUITE_UNIT_NAME:
                     test_cnt_real = len(test_suites)
                 else:
@@ -867,6 +869,7 @@ class TestParallelRunner:
             # update test_cache with tests. If tests is crashed use -1 as unknown time
             time = -1
             test_times.append((int(time), test_name))
+            logger.info(f"{test_name} is in interapted_tests")
             if INTERAPTED_DIR in test_results.keys():
                 test_results[INTERAPTED_DIR] += 1
             else:
