@@ -77,8 +77,8 @@ options:
 The advantages of using OpenVINO for generative model deployment:
 
 | **Fewer dependencies and smaller footprint**
-|    Less bloated than frameworks such as Hugging Face and PyTorch, with a smaller binary size and reduced
-     memory footprint, makes deployments easier and updates more manageable.
+|    More compact than frameworks such as Hugging Face and PyTorch, with a smaller binary size
+     and reduced memory footprint, makes deployments easier and updates more manageable.
 
 | **Compression and precision management**
 |    Techniques such as 8-bit and 4-bit weight compression, including embedding layers, and storage
