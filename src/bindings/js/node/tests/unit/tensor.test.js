@@ -313,3 +313,60 @@ describe('ov.Tensor tests', () => {
     });
   });
 });
+
+
+describe('Tensor class', () => {
+
+  it('should correctly copy data to another tensor', () => {
+    const tensor1 = new Tensor('ov.element.f32', [2, 2]);
+    const tensor2 = new Tensor('ov.element.f32', [2, 2]);
+
+    tensor1.data = new Float32Array([1, 2, 3, 4]);
+
+    tensor1.copyTo(tensor2);
+
+    assert.deepEqual(tensor1.getData(), tensor2.getData(), 'Data was not copied correctly.');
+  });
+
+  it('should throw an error when the argument is not a tensor', () => {
+    const tensor1 = new Tensor('ov.element.f32', [2, 2]);
+
+    assert.throws(() => {
+      tensor1.copyTo("invalid argument");
+    }, {
+      message: 'The copyTo method requires one argument of type Tensor.'
+    });
+  });
+
+  it('should throw an error when the incorrect number of arguments is provided', () => {
+    const tensor1 = new Tensor('ov.element.f32', [2, 2]);
+
+    assert.throws(() => {
+      tensor1.copyTo();
+    }, {
+      message: 'The copyTo method requires one argument of type Tensor.'
+    });
+  });
+
+  it('should throw an error if the tensors have different shapes', () => {
+    const tensor1 = new Tensor('ov.element.f32', [2, 2]);
+    const tensor2 = new Tensor('ov.element.f32', [3, 2]);
+
+    assert.throws(() => {
+      tensor1.copyTo(tensor2);
+    }, {
+      message: 'Tensors must have the same shape.'
+    });
+  });
+
+  it('should throw an error if the tensors have different element types', () => {
+    const tensor1 = new Tensor('ov.element.f32', [2, 2]);
+    const tensor2 = new Tensor('ov.element.i32', [2, 2]);
+
+    assert.throws(() => {
+      tensor1.copyTo(tensor2);
+    }, {
+      message: 'Tensors must have the same element type.'
+    });
+  });
+});
