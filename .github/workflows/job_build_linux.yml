@@ -201,7 +201,7 @@ jobs:
 
       - name: Pack openvino_developer_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_developer_package.tar.gz
-        working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}
+        working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}/developer_package
 
       - name: Pack openvino_tests
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
