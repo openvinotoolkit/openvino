@@ -396,6 +396,9 @@ Supported Properties
 #######################################
 
 The plugin supports the properties listed below.
+- For more details on the properties, see the `Device Properties <../../../api/c_cpp_api/group__ov__runtime__cpp__prop__api.html>`.
+- For more details on usage of the properties, see the :doc:`Query Device Properties - Configuration <query-device-properties.rst>`.
+- To check the exact list of available properties on target device, you can run :doc:`Hello Query Device C++ Sample <../../../get-started/learn-openvino/openvino-samples/hello-query-device>`.
 
 Read-write properties
 +++++++++++++++++++++++++++++++++++++++
@@ -403,38 +406,53 @@ Read-write properties
 All parameters must be set before calling ``ov::Core::compile_model()`` in order to take effect or passed as additional argument to ``ov::Core::compile_model()``.
 
 - ``ov::cache_dir``
-- ``ov::enable_profiling``
-- ``ov::hint::model_priority``
-- ``ov::hint::performance_mode``
-- ``ov::hint::execution_mode``
-- ``ov::hint::num_requests``
-- ``ov::hint::inference_precision``
-- ``ov::num_streams``
+- ``ov::cache_encryption_callbacks``
+- ``ov::cache_mode``
 - ``ov::compilation_num_threads``
 - ``ov::device::id``
+- ``ov::enable_profiling``
+- ``ov::num_streams``
+- ``ov::weights_path``
+- ``ov::hint::activations_scale_factor``
+- ``ov::hint::dynamic_quantization_group_size``
+- ``ov::hint::enable_cpu_pinning``
+- ``ov::hint::enable_cpu_reservation``
+- ``ov::hint::execution_mode``
+- ``ov::hint::inference_precision``
+- ``ov::hint::kv_cache_precision``
+- ``ov::hint::model``
+- ``ov::hint::model_priority``
+- ``ov::hint::num_requests``
+- ``ov::hint::performance_mode``
+- ``ov::intel_gpu::disable_winograd_convolution``
+- ``ov::intel_gpu::enable_loop_unrolling``
+- ``ov::intel_gpu::hint::enable_sdpa_optimization``
 - ``ov::intel_gpu::hint::host_task_priority``
 - ``ov::intel_gpu::hint::queue_priority``
 - ``ov::intel_gpu::hint::queue_throttle``
-- ``ov::intel_gpu::enable_loop_unrolling``
-- ``ov::intel_gpu::disable_winograd_convolution``
+
 
 Read-only Properties
 +++++++++++++++++++++++++++++++++++++++
 
-- ``ov::supported_properties``
 - ``ov::available_devices``
+- ``ov::max_batch_size``
+- ``ov::optimal_batch_size``
 - ``ov::range_for_async_infer_requests``
 - ``ov::range_for_streams``
-- ``ov::optimal_batch_size``
-- ``ov::max_batch_size``
-- ``ov::device::full_name``
-- ``ov::device::type``
-- ``ov::device::gops``
+- ``ov::supported_properties``
+- ``ov::device::architecture``
 - ``ov::device::capabilities``
+- ``ov::device::full_name``
+- ``ov::device::gops``
+- ``ov::device::luid``
+- ``ov::device::type``
+- ``ov::device::uuid``
 - ``ov::intel_gpu::device_total_mem_size``
-- ``ov::intel_gpu::uarch_version``
 - ``ov::intel_gpu::execution_units_count``
 - ``ov::intel_gpu::memory_statistics``
+- ``ov::intel_gpu::uarch_version``
+
 
 Limitations
 #######################################
