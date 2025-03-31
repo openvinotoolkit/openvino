@@ -244,7 +244,7 @@ jobs:
         timeout-minutes: ${{ inputs.testFilterType == 'SMOKE' && 125 || 25}}
 
   Overall_Status:
-    name: ci/gha_overall_status_linux_riscv
+    name: ci/gha_overall_status_linux_riscv_xuantie
     needs: [Smart_CI, Build, CPU_Functional_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
