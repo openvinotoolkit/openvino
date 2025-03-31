@@ -9,7 +9,7 @@
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::pass {
 
 /**
  * @class BrgemmCopyBLoopPortsAdjuster
@@ -32,4 +32,4 @@ private:
         m_affected_uni2exp_map;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::pass

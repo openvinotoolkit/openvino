@@ -46,18 +46,20 @@ private:
     void initStartOffsets();
     void initPluginBlockedShapes() const;
     void optimizeIR();
+    void prepareWeights();
 
     snippets::op::Subgraph::BlockedShapeVector getSnippetsBlockedShapes() const;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> getIOPrecisions() const;
 
     static uint64_t getBodyHash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
     uint32_t getBroadcastingMask(const std::vector<VectorDims>& input_shapes);
+    std::set<size_t> getConstantInputIndexes() const;
 
     using DataFlowPasses = std::vector<ov::snippets::pass::Manager::PositionedPassBase>;
     using ControlFlowPasses = std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>;
 
     DataFlowPasses getDataFlowPasses();
-    ControlFlowPasses getControlFlowPasses() const;
+    ControlFlowPasses getControlFlowPasses();
 
     // Holds ISA version used is codeGeneration target
 #if defined(OPENVINO_ARCH_ARM64)
@@ -81,6 +83,8 @@ private:
 
     std::vector<ptrdiff_t> start_offset_in = {};
     std::vector<ptrdiff_t> start_offset_out = {};
+
+    RepackedInputConfig repacked_constant_input_config = {};
 
     bool is_dynamic = false;
     // Input shapes that are used in PrepareParams and ShapeInfer to avoid frequent memory allocation

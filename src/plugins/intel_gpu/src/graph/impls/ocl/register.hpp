@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
 #include "intel_gpu/primitives/bucketize.hpp"
+#include "intel_gpu/primitives/col2im.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/convert_color.hpp"
 #include "intel_gpu/primitives/crop.hpp"
@@ -85,6 +86,7 @@ REGISTER_OCL(batch_to_space);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
 REGISTER_OCL(bucketize);
+REGISTER_OCL(col2im);
 REGISTER_OCL(concatenation);
 REGISTER_OCL(crop);
 REGISTER_OCL(custom_gpu_primitive);

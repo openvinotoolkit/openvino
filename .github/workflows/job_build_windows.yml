@@ -164,7 +164,13 @@ jobs:
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: CMake configure
-        run: cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} ${{ inputs.cmake-options }}
+        env:
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
+        run: |
+          $cmakeOptions = "$env:CMAKE_OPTIONS"
+          $splitCmakeOptions = $cmakeOptions.Split(" ")
+          $cmakeCommand = "cmake $splitCmakeOptions -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}"
+          Invoke-Expression $cmakeCommand
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'

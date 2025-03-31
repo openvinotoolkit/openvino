@@ -15,6 +15,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 
 #include <transformations/utils/utils.hpp>
@@ -179,6 +180,69 @@ TEST_F(TransformationTestsF, IndirectKVCache4) {
         auto result = std::make_shared<ov::op::v0::Result>(sdpa);
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter_key, parameter_value, beam_idx, sdpa_q});
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
+TEST_F(TransformationTestsF, IndirectKVCache5) {
+    std::vector<int64_t> in0_order = {0, 1, 2, 3};
+    std::vector<int64_t> in1_order = {0, 1, 2, 3};
+    std::vector<int64_t> in2_order = {0, 1, 2, 3};
+    std::vector<int64_t> out_order = {0, 1, 2, 3};
+    const bool is_causal = false;
+    {
+        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+        auto key_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, 32, -1, 80}, ov::element::f16, "v0"});
+        auto value_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, 32, -1, 80}, ov::element::f16, "v1"});
+        auto key_past = std::make_shared<ov::intel_gpu::op::ReadValue>(key_variable);
+        auto value_past = std::make_shared<ov::intel_gpu::op::ReadValue>(value_variable);
+        auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 0);
+        auto key_gather_past = std::make_shared<ov::op::v8::Gather>(key_past, beam_idx, axis);
+        auto value_gather_past = std::make_shared<ov::op::v8::Gather>(value_past, beam_idx, axis);
+
+        auto key_data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 240});
+        auto vs_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
+        auto split_lengths = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int64_t>{80, 80, -1});
+        auto var_split = std::make_shared<ov::op::v1::VariadicSplit>(key_data, vs_axis, split_lengths);
+        auto parameter_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 80});
+        auto key_cache = std::make_shared<ov::intel_gpu::op::KVCache>(key_gather_past, var_split->output(0), key_variable, 0, ov::element::f16);
+        auto value_cache = std::make_shared<ov::intel_gpu::op::KVCache>(value_gather_past, parameter_value, value_variable, 0, ov::element::f16);
+
+        auto sdpa_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 80});
+        auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 1, -1, -1});
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{});
+        auto inputs = ov::OutputVector{sdpa_q, key_cache, value_cache, attn_mask, scale};
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
+        auto result = std::make_shared<ov::op::v0::Result>(sdpa);
+
+        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{key_data, parameter_value, beam_idx, sdpa_q, attn_mask, scale});
+        manager.register_pass<IndirectKVCache>();
+    }
+    {
+        auto indirect_axis = 0;
+        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+        auto key_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, 32, -1, 80}, ov::element::f16, "v0"});
+        auto value_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, 32, -1, 80}, ov::element::f16, "v1"});
+        auto key_past = std::make_shared<ov::intel_gpu::op::ReadValue>(key_variable);
+        auto value_past = std::make_shared<ov::intel_gpu::op::ReadValue>(value_variable);
+
+        auto key_data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 240});
+        auto vs_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
+        auto split_lengths = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int64_t>{80, 80, -1});
+        auto var_split = std::make_shared<ov::op::v1::VariadicSplit>(key_data, vs_axis, split_lengths);
+        auto parameter_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 80});
+        auto key_cache = std::make_shared<ov::intel_gpu::op::KVCache>(key_past, var_split->output(0), beam_idx, key_variable, 0, 0, ov::element::f16);
+        auto value_cache = std::make_shared<ov::intel_gpu::op::KVCache>(value_past, parameter_value, beam_idx, key_variable, 0, 0, ov::element::f16);
+
+        auto sdpa_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 32, -1, 80});
+        auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 1, -1, -1});
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{});
+        auto inputs = ov::OutputVector{sdpa_q, key_cache, value_cache, attn_mask, scale};
+
+        auto sdpa = std::make_shared<ov::intel_gpu::op::IndirectSDPA>(inputs, key_cache->output(1), is_causal, indirect_axis, in0_order, in1_order, in2_order, out_order);
+        auto result = std::make_shared<ov::op::v0::Result>(sdpa);
+
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{key_data, parameter_value, beam_idx, sdpa_q, attn_mask, scale});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }

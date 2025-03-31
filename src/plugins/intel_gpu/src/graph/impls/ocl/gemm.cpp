@@ -275,7 +275,8 @@ public:
         const auto& primitive = impl_params.typed_desc<gemm>();
         auto updated_impl_params = canonicalize_fused_shapes(impl_params);
 
-        updated_impl_params.input_layouts = gemm_inst::transform_input_layouts(primitive, impl_params.input_layouts);
+        updated_impl_params.input_layouts = gemm_inst::transform_input_layouts(primitive, impl_params.input_layouts,
+                                                                               impl_params.get_program().is_new_shape_infer());
         updated_impl_params.output_layouts[0] = gemm_inst::transform_output_layout(primitive, updated_impl_params.input_layouts, impl_params.output_layouts[0]);
 
         for (auto& input_layout : updated_impl_params.input_layouts) {

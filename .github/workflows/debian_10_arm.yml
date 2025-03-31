@@ -87,19 +87,19 @@ jobs:
       build-debian-packages: false
       build-contrib: false
       build-rpm-packages: false
-      cmake-options: |-
-        -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/arm.toolchain.cmake \
-        -DTHREADS_PTHREAD_ARG="-pthread" \
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DENABLE_STRICT_DEPENDENCIES=OFF \
-        -DENABLE_CPPLINT=OFF \
-        -DENABLE_NCC_STYLE=OFF \
-        -DCMAKE_VERBOSE_MAKEFILE=ON \
-        -DENABLE_CONFORMANCE_PGQL=ON \
-        -DENABLE_LTO=ON \
-        -DENABLE_TESTS=ON \
+      cmake-options: >-
+        -DTHREADS_PTHREAD_ARG=-pthread
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+        -DCMAKE_BUILD_TYPE=Release
+        -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DENABLE_CPPLINT=OFF
+        -DENABLE_NCC_STYLE=OFF
+        -DCMAKE_VERBOSE_MAKEFILE=ON
+        -DENABLE_CONFORMANCE_PGQL=ON
+        -DENABLE_LTO=ON
+        -DENABLE_TESTS=ON
         -DENABLE_PYTHON=OFF
+        -DCMAKE_TOOLCHAIN_FILE=/__w/openvino/openvino/openvino/cmake/arm.toolchain.cmake
 
   CXX_Unit_Tests:
     name: C++ unit tests
