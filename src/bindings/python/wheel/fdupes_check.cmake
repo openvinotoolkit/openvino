@@ -54,7 +54,7 @@ file(REMOVE_RECURSE "${WORKING_DIRECTORY}")
 # filtering of 'duplicated_files'
 
 foreach(duplicated_file IN LISTS duplicated_files)
-    if(duplicated_file MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*")
+    if(duplicated_file MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*" AND NOT duplicated_file MATCHES ".*\\.pyi$")
         set(duplicated_libraries "${duplicated_file}\n${duplicated_libraries}")
     endif()
 endforeach()

@@ -58,6 +58,7 @@ public:
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
+    void init_thresholds() override;
 
     bool m_with_mul = false;
 };

@@ -82,9 +82,20 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
         kv.second = equation;
     replace_nodes(m, {}, node_replace_map);
     for (const auto& in : equation->inputs()) {
-        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(in, root_subtensor);
+        auto subtensor = root_subtensor;
+        if (in.get_partial_shape().size() < root_subtensor.size()) {
+            subtensor.erase(subtensor.begin(),
+                            subtensor.begin() + (root_subtensor.size() - in.get_partial_shape().size()));
+        }
+        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(in, subtensor);
     }
-    ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(equation->output(0), root_subtensor);
+    auto subtensor = root_subtensor;
+    const auto& out = equation->output(0);
+    if (out.get_partial_shape().size() < root_subtensor.size()) {
+        subtensor.erase(subtensor.begin(),
+                        subtensor.begin() + (root_subtensor.size() - out.get_partial_shape().size()));
+    }
+    ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(equation->output(0), subtensor);
     return true;
 }
 
