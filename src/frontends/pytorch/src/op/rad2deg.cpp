@@ -21,21 +21,18 @@ OutputVector translate_rad2deg(const NodeContext& context) {
     // Retrieve the input tensor
     auto input = context.get_input(0);
 
-<<<<<<< HEAD
     // Define the value of π
-    == == == =
->>>>>>> 976b55ece285b76ba77083cb5c7aadffab01ace9
-                 const double pi_val = std::atan(1.0) * 4;
+    const double pi_val = std::atan(1.0) * 4;
 
     // Create a constant node with the conversion factor (180 / π) using fp64 type
     auto conversion_factor_fp64 =
         context.mark_node(ov::op::v0::Constant::create(ov::element::f64, Shape{}, {180.0 / pi_val}));
 
     // Align elementwise input types to handle integer cases correctly
-    auto aligned_inputs = align_eltwise_input_types(input, conversion_factor_fp64, true);
+    align_eltwise_input_types(context, input, conversion_factor_fp64, true, false);
 
     // Apply the multiplication operation to convert radians to degrees
-    auto result = context.mark_node(std::make_shared<ov::op::v1::Multiply>(aligned_inputs[0], aligned_inputs[1]));
+    auto result = context.mark_node(std::make_shared<ov::op::v1::Multiply>(input, conversion_factor_fp64));
 
     // Return the computed result as an OutputVector
     return {result};
