@@ -5,7 +5,7 @@
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "shape_of_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/shape_of.hpp"
 
@@ -84,6 +84,7 @@ attach_shape_of_impl::attach_shape_of_impl() {
         format::bfyx,
         format::bfzyx,
         format::bfwzyx,
+        format::bfuwzyx
     };
 
     auto types = {

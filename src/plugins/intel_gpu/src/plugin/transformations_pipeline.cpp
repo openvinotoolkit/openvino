@@ -82,7 +82,6 @@
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
-#include "plugin/transformations/group_norm_composition.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -92,7 +91,9 @@
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
@@ -334,7 +335,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
-    ov::element::Type infer_precision = ov::element::undefined;
+    ov::element::Type infer_precision = ov::element::dynamic;
     bool unroll_loop = config.get_enable_loop_unrolling();
     {
         ov::pass::Manager manager("Plugin:GPU");
@@ -382,7 +383,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Add conversion from FP data types to infer precision if it's specified
         infer_precision = config.get_inference_precision();
-        if (infer_precision != ov::element::undefined) {
+        if (infer_precision != ov::element::dynamic) {
             if (!fp_precision_supported(infer_precision))
                 infer_precision = fallback_precision;
 
@@ -409,6 +410,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
         manager.register_pass<ov::pass::MVNFusion>();
+        // GroupNormalizationFusion can potentially benefit from MVNFusion
+        manager.register_pass<ov::pass::GroupNormalizationFusion>();
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
         // Run these broadcast optimizations earlier to ensure that those are executed before NopElimination/ConstantFolding
@@ -424,8 +427,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
-
-        manager.register_pass<ov::intel_gpu::GroupNormComposition>();
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
@@ -457,6 +458,26 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           store_original_precision_as_rt_attribute);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
+
+        ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
+        kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
+        kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();
+        kv_cache_config.inferencePrecision = infer_precision;
+        kv_cache_config.keyCacheBlockSize = 16;
+        kv_cache_config.valueCacheBlockSize = 16;
+        kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+        kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+        manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
+            [&infer_precision](const ov::element::Type& precision,
+               const bool bychannel,
+               const size_t group_num,
+               int64_t& head_size,
+               int64_t& block_size) {
+                OPENVINO_ASSERT(!bychannel, "[GPU] Unsupported KV-cache quantization mode");
+                if (precision == ov::element::i8 || precision == ov::element::u8) {
+                    head_size += infer_precision.size() * 2 * group_num;
+                }
+            });
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
             if (!config.get_enable_sdpa_optimization())
@@ -534,7 +555,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node);
 
                     auto &engine = m_context->get_engine();
-                    if (!cldnn::check_cm_jit_support(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2) {
+                    if (!cldnn::check_cm_jit_support(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2 || !config.get_use_cm()) {
                         return false;
                     }
 

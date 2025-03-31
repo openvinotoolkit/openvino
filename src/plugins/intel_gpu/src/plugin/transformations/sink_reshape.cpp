@@ -73,7 +73,7 @@ SinkReshape::SinkReshape() {
         return is_suitable_reshape(reshape) && is_suitable_parent(reshape->get_input_node_shared_ptr(0));
     };
 
-    auto reshape_m = wrap_type<v1::Reshape>(reshape_predicate);
+    auto reshape_m = wrap_type<v1::Reshape>(reshape_predicate && consumers_count(1));
     auto transpose_const_m = wrap_type<v0::Constant>();
     auto transpose_m = wrap_type<v1::Transpose>({reshape_m, transpose_const_m});
 

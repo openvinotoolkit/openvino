@@ -490,8 +490,8 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
             fq0_scale,
             fq1_scale,
             fq2_scale,
-            ov::element::undefined,
-            fq0_node ? fq0_node->get_output_element_type(0) : ov::element::undefined,
+            ov::element::dynamic,
+            fq0_node ? fq0_node->get_output_element_type(0) : ov::element::dynamic,
             fq1_node->get_output_element_type(0),
             transpose3_node->get_output_element_type(0));
         mha->set_friendly_name(m.get_match_root()->get_friendly_name());
@@ -671,8 +671,8 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
                                                             std::vector<float>(),
                                                             fq1_scale,
                                                             fq0_node->get_output_element_type(0),
-                                                            ov::element::undefined,
-                                                            ov::element::undefined,
+                                                            ov::element::dynamic,
+                                                            ov::element::dynamic,
                                                             transpose3_node->get_output_element_type(0));
         mha->set_friendly_name(m.get_match_root()->get_friendly_name());
         std::vector<std::shared_ptr<Node>> merged = {

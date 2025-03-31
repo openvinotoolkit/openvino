@@ -60,7 +60,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
                 if ((supported_precisions[index] == target) && (actual_precisions[index] == source)) {
                     // actual input precision has to be enforced: at least one port has to be handled
                     port_has_to_be_handled = true;
-                } else if ((supported_precisions[index] != element::undefined) &&
+                } else if ((supported_precisions[index] != element::dynamic) &&
                            (supported_precisions[index] != actual_precisions[index])) {
                     // actual input precision is not enforced but not supported, operation has to be ignored
                     op_is_appropriate = false;

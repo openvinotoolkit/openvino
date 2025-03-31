@@ -16,7 +16,7 @@
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
-#include "transformations/tpp/x64/op/modifiers.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -27,8 +27,8 @@ namespace {
 template <typename T>
 void set_full_port_desc(const T& port) {
     const auto& shape_rank = port.get_partial_shape().size();
-    static const std::vector<size_t> full_dim_subtensor(std::min(shape_rank, static_cast<size_t>(2)),
-                                                        ov::snippets::utils::get_full_dim_value());
+    const std::vector<size_t> full_dim_subtensor(std::min(shape_rank, static_cast<size_t>(2)),
+                                                 ov::snippets::utils::get_full_dim_value());
     PortDescriptorUtils::set_port_descriptor(port, full_dim_subtensor);
 }
 }  // namespace

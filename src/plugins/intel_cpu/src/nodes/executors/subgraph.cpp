@@ -85,7 +85,7 @@ SubgraphBaseExecutor::SubgraphBaseExecutor(const std::shared_ptr<CPURuntimeConfi
     m_harness_work_amount = std::accumulate(m_parallel_exec_domain.cbegin(),
                                             m_parallel_exec_domain.cend(),
                                             static_cast<size_t>(1),
-                                            std::multiplies<size_t>());
+                                            std::multiplies<>());
     m_nthreads = std::min(parallel_get_max_threads(), static_cast<int>(m_harness_work_amount));
 
     m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;

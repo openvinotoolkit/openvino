@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cmath>
+#include <optional>
 
 #include "openvino/op/segment_max.hpp"
 #include "utils.hpp"
@@ -50,8 +51,11 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
 
     // validate num_segments input
     const auto num_segments_available = op->inputs().size() == 3;
-    const auto num_segments = num_segments_available ? get_input_const_data_as_shape<TRShape>(op, 2, tensor_accessor)
-                                                     : ov::optional<TRShape>{};
+    std::optional<TRShape> num_segments;
+    if (num_segments_available) {
+        num_segments = get_input_const_data_as_shape<TRShape>(op, 2, tensor_accessor);
+    }
+
     if (num_segments_available) {
         const auto& num_segments_shape = input_shapes[2];
         NODE_SHAPE_INFER_CHECK(op,

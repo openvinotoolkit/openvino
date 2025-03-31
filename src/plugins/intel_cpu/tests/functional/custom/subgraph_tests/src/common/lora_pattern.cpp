@@ -193,7 +193,7 @@ protected:
     }
 
     StatesPolicy states_policy = StatesPolicy::UNDEFINED;
-    ov::element::Type states_precision = ov::element::undefined;
+    ov::element::Type states_precision = ov::element::dynamic;
 };
 
 class LoraPatternMatmulCPUTest : public LoraPatternBaseCPUTest {

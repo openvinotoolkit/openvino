@@ -16,7 +16,7 @@ const std::vector<ov::element::Type> netPrecisions = {
 
 // If snippets fuse all operations into one subgraph node,
 // it's impossible to extract exec precision for the specific layer
-const auto precision_for_fused_cases = ov::element::undefined;
+const auto precision_for_fused_cases = ov::element::dynamic;
 
 const std::vector<LayerTestsDefinitions::MultiplyTestValues> params = {
     {
@@ -103,6 +103,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyTransformation,
         ::testing::ValuesIn(params)),
     MultiplyTransformation::getTestCaseName);
 }  // namespace
-
-
-

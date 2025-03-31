@@ -145,6 +145,7 @@ DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Thresho
 DEFINE_double(nrmse_loss_threshold, 1.0, "Threshold for 'nrmse' mode");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
 DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
+DEFINE_bool(apply_soft_max, false, "Apply SoftMax for 'nrmse' mode");
 
 DEFINE_double(psnr_reference, 30.0, "PSNR reference value in dB");
 DEFINE_double(psnr_tolerance, 1e-4, "Tolerance for 'psnr' mode");
@@ -162,6 +163,7 @@ DEFINE_int32(num, 3, "Number of scales for Yolo V3");
 
 typedef std::chrono::high_resolution_clock Time;
 // for Semantic Segmentation
+DEFINE_bool(skip_arg_max, false, "Skip ArgMax post processing step");
 DEFINE_uint32(sem_seg_classes, 12, "Number of classes for semantic segmentation");
 DEFINE_double(sem_seg_threshold, 0.98, "Threshold for 'semantic segmentation' mode");
 DEFINE_uint32(sem_seg_ignore_label, std::numeric_limits<uint32_t>::max(), "The number of the label to be ignored");
@@ -764,7 +766,7 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
     const size_t fileBytes = static_cast<size_t>(fileSize);
     const size_t reqTensorBytes = static_cast<size_t>(requestedTensor.get_byte_size());
 
-    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::undefined) {
+    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::dynamic) {
         std::cout << "Converting " << filePath << " input from " << dataPrecision << " to " << modelPrecision
                   << std::endl;
         const ov::Tensor inputTensor(dataPrecision, shape);
@@ -864,9 +866,12 @@ ov::Tensor loadBinaries(const ov::element::Type& modelPrecision, const ov::Shape
  * @param dataPrecision Indicates the precision used by the data found within the binary file.
  * @return The tensor containing the loaded data.
  */
-ov::Tensor loadInput(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
-                     const std::vector<std::string>& filePaths, const std::string& colorFormat,
-                     const ov::element::Type& dataPrecision = ov::element::Type_t::undefined) {
+ov::Tensor loadInput(const ov::element::Type& modelPrecision,
+                     const ov::Shape& shape,
+                     const ov::Layout& layout,
+                     const std::vector<std::string>& filePaths,
+                     const std::string& colorFormat,
+                     const ov::element::Type& dataPrecision = ov::element::Type_t::dynamic) {
     if (isImage(shape, layout) && !FLAGS_img_as_bin) {
         return loadImages(modelPrecision, shape, layout, filePaths, colorFormat);
     } else {
@@ -1406,6 +1411,31 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
+std::vector<float> softmax(std::vector<float>& tensor) {
+    std::vector<double> probabilities(tensor.size());
+    std::vector<float> results(tensor.size());
+
+    // Find the maximum value for numerical stability
+    float max_value = *std::max_element(tensor.begin(), tensor.end());
+
+    // Compute the exponentials of the tensor after subtracting max_value for numerical stability
+    double sum_exp = 0.0;
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        probabilities[i] = exp(tensor[i] - max_value);  // exp(tensor_value - max_value) for stability
+        sum_exp += probabilities[i];
+    }
+
+    // Normalize the probabilities by dividing by the sum of exponentials
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        probabilities[i] /= sum_exp;
+    }
+
+    std::transform(probabilities.begin(), probabilities.end(), results.begin(),
+                   [](double value) { return static_cast<float>(value); });
+
+    return results;
+}
+
 bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
@@ -1428,6 +1458,22 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
 
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
+        bool applySoftMax = FLAGS_apply_soft_max;
+
+        if (applySoftMax) {
+            std::vector<float> actOutput;
+            std::vector<float> refOutput;
+
+            std::copy_n((npu::utils::toFP32(output)).data<const float>(), output.get_size(), std::back_insert_iterator(actOutput));
+            std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(), referencesIterator->second.get_size(),
+                std::back_insert_iterator(refOutput));
+
+            auto actSoftMax = softmax(actOutput);
+            auto refSoftMax = softmax(refOutput);
+
+            std::copy_n(actSoftMax.begin(), output.get_size(), output.data<float>());
+            std::copy_n(refSoftMax.begin(), referencesIterator->second.get_size(), referencesIterator->second.data<float>());
+        }
 
         std::cout << "Compare " << tensorName << " with reference" << std::endl;
         if (!computeNRMSE(output, referencesIterator->second)) {
@@ -1796,6 +1842,7 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     OPENVINO_ASSERT(outputs.size() == outputLayouts.size(),
                     "Mismatch between the number of model outputs and their corresponding layout values");
 
+    bool skipArgMax = FLAGS_skip_arg_max;
     unsigned int classes = FLAGS_sem_seg_classes;
     auto semSegThreshold = static_cast<float>(FLAGS_sem_seg_threshold);
 
@@ -1803,8 +1850,20 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     std::vector<uint8_t> parsedOutputs;
     std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
 
-    utils::argMax_channels(references.begin()->second, parsedReferences, outputLayouts.begin()->second);
-    utils::argMax_channels(outputs.begin()->second, parsedOutputs, outputLayouts.begin()->second);
+    if (skipArgMax) {
+        const ov::Tensor referenceU8 = npu::utils::toPrecision(references.begin()->second, ov::element::u8);
+        const ov::Tensor outputU8 = npu::utils::toPrecision(outputs.begin()->second, ov::element::u8);
+
+        const size_t C = referenceU8.get_shape()[ov::layout::channels_idx(outputLayouts.begin()->second)];
+        const size_t H = referenceU8.get_shape()[ov::layout::height_idx(outputLayouts.begin()->second)];
+        const size_t W = referenceU8.get_shape()[ov::layout::width_idx(outputLayouts.begin()->second)];
+
+        std::copy_n(referenceU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedReferences));
+        std::copy_n(outputU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedOutputs));
+    } else {
+        utils::argMax_channels(references.begin()->second, parsedReferences, outputLayouts.begin()->second);
+        utils::argMax_channels(outputs.begin()->second, parsedOutputs, outputLayouts.begin()->second);
+    }
 
     if (parsedReferences.size() != parsedOutputs.size()) {
         std::cout << "Reference size and output size are different" << std::endl;
@@ -1923,7 +1982,7 @@ static int runSingleImageTest() {
         if (FLAGS_img_as_bin) {
             for (std::size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
                 inputBinPrecisionForOneInfer[i] =
-                        std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::undefined);
+                    std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::dynamic);
             }
             inputBinPrecisionStrPerCase = splitStringList(FLAGS_img_bin_precision, ';');
             std::size_t inferIdx = 0;

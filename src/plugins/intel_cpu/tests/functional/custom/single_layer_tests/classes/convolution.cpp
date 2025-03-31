@@ -154,14 +154,14 @@ void ConvolutionLayerCPUTest::SetUp() {
 
     convSpecificParams convParams;
     InputShape inputShape;
-    auto netType = ElementType::undefined;
+    auto netType = ElementType::dynamic;
     std::tie(convParams, netType, inType, outType, inputShape, targetDevice) = basicParamsSet;
 
     init_input_shapes({inputShape});
 
     auto it = configuration.find(ov::hint::inference_precision.name());
-    ov::element::Type inference_precision = (it != configuration.end()) ?
-                                            it->second.as<ov::element::Type>() : ov::element::undefined;
+    ov::element::Type inference_precision =
+        (it != configuration.end()) ? it->second.as<ov::element::Type>() : ov::element::dynamic;
     if (inference_precision == ov::element::bf16) {
         selectedType += "_BF16";
         rel_threshold = 1e-2f;

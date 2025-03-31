@@ -239,7 +239,11 @@ inline std::string from_file_path(const ov::util::Path& path) {
 
 // TODO: remove this function after all calls use Path
 inline FilePath to_file_path(const ov::util::Path& path) {
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+    return ov::util::string_to_wstring(path.string());
+#else
     return path.native();
+#endif
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
