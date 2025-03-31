@@ -670,6 +670,12 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets.*MHAFQ.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*PrecisionPropagation_Convertion.*)");
     retVector.emplace_back(R"(.*smoke_MHAQuant.*)");
+    if (!ov::with_cpu_x86_avx512_core_amx()) {
+        // Issue: 165178
+        retVector.emplace_back(R"(.*smoke_Snippets_Softmax/Softmax\.CompareWithRefImpl/IS=\[\]_TS=\(\(.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MHA.*IS\[0\]=\[\]_\(.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmax/TransposeSoftmax\.CompareWithRefImpl/IS\[0\]=\[\]_TS\[0\]=\(\(.*)");
+    }
 #endif
 
     if (ov::with_cpu_x86_avx512_core_amx()) {
