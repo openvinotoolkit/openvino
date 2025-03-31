@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include "backends.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
@@ -17,7 +17,7 @@ namespace intel_npu {
 
 class RemoteContextImpl : public ov::IRemoteContext {
 public:
-    RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends,
+    RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBackend,
                       const Config& config,
                       const ov::AnyMap& remote_properties = {});
 
