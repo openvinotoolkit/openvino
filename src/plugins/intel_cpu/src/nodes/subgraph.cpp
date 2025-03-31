@@ -366,13 +366,13 @@ void Subgraph::createPrimitive() {
         input_num = config.inConfs.size();
         output_num = config.outConfs.size();
 
-        initMemoryPtrs();
-        initPluginBlockedShapes();
-        initAttributes();
+        initAttributes(); // needed for getIOPrecisions
         optimizeIR();
+        initMemoryPtrs(); // needed for initPluginBlockedShapes, can be avoided if necessary
+        initPluginBlockedShapes(); // inits shapes that are used only starting from prepareParams stage
         prepareWeights();
         // Init starts offsets should be after `prepareWeights`
-        initStartOffsets();
+        initStartOffsets(); // inits offsets that are used only starting from prepareParams stage
     }
 
     Node::createPrimitive();
@@ -399,12 +399,12 @@ void Subgraph::initAttributes() {
     subgraph_attrs->outMemOrders.resize(output_num);
 
     for (size_t i = 0; i < input_num; i++) {
-        const auto& memDesc = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>();
+        const auto& memDesc = getSrcMemoryAtPort(i)->getDescWithType<BlockedMemoryDesc>();
         subgraph_attrs->inMemPrecs[i] = memDesc->getPrecision();
         subgraph_attrs->inMemOrders[i] = memDesc->getOrder();
     }
     for (size_t i = 0; i < output_num; i++) {
-        const auto& memDesc = dstMemPtrs[i]->getDescWithType<BlockedMemoryDesc>();
+        const auto& memDesc = getDstMemoryAtPort(i)->getDescWithType<BlockedMemoryDesc>();
         subgraph_attrs->outMemPrecs[i] = memDesc->getPrecision();
         subgraph_attrs->outMemOrders[i] = memDesc->getOrder();
     }
@@ -684,11 +684,11 @@ void Subgraph::optimizeIR() {
 
     // DataFlow transformations includes AnalyzeBroadcastableInputs pass:
     // we should verify that the received map is aligned with our blocked input shapes
-    OPENVINO_ASSERT((broadcastable_inputs.size() < in_shapes.size()) ||
-                        (!broadcastable_inputs.empty() && broadcastable_inputs.rbegin()->first < in_shapes.size()),
+    OPENVINO_ASSERT((broadcastable_inputs.size() < in_blocked_shapes.size()) ||
+                        (!broadcastable_inputs.empty() && broadcastable_inputs.rbegin()->first < in_blocked_shapes.size()),
                     "Incorrect indexes of broadcastable inputs of Subgraph");
     for (const auto broadcastable_input : broadcastable_inputs) {
-        OPENVINO_ASSERT(broadcastable_input.second < in_shapes[broadcastable_input.first].size(),
+        OPENVINO_ASSERT(broadcastable_input.second < in_blocked_shapes[broadcastable_input.first].first.size(),
                         "Incorrect processing dimension index of broadcastable index");
     }
 
