@@ -81,40 +81,28 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto current_seqlen = get_dimensions(q_shape, {2});
     const auto head_size_node = get_dimensions(q_shape, {3});
 
-    auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
-    auto zero_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
-    auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
-    auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
-    auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
-    auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
-    auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
+    const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+    const auto zero_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+    const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+    const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    const auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
+    const auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
 
     // Only consider batch is 1
-    auto seqlens_1d = register_new_node<v1::Reshape>(real_seqlens, one, false);
-    auto past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
-    auto curr_seqlen_scalar = register_new_node<v1::Reshape>(current_seqlen, one_without_shape, false);
+    const auto seqlens_1d = register_new_node<v1::Reshape>(real_seqlens, one, false);
+    const auto past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
+    const auto curr_seqlen_scalar = register_new_node<v1::Reshape>(current_seqlen, one_without_shape, false);
 
     ov::Output<ov::Node> position_ids =
         register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
     position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
-    auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
-    auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
+    const auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
+    const auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
 
     if (do_rotary) {
-        Q = rotaryEmbedding(Q,
-                            past_seqlen,
-                            curr_seqlen_scalar,
-                            cos,
-                            sin,
-                            head_size_node,
-                            rotary_interleaved);
-        K = rotaryEmbedding(K,
-                            past_seqlen,
-                            curr_seqlen_scalar,
-                            cos,
-                            sin,
-                            head_size_node,
-                            rotary_interleaved);
+        Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
+        K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
     }
 
     auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
@@ -132,10 +120,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         present_k = K;
         present_v = V;
     } else {
-        const auto positions =
-            register_new_node<v4::Range>(one_without_shape, concat_kv_len_scalar, one_without_shape, ov::element::i64);
-        present_k = register_new_node<v8::Gather>(K, positions, two);
-        present_v = register_new_node<v8::Gather>(V, positions, two);
+        const auto concat_kv_len_const = register_new_node(
+            v0::Constant::create(ov::element::i64, ov::Shape{1}, {K.get_partial_shape()[2].get_length()}));
+        present_k = register_new_node<v8::Slice>(K, one, concat_kv_len_const, one, two);
+        present_v = register_new_node<v8::Slice>(V, one, concat_kv_len_const, one, two);
     }
 
     // Broadcast KV if grouped query attention
@@ -218,15 +206,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::make_split(const ov
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(
-    const ov::Output<ov::Node>& node,
-    const std::vector<int>& dims) {
-    using namespace ov::op;
-    const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-    const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
-    return register_new_node<v8::Gather>(node, dims_const, zero);
-}
-
-std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(
     const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
     const std::vector<int>& dims) {
     using namespace ov::op;
@@ -241,43 +220,35 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimens
     return get_dimensions(register_new_node<ov::op::v3::ShapeOf>(node), dims);
 }
 
-std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbedding(
-    ov::Output<ov::Node> input,
-    ov::Output<ov::Node> past_seqlen,
-    ov::Output<ov::Node> curr_seqlen_scalar,
-    ov::Output<ov::Node> cos_cache,
-    ov::Output<ov::Node> sin_cache,
-    std::shared_ptr<ov::Node> dim_head_size,
-    bool interleaved) {
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbedding(ov::Output<ov::Node> input,
+                                                                                      ov::Output<ov::Node> cos,
+                                                                                      ov::Output<ov::Node> sin,
+                                                                                      bool interleaved) {
     using namespace ov::op;
     auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
     auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
 
     if (interleaved) {
         auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-
-        auto cache_last_dim = get_dimensions(cos_cache, {-1});
-
+        auto cos_last_dim = get_dimensions(cos.get_node_shared_ptr(), {-1});
         auto input_shape = register_new_node<v3::ShapeOf>(input);
-
         auto dim_bns = get_dimensions(input_shape, {0, 1, 2});
-        std::shared_ptr<ov::Node> half_last_dim = cache_last_dim;
 
         auto negtive_one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-        auto split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, half_last_dim, two}, 0);
+        auto split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, two}, 0);
         auto reshaped_input = register_new_node<v1::Reshape>(input, split_input_shape, false);
 
         auto in_split = make_split(reshaped_input, 2, -1);
-        split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, half_last_dim}, 0);
+        split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim}, 0);
         auto in_split_0 = register_new_node<v1::Reshape>(in_split[0], split_input_shape, false);
         auto in_split_1 = register_new_node<v1::Reshape>(in_split[1], split_input_shape, false);
 
-        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split_0, cos_cache),
-                                                     register_new_node<v1::Multiply>(in_split_1, sin_cache));
-        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split_0, sin_cache),
-                                                register_new_node<v1::Multiply>(in_split_1, cos_cache));
+        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split_0, cos),
+                                                     register_new_node<v1::Multiply>(in_split_1, sin));
+        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split_0, sin),
+                                                register_new_node<v1::Multiply>(in_split_1, cos));
 
-        split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, half_last_dim, one}, 0);
+        split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, one}, 0);
         auto res_0_5d = register_new_node<v1::Reshape>(res_0, split_input_shape, false);
         auto res_1_5d = register_new_node<v1::Reshape>(res_1, split_input_shape, false);
 
@@ -285,10 +256,10 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
         return register_new_node<v1::Reshape>(concat_ret, input_shape, false);
     } else {
         auto in_split = make_split(input, 2, -1);
-        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split[0], cos_cache),
-                                                     register_new_node<v1::Multiply>(in_split[1], sin_cache));
-        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split[0], sin_cache),
-                                                register_new_node<v1::Multiply>(in_split[1], cos_cache));
+        auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split[0], cos),
+                                                     register_new_node<v1::Multiply>(in_split[1], sin));
+        auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split[0], sin),
+                                                register_new_node<v1::Multiply>(in_split[1], cos));
 
         return register_new_node<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);
     }
