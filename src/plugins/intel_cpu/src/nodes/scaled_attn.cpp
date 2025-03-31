@@ -343,9 +343,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         wv_scratch_b.resize<T>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / data_size});
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
 
-        std::cout << "weight_score " << &weight_score << " SDPA m_threads_num:" << m_threads_num << " H:" << H << " m_block_size:" << m_block_size
-                  << " kv_len:" << kv_len << " B:" << B << " q_len:" << q_len << std::endl;
-        weight_score.resize<float>({m_threads_num, H, m_block_size, kv_len});
+        weight_score.resize<float>({m_threads_num, 1, m_block_size, kv_len});
         if (has_out_transpose) {
             fp32_out.resize<float>({B, q_len, H, head_size_v});
         } else {
@@ -390,7 +388,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             auto m_cnt = m_end - m_start;
             size_t tid = parallel_get_thread_num();
             T* q_ptr = &query.at<T>({b, h, m_start, 0});
-            auto* c_ptr = weight_score.ptr<float>(ithr, h, 0, 0);
+            auto* c_ptr = weight_score.ptr<float>(ithr, 0, 0, 0);
             T* k_ptr = &qk_scratch_b.at<T>({b, h / h_each_group_len, 0});
             qk_gemm_ptr->executeGemm(m_cnt < m_block_size,
                                      q_ptr,
@@ -426,7 +424,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                auto score = weight_score.ptr<float>(ithr, h, m - m_start);
+                auto score = weight_score.ptr<float>(ithr, 0, m - m_start);
                 attn_softmax(reinterpret_cast<void*>(score),
                              reinterpret_cast<T*>(score),
                              d_scale,
@@ -440,7 +438,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              precision_of<T>::value,
                              precision_of<T>::value);
             }
-            auto* w_ptr = reinterpret_cast<T*>(weight_score.ptr<float>(ithr, h, 0, 0));
+            auto* w_ptr = reinterpret_cast<T*>(weight_score.ptr<float>(ithr, 0, 0, 0));
             float* fp32_out_ptr;
             if (is_xf16) {
                 fp32_out_ptr = has_out_transpose ? &fp32_out.at<float>({b, m_start, h, 0})

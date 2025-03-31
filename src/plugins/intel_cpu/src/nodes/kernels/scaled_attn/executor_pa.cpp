@@ -1504,7 +1504,7 @@ struct MHAHelper {
         // resize temporary buffers, weight.size(3) will be aligned to block_size
         std::cout << "_weight" << &_weight <<  " _nthr:" << _nthr << " H:" << H << " _block_size:" << _block_size
                   << " _new_score_stride:" << new_score_stride << " SV:" << SV << std::endl;
-        _weight.resize<float>({static_cast<size_t>(_nthr), H, _block_size, new_score_stride});
+        _weight.resize<float>({static_cast<size_t>(_nthr), H / Hk, _block_size, new_score_stride});
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
         if (_quant_key_bychannel)
             _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, std::max(S, SV)});
@@ -1645,7 +1645,7 @@ struct MHAHelper {
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
-            auto* c_ptr = _weight.ptr<float>(ithr, h, 0, 0);
+            auto* c_ptr = _weight.ptr<float>(ithr, 0, 0, 0);
             // for each query block, loop through all key block
             // for blocks:
             // 1 0 0 0 ...
@@ -1665,7 +1665,7 @@ struct MHAHelper {
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
-                auto score = _weight.ptr<float>(ithr, h, m - q_start);
+                auto score = _weight.ptr<float>(ithr, 0, m - q_start);
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -1719,7 +1719,7 @@ struct MHAHelper {
             }
 
             // reuse float buffer, need to use float to compute offset
-            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h, 0, 0));
+            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, 0, 0, 0));
             float* fp32_out_ptr =
                 q_is_xf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * SV);
 
@@ -1790,7 +1790,7 @@ struct MHAHelper {
                     for (size_t h = hq_beg; h < hq_end; h++) {
                         (*_gemv)(query.ptr<DATA_TYPE>(h, pq),
                                  present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                                 _weight.ptr<float>(ithr, h, pq) + pk);
+                                 _weight.ptr<float>(ithr, h - hq_beg, pq) + pk);
                     }
                 }
             }
@@ -1804,13 +1804,13 @@ struct MHAHelper {
                         if (precision_of<KEY_CACHE_TYPE>::value == ov::element::u8 && _quant_key_bychannel) {
                             dot_product_block_by_channel(query.ptr<DATA_TYPE>(h, pq),
                                                          present_key.ptr<uint8_t>(block_number, hk),
-                                                         _weight.ptr<float>(ithr, h, pq) + pk,
+                                                         _weight.ptr<float>(ithr, h - hq_beg, pq) + pk,
                                                          S,
                                                          std::min(_block_size, cur_kv_len - pk));
                         } else {
                             dot_product_block(query.ptr<DATA_TYPE>(h, pq),
                                               present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                                              _weight.ptr<float>(ithr, h, pq) + pk,
+                                              _weight.ptr<float>(ithr, h - hq_beg, pq) + pk,
                                               S,
                                               std::min(_block_size, cur_kv_len - pk),
                                               _key_group_size);
@@ -1831,8 +1831,8 @@ struct MHAHelper {
                     alibi_slope = alibi_slopes.ptr<float>()[h];
                     alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
                 }
-                attn_softmax_kernel<float>(_weight.ptr<float>(ithr, h, pq),
-                                           _weight.ptr<float>(ithr, h, pq),
+                attn_softmax_kernel<float>(_weight.ptr<float>(ithr, h - hq_beg, pq),
+                                           _weight.ptr<float>(ithr, h - hq_beg, pq),
                                            _d_scale,
                                            alibi_lookup,
                                            nullptr,
@@ -1845,7 +1845,7 @@ struct MHAHelper {
                                            alibi_slope);
                 if (score_output) {
                     memcpy(score_output + h * rnd_up(cur_kv_len, 16),
-                           _weight.ptr<float>(ithr, h, pq),
+                           _weight.ptr<float>(ithr, h - hq_beg, pq),
                            cur_kv_len * sizeof(float));
                 }
             }
@@ -1863,7 +1863,7 @@ struct MHAHelper {
                         present_value.m_ptr.get() + v_stride);
                     attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
                         _output.ptr<float>(ithr, pq, h),
-                        _weight.ptr<float>(ithr, h, pq) + pv,
+                        _weight.ptr<float>(ithr, h - hq_beg, pq) + pv,
                         v_ptr,
                         SV,
                         std::min(_block_size, cur_kv_len - pv),
