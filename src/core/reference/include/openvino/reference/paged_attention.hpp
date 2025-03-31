@@ -386,12 +386,12 @@ void paged_attention(T* out,                               // Output attention r
 
             std::vector<T> scores(total_keys, T(0));
             // Compute attention scores.
-            for (int32_t k = 0; k < total_keys; k++) {
+            for (int32_t key_idx = 0; key_idx < total_keys; key_idx++) {
                 T score_val = T(0);
-                if (k < seq_past_tokens) {
+                if (key_idx < seq_past_tokens) {
                     int32_t block_id = -1;
                     int32_t token_offset = 0;
-                    if (!paged_attention_utils::find_cached_token(seq_idx, k, ctx, block_id, token_offset))
+                    if (!paged_attention_utils::find_cached_token(seq_idx, key_idx, ctx, block_id, token_offset))
                         continue;
                     int32_t first_block_for_seq =
                         (ctx.block_indices_begins ? ctx.block_indices[ctx.block_indices_begins[seq_idx]] : -1);
@@ -399,28 +399,31 @@ void paged_attention(T* out,                               // Output attention r
                         token_offset < ctx.sliding_window)
                         score_val = -std::numeric_limits<T>::infinity();
                     else
-                        score_val =
-                            paged_attention_utils::compute_score_for_cached_key(q_vec, h, ctx, block_id, token_offset);
+                        score_val = paged_attention_utils::compute_score_for_cached_key<T>(q_vec,
+                                                                                           h,
+                                                                                           ctx,
+                                                                                           block_id,
+                                                                                           token_offset);
                 } else {
                     int32_t new_token_idx = ctx.subsequence_begins
-                                                ? (ctx.subsequence_begins[seq_idx] + (k - seq_past_tokens))
-                                                : (k - seq_past_tokens);
+                                                ? (ctx.subsequence_begins[seq_idx] + (key_idx - seq_past_tokens))
+                                                : (key_idx - seq_past_tokens);
                     score_val = paged_attention_utils::compute_score_for_new_key(q_vec, h, new_token_idx, ctx);
                 }
                 T alibi = alibi_slopes ? alibi_slopes[h % ctx.num_k_heads] : T(0);
-                score_val = score_val * scale + alibi * static_cast<T>(-(total_keys - k - 1));
-                scores[k] = score_val;
+                score_val = score_val * scale + alibi * static_cast<T>(-(total_keys - key_idx - 1));
+                scores[key_idx] = score_val;
             }
             paged_attention_utils::softmax(scores);
 
             // Compute weighted sum over value vectors.
             std::vector<T> out_vec(ctx.head_size, T(0));
-            for (size_t k = 0; k < total_keys; k++) {
-                T weight = scores[k];
-                if (k < seq_past_tokens) {
+            for (int32_t key_idx = 0; key_idx < total_keys; key_idx++) {
+                T weight = scores[key_idx];
+                if (key_idx < seq_past_tokens) {
                     int32_t block_id = -1;
                     int32_t token_offset = 0;
-                    if (!paged_attention_utils::find_cached_token(seq_idx, k, ctx, block_id, token_offset)) {
+                    if (!paged_attention_utils::find_cached_token(seq_idx, key_idx, ctx, block_id, token_offset)) {
                         continue;
                     }
                     int32_t first_block_for_seq =
@@ -438,12 +441,12 @@ void paged_attention(T* out,                               // Output attention r
                                                                               out_vec);
                 } else {
                     size_t new_token_idx = ctx.subsequence_begins
-                                               ? (ctx.subsequence_begins[seq_idx] + (k - seq_past_tokens))
-                                               : (k - seq_past_tokens);
+                                               ? (ctx.subsequence_begins[seq_idx] + (key_idx - seq_past_tokens))
+                                               : (key_idx - seq_past_tokens);
                     paged_attention_utils::accumulate_value_for_new_key<T>(new_token_idx, h, ctx, weight, out_vec);
                 }
-                size_t global_score_index = seq_idx * static_cast<size_t>(ctx.max_context_len) + k;
-                score[global_score_index] = scores[k];
+                size_t global_score_index = seq_idx * static_cast<size_t>(ctx.max_context_len) + key_idx;
+                score[global_score_index] = scores[key_idx];
             }
             T* dst = out + token_idx * ctx.query_features + h * ctx.head_size;
             std::memcpy(dst, out_vec.data(), ctx.head_size * sizeof(T));
