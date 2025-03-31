@@ -162,6 +162,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     FuseReduceAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseGatherAndConvert");
+    FuseGatherAndConvert(graph);
+    graph.RemoveDroppedNodes();
+
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndSimple");
     FuseEltwiseAndSimple(graph);
     graph.RemoveDroppedNodes();
@@ -1858,6 +1862,36 @@ void GraphOptimizer::FuseMVNAndSimpleOperation(Graph& graph) {
             }
         }
 
+        graph.DropNode(childNode);
+    }
+}
+
+void GraphOptimizer::FuseGatherAndConvert(Graph& graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableParentNode = [](const NodePtr& node) {
+        return (node->getType() == Type::Gather) && (node->getChildEdges().size() == 1) &&
+               one_of(node->getOriginalInputPrecisionAtPort(0), element::f16, element::bf16);
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSuitableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseGatherAndConvert);
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        // currently Gather could only fuse Convert. If extend to fuse other nodes, this pass should be updated.
+        if (childNode->getType() != Type::Convert || !parentNode->canFuse(childNode)) {
+            parent++;
+            continue;
+        }
+
+        childNode->fuseInto(parentNode);
         graph.DropNode(childNode);
     }
 }
