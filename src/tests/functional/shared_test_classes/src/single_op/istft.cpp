@@ -187,7 +187,7 @@ const ISTFTLayerTest::TGenData ISTFTLayerTest::GetTestDataForDevice(const char* 
         true,
     };
 
-    std::vector<utils::InputLayerType> in_types = {utils::InputLayerType::PARAMETER};
+    std::vector<utils::InputLayerType> in_types = {utils::InputLayerType::PARAMETER, utils::InputLayerType::CONSTANT};
 
     auto data = ::testing::Combine(::testing::ValuesIn(input_shapes),
                                    ::testing::ValuesIn(frame_size),

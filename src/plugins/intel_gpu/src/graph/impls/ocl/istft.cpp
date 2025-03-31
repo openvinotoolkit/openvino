@@ -75,6 +75,14 @@ struct ISTFT_impl : typed_primitive_impl_ocl<ISTFT> {
     kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
         return static_canonicalize_shapes(impl_params);
     }
+
+    event::ptr execute_impl(const std::vector<event::ptr>& events, typed_primitive_inst<ISTFT>& instance) override {
+        stream& stream = instance.get_network().get_stream();
+        // This is needed to clear the output memory before executing the kernel for static shapes model.
+        // Ref kernel assumes that output memory is already cleared.
+        instance.output_memory(0).fill(stream, false);
+        return parent::execute_impl(events, instance);
+    }
 };
 
 namespace detail {
