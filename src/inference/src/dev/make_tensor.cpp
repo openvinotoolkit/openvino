@@ -111,7 +111,7 @@ protected:
                            shape.crend() - 1,
                            m_strides.rbegin(),
                            m_strides.rbegin() + 1,
-                           std::multiplies());
+                           std::multiplies<size_t>());
         }
     }
 
