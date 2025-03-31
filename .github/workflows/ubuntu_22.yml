@@ -85,7 +85,7 @@ jobs:
     needs: [Docker, Smart_CI]
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      runner: 'aks-linux-16-cores-32gb'
+      runner: 'aks-linux-16-cores-32gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
@@ -111,7 +111,7 @@ jobs:
     needs: [Docker, Build]
     uses: ./.github/workflows/job_debian_packages.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
 
   Samples:
@@ -119,7 +119,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
     uses: ./.github/workflows/job_samples_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
@@ -129,7 +129,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
     uses: ./.github/workflows/job_openvino_js.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}"}'
 
   Conformance:
@@ -269,7 +269,7 @@ jobs:
     needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
-      runner: 'aks-linux-16-cores-32gb'
+      runner: 'aks-linux-16-cores-32gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING -e HF_TOKEN"}'
       sccache-azure-key-prefix: 'ubuntu22_x86_64_onnxruntime'
 
@@ -280,7 +280,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
-      runner: 'aks-linux-16-cores-64gb'
+      runner: 'aks-linux-16-cores-64gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
   CXX_Unit_Tests:
@@ -288,7 +288,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'ubuntu_22_04'
@@ -298,7 +298,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
@@ -308,7 +308,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_api_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
@@ -318,7 +318,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
@@ -328,7 +328,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
@@ -338,7 +338,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_jax_layer_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
@@ -349,7 +349,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_keras3_backend.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       python-version: '3.11'
 
@@ -359,7 +359,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
-      runner: 'aks-linux-8-cores-32gb'
+      runner: 'aks-linux-8-cores-32gb-staging'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       python-version: '3.11'
       scope: ${{ contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event_name)  && 'nightly' || 'smoke' }}
@@ -371,7 +371,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-16gb'
+      runner: 'aks-linux-8-cores-16gb-staging'
       model_scope: 'precommit'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
@@ -381,7 +381,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-64gb'
+      runner: 'aks-linux-8-cores-64gb-staging'
       model_scope: 'nightly_tf_hub'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
@@ -391,7 +391,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-64gb'
+      runner: 'aks-linux-8-cores-64gb-staging'
       model_scope: 'nightly_hf'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
@@ -401,7 +401,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-64gb'
+      runner: 'aks-linux-8-cores-64gb-staging'
       model_scope: 'precommit'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
@@ -411,7 +411,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'aks-linux-16-cores-64gb'
+      runner: 'aks-linux-16-cores-64gb-staging'
       model_scope: 'nightly_scope1'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
@@ -421,7 +421,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'aks-linux-16-cores-64gb'
+      runner: 'aks-linux-16-cores-64gb-staging'
       model_scope: 'nightly_scope2'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
@@ -431,7 +431,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_jax_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-16gb'
+      runner: 'aks-linux-8-cores-16gb-staging'
       model_scope: 'precommit'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
@@ -520,7 +520,7 @@ jobs:
     needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_tokenizers.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       shell: bash
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
