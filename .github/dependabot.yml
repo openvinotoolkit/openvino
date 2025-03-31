@@ -143,7 +143,6 @@ updates:
   - package-ecosystem: docker
     directories:
       - "/.github/dockerfiles/**/*"
-      - "/.github/dockerfiles/ov_test/**/*"
     schedule:
       interval: "daily"
       time: "09:00"
