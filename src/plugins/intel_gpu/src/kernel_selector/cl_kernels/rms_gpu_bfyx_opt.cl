@@ -42,7 +42,10 @@ KERNEL(rms_gpu_bfyx_opt)(
     const uint leftovers = data_size % workers_per_data;
 
 #if DYNAMIC_PADDING
-    const uint input_data_offset = SLICE_START * DATA_SIZE + data_idx/(SLICE_STOP - SLICE_START) * SLICE_STRIDE + (data_idx % (SLICE_STOP - SLICE_START)) * DATA_SIZE;
+    #define DATA_ELEM_SIZE (DATA_SIZE / SLICE_ELEM_SIZE)
+    const uint input_data_offset = SLICE_START * SLICE_ELEM_SIZE
+                                  +  (data_idx * DATA_ELEM_SIZE) / (SLICE_STOP - SLICE_START)  * SLICE_STRIDE
+                                  + ((data_idx * DATA_ELEM_SIZE) % (SLICE_STOP - SLICE_START)) * SLICE_ELEM_SIZE;
 #else
     const uint input_data_offset = data_idx * data_size;
 #endif
