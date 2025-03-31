@@ -73,7 +73,8 @@ class TestData():
         ConfigMultiplicator = 17,
         MultiConfigWithKey = 18,
         AcModeDataBitwise = 19,
-        CompareBlobsData = 20
+        CompareBlobsData = 20,
+        MulOutput = 21
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -224,6 +225,19 @@ class CompareBlobsData(TestData):
 
     def getTestName(self):
         return "CompareBlobsData"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class CompareBlobsDataMulOutput(TestData):
+    def getTestCase():
+        return TestData.TestCase.CompareBlobsData
+
+    def getTestName(self):
+        return "CompareBlobsDataMulOutput"
 
     def __init__(self):
         from test_util import requireBinarySearchData

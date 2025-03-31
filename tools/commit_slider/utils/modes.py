@@ -570,6 +570,9 @@ class CompareBlobsMode(Mode):
     def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
         leftBorderOutputName = self.getPseudoMetric(lCommit, cfg)
         rightBorderOutputName = self.getPseudoMetric(rCommit, cfg)
+        if self.autoMatch:
+            raise Exception("No automatch support")
+        # if no conflict( one exceptional match per name)
         fullLeftFileName = os.path.join(self.cachePath, leftBorderOutputName)
         fullRightName = os.path.join(self.cachePath, rightBorderOutputName)
         curMaxDiff = getBlobDiff(fullLeftFileName, fullRightName)
@@ -589,12 +592,18 @@ class CompareBlobsMode(Mode):
 
     def checkCfg(self, cfg):
         super().checkCfg(cfg)
-        if not ("outputFileNamePattern" in cfg["runConfig"]):
-            raise CfgError("Output pattern is not configured")
+        isAutoMatch = "autoMatch" in cfg["runConfig"] and \
+            cfg["runConfig"]["autoMatch"] is True
+        if not ("outputFileNamePattern" in cfg["runConfig"]) and not isAutoMatch:
+            raise CfgError("Output pattern OR automatch is not configured")
         elif not ("outputDirectory" in cfg["runConfig"]):
             raise CfgError("Output directory pattern is not configured")
         else:
-            self.outFileNamePattern = cfg["runConfig"]["outputFileNamePattern"]
+            if isAutoMatch:
+                self.autoMatch = True
+            else:
+                self.autoMatch = False
+                self.outFileNamePattern = cfg["runConfig"]["outputFileNamePattern"]
             self.outDir = os.path.abspath(cfg["runConfig"]["outputDirectory"])
             if "limit" in cfg["runConfig"]:
                 self.limit = float(cfg["runConfig"]["limit"])
@@ -603,23 +612,29 @@ class CompareBlobsMode(Mode):
 
     def setCommitCash(self, commit, valueToCache):
         isCommitCashed, _ = self.getCommitIfCashed(commit)
-        newFileName = ""
+        newFileName = [] if self.autoMatch else ""
         if isCommitCashed:
             raise CashError("Commit already cashed")
         else:
             fileList = os.listdir(self.outDir)
             # we look for just created output file
             for filename in fileList:
+                if self.autoMatch:
+                    raise Exception("No automatch support")
                 isDump = re.search(self.outFileNamePattern, filename)
                 if isDump:
-                    newFileName = "{c}_{fn}".format(
+                    curFileName = "{c}_{fn}".format(
                         c=getMeaningfullCommitTail(commit), fn=filename
                     )
                     shutil.move(
                         os.path.join(self.outDir, filename),
-                        os.path.join(self.cachePath, newFileName)
+                        os.path.join(self.cachePath, curFileName)
                     )
-                    break
+                    if self.autoMatch:
+                        newFileName.append(curFileName)
+                    else:
+                        newFileName = curFileName
+                        break
             if filename == "":
                 raise CmdError("Output file not found")
         return newFileName
@@ -634,11 +649,19 @@ class CompareBlobsMode(Mode):
     def getCommitIfCashed(self, commit):
         fileList = os.listdir(self.cachePath)
         curCommitPattern = "{c}_(.)*".format(c=getMeaningfullCommitTail(commit))
+        
+        cashedFileList = []
         for filename in fileList:
             isDump = re.search(curCommitPattern, filename)
             if isDump:
-                return True, filename
-        return False, None
+                if self.autoMatch:
+                    cashedFileList.append(filename)
+                else:
+                    return True, filename
+        if self.autoMatch:
+            return not (not cashedFileList), cashedFileList
+        else:
+            return False, None
 
     def setOutputInfo(self, pathCommit):
         pathCommit.diff = self.maxDiff

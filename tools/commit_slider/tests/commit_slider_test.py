@@ -374,3 +374,10 @@ class CommitSliderTest(TestCase):
             CompareBlobsData())
         actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testAccuracyMultipleOutput(self):
+        breakCommit, updatedData = getExpectedCommit(
+            CompareBlobsData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)

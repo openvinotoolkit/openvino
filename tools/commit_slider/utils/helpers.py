@@ -158,6 +158,31 @@ def getBlobDiff(file1, file2):
             curMaxDiff = max(curMaxDiff, abs(val - sampleVal))
     return curMaxDiff
 
+def getBlobMatch(fileList1, fileList2):
+    def gcs(s1: str, s2: str) -> int:
+        # great common substring
+        if s1 < s1: # gcs(A,B) == gcs(B,A)
+            return gcs(s2, s1)
+        else:
+            l1, l2 = len(s1), len(s2)
+            res = [[0] * (l2 + 1) for _ in range(l1 + 1)]
+            for i in range(1, l1 + 1):
+                for j in range(1, l2 + 1):
+                    if s1[i - 1] == s2[j - 1]:
+                        res[i][j] = res[i - 1][j - 1] + 1
+                    else:
+                        res[i][j] = max(res[i - 1][j], res[i][j - 1])      
+            return res[l1][l2]
+    matchMtrx = [[gcs(f1, f2) for f1 in fileList1] for f2 in fileList2]
+    colMatch = [max([matchMtrx[i1][i2] for i1 in range(fileList1)]) for i2 in range(fileList2)]
+    rowMatch = [max([matchMtrx[i1][i2] for i2 in range(fileList2)]) for i1 in range(fileList1)]
+    if set(rowMatch) == set([i for i in range(fileList1)]) and \
+        set(colMatch) == set([i for i in range(fileList2)]):
+        return [[f1, fileList2[colMatch[i1]]] \
+                for i1, f1 in enumerate(fileList1)]
+    else:
+        raise Exception("Output blobs matching error,\
+                        {l1} doesn't match {l2}".format(l1=fileList1, l2=fileList2))
 
 def absolutizePaths(cfg):
     pl = sys.platform
