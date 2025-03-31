@@ -95,6 +95,7 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
             MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1)
         });
     }
+
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
     if (!params.fused_ops.empty()) {
@@ -125,6 +126,15 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
 
         auto conf = FusedOpsConfiguration("", idx_order, "normalized", params.outputs[0].GetDType(), 1);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+
+    if (params.dynamic_padding) {
+        jit.AddConstant(MakeJitConstant("DYNAMIC_PADDING", 1));
+        jit.AddConstant(MakeJitConstant("SLICE_START", params.slice_start));
+        jit.AddConstant(MakeJitConstant("SLICE_STOP", params.slice_stop));
+        jit.AddConstant(MakeJitConstant("SLICE_STRIDE", params.slice_stride));
+    } else {
+        jit.AddConstant(MakeJitConstant("DYNAMIC_PADDING", 0));
     }
 
     return jit;
