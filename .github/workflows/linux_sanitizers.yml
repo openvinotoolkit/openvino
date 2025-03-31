@@ -524,7 +524,9 @@ jobs:
         # if gtestFilter and sanMode inputs are not specified
         if: ${{ (github.event_name == 'workflow_dispatch' && (inputs.sanitizerMode == 'All' || inputs.sanitizerMode == matrix.SANITIZER) || matrix.SANITIZER == 'AddressAndLeak')}}
         run: |
-          echo 'Sanitizer mode: ${{ inputs.sanitizerMode }}'
+          echo Sanitizer mode: "${SANITIZER_MODE}"
+        env:
+          SANITIZER_MODE: ${{ inputs.sanitizerMode }}
 
       - name: Download OpenVINO package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
