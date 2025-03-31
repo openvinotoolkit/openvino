@@ -20,7 +20,7 @@ struct PagedAttentionRotationStruct {
     };
 
 struct PagedAttentionMiscInpStruct {
-    std::vector<float> scale;
+    std::optional<float> scale;
     std::optional<int> sliding_window;
     std::vector<float> alibi_slopes;
     int max_context_len;

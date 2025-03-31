@@ -184,14 +184,15 @@ void insert_new_token_into_cache(const PagedAttentionContext& ctx, size_t token_
 }
 
 inline bool find_cached_token(size_t seq_idx,
-                              size_t token_position,
+                              int32_t token_position,
                               const PagedAttentionContext& ctx,
                               int32_t& block_id,
-                              size_t& token_offset) {
-    if (!ctx.block_indices || !ctx.block_indices_begins || ctx.past_lens_shape.empty())
+                              int32_t& token_offset) {
+    if (!ctx.block_indices || !ctx.block_indices_begins || ctx.past_lens_shape.empty()) {
         return false;
-    size_t start = ctx.block_indices_begins[seq_idx];
-    size_t end = ctx.block_indices_begins[seq_idx + 1];
+    }
+    int32_t start = ctx.block_indices_begins[seq_idx];
+    int32_t end = ctx.block_indices_begins[seq_idx + 1];
     // Use for loop instead?
     if (token_position < (end - start)) {
         block_id = ctx.block_indices[start + token_position];
@@ -226,11 +227,11 @@ T compute_score_for_cached_key(const T* q_vec,
 }
 
 template <typename T>
-T compute_score_for_new_key(const T* q_vec, size_t h, size_t new_token_idx, const PagedAttentionContext& ctx) {
+T compute_score_for_new_key(const T* q_vec, size_t h, int32_t new_token_idx, const PagedAttentionContext& ctx) {
     const T* key = static_cast<const T*>(ctx.key);
     const ov::Shape& key_shape = ctx.key_shape;
     size_t k_head = h % ctx.num_k_heads;
-    const T* key_vec = key + new_token_idx * key_shape[1] + k_head * ctx.head_size;
+    const T* key_vec = key + static_cast<size_t>(new_token_idx) * key_shape[1] + k_head * ctx.head_size;
     return dot_product(q_vec, key_vec, ctx.head_size);
 }
 
@@ -277,7 +278,6 @@ void accumulate_value_for_new_key(size_t new_token_idx,
     }
 }
 }  // namespace paged_attention_utils
-
 
 //---------------------------------------------------------------------------
 // Main PagedAttention Function
@@ -379,18 +379,18 @@ void paged_attention(T* out,                               // Output attention r
         // Process each query head.
         for (size_t h = 0; h < ctx.num_q_heads; h++) {
             const T* q_vec = query + token_idx * ctx.query_features + h * ctx.head_size;
-            size_t seq_new_tokens =
+            int32_t seq_new_tokens =
                 ctx.subsequence_begins ? (ctx.subsequence_begins[seq_idx + 1] - ctx.subsequence_begins[seq_idx]) : 0;
-            size_t seq_past_tokens = past_lens ? static_cast<size_t>(past_lens[seq_idx]) : 0;
-            size_t total_keys = seq_past_tokens + seq_new_tokens;
+            int32_t seq_past_tokens = past_lens ? past_lens[seq_idx] : 0;
+            int32_t total_keys = seq_past_tokens + seq_new_tokens;
 
             std::vector<T> scores(total_keys, T(0));
             // Compute attention scores.
-            for (size_t k = 0; k < total_keys; k++) {
+            for (int32_t k = 0; k < total_keys; k++) {
                 T score_val = T(0);
                 if (k < seq_past_tokens) {
                     int32_t block_id = -1;
-                    size_t token_offset = 0;
+                    int32_t token_offset = 0;
                     if (!paged_attention_utils::find_cached_token(seq_idx, k, ctx, block_id, token_offset))
                         continue;
                     int32_t first_block_for_seq =
@@ -399,11 +399,12 @@ void paged_attention(T* out,                               // Output attention r
                         token_offset < ctx.sliding_window)
                         score_val = -std::numeric_limits<T>::infinity();
                     else
-                        score_val = paged_attention_utils::compute_score_for_cached_key(q_vec, h, ctx, block_id, token_offset);
+                        score_val =
+                            paged_attention_utils::compute_score_for_cached_key(q_vec, h, ctx, block_id, token_offset);
                 } else {
-                    size_t new_token_idx = ctx.subsequence_begins
-                                               ? (ctx.subsequence_begins[seq_idx] + (k - seq_past_tokens))
-                                               : (k - seq_past_tokens);
+                    int32_t new_token_idx = ctx.subsequence_begins
+                                                ? (ctx.subsequence_begins[seq_idx] + (k - seq_past_tokens))
+                                                : (k - seq_past_tokens);
                     score_val = paged_attention_utils::compute_score_for_new_key(q_vec, h, new_token_idx, ctx);
                 }
                 T alibi = alibi_slopes ? alibi_slopes[h % ctx.num_k_heads] : T(0);
@@ -419,19 +420,27 @@ void paged_attention(T* out,                               // Output attention r
                 if (k < seq_past_tokens) {
                     int32_t block_id = -1;
                     int32_t token_offset = 0;
-                    if (!paged_attention_utils::find_cached_token(seq_idx, k, ctx, block_id, token_offset))
+                    if (!paged_attention_utils::find_cached_token(seq_idx, k, ctx, block_id, token_offset)) {
                         continue;
+                    }
                     int32_t first_block_for_seq =
                         (ctx.block_indices_begins ? ctx.block_indices[ctx.block_indices_begins[seq_idx]] : -1);
                     if (first_block_for_seq >= 0 && block_id == first_block_for_seq &&
-                        token_offset < ctx.sliding_window)
+                        token_offset < ctx.sliding_window) {
                         continue;
-                        paged_attention_utils::accumulate_value_for_cached_key(q_vec, h, ctx, block_id, token_offset, weight, out_vec);
+                    }
+                    paged_attention_utils::accumulate_value_for_cached_key<T>(q_vec,
+                                                                              h,
+                                                                              ctx,
+                                                                              block_id,
+                                                                              token_offset,
+                                                                              weight,
+                                                                              out_vec);
                 } else {
                     size_t new_token_idx = ctx.subsequence_begins
                                                ? (ctx.subsequence_begins[seq_idx] + (k - seq_past_tokens))
                                                : (k - seq_past_tokens);
-                                               paged_attention_utils::accumulate_value_for_new_key<T>(new_token_idx, h, ctx, weight, out_vec);
+                    paged_attention_utils::accumulate_value_for_new_key<T>(new_token_idx, h, ctx, weight, out_vec);
                 }
                 size_t global_score_index = seq_idx * static_cast<size_t>(ctx.max_context_len) + k;
                 score[global_score_index] = scores[k];
