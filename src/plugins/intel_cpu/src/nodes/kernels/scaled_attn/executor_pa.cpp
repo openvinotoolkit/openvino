@@ -1427,6 +1427,7 @@ struct MHAHelper {
     size_t _key_group_size = 0;
     size_t _value_group_size = 0;
     bool _quant_key_bychannel = 0;
+    size_t _new_score_stride = 0;
 
     PlainTensor _weight;        // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
     PlainTensor _output;        // [nthr, 32, H, S], shared by first and second loop along bh
@@ -1467,6 +1468,11 @@ struct MHAHelper {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 
+    void resize_temporary_weight_buffer(const size_t& h) {
+        // resize temporary buffers, weight.size(3) will be aligned to block_size
+        _weight.resize<float>({static_cast<size_t>(_nthr), h, _block_size, _new_score_stride});
+    }
+
     void init(size_t H,
               size_t S,
               size_t SV,
@@ -1500,9 +1506,7 @@ struct MHAHelper {
 
         auto prev_score_stride = _weight.stride(2);
         auto want_score_stride = rnd_up(kv_len, _block_size);
-        auto new_score_stride = std::max(prev_score_stride, want_score_stride);
-        // resize temporary buffers, weight.size(3) will be aligned to block_size
-        _weight.resize<float>({static_cast<size_t>(_nthr), H / Hk, _block_size, new_score_stride});
+        _new_score_stride = std::max(prev_score_stride, want_score_stride);
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
         if (_quant_key_bychannel)
             _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, std::max(S, SV)});
@@ -1510,7 +1514,7 @@ struct MHAHelper {
             _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, SV});
 
         // TODO: kernel supports stride
-        if (_qk_gemm.empty() || prev_score_stride < new_score_stride) {
+        if (_qk_gemm.empty() || prev_score_stride < _new_score_stride) {
             _qk_gemm.resize(_block_size);
             _wv_gemm.resize(_block_size);
             _wv_gemm_acc.resize(_block_size);
@@ -1520,7 +1524,7 @@ struct MHAHelper {
                                                              S,
                                                              H * S,
                                                              _block_size,
-                                                             _weight.stride(2),
+                                                             _new_score_stride,
                                                              false,
                                                              in_type);
                 _wv_gemm[i] =
@@ -1528,7 +1532,7 @@ struct MHAHelper {
                                                    SV,
                                                    _block_size,
                                                    // if it's bf16, the stride needs double due to reuse float buffer
-                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
+                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _new_score_stride,
                                                    SV,
                                                    _output.stride(1),
                                                    false,
@@ -1538,7 +1542,7 @@ struct MHAHelper {
                                                    SV,
                                                    _block_size,
                                                    // if it's bf16, the stride needs double due to reuse float buffer
-                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
+                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _new_score_stride,
                                                    SV,
                                                    _output.stride(1),
                                                    false,
@@ -2262,6 +2266,8 @@ struct MHA {
                                attn_work_count * Hk <= 2 * _helper._nthr
                            ? false
                            : true;  // or less than 2 work items per thread, loop H
+        auto weight_h = loop_hk ? _helper._H / HK : 1;
+        _helper.resize_temporary_weight_buffer(weight_h);
 
         parallel_for2d_dynamic(attn_work_count, loop_hk ? Hk : _helper.H, [&](size_t w, size_t hx) {
             size_t hk, hq_beg, hq_end;
