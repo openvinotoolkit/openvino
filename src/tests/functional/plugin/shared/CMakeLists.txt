@@ -69,7 +69,7 @@ ov_add_target(
                 sharedTestClasses
             PRIVATE
                 ${LINK_LIBRARIES_PRIVATE}
-                OpenCL::OpenCL
+                OpenCL
         DEPENDENCIES
             ${DEPENDENCIES}
 )

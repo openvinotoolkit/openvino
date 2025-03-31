@@ -3,7 +3,7 @@
 //
 
 #include <cstdint>
-#include <CL//cl.h>
+#include <CL/opencl.hpp>
 
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/properties.hpp"
