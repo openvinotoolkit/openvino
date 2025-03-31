@@ -142,7 +142,7 @@ updates:
   # Docker images
   - package-ecosystem: docker
     directories:
-      - "/.github/dockerfiles/**/*"
+      - "**/*"
     schedule:
       interval: "daily"
       time: "09:00"
