@@ -100,14 +100,19 @@ public:
         oss << ", shape: ";
         oss << t.shape.to_string();
         oss << ", vals: ";
-        oss << "()";
-        for (size_t i = 0; i < std::accumulate(t.shape.begin(), t.shape.end(), 1, std::multiplies<size_t>{}); ++i) {
+        oss << "(";
+
+        size_t size = std::accumulate(t.shape.begin(), t.shape.end(), 1, std::multiplies<size_t>{});
+        for (size_t i = 0; i < size; ++i) {
             if (t.type == ov::element::f32) {
                 oss << static_cast<float*>(t.data.data())[i];
             } else if (t.type == ov::element::i32) {
                 oss << static_cast<int32_t*>(t.data.data())[i];
             }
-            oss << ", ";
+
+            if (i + 1 != size) {
+                oss << ", ";
+            }
         }
         oss << ")]";
         return oss.str();
