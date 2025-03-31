@@ -577,9 +577,16 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
           }}},
-        {ov::intel_npu::disable_version_check.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
-                                                           return config.getString<DISABLE_VERSION_CHECK>();
-                                                       }}}};
+        {ov::intel_npu::disable_version_check.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<DISABLE_VERSION_CHECK>();
+          }}},
+        {ov::intel_npu::batch_compiler_mode_settings.name(),
+         {false, ov::PropertyMutability::RW, [](const Config& config) {
+              return config.get<BATCH_COMPILER_MODE_SETTINGS>();
+          }}}};
 }
 
 void Plugin::reset_supported_properties() const {
@@ -615,6 +622,7 @@ void Plugin::reset_compiler_dependent_properties() const {
             std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = false;  // mark unsupported
         }
     }
+
     // NPU_QDQ_OPTIMIZATION
     // unpublish if compiler version requirement is not met
     if (_properties.find(ov::intel_npu::qdq_optimization.name()) != _properties.end()) {
@@ -758,7 +766,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    auto originalModel = model->clone();
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig);
 
@@ -766,7 +773,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<intel_npu::IGraph> graph;
     try {
         _logger.debug("performing compile");
-        graph = compiler->compile(model, localConfig);
+        graph = compiler->compile(model->clone(), localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -776,7 +783,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(originalModel, shared_from_this(), device, graph, localConfig);
+        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
