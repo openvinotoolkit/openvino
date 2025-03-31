@@ -92,9 +92,11 @@ public:
 
 protected:
     bool is_pointer_representable(const element::Type& element_type) const {
-        return element_type.is_dynamic() || ((element_type.bitwidth() == get_element_type().bitwidth() &&
-                                              element_type.is_real() == get_element_type().is_real()) ||
-                                             (element_type == element::string && element_type == get_element_type()));
+        return element_type.is_dynamic() ||
+               ((get_element_type() != element::string && element_type != element::string &&
+                 element_type.bitwidth() == get_element_type().bitwidth() &&
+                 element_type.is_real() == get_element_type().is_real()) ||
+                (element_type == element::string && element::string == get_element_type()));
     }
 
     void update_strides() const {
@@ -109,7 +111,7 @@ protected:
                            shape.crend() - 1,
                            m_strides.rbegin(),
                            m_strides.rbegin() + 1,
-                           std::multiplies<size_t>());
+                           std::multiplies());
         }
     }
 

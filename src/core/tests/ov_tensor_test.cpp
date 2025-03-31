@@ -62,7 +62,10 @@ TEST_F(OVTensorTest, canCreateStringTensor) {
     ASSERT_NE(shape, t.get_strides());
     ASSERT_EQ(byteStrides(ov::Strides({6, 2, 1}), t.get_element_type()), t.get_strides());
     ASSERT_EQ(string_size * totalSize, t.get_byte_size());
-    ASSERT_THROW(t.data(ov::element::i64), ov::Exception);
+    using namespace ov::element;
+    for (auto&& type : {boolean, i8, u8, i16, u16, i32, u32, i64, u64, f16, bf16, f32, f64}) {
+        ASSERT_THROW(t.data(type), ov::Exception);
+    }
     ASSERT_THROW(t.data<std::int32_t>(), ov::Exception);
 }
 
