@@ -313,3 +313,60 @@ describe('ov.Tensor tests', () => {
     });
   });
 });
+
+describe('Tensor setShape', () => {
+  
+  it('correctly sets a new shape for a tensor', () => {
+    const initialShape = [3, 224, 224];
+    const newShape = [3, 256, 256];
+    const tensorData = new Float32Array(3 * 224 * 224).fill(0); // Dati di esempio per il tensore
+    const tensor = new ov.Tensor(ov.element.f32, initialShape, tensorData);
+
+    // Verifica la forma iniziale
+    assert.deepStrictEqual(tensor.getShape(), initialShape);
+
+    // Imposta la nuova forma
+    tensor.setShape(newShape);
+
+    // Verifica che la forma sia stata aggiornata correttamente
+    assert.deepStrictEqual(tensor.getShape(), newShape);
+  });
+
+  it('throws an error when setting an invalid shape', () => {
+    const initialShape = [3, 224, 224];
+    const tensorData = new Float32Array(3 * 224 * 224).fill(0);
+    const tensor = new ov.Tensor(ov.element.f32, initialShape, tensorData);
+
+    // Proviamo a impostare una forma non valida (ad esempio con dimensioni incoerenti)
+    assert.throws(() => {
+      tensor.setShape([3, 224]); // Forma mancante di un'ulteriore dimensione
+    }, {
+      message: 'Invalid shape: must have the correct number of dimensions.'
+    });
+  });
+
+  it('does not change shape if the new shape is the same as the old one', () => {
+    const shape = [3, 224, 224];
+    const tensorData = new Float32Array(3 * 224 * 224).fill(0);
+    const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
+
+    assert.deepStrictEqual(tensor.getShape(), shape);
+
+    tensor.setShape(shape);
+
+    assert.deepStrictEqual(tensor.getShape(), shape);
+  });
+
+  it('throws an error if the new shape does not match the tensor size', () => {
+    const shape = [3, 224, 224];
+    const tensorData = new Float32Array(3 * 224 * 224).fill(0);
+    const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
+
+    assert.throws(() => {
+      tensor.setShape([3, 200, 200]); 
+    }, {
+      message: 'Shape mismatch: the new shape does not match the number of elements in the tensor.'
+    });
+  });
+
+});

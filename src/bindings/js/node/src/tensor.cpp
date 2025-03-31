@@ -44,7 +44,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
-                        InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
+                        InstanceMethod("isContinuous", &TensorWrap::is_continuous),
+                        InstanceMethod("setShape", &TensorWrap::set_shape)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -191,3 +192,34 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
     }
     return Napi::Boolean::New(env, _tensor.is_continuous());
 }
+
+Napi::Value TensorWrap::set_shape(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    if (info.Length() != 1) {
+        reportError(env, "setShape() requires exactly one argument.");
+        return env.Undefined();
+    }
+
+    if (!info[0].IsArray()) {
+        reportError(env, "The argument to setShape() must be an array.");
+        return env.Undefined();
+    }
+
+    Napi::Array shape_array = info[0].As<Napi::Array>();
+    std::vector<size_t> shape;
+
+    for (uint32_t i = 0; i < shape_array.Length(); ++i) {
+        shape.push_back(shape_array.Get(i).As<Napi::Number>().Uint32Value());
+    }
+
+    try {
+        _tensor.set_shape(ov::Shape(shape));
+    } catch (const std::exception& e) {
+        reportError(env, std::string("Failed to set shape: ") + e.what());
+        return env.Undefined();
+    }
+
+    return env.Null();
+}
+
