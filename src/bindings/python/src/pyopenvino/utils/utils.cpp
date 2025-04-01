@@ -24,7 +24,8 @@ using Version = ov::pass::Serialize::Version;
 namespace Common {
 namespace utils {
 
-PY_TYPE check_list_element_type(const py::list& list) {
+template <typename T>
+PY_TYPE check_container_element_type(const T& container) {
     PY_TYPE detected_type = PY_TYPE::UNKNOWN;
 
     auto check_type = [&](PY_TYPE type) {
@@ -32,11 +33,11 @@ PY_TYPE check_list_element_type(const py::list& list) {
             detected_type = type;
             return;
         }
-        OPENVINO_THROW("Incorrect attribute. Mixed types in the list are not allowed.");
+        OPENVINO_THROW("Incorrect attribute. Mixed types in the container are not allowed.");
     };
 
-    for (const auto& it : list) {
-        // Check the type of elements in the list
+    for (const auto& it : container) {
+        // Check the type of elements in the container
         if (py::isinstance<py::str>(it)) {
             check_type(PY_TYPE::STR);
         } else if (py::isinstance<py::int_>(it)) {
@@ -47,6 +48,8 @@ PY_TYPE check_list_element_type(const py::list& list) {
             check_type(PY_TYPE::BOOL);
         } else if (py::isinstance<ov::PartialShape>(it)) {
             check_type(PY_TYPE::PARTIAL_SHAPE);
+        } else if (py::isinstance<ov::hint::ModelDistributionPolicy>(it)) {
+            check_type(PY_TYPE::MODEL_DISTRIBUTION_POLICY);
         }
     }
 
@@ -449,7 +452,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     } else if (py::isinstance<py::list>(py_obj)) {
         auto _list = py_obj.cast<py::list>();
 
-        PY_TYPE detected_type = check_list_element_type(_list);
+        PY_TYPE detected_type = check_container_element_type<py::list>(_list);
 
         if (_list.empty())
             return ov::Any(EmptyList());
@@ -494,8 +497,28 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::intel_auto::SchedulePolicy>(py_obj);
     } else if (py::isinstance<ov::hint::SchedulingCoreType>(py_obj)) {
         return py::cast<ov::hint::SchedulingCoreType>(py_obj);
-    } else if (py::isinstance<std::set<ov::hint::ModelDistributionPolicy>>(py_obj)) {
-        return py::cast<std::set<ov::hint::ModelDistributionPolicy>>(py_obj);
+    } else if (py::isinstance<py::set>(py_obj)) {
+        auto _set = py_obj.cast<py::set>();
+
+        PY_TYPE detected_type = check_container_element_type<py::set>(_set);
+
+        if (_set.empty())
+            return ov::Any(EmptyList());
+
+        switch (detected_type) {
+        case PY_TYPE::MODEL_DISTRIBUTION_POLICY:
+            return _set.cast<std::set<ov::hint::ModelDistributionPolicy>>();
+        case PY_TYPE::STR:
+            return _set.cast<std::set<std::string>>();
+        case PY_TYPE::FLOAT:
+            return _set.cast<std::set<double>>();
+        case PY_TYPE::INT:
+            return _set.cast<std::set<int64_t>>();
+        case PY_TYPE::BOOL:
+            return _set.cast<std::set<bool>>();
+        default:
+            OPENVINO_ASSERT(false, "Unsupported attribute type.");
+        }
     } else if (py::isinstance<ov::hint::ExecutionMode>(py_obj)) {
         return py::cast<ov::hint::ExecutionMode>(py_obj);
     } else if (py::isinstance<ov::log::Level>(py_obj)) {
