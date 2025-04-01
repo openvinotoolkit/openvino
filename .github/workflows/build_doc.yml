@@ -4,6 +4,7 @@ on:
   merge_group:
 
 env:
+  CMAKE_POLICY_VERSION_MINIMUM: '3.5' # w/a for cmake >= 4.0
   DOXY_VER: '1.9.6'
 
 concurrency:
