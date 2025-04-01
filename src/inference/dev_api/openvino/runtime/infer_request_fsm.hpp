@@ -121,6 +121,7 @@ private:
 
         void on_event(const StartEvent& event);
         void on_event(const StopEvent& event);
+        void on_event(const DoneEvent& event);
     };
 
     struct Stop : public EventHandlers<NoAction> {

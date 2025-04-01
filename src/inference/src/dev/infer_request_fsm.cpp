@@ -82,4 +82,9 @@ void InferRequestFsm::Cancelled::on_event(const StopEvent&) {
     auto l = m_fsm->lock();
     m_fsm->m_state = Stop{};
 }
+
+void InferRequestFsm::Cancelled::on_event(const DoneEvent&) {
+    const auto l = m_fsm->lock();
+    m_fsm->m_state = Idle{m_fsm};
+}
 }  // namespace ov
