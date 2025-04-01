@@ -6,6 +6,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 
 #include "accuracy/comparator.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -488,6 +489,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     finalize_weights_bank();
     detach_memory();
 
+    // std::cout << "detached memory" << std::endl;
+    // using namespace std::chrono_literals;
+    // std::this_thread::sleep_for(5000ms);
+
     // Print stats report when possible
     {
         LOG_INFO("Initial device distribution:");
@@ -876,6 +881,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
             if (comp_model_desc.closure[tidx]) {
+                std::cout << "host-side closure not in bank" << std::endl;
                 continue;  // host-side closure
             }
             comp_model_desc.closure_uid[tidx] =

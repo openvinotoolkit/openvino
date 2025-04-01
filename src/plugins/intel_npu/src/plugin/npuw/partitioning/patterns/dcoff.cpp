@@ -139,6 +139,7 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
             auto transforms = fcall._lazy_closure[i].get_transformations();
             if (transforms.size() == 2 && std::holds_alternative<ov::npuw::weights::op::Permute>(transforms[0])) {
                 // Assuming we only match weights where DQ did set Transpose after - thus nothing extra to do here
+                std::cout << "NOT EVALUATING TENSOR IN DCOFF" << std::endl;
                 new_closure.push_back(ov::Tensor());
             } else {
                 new_closure.push_back(m.weights_to_unpack.count(i) ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
