@@ -3,7 +3,6 @@
 //
 
 #include <cstdint>
-#include <CL/opencl.hpp>
 
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -12,27 +11,6 @@
 namespace ov {
 namespace test {
 namespace behavior {
-
-uint get_num_gpus() {
-    cl_uint platformIdCount = 0;
-    cl_int error_code;
-
-    error_code = clGetPlatformIDs(0, nullptr, &platformIdCount);
-    OPENVINO_ASSERT(error_code == CL_SUCCESS);
-    std::vector<cl_platform_id> platformIds(platformIdCount);
-    error_code = clGetPlatformIDs(platformIdCount, platformIds.data(), nullptr);
-    OPENVINO_ASSERT(error_code == CL_SUCCESS);
-
-    uint num_devices = 0;
-    cl_uint deviceIdCount = 0;
-    for (auto platformId : platformIds) {
-        clGetDeviceIDs(platformId, CL_DEVICE_TYPE_GPU, 0, nullptr,
-            &deviceIdCount);
-        num_devices += deviceIdCount;
-    }
-
-    return num_devices;
-}
 
 std::string OVPropertiesTests::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
     std::string target_device;
@@ -608,14 +586,15 @@ TEST_P(OVCheckMetricsPropsTests_ModelDependceProps, ChangeCorrectDevicePropertie
 }
 
 TEST_P(OVClassSetDefaultDeviceIDPropTest, SetDefaultDeviceIDNoThrow) {
-    if (get_num_gpus() == 1 && target_device == "GPU" && deviceID == "1") {
-        GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
-    }
     ov::Core ie = ov::test::utils::create_core();
     // sw plugins are not requested to support `ov::available_devices` and ` ov::device::id` property
     auto deviceIDs = ie.get_property(target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        GTEST_FAIL();
+        if (target_device == "GPU" && deviceID == "1") {
+            GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
+        } else {
+            GTEST_FAIL();
+        }
     }
     std::string value;
     OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::device::id(deviceID), ov::enable_profiling(true)));
@@ -625,9 +604,6 @@ TEST_P(OVClassSetDefaultDeviceIDPropTest, SetDefaultDeviceIDNoThrow) {
 }
 
 TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
-    if (get_num_gpus() == 1 && target_device == "GPU.1") {
-        GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
-    }
     ov::Core ie = ov::test::utils::create_core();
     ov::Any p;
 
@@ -640,7 +616,11 @@ TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
     // sw plugins are not requested to support `ov::available_devices`, `ov::device::id` and `ov::num_streams` property
     auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        GTEST_FAIL() << "No DeviceID" << std::endl;
+        if (target_device == "GPU.1") {
+            GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
+        } else {
+            GTEST_FAIL() << "No DeviceID" << std::endl;
+        }
     }
     auto device_name = [&clear_target_device] (const std::string& id) {
         return clear_target_device + "." + id;
@@ -666,10 +646,6 @@ TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
 }
 
 TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
-    if (get_num_gpus() == 1 && target_device == "GPU.1") {
-        GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
-    }
-
     ov::Core ie = ov::test::utils::create_core();
     ov::Any p;
 
@@ -683,7 +659,11 @@ TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
     if (!sw_plugin_in_target_device(target_device)) {
         auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
         if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-            GTEST_FAIL() << "No DeviceID" << std::endl;
+            if (target_device == "GPU.1") {
+                GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
+            } else {
+                GTEST_FAIL() << "No DeviceID" << std::endl;
+            }
         }
     }
 
@@ -718,9 +698,6 @@ TEST_P(OVGetAvailableDevicesPropsTest, GetAvailableDevicesNoThrow) {
 }
 
 TEST_P(OVSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
-    if (get_num_gpus() == 1 && target_device == "GPU.1") {
-        GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
-    }
     ov::Core ie = ov::test::utils::create_core();
 
     std::string deviceID, cleartarget_device;
@@ -733,7 +710,11 @@ TEST_P(OVSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
     if (!sw_plugin_in_target_device(target_device)) {
         auto deviceIDs = ie.get_property(cleartarget_device, ov::available_devices);
         if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-            GTEST_FAIL();
+            if (target_device == "GPU.1") {
+                GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
+            } else {
+                GTEST_FAIL();
+            }
         }
     }
 
