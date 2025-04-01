@@ -3,8 +3,8 @@
 using namespace std;
 
 int main() {
-  ofstream blobFile("/home/ygayda/Documents/ov/ttmp/some_blob.txt");
-  ofstream blobFile2("/home/ygayda/Documents/ov/ttmp/another_blob.txt");
+  ofstream blobFile("/tmp/commit_slider_tool/tmp/some_blob.txt");
+  ofstream blobFile2("/tmp/commit_slider_tool/tmp/another_blob.txt");
   const char *patchGenerator = R"V0G0N(
     [
         {

@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib
@@ -14,7 +14,8 @@ from argparse import ArgumentParser
 from utils.cfg_manager import CfgManager
 import copy
 
-
+bigOutputFilesNumber = 10
+bigFloatNumber = 1000000 # sys.float_info.max does not seem to work correctly
 mulKey = 'multiplication_key'
 
 def getMeaningfullCommitTail(commit):
@@ -146,10 +147,7 @@ def getBlobDiff(file1, file2):
             break
         line = content[i]
         if "nan" in sampleLine.lower() or "nan" in line.lower():
-            # todo: test value
-            return 1000
-            import sys
-            return sys.float_info.max
+            return bigFloatNumber
         sampleVal = 0
         val = 0
         sampleVal = float(sampleLine)
@@ -158,7 +156,22 @@ def getBlobDiff(file1, file2):
             curMaxDiff = max(curMaxDiff, abs(val - sampleVal))
     return curMaxDiff
 
-def getBlobMatch(fileList1, fileList2):
+def trimFileNameByCommitHash(fileList, commit):
+    prefixLen = len(getMeaningfullCommitTail(commit))
+    return [file[(prefixLen + 1):] for file in fileList]
+
+def getBlobMatch(fileList1, fileList2, leftCommit = None, rightCommit = None):
+    if len(fileList1) >= bigOutputFilesNumber:
+        raise Exception("Too much files to compare: {f1}, {f2}. Comparision may bee too long".format(
+            f1=fileList1, f2=fileList2
+        ))
+    trimmedFileList1 = [x for x in fileList1]
+    trimmedFileList2 = [x for x in fileList2]
+
+    if not leftCommit is None or not rightCommit is None:
+        trimmedFileList1 = trimFileNameByCommitHash(fileList1, leftCommit)
+        trimmedFileList2 = trimFileNameByCommitHash(fileList2, rightCommit)
+
     def gcs(s1: str, s2: str) -> int:
         # great common substring
         if s1 < s1: # gcs(A,B) == gcs(B,A)
@@ -173,16 +186,22 @@ def getBlobMatch(fileList1, fileList2):
                     else:
                         res[i][j] = max(res[i - 1][j], res[i][j - 1])      
             return res[l1][l2]
-    matchMtrx = [[gcs(f1, f2) for f1 in fileList1] for f2 in fileList2]
-    colMatch = [max([matchMtrx[i1][i2] for i1 in range(fileList1)]) for i2 in range(fileList2)]
-    rowMatch = [max([matchMtrx[i1][i2] for i2 in range(fileList2)]) for i1 in range(fileList1)]
-    if set(rowMatch) == set([i for i in range(fileList1)]) and \
-        set(colMatch) == set([i for i in range(fileList2)]):
+    length = len(fileList1)
+    naturalSet = set([i for i in range(length)])
+    excMsg = "Output blobs matching error, {l1} doesn't match {l2}".format(
+        l1=fileList1, l2=fileList2)
+    if length != len(fileList2):
+        raise Exception(excMsg)
+
+    matchMtrx = [[gcs(f1, f2) for f1 in trimmedFileList1] for f2 in trimmedFileList2]
+    indOfMax = lambda a: a.index(max(a))
+    colMatch = [indOfMax([matchMtrx[i1][i2] for i1, _ in enumerate(trimmedFileList1)]) for i2, _ in enumerate(trimmedFileList2)]
+    rowMatch = [indOfMax([matchMtrx[i1][i2] for i2, _ in enumerate(trimmedFileList2)]) for i1, _ in enumerate(trimmedFileList1)]
+    if set(rowMatch) == naturalSet and set(colMatch) == naturalSet:
         return [[f1, fileList2[colMatch[i1]]] \
                 for i1, f1 in enumerate(fileList1)]
     else:
-        raise Exception("Output blobs matching error,\
-                        {l1} doesn't match {l2}".format(l1=fileList1, l2=fileList2))
+        raise Exception(excMsg)
 
 def absolutizePaths(cfg):
     pl = sys.platform

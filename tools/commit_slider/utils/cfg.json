@@ -72,6 +72,7 @@
     "appPath" : "../../bin/intel64/Release/",
     "buildPath" : "../../build/",
     "cachePath" : "{workPath}/slider_cache/",
+    "defaultTmpDir" : "{workPath}/tmp/",
     "userCachePath" : "",
     "logPath" : "{workPath}/log/",
     "userLogPath" : "",

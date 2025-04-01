@@ -438,8 +438,28 @@
                 },
                 "mode" : "compareBlobs",
                 "traversal" : "firstFailedVersion",
-                "outputFileNamePattern" : "(.)*blob.txt$",
-                "outputDirectory" : "{buildPath}",
+                "outputFileNamePattern" : "(.)*some_blob.txt$",
+                "outputDirectory" : "/home/ygayda/Documents/ov/ttmp/",
+                "limit" : 0.00
+            }
+        }
+    },
+    "CompareBlobsAutomatchData": {
+        "repoName": "CompareBlobsAutomatch",
+        "patchedFile": "tests_res/fbv_blb_cmp_automatch_main.cpp",
+        "testCfg": {
+            "appCmd" : "{appCmd}",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "compareBlobs",
+                "traversal" : "firstFailedVersion",
+                "autoMatch" : true,
                 "limit" : 0.00
             }
         }

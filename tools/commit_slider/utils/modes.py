@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from utils.helpers import fetchAppOutput, getActualPath
+from utils.helpers import CfgManager, fetchAppOutput, getActualPath
 from utils.helpers import getMeaningfullCommitTail, extractModelPath
 from utils.helpers import handleCommit, getBlobDiff
 from utils.helpers import getCommitLogger, CashError, CfgError,\
@@ -567,27 +567,38 @@ class CompareBlobsMode(Mode):
             filename = self.setCommitCash(commit, None)
         return filename
 
-    def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
-        leftBorderOutputName = self.getPseudoMetric(lCommit, cfg)
-        rightBorderOutputName = self.getPseudoMetric(rCommit, cfg)
-        if self.autoMatch:
-            raise Exception("No automatch support")
-        # if no conflict( one exceptional match per name)
-        fullLeftFileName = os.path.join(self.cachePath, leftBorderOutputName)
-        fullRightName = os.path.join(self.cachePath, rightBorderOutputName)
-        curMaxDiff = getBlobDiff(fullLeftFileName, fullRightName)
+    def compareSingleBlobPair(self, lName, rName, commit, cfg):
+        curMaxDiff = getBlobDiff(lName, rName)
         isDiff = True if curMaxDiff > self.limit else False
-        curCommit = rCommit
+        curCommit = commit
         curCommit = curCommit.replace('"', "")
         commitLogger = getCommitLogger(cfg, curCommit)
         commitLogger.info(
             "Commit {status} from {c}".format(
                 status=("differs" if isDiff else "don't differ"),
-                c=rCommit)
-        )
+                c=commit))
+        commitLogger.info("Absolute difference is {d}".format(d=curMaxDiff))
         if isDiff:
             self.maxDiff = curMaxDiff
-        commitLogger.info("Absolute difference is {d}".format(d=curMaxDiff))
+        return isDiff
+
+    def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
+        leftOutput = self.getPseudoMetric(lCommit, cfg)
+        rightOutput = self.getPseudoMetric(rCommit, cfg)
+
+        isDiff = False
+        matchingPairList = []
+        if self.autoMatch:
+            # auto matching of patterns
+            from utils.helpers import getBlobMatch
+            matchingPairList = getBlobMatch(leftOutput, rightOutput, lCommit, rCommit)
+        else:
+            # single specified blob pattern
+            matchingPairList = [[leftOutput, rightOutput]]
+        for matchPair in matchingPairList:
+            fullLeftFileName = os.path.join(self.cachePath, matchPair[0])
+            fullRightFileName = os.path.join(self.cachePath, matchPair[1])
+            isDiff = isDiff or self.compareSingleBlobPair(fullLeftFileName, fullRightFileName, rCommit, cfg)
         return isDiff
 
     def checkCfg(self, cfg):
@@ -596,15 +607,18 @@ class CompareBlobsMode(Mode):
             cfg["runConfig"]["autoMatch"] is True
         if not ("outputFileNamePattern" in cfg["runConfig"]) and not isAutoMatch:
             raise CfgError("Output pattern OR automatch is not configured")
-        elif not ("outputDirectory" in cfg["runConfig"]):
+        elif not ("outputDirectory" in cfg["runConfig"]) and not isAutoMatch:
             raise CfgError("Output directory pattern is not configured")
         else:
             if isAutoMatch:
                 self.autoMatch = True
+                cfg['defaultTmpDir'] = CfgManager.singlestepStrFormat(cfg["defaultTmpDir"], "workPath", cfg['workPath'])
+                os.makedirs(cfg['defaultTmpDir'], exist_ok=True)
+                self.outDir = os.path.abspath(cfg["defaultTmpDir"])
             else:
                 self.autoMatch = False
                 self.outFileNamePattern = cfg["runConfig"]["outputFileNamePattern"]
-            self.outDir = os.path.abspath(cfg["runConfig"]["outputDirectory"])
+                self.outDir = os.path.abspath(cfg["runConfig"]["outputDirectory"])
             if "limit" in cfg["runConfig"]:
                 self.limit = float(cfg["runConfig"]["limit"])
             else:
@@ -617,11 +631,10 @@ class CompareBlobsMode(Mode):
             raise CashError("Commit already cashed")
         else:
             fileList = os.listdir(self.outDir)
+            # raise Exception(fileList)
             # we look for just created output file
             for filename in fileList:
-                if self.autoMatch:
-                    raise Exception("No automatch support")
-                isDump = re.search(self.outFileNamePattern, filename)
+                isDump = True if self.autoMatch else re.search(self.outFileNamePattern, filename)
                 if isDump:
                     curFileName = "{c}_{fn}".format(
                         c=getMeaningfullCommitTail(commit), fn=filename
@@ -635,8 +648,6 @@ class CompareBlobsMode(Mode):
                     else:
                         newFileName = curFileName
                         break
-            if filename == "":
-                raise CmdError("Output file not found")
         return newFileName
 
     def createCash(self):
@@ -644,7 +655,6 @@ class CompareBlobsMode(Mode):
         # so, we just set up path to cache folder
         # todo: handle usercache for multimodel case
         self.cachePath = getActualPath("cachePath", self.cfg)
-        pass
 
     def getCommitIfCashed(self, commit):
         fileList = os.listdir(self.cachePath)
