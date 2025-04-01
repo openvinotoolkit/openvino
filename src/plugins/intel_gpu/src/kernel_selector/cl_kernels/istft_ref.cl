@@ -13,7 +13,8 @@
 #define atomicadd_half(a, b)   _atomicadd_half((volatile atomic_half*)(a), (b))
 
 inline half _atomicadd_half(volatile atomic_half* address, const half value) {
-    half old = value, orig;
+    half old = value;
+    half orig;
     while ((old = atomic_exchange(address, (orig = atomic_exchange(address, 0)) + old)) != 0)
         ;
     return orig;
@@ -95,8 +96,6 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
         const int idx = startIDx + i * frame_step;
         const float val = window[idx];
         normalizationSum += val * val;
-        // printf("normalizationSum calc: globalOutputIdx: %i, windowIdx: %i, i: %i, idx: %i, startIDx: %i, normalizationSum: %f\n", globalOutputIdx, windowIdx,
-        // i, idx, startIDx, normalizationSum);
     }
 
     // Calculate the irDFT value for the current windowIdx.
@@ -150,10 +149,9 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
 
 #if CENTER
     const int margin = frame_size / 2;
-
-    if (IsNotBetween(outputIdxWithinBatch, margin, DEFAULT_OUTPUT_SIZE - margin))
+    const int lastIdx = LENGTH_BUFFER ? DEFAULT_OUTPUT_SIZE : DEFAULT_OUTPUT_SIZE - margin;
+    if (IsNotBetween(finalOutputIdxWithinBatch, margin, lastIdx))
         return;
-
     finalOutputIdxWithinBatch -= margin;
 #endif
 

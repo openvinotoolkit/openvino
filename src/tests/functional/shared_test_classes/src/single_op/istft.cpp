@@ -175,7 +175,7 @@ const ISTFTLayerTest::TGenData ISTFTLayerTest::GetTestDataForDevice(const char* 
 
     const std::vector<int64_t> frame_size = {frame_size_val};
     const std::vector<int64_t> step_size = {2, 3, 4};
-    const std::vector<int64_t> signal_len = {-1};
+    const std::vector<int64_t> signal_len = {-1, 48, 32, 256};
 
     const std::vector<bool> center = {
         false,
