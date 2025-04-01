@@ -305,7 +305,7 @@ changes in a pull request, you can use the Smart CI feature - [learn more about 
 
 The OpenVINO GitHub organisation utilises Merge Queue to automate the Pull Requests' merging process. Learn more about MQ and available settings in the [official documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue).
 
-The Merge Queue has several settings that are configured on a per-repository basis. The [OpenVINO repository](https://github.com/openvinotoolkit/openvino) uses the following settings:
+Merge Queue has several settings that are configured on a per-repository basis. The [OpenVINO repository](https://github.com/openvinotoolkit/openvino) uses the following settings:
 * **Merge method**: *Squash and Merge*
 * **Build concurrency**:
   * **Maximum pull requests to build**: *5*
