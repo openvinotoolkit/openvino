@@ -1360,6 +1360,39 @@ KERNEL(sdpa_opt)(
             for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
                 slm_qk_vals[sglid][sgid * TARGET_SEQ_LEN_BLOCK_SIZE + i] = qk_acc[i];
             }
+
+#if PAGED_ATTENTION_SCORES_OUTPUT
+            {
+                const uint subsequence_idx = gws_seq_indexes_correspondence[target_seq_dim];
+                const uint subsequence_end_pos = subsequence_begins[subsequence_idx + 1];
+
+                // PagedAttention is supposed to save only last "row" of the QK matrix multiplication,
+                // so save SEQ_LEN_PARTITION_SIZE elements for each partition
+                if (subsequence_end_pos == block_end_pos) {
+                    const uint last_row_idx = block_end_pos - block_start_pos - 1;
+                    if (sglid == last_row_idx) {
+                        const uint partition_idx = start_partition_idx / SEQ_LEN_PARTITION_SIZE;
+
+                        if (sgid == 0) {
+                            const uint max_partitions_num = aligned_max_context_len / SEQ_LEN_PARTITION_SIZE;
+                            const uint exp_sums_output_offset = subsequence_idx * NUM_HEADS * max_partitions_num +
+                                                                num_heads_dim * max_partitions_num +
+                                                                partition_idx;
+                            exp_sums[exp_sums_output_offset] = exp_sum_new;
+                            max_logits[exp_sums_output_offset] = qk_max_new;
+                        }
+
+                        const uint output_offset = subsequence_idx * NUM_HEADS * aligned_max_context_len +
+                                                num_heads_dim * aligned_max_context_len +
+                                                partition_idx * SEQ_LEN_PARTITION_SIZE + sgid * TARGET_SEQ_LEN_BLOCK_SIZE;
+                        for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
+                            softmax_results[output_offset + i] = qk_acc[i];
+                        }
+
+                    }
+                }
+            }
+#endif  /*end of PAGED_ATTENTION_SCORES_OUTPUT*/
         }
 #endif /*end of softmax calc*/
         
