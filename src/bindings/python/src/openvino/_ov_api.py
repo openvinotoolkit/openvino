@@ -29,6 +29,16 @@ class ModelMeta(type):
     def __dir__(cls) -> list:
         return list(set(cls.__dict__.keys()) | set(dir(ModelBase)))
 
+    def __getattribute__(cls, name: str) -> Any:
+        if name == "__init__":
+            return getattr(ModelBase, name)
+        return super().__getattribute__(name)
+
+    def __getattr__(cls, name: str) -> Any:
+        # Return the attribute defined in _pyopenvino.Model if it exists
+        # otherwise AttributeError will be raised
+        return getattr(ModelBase, name)
+
 
 class Model(object, metaclass=ModelMeta):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
