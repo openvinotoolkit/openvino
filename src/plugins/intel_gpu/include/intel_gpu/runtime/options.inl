@@ -19,6 +19,7 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, host_task_priority, ov::hint::Prio
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM, "Low-level hint that controls the queue throttle level")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_priority, ov::hint::Priority::MEDIUM, "Low-level hint that controls queue priority property")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_sdpa_optimization, true, "Enable/Disable fused SDPA primitive execution")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, disable_flashattnv2_optimization, false, "Enable/Disable SDPA primitive executing with FlashAttenV2 online softmax tricks.")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, enable_loop_unrolling, true, "Enable/Disable Loop/TensorIterator operation unrolling")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, disable_winograd_convolution, false, "Enable/Disable winograd convolution implementation if available")
 OV_CONFIG_RELEASE_OPTION(ov::internal, exclusive_async_requests, false, "")
@@ -47,7 +48,6 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_onednn, false, "Enable/Disa
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_cm, true, "Enable/Disable CM for usage for particular model/platform")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, max_kernels_per_batch, 8, "Controls how many kernels we combine into batch for more efficient ocl compilation")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Controls capacity of LRU implementations cache that is created for each program object for dynamic models")
-OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, disable_flashattnv2_optimization, false, "Enable/Disable SDPA primitive executing with FlashAttenV2 online softmax tricks.")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")

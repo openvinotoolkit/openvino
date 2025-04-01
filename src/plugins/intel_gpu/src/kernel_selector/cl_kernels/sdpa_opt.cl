@@ -881,10 +881,6 @@ KERNEL(sdpa_opt)(
     #define sglid (uint)get_sub_group_local_id()
     #define sgid (uint)get_sub_group_id()
 
-#if IS_FLASHATTEN_V2
-    if(sgid==0 && sglid==0) printf("IS_FLASHATTEN_V2\n");
-#endif
-
     // SLM buffer for query inputs
     __local INPUT0_TYPE slm_query[HEAD_SIZE * TARGET_SEQ_LEN_BLOCK_SIZE];
 
@@ -1661,18 +1657,18 @@ KERNEL(sdpa_opt)(
         } /* end of QK*V calculation */
 
         // debug
-        if (seq_idx_end == 13 && b0_idx == 0 & b1_idx == 0 && sglid == 0 && sgid == 0) // the last block
-        {
-            printf("OPT[%d %d] start_partition_idx=%d, m=%f, l=%f, O=%f, Q*K=%f, softmax=%f\n", sgid, sglid,
-                start_partition_idx/SEQ_LEN_PARTITION_SIZE, slm_max_val_prev[seq_idx_end-1], slm_exp_sum_prev[seq_idx_end-1],
-                output_acc[seq_idx_end-1], slm_qk_vals[(seq_idx_end-1)][0], slm_qk_vals[(seq_idx_end-1)][0]/slm_exp_sum_prev[seq_idx_end-1]);
-            for (uint j = 0; j < TARGET_SEQ_LEN_BLOCK_SIZE; j++) {
-                for (uint i = 0; i < SEQ_LEN_PARTITION_SIZE; i++)
-                    printf("%f,", slm_qk_vals[j][i]);
-                printf("\n");
-            }
-            printf("\n\n");
-        }
+        // if (seq_idx_end == 13 && b0_idx == 0 & b1_idx == 0 && sglid == 0 && sgid == 0) // the last block
+        // {
+        //     printf("OPT[%d %d] start_partition_idx=%d, m=%f, l=%f, O=%f, Q*K=%f, softmax=%f\n", sgid, sglid,
+        //         start_partition_idx/SEQ_LEN_PARTITION_SIZE, slm_max_val_prev[seq_idx_end-1], slm_exp_sum_prev[seq_idx_end-1],
+        //         output_acc[seq_idx_end-1], slm_qk_vals[(seq_idx_end-1)][0], slm_qk_vals[(seq_idx_end-1)][0]/slm_exp_sum_prev[seq_idx_end-1]);
+        //     for (uint j = 0; j < TARGET_SEQ_LEN_BLOCK_SIZE; j++) {
+        //         for (uint i = 0; i < SEQ_LEN_PARTITION_SIZE; i++)
+        //             printf("%f,", slm_qk_vals[j][i]);
+        //         printf("\n");
+        //     }
+        //     printf("\n\n");
+        // }
     } /* end of iter over source sequence length */
 
     // Combine results from multiple SGs and store to output buffer
