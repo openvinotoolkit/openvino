@@ -2266,7 +2266,7 @@ struct MHA {
                                attn_work_count * Hk <= 2 * _helper._nthr
                            ? false
                            : true;  // or less than 2 work items per thread, loop H
-        auto weight_h = loop_hk ? _helper._H / HK : 1;
+        auto weight_h = loop_hk ? _helper.H / Hk : 1;
         _helper.resize_temporary_weight_buffer(weight_h);
 
         parallel_for2d_dynamic(attn_work_count, loop_hk ? Hk : _helper.H, [&](size_t w, size_t hx) {
