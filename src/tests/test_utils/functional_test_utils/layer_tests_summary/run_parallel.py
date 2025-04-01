@@ -821,12 +821,12 @@ class TestParallelRunner:
                     if (constants.PG_ERR in line) or (constants.PG_WARN in line):
                         test_log.append(line)
                     if test_name is not None:
-                        logger.info(f"test_name is {test_name}")
+                        # logger.info(f"test_name is {test_name}")
                         test_suite = test_name[: test_name.find(".")]
                         test_suites.add(test_suite)
                         test_log.append(line)
                         if dir:
-                            logger.info(f"test_name is {test_name}, dir is {dir}")
+                            # logger.info(f"test_name is {test_name}, dir is {dir}")
                             if __save_log(logs_dir, dir, test_name):
                                 # update test_cache with tests. If tests is crashed use -1 as unknown time
                                 time = -1
