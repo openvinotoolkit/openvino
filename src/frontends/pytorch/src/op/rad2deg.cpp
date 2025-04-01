@@ -25,11 +25,8 @@ OutputVector translate_rad2deg(const NodeContext& context) {
     const double pi_val = std::atan(1.0) * 4;
 
     // Create a constant node with the conversion factor (180 / π) using fp32 type
-    auto conversion_factor_fp32 = context.mark_node(
+    Output<Node> conversion_factor_output = context.mark_node(
         ov::op::v0::Constant::create(ov::element::f32, Shape{}, {180.0f / static_cast<float>(pi_val)}));
-
-    // Convert the constant to ov::Output<ov::Node>
-    auto conversion_factor_output = ov::Output<ov::Node>(conversion_factor_fp32);
 
     // Align elementwise input types to handle integer cases correctly
     align_eltwise_input_types(context, input, conversion_factor_output, is_python_scalar_input(context, 0), true);
