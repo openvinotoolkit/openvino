@@ -50,13 +50,14 @@ DnnlConvolutionPrimitive::IntermediateReorders::IntermediateReorders(const Key& 
 
     const auto& postOps = primDesc.get_primitive_attr().get_post_ops();
 
-    bool withSum = false;
-    for (int i = 0; i < postOps.len(); ++i) {
-        if (postOps.kind(i) == dnnl::primitive::kind::sum) {
-            withSum = true;
-            break;
+    const bool withSum = [&postOps] {
+        for (int i = 0; i < postOps.len(); ++i) {
+            if (postOps.kind(i) == dnnl::primitive::kind::sum) {
+                return true;
+            }
         }
-    }
+        return false;
+    }();
 
     auto createIfNotEqual = [](const dnnl::memory::desc& src,
                                const dnnl::memory::desc& dst,
@@ -199,18 +200,18 @@ static dnnl::convolution_forward::primitive_desc createInnerProductDescriptor(co
     const dnnl::algorithm algorithm = dnnl::algorithm::convolution_auto;
 #endif
 
-    return dnnl::convolution_forward::primitive_desc(engine,
-                                                     prop_kind::forward_inference,
-                                                     algorithm,
-                                                     convInDesc,
-                                                     convWeightDescAny,
-                                                     biasDesc,
-                                                     convOutDesc,
-                                                     dnnl::memory::dims(stride.begin(), stride.end()),
-                                                     dnnl::memory::dims(dilation.begin(), dilation.end()),
-                                                     dnnl::memory::dims(paddingL.begin(), paddingL.end()),
-                                                     dnnl::memory::dims(paddingR.begin(), paddingR.end()),
-                                                     attr);
+    return {engine,
+            prop_kind::forward_inference,
+            algorithm,
+            convInDesc,
+            convWeightDescAny,
+            biasDesc,
+            convOutDesc,
+            dnnl::memory::dims(stride.begin(), stride.end()),
+            dnnl::memory::dims(dilation.begin(), dilation.end()),
+            dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+            dnnl::memory::dims(paddingR.begin(), paddingR.end()),
+            attr};
 }
 
 static dnnl::convolution_forward::primitive_desc createConvolutionDescriptor(const dnnl::memory::desc& inputDesc,
@@ -231,24 +232,19 @@ static dnnl::convolution_forward::primitive_desc createConvolutionDescriptor(con
 #else
     const dnnl::algorithm algorithm = dnnl::algorithm::convolution_auto;
 #endif
-    // print all the memory descriptors arguments
-    // std::cout << "inputDesc: " << inputDesc << ", weightDesc: " << weightDesc << ", biasDesc: " << biasDesc
-    //           << ", outputDesc: " << outputDesc << ", stride: " << stride << ", dilation: " << dilation
-    //           << ", paddingL: " << paddingL << ", paddingR: " << paddingR << ", attr: " << attr << std::endl;
-
-    return dnnl::convolution_forward::primitive_desc(engine,
-                                                     prop_kind::forward_inference,
-                                                     algorithm,
-                                                     inputDesc,
-                                                     weightDescAny,
-                                                     biasDesc,
-                                                     outputDesc,
-                                                     dnnl::memory::dims(stride.begin(), stride.end()),
-                                                     dnnl::memory::dims(dilation.begin(), dilation.end()),
-                                                     dnnl::memory::dims(paddingL.begin(), paddingL.end()),
-                                                     dnnl::memory::dims(paddingR.begin(), paddingR.end()),
-                                                     attr,
-                                                     true);
+    return {engine,
+            prop_kind::forward_inference,
+            algorithm,
+            inputDesc,
+            weightDescAny,
+            biasDesc,
+            outputDesc,
+            dnnl::memory::dims(stride.begin(), stride.end()),
+            dnnl::memory::dims(dilation.begin(), dilation.end()),
+            dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+            dnnl::memory::dims(paddingR.begin(), paddingR.end()),
+            attr,
+            true};
 }
 
 static std::tuple<primitive_desc, size_t> selectPrimitiveDescWithMultipleAttributes(
@@ -671,7 +667,7 @@ static std::tuple<MemoryDescPtr, MemoryDescPtr> createDummySrcDstDescs(const Con
                                                       attrs.autoPadding);
     }
 
-    return std::tuple(srcDesc, dstDesc);
+    return {srcDesc, dstDesc};
 }
 
 DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const ConvAttrs& attrs,

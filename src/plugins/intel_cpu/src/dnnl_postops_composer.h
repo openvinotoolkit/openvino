@@ -78,7 +78,8 @@ private:
                                     int strH,
                                     int strW,
                                     dnnl::memory::data_type inDataType);
-    void appendZeroPoints(const MemoryArgs& memory, bool legacy);
+    void appendZeroPoints(const MemoryArgs& memory);
+    void appendZeroPointsLegacy(const MemoryArgs& memory);
     const dnnl::engine& engine;
     const PostOps& postOps;
     const VectorDims outputDims;
@@ -89,7 +90,6 @@ private:
     const dnnl::memory::data_type outDataType;
     bool useLegacyPostOps;
     bool useLegacyZeroPoints;
-    MemoryDescPtr dstDesc;
 
     dnnl::primitive_attr attr;
     MemoryArgs cpuArgs;
