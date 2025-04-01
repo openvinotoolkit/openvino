@@ -28,9 +28,8 @@ public:
             // use scalar shape {} instead of {1} if required by shapeInference
             const auto shape = (m_ranks[port] != 0) ? ov::Shape(memPtr->getStaticDims()) : ov::Shape();
             return {memPtr->getDesc().getPrecision(), shape, memPtr->getData()};
-        } else {
-            return {};
         }
+        return {};
     }
 
 private:

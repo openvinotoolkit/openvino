@@ -167,4 +167,7 @@ void AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>::get_raw_s
     aux_get_raw_string_by_index(m_ref, raw_string_ptr, raw_string_size, string_ind);
 }
 
+AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::~AttributeAdapter() = default;
+AttributeAdapter<std::shared_ptr<SharedStringAlignedBuffer>>::~AttributeAdapter() = default;
+
 }  // namespace ov

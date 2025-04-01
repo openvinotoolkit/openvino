@@ -552,41 +552,44 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content, std::regex(dqstr.str()), "");
     }
 
-    // NPU_DEFER_WEIGHTS_LOAD is needed at runtime only
-    {
-        std::ostringstream batchstr;
-        batchstr << ov::intel_npu::defer_weights_load.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                 << VALUE_DELIMITER;
-        logger.info("NPU_DEFER_WEIGHTS_LOAD property is needed at runtime only. Removing from parameters");
-        content = std::regex_replace(content, std::regex(batchstr.str()), "");
+    // QDQ_OPTIMIZATION is not supported in versions < 7.20 - need to remove it
+    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 20)) {
+        std::ostringstream qdqstr;
+        qdqstr << ov::intel_npu::qdq_optimization.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+               << VALUE_DELIMITER;
+        logger.warning("NPU_QDQ_OPTIMIZATION property is not supported by this compiler version. Removing from "
+                       "parameters");
+        content = std::regex_replace(content, std::regex(qdqstr.str()), "");
     }
 
-    // NPU_RUN_INFERENCES_SEQUENTIALLY is needed at runtime only
-    {
-        std::ostringstream batchstr;
-        batchstr << ov::intel_npu::run_inferences_sequentially.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
-                 << "\\S+" << VALUE_DELIMITER;
-        logger.info("NPU_RUN_INFERENCES_SEQUENTIALLY property is needed at runtime only. Removing from parameters");
-        content = std::regex_replace(content, std::regex(batchstr.str()), "");
+    // BATCH_COMPILER_MODE_SETTINGS is not supported in versions < 7.4 - need to remove it
+    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 4)) {
+        std::ostringstream dqstr;
+        dqstr << ov::intel_npu::batch_compiler_mode_settings.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+              << VALUE_DELIMITER;
+        logger.warning("BATCH_COMPILER_MODE_SETTINGS property is not supported by this compiler version. Removing from "
+                       "parameters");
+        content = std::regex_replace(content, std::regex(dqstr.str()), "");
     }
 
-    // Remove the properties that are not used by the compiler WorkloadType is used only by compiled model
-    std::ostringstream workloadtypestr;
-    workloadtypestr << ov::workload_type.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(workloadtypestr.str()), "");
-    // Remove turbo property as it is not used by compiler
-    std::ostringstream turbostring;
-    turbostring << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(turbostring.str()), "");
-    // Remove weights path property as it is not used by compiler
-    std::ostringstream weightspathstream;
-    weightspathstream << ov::weights_path.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(weightspathstream.str()), "");
-    // Remove Bypass UMD Caching propery
-    std::ostringstream umdcachestring;
-    umdcachestring << ov::intel_npu::bypass_umd_caching.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                   << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(umdcachestring.str()), "");
+    // Remove properties that are not used by the compiler
+    auto remove_unused_property = [&](const char* property_name) {
+        std::ostringstream propertystream;
+        propertystream << property_name << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+        std::string log(property_name);
+        log.append(" property is needed at runtime only. Removing from parameters");
+        logger.info(log.c_str());
+        content = std::regex_replace(content, std::regex(propertystream.str()), "");
+    };
+
+    remove_unused_property(ov::intel_npu::defer_weights_load.name());
+    remove_unused_property(ov::intel_npu::run_inferences_sequentially.name());
+    remove_unused_property(ov::workload_type.name());
+    remove_unused_property(ov::intel_npu::turbo.name());
+    remove_unused_property(ov::weights_path.name());
+    remove_unused_property(ov::hint::model.name());
+    remove_unused_property(ov::intel_npu::bypass_umd_caching.name());
+    remove_unused_property(ov::intel_npu::disable_version_check.name());
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix

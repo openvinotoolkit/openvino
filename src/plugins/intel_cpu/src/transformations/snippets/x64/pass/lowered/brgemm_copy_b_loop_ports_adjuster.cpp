@@ -8,7 +8,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::pass {
 
 BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                                            const CPURuntimeConfigurator* configurator)
@@ -47,4 +47,4 @@ bool BrgemmCopyBLoopPortsAdjuster::run(const snippets::lowered::LinearIR& linear
     return true;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::pass

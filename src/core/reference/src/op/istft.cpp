@@ -33,20 +33,28 @@ void istft(const float* in_data,
     const auto num_frames = data_shape[frames_axis];
 
     const auto signal_length = (num_frames - 1) * frame_step + frame_size;
-    const int64_t final_signal_length = length > 0 ? length : (center ? (signal_length - frame_size) : signal_length);
+    const int64_t final_signal_length =
+        length > 0 ? length : (center ? (signal_length - (frame_size & ~1)) : signal_length);
     std::fill(final_result, final_result + batch_size * final_signal_length, 0.f);
 
     std::vector<float> mid_result(batch_size * signal_length, 0.f);
     float* result = mid_result.data();
 
+    const auto fft_results_dim = data_shape[data_shape.size() - 3];
+    OPENVINO_ASSERT(fft_results_dim == static_cast<size_t>((frame_size / 2) + 1));
+
     const auto frame_size_dim = static_cast<size_t>(frame_size);
     const auto frame_size_dim_shape = Shape{frame_size_dim};
     const auto frame_size_dim_shape_out = Shape{frame_size_dim, 2};
-    const auto fft_out_shape = Shape{static_cast<size_t>((frame_size_dim / 2) + 1), 2};
+    const auto fft_out_shape = Shape{fft_results_dim, 2};
 
     const auto window_length = window_shape[0] < frame_size_dim ? window_shape[0] : frame_size_dim;
     std::vector<float> pad_window(frame_size, 0);
     std::copy(window, window + window_shape[0], pad_window.begin() + (frame_size_dim - window_length) / 2);
+    std::vector<float> pow_window(frame_size, 0);
+    std::transform(pad_window.begin(), pad_window.end(), pow_window.begin(), [](float win_val) {
+        return win_val * win_val;
+    });
 
     std::vector<float> data_t(in_data, in_data + shape_size(data_shape));
     const auto stft_transp_out_shape = Shape{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]};
@@ -90,9 +98,7 @@ void istft(const float* in_data,
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
             const auto in_frame_start = batch_in_start + frame_idx * fft_out_shape_size;
             const auto in_frame_end = in_frame_start + fft_out_shape_size;
-
             const auto out_frame_start = batch_out_start + frame_idx * frame_step;
-            const auto out_frame_end = out_frame_start + frame_size;
 
             std::vector<float> frame_data(data_t.data() + in_frame_start, data_t.data() + in_frame_end);
             reference::irdft(frame_data,
@@ -103,27 +109,23 @@ void istft(const float* in_data,
                              frame_size_dim_shape,
                              frame_size);
 
-            std::transform(frame_signal.begin(),
-                           frame_signal.end(),
-                           mid_result.begin() + out_frame_start,
-                           mid_result.begin() + out_frame_start,
-                           func::add<float>);
-
-            std::transform(window_sum.begin() + out_frame_start,
-                           window_sum.begin() + out_frame_end,
-                           pad_window.begin(),
-                           window_sum.begin() + out_frame_start,
-                           func::add<float>);
+            // Overlap Add
+            float* mid_result_sum = mid_result.data() + out_frame_start;
+            float* window_frame_sum = window_sum.data() + out_frame_start;
+            for (size_t i = 0; i < frame_signal.size(); ++i) {
+                mid_result_sum[i] += frame_signal[i] * pad_window[i];
+                window_frame_sum[i] += pow_window[i];
+            }
         }
 
-        std::transform(result, result + signal_length, window_sum.begin(), result, postprocess_func);
+        std::transform(result, result + signal_length, window_sum.begin() + batch_out_start, result, postprocess_func);
 
         const auto result_start = result + margin;
         std::copy(result_start, result_start + copy_end, final_result);
 
         batch_in_start += in_batch_single_step;
         batch_out_start += signal_length;
-        result += batch_out_start;
+        result += signal_length;
         final_result += final_signal_length;
     }
 }

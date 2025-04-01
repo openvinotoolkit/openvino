@@ -98,4 +98,6 @@ EnumNames<op::util::MulticlassNmsBase::SortResultType>::get() {
          {"none", op::util::MulticlassNmsBase::SortResultType::NONE}});
     return enum_names;
 }
+
+AttributeAdapter<op::util::MulticlassNmsBase::SortResultType>::~AttributeAdapter() = default;
 }  // namespace ov
