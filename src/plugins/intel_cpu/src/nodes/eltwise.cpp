@@ -746,7 +746,8 @@ public:
                               const float alpha,
                               const float beta,
                               const float gamma,
-                              const std::vector<ov::element::Type>& input_precisions = {}) {
+                              const ov::element::TypeVector& input_precisions = {},
+	                          const ov::element::TypeVector& output_precisions = {}) {
 #if defined(OPENVINO_ARCH_X86_64)
         const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::x64::sse41);
 #elif defined(OPENVINO_ARCH_ARM64)
@@ -783,15 +784,27 @@ public:
             return false;
         }
 
-        const std::set<ov::element::Type> supported_precisions =
+        std::set<ov::element::Type> supported_input_precisions = std::set<ov::element::Type>{ov::element::f16,
+            ov::element::f32,
+            ov::element::i32,
+            ov::element::i8,
+            ov::element::u8};
+
+        std::set<ov::element::Type> supported_output_precisions = supported_input_precisions;
+        if (one_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
+            supported_input_precisions = std::set<ov::element::Type>{ov::element::f16, ov::element::f32};
+        }
+
+        auto fusedOps = node->getFusedWith();
+        if (!fusedOps.empty()) {
             // Divide and Floor (issue #138629) operations are supported for fp32 and fp16 only.
-            ((algorithm == Algorithm::EltwiseDivide) || (algorithm == Algorithm::EltwiseFloor))
-                ? std::set<ov::element::Type>{ov::element::f16, ov::element::f32}
-                : std::set<ov::element::Type>{ov::element::f16,
-                                              ov::element::f32,
-                                              ov::element::i32,
-                                              ov::element::i8,
-                                              ov::element::u8};
+            if (one_of(fusedOps.back()->getAlgorithm(), Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
+                supported_output_precisions = std::set<ov::element::Type>{ov::element::f16, ov::element::f32};
+            }
+        } else {
+            supported_output_precisions = supported_input_precisions;
+        }
+
 #elif defined(OPENVINO_ARCH_RISCV64)
         if (!one_of(algorithm,
                     Algorithm::EltwiseAdd,
@@ -808,28 +821,28 @@ public:
             return false;
         }
 
-        const std::set<ov::element::Type> supported_precisions = {ov::element::f32,
-                                                                  ov::element::i32,
-                                                                  ov::element::i8,
-                                                                  ov::element::u8};
+        const std::set<ov::element::Type> supported_input_precisions = {ov::element::f32,
+            ov::element::i32,
+            ov::element::i8,
+            ov::element::u8};
+        auto supported_output_precisions = supported_input_precisions;
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
-        const auto check_precisions = [](const std::vector<ov::element::Type>& input_precisions,
-                                         const std::vector<ov::element::Type>& output_precisions,
-                                         const std::set<ov::element::Type>& supported_precisions) {
+        const auto check_precisions = [&](const std::vector<ov::element::Type>& input_precisions,
+                                          const std::vector<ov::element::Type>& output_precisions) {
             if (std::any_of(input_precisions.begin(),
                             input_precisions.end(),
-                            [&supported_precisions](const ov::element::Type& precision) {
-                                return supported_precisions.find(precision) == supported_precisions.end();
+                            [&supported_input_precisions](const ov::element::Type& precision) {
+                                return supported_input_precisions.find(precision) == supported_input_precisions.end();
                             })) {
                 return false;
             }
 
             if (std::any_of(output_precisions.begin(),
                             output_precisions.end(),
-                            [&supported_precisions](const ov::element::Type& precision) {
-                                return supported_precisions.find(precision) == supported_precisions.end();
+                            [&supported_output_precisions](const ov::element::Type& precision) {
+                                return supported_output_precisions.find(precision) == supported_output_precisions.end();
                             })) {
                 return false;
             }
@@ -837,7 +850,8 @@ public:
             return true;
         };
 
-        return check_precisions(input_precisions, node->getOriginalOutputPrecisions(), supported_precisions);
+        auto out_precisions = output_precisions.empty() ? node->getOriginalOutputPrecisions() : output_precisions;
+        return check_precisions(input_precisions, out_precisions);
 #endif
 
         // Unsupported architectures should return false:
