@@ -590,11 +590,7 @@ TEST_P(OVClassSetDefaultDeviceIDPropTest, SetDefaultDeviceIDNoThrow) {
     // sw plugins are not requested to support `ov::available_devices` and ` ov::device::id` property
     auto deviceIDs = ie.get_property(target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        if (target_device == "GPU" && deviceID == "1") {
-            GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
-        } else {
-            GTEST_FAIL();
-        }
+        GTEST_FAIL();
     }
     std::string value;
     OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::device::id(deviceID), ov::enable_profiling(true)));
@@ -616,11 +612,7 @@ TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
     // sw plugins are not requested to support `ov::available_devices`, `ov::device::id` and `ov::num_streams` property
     auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        if (target_device == "GPU.1") {
-            GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
-        } else {
-            GTEST_FAIL() << "No DeviceID" << std::endl;
-        }
+        GTEST_FAIL() << "No DeviceID" << std::endl;
     }
     auto device_name = [&clear_target_device] (const std::string& id) {
         return clear_target_device + "." + id;
@@ -659,11 +651,7 @@ TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
     if (!sw_plugin_in_target_device(target_device)) {
         auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
         if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-            if (target_device == "GPU.1") {
-                GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
-            } else {
-                GTEST_FAIL() << "No DeviceID" << std::endl;
-            }
+            GTEST_FAIL() << "No DeviceID" << std::endl;
         }
     }
 
@@ -710,11 +698,7 @@ TEST_P(OVSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
     if (!sw_plugin_in_target_device(target_device)) {
         auto deviceIDs = ie.get_property(cleartarget_device, ov::available_devices);
         if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-            if (target_device == "GPU.1") {
-                GTEST_SKIP() << "Skip this test, because number available gpus is 1 and test check properties of GPU.1";;
-            } else {
-                GTEST_FAIL();
-            }
+            GTEST_FAIL();
         }
     }
 
