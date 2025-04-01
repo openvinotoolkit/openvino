@@ -38,7 +38,7 @@ may lower the accuracy for performance reasons (**PERFORMANCE mode**)
   values obtained during training, based on the device’s actual capabilities.
   For example, if the device supports both ``f16`` and ``f32``, and the model is created for
   ``f16``, the network will execute in ``f16``. Similarly, if the model is created for ``f32``,
-  the network will execute in f32.
+  the network will execute in ``f32``.
   Additionally, :ref:`Dynamic Quantization <enabling-runtime-optimizations>` is disabled in this mode.
 * In **PERFORMANCE mode**, the device can convert to smaller data types and apply other
   optimizations that may have some impact on accuracy rates, although we still try to
