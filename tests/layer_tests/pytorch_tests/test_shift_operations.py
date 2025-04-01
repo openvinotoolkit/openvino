@@ -73,8 +73,7 @@ class TestBitwiseShiftFunctions(PytorchLayerTest):
                     # torch.bitwise_right_shift(lhs, rhs) - temporarily disable
                 )
 
-        ref_net = None
-        return aten_bitwise_shift(), ref_net, ("aten::bitwise_left_shift", "aten::bitwise_right_shift")
+        return aten_bitwise_shift(), None, ("aten::bitwise_left_shift",)  # "aten::bitwise_right_shift")
 
     @pytest.mark.nightly
     @pytest.mark.precommit
