@@ -33,11 +33,13 @@ Execution Mode
 the best accuracy (**ACCURACY mode**) or if the device can do some optimizations that
 may lower the accuracy for performance reasons (**PERFORMANCE mode**)
 
-* In **ACCURACY mode**, the device cannot convert floating point tensors to a smaller
-  floating point type, so devices try to keep the accuracy metrics as close as possible to
-  the original values obtained after training relative to the device's real capabilities.
-  This means that most devices will infer with ``f32`` precision if your device supports it.
-  In this mode, the :ref:`Dynamic Quantization <enabling-runtime-optimizations>` is disabled.
+* In **ACCURACY mode**, the device does not convert floating-point tensors to a smaller
+  floating-point type. This ensures that the accuracy metrics remain close to the original
+  values obtained during training, based on the device’s actual capabilities.
+  For example, if the device supports both ``f16`` and ``f32``, and the model is created for
+  ``f16``, the network will execute in ``f16``. Similarly, if the model is created for ``f32``,
+  the network will execute in f32.
+  Additionally, :ref:`Dynamic Quantization <enabling-runtime-optimizations>` is disabled in this mode.
 * In **PERFORMANCE mode**, the device can convert to smaller data types and apply other
   optimizations that may have some impact on accuracy rates, although we still try to
   minimize accuracy loss and may use mixed precision execution in some cases.
@@ -79,15 +81,8 @@ Inference Precision
 to specify the exact precision the user wants, but is less portable. For example, CPU
 supports ``f32`` inference precision and ``bf16`` on some platforms, GPU supports ``f32``
 and ``f16``, so if a user wants to an application that uses multiple devices, they have
-to handle all these combinations manually or let OV do it automatically by using higher
+to handle such cases manually. So if possible, it is generally recommended to use high
 level ``execution_mode`` property.
-
-.. note::
-
-   When using ``execution_mode``, you need to be aware that using **ACCURACY mode**
-   will result in enabling ``f32`` inference precision, but it will also disable
-   :ref:`dynamic quantization <enabling-runtime-optimizations>`. This may highly affect
-   inference performance (esp. on the Intel® Xeon® platforms and Intel® GPU devices)
 
 Another thing is that ``inference_precision`` is also a hint, so the value provided is not guaranteed
 to be used by Runtime (mainly in cases where the current device does not have the required hardware
