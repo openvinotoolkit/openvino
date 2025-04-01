@@ -7,6 +7,9 @@ concurrency:
 
 permissions: read-all
 
+env:
+  CMAKE_POLICY_VERSION_MINIMUM: '3.5' # w/a for cmake >= 4.0
+
 jobs:
   clang-format:
     runs-on: ubuntu-22.04
