@@ -411,26 +411,3 @@ class CommitSliderTest(TestCase):
         actualMatch = [tuple([fileList1.index(v[0]), fileList2.index(v[1])]) for v in curMatch]
         diff = set(expectedMatch).difference(set(actualMatch))
         self.assertEqual(diff, set())
-    
-    @skip_commit_slider_devtest
-    def testCachedBlobMatching(self):
-        from utils.helpers import getBlobMatch, trimFileNameByCommitHash
-        fileList1 = [
-            "c_hash1_#001_Some_node_type_1.ieb",
-            "c_hash1_#002_Some_node_type_2.ieb",
-            "c_hash1_#003_Some_node_type_3.ieb",
-            "c_hash1_#004_Some_node_type_4.ieb",
-            "c_hash1_#005_Some_node_type_5.ieb"]
-        fileList2 = [
-            "c_hash2_#006_Some_changed_node_type_1.ieb",
-            "c_hash2_#007_Some_changed_node_type_3.ieb",
-            "c_hash2_#008_Some_changed_node_type_2.ieb",
-            "c_hash2_#008_Some_changed_node_type_5.ieb",
-            "c_hash2_#008_Some_changed_node_type_4.ieb"
-        ]
-        expectedMatch = [
-            tuple([0, 0]), tuple([1, 2]), tuple([2, 1]), tuple([3, 4]), tuple([4, 3])]
-        curMatch = getBlobMatch(fileList1, fileList2, "c_hash1", "c_hash2")
-        actualMatch = [tuple([fileList1.index(v[0]), fileList2.index(v[1])]) for v in curMatch]
-        diff = set(expectedMatch).difference(set(actualMatch))
-        self.assertEqual(diff, set())

@@ -631,7 +631,6 @@ class CompareBlobsMode(Mode):
             raise CashError("Commit already cashed")
         else:
             fileList = os.listdir(self.outDir)
-            # raise Exception(fileList)
             # we look for just created output file
             for filename in fileList:
                 isDump = True if self.autoMatch else re.search(self.outFileNamePattern, filename)

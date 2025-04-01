@@ -439,7 +439,7 @@
                 "mode" : "compareBlobs",
                 "traversal" : "firstFailedVersion",
                 "outputFileNamePattern" : "(.)*some_blob.txt$",
-                "outputDirectory" : "/home/ygayda/Documents/ov/ttmp/",
+                "outputDirectory" : "{buildPath}",
                 "limit" : 0.00
             }
         }
