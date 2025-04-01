@@ -8,24 +8,27 @@
 #include <algorithm>
 #include <stack>
 
-own::ade::Nodes own::ade::Node::srcNodes() const {
-    own::ade::Nodes src_nodes;
-    src_nodes.reserve(m_src_edges.size());
-    std::transform(m_src_edges.begin(),
-                   m_src_edges.end(),
-                   std::back_inserter(src_nodes),
-                   [](own::ade::EdgeHandle edge) {
-                       return edge->srcNode();
-                   });
-    // FIXME: this was introduced to make the graph
-    // the same every run when created the same way.
-    // FIXME: cache this information
-    std::sort(src_nodes.begin(), src_nodes.end(), [&](const own::ade::NodeHandle& a, const own::ade::NodeHandle& b) {
-        auto locked_graph = m_graph.lock();
-        return locked_graph->meta(a).get<detail::CreateIdx>().m_idx <
-               locked_graph->meta(b).get<detail::CreateIdx>().m_idx;
-    });
-    return src_nodes;
+own::ade::Nodes own::ade::Node::srcNodes() {
+    if (src_nodes_cache_dirty) {
+        own::ade::Nodes src_nodes;
+        src_nodes.reserve(m_src_edges.size());
+        std::transform(m_src_edges.begin(),
+                       m_src_edges.end(),
+                       std::back_inserter(src_nodes),
+                       [](own::ade::EdgeHandle edge) {
+                           return edge->srcNode();
+                       });
+        std::sort(src_nodes.begin(),
+                  src_nodes.end(),
+                  [&](const own::ade::NodeHandle& a, const own::ade::NodeHandle& b) {
+                      auto locked_graph = m_graph.lock();
+                      return locked_graph->meta(a).get<detail::CreateIdx>().m_idx <
+                             locked_graph->meta(b).get<detail::CreateIdx>().m_idx;
+                  });
+        cached_src_nodes = src_nodes;
+        src_nodes_cache_dirty = false;
+    }
+    return cached_src_nodes;
 }
 
 own::ade::Nodes own::ade::Node::dstNodes() const {
@@ -61,6 +64,7 @@ own::ade::NodeHandle own::ade::Graph::create() {
     own::ade::NodeHandle nh(node);
     m_nodes.emplace(node.get(), MetaPtr<own::ade::Node>{node, own::ade::Meta{}});
     this->meta(nh).set(detail::CreateIdx{m_create_idx++});
+
     return nh;
 }
 
@@ -81,6 +85,7 @@ void own::ade::Graph::remove(own::ade::EdgeHandle eh) {
     auto dst = eh->dstNode();
     src->m_dst_edges.erase(eh);
     dst->m_src_edges.erase(eh);
+    dst->src_nodes_cache_dirty = true;
     m_edges.erase(eh.get());
 }
 
@@ -90,6 +95,7 @@ own::ade::EdgeHandle own::ade::Graph::link(own::ade::NodeHandle src, own::ade::N
     m_edges.emplace(edge.get(), MetaPtr<own::ade::Edge>{edge, own::ade::Meta{}});
     src->m_dst_edges.insert(eh);
     dst->m_src_edges.insert(eh);
+    dst->src_nodes_cache_dirty = true;
     return eh;
 }
 
