@@ -60,8 +60,7 @@ bool pass::AnalyzeBroadcastableInputs::run_on_model(const std::shared_ptr<ov::Mo
                     OPENVINO_ASSERT(constant, "Unsupported order node of Transpose");
                     order = constant->cast_vector<size_t>();
                     if (order.empty()) {
-                        order.resize(transpose->get_output_partial_shape(0).size());
-                        std::iota(order.rbegin(), order.rend(), 0);
+                        order = utils::get_planar_layout(transpose->get_output_partial_shape(0).size());
                     }
                     // `processing_dim_idx` starts from the end
                     processing_dim_idx = order.size() - 1 - ov::snippets::utils::get_input_dim_idx(order, processing_dim_idx);
