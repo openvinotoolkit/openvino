@@ -4,6 +4,7 @@
 import numpy as np
 import pytest
 import torch
+from numpy.random import randint, randn
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -17,9 +18,9 @@ class aten_isin(torch.nn.Module):
 
 
 class TestIsin(PytorchLayerTest):
-    def _prepare_input(self, in_type, scalar):
-        elements = np.concatenate([np.ones(2), np.random.randn(5)]).astype(in_type)
-        test_elements = np.ones([20, 20]).astype(in_type)
+    def _prepare_input(self, in_type, inputs, scalar):
+        elements = inputs[0].astype(in_type)
+        test_elements = inputs[1].astype(in_type)
         if scalar == 0:
             elements = np.ones(1).astype(in_type)
         elif scalar == 1:
@@ -38,10 +39,20 @@ class TestIsin(PytorchLayerTest):
         ],
     )
     @pytest.mark.parametrize("scalar", [0, 1, -1])
+    @pytest.mark.parametrize(
+        "inputs",
+        [
+            (np.concatenate([np.ones(2), randn(5)]), np.ones([20, 20])),
+            (randint(-10, 10, (10,)), randint(-10, 10, (10, 10))),
+            (randint(-10, 10, (10, 5)), randint(-10, 10, (3, 10, 3))),
+        ],
+    )
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    def test_isin(self, invert, in_type, scalar, ie_device, precision, ir_version):
+    def test_isin(
+        self, invert, in_type, inputs, scalar, ie_device, precision, ir_version
+    ):
         self._test(
             aten_isin(invert),
             None,
@@ -49,5 +60,9 @@ class TestIsin(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"in_type": in_type, "scalar": scalar},
+            kwargs_to_prepare_input={
+                "in_type": in_type,
+                "inputs": inputs,
+                "scalar": scalar,
+            },
         )
