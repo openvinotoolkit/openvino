@@ -478,7 +478,7 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
             pigz -dc openvino_package.tar.gz | tar -xf - -C ${{ env.INSTALL_DIR }}
-            pigz -dc developer_package.tar.gz | tar -xf - -C ${{ env.OPENVINO_DEVELOPER_PACKAGE }}
+            mkdir -p ${{ env.OPENVINO_DEVELOPER_PACKAGE }} && pigz -dc developer_package.tar.gz | tar -xf - -C ${{ env.OPENVINO_DEVELOPER_PACKAGE }}
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Clone OpenVINO Contrib
