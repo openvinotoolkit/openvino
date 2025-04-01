@@ -197,6 +197,7 @@ OP_CONVERTER(translate_permute);
 OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pixel_shuffle);
 OP_CONVERTER(translate_pixel_unshuffle);
+OP_CONVERTER(translate_polar);
 OP_CONVERTER(translate_pow);
 OP_CONVERTER(translate_prod);
 OP_CONVERTER(translate_pythonop);
@@ -209,6 +210,7 @@ OP_CONVERTER(translate_quantized_mul);
 OP_CONVERTER(translate_range_length);
 OP_CONVERTER(translate_rad2deg);
 OP_CONVERTER(translate_rand);
+OP_CONVERTER(translate_randperm);
 OP_CONVERTER(translate_randn);
 OP_CONVERTER(translate_randint);
 OP_CONVERTER(translate_rand_like);
@@ -636,6 +638,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::pixel_shuffle", op::translate_pixel_shuffle},
         {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
         {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
+        {"aten::polar", op::translate_polar},
         {"aten::pow", op::translate_pow},
         {"aten::pow_", op::translate_pow},
         {"aten::prod", op::translate_prod},
@@ -643,6 +646,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
         {"aten::rad2deg", op::translate_rad2deg},
         {"aten::rand", op::translate_rand},
+        {"aten::randperm", op::translate_randperm},
         {"aten::rand_like", op::translate_rand_like},
         {"aten::randint", op::translate_randint},
         {"aten::randn", op::translate_randn},
