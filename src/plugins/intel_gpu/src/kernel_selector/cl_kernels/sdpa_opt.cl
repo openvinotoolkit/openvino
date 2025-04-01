@@ -894,7 +894,7 @@ KERNEL(sdpa_opt)(
     // SLM buffers for SoftMax calculation and qk_max/qk_sums results aggregation across all WGs
 #if IS_FLASHATTEN_V2
     __local SOFTMAX_ACCUMULATOR_TYPE slm_qk_max_vals[TARGET_SEQ_LEN_BLOCK_SIZE][SUBGROUPS_PER_WG];
-#if else
+#else
     __local SOFTMAX_ACCUMULATOR_TYPE slm_qk_max_vals[SUBGROUPS_PER_WG][TARGET_SEQ_LEN_BLOCK_SIZE];
     __local SOFTMAX_ACCUMULATOR_TYPE slm_exp_sum_vals[SUBGROUPS_PER_WG * TARGET_SEQ_LEN_BLOCK_SIZE];
 #endif
@@ -1023,7 +1023,7 @@ KERNEL(sdpa_opt)(
         const uint partition_seq_len = min((uint)SOURCE_SEQ_LEN - start_partition_idx, (uint)SEQ_LEN_PARTITION_SIZE);
 #endif
 
-MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZERO;
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZERO;
 #if IS_CAUSAL
         if (seq_len <= target_seq_idx) { // keep tril i.e. m >= n
 #endif
@@ -1181,53 +1181,52 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
                 }
             }
 
+            // softmax_scale
             {
                 SOFTMAX_ACCUMULATOR_TYPE qk_max = SOFTMAX_ACCUMULATOR_VAL_MIN;
                 unroll_for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
 #if IS_CAUSAL
-                // casual mask: valid only if m >= n
+                    // casual mask: valid only if m >= n
 #if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-                if ((seq_len + i <= target_seq_idx + sglid) && (target_seq_idx + sglid < SLIDING_WINDOW_SIZE || seq_len + i >= target_seq_idx + sglid - SLIDING_WINDOW_SIZE)) {
+                    if ((seq_len + i <= target_seq_idx + sglid) && (target_seq_idx + sglid < SLIDING_WINDOW_SIZE || seq_len + i >= target_seq_idx + sglid - SLIDING_WINDOW_SIZE)) {
 #else
-                if (seq_len + i <= target_seq_idx + sglid) {
+                    if (seq_len + i <= target_seq_idx + sglid) {
 #endif
 #endif  // IS_CAUSAL
 #if !APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
-                    const OUTPUT_TYPE scale_val = *scale;
+                        const OUTPUT_TYPE scale_val = *scale;
 #else
-                    const OUTPUT_TYPE scale_val = TO_OUTPUT_TYPE(STATIC_SCALE_VALUE);
+                        const OUTPUT_TYPE scale_val = TO_OUTPUT_TYPE(STATIC_SCALE_VALUE);
 #endif
-                    qk_acc[i] *= scale_val;
+                        qk_acc[i] *= scale_val;
 #endif // !APPLY_SCALES_TO_QUERY
 
 #ifdef HAS_ALIBI
-                    const int alibi_val = (1 - SOURCE_SEQ_LEN) + seq_len + i;
-                    qk_acc[i] += alibi_slopes[num_heads_dim] * alibi_val;
+                        const int alibi_val = (1 - SOURCE_SEQ_LEN) + seq_len + i;
+                        qk_acc[i] += alibi_slopes[num_heads_dim] * alibi_val;
 #endif
 
-                    qk_acc[i] = INPUT0_MIN_FUNC(INPUT0_MAX_FUNC(qk_acc[i], INPUT0_VAL_MIN), INPUT0_VAL_MAX);
+                        qk_acc[i] = INPUT0_MIN_FUNC(INPUT0_MAX_FUNC(qk_acc[i], INPUT0_VAL_MIN), INPUT0_VAL_MAX);
 #if IS_CAUSAL
-                } else {
-                    qk_acc[i] = INPUT0_VAL_MIN;
-                }
+                    } else {
+                        qk_acc[i] = INPUT0_VAL_MIN;
+                    }
 #endif  // IS_CAUSAL
                     qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]));
 #if IS_FLASHATTEN_V2
                     slm_qk_vals[sglid][sgid * TARGET_SEQ_LEN_BLOCK_SIZE + i] = qk_acc[i];
 #endif
-                }
+                } // unroll_for
+                {
 #if IS_FLASHATTEN_V2
-                slm_qk_max_vals[sglid][sgid] = qk_max;
+                    slm_qk_max_vals[sglid][sgid] = qk_max;
+#else
+                    slm_qk_max_vals[sgid][sglid] = qk_max;
+                    qk_max = SOFTMAX_ACCUMULATOR_VAL_MIN;  // sounds no need to reset?
 #endif
-            }
-
-#if !IS_FLASHATTEN_V2
-            {
-                slm_qk_max_vals[sgid][sglid] = qk_max;
-                qk_max = SOFTMAX_ACCUMULATOR_VAL_MIN;
-            }
-#endif
+                }
+            } // end of softmax_scale
 #if IS_CAUSAL
         } else { // skip triu
 #if IS_FLASHATTEN_V2
@@ -1236,7 +1235,7 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
             slm_qk_max_vals[sgid][sglid] = SOFTMAX_ACCUMULATOR_VAL_MIN;
 #endif
         }
-#endif
+#endif // IS_CAUSAL
 
         barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -1631,9 +1630,9 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
         // debug
         if (seq_idx_end == 13 && b0_idx == 0 & b1_idx == 0 && sglid == 0 && sgid == 0) // the last block
         {
-            printf("OPT[%d %d] start_partition_idx=%d, m=%f, l=%f, O=%f, Q*K=%f, softmax=%f, update_factor=%f\n", sgid, sglid,
+            printf("OPT[%d %d] start_partition_idx=%d, m=%f, l=%f, O=%f, Q*K=%f, softmax=%f\n", sgid, sglid,
                 start_partition_idx/SEQ_LEN_PARTITION_SIZE, slm_max_val_prev[seq_idx_end-1], slm_exp_sum_prev[seq_idx_end-1],
-                output_acc[seq_idx_end-1], slm_qk_vals[(seq_idx_end-1)][0], slm_qk_vals[(seq_idx_end-1)][0]/slm_exp_sum_prev[seq_idx_end-1], slm_update_factor[seq_idx_end-1]);
+                output_acc[seq_idx_end-1], slm_qk_vals[(seq_idx_end-1)][0], slm_qk_vals[(seq_idx_end-1)][0]/slm_exp_sum_prev[seq_idx_end-1]);
             for (uint j = 0; j < TARGET_SEQ_LEN_BLOCK_SIZE; j++) {
                 for (uint i = 0; i < SEQ_LEN_PARTITION_SIZE; i++)
                     printf("%f,", slm_qk_vals[j][i]);
