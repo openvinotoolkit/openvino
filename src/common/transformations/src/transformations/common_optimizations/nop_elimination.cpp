@@ -662,18 +662,17 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 ov::as_type_ptr<ov::op::v0::Concat>(slice_node->get_users()[0])->get_axis() == concat_axis) {
                 auto next_concat = ov::as_type_ptr<ov::op::v0::Concat>(slice_node->get_users()[0]);
                 auto next_concat_inputs = next_concat->input_values();
-                std::vector<std::shared_ptr<Node>> new_next_concat_inputs{};
+                ov::OutputVector output_vector{};
                 for (const auto& t : next_concat_inputs) {
                     if (t.get_node_shared_ptr() == slice_node) {
                         for (const auto& need_insert : new_concat_in_nodes) {
-                            new_next_concat_inputs.push_back(need_insert);
+                            output_vector.push_back(need_insert);
                         }
-                        continue;
+                    } else {
+                        output_vector.push_back(t);
                     }
-                    new_next_concat_inputs.push_back(t.get_node_shared_ptr());
                 }
-                auto new_next_concat_node =
-                    next_concat->clone_with_new_inputs(ov::as_output_vector(new_next_concat_inputs));
+                auto new_next_concat_node = next_concat->clone_with_new_inputs(output_vector);
                 replace_output_update_name(next_concat, new_next_concat_node);
             } else {
                 std::vector<std::shared_ptr<Node>> new_slice_in_nodes{};
