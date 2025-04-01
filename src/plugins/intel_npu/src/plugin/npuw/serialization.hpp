@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -15,10 +16,18 @@
 #include <unordered_set>
 #include <vector>
 
-const constexpr std::array<uint8_t, 6> NPUW_SERIALIZATION_INDICATOR =
+namespace ov {
+namespace npuw {
+namespace s11n {
+using IndicatorType = std::array<uint8_t, 6>;
+}  // namespace s11n
+}  // namespace npuw
+}  // namespace ov
+
+const constexpr ov::npuw::s11n::IndicatorType NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.1";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.2";
 
 // Forward declaration
 namespace intel_npu {
@@ -36,6 +45,8 @@ class Output;
 template <class>
 class SharedBuffer;
 class MappedMemory;
+class Model;
+enum class CacheMode;
 namespace element {
 class Type;
 }
@@ -59,15 +70,41 @@ class LazyTensor;
 
 namespace s11n {
 
-struct Context {
-    explicit Context(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset)
-        : is_weightless(_is_weightless),
-          const_to_offset(_const_to_offset) {}
-    bool is_weightless;
-    const std::unordered_map<const void*, std::size_t>& const_to_offset;
+using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
+
+struct EncryptContext {
+    explicit EncryptContext(bool _encrypted,
+                            std::function<std::string(const std::string&)> _encrypt,
+                            std::function<std::string(const std::string&)> _decrypt)
+        : encrypted(_encrypted),
+          encrypt(_encrypt),
+          decrypt(_decrypt) {}
+    bool encrypted = false;
+    std::function<std::string(const std::string&)> encrypt = nullptr;
+    std::function<std::string(const std::string&)> decrypt = nullptr;
 };
 
-using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
+struct WeightsContext {
+    struct CtxHash {
+        inline size_t operator()(const std::pair<std::size_t, std::size_t>& p) const {
+            return (std::hash<std::size_t>()(p.first) + 0x9e3779b9) ^ (std::hash<std::size_t>()(p.second) + 0x9e3779b9);
+        }
+    };
+    using ConstsCache = std::unordered_map<std::pair<std::size_t, std::size_t>, std::shared_ptr<ov::Node>, CtxHash>;
+
+    explicit WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset)
+        : is_weightless(_is_weightless),
+          const_to_offset(_const_to_offset) {}
+
+    explicit WeightsContext(const ov::npuw::s11n::Weights& _weights, const ConstsCache& _consts_cache)
+        : weights(_weights),
+          consts_cache(_consts_cache) {}
+
+    bool is_weightless;
+    std::unordered_map<const void*, std::size_t> const_to_offset;
+    ov::npuw::s11n::Weights weights = nullptr;
+    ConstsCache consts_cache;
+};
 
 // Specific type overloads
 void write(std::ostream& stream, const std::streampos& var);
@@ -80,6 +117,7 @@ void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
 void write_any(std::ostream& stream, const ov::Any& var);
 void write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var);
+void write(std::ostream& stream, const ov::CacheMode& var);
 void write(std::ostream& stream, const ov::element::Type& var);
 
 void read(std::istream& stream, std::streampos& var);
@@ -93,12 +131,13 @@ void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
 void read(std::istream& stream, std::shared_ptr<ov::Node>& var);
 void read_any(std::istream& stream, ov::Any& var);
 void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
+void read(std::istream& stream, ov::CacheMode& var);
 void read(std::istream& stream, ov::element::Type& var);
 
 // Weightless utils
-void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx);
+void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const WeightsContext& ctx);
 // No allocation needed
-void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const Weights& weights);
+void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const WeightsContext& ctx);
 
 // Forward declaration
 template <typename T1, typename T2>

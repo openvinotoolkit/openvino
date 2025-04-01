@@ -86,7 +86,7 @@ private:
     }
 
     inline const size_t getBatchVolume(const std::vector<int>& batchShape) {
-        return std::accumulate(begin(batchShape), end(batchShape), 1, std::multiplies<size_t>());
+        return std::accumulate(begin(batchShape), end(batchShape), 1, std::multiplies<>());
     }
     bool withBatchShape = false;
 };

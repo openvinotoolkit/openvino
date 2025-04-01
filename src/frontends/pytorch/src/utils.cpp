@@ -106,7 +106,13 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
                                                       const Output<Node>& x,
                                                       bool as_scalar,
                                                       element::Type output_type) {
-    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, output_type));
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
+    Output<Node> shape;
+    if (complex_type_mark) {
+        shape = get_complex_shape(context, complex_type_mark->get_data());
+    } else {
+        shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, output_type));
+    }
     Output<Node> rank = context.mark_node(std::make_shared<v3::ShapeOf>(shape, output_type));
     if (as_scalar) {
         auto axis_0 = context.mark_node(v0::Constant::create(output_type, Shape{}, {0}));
@@ -209,12 +215,17 @@ const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{
     {5, element::f16},
     {6, element::f32},
     {7, element::f64},
+    {8, element::f16},   // complex32
+    {9, element::f32},   // complex64
+    {10, element::f64},  // complex128
     {11, element::boolean},
     {12, element::i8},   // quantized i8
     {13, element::u8},   // quantized u8
     {14, element::i32},  // quantized i32
     {15, element::bf16},
 };
+
+const std::vector<int64_t> COMPLEX_TYPE = {8, 9, 10};
 
 const std::unordered_map<std::string, PadType> TORCH_AUTO_PAD_TO_OV{{"valid", PadType::VALID},
                                                                     {"same", PadType::SAME_UPPER}};
@@ -223,6 +234,10 @@ const std::unordered_map<std::string, PadType> TORCH_AUTO_PAD_TO_OV{{"valid", Pa
 element::Type convert_dtype(int64_t pt_type) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type: ", pt_type);
     return TORCH_TO_OV_TYPE.at(pt_type);
+};
+
+bool is_complex_dtype(int64_t pt_type) {
+    return std::find(COMPLEX_TYPE.begin(), COMPLEX_TYPE.end(), pt_type) != COMPLEX_TYPE.end();
 };
 
 Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
@@ -472,6 +487,15 @@ void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& rhs,
                                const bool& is_lhs_python_scalar,
                                const bool& is_rhs_python_scalar) {
+    auto lhs_complex = as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr());
+    auto rhs_complex = as_type_ptr<ComplexTypeMark>(rhs.get_node_shared_ptr());
+    if (lhs_complex) {
+        lhs = lhs_complex->input_value(0);
+    }
+    if (rhs_complex) {
+        rhs = rhs_complex->input_value(0);
+    }
+
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
     auto const_0 = v0::Constant::create(element::i32, Shape{}, {1});
@@ -506,6 +530,14 @@ void align_eltwise_input_types(const NodeContext& context,
             rhs = context.mark_node(std::make_shared<v0::Convert>(rhs, dst_type));
         }
     }
+
+    if (lhs_complex) {
+        lhs = ComplexTypeMark::convert_like(context, lhs_complex, lhs);
+    }
+    if (rhs_complex) {
+        rhs = ComplexTypeMark::convert_like(context, rhs_complex, rhs);
+    }
+
     return;
 }
 

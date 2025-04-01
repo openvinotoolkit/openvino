@@ -119,12 +119,12 @@ bool Broadcast::needPrepareParams() const {
 void Broadcast::prepareParams() {
     if (!constMap[TARGET_SHAPE_IDX]) {
         const auto& targetShapeMem = getParentEdgeAt(TARGET_SHAPE_IDX)->getMemory();
-        const int32_t* targetShapeData = targetShapeMem.getDataAs<const int32_t>();
+        const auto* targetShapeData = targetShapeMem.getDataAs<const int32_t>();
         targetShape.assign(targetShapeData, targetShapeData + targetShapeMem.getStaticDims()[0]);
     }
     if (broadcastType == EXPLICIT && !constMap[AXES_MAPPING_IDX]) {
         const auto& axesMapMem = getParentEdgeAt(AXES_MAPPING_IDX)->getMemory();
-        const int32_t* axesMapData = axesMapMem.getDataAs<const int32_t>();
+        const auto* axesMapData = axesMapMem.getDataAs<const int32_t>();
         axesMapping.assign(axesMapData, axesMapData + axesMapMem.getStaticDims()[0]);
     }
 
@@ -165,7 +165,7 @@ bool Broadcast::needShapeInfer() const {
         if (targetShape.empty()) {
             return true;
         }
-        const int32_t* targetShapeData = getSrcDataAtPortAs<const int32_t>(TARGET_SHAPE_IDX);
+        const auto* targetShapeData = getSrcDataAtPortAs<const int32_t>(TARGET_SHAPE_IDX);
         for (size_t i = 0lu; i < targetShape.size(); i++) {
             if (targetShape[i] != targetShapeData[i]) {
                 return true;
@@ -176,7 +176,7 @@ bool Broadcast::needShapeInfer() const {
         if (axesMapping.empty()) {
             return true;
         }
-        const int32_t* axesMappingData = getSrcDataAtPortAs<const int32_t>(AXES_MAPPING_IDX);
+        const auto* axesMappingData = getSrcDataAtPortAs<const int32_t>(AXES_MAPPING_IDX);
         for (size_t i = 0lu; i < axesMapping.size(); i++) {
             if (axesMapping[i] != axesMappingData[i]) {
                 return true;

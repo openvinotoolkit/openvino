@@ -9,6 +9,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/reorder.h"
+#include "utils/bfloat16.hpp"
 #include "utils/debug_capabilities.h"
 #if defined(__linux__)
 #    include <sys/syscall.h> /* Definition of SYS_* constants */
@@ -30,19 +31,44 @@ BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
 }
 
 namespace {
-inline void setSubnormalsToZero(float* data, size_t size) {
-    uint32_t* u32data = reinterpret_cast<uint32_t*>(data);
-    for (size_t i = 0; i < size; ++i) {
-        if ((u32data[i] & (0xFF << 23)) == 0) {
-            u32data[i] = 0;
+inline void setSubnormalsToZeroAndbf16Saturation(float* data, size_t size, bool ftz, bool bf16saturation) {
+    auto* u32data = reinterpret_cast<uint32_t*>(data);
+    auto* floatdata = reinterpret_cast<float*>(data);
+    if (ftz && bf16saturation) {
+        for (size_t i = 0; i < size; ++i) {
+            if ((u32data[i] & (0xFF << 23)) == 0) {
+                u32data[i] = 0;
+            } else if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
+                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
+                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
+                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
+                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
+                                   : floatdata[i];
+            }
+        }
+    } else if (ftz) {
+        for (size_t i = 0; i < size; ++i) {
+            if ((u32data[i] & (0xFF << 23)) == 0) {
+                u32data[i] = 0;
+            }
+        }
+    } else if (bf16saturation) {
+        for (size_t i = 0; i < size; ++i) {
+            if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
+                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
+                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
+                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
+                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
+                                   : floatdata[i];
+            }
         }
     }
 }
 
-void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
+void transferData(const IMemory& src, const IMemory& dst, bool ftz, bool bf16saturation) {
     node::Reorder::reorderData(src, dst);
 
-    if (!ftz) {
+    if (!ftz && !bf16saturation) {
         return;
     }
     if (src.getDesc().getPrecision() != ov::element::f32 || dst.getDesc().getPrecision() != ov::element::f32) {
@@ -62,7 +88,7 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
     // actual FTZ
     auto* memData = static_cast<float*>(dst.getData());
     memData += offset;
-    setSubnormalsToZero(memData, dst.getSize() / sizeof(float));
+    setSubnormalsToZeroAndbf16Saturation(memData, dst.getSize() / sizeof(float), ftz, bf16saturation);
 }
 
 }  // namespace
@@ -125,11 +151,11 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     }
 }
 
-void Memory::load(const IMemory& src, bool ftz) const {
+void Memory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
     if (src.getDesc().getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object cannot load string data.");
     }
-    transferData(src, *this, ftz);
+    transferData(src, *this, ftz, bf16saturation);
 }
 
 void Memory::nullify() {
@@ -242,6 +268,10 @@ void MemoryBlockWithReuse::free() {
     m_useExternalStorage = false;
 }
 
+size_t MemoryBlockWithReuse::size() const {
+    return m_memUpperBound;
+}
+
 void MemoryBlockWithReuse::release(void* ptr) {}
 
 void MemoryBlockWithReuse::destroy(void* ptr) {
@@ -273,12 +303,12 @@ StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* 
     }
 }
 
-void StringMemory::load(const IMemory& src, bool ftz) const {
+void StringMemory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
     if (src.getDesc().getPrecision() != element::string) {
         OPENVINO_THROW("[CPU] String memory cannot load a non-string object.");
     }
 
-    transferData(src, *this, false);
+    transferData(src, *this, false, false);
 }
 
 void* StringMemory::getData() const {
@@ -429,13 +459,16 @@ StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* dat
 
     try {
         auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_pMemDesc);
-        // ========================
         // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
         // but with ability to skip pads zeroing.
-        m_prim = dnnl::memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
-        //
-        // ========================
-        m_prim.set_data_handle(m_pMemBlock->getRawPtr());
+        const auto& memory_desc = dnnl_desc->getDnnlDesc();
+        if (memory_desc.is_zero()) {
+            // dnnl memory created using an empty memory_desc is not empty, so use a default constructor
+            m_prim = dnnl::memory();
+        } else {
+            m_prim = dnnl::memory(memory_desc, m_eng, DNNL_MEMORY_NONE);
+            m_prim.set_data_handle(m_pMemBlock->getRawPtr());
+        }
     } catch (const std::exception& exc) {
         dnnlErrorCtx = exc.what();
     }
@@ -472,11 +505,11 @@ void StaticMemory::redefineDesc(MemoryDescPtr desc) {
     OPENVINO_THROW("Unexpected: Memory descriptor may not be modified in StaticMemory object");
 }
 
-void StaticMemory::load(const IMemory& src, bool ftz) const {
+void StaticMemory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
     if (src.getDesc().getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] StaticMemory cannot load string data.");
     }
-    transferData(src, *this, ftz);
+    transferData(src, *this, ftz, bf16saturation);
 }
 
 MemoryBlockPtr StaticMemory::getMemoryBlock() const {
@@ -485,9 +518,10 @@ MemoryBlockPtr StaticMemory::getMemoryBlock() const {
 
 // oneDNN specifics for backward compatibility
 dnnl::memory StaticMemory::getPrimitive() const {
-    if (!m_prim) {
+    if (!m_prim && !getDesc().empty()) {  // for an empty memory m_prim is expected to be empty
         OPENVINO_THROW("Couldn't create dnnl::memory object: ", dnnlErrorCtx);
     }
+
     return m_prim;
 }
 
@@ -557,7 +591,7 @@ bool mbind_move(void* data, size_t size, int targetNode) {
     int realNode = ov::get_org_numa_id(targetNode);
     auto pagesize = getpagesize();
     auto page_count = (size + pagesize - 1) / pagesize;
-    char* pages = reinterpret_cast<char*>(  // NOLINT(performance-no-int-to-ptr)
+    auto* pages = reinterpret_cast<char*>(  // NOLINT(performance-no-int-to-ptr)
         ((reinterpret_cast<uintptr_t>(data)) & ~(static_cast<uintptr_t>(pagesize - 1))));
     uint64_t mask = 0;
     unsigned flags = 0;
@@ -590,6 +624,10 @@ bool mbind_move(const MemoryCPtr& mem, int numaNodeID) {
 }
 
 bool mbind_move(const dnnl::memory& mem, int numaNodeID) {
+    if (!mem) {
+        return true;
+    }
+
     void* data = mem.get_data_handle();
     auto desc = mem.get_desc();
     auto size = desc.get_size();
@@ -637,7 +675,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
     VectorDims stride_dims = dims;
     stride_dims[dim] = splited_dim_vec[0];
     size_t stride =
-        std::accumulate(stride_dims.begin(), stride_dims.end(), static_cast<size_t>(1), std::multiplies<size_t>()) *
+        std::accumulate(stride_dims.begin(), stride_dims.end(), static_cast<size_t>(1), std::multiplies<>()) *
         prec.size();
 
     // create new shape for target memory

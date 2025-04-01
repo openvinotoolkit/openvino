@@ -29,7 +29,7 @@ public:
     SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
                           const std::shared_ptr<CPURuntimeConfig>& config);
 
-    const std::shared_ptr<snippets::Schedule>& get() const {
+    [[nodiscard]] const std::shared_ptr<snippets::Schedule>& get() const {
         return schedule;
     }
 
@@ -89,7 +89,7 @@ protected:
     size_t m_internal_buffer_size = 0;
     size_t m_tensor_rank = 0;
 
-    const size_t rank6D = 6;
+    static constexpr size_t rank6D = 6;
 
     // Count of threads for parallel_nt
     int m_nthreads = 0;
@@ -105,7 +105,7 @@ public:
     virtual ~SubgraphStaticBaseExecutor() = default;
 
 protected:
-    typedef void (*kernel)(const void*, const void*);
+    using kernel = void (*)(const void*, const void*);
 
     inline void init_call_args(jit_snippets_call_args& call_args,
                                const std::vector<MemoryPtr>& srcMemPtrs,
@@ -135,7 +135,7 @@ public:
     virtual ~SubgraphDynamicSpecializedBaseExecutor() = default;
 
 protected:
-    typedef void (*dynamic_kernel)(const void*);
+    using dynamic_kernel = void (*)(const void*);
 
     inline void init_call_args(jit_snippets_call_args& call_args, size_t ithr) {
         call_args.register_loops(m_loop_args);

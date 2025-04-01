@@ -60,11 +60,17 @@ Tensor::NDims normalize_dims(const DataTensor& qkv) {
     return dims;
 }
 
-Tensor::Dim get_num_heads(const DataTensor& qkv, const std::vector<int64_t>& order) {
+Tensor::Dim get_num_heads(const sdpa_params& params, const DataTensor& qkv, const std::vector<int64_t>& order) {
+    if (params.conf.is_paged_attention)
+        return normalize_dims(qkv)[1].v / params.conf.head_size;
+
     return normalize_dims(qkv)[order[1]];
 }
 
-Tensor::Dim get_seq_length(const DataTensor& qkv, const std::vector<int64_t>& order) {
+Tensor::Dim get_seq_length(const sdpa_params& params, const DataTensor& qkv, const std::vector<int64_t>& order) {
+    if (params.conf.is_paged_attention)
+        return Tensor::Dim(params.conf.paged_attention_aligned_seq_len);
+
     return normalize_dims(qkv)[order[2]];
 }
 
@@ -139,13 +145,14 @@ sdpa_config_t xehpc_h256 = {16, 32, 32, 32, 8, 4, 8, 4};
 sdpa_config_t xehpc_h256_s64 = {16, 32, 32, 32, 8, 1, 8, 1};
 sdpa_config_t xehpc_h256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized) {
+sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa) {
     if (head_size <= 32) {
         if (quantized && seq >= 128) {
             if (thin_q) return &xehpg_q_h32_2nd;
             return &xehpg_q_h32;
         }
         if (thin_q) return &xehpg_h32_2nd;
+        if (seq <= 0 && is_pa) return &xehpg_h32;
         if (seq <= 32) return &xehpg_h32_s32;
         if (seq <= 64) return &xehpg_h32_s64;
         if (seq <= 256) return &xehpg_h32_s256;
@@ -156,6 +163,7 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             return &xehpg_q_h64;
         }
         if (thin_q) return &xehpg_h64_2nd;
+        if (seq <= 0 && is_pa) return &xehpg_h64;
         if (seq <= 64) return &xehpg_h64_s64;
         if (seq <= 128) return &xehpg_h64_s128;
         return &xehpg_h64;
@@ -172,6 +180,7 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             if (seq <= 256) return &xehpg_h128_s256_2nd;
             return &xehpg_h128_2nd;
         }
+        if (seq <= 0 && is_pa) return &xehpg_h128;
         if (seq <= 32) return &xehpg_h128_s32;
         return &xehpg_h128;
     } else if (head_size <= 256) {
@@ -180,6 +189,7 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             if (seq <= 64) return &xehpg_h256_s64_2nd;
             return &xehpg_h256_2nd;
         }
+        if (seq <= 0 && is_pa) return &xehpg_h256;
         if (seq <= 32) return &xehpg_h256_s32;
         if (seq <= 128) return &xehpg_h256_s128;
         return &xehpg_h256;
@@ -187,9 +197,10 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
     return nullptr;
 }
 
-sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized) {
+sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized, bool is_pa) {
     if (head_size <= 32) {
         if (thin_q) return &xehpc_h32_2nd;
+        if (seq <= 0 && is_pa) return &xehpc_h32;
         if (seq <= 32) return &xehpc_h32_s32;
         return &xehpc_h32;
     } else if (head_size <= 64) {
@@ -198,6 +209,7 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
             return &xehpc_h64_2nd;
         }
         if (quantized && seq >= 256) return &xehpc_q_h64;
+        if (seq <= 0 && is_pa) return &xehpc_h64;
         if (seq <= 32) return &xehpc_h64_s32;
         if (seq <= 64) return &xehpc_h64_s64;
         return &xehpc_h64;
@@ -212,11 +224,13 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
             return &xehpc_q_h128;
         }
         if (thin_q) return &xehpc_h128_2nd;
+        if (seq <= 0 && is_pa) return &xehpc_h128;
         if (seq <= 32) return &xehpc_h128_s32;
         if (seq <= 64) return &xehpc_h128_s64;
         return &xehpc_h128;
     } else if (head_size <= 256) {
         if (thin_q) return &xehpc_h256_2nd;
+        if (seq <= 0 && is_pa) return &xehpc_h256;
         if (seq <= 64) return &xehpc_h256_s64;
         return &xehpc_h256;
     }
@@ -242,9 +256,9 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     auto& out = params.outputs[0];
     const auto head_size = params.conf.head_size;
     const auto d_max = get_d_max(head_size);
-    const Tensor::Dim n_keys = get_seq_length(K, params.input1_order);
-    const Tensor::Dim n_queries = get_seq_length(Q, params.input0_order);
-    const Tensor::Dim n_values = V.X();
+    const Tensor::Dim n_keys = get_seq_length(params, K, params.input1_order);
+    const Tensor::Dim n_queries = get_seq_length(params, Q, params.input0_order);
+    const Tensor::Dim n_values = Tensor::Dim(head_size);
     const auto batch = out.Batch().v * out.Feature().v;
 
     /* Retrieve pre-tuned kernel configuration */
@@ -256,13 +270,13 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     switch (params.engineInfo.arch) {
         case gpu_arch::xe_hpg: {
-            config = choose_config_xehpg(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized);
+            config = choose_config_xehpg(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized, params.conf.is_paged_attention);
             break;
         }
         case gpu_arch::xe_hpc:
         case gpu_arch::xe2:
         case gpu_arch::xe3: {
-            config = choose_config_xehpc(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized);
+            config = choose_config_xehpc(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized, params.conf.is_paged_attention);
             break;
         }
         default: break;
@@ -415,6 +429,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
 ParamsKey SDPAKernelMicro::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::F16);
@@ -441,21 +456,16 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (params.should_use_sdpa_opt)
         return false;
 
-    if (params.conf.is_paged_attention)
-        return false;
-
     if (params.engineInfo.arch < gpu_arch::xe_hpg || !params.engineInfo.supports_microkernels)
-        return false;
-
-    if (params.conf.is_causal)
         return false;
 
     if (params.indirect_axis != -1)
         return false;
 
-    auto Q_num_heads_dim = get_num_heads(params.inputs[0], params.input0_order);
-    auto K_num_heads_dim = get_num_heads(params.inputs[1], params.input1_order);
-    auto V_num_heads_dim = get_num_heads(params.inputs[2], params.input2_order);
+    auto Q_num_heads_dim = params.conf.is_paged_attention ? params.conf.heads_num
+                                                          : get_num_heads(params, params.inputs[0], params.input0_order);
+    auto K_num_heads_dim = get_num_heads(params, params.inputs[1], params.input1_order);
+    auto V_num_heads_dim = get_num_heads(params, params.inputs[2], params.input2_order);
 
     if (params.input0_order[3] != 3 || params.input1_order[3] != 3 || params.input2_order[3] != 3)
         return false;
@@ -467,7 +477,20 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
         return false;
 
     // Do not use sdpa_micro kernel with a scalar-value mask
-    if (params.inputs.size() > 3 && !params.inputs[3].is_dynamic() && params.inputs[3].LogicalSize() == 1)
+    const auto scale_idx = params.conf.is_paged_attention ? 4lu : 3lu;
+    if (params.inputs.size() > scale_idx && !params.inputs[scale_idx].is_dynamic() && params.inputs[scale_idx].LogicalSize() == 1)
+        return false;
+
+    // Scores output is not supported
+    if (params.conf.is_paged_attention && params.outputs.size() > 1)
+        return false;
+
+    if (params.conf.is_paged_attention && params.conf.paged_attention_sliding_window != 0) {
+        return false;
+    }
+
+    // Alibi is not supported
+    if (params.conf.is_paged_attention && params.conf.has_alibi_input)
         return false;
 
     return true;
@@ -489,23 +512,32 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     auto lda = head_size * prim_params.outputs[0].ElementSize();
 
     const auto d_max = get_d_max(head_size);
-    const auto n_keys = get_seq_length(K, prim_params.input1_order);
-    const auto n_queries = get_seq_length(Q, prim_params.input0_order);
-    const auto n_values = V.X();
+    const auto n_keys = get_seq_length(params, K, prim_params.input1_order);
+    const auto n_queries = get_seq_length(params, Q, prim_params.input0_order);
+    const auto n_values = Tensor::Dim(head_size);
+
+    auto data_inputs = params.inputs.size();
+    if (params.conf.is_paged_attention)
+        data_inputs--;
 
     jit.AddConstant(MakeJitConstant("D_MAX", d_max));
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size(prim_params.engineInfo.arch)));
     jit.AddConstant(MakeJitConstant("INVERT_SCALE", false));
     jit.AddConstant(MakeJitConstant("SCALE_DATA_T", "half"));
+    jit.AddConstant(MakeJitConstant("HEAD_SIZE", head_size));
+    jit.AddConstant(MakeJitConstant("WITH_CAUSAL_MASK", params.conf.is_causal));
 
-    jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", params.inputs.size() > 3));
-    jit.AddConstant(MakeJitConstant("WITH_SCALE", params.inputs.size() > 4));
+    jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", data_inputs > 3));
+    jit.AddConstant(MakeJitConstant("WITH_SCALE", data_inputs > 4));
     jit.AddConstant(MakeJitConstant("Q_ALIGN", micro::alignment_for_ld(ldq)));
     jit.AddConstant(MakeJitConstant("K_ALIGN", micro::alignment_for_ld(ldk)));
     jit.AddConstant(MakeJitConstant("V_ALIGN", micro::alignment_for_ld(ldv)));
     jit.AddConstant(MakeJitConstant("A_ALIGN", micro::alignment_for_ld(lda)));
 
     jit.AddConstant(MakeJitConstant("TRANSPOSE_K", false));
+    jit.AddConstant(MakeJitConstant("IS_PAGED_ATTENTION", params.conf.is_paged_attention));
+    jit.AddConstant(MakeJitConstant("KV_HEADS_NUM", params.conf.kv_heads_num));
+    jit.AddConstant(MakeJitConstant("HEADS_NUM", params.conf.heads_num));
 
     jit.AddConstant(MakeJitConstant("QRY_DATA_T", toCLType(Q.GetDType())));
     jit.AddConstant(MakeJitConstant("KEY_DATA_T", toCLType(K.GetDType())));
@@ -562,8 +594,11 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     bool k_full = !n_keys.is_dynamic && (n_keys.v % tile_k) == 0;
     bool q_full = !n_queries.is_dynamic && (n_queries.v % tile_q) == 0;
 
-    auto Q_num_heads_dim = get_num_heads(Q, params.input0_order);
-    auto K_num_heads_dim = get_num_heads(K, params.input1_order);
+    // WA for PA for Qwen model as it has shape with an upper bound [?, ..134213632]
+    // instead of ordinary fused [?, HEAD_SIZE * HEADS_NUM], so read heads_num from config
+    auto Q_num_heads_dim = params.conf.is_paged_attention ? Tensor::Dim(params.conf.heads_num)
+                                                          : get_num_heads(params, params.inputs[0], params.input0_order);
+    auto K_num_heads_dim = get_num_heads(params, K, params.input1_order);
 
     jit.AddConstant(MakeJitConstant("REMAINDER_K", !k_full));
     jit.AddConstant(MakeJitConstant("KV_GROUP_SIZE", Q_num_heads_dim.v / K_num_heads_dim.v));
@@ -679,15 +714,21 @@ CommonDispatchData SDPAKernelMicro::SetDefault(const sdpa_params& params, const 
     dispatch_data.lws = {subgroup_size(params.engineInfo.arch), (size_t)sg_per_wg, 1};
     dispatch_data.gws = dispatch_data.lws;
 
-    dispatch_data.gws[0] *= CeilDiv(get_seq_length(params.inputs[0], params.input0_order).v, wg_tile_q);
-    dispatch_data.gws[1] *= params.outputs[0].Feature().v;
-    dispatch_data.gws[2] *= params.outputs[0].Batch().v;
+    auto seq_length = get_seq_length(params, params.inputs[0], params.input0_order).v;
+    auto heads_num = params.conf.is_paged_attention ? params.conf.heads_num : params.outputs[0].Feature().v;
+    auto batch_size = params.conf.is_paged_attention ? 1 : params.outputs[0].Batch().v;
+
+    dispatch_data.gws[0] *= CeilDiv(seq_length, wg_tile_q);
+    dispatch_data.gws[1] *= heads_num;
+    dispatch_data.gws[2] *= batch_size;
 
     return dispatch_data;
 }
 
 clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is_prefill) const {
     auto name = kernelName + (is_prefill ? "_prefill" : "_generate");
+    if (params.conf.is_paged_attention)
+        name = "pa_" + name;
 
     std::vector<micro::Package> gemms(2); // KQ and VS
     init_microkernels(params, gemms[kq_id], gemms[vs_id], is_prefill);
@@ -709,14 +750,23 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2}); // V
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0}); // A
 
-    if (params.inputs.size() >= 4)
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3}); // mask
-    if (params.inputs.size() >= 5)
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 4}); // Scale
 
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0}); // D
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 1}); // K
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 2}); // Q
+    if (params.conf.is_paged_attention) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3}); // subsequence_begins
+        if (params.inputs.size() >= 5)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 4}); // scale
+
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3}); // paged attention helper buffer
+    } else {
+        if (params.inputs.size() >= 4)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3}); // mask
+        if (params.inputs.size() >= 5)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 4}); // Scale
+
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0}); // D
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 1}); // K
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 2}); // Q
+    }
 
     if (params.conf.is_kv_compressed) {
         uint32_t input_idx = static_cast<uint32_t>(params.inputs.size());
@@ -732,8 +782,8 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
     const auto& Q = params.inputs[0];
     const auto& K = params.inputs[1];
 
-    const auto n_queries = get_seq_length(Q, params.input0_order);
-    const auto n_keys = get_seq_length(K, params.input1_order);
+    const auto n_queries = get_seq_length(params, Q, params.input0_order);
+    const auto n_keys = get_seq_length(params, K, params.input1_order);
 
     auto head_size = params.conf.head_size;
 
@@ -808,8 +858,8 @@ void SDPAKernelMicro::GetUpdateDispatchDataFunc(KernelData& kd) const {
         const auto& Q = prim_params.inputs[0];
         const auto& K = prim_params.inputs[1];
 
-        const auto n_queries = get_seq_length(Q, prim_params.input0_order);
-        const auto n_keys = get_seq_length(K, prim_params.input1_order);
+        const auto n_queries = get_seq_length(prim_params, Q, prim_params.input0_order);
+        const auto n_keys = get_seq_length(prim_params, K, prim_params.input1_order);
 
         auto head_size = prim_params.conf.head_size;
 
@@ -845,12 +895,37 @@ void SDPAKernelMicro::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kernel_data.kernels[target_kernel].params.scalars.push_back(s_d);
         kernel_data.kernels[target_kernel].params.scalars.push_back(s_k);
         kernel_data.kernels[target_kernel].params.scalars.push_back(s_q);
+
+        if (prim_params.conf.is_paged_attention) {
+            const auto indexes_dt = Datatype::INT32;
+            const auto wg_tile_q = GetTileQSize(kernel_data);
+            const auto target_seq_len = std::max(prim_params.conf.paged_attention_aligned_seq_len, static_cast<int64_t>(1));
+            const auto indexes_buf_size = CeilDiv(target_seq_len, wg_tile_q) * BytesPerElement(indexes_dt) * 2;
+
+            kernel_data.internalBuffers.clear();
+            kernel_data.internalBufferDataType = indexes_dt;
+            kernel_data.internalBuffers.emplace_back(indexes_buf_size, true);
+        }
     };
 }
 
 KernelsPriority SDPAKernelMicro::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_1;
 }
+
+size_t SDPAKernelMicro::GetTileQSize(const KernelData& kernel_data) {
+    const bool is_prefill = true;//n_queries.v > 1;
+
+    OPENVINO_ASSERT(kernel_data.kernels.size() > 0, "[GPU] Invalid kernels size for update dispatch data func, got ", kernel_data.kernels.size());
+    OPENVINO_ASSERT(kernel_data.kernels[prefill_id].micro_kernels.size() > 0, "[GPU] Invalid kernels passed to GetTileQSize() function");
+
+    size_t target_kernel = is_prefill ? prefill_id : generate_id;
+    const auto& gemms = kernel_data.kernels[target_kernel].micro_kernels;
+    const auto wg_tile_q = gemms[kq_id]->p.getSetting("wg_tile_n");
+
+    return wg_tile_q;
+}
+
 }  // namespace kernel_selector
 
 #endif // ENABLE_ONEDNN_FOR_GPU

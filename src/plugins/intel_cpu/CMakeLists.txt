@@ -24,10 +24,6 @@ elseif(OV_COMPILER_IS_CLANG)
     else()
         ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
     endif()
-elseif(CMAKE_COMPILER_IS_GNUCXX)
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
-        ov_add_compiler_flags(-Wno-array-bounds)
-    endif()
 elseif (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
 endif()
@@ -206,7 +202,9 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
 endif()
 
 if (AARCH64)
@@ -218,7 +216,9 @@ endif()
 
 if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/*)
 endif()
@@ -226,6 +226,11 @@ endif()
 if(NOT AARCH64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*)
+endif()
+
+if (NOT RISCV64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
@@ -282,7 +287,12 @@ endif()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
 endif()
-
+if(RISCV64)
+    # Set `XBYAK_RISCV_V=1` to compile Xbyak-code for RVV-related instructions
+    target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1)
+    target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
+    target_include_directories(${TARGET_NAME} SYSTEM INTERFACE $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation
@@ -330,7 +340,7 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 SVE ANY
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
-        NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8
+        NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8 attn_quant_by_channel_u8 attn_dequant_by_channel_u8
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 
@@ -358,7 +368,13 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
-    ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
+
+    set(CPU_OBJ_LINK_SYSTEM LIBRARIES dnnl openvino::pugixml)
+    if(RISCV64)
+        list(APPEND CPU_OBJ_LINK_SYSTEM xbyak_riscv::xbyak_riscv)
+    endif()
+
+    ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC ${CPU_OBJ_LINK_SYSTEM})
 
     ov_add_version_defines(src/plugin.cpp ${TARGET_NAME}_obj)
 
@@ -388,6 +404,9 @@ if(BUILD_SHARED_LIBS)
 
     if(ENABLE_KLEIDIAI_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:kleidiai,INTERFACE_INCLUDE_DIRECTORIES>)
+    endif()
+    if(RISCV64)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
 
     ov_set_threading_interface_for(${TARGET_NAME}_obj)
