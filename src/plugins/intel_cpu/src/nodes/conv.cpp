@@ -11,20 +11,11 @@
 #include <utility>
 #include <vector>
 
-#include "common/c_types_map.hpp"
 #include "common/cpu_convert.h"
-#include "common/primitive_desc.hpp"
-#include "common/primitive_desc_iface.hpp"
-#include "common/primitive_hashing_utils.hpp"
-#include "concat.h"
-#include "cpu/cpu_primitive.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
 #include "eltwise.h"
-#include "fake_quantize.h"
 #include "graph.h"
 #include "input.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
@@ -36,16 +27,11 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "oneapi/dnnl/dnnl.hpp"
 #include "oneapi/dnnl/dnnl_common.hpp"
-#include "oneapi/dnnl/dnnl_types.h"
-#include "onednn/dnnl.h"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
-#include "pooling.h"
 #include "post_ops.hpp"
-#include "reorder.h"
 #include "shape_inference/custom/convolution.hpp"
-#include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -56,7 +42,7 @@ namespace ov::intel_cpu::node {
 class Convolution::FusedSubgraph {
 public:
     FusedSubgraph(const std::vector<NodePtr>& opList, const Convolution& conv, const GraphContext::CPtr& context) {
-        _graph = std::unique_ptr<Graph>(new Graph());
+        _graph = std::make_unique<Graph>();
 
         std::unordered_set<NodePtr> nodesSet;
         std::vector<EdgePtr> edges;
@@ -132,24 +118,22 @@ public:
         _graph->Activate();
     }
 
-    std::shared_ptr<Input> getInput(size_t idx) const {
-        if (idx < inputs.size()) {
-            return inputs[idx];
-        }
-        OPENVINO_THROW("OutOfBounds: Unexpected input index in Convolution::fusedSubgraph::getInput idx=",
-                       idx,
-                       " inputs.size()=",
-                       inputs.size());
+    [[nodiscard]] std::shared_ptr<Input> getInput(size_t idx) const {
+        OPENVINO_ASSERT(idx < inputs.size(),
+                        "OutOfBounds: Unexpected input index in Convolution::fusedSubgraph::getInput idx=",
+                        idx,
+                        " inputs.size()=",
+                        inputs.size());
+        return inputs[idx];
     }
 
-    std::shared_ptr<Input> getOutput(size_t idx) const {
-        if (idx < outputs.size()) {
-            return outputs[idx];
-        }
-        OPENVINO_THROW("OutOfBounds: Unexpected output index in Convolution::fusedSubgraph::getInput idx=",
-                       idx,
-                       " inputs.size()=",
-                       outputs.size());
+    [[nodiscard]] std::shared_ptr<Input> getOutput(size_t idx) const {
+        OPENVINO_ASSERT(idx < outputs.size(),
+                        "OutOfBounds: Unexpected output index in Convolution::fusedSubgraph::getInput idx=",
+                        idx,
+                        " outputs.size()=",
+                        outputs.size());
+        return outputs[idx];
     }
 
     void infer() {
@@ -324,7 +308,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::ref_any,
         impl_desc_type::ref,
     };
-
+    // WA heuristic to avoid regressions introduced by avx2 brgconv.
     const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !useJitPlanar;
     if (isBrgConvAvailable) {
         return priorities;
@@ -359,11 +343,10 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape&
         return outputDesc;
     }
 
-    // When we set input shape with ranged dims, sum node input shape maybe mismatch with output shape, we just
-    // change ranged min value to 1 to meet this case. For example: Output shape = {1, 160, {128, 256}, {128, 256}}
-    // Sum input shape = {1, 160, 1, 1}
-    // Update sum shape to {1, 160, {1, 256}, {1, 256}}
-    auto shape = outputDesc->getShape();
+    // When we set the input shape with ranged dimensions, the sum node's input shape may mismatch with the output
+    // shape, we just change ranged min value to 1 to meet this case. For example: Output shape = {1, 160, {128, 256},
+    // {128, 256}} Sum input shape = {1, 160, 1, 1} Update sum shape to {1, 160, {1, 256}, {1, 256}}
+    const auto& shape = outputDesc->getShape();
     auto blockedOutputDesc = outputDesc->as<BlockedMemoryDesc>();
     if (shape.getRank() != sumShape.getRank()) {
         return std::make_shared<CpuBlockedMemoryDesc>(outputDesc->getPrecision(),
@@ -475,10 +458,6 @@ std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecis
 }
 
 void Convolution::initSupportedPrimitiveDescriptors() {
-    if (auto name = std::getenv("BREAK"); name && std::string(name) == getName()) {
-        (void)name;
-    }
-
     m_attrs.withBias = getOriginalInputsNumber() == 3;
     if (m_attrs.withBias) {
         m_atoi[ARG_BIAS] = BIAS;
@@ -776,6 +755,7 @@ void Convolution::addFusedNode(const NodePtr& fusingNode) {
 
     if (fusingNode->getType() == Type::Convolution) {
         auto convolutionNode = std::dynamic_pointer_cast<Convolution>(fusingNode);
+        CPU_NODE_ASSERT(convolutionNode, "Unexpected dynamic node type");
         withDWConv = true;
         auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
         dw_conv_ih = inActivationDims[convolutionNode->inputShapes[0].getRank() - 2];

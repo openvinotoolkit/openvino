@@ -17,8 +17,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class DnnlMemoryDesc;
 class DnnlBlockedMemoryDesc;
@@ -129,5 +128,4 @@ public:
                                                 const std::shared_ptr<DnnlMemoryDesc>& dstDesc);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

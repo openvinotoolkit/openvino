@@ -48,7 +48,6 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
       useLegacyPostOps(useLegacyPostOps),
       useLegacyZeroPoints(useLegacyZeroPoints) {
     OPENVINO_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
-    dstDesc = memory.at(ARG_DST)->getDescPtr();
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;
@@ -72,7 +71,11 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
         appendScale(DQScales, false, true);
     }
 
-    appendZeroPoints(memory, useLegacyZeroPoints);
+    if (useLegacyZeroPoints) {
+        appendZeroPointsLegacy(memory);
+    } else {
+        appendZeroPoints(memory);
+    }
 
     attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
 }
@@ -116,9 +119,8 @@ static dnnl::algorithm convertToOneDnn(const ActivationPostOp::Type type) {
     case ActivationPostOp::Type::round_half_away_from_zero:
         return dnnl::algorithm::eltwise_round_half_away_from_zero;
     case ActivationPostOp::Type::linear:
+    case ActivationPostOp::Type::powerstatic:  // actually eltwise_pow + eltwise_linear
         return dnnl::algorithm::eltwise_linear;
-    case ActivationPostOp::Type::powerstatic:
-        return dnnl::algorithm::eltwise_linear;  // actually eltwise_pow + eltwise_linear
     }
 
     return dnnl::algorithm::undef;
@@ -671,21 +673,19 @@ void DnnlPostOpsComposer::appendDepthwiseConvolution(int inH,
     ops.append_dw_conv(inH, inW, kerH, kerW, strH, strW, dnnl::memory::convert_to_c(inDataType));
 }
 
-void DnnlPostOpsComposer::appendZeroPoints(const MemoryArgs& memory, bool legacy) {
+void DnnlPostOpsComposer::appendZeroPoints(const MemoryArgs& memory) {
+    if (const auto arg = memory.find(ARG_ATTR_ZERO_POINTS | ARG_SRC_3); arg != memory.end()) {
+        const auto mem = arg->second;
+        attr.set_zero_points_mask(DNNL_ARG_SRC, 0);
+    }
+}
+
+void DnnlPostOpsComposer::appendZeroPointsLegacy(const MemoryArgs& memory) {
     const auto mask = 1 << idxOC;  // through C dim
 
     auto numElements = [](const MemoryCPtr& mem) {
         return mem->getDesc().getShape().getElementsCount();
     };
-
-    if (!legacy) {
-        if (const auto arg = memory.find(ARG_ATTR_ZERO_POINTS | ARG_SRC_3); arg != memory.end()) {
-            const auto mem = arg->second;
-            attr.set_zero_points_mask(DNNL_ARG_SRC, 0);
-        }
-
-        return;
-    }
 
     if (const auto arg = memory.find(ARG_ATTR_ZERO_POINTS | ARG_SRC); arg != memory.end()) {
         const auto mem = arg->second;

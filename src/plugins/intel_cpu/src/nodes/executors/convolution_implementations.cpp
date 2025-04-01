@@ -18,8 +18,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace ov::element;
 using namespace TypeMaskAlias;
@@ -59,7 +58,7 @@ template <typename Attrs>
 bool MatchesMemoryFormatFilter(const executor::Config<Attrs>& config,
                                const LayoutConfig& layoutConfig,
                                const MemoryFormatFilter& filter) {
-    const auto notation = dnnlConvolutionMappingNotation;
+    const auto& notation = dnnlConvolutionMappingNotation;
 
     for (size_t i = 0; i < filter.input.size(); i++) {
         const auto& desc = config.descs.at(notation[i]);
@@ -246,5 +245,4 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 }
 // clang-format on
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -13,7 +13,7 @@ struct MemoryFormatFilter {
     std::vector<dnnl::memory::format_tag> input;
     std::vector<dnnl::memory::format_tag> output;
 
-    bool empty() const {
+    [[nodiscard]] bool empty() const {
         return input.empty() && output.empty();
     }
 };
