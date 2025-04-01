@@ -150,6 +150,10 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
     return false;
 }
 
+static bool is_flattened(const ov::Shape& shape) {
+    return (shape.size() - std::count(shape.begin(), shape.end(), 1)) <= 1;
+}
+
 static memory::ptr get_memory_from_pool(engine& _engine,
                                 uint32_t net_id,
                                 memory_pool& pool,
@@ -967,6 +971,20 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                                           is_output_buffer(this, true),
                                           output_memory_ptr(i).get(),
                                           true);
+            // memory_pool does not reset padded memory to be reused.
+            if (static_cast<bool>(_outputs[i]->get_layout().data_padding)
+                && need_reset_output_memory() && !can_be_optimized()) {
+                auto mem_ptr = _outputs[i];
+                auto num_users = memory_pool::count_users_in_padded_pool(_network.get_memory_pool(), mem_ptr);
+                const auto& updated_shape = updated_layouts[i].get_shape();
+                const auto& params_shape = updated_params.output_layouts[i].get_shape();
+                // It need to reset if the memory is reused in a flatten shape.
+                if (num_users > 1 && (updated_shape != params_shape) && is_flattened(params_shape)) {
+                    GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset padded output memory considering user" << std::endl;
+                    add_dep_event(_outputs[i]->fill(_network.get_stream()));
+                }
+            }
+
             _max_output_layout_count[i] = updated_params.output_layouts[i].get_linear_size();
             set_flag(ExecutionFlags::MEMORY_CHANGED);
             GPU_DEBUG_CODE(std::string memalloc_info = "");
