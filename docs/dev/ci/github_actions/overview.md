@@ -19,6 +19,7 @@ detailed instructions where necessary.
 * [Caches overview](#caches)
 * [How to add new tests](#adding-new-tests)
 * [Optimizing workflow based on PR changes](#optimizing-workflow-based-on-PR-changes)
+* [Merge Queue](#merge-queue)
 
 ## Workflows
 
@@ -299,6 +300,22 @@ If you would like to add new tests, refer to the [How to add Tests](./adding_tes
 
 To optimize pre-commit workflow by running only the jobs that are actually required to validate
 changes in a pull request, you can use the Smart CI feature - [learn more about it](./smart_ci.md).
+
+## Merge Queue
+
+The OpenVINO GitHub organisation utilises Merge Queue to automate the Pull Requests' merging process. Learn more about MQ and available settings in the [official documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue).
+
+The Merge Queue has several settings that are configured on a per-repository basis. The [OpenVINO repository](https://github.com/openvinotoolkit/openvino) uses the following settings:
+* **Merge method**: *Squash and Merge*
+* **Build concurrency**:
+  * **Maximum pull requests to build**: *5*
+* **Only merge non-failing Pull Requests**: *No*
+* **Status check timeout**: *360 minutes*
+* **Merge limits**: 
+  * **Minimum pull requests to merge**: *1*
+  * **Maximum pull requests to merge**: *2*
+
+If you would like to enable Merge Queue for another repository in the OpenVINO GitHub organisation, use these settings as the default ones and adjust if needed.  
 
 ## See also
 
