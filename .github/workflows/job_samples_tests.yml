@@ -97,7 +97,6 @@ jobs:
       - name: Build cpp samples - Clang
         if: runner.os == 'Linux'
         run: |
-          apt-get update && apt-get install -y clang
           $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples_clang
         env:
           CC: clang

@@ -32,6 +32,8 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # to build samples
+        clang \
         # parallel gzip
         pigz \
         # Python
