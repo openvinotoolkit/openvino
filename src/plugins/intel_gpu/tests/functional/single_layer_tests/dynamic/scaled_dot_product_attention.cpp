@@ -89,7 +89,7 @@ void ScaledAttnLayerGPUTest::SetUp() {
     std::tie(inType, inputShapes, is_causal, has_attn, has_scale, disable_flashattn_v2, input_transpose) = this->GetParam();
 
     // FlashAttn v1 or v2?
-    configuration["OV_GPU_DISABLE_FLASHATTNV2_OPTIMIZATION"] = disable_flashattn_v2;
+    configuration.emplace(ov::intel_gpu::hint::disable_flashattnv2_optimization(disable_flashattn_v2));
 
     transpose_prepare(inputShapes, input_transpose);
     init_input_shapes(inputShapes);
