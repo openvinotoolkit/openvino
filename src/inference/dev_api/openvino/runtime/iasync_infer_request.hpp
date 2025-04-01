@@ -9,13 +9,13 @@
 
 #pragma once
 
-#include <future>
 #include <memory>
 
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
-#include "openvino/runtime/iinfer_request_fsm.hpp"
+#include "openvino/runtime/infer_request_fsm.hpp"
+#include "openvino/runtime/ipipeline_process.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
@@ -156,11 +156,11 @@ public:
     const std::vector<ov::Output<const ov::Node>>& get_outputs() const override;
 
 protected:
-    using Stage = IInferRequestFsm::Stage;
+    using Stage = IPipelineProcess::Stage;
     /**
      * @brief Pipeline is vector of stages
      */
-    using Pipeline = IInferRequestFsm::Pipeline;
+    using Pipeline = IPipelineProcess::Pipeline;
 
     /**
      * @brief Constructor for IAsyncInferRequest
@@ -172,7 +172,8 @@ protected:
     IAsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
                        const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                        const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor,
-                       std::unique_ptr<IInferRequestFsm> fsm);
+                       std::unique_ptr<InferRequestFsm> fsm,
+                       std::unique_ptr<IPipelineProcess> pipeline_process);
 
     /**
      * @brief Forbids pipeline start and wait for all started pipelines.
@@ -206,15 +207,14 @@ protected:
 
     Pipeline m_pipeline;       //!< Pipeline variable that should be filled by inherited class.
     Pipeline m_sync_pipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
+    std::unique_ptr<InferRequestFsm> m_fsm;                //!< State machine for asynchronous request.
+    std::unique_ptr<IPipelineProcess> m_pipeline_process;  //!< Pipeline process for request.
 
 private:
-    std::unique_ptr<IInferRequestFsm> m_request_fsm;  //!< State machine for asynchronous request.
-    mutable std::mutex m_mutex;
     std::shared_ptr<IInferRequest> m_sync_request;
-    ov::threading::ITaskExecutor::Ptr m_request_executor;  //!< Used to run inference CPU tasks.
-    ov::threading::ITaskExecutor::Ptr
-        m_callback_executor;  //!< Used to run post inference callback in asynchronous pipline
-    ov::threading::ITaskExecutor::Ptr
+    threading::ITaskExecutor::Ptr m_request_executor;   //!< Used to run inference CPU tasks.
+    threading::ITaskExecutor::Ptr m_callback_executor;  //!< Used to run post inference callback in asynchronous pipline
+    threading::ITaskExecutor::Ptr
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
 };
 
