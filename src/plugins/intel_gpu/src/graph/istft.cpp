@@ -1,15 +1,15 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <json_object.h>
 #include <istft_inst.h>
+#include <json_object.h>
 
 #include <sstream>
 
+#include "istft_shape_inference.hpp"
 #include "memory_accessor.hpp"
 #include "openvino/core/enum_names.hpp"
 #include "primitive_type_base.h"
-#include "istft_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(ISTFT)
@@ -35,6 +35,11 @@ std::vector<layout> ISTFT_inst::calc_output_layouts(ISTFT_node const& node, kern
         frame_size_layout.get<ShapeType>(),
         frame_step_layout.get<ShapeType>(),
     };
+
+    if (impl_param.input_layouts.size() == 5) {
+        const auto& length_layout = impl_param.get_input_layout(4);
+        input_shapes.push_back(length_layout.get<ShapeType>());
+    }
 
     const auto ta = MemoryAccessor(&impl_param.memory_deps, impl_param.get_stream());
 

@@ -76,6 +76,7 @@ struct ISTFTTestParams {
     int64_t frameStep;
     bool center;
     bool normalized;
+    int length;
     std::vector<float> signalData;
     std::vector<float> windowData;
     std::vector<float> expectedOutput;
@@ -94,6 +95,7 @@ public:
         result << "_frameStep=" << param.frameStep;
         result << "_center=" << param.center;
         result << "_normalizedr=" << param.normalized;
+        result << "_length=" << param.length;
         result << "_" << param.testcaseName;
         return result.str();
     }
@@ -105,6 +107,7 @@ public:
         memory::ptr window;
         memory::ptr frameSize;
         memory::ptr frameStep;
+        memory::ptr length;
         memory::ptr expectedOutput;
     };
 
@@ -116,15 +119,14 @@ public:
         ret.center = testParam.center;
         ret.normalized = testParam.normalized;
 
-        ret.signal =
-            helpers::AllocateTensor<T>(testParam.signalShape, helpers::ConverFloatVector<T>(testParam.signalData));
-        ret.window =
-            helpers::AllocateTensor<T>(testParam.windowShape, helpers::ConverFloatVector<T>(testParam.windowData));
-        ret.expectedOutput =
-            helpers::AllocateTensor<T>(testParam.outputShape, helpers::ConverFloatVector<T>(testParam.expectedOutput));
+        ret.signal = helpers::AllocateTensor<T>(testParam.signalShape, helpers::ConverFloatVector<T>(testParam.signalData));
+        ret.window = helpers::AllocateTensor<T>(testParam.windowShape, helpers::ConverFloatVector<T>(testParam.windowData));
+        ret.expectedOutput = helpers::AllocateTensor<T>(testParam.outputShape, helpers::ConverFloatVector<T>(testParam.expectedOutput));
 
         ret.frameStep = helpers::AllocateTensor<int64_t>({}, {testParam.frameStep});
         ret.frameSize = helpers::AllocateTensor<int64_t>({}, {testParam.frameSize});
+        if (testParam.length > 0)
+            ret.length = helpers::AllocateTensor<int64_t>({}, {testParam.length});
 
         return ret;
     }
@@ -141,13 +143,20 @@ public:
         topology.add(input_layout("window", params.window->get_layout()));
         topology.add(input_layout("frameSize", scalar_layout));
         topology.add(input_layout("frameStep", scalar_layout));
-        topology.add(ISTFT("istft",
-                           input_info("signal"),
-                           input_info("window"),
-                           input_info("frameSize"),
-                           input_info("frameStep"),
-                           params.center,
-                           params.normalized));
+        if (params.length) {
+            topology.add(input_layout("length", scalar_layout));
+            topology.add(ISTFT("istft",
+                               input_info("signal"),
+                               input_info("window"),
+                               input_info("frameSize"),
+                               input_info("frameStep"),
+                               input_info("length"),
+                               params.center,
+                               params.normalized));
+        } else {
+            topology.add(
+                ISTFT("istft", input_info("signal"), input_info("window"), input_info("frameSize"), input_info("frameStep"), params.center, params.normalized));
+        }
 
         cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), stream, false);
 
@@ -155,6 +164,9 @@ public:
         network->set_input_data("window", params.window);
         network->set_input_data("frameSize", params.frameSize);
         network->set_input_data("frameStep", params.frameStep);
+        if (params.length) {
+            network->set_input_data("length", params.length);
+        }
 
         // Run and check results.
         auto outputs = network->execute();
@@ -177,6 +189,7 @@ std::vector<ISTFTTestParams> generateTestParams() {
                   frameStep,                         \
                   center,                            \
                   normalized,                        \
+                  length,                            \
                   signalData,                        \
                   windowData,                        \
                   expectedOutput,                    \
@@ -188,6 +201,7 @@ std::vector<ISTFTTestParams> generateTestParams() {
                                      frameStep,      \
                                      center,         \
                                      normalized,     \
+                                     length,         \
                                      signalData,     \
                                      windowData,     \
                                      expectedOutput, \
@@ -208,7 +222,4 @@ std::vector<ISTFTTestParams> generateTestParams() {
 
 ISTFT_TEST_P(f32);
 
-INSTANTIATE_TEST_SUITE_P(istft_test_suit,
-                         istft_test,
-                         testing::ValuesIn(generateTestParams()),
-                         istft_test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(istft_test_suit, istft_test, testing::ValuesIn(generateTestParams()), istft_test::getTestCaseName);

@@ -61,6 +61,9 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
                   const __global INPUT1_TYPE* restrict window,
                   const __global INPUT2_TYPE* restrict frame_size_buff,
                   const __global INPUT3_TYPE* restrict frame_step_buff,
+#if LENGTH_BUFFER
+                  const __global INPUT4_TYPE* restrict length_buff,
+#endif
                   volatile __global OUTPUT_TYPE* restrict output) {
     const int batch = get_global_id(0);
     const int frame_id = get_global_id(1);
@@ -71,7 +74,9 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     const int freqs = INPUT0_FEATURE_NUM;
     const int DEFAULT_OUTPUT_SIZE = (INPUT0_SIZE_Y - 1) * frame_step + frame_size;
 
-    // printf("frame_size: %i\n", frame_size);
+#if LENGTH_BUFFER
+    const int wantedLength = (int)length_buff[0];
+#endif
 
     const float windowVal = (float)window[windowIdx];
     const float windowValPow2 = windowVal * windowVal;
@@ -141,16 +146,24 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     const float finalVAl = (finalIRDFTVal * windowVal * scale) / (normalizationSum);
     const OUTPUT_TYPE finalVal = (OUTPUT_TYPE)(finalVAl);
 
+    int finalOutputIdxWithinBatch = outputIdxWithinBatch;
+
 #if CENTER
     const int margin = frame_size / 2;
 
     if (IsNotBetween(outputIdxWithinBatch, margin, DEFAULT_OUTPUT_SIZE - margin))
         return;
 
-    const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, outputIdxWithinBatch - margin);
-#else
-    const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, outputIdxWithinBatch);
+    finalOutputIdxWithinBatch -= margin;
 #endif
+
+#if LENGTH_BUFFER
+    if (finalOutputIdxWithinBatch >= wantedLength) {
+        return;
+    }
+#endif
+
+    const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, finalOutputIdxWithinBatch);
 
     // Perform last reduction atomically.
     const float prev = atomicadd(OUTPUT_TYPE, output + globalOutputIdx, finalVal);

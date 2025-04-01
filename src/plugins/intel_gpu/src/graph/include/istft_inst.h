@@ -21,7 +21,10 @@ public:
         return get_dependency(idx);
     }
     std::vector<size_t> get_shape_infer_dependencies() const override {
-        return {2, 3};
+        if (this->get_dependencies().size() == 5)
+            return {2, 3, 4};
+        else
+            return {2, 3};
     }
 };
 

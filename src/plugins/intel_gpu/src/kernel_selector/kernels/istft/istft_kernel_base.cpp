@@ -14,6 +14,7 @@ JitConstants ISTFTKernelBase::GetJitConstants(const ISTFT_params& params) const 
 
     jit.AddConstants({MakeJitConstant("CENTER", params.center)});
     jit.AddConstants({MakeJitConstant("NORMALIZED", params.normalized)});
+    jit.AddConstants({MakeJitConstant("LENGTH_BUFFER", params.inputs.size() == 5)});
 
     return jit;
 }
@@ -40,24 +41,11 @@ ISTFTKernelBase::DispatchData ISTFTKernelBase::SetDefault(const ISTFT_params& pa
     OPENVINO_ASSERT(output.Dimentions() == 4);
 
     std::vector<std::vector<Tensor::DataChannelName>> dimsByGws;
-
-    std::cout << "input1: [" << input1.Batch().v << ", " << input1.Feature().v << ", " << input1.Y().v << ", "
-              << input1.X().v << "]\n";
-
-    std::cout << "input0: [" << input0.Batch().v << ", " << input0.Feature().v << ", " << input0.Y().v << ", "
-              << input0.X().v << "]\n";
-
-    std::cout << "output: [" << output.Batch().v << ", " << output.Feature().v << ", " << output.Y().v << ", "
-              << output.X().v << "]\n";
-
     dispatchData.gws = {input0.Batch().v, input0.Y().v, input1.X().v};
     dimsByGws = {{Tensor::DataChannelName::BATCH}, {Tensor::DataChannelName::Y}, {Tensor::DataChannelName::X}};
 
     dispatchData.lws =
         GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, inLayout, outLayout, dimsByGws);
-
-    std::cout << "GWS: [" << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", " << dispatchData.gws[2] << "]\n";
-    std::cout << "LWS: [" << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2] << "]\n";
 
     return dispatchData;
 }
@@ -86,7 +74,7 @@ KernelsData ISTFTKernelBase::GetCommonKernelsData(const Params& params) const {
                      "",
                      false,
                      false,
-                     4,
+                     prim_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      prim_params.is_shape_agnostic);
