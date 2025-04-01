@@ -61,7 +61,6 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     const VectorDims wgtDims2D = reshapeDownToRank<2>(wgtDims);
     originalWeightsDesc = std::make_shared<CpuBlockedMemoryDesc>(originalWeightsDesc->getPrecision(), Shape{wgtDims2D});
     auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(originalWeightsDesc);
-    // precision convert with reorder
     auto dstDesc = originalWeightsDesc->cloneWithNewPrecision(memory.at(ARG_SRC)->getDescPtr()->getPrecision());
     auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
     if (!attrs.weightsNonTransposed) {

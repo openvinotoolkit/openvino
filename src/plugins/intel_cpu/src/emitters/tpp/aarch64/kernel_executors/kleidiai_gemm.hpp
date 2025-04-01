@@ -11,7 +11,6 @@
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
-#include "libxsmm.h"
 
 namespace ov::intel_cpu::tpp {
 
@@ -39,16 +38,27 @@ class BrgemmKaiKernelExecutor : public snippets::KernelExecutor<BrgemmKernelKaiC
 public:
     BrgemmKaiKernelExecutor(BrgemmKernelKaiConfig config);
 
+    void update_kernel(const BrgemmKernelKaiConfig& config,
+                       std::shared_ptr<BrgemmTppKaiCompiledKernel>& kernel) const override final {}
+
     // Function that will be called in runtime to execute the kernel
     static void execute(const BrgemmKaiKernelExecutor* executor, void* in0, void* in1, void* out0);
+    void* get_packed_mem() const {
+        return rhsPackedMem.data();
+    }
+    void* get_bias_mem() const {
+        return biasMem.data();
+    }
+    mutable size_t rhsPackedSize = 0;
+    mutable size_t biasSize = 0;
 
 private:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                        BrgemmKernelKaiConfig& config) const override;
-    // after config is determined, allocate
-    // MemoryPtr rhsPackedMem;
-    std::vector<uint8_t> rhsPackedMem;
+
+    mutable std::vector<uint8_t> rhsPackedMem;
+    mutable std::vector<uint8_t> biasMem;
 
     static constexpr kai_matmul_clamp_f32_f32_f32p_ukernel ukernel{
         kai_get_m_step_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,

@@ -43,7 +43,11 @@ std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(
     auto get_projected_blk = [](const size_t dim, const size_t blk) {
         return ov::snippets::utils::is_full_dim_value(blk) ? dim : blk;
     };
+#if defined(OPENVINO_ARCH_ARM64) && defined(SNIPPETS_LIBXSMM_TPP)
+    return std::make_tuple(get_projected_blk(m, m_blk), get_projected_blk(n, n_blk), k);
+#else
     return std::make_tuple(get_projected_blk(m, m_blk), get_projected_blk(n, n_blk), get_projected_blk(k, k_blk));
+#endif
 }
 
 ov::snippets::lowered::SpecificIterationHandlers BrgemmTPPBlocking::get_k_loop_handlers(size_t work_amount,
