@@ -12,6 +12,8 @@
 #include <map>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
+#include <common/dnnl_thread.hpp>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -52,6 +54,7 @@
 #include "utils/node_dumper.h"
 #include "utils/precision_support.h"
 #include "utils/verbose.h"
+#include "thread_pool_imp.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
@@ -84,7 +87,8 @@ void Graph::Init(const std::vector<NodePtr>& graphNodes,
     }
 
     m_context = context;
-    m_stream = dnnl::stream(getEngine());
+    // m_stream = dnnl::stream(getEngine());
+    m_stream = dnnl::threadpool_interop::make_stream(getEngine(), get_thread_pool());
 
     this->_name = std::move(name);
 
@@ -343,7 +347,8 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
     }
 
     m_context = context;
-    m_stream = dnnl::stream(getEngine());
+    // m_stream = dnnl::stream(getEngine());
+    m_stream = dnnl::threadpool_interop::make_stream(getEngine(), get_thread_pool());
 
     Replicate(model, inputConfigs, outputConfigs);
 

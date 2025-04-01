@@ -3,6 +3,7 @@
 //
 #include <optional>
 
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include "acl_fullyconnected.hpp"
 #include "acl_utils.hpp"
 #include "common/primitive_desc_iface.hpp"
@@ -16,6 +17,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu {
 
@@ -116,7 +118,13 @@ std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& i
         auto convertOutput = *convertOutputOpt;
 
         if (reorderWithoutConvert) {
+            // dnnl::stream loc_stream(output->getPrimitive().get_engine(), dnnl::stream::flags::in_order);
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+            dnnl::stream loc_stream =
+                dnnl::threadpool_interop::make_stream(output->getPrimitive().get_engine(), get_thread_pool());
+#else
             dnnl::stream loc_stream(output->getPrimitive().get_engine(), dnnl::stream::flags::in_order);
+#endif
             reorderWithoutConvert.execute(
                 loc_stream,
                 {{DNNL_ARG_FROM, convertOutput->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
@@ -164,7 +172,8 @@ MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
     }
     // if precision conversion does not work then do direct reference reorder
     if (directReorder) {
-        dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+        // dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+        dnnl::stream loc_stream = dnnl::threadpool_interop::make_stream(engine, get_thread_pool());
         directReorder.execute(loc_stream,
                               {{DNNL_ARG_FROM, input->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
     } else {

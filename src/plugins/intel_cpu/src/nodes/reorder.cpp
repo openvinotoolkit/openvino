@@ -6,6 +6,7 @@
 
 #include <dnnl_extension_utils.h>
 #include <dnnl_types.h>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 
 #include <common/primitive_hashing_utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -23,6 +24,7 @@
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
+#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -540,7 +542,12 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
             }
         }
         if (reorder) {
+            // dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+            dnnl::stream loc_stream = dnnl::threadpool_interop::make_stream(engine, get_thread_pool());
+#else
             dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+#endif
             reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
             OPENVINO_THROW("Could not make onednn reorder.");
