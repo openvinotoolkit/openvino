@@ -478,7 +478,7 @@ jobs:
         uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: openvino_developer_package
-          path: ${{ env.INSTALL_DIR }}
+          path: ${{ env.OPENVINO_DEVELOPER_PACKAGE }}
 
       - name: Extract OpenVINO packages
         run: |
