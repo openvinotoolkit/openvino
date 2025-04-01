@@ -318,17 +318,14 @@ describe('Tensor setShape', () => {
   
   it('correctly sets a new shape for a tensor', () => {
     const initialShape = [3, 224, 224];
-    const newShape = [3, 256, 256];
-    const tensorData = new Float32Array(3 * 224 * 224).fill(0); // Dati di esempio per il tensore
+    const newShape = [3, 256, 196]; 
+    const tensorData = new Float32Array(3 * 224 * 224).fill(0);
     const tensor = new ov.Tensor(ov.element.f32, initialShape, tensorData);
 
-    // Verifica la forma iniziale
     assert.deepStrictEqual(tensor.getShape(), initialShape);
 
-    // Imposta la nuova forma
     tensor.setShape(newShape);
 
-    // Verifica che la forma sia stata aggiornata correttamente
     assert.deepStrictEqual(tensor.getShape(), newShape);
   });
 
@@ -337,11 +334,10 @@ describe('Tensor setShape', () => {
     const tensorData = new Float32Array(3 * 224 * 224).fill(0);
     const tensor = new ov.Tensor(ov.element.f32, initialShape, tensorData);
 
-    // Proviamo a impostare una forma non valida (ad esempio con dimensioni incoerenti)
     assert.throws(() => {
-      tensor.setShape([3, 224]); // Forma mancante di un'ulteriore dimensione
+      tensor.setShape([3, 224]); 
     }, {
-      message: 'Invalid shape: must have the correct number of dimensions.'
+      message: 'The argument to setShape() must be an array.'
     });
   });
 
@@ -357,7 +353,7 @@ describe('Tensor setShape', () => {
     assert.deepStrictEqual(tensor.getShape(), shape);
   });
 
-  it('throws an error if the new shape does not match the tensor size', () => {
+  it('throws an error if the new shape has a different number of elements', () => {
     const shape = [3, 224, 224];
     const tensorData = new Float32Array(3 * 224 * 224).fill(0);
     const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
@@ -365,7 +361,7 @@ describe('Tensor setShape', () => {
     assert.throws(() => {
       tensor.setShape([3, 200, 200]); 
     }, {
-      message: 'Shape mismatch: the new shape does not match the number of elements in the tensor.'
+      message: 'Shape mismatch: the new shape must have the same number of elements as the original shape.'
     });
   });
 
