@@ -764,6 +764,7 @@ class TestParallelRunner:
             saved_tests.append(test_name)
             return True
 
+        logger.info(f"Len1 of test_results is {len(test_results)}")
         logs_dir = os.path.join(self._working_dir, "logs")
         if os.path.exists(logs_dir):
             logger.info(f"Logs directory {logs_dir} is cleaned up")
@@ -777,6 +778,7 @@ class TestParallelRunner:
         fix_priority = []
         for log in Path(self._working_dir).rglob("log_*.log"):
             log_filename = os.path.join(self._working_dir, log)
+            logger.info(f"log_filename is {log_filename}")
             with open(log_filename, "r", encoding=constants.ENCODING) as log_file:
                 test_name = None
                 test_log = []
@@ -819,10 +821,12 @@ class TestParallelRunner:
                     if (constants.PG_ERR in line) or (constants.PG_WARN in line):
                         test_log.append(line)
                     if test_name is not None:
+                        logger.info(f"test_name is {test_name}")
                         test_suite = test_name[: test_name.find(".")]
                         test_suites.add(test_suite)
                         test_log.append(line)
                         if dir:
+                            logger.info(f"test_name is {test_name}, dir is {dir}")
                             if __save_log(logs_dir, dir, test_name):
                                 # update test_cache with tests. If tests is crashed use -1 as unknown time
                                 time = -1
@@ -852,8 +856,10 @@ class TestParallelRunner:
                         logger.info(f"interapted_tests: {test_name}")
                 if self._split_unit == constants.SUITE_UNIT_NAME:
                     test_cnt_real = len(test_suites)
+                    logger.info(f"test_cnt_real 1 is {test_cnt_real}")
                 else:
                     test_cnt_real = test_cnt_real_saved_now
+                    logger.info(f"test_cnt_real 2 is {test_cnt_real}")
 
                 if test_cnt_real < test_cnt_expected:
                     logger.error(
@@ -862,9 +868,11 @@ class TestParallelRunner:
                 else:
                     os.remove(log_filename)
 
+        logger.info(f"Len2 of test_results is {len(test_results)}")
         if not list(Path(os.path.join(self._working_dir, "temp")).rglob("log_*.log")):
             rmtree(os.path.join(self._working_dir, "temp"))
 
+        logger.info(f"Len of interapted_tests is {len(interapted_tests)}")
         for test_name in interapted_tests:
             # update test_cache with tests. If tests is crashed use -1 as unknown time
             time = -1
@@ -1005,10 +1013,12 @@ class TestParallelRunner:
 
         is_successfull_run = True
         test_cnt = 0
+        logger.info(f"Len3 of test_results is {len(test_results)}")
         for test_st, test_res in test_results.items():
             logger.info(f"{test_st} test counter is: {test_res}")
             test_cnt += test_res
             if (test_st not in ('passed', 'skipped')) and test_res > 0:
+                logger.info(f"is_successfull_run is False, test_st is {test_st}")
                 is_successfull_run = False
         if self._disabled_tests:
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
@@ -1039,6 +1049,7 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] --repeat_failed={args.repeat_failed}")
     logger.info(f"[ARGUMENTS] --excluded_tests_file={args.excluded_tests_file or 'None'}")
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
+    logger.info("Add debug info")
     TaskManager.process_timeout = args.process_timeout
 
     # Get excluded tests from the file
