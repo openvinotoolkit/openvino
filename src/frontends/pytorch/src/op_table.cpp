@@ -860,7 +860,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.bitwise_left_shift.Tensor", op::translate_bitwise_left_shift},
         {"aten.bitwise_not.default", op::translate_bitwise_not},
         {"aten.bitwise_or.Tensor", op::translate_bitwise_or},
-        {"aten.bitwise_right_shift.Tensor", op::translate_bitwise_right_shift},
+        // {"aten.bitwise_right_shift.Tensor", op::translate_bitwise_right_shift}, - temporarily disable
         {"aten.bitwise_xor.Tensor", op::translate_bitwise_xor},
         {"aten.bmm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
         {"aten.bucketize.Tensor", op::translate_bucketize},
