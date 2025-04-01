@@ -253,6 +253,7 @@ OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
+OP_CONVERTER(translate_tolist);
 OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
@@ -760,6 +761,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::is_cuda", op::return_false_scalar},
         {"prim::ListConstruct", op::translate_list_construct},
         {"prim::ListUnpack", op::translate_list_unpack},
+        {"prim::tolist", op::translate_tolist},
         {"prim::Loop", op::translate_loop},
         // prim::max - Supported in limited set of patterns
         // prim::min - Supported in limited set of patterns
