@@ -15,11 +15,16 @@ public:
                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& n,
                         ov::element::Type exec_prc = ov::element::f32);
+    jit_convert_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                        const ov::element::Type& in_prec,
+                        const ov::element::Type& out_prec,
+                        ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
+    void emit_data() const override;
 
 protected:
-    void emit_data() const override;
     void validate_types() const;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -44,6 +49,11 @@ public:
                                    dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& n,
                                    ov::element::Type exec_prc = ov::element::f32);
+    jit_convert_truncation_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+                                   dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                                   const ov::element::Type& in_prec,
+                                   const ov::element::Type& out_prec,
+                                   ov::element::Type exec_prc = ov::element::f32);
 
 private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
@@ -66,6 +76,11 @@ public:
     jit_convert_saturation_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                                    dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& n,
+                                   ov::element::Type exec_prc = ov::element::f32);
+    jit_convert_saturation_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+                                   dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                                   const ov::element::Type& in_prec,
+                                   const ov::element::Type& out_prec,
                                    ov::element::Type exec_prc = ov::element::f32);
 
 private:

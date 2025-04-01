@@ -38,6 +38,7 @@ private:
     void FuseInterpolateAndSimpleOperation(Graph& graph);
     void FuseNormalizeL2AndSimpleOperation(Graph& graph);
     void FuseReduceAndSimpleOperation(Graph& graph);
+    void FuseGatherAndConvert(Graph& graph);
 
     void DropDoubleReorders(Graph& graph);
     void FuseConvolutionAndZeroPoints(Graph& graph);
