@@ -8,7 +8,7 @@
 #include "dnnl_extension_utils.h"
 #include "utils/general_utils.h"
 
-#define PRINT(X) ss << #X << " = " << X << "\n"
+#define PRINT(X) ss << #X << " = " << (X) << "\n"
 #define EQ(X)    X == rhs.X
 #define HASH(X)  seed = dnnl::impl::hash_combine(seed, X)
 
