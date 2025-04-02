@@ -443,6 +443,11 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 return false;
             }
 
+            if (config.hidden_size < CACHE_BLK_K_SIZE * 8) {
+                errorMessage = "QKVProjection input channel size is too small";
+                return false;
+            }
+
             if (config.quantized && (fcDynamicQuantizationGroupSize < static_cast<uint64_t>(config.hidden_size))) {
                 errorMessage = "QKVProjection input channel only support per-token dynamic quantization";
                 return false;
