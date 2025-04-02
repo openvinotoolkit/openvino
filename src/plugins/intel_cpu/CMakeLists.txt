@@ -8,15 +8,6 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-#TODO: Patch ACL CMakeLists
-execute_process(
-    COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/acl_add_target.diff
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ComputeLibrary
-    RESULT_VARIABLE patch_result
-    OUTPUT_VARIABLE patch_output
-    ERROR_VARIABLE patch_error
-)
-
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
     ov_add_compiler_flags(/wd4018)

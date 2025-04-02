@@ -164,7 +164,6 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
