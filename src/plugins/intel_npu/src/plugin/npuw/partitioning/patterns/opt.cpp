@@ -1007,7 +1007,7 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
         auto matched_out_ids = uat::_(node_to_output).at_or_at(cvtids, pids);
         const auto& matched_out_gather = node_to_output.at(gather);
 
-        // Handle case with f32 scale
+        // Handle case with non-f16 scale
         if (matched_out_s.get_element_type() != ov::element::f16) {
             auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
             auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
@@ -1018,6 +1018,7 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
             auto new_out = std::make_shared<ov::op::v0::Convert>(new_mul, matched_out_s.get_element_type());
 
             NPUW_ASSERT(node_to_output.find(qcvtm) == node_to_output.end());
+
             // Reconnect old gather readers to the new Convert
             for (auto&& r : matched_out_gather.get_target_inputs()) {
                 r.replace_source_output(new_out);
@@ -1376,13 +1377,13 @@ DQUnpackDictMatMulCWu::DQUnpackDictMatMulCWu(Context::Ref ctx) {
 }
 
 // FROM:
-//     Param(W) -> to(f16/f32) ->
-//     Param(S) ----------------> Multiply -> (to(f32)) -> MatMul -> Result
-//     ???(Act) ----------------------------------------->
+//     Param(W) ---> to(f16) --->
+//     Param(S) ----------------> Multiply -> MatMul -> Result
+//     ???(Act) ---------------------------->
 //
 // TO:
-//     Param(W) ------------>
-//     ???(Act) -> to(f16/f32) -> MatMul -> (to(f32)) -> Result
+//     Param(W) -- to(f16) ->
+//     ???(Act) -> to(f16) -> MatMul -> to(f32) -> Result
 
 DQUnpackDictMatMulCWf8::DQUnpackDictMatMulCWf8(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();

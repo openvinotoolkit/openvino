@@ -128,14 +128,28 @@ void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
     NPUW_ASSERT(to->get_element_type() == ov::element::f16);
 
-    const auto* from_ptr = from->data<ov::float8_e4m3>();
     const auto* scale_ptr = scale->data<float>();
     auto* to_ptr = to->data<ov::float16>();
 
     const auto size = from->get_size();
-    ov::parallel_for(size, [&](size_t idx) {
-        to_ptr[idx] = float(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
-    });
+
+    // FIXME: copypaste with a different type
+    if (from->get_element_type() == ov::element::f8e4m3) {
+        const auto* from_ptr = from->data<ov::float8_e4m3>();
+        ov::parallel_for(size, [&](size_t idx) {
+            to_ptr[idx] = float(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
+        });
+    } else if (from->get_element_type() == ov::element::f8e5m2) {
+        const auto* from_ptr = from->data<ov::float8_e5m2>();
+        ov::parallel_for(size, [&](size_t idx) {
+            to_ptr[idx] = float(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
+        });
+    } else {
+        const auto* from_ptr = from->data<ov::float8_e8m0>();
+        ov::parallel_for(size, [&](size_t idx) {
+            to_ptr[idx] = float(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
+        });
+    }
 }
 
 }  // namespace
@@ -226,7 +240,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         unpack_nf4f16(from, scale, to, unpack_options);
     } else if (type_from == ov::element::f8e4m3 || type_from == ov::element::f8e5m2 ||
                type_from == ov::element::f8e8m0) {
-        // FIXME: IMplement XARCH::unpack
+        // FIXME: Implement XARCH::unpack
         unpack_f8f16(from, scale, to, unpack_options);
     } else {
         NPUW_ASSERT(false && "Unsupported combination");
