@@ -255,7 +255,6 @@ OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
-OP_CONVERTER(st);
 OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
