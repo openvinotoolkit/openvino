@@ -1,15 +1,13 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "node/include/model_wrap.hpp"
-#include "node/include/addon.hpp"
-#include "node/include/errors.hpp"
-#include "node/include/helper.hpp"
-#include "node/include/node_output.hpp"
-#include "node/include/type_validation.hpp"
-
-#include "node/include/model_wrap.hpp"
-#include "node/include/node_wrap.hpp"
+#include "node/include/model_wrap.hpp" 
+#include "node/include/node_wrap.hpp"  
+#include "node/include/addon.hpp"      
+#include "node/include/errors.hpp"     
+#include "node/include/helper.hpp"     
+#include "node/include/node_output.hpp" 
+#include "node/include/type_validation.hpp" 
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<ModelWrap>(info),
