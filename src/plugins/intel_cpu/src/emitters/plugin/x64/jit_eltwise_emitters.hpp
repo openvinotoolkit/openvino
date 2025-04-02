@@ -708,7 +708,7 @@ public:
     }
     jit_is_finite_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                           dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                          const std::shared_ptr<ov::Node>& /*node*/,
+                          [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                           ov::element::Type execPrc = ov::element::f32)
         : jit_emitter(host, hostIsa, execPrc) {
         prepare_table();
@@ -718,7 +718,7 @@ public:
         return 1;
     };
     static std::set<std::vector<element::Type>> get_supported_precisions(
-        const std::shared_ptr<ov::Node>& /*node*/ = nullptr) {
+        [[maybe_unused]] const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::f32}};
     }
 
@@ -749,7 +749,7 @@ public:
     }
     jit_is_inf_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                        dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                       const std::shared_ptr<ov::Node>& /*node*/,
+                       [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                        ov::element::Type execPrc = ov::element::f32)
         : jit_emitter(host, hostIsa, execPrc) {
         prepare_table();
@@ -759,7 +759,7 @@ public:
         return 1;
     };
     static std::set<std::vector<element::Type>> get_supported_precisions(
-        const std::shared_ptr<ov::Node>& /*node*/ = nullptr) {
+        [[maybe_unused]] const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::f32}};
     }
 
@@ -789,7 +789,7 @@ public:
     }
     jit_is_nan_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                        dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                       const std::shared_ptr<ov::Node>& /*node*/,
+                       [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                        ov::element::Type execPrc = ov::element::f32)
         : jit_emitter(host, hostIsa, execPrc) {
         prepare_table();
@@ -799,7 +799,7 @@ public:
         return 1;
     }
     static std::set<std::vector<element::Type>> get_supported_precisions(
-        const std::shared_ptr<ov::Node>& /*node*/ = nullptr) {
+        [[maybe_unused]] const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::f32}};
     }
 
