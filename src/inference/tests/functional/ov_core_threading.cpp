@@ -209,21 +209,11 @@ TEST_F(CoreThreadingTests, ReadModel) {
     auto model = core.read_model(modelName, weightsName);
 
     constexpr size_t threads_num = 12;
-    ov::test::util::Barrier sync_point(threads_num);
 
     runParallel(
         [&]() {
             safeAddExtension(core);
-            // Add the extension and read model are thread-safe when use separately.
-            // The barrier is required here to wait until all threads add extensions to core before read model.
-            // The read_model loads Frontend which check extension vector and assume it want change. If extension vector
-            // is expanded then all iterators are invalidated and can result in segfault when frontend check extensions
-            // to be added in frontend.
-            sync_point.arrive_and_wait();
             std::ignore = core.read_model(modelName, weightsName);
-
-            // sync before next iteration (modification of extensions vector)
-            sync_point.arrive_and_wait();
         },
         100,
         threads_num);
