@@ -46,10 +46,12 @@ ProfilingPool::~ProfilingPool() {
     }
 }
 
-void ProfilingQuery::create(const ze_graph_profiling_pool_handle_t& profiling_pool) {
+void ProfilingQuery::create(const std::shared_ptr<ProfilingPool>& profiling_pool) {
+    _profiling_pool =
+        profiling_pool;  // store profiling pool to make sure it is keeped alive until profiling query is destroyed
     THROW_ON_FAIL_FOR_LEVELZERO(
         "pfnProfilingQueryCreate",
-        _init_structs->getProfilingDdiTable().pfnProfilingQueryCreate(profiling_pool, _index, &_handle));
+        _init_structs->getProfilingDdiTable().pfnProfilingQueryCreate(_profiling_pool->_handle, _index, &_handle));
 }
 
 LayerStatistics ProfilingQuery::getLayerStatistics() const {

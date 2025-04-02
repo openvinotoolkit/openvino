@@ -6,7 +6,9 @@
 
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/runtime/utils.hpp"
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "dnnl.hpp"
+#endif
 namespace cldnn {
 
 class NodeFuseParams {
@@ -18,6 +20,18 @@ public:
 
 private:
     const primitive_type_id _type;
+};
+
+// Dependency(Input) type of fusing operation in fused node.
+// There are different ways to generate input var name and type by the dependency(input) type in MakeOpJitConstants in jitter
+// - ORIGINAL: The input of the operation is the fused node such as Conv
+// - EXTERNAL: The input of the operation is the external node outside the fused node
+// - INTERNAL: The input of the operation is the another fused operation in the fused node
+enum class FusedInputType {
+    UNDEFINED  = -1,
+    ORIGINAL   = 0,
+    EXTERNAL   = 1,
+    INTERNAL   = 2
 };
 
 struct fused_primitive_desc {
@@ -55,11 +69,21 @@ struct fused_primitive_desc {
     bool has_outer_dep() const { return outer_dep_start_idx >= 0; }
 
     std::shared_ptr<const primitive> desc;
-
-    layout input_layout = layout(data_types::f32, format::bfyx, tensor());
-    layout output_layout = layout(data_types::f32, format::bfyx, tensor());
-
     std::shared_ptr<NodeFuseParams> f_param;
+
+    layout input_layout;
+    layout output_layout;
+
+    struct InputDescriptor {
+        InputDescriptor(FusedInputType type, size_t idx, ov::element::Type_t element_type) : m_type(type), m_idx(idx), m_element_type(element_type) {};
+
+        FusedInputType m_type;
+        size_t m_idx;
+        ov::element::Type_t m_element_type;
+    };
+
+    std::vector<InputDescriptor> inputs;
+
 
     std::vector<std::pair<primitive_id, size_t>> deps;
     std::map<primitive_id, size_t> fused_deps;
@@ -70,6 +94,17 @@ struct fused_primitive_desc {
     int32_t outer_dep_start_idx = -1; // if -1, no external dep after fusing
     size_t total_num_deps = 0;
 };
+
+template<typename... SupportedTypes>
+bool fused_ops_are_one_of(const std::vector<fused_primitive_desc>& fused_ops) {
+    std::array supported_type_ids = {(SupportedTypes::type_id())...};
+    for (const auto& fd : fused_ops) {
+        if (!one_of(fd.desc->type, supported_type_ids)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 enum class onednn_post_op_type : uint32_t {
@@ -131,3 +166,8 @@ struct fused_primitive_desc_onednn {
 };
 #endif // ENABLE_ONEDNN_FOR_GPU
 } // namespace cldnn
+
+
+namespace ov::intel_gpu {
+    using FusedPrimitiveDesc = cldnn::fused_primitive_desc;
+}  // namespace ov::intel_gpu

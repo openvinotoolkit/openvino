@@ -32,5 +32,9 @@ TEST_P(GatherStringWithIndicesDataLayerTest, Inference) {
     run();
 };
 
+TEST_P(GatherMixedPrecLayerTest, Inference) {
+    run();
+};
+
 }  // namespace test
 }  // namespace ov

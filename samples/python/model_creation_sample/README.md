@@ -1,6 +1,6 @@
 # Model Creation Python Sample
 
-This sample demonstrates how to run inference using a [model](https://docs.openvino.ai/2025/openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation.html) built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly.
+This sample demonstrates how to run inference using a [model](https://docs.openvino.ai/2025/openvino-workflow/running-inference/model-representation.html) built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly.
 
 For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/model-creation.html)
 

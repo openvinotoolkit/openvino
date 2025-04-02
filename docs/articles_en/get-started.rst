@@ -90,7 +90,7 @@ View :doc:`sample code <get-started/learn-openvino/openvino-samples>` for variou
 Integrate OpenVINO With Your Application
 ----------------------------------------
 
-Learn how to :doc:`use the OpenVINO API to implement an inference pipeline <openvino-workflow/running-inference/integrate-openvino-with-your-application>` in your application.
+Learn how to :doc:`use the OpenVINO API to implement an inference pipeline <openvino-workflow/running-inference>` in your application.
 
 .. _openvino-advanced-features:
 
@@ -123,7 +123,7 @@ Pipeline and model configuration features in OpenVINO Runtime allow you to easil
 
 * :doc:`Automatic Batching <openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>` performs on-the-fly grouping of inference requests to maximize utilization of the target hardware’s memory and processing cores.
 * :doc:`Performance Hints <openvino-workflow/running-inference/optimize-inference/high-level-performance-hints>` automatically adjust runtime parameters to prioritize for low latency or high throughput
-* :doc:`Dynamic Shapes <openvino-workflow/running-inference/dynamic-shapes>` reshapes models to accept arbitrarily-sized inputs, increasing flexibility for applications that encounter different data shapes
+* :doc:`Dynamic Shapes <openvino-workflow/running-inference/model-input-output/dynamic-shapes>` reshapes models to accept arbitrarily-sized inputs, increasing flexibility for applications that encounter different data shapes
 * :doc:`Benchmark Tool <get-started/learn-openvino/openvino-samples/benchmark-tool>` characterizes model performance in various hardware and pipeline configurations
 
 .. _additional-about-openvino/additional-resources:

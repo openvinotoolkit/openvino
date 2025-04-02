@@ -48,6 +48,7 @@ enum class NodeFusingType : int64_t {
     FusedWithMatMulI8,
     FusedWithFCI8,
     FusedWithReduce,
+    FusedWithGather,
     FusedWithMisc
 };
 

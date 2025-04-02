@@ -50,13 +50,14 @@ def main():
 
     if args.commit_sha == 'latest_available_commit':
         latest_artifacts_link = artifact_utils.get_latest_artifacts_link(storage_dir, args.storage_root,
-                                                                         args.branch_name, args.event_name)
+                                                                         args.branch_name, args.event_name,
+                                                                         args.product_name)
         latest_artifacts_path = PureWindowsPath(latest_artifacts_link.read_text())
         normalized_path = latest_artifacts_path.as_posix() if os.name == 'posix' else latest_artifacts_path
         storage = Path(args.storage_root) / normalized_path
     else:
         storage = artifact_utils.get_storage_dir(storage_dir, args.commit_sha, args.storage_root, args.branch_name,
-                                                 args.event_name)
+                                                 args.event_name, args.product_name)
 
     action_utils.set_github_output("artifacts_storage_path", str(storage))
     logger.info(f"Artifacts are taken from here: {storage}")

@@ -23,3 +23,7 @@ public:
 };
 
 }  // namespace cldnn
+
+namespace ov::intel_gpu {
+using Kernel = cldnn::kernel;
+}
