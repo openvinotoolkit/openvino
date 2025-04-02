@@ -115,7 +115,6 @@ void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
     const ov::SoPtr<ov::ITensor>& scale,
     const ov::SoPtr<ov::ITensor>& to,
     const ov::npuw::util::UnpackOptions& unpack_options) {
-        std::cout << "unpack f8" << std::endl;
     auto from_shape = from->get_shape();
     auto scale_shape = scale->get_shape();
 
@@ -124,9 +123,20 @@ void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(scale->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
     NPUW_ASSERT(from_shape[0] == scale_shape[0]);
-    // TODO: continue
+    NPUW_ASSERT(from->get_element_type() == ov::element::f8e4m3 ||
+                from->get_element_type() == ov::element::f8e5m2 ||
+                from->get_element_type() == ov::element::f8e8m0);
+    NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
+    NPUW_ASSERT(to->get_element_type() == ov::element::f16);
 
-    std::cout << "unpack f8 done" << std::endl;
+    const auto* from_ptr = from->data<ov::float8_e4m3>();
+    const auto* scale_ptr = scale->data<float>();
+    auto* to_ptr = to->data<ov::float16>();
+
+    const auto size = from->get_size();
+    ov::parallel_for(size, [&](size_t idx) {
+        to_ptr[idx] = float(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
+    });
 }
 
 }  // namespace
