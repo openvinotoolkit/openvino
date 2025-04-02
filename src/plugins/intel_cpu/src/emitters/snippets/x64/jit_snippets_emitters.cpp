@@ -120,8 +120,7 @@ void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 }
 
 template <cpu_isa_t isa>
-void jit_scalar_emitter::emit_isa(const std::vector<size_t>& /*in*/,
-                                  const std::vector<size_t>& out) const {
+void jit_scalar_emitter::emit_isa(const std::vector<size_t>& /*in*/, const std::vector<size_t>& out) const {
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
     auto vmm_dst = Vmm(out[0]);
