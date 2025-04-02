@@ -39,6 +39,7 @@ JitConstants SDPAKernelRef::GetJitConstants(const sdpa_params& params) const {
     jit.Merge(MakeTypeJitConstants(acc_dt, "ACCUMULATOR"));
 
     TransposedDimensionAccessHelperJit dims_q(params.inputs[0], params.input0_order);
+    TransposedDimensionAccessHelperJit dims_v(params.inputs[2], params.input2_order);
     jit.AddConstant(MakeJitConstant("HEAD_SIZE", dims_q.x()));
 
     size_t scale_idx = params.conf.has_const_attn_mask_val ? 3 : 4;
