@@ -224,26 +224,27 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
         *dstData = res;
         indexDst[spatIndOff * oDHW + od * oHW + oh * OW + ow] = resIndex;
     };
-    auto poolAvg = [&](const float* srcData, float* dstData, int od, int oh, int ow, size_t /*spatIndOff*/) {
-        size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
-        setBinBorders(&dStart, &dEnd, od, ID, OD);
-        setBinBorders(&hStart, &hEnd, oh, IH, OH);
-        setBinBorders(&wStart, &wEnd, ow, IW, OW);
-        auto binSize = (dEnd - dStart) * (hEnd - hStart) * (wEnd - wStart);
-        if (binSize == 0) {
-            THROW_CPU_NODE_ERR("has empty bin");
-        }
-        float sum = 0;
-        for (size_t pixD = dStart; pixD < dEnd; pixD++) {
-            for (size_t pixH = hStart; pixH < hEnd; pixH++) {
-                for (size_t pixW = wStart; pixW < wEnd; pixW++) {
-                    float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
-                    sum = sum + curr;
+    auto poolAvg =
+        [&](const float* srcData, float* dstData, int od, int oh, int ow, [[maybe_unused]] size_t spatIndOff) {
+            size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
+            setBinBorders(&dStart, &dEnd, od, ID, OD);
+            setBinBorders(&hStart, &hEnd, oh, IH, OH);
+            setBinBorders(&wStart, &wEnd, ow, IW, OW);
+            auto binSize = (dEnd - dStart) * (hEnd - hStart) * (wEnd - wStart);
+            if (binSize == 0) {
+                THROW_CPU_NODE_ERR("has empty bin");
+            }
+            float sum = 0;
+            for (size_t pixD = dStart; pixD < dEnd; pixD++) {
+                for (size_t pixH = hStart; pixH < hEnd; pixH++) {
+                    for (size_t pixW = wStart; pixW < wEnd; pixW++) {
+                        float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
+                        sum = sum + curr;
+                    }
                 }
             }
-        }
-        *dstData = sum / binSize;
-    };
+            *dstData = sum / binSize;
+        };
 
     if (algorithm == Algorithm::AdaptivePoolingMax) {
         pool = poolMax;

@@ -18,7 +18,7 @@ std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const FCAttrs& attrs
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const PostOps& /*postOps*/) {
+std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const PostOps& postOps) {
     // @todo print PostOps
     return os;
 }

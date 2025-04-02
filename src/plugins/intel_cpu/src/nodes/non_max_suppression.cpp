@@ -955,7 +955,7 @@ float NonMaxSuppression::intersectionOverUnion(const float* boxesI, const float*
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
-void NonMaxSuppression::check1DInput(const Shape& shape, const std::string& name, const size_t /*port*/) {
+void NonMaxSuppression::check1DInput(const Shape& shape, const std::string& name, [[maybe_unused]] const size_t port) {
     if (shape.getRank() != 0 && shape.getRank() != 1) {
         THROW_CPU_NODE_ERR("has unsupported '", name, "' input rank: ", shape.getRank());
     }
@@ -966,7 +966,7 @@ void NonMaxSuppression::check1DInput(const Shape& shape, const std::string& name
     }
 }
 
-void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name, const size_t /*port*/) {
+void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name, [[maybe_unused]] const size_t port) {
     if (shape.getRank() != 2) {
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output rank: ", shape.getRank());
     }

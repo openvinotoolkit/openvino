@@ -358,7 +358,7 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
     const auto byte_offset = m_output_prc.size() / (m_mersenne_twister_optimization_enabled ? 1 : 2);
 
-    parallel_nt(m_threads_num, [&](int ithr, int /*nthr*/) {
+    parallel_nt(m_threads_num, [&](int ithr, [[maybe_unused]] int nthr) {
         auto& params = m_mersenne_twister_thread_params[ithr];
 
         auto approx_start = thread_offset * static_cast<float>(ithr);

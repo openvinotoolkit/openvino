@@ -1017,7 +1017,7 @@ public:
     NormalizeL2CornerCaseExecutor(const VectorDims& dims)
         : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>())) {}
 
-    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** /*post_ops_data*/) override {
+    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, [[maybe_unused]] const void** post_ops_data) override {
         normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
     }
 
