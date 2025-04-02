@@ -44,5 +44,6 @@ protected:
     virtual JitConstants GetJitConstants(const col2im_params& params) const;
     virtual CommonDispatchData SetDefault(const col2im_params& params) const = 0;
     KernelsData GetCommonKernelsData(const Params& params) const;
+    bool CheckCol2ImContainBatch(const col2im_params& params) const;
 };
 }  // namespace kernel_selector
