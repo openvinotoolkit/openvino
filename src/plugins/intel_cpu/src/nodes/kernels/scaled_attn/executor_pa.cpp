@@ -30,7 +30,7 @@
 #elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
 #    include "arm_sve.h"
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
-#    include "nodes/kernels/aarch64/pa_kernels.hpp"
+#    include "nodes/kernels/aarch64/sve_utils.hpp"
 #    include "nodes/kernels/kai/kleidi_kernel.hpp"
 #endif
 
@@ -39,7 +39,7 @@ namespace ov::Extensions::Cpu::XARCH {
 using namespace ov;
 using namespace ov::intel_cpu;
 
-// currently depends on brgemm which only support x64
+// currently depends on brgemm which only support x64 or ARM SVE
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
 
 #    if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
@@ -2353,7 +2353,7 @@ struct MHAHelper {
     void init_reorder_buffers(size_t batch, size_t kv_len_in_blocks) {
         _qk_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, Hk, _block_size * S});
         if (AarchF16) {
-            // Required to keep kv_cache continuous in mem, as kleidi do to support accumulation
+            // It is required to keep kv_cache continuous in mem, as kleidi do not support accumulation
             _wv_scratch_b.resize<DATA_TYPE>({batch, Hk, kv_len_in_blocks, _block_size * rnd_up(SV, _block_size)});
         } else {
             _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, Hk, _block_size * rnd_up(SV, _block_size)});
@@ -2556,7 +2556,7 @@ struct MHAHelper {
         auto _score_stride = _weight.stride_bytes(2) / 2;
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
-            float* c_ptr = _weight.ptr<float>(ithr, h, 0, 0);
+            float* c_ptr = _weight.ptr<float>(ithr, h - hq_beg, 0, 0);
             // for each query block, loop through all key block
             // for blocks:
             // 1 0 0 0 ...
@@ -2585,8 +2585,8 @@ struct MHAHelper {
             for (size_t m = q_start; m < q_end; m++) {
                 // apply softmax in f32 precision
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
-                auto soft_in = _weight.ptr<float>(ithr, h, m - q_start);
-                auto score = _weight.ptr<float>(ithr, h, m - q_start);
+                auto soft_in = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
+                auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 PlainTensor f32_cvt;
                 if (q_is_xf16) {
                     f32_cvt.resize<float>({size_t{rnd_up(cur_kv_len, _block_size)}});
@@ -2645,7 +2645,7 @@ struct MHAHelper {
             }
 
             // reuse float buffer, need to use float to compute offset
-            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h, 0, 0));
+            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h - hq_beg, 0, 0));
             DATA_TYPE* out_ptr = output_emb.ptr<DATA_TYPE>(q_start, h * SV);
             DATA_TYPE* v_ptr;
             v_ptr = wv_scratch_b.ptr<DATA_TYPE>(hk, 0);
