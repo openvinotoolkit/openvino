@@ -28,7 +28,7 @@ public:
     };
     RepackingImplType repacking_impl_type = RepackingImplType::NONE;
 
-    std::unordered_map<size_t, RepackedInput> repacked_inputs = {};
+    RepackedInputConfig repacked_input_config = {};
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
 };
 

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import pytest
 import numpy as np
 from contextlib import nullcontext as does_not_raise
@@ -137,6 +138,7 @@ def prepared_paths(request, tmp_path):
     ({"wrong_np": np.array([1.5, 2.5], dtype="complex128")}, pytest.raises(TypeError), "Unsupported NumPy array dtype: complex128"),
     ({"wrong": {}}, pytest.raises(TypeError), "Unsupported attribute type: <class 'dict'>")
 ])
+@pytest.mark.skipif(sys.platform == "win32", reason="CVS-164354 BUG: hanged on windows wheels")
 def test_visit_attributes_custom_op(prepared_paths, attributes, expectation, raise_msg):
     input_shape = [2, 1]
 

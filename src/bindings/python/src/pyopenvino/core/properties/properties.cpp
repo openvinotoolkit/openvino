@@ -100,6 +100,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::dynamic_quantization_group_size, "dynamic_quantization_group_size");
     wrap_property_RW(m_hint, ov::hint::kv_cache_precision, "kv_cache_precision");
     wrap_property_RW(m_hint, ov::hint::activations_scale_factor, "activations_scale_factor");
+    wrap_property_RW(m_hint, ov::hint::compiled_blob, "compiled_blob");
 
     // Submodule intel_cpu
     py::module m_intel_cpu =

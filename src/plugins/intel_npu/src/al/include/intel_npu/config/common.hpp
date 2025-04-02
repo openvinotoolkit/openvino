@@ -98,14 +98,12 @@ struct INFERENCE_PRECISION_HINT final : OptionBase<INFERENCE_PRECISION_HINT, ov:
             return ov::element::f16;
         } else if (val == "i8") {
             return ov::element::i8;
-        } else if (val == "f32") {
-            return ov::element::f32;
         } else {
             OPENVINO_THROW("Wrong value ",
                            val.data(),
                            " for property key ",
                            ov::hint::inference_precision.name(),
-                           ". Supported values: f32, f16, i8");
+                           ". Supported values: f16, i8");
         }
     };
 };

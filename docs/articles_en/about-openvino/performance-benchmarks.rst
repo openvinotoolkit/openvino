@@ -146,12 +146,6 @@ For a listing of all platforms and configurations used for testing, refer to the
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/download/benchmarking_OV_performance-data.xlsx
-         :color: primary
-         :outline:
-         :expand:
-
-         :material-regular:`download;1.5em` Click for Performance Data [XLSX]
 
 
 

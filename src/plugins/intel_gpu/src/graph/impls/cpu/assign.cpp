@@ -54,7 +54,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
 
         stream.wait_for_events(events);
 
-        const auto ev_set_memory = variable.get_memory()->copy_from(stream, instance.input_memory());
+        const auto ev_set_memory = variable.get_memory()->copy_from(stream, instance.input_memory(), 0, 0, variable.get_layout().bytes_count(), true);
         variable.set();
 
         return ev_set_memory;

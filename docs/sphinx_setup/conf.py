@@ -14,7 +14,7 @@ from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
 
 project = 'OpenVINO™'
-copyright = '2024, Intel®'
+copyright = '2025, Intel®'
 author = 'Intel®'
 
 language = 'en'

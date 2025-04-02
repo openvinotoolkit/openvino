@@ -35,6 +35,9 @@ int main(int argc, char** argv, char** envp) {
     // register crashHandler for SIGSEGV signal
     signal(SIGSEGV, sigsegv_handler);
 
+    //set timeout to 30 min
+    ov::test::utils::CrashHandler::SetUpTimeout(1800);
+
     std::ostringstream oss;
     oss << "Command line args (" << argc << "): ";
     for (int c = 0; c < argc; ++c) {

@@ -111,7 +111,7 @@ WSL allows developers to run a GNU/Linux development environment for the Windows
 
 .. note::
 
-   Make sure your Intel graphics driver is updated to version **30.0.100.9955** or later. You can download and install the latest GPU host driver `here <https://www.intel.com/content/www/us/en/download/19344/intel-graphics-windows-dch-drivers.html>`__.
+   Make sure your Intel graphics driver is updated to version **30.0.100.9955** or later. You can download and install the latest GPU host driver `here <https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html>`__.
 
 Below are the required steps to make it work with OpenVINO:
 

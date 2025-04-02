@@ -184,7 +184,7 @@ Examples
    In this example, the application is written in C++, performs inference
    with the :doc:`Automatic Device Selection <../running-inference/inference-devices-and-modes/auto-device-selection>`
    mode, limiting device list to GPU and CPU, and reads models
-   :doc:`created using C++ code <../running-inference/integrate-openvino-with-your-application/model-representation>`.
+   :doc:`created using C++ code <../running-inference/model-representation>`.
 
    The following libraries are used: ``openvino``, ``openvino_auto_plugin``, ``openvino_intel_gpu_plugin``, and ``openvino_intel_cpu_plugin``.
 

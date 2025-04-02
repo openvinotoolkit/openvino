@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #endif
 
 #if OV_GPU_WITH_CM
-    #include "impls/cm/lstm_seq.hpp"
+    #include "impls/cm/xetla_lstm_seq.hpp"
 #endif
 
 #if OV_GPU_WITH_ONEDNN

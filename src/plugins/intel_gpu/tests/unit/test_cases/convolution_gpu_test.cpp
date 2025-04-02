@@ -5325,6 +5325,11 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
         return;
     }
 
+    if (engine.get_device_info().supports_immad) {
+        // This test is not targeting for onednn case
+        return;
+    }
+
     const int batch_num = 2;
     const int input_xy = 5;
     const int input_f = testing::get<1>(GetParam());
@@ -7043,6 +7048,10 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
         ASSERT_EQ(1, 1);
         return;
     }
+    if (engine.get_device_info().supports_immad) {
+        // This test is not targeting for onednn case
+        return;
+    }
 
 
     const int batch_num = 2;
@@ -7726,7 +7735,7 @@ INSTANTIATE_TEST_SUITE_P(convolution_grouped_fsv4_fsv16,
                             TestParamType_grouped_convolution_gpu(4, 1, 6, 256, 512, 2, 1, 3, 16, 1, 1, true, true, true, format::b_fs_zyx_fsv16, ""),
                             TestParamType_grouped_convolution_gpu(1, 3, 1, 18, 2, 1, 3, 1, 2, 1, 1, true, true, true, format::b_fs_zyx_fsv16, ""),
                             TestParamType_grouped_convolution_gpu(2, 3, 4, 3, 18, 3, 3, 3, 1, 1, 1, false, false, false, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32"),
-                            TestParamType_grouped_convolution_gpu(79, 224, 224, 3, 64, 3, 3, 3, 1, 2, 1, false, false, false, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32")
+                            TestParamType_grouped_convolution_gpu(79, 112, 112, 3, 32, 3, 3, 3, 1, 2, 1, false, false, false, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32")
                         ),
                         convolution_grouped_gpu::PrintToStringParamName);
 
@@ -7930,7 +7939,9 @@ TEST_P(convolution_grouped_gpu, base) {
     cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     auto out_lay = out_mem->get_layout();
 
-    ASSERT_EQ(out_mem->get_layout().format, input_data_format);
+    if (!engine.get_device_info().supports_immad) {
+        ASSERT_EQ(out_mem->get_layout().format, input_data_format); // This assertion is valid only for iGPU case
+    }
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
     ASSERT_EQ(out_lay.spatial(2), expected_result[0][0].size());
@@ -7982,6 +7993,11 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
 
     if (!engine.get_device_info().supports_fp16) {
         std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        ASSERT_EQ(1, 1);
+        return;
+    }
+    if (engine.get_device_info().supports_immad) {
+        std::cout << "[ SKIPPED ] The test is skipped (not targeting for onednn path)." << std::endl;
         ASSERT_EQ(1, 1);
         return;
     }

@@ -13,6 +13,7 @@
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include <openvino/op/constant.hpp>
+#include "ov_ops/rms.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/add.hpp"
@@ -154,6 +155,40 @@ TEST_F(TransformationTestsF, ClampFp16OutputTest6) {
     }
     {
         model_ref = model->clone(); // Not changed due to types for eltwise not supporting fusion to gemm
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, ClampFp16OutputRMS) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 2560 });
+        auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 2560 });
+        auto add = std::make_shared<ov::op::v1::Add>(input1, input2);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 2560 });
+        auto gamma1 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 2560 }, {1});
+        auto rms_post = std::make_shared<ov::op::internal::RMS>(data, gamma1, 1e-5f, ov::element::f16);
+        auto add1 = std::make_shared<ov::op::v1::Add>(add, rms_post);
+        auto gamma2 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 2560 }, {1});
+        auto rms = std::make_shared<ov::op::internal::RMS>(add1, gamma2, 1e-5f, ov::element::f16);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{ rms }, ov::ParameterVector{ input1, input2, data });
+        manager.register_pass<ClampFP16Output>();
+    }
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 2560 });
+        auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 2560 });
+        auto add = std::make_shared<ov::op::v1::Add>(input1, input2);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, -1, 2560 });
+        auto gamma1 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 2560 }, {1});
+        auto rms_post = std::make_shared<ov::op::internal::RMS>(data, gamma1, 1e-5f, ov::element::f16);
+        auto add1 = std::make_shared<ov::op::v1::Add>(add, rms_post);
+        auto min = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
+        auto max = static_cast<double>(std::numeric_limits<ov::float16>::max());
+        auto clamp = std::make_shared<ov::op::v0::Clamp>(add1, min, max);
+        auto gamma2 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 2560 }, {1});
+        auto rms = std::make_shared<ov::op::internal::RMS>(clamp, gamma2, 1e-5f, ov::element::f16);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ rms }, ov::ParameterVector{ input1, input2, data });
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
