@@ -64,6 +64,11 @@ endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
+file(GLOB_RECURSE BLOBS "*.blob")
+add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+                  COMMAND ${CMAKE_COMMAND} -E copy ${BLOBS}
+                  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+
 install(
   TARGETS ${TARGET_NAME}
   RUNTIME DESTINATION tests
@@ -71,7 +76,7 @@ install(
           EXCLUDE_FROM_ALL)
 
 install(
-  FILES ${SKIP_CONFIG_PATH}
+  FILES ${SKIP_CONFIG_PATH} BLOBS
   DESTINATION tests
   COMPONENT tests
   EXCLUDE_FROM_ALL)
