@@ -123,12 +123,14 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
         << "[microseconds]" << std::endl;
 
     size_t offset = 0;
+
     for (const IODescriptor& descriptor : initGraph->get_metadata().inputs) {
         const size_t id = std::stoi(descriptor.nameFromCompiler);
         auto currentInputBufferLocation = static_cast<unsigned char*>(initInputsTensor->data()) + offset;
         const size_t currentInputSize =
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
         OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
+
         OPENVINO_ASSERT(constantIdToTensorData.at(id)->get_byte_size() == currentInputSize,
                         "Byte size mismatch for ",
                         descriptor.nameFromCompiler);

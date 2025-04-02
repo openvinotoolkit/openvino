@@ -24,6 +24,7 @@
 #include <transformations/common_optimizations/reduce_reshape_fusion.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/rms_fusion.hpp>
+#include <transformations/common_optimizations/shared_ops_optimization.hpp>
 #include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
 #include <transformations/common_optimizations/space_to_batch_fusion.hpp>
 #include <transformations/common_optimizations/strides_optimization.hpp>
@@ -248,15 +249,18 @@ bool isInitMetadata(const intel_npu::NetworkMetadata& networkMetadata) {
 void runOVPasses(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
-    ov::element::TypeVector decompression_precisions{
-        ov::element::u4,
-        ov::element::i4,
-        ov::element::nf4,
-        ov::element::u8,
-        ov::element::i8,
-    };
+
+    ov::element::TypeVector decompression_precisions{ov::element::u4,
+                                                     ov::element::i4,
+                                                     ov::element::nf4,
+                                                     ov::element::u8,
+                                                     ov::element::i8,
+                                                     ov::element::f8e4m3,
+                                                     ov::element::f8e5m2,
+                                                     ov::element::f8e8m0};
     manager.register_pass<ov::pass::MarkDequantization>(decompression_precisions, /*fold_subtract_const=*/true);
     manager.register_pass<ov::pass::KeepConstPrecision>(decompression_precisions, /*fold_subtract_const=*/true);
+    manager.register_pass<ov::pass::SharedOpOptimization>();
     manager.register_pass<ov::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
@@ -309,7 +313,6 @@ void runOVPasses(const std::shared_ptr<ov::Model>& model) {
     decomp->set_name("ov::pass::CommonDecompositions");
 
     manager.register_pass<ov::pass::ConstantFolding>();
-
     manager.register_pass<ov::pass::LinOpSequenceFusion>();
     manager.register_pass<ov::pass::UnrollIf>();
 
@@ -334,6 +337,7 @@ void runOVPasses(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
     manager.register_pass<ov::pass::ConvertDetectionOutput8ToDetectionOutput1>();
     manager.register_pass<ov::pass::ConvertShapeOf3>();
+
     manager.register_pass<ov::pass::StridesOptimization>();
     manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
 
