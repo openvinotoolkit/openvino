@@ -33,7 +33,7 @@ public:
         void setExtBuff(void* ptr, size_t size) override {
             // pass
         }
-        bool resize(size_t /*size*/) override {
+        bool resize([[maybe_unused]] size_t size) override {
             // pass
             return false;
         }
@@ -83,7 +83,9 @@ public:
         m_pMemDesc = desc;
     }
 
-    void load(const IMemory& /*src*/, bool /*ftz*/, bool /*bf16saturation*/) const override {
+    void load([[maybe_unused]] const IMemory& src,
+              [[maybe_unused]] bool ftz,
+              [[maybe_unused]] bool bf16saturation) const override {
         OPENVINO_THROW("Unexpected call MemoryStub::load()");
     }
 

@@ -135,7 +135,7 @@ struct SegmentMax::SegmentMaxExecute {
     }
 };
 
-void SegmentMax::execute(const dnnl::stream& /*strm*/) {
+void SegmentMax::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto dataPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     SegmentMaxContext ctx = {*this};
     OV_SWITCH(intel_cpu,

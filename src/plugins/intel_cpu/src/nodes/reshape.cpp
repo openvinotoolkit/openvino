@@ -36,7 +36,8 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     }
 
     if (isDynamicNode()) {
-        auto checkSecondInput = [this](const std::shared_ptr<ov::Node>& op, const std::string& /*opType*/) {
+        auto checkSecondInput = [this](const std::shared_ptr<ov::Node>& op,
+                                       [[maybe_unused]] const std::string& opType) {
             if (op->get_input_partial_shape(1).is_dynamic()) {
                 THROW_CPU_NODE_ERR("has non static second input");
             }
@@ -128,7 +129,7 @@ void Reshape::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Reshape::execute(const dnnl::stream& /*strm*/) {
+void Reshape::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
 

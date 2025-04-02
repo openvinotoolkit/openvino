@@ -13,9 +13,9 @@ bool CommonConvertExecutor::isSupported(ov::element::Type srcPrc, ov::element::T
 }
 
 bool CommonConvertExecutor::init(const ConvertParams& convertParams,
-                                 const MemoryDescPtr& /*srcDesc*/,
-                                 const MemoryDescPtr& /*dstDesc*/,
-                                 const dnnl::primitive_attr& /*attr*/) {
+                                 [[maybe_unused]] const MemoryDescPtr& srcDesc,
+                                 [[maybe_unused]] const MemoryDescPtr& dstDesc,
+                                 [[maybe_unused]] const dnnl::primitive_attr& attr) {
     commonConvertParams = convertParams;
     return true;
 }

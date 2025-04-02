@@ -343,7 +343,7 @@ void GenerateProposals::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void GenerateProposals::execute(const dnnl::stream& /*strm*/) {
+void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 3) {
             THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");

@@ -177,7 +177,7 @@ void Convert::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Convert::execute(const dnnl::stream& /*strm*/) {
+void Convert::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
     auto& childMem = getChildEdgeAt(0)->getMemory();
 

@@ -159,7 +159,7 @@ void Proposal::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Proposal::execute(const dnnl::stream& /*strm*/) {
+void Proposal::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
         const auto* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
         const auto* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);

@@ -36,7 +36,7 @@ BrgemmTppEmitter::BrgemmTppEmitter(jit_generator* h,
 }
 
 std::set<std::vector<element::Type>> BrgemmTppEmitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& /*node*/) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     // Note: BrgemmTpp currently supports only fp32
     return {{element::f32, element::f32}};
 }

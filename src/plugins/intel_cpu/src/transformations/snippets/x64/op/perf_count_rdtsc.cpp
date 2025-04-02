@@ -13,7 +13,7 @@ PerfCountRdtscBegin::PerfCountRdtscBegin() : PerfCountBeginBase() {
     validate_and_infer_types_except_PerfCountEnd();
 }
 
-std::shared_ptr<Node> PerfCountRdtscBegin::clone_with_new_inputs(const OutputVector& /*inputs*/) const {
+std::shared_ptr<Node> PerfCountRdtscBegin::clone_with_new_inputs([[maybe_unused]] const OutputVector& inputs) const {
     return std::make_shared<PerfCountRdtscBegin>();
 }
 

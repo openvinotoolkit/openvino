@@ -89,7 +89,8 @@ void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
     jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
-void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& /*in*/, const std::vector<size_t>& out) const {
+void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
+                                       const std::vector<size_t>& out) const {
     // If the loop evaulate once, we can skip loop begin code emission
     // If work_amount is dynamic, we should get runtime `work_amount` - it might be `zero` and we should skip loop
     // evaluation
@@ -207,7 +208,8 @@ void jit_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
     jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
-void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& /*out*/) const {
+void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
+                                     [[maybe_unused]] const std::vector<size_t>& out) const {
     std::vector<size_t> data_ptr_reg_idxs;
     // the last input is actually a work_amount reg
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);

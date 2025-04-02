@@ -317,7 +317,7 @@ void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scrat
         executeGemm(is_M_tail, ptr_a, scratch_b, wsp, ptr_c, scratch_a);
     }
 }
-void BrgemmKernel::callBrgemm(brgemmCtx& /*ctx*/,
+void BrgemmKernel::callBrgemm([[maybe_unused]] brgemmCtx& ctx,
                               std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel,
                               const void* pin0,
                               const void* pin1,

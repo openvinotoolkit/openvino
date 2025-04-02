@@ -50,7 +50,7 @@ private:
 
 class AclPoolingExecutorBuilder : public PoolingExecutorBuilder {
 public:
-    [[nodiscard]] bool isSupported(const PoolingAttrs& /*poolingAttrs*/,
+    [[nodiscard]] bool isSupported([[maybe_unused]] const PoolingAttrs& *poolingAttrs,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
         if ((srcDescs[0]->getPrecision() != ov::element::f32 && dstDescs[0]->getPrecision() != ov::element::f32) &&

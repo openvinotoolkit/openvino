@@ -183,7 +183,7 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
     });
 }
 
-void ReverseSequence::execute(const dnnl::stream& /*strm*/) {
+void ReverseSequence::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has no compiled executor");
     }

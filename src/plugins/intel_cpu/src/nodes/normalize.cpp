@@ -900,7 +900,7 @@ bool NormalizeL2::canFuse(const NodePtr& node) const {
     return !attrs.cornerCase && canFuseSimpleOperation(node);
 }
 
-void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDims& dims, bool /*initWeights*/) {
+void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDims& dims, [[maybe_unused]] bool initWeights) {
     dnnl::post_ops ops;
 
     postOpsDataPtrs.clear();
@@ -997,7 +997,7 @@ void NormalizeL2::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NormalizeL2::execute(const dnnl::stream& /*strm*/) {
+void NormalizeL2::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }

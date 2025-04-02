@@ -16,7 +16,7 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
 jit_nop_emitter::jit_nop_emitter(jit_generator* h,
                                  cpu_isa_t isa,
-                                 const ExpressionPtr& /*expr*/,
+                                 [[maybe_unused]] const ExpressionPtr& expr,
                                  emitter_in_out_map emitter_type)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_type;
@@ -120,7 +120,8 @@ void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 }
 
 template <cpu_isa_t isa>
-void jit_scalar_emitter::emit_isa(const std::vector<size_t>& /*in*/, const std::vector<size_t>& out) const {
+void jit_scalar_emitter::emit_isa([[maybe_unused]] const std::vector<size_t>& in,
+                                  const std::vector<size_t>& out) const {
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
     auto vmm_dst = Vmm(out[0]);

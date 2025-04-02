@@ -45,7 +45,7 @@ The functionality is equivalent to following python code:
 */
 template <typename T>
 struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPreprocess::Executor {
-    void execute(const dnnl::stream& /*strm*/,
+    void execute([[maybe_unused]] const dnnl::stream& strm,
                  intel_cpu::Node* pnode,
                  const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
         (void)config;

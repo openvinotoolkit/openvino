@@ -130,7 +130,7 @@ void AdaptivePooling::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void AdaptivePooling::execute(const dnnl::stream& /*strm*/) {
+void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!(inputPrec == dnnl_f32 && outputPrec == dnnl_f32)) {

@@ -173,7 +173,7 @@ void DetectionOutput::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void DetectionOutput::execute(const dnnl::stream& /*strm*/) {
+void DetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto* dstData = getDstDataAtPortAs<float>(0);
 
     const auto* locData = getSrcDataAtPortAs<const float>(ID_LOC);
@@ -565,7 +565,7 @@ inline void DetectionOutput::confReorderDense(const float* confData,
 inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confData,
                                                             const float* ARMConfData,
                                                             float* reorderedConfData,
-                                                            int* /*indicesData*/,
+                                                            [[maybe_unused]] int* indicesData,
                                                             int* indicesBufData,
                                                             int* detectionsData) {
     auto* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);

@@ -337,9 +337,9 @@ void MlasTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::
 }
 
 bool MlasTransposeExecutor::init(const TransposeParams& transposeParams,
-                                 const std::vector<MemoryDescPtr>& /*srcDescs*/,
-                                 const std::vector<MemoryDescPtr>& /*dstDescs*/,
-                                 const dnnl::primitive_attr& /*attr*/) {
+                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
+                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs,
+                                 [[maybe_unused]] const dnnl::primitive_attr& attr) {
     if (!IsTransposeMovingSingleAxis(transposeParams.permuteParams.order, from, to)) {
         DEBUG_LOG("MLAS Transpose executor supports moving single axis only");
         return false;
@@ -347,7 +347,7 @@ bool MlasTransposeExecutor::init(const TransposeParams& transposeParams,
     return true;
 }
 
-bool MlasTransposeExecutorBuilder::isSupported(const TransposeParams& /*transposeParams*/,
+bool MlasTransposeExecutorBuilder::isSupported([[maybe_unused]] const TransposeParams& transposeParams,
                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                const std::vector<MemoryDescPtr>& dstDescs) const {
     if (!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) {

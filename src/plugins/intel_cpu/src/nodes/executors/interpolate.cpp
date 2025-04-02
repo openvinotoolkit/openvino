@@ -13,7 +13,7 @@ using namespace ov::intel_cpu;
 bool ov::intel_cpu::InterpolateExecutor::init(const InterpolateAttrs& interpolateAttrs,
                                               const std::vector<MemoryDescPtr>& srcDescs,
                                               const std::vector<MemoryDescPtr>& dstDescs,
-                                              const dnnl::primitive_attr& /*attr*/) {
+                                              [[maybe_unused]] const dnnl::primitive_attr& attr) {
     const auto& srcDims = srcDescs[0]->getShape().getStaticDims();
     const auto& dstDims = dstDescs[0]->getShape().getStaticDims();
     interpAttrs = interpolateAttrs;
@@ -63,7 +63,7 @@ bool ov::intel_cpu::InterpolateExecutor::init(const InterpolateAttrs& interpolat
 void ov::intel_cpu::InterpolateExecutor::buildTblNN(const VectorDims& srcDimPad5d,
                                                     const VectorDims& dstDim5d,
                                                     const std::vector<float>& dataScales,
-                                                    InterpolateLayoutType /*layout*/,
+                                                    [[maybe_unused]] InterpolateLayoutType layout,
                                                     InterpolateNearestMode nearestMode) {
     const int dimSize = dataRank;
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;

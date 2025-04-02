@@ -84,7 +84,7 @@ bool StringTensorPack::isExecutable() const {
     return !(isInputTensorAtPortEmpty(0) || isInputTensorAtPortEmpty(1));
 }
 
-void StringTensorPack::execute(const dnnl::stream& /*strm*/) {
+void StringTensorPack::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto indicesPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     StringTensorPackContext ctx = {*this};
     OV_SWITCH(intel_cpu,

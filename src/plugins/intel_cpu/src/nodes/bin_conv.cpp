@@ -1386,7 +1386,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
     });
 }
 
-void BinaryConvolution::execute(const dnnl::stream& /*strm*/) {
+void BinaryConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto srcMemory = getSrcMemoryAtPort(0);
     auto weightsMemory = getSrcMemoryAtPort(1);
     auto dstMemory = getDstMemoryAtPort(0);

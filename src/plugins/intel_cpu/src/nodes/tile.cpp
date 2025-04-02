@@ -167,7 +167,7 @@ void Tile::execute(const dnnl::stream& strm) {
     }
 }
 
-void Tile::plainExecute(const dnnl::stream& /*strm*/) {
+void Tile::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
     if (noTiling) {
         return;
     }

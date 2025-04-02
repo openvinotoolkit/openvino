@@ -160,21 +160,22 @@ using ExecutorFactoryLegacyCPtr = std::shared_ptr<const ExecutorFactoryLegacy>;
 class Executor {
 public:
     // returns false if the stage has failed and the executor must be rejected
-    virtual bool update(const MemoryArgs& /*memory*/) {
+    virtual bool update([[maybe_unused]] const MemoryArgs& memory) {
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'update' method is not implemented by executor");
         return false;
     }
     virtual void execute() const {}
     // dnnl_fullyconnected 3D workaround version
-    virtual void execute(const MemoryArgs& /*memory*/) {
+    virtual void execute([[maybe_unused]] const MemoryArgs& memory) {
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
     }
     // legacy version
-    virtual void exec(const std::vector<MemoryCPtr>& /*src*/, const std::vector<MemoryPtr>& /*dst*/) {
+    virtual void exec([[maybe_unused]] const std::vector<MemoryCPtr>& src,
+                      [[maybe_unused]] const std::vector<MemoryPtr>& dst) {
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
     }
     [[nodiscard]] virtual impl_desc_type implType() const = 0;
-    virtual void moveMemToNumaNode(int /*numaID*/) {
+    virtual void moveMemToNumaNode([[maybe_unused]] int numaID) {
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'moveMemToNumaNode' method is not implemented by executor");
     }
     virtual ~Executor() = default;

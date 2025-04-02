@@ -229,7 +229,7 @@ void NonMaxSuppression::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NonMaxSuppression::execute(const dnnl::stream& /*strm*/) {
+void NonMaxSuppression::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto inputs_num = inputShapes.size();
 
     size_t max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;

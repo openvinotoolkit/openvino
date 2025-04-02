@@ -915,7 +915,7 @@ void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCop
                              size_t K,
                              size_t K_blk,
                              size_t K_tail,
-                             size_t /*LDA*/,
+                             [[maybe_unused]] size_t LDA,
                              dnnl_data_type_t dt_in0) {
     brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_tag = dnnl_abcd;
@@ -1556,7 +1556,7 @@ void MHA::mhaImpl() {
     });
 }
 
-void MHA::execute(const dnnl::stream& /*strm*/) {
+void MHA::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (inputPrecisions[1] == ov::element::f32) {
         mhaImpl<float>();
     } else if (inputPrecisions[1] == ov::element::bf16) {

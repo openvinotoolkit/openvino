@@ -162,7 +162,7 @@ bool MatMul::canFuse(const NodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool /*initWeights*/ = false) {
+void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, [[maybe_unused]] bool initWeights = false) {
     dnnl::post_ops ops;
 
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
@@ -456,8 +456,8 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
     return {Shape(inDims0), Shape(inDims1)};
 }
 
-void MatMul::createDescriptor(const std::vector<MemoryDescPtr>& /*inputDesc*/,
-                              const std::vector<MemoryDescPtr>& /*outputDesc*/) {
+void MatMul::createDescriptor([[maybe_unused]] const std::vector<MemoryDescPtr>& inputDesc,
+                              [[maybe_unused]] const std::vector<MemoryDescPtr>& outputDesc) {
     const auto attr = initPrimitiveAttr();
     dnnl::matmul::primitive_desc matmul_desc;
     if (withBiases) {

@@ -35,14 +35,14 @@ void jit_reg_spill_begin_emitter::validate_arguments(const std::vector<size_t>& 
 
 void jit_reg_spill_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
                                                  const std::vector<size_t>& out,
-                                                 const std::vector<size_t>& /*pool_vec_idxs*/,
-                                                 const std::vector<size_t>& /*pool_gpr_idxs*/) const {
+                                                 [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
+                                                 [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
-void jit_reg_spill_begin_emitter::emit_impl(const std::vector<size_t>& /*in*/,
-                                            const std::vector<size_t>& /*out*/) const {
+void jit_reg_spill_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
+                                            [[maybe_unused]] const std::vector<size_t>& out) const {
     m_abi_reg_spiller->preamble(m_regs_to_spill);
 }
 
@@ -73,13 +73,14 @@ void jit_reg_spill_end_emitter::validate_arguments(const std::vector<size_t>& in
 
 void jit_reg_spill_end_emitter::emit_code_impl(const std::vector<size_t>& in,
                                                const std::vector<size_t>& out,
-                                               const std::vector<size_t>& /*pool_vec_idxs*/,
-                                               const std::vector<size_t>& /*pool_gpr_idxs*/) const {
+                                               [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
+                                               [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
-void jit_reg_spill_end_emitter::emit_impl(const std::vector<size_t>& /*in*/, const std::vector<size_t>& /*out*/) const {
+void jit_reg_spill_end_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
+                                          [[maybe_unused]] const std::vector<size_t>& out) const {
     m_abi_reg_spiller->postamble();
 }
 

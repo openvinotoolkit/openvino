@@ -368,7 +368,7 @@ void Graph::Activate() {
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
-void Graph::Configure(bool /*optimize*/) {
+void Graph::Configure([[maybe_unused]] bool optimize) {
     OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
 
     GraphOptimizer optimizer;

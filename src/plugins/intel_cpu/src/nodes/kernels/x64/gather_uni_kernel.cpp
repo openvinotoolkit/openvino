@@ -573,7 +573,7 @@ void jitUniGatherKernel<x64::avx512_core>::calcSrcShiftLong(Vmm* vAuxPool, bool 
 }
 
 template <x64::cpu_isa_t isa>
-void jitUniGatherKernel<isa>::calcSrcShiftLongBlock(Vmm* /*vAuxPool*/, bool /*shiftFirst*/) {
+void jitUniGatherKernel<isa>::calcSrcShiftLongBlock([[maybe_unused]] Vmm* vAuxPool, [[maybe_unused]] bool shiftFirst) {
     // Most likely there will no significant performance gain vs memcpy in reference implementation on big blocks after
     // axis, therefore no time was invested to this case yet.
     OPENVINO_THROW("Unsupported case.");
@@ -1047,9 +1047,9 @@ void jitUniGatherKernel<isa>::tail(bool isShortIdx, bool shiftFirst, bool blocke
 
 template <>
 void jitUniGatherKernel<x64::avx512_core>::fillRestWorkMask(Vmask& kDstMask,
-                                                            Vmm& /*vmmAux*/,
+                                                            [[maybe_unused]] Vmm& vmmAux,
                                                             const Xbyak::Reg64& rWorkRest,
-                                                            const Xbyak::Reg64& /*rAux0*/,
+                                                            [[maybe_unused]] const Xbyak::Reg64& rAux0,
                                                             const Xbyak::Reg64& rAux1) {
     Xbyak::Label lKmov;
     Xbyak::Reg32 rOnes(rAux1.getIdx());

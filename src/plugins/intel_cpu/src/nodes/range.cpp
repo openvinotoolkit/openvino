@@ -97,7 +97,7 @@ void Range::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Range::execute(const dnnl::stream& /*strm*/) {
+void Range::execute([[maybe_unused]] const dnnl::stream& strm) {
     StatusCode retcode = OK;
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
     case ov::element::f32:

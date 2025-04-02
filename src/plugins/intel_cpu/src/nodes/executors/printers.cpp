@@ -13,7 +13,7 @@
 
 namespace ov::intel_cpu {
 
-std::ostream& operator<<(std::ostream& os, const FCAttrs& /*attrs*/) {
+std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const FCAttrs& attrs) {
     // @todo print Attrs
     return os;
 }

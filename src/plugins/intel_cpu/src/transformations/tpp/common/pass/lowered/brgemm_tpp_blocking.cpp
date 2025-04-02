@@ -14,7 +14,7 @@ namespace ov::intel_cpu::tpp::pass {
 
 using namespace ov::snippets::utils;
 
-bool BrgemmTPPBlocking::SetBrgemmBeta::run(ov::snippets::lowered::LinearIR& /*linear_ir*/,
+bool BrgemmTPPBlocking::SetBrgemmBeta::run([[maybe_unused]] ov::snippets::lowered::LinearIR& linear_ir,
                                            ov::snippets::lowered::LinearIR::constExprIt begin,
                                            ov::snippets::lowered::LinearIR::constExprIt end) {
     for (auto expr_it = begin; expr_it != end; ++expr_it) {

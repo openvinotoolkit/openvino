@@ -143,7 +143,7 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
     }
 }
 
-void GatherND::execute(const dnnl::stream& /*strm*/) {
+void GatherND::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has not compiled executor.");
     }

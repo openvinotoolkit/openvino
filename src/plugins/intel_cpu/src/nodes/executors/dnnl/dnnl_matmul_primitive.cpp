@@ -95,7 +95,7 @@ static dimsType normalizeToRank(const dimsType& vec, size_t rank) {
 }
 
 std::shared_ptr<DnnlMatMulPrimitive> DnnlMatMulPrimitive::create(const MemoryArgs& memory,
-                                                                 const MatMulAttrs& /*attrs*/,
+                                                                 [[maybe_unused]] const MatMulAttrs& attrs,
                                                                  const ExecutorContext::CPtr context,
                                                                  const DnnlShapeAgnosticDataPtr& shapeAgnosticData) {
     const auto& srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_SRC)->getDescPtr());
@@ -219,9 +219,8 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           const dnnl::primitive_attr& attr,
                                           const dnnl::engine& engine,
                                           const std::vector<impl_desc_type>& implPriorities,
-                                          const bool useSparseWeights,
+                                          [[maybe_unused]] const bool useSparseWeights,
                                           const bool useWeightsDecompression) {
-    (void)useSparseWeights;
     auto prim_desc =
         createDescriptorInternal(inputDesc, weightDesc, biasDesc, outputDesc, attr, engine, useWeightsDecompression);
     OPENVINO_ASSERT(prim_desc, "Failed to create matmul primitive descriptor");

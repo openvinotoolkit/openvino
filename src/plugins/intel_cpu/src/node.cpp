@@ -361,8 +361,8 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
         return selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
     }
 
-    auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc, size_t i) {
-        (void)i;
+    auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc,
+                                       [[maybe_unused]] size_t i) {
         int estimate = 0;
         auto inputNodesNum = supportedPrimitiveDesc.getConfig().inConfs.size();
         for (size_t j = 0; j < inputNodesNum; j++) {
@@ -1498,7 +1498,7 @@ MemoryDescPtr Node::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t 
     return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(idx));
 }
 
-void Node::appendPostOpArgs(const dnnl::primitive_attr& /*attr*/,
+void Node::appendPostOpArgs([[maybe_unused]] const dnnl::primitive_attr& attr,
                             std::unordered_map<int, dnnl::memory>& primArgs,
                             const std::unordered_map<int, MemoryPtr>& postOpsArgs) {
     for (auto& entry : postOpsArgs) {
@@ -1535,17 +1535,17 @@ dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const VectorDims& dims)
     }
 }
 
-void Node::appendPostOps(dnnl::post_ops& /*ops*/,
-                         const VectorDims& /*postOpDims*/,
-                         std::unordered_map<int, MemoryPtr>& /*postOpsMem*/,
-                         const int /*channelAxis*/) {
+void Node::appendPostOps([[maybe_unused]] dnnl::post_ops& ops,
+                         [[maybe_unused]] const VectorDims& postOpDims,
+                         [[maybe_unused]] std::unordered_map<int, MemoryPtr>& postOpsMem,
+                         [[maybe_unused]] const int channelAxis) {
     OPENVINO_THROW("Fusing of ", NameFromType(this->getType()), " operation is not implemented");
 }
 
-void Node::appendPostOps(dnnl::post_ops& /*ops*/,
-                         const VectorDims& /*postOpDims*/,
-                         std::vector<const void*>& /*postOpsMem*/,
-                         const int /*channelAxis*/) {
+void Node::appendPostOps([[maybe_unused]] dnnl::post_ops& ops,
+                         [[maybe_unused]] const VectorDims& postOpDims,
+                         [[maybe_unused]] std::vector<const void*>& postOpsMem,
+                         [[maybe_unused]] const int channelAxis) {
     OPENVINO_THROW("Fusing of ", NameFromType(this->getType()), " operation is not implemented");
 }
 

@@ -17,7 +17,7 @@ namespace ov::intel_cpu {
 
 template <size_t bypassId>
 struct use {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t /*idx*/) const {
+    ov::element::Type operator()(const std::vector<ov::element::Type>& types, [[maybe_unused]] size_t idx) const {
         assert(bypassId < types.size());
         return types[bypassId];
     }

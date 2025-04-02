@@ -164,14 +164,14 @@ public:
 
 class IterCountPortHelper : public PortMapHelper {
 public:
-    IterCountPortHelper(const MemoryPtr& to, const dnnl::engine& /*eng*/) {
+    IterCountPortHelper(const MemoryPtr& to, [[maybe_unused]] const dnnl::engine& eng) {
         // Only scalar I32 tensor is supported
         OPENVINO_ASSERT(to->getDataType() == memory::data_type::s32);
         OPENVINO_ASSERT(to->getShape() == Shape(VectorDims{1}));
         mem_holder_dst = to->getPrimitive();
     }
 
-    void execute(const dnnl::stream& /*strm*/, int n_iter) override {
+    void execute([[maybe_unused]] const dnnl::stream& strm, int n_iter) override {
         auto mem = mem_holder_dst;
         auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
         if (data_ptr == nullptr) {

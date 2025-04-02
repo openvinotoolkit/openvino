@@ -109,7 +109,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
 }
 
 DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
-                                                                  const DnnlMemoryDescPtr& /*dstDesc*/,
+                                                                  [[maybe_unused]] const DnnlMemoryDescPtr& dstDesc,
                                                                   bool weightsNonTransposed) {
     if (!weightsNonTransposed) {
         return srcDesc;

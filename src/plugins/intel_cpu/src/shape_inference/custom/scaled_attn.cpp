@@ -17,7 +17,7 @@ public:
     SDPAShapeInfer(ScaledDotProductAttentionWithKVCache::Config config) : m_config(std::move(config)) {}
 
     IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                              const std::unordered_map<size_t, MemoryPtr>& /*data_dependency*/) override {
+                              [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const auto& query_dims = input_shapes.front().get();
         VectorDims present_v_dims = input_shapes.back().get();
         const auto& beam_idx_dims = input_shapes.end()[-3].get();

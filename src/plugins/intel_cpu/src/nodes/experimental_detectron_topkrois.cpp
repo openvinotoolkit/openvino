@@ -62,7 +62,7 @@ void ExperimentalDetectronTopKROIs::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronTopKROIs::execute(const dnnl::stream& /*strm*/) {
+void ExperimentalDetectronTopKROIs::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int top_rois_num = (std::min)(max_rois_num_, input_rois_num);
 

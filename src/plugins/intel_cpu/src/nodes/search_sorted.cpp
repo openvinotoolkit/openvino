@@ -98,7 +98,7 @@ struct SearchSorted::SearchSortedExecute {
         ctx.node.executeImpl<TInputType, TOutputType>();
     }
 };
-void SearchSorted::execute(const dnnl::stream& /*strm*/) {
+void SearchSorted::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto outputPrecision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 

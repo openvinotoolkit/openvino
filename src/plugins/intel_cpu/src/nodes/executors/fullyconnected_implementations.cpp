@@ -245,7 +245,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return MlasGemmExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& /*config*/) -> std::optional<executor::Config<FCAttrs>> {
+            []([[maybe_unused]] const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 // @todo Implement proper handling for the cases when fallback is not expected
                 // throwing exception is not an option, since requiresFallback is used in two contexts:
                 // 1) getting proper memory descriptors configuration
@@ -253,7 +253,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return {};
             },
             // acceptsShapes
-            [](const MemoryArgs&  /*memory*/) -> bool {
+            []([[maybe_unused]] const MemoryArgs& memory) -> bool {
                 // @todo create syntactic sugar (functor) for shape agnostic lambda
                 return true;
             },
@@ -488,9 +488,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::MatMul,
             ShapeTolerance::Dependant,
             // supports
-            [](const FCConfig& config) -> bool {
+            []([[maybe_unused]] const FCConfig& config) -> bool {
                 // enable only with debug caps and env variable defined for now
-                (void)config;
                 CPU_DEBUG_CAP_ENABLE(
                     if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
@@ -506,7 +505,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               dnnlFCMappingNotation);
             },
             // acceptsShapes
-            [](const MemoryArgs&  /*memory*/) -> bool {
+            []([[maybe_unused]] const MemoryArgs& memory) -> bool {
                 return true;
             },
             // create
@@ -517,10 +516,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 struct MatMulInstantiator {
                     std::shared_ptr<DnnlMatMulPrimitive> operator()(
                         const MemoryArgs& memory,
-                        const FCAttrs& attrs,
+                        [[maybe_unused]] const FCAttrs& attrs,
                         const ExecutorContext::CPtr& context,
                         const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
-                        (void) attrs;
                         MatMulAttrs matMulAttrs{false,
                                                 false};
                         auto primitive =
@@ -547,7 +545,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::FullyConnected,
             ShapeTolerance::Dependant,
             // supports
-            [](const FCConfig&  /*config*/) -> bool {
+            []([[maybe_unused]] const FCConfig& config) -> bool {
                 return true;
             },
             // requiresFallback
@@ -558,7 +556,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               dnnlConvolutionMappingNotation);
             },
             // acceptsShapes
-            [](const MemoryArgs&  /*memory*/) -> bool {
+            []([[maybe_unused]] const MemoryArgs& memory) -> bool {
                 return true;
             },
             // create

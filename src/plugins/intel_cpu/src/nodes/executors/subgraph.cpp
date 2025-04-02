@@ -68,12 +68,12 @@ SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs
 }
 
 SubgraphBaseExecutor::SubgraphBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config,
-                                           const std::shared_ptr<SubgraphAttrs>& /*snippet_attrs*/,
+                                           [[maybe_unused]] const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
                                            const std::shared_ptr<SubgraphCodeGenerator>& snippet,
                                            std::vector<ptrdiff_t> start_offset_in,
                                            std::vector<ptrdiff_t> start_offset_out,
-                                           const BufferScratchpadAllocator& /*allocator*/,
-                                           const ov::intel_cpu::MultiCacheWeakPtr& /*kernel_cache*/)
+                                           [[maybe_unused]] const BufferScratchpadAllocator& allocator,
+                                           [[maybe_unused]] const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache)
     : m_schedule(snippet->get()),
       m_start_offset_in(std::move(start_offset_in)),
       m_start_offset_out(std::move(start_offset_out)) {
@@ -171,7 +171,7 @@ void SubgraphBaseExecutor::parallel_forNd(const initializer_functor& initializer
     });
 }
 
-void SubgraphBaseExecutor::execute(const dnnl::stream& /*strm*/,
+void SubgraphBaseExecutor::execute([[maybe_unused]] const dnnl::stream& strm,
                                    const std::vector<MemoryPtr>& inMemPtrs,
                                    const std::vector<MemoryPtr>& outMemPtrs) {
     exec_impl(inMemPtrs, outMemPtrs);

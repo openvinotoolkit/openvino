@@ -55,7 +55,7 @@ struct ActivationPostOp : PostOp {
                      const float alpha,
                      const float beta,
                      const float gamma,
-                     const eltwiseExecutorCreatingStrategy& /*strategy*/ = nullptr)
+                     [[maybe_unused]] const eltwiseExecutorCreatingStrategy& strategy = nullptr)
         : m_type(type),
           m_alpha(alpha),
           m_beta(beta),

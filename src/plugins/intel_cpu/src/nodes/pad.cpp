@@ -251,13 +251,14 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     params.attrs.prc = srcMemPtr->getDesc().getPrecision();
     params.dataSize = params.attrs.prc.size();
 
-    auto fillingInParameters = [&](VectorIdxs& parameter, const size_t type, const size_t size, const int /*value*/) {
-        const auto* ptr = srcMemory[type]->getDataAs<const int32_t>();
-        parameter.resize(size);
-        for (size_t i = 0; i < size; i++) {
-            parameter[i] = static_cast<int>(ptr[i]);
-        }
-    };
+    auto fillingInParameters =
+        [&](VectorIdxs& parameter, const size_t type, const size_t size, [[maybe_unused]] const int value) {
+            const auto* ptr = srcMemory[type]->getDataAs<const int32_t>();
+            parameter.resize(size);
+            for (size_t i = 0; i < size; i++) {
+                parameter[i] = static_cast<int>(ptr[i]);
+            }
+        };
     // if pad begin/end/value dynamic
     if (params.attrs.padsBegin.empty()) {
         fillingInParameters(params.attrs.padsBegin, PADS_BEGIN_ID, srcDims.size(), 0);
@@ -408,7 +409,7 @@ void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemP
     }
 }
 
-void Pad::execute(const dnnl::stream& /*strm*/) {
+void Pad::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has not compiled executor.");
     }

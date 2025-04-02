@@ -245,7 +245,7 @@ void copyDataToOutputWithSignalSize(const float* input,
 
 }  // namespace
 
-void DFT::execute(const dnnl::stream& /*strm*/) {
+void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
 
     const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);

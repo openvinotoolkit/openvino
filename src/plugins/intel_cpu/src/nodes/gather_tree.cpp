@@ -80,7 +80,7 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GatherTree::execute(const dnnl::stream& /*strm*/) {
+void GatherTree::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has not compiled executor.");
     }

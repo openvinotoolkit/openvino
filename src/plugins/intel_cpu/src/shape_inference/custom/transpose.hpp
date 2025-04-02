@@ -16,8 +16,8 @@ using Result = IShapeInfer::Result;
 class TransposeDynShapeInfer : public ShapeInferEmptyPads {
 public:
     TransposeDynShapeInfer() = default;
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& /*input_shapes*/,
-                 const std::unordered_map<size_t, MemoryPtr>& /*data_dependency*/) override {
+    Result infer([[maybe_unused]] const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         OPENVINO_THROW("TODO: Support parameterized Order input for dynamic shapes.");
     }
     [[nodiscard]] port_mask_t get_port_mask() const override {

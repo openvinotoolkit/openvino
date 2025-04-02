@@ -132,7 +132,7 @@ struct Unique::slicedExec {
     }
 };
 
-void Unique::execute(const dnnl::stream& /*strm*/) {
+void Unique::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (flattened) {
         OV_SWITCH(intel_cpu,
                   flattenExec,

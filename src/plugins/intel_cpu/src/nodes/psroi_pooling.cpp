@@ -284,7 +284,7 @@ void PSROIPooling::executeAverage(const inputType* srcData,
     const float roiWidth = std::max<float>(roiEndW - roiStartW, 0.1f);  // avoid 0
     const float roiHeight = std::max<float>(roiEndH - roiStartH, 0.1f);
 
-    auto avgPsroi = [&](int /*c*/, int h, int w, int binOffIn, int binOffOut, int inBlkRes, int outBlkRes) {
+    auto avgPsroi = [&]([[maybe_unused]] int c, int h, int w, int binOffIn, int binOffOut, int inBlkRes, int outBlkRes) {
         float binSizeH = roiHeight / static_cast<float>(pooledHeight);
         float binSizeW = roiWidth / static_cast<float>(pooledWidth);
 
@@ -614,7 +614,7 @@ struct PSROIPooling::PSROIPoolingExecute {
     }
 };
 
-void PSROIPooling::execute(const dnnl::stream& /*strm*/) {
+void PSROIPooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 

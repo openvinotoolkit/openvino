@@ -60,7 +60,7 @@ void CTCLoss::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void CTCLoss::execute(const dnnl::stream& /*strm*/) {
+void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
     int32_t returnCode = 0;
 
     const auto* logits = getSrcDataAtPortAs<const float>(0);
