@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -31,7 +32,9 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/split.hpp"
 
-#include <gtest/gtest.h>
+// #include <gtest/gtest.h>
+// #include <windows.h>
+// #include "processenv.h"
 
 std::shared_ptr<ov::Node> make_convolution(const ov::Output<ov::Node>& in,
                                            const ov::element::Type& type,
@@ -160,16 +163,8 @@ std::shared_ptr<ov::Model> make_conv_pool_relu() {
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(reshape2)};
     std::shared_ptr<ov::Model> model = std::make_shared<ov::Model>(results, params);
+    model->set_friendly_name("dummy_model");
     return model;
-}
-
-std::shared_ptr<ov::Model> multi_output_split_dynamic() {
-    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-    const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-    const auto split = std::make_shared<ov::op::v1::Split>(data, axis, 2);
-    auto abs = std::make_shared<ov::op::v0::Abs>(split->output(1));
-
-    return std::make_shared<ov::Model>(abs, ov::ParameterVector{data});
 }
 
 std::shared_ptr<ov::Model> make_read_concat_split_assign() {
@@ -200,22 +195,105 @@ std::shared_ptr<ov::Model> make_read_concat_split_assign() {
 
     std::shared_ptr<ov::Model> model =
         std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector{parameter});
-    model->set_friendly_name("ReadConcatSplitAssign");
+    model->set_friendly_name("dummy_model_stateful");
     return model;
 }
 
+std::shared_ptr<ov::Model> multi_output_split_dynamic() {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    const auto split = std::make_shared<ov::op::v1::Split>(data, axis, 2);
+    auto abs = std::make_shared<ov::op::v0::Abs>(split->output(1));
+
+    auto model = std::make_shared<ov::Model>(abs, ov::ParameterVector{data});
+    model->set_friendly_name("dummy_model_dynamic_shapes");
+    return model;
+}
+
+const std::vector<std::string> platforms = { "MTL", "LNL" };
+const std::map<std::string, std::string> drivers_commits = { // not used, just to simplify search in drivers if needed
+    {"1688", "2023.0.2-1-e662b1a3301-HEAD-2023-10-31-21-15-45-1-DCI-caeaa561fd5.5.0"},
+    {"1003967", "2025.1.0-17965-8d5f583bc7e-0306.105848-DCI-bbdb3d45e1b.7.1"}
+};
+
 int main(int argc, char* argv[]) {
-    ov::Core core;
-    const char* DEVICE_NPU = "NPU";
-    auto driver_version = core.get_property(DEVICE_NPU, ov::intel_npu::driver_version.name()).as<std::string>();
-    auto platform = core.get_property(DEVICE_NPU, "NPU_PLATFORM").as<std::string>();
-    auto version = ov::get_openvino_version().buildNumber;
 
-    std::cout << "OpenVINO version: " << version << std::endl;
-    std::cout << "NPU platform: " << platform << std::endl;
-    std::cout << "Driver Version: " << driver_version << std::endl;
+    if (argc != 2 || std::find(platforms.begin(), platforms.end(), argv[1]) == platforms.end()) {
+        std::cerr << "Syntax: blob_compatibility_tool.exe < MTL/LNL >" << std::endl;
+        return -3;
+    }
 
-    auto models = std::vector<std::function<std::shared_ptr<ov::Model>(void)>> {&make_conv_pool_relu, &multi_output_split_dynamic, &make_read_concat_split_assign};
+    const char* const platform = argv[1];
+
+    try {
+
+        auto core = ov::Core();
+        const char* DEVICE_NPU = "NPU";
+        const auto models = std::vector<std::shared_ptr<ov::Model>> {make_conv_pool_relu(), make_read_concat_split_assign(), multi_output_split_dynamic()};
+
+        auto devices = core.get_available_devices();
+        std::cout << "AVAILABLE DEVICES: ";
+        for (const auto& device : devices) {
+            std::cout << device << " ";
+        }
+        std::cout << std::endl;
+
+        core.set_property(DEVICE_NPU, {ov::log::level(ov::log::Level::INFO)});
+        auto driver_version = core.get_property(DEVICE_NPU, ov::intel_npu::driver_version.name()).as<std::string>();
+        auto version = std::string(ov::get_openvino_version().buildNumber);
+
+        std::cout << "OpenVINO version: " << version << std::endl;
+        std::cout << "NPU platform: " << platform << std::endl;
+        std::cout << "Driver Version: " << driver_version << std::endl;
+        std::cout << std::endl;
+
+        for(auto&& model : models) {
+            std::string outputFileName = "blob_compatibility_";
+            std::replace(version.begin(), version.end(), '.', '_');
+            std::cout << "Compiling model " << model->get_friendly_name() << "..." << std::endl;
+            outputFileName += model->get_friendly_name() + "_" + platform + "_ov_" + version.substr(0, version.find('-')) + "_driver_" + driver_version + ".blob";
+            auto compiledModel = core.compile_model(model, DEVICE_NPU, {});
+            std::ofstream outputFile(outputFileName, std::ios::binary);
+            std::cout << "Writing blob " << outputFileName << std::endl;
+            compiledModel.export_model(outputFile);
+            outputFile.close();
+        }
+
+        /*if (argc != 2) {
+            std::cerr << "Syntax is: blob_compatibility_tool.exe < drivers root dir >" << std::endl;
+            return -1;
+        }
+
+        std::filesystem::path path(argv[1]);
+        for (const auto& dir_entry : std::filesystem::directory_iterator{path}) {
+            if (dir_entry.is_directory()) {
+                auto npu_level_zero_umd_path = std::filesystem::path(dir_entry.path()) / "drivers" / "x64" / "npu_level_zero_umd.dll";
+                auto npu_alt_dependency_path = std::filesystem::path(dir_entry.path()) / "drivers" / "x64";
+                if (!SetEnvironmentVariableA("ZE_ENABLE_ALT_DRIVERS", npu_level_zero_umd_path.string().c_str())) {
+                    ov::Exception::create(__FILE__, __LINE__, std::string("Could not set ZE_ENABLE_ALT_DRIVERS env var to ") + npu_level_zero_umd_path.string());
+                }
+                if (!SetEnvironmentVariableA("NPU_ALT_DEPENDENCY_PATH", npu_alt_dependency_path.string().c_str())) {
+                    ov::Exception::create(__FILE__, __LINE__, std::string("Could not set NPU_ALT_DEPENDENCY_PATH env var to ") + npu_alt_dependency_path.string());
+                }
+
+                ov::Core core;
+                auto devices = core.get_available_devices();
+
+                if (std::find(devices.begin(), devices.end(), DEVICE_NPU) == devices.end()) {
+                    ov::Exception::create(__FILE__, __LINE__, "Could not find NPU in AVAILABLE DEVICES list!");
+                }
+
+            }
+        }
+        */
+
+    } catch(const ov::Exception& ex) {
+        std::cerr << "Error occurred: " << ex.what() << std::endl;
+        return -1;
+    } catch(...) {
+        std::cout << "Unkown exception occurred!" << std::endl;
+        return -2;
+    }
 
     return 0;
 }
