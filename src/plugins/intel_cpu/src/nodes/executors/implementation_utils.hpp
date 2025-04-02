@@ -133,11 +133,11 @@ struct CreateDnnlDefault {
                            const PostOps& postOps,
                            const MemoryArgs& memory,
                            const ExecutorContext::CPtr& context) const {
-        return std::make_shared<DnnlFCExecutor<Primitive, Attrs, DnnlShapeAgnosticData, Instantiator>>(attrs,
-                                                                                                       postOps,
-                                                                                                       memory,
-                                                                                                       context,
-                                                                                                       false);
+        return std::make_shared<DnnlExecutor<Primitive, Attrs, DnnlShapeAgnosticData, Instantiator>>(attrs,
+                                                                                                     postOps,
+                                                                                                     memory,
+                                                                                                     context,
+                                                                                                     false);
     }
 };
 

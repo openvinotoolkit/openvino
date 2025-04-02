@@ -35,15 +35,15 @@ template <typename Primitive,
           typename Attrs,
           typename ShapeAgnosticData,
           typename Instantiator = DefaultInstantiator<Primitive, Attrs, ShapeAgnosticData>>
-class DnnlFCExecutor : public Executor {
+class DnnlExecutor : public Executor {
 public:
     using PrimitivePtr = std::shared_ptr<Primitive>;
-    DnnlFCExecutor(const Attrs& attrs,
-                   const PostOps& postOps,
-                   const MemoryArgs& memory,
-                   ExecutorContext::CPtr context,
-                   const bool cacheWeights,
-                   const bool fc3Das2D = false)
+    DnnlExecutor(const Attrs& attrs,
+                 const PostOps& postOps,
+                 const MemoryArgs& memory,
+                 ExecutorContext::CPtr context,
+                 const bool cacheWeights,
+                 const bool fc3Das2D = false)
         : m_attrs(attrs),
           m_context(std::move(context)),
           m_shapeAgnosticData(Primitive::createShapeAgnosticData(m_attrs, postOps, memory, m_context, cacheWeights)),
