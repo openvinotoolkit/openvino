@@ -7,17 +7,18 @@ runs:
       shell: pwsh
       if: runner.os == 'Windows'
       run: |
-        ./scripts/generate_pyapi_stubs.bat "${{ env.ACTION_PATH }}/generated_pyi_files"
+        ${{ env.OPENVINO_REPO }}\src\bindings\python\scripts\generate_pyapi_stubs.bat `
+          "${{ env.ACTION_PATH }}\generated_pyi_files"
+        python ${{ env.OPENVINO_REPO }}\src\bindings\python\scripts\compare_pyi_files.py `
+          "${{ env.ACTION_PATH }}\generated_pyi_files" `
+          "${{ env.OPENVINO_REPO }}\src\bindings\python"
 
     - name: Verify .pyi files (Linux and macOS)
       shell: bash
       if: runner.os != 'Windows'
       run: |
-        ./scripts/generate_pyapi_stubs.sh "${{ env.ACTION_PATH }}/generated_pyi_files"
-
-    - name: Compare .pyi files
-      shell: bash
-      run: |
+        ${{ env.OPENVINO_REPO }}/src/bindings/python/scripts/generate_pyapi_stubs.sh \
+          "${{ env.ACTION_PATH }}/generated_pyi_files"
         python3 ${{ env.OPENVINO_REPO }}/src/bindings/python/scripts/compare_pyi_files.py \
           "${{ env.ACTION_PATH }}/generated_pyi_files" \
           "${{ env.OPENVINO_REPO }}/src/bindings/python"
