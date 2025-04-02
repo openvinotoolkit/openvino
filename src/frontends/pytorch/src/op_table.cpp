@@ -760,6 +760,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::is_cuda", op::return_false_scalar},
         {"prim::ListConstruct", op::translate_list_construct},
         {"prim::ListUnpack", op::translate_list_unpack},
+        {"prim::tolist", op::skip_node},
         {"prim::Loop", op::translate_loop},
         // prim::max - Supported in limited set of patterns
         // prim::min - Supported in limited set of patterns
