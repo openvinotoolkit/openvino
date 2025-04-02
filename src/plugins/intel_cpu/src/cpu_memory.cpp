@@ -544,7 +544,7 @@ void* StaticMemory::StaticMemoryBlock::getRawPtr() const noexcept {
     return memBlockImpl.getRawPtr();
 }
 
-void StaticMemory::StaticMemoryBlock::setExtBuff([[maybe_unused]] void* ptr, size_t size) {
+void StaticMemory::StaticMemoryBlock::setExtBuff([[maybe_unused]] void* ptr, [[maybe_unused]] size_t size) {
     OPENVINO_THROW("Unexpected: StaticMemoryBlock may not be modified");
 }
 
