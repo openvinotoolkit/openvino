@@ -44,8 +44,7 @@ ISTFTKernelBase::DispatchData ISTFTKernelBase::SetDefault(const ISTFT_params& pa
     dispatchData.gws = {input0.Batch().v, input0.Y().v, input1.X().v};
     dimsByGws = {{Tensor::DataChannelName::BATCH}, {Tensor::DataChannelName::Y}, {Tensor::DataChannelName::X}};
 
-    dispatchData.lws =
-        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, inLayout, outLayout, dimsByGws);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, inLayout, outLayout, dimsByGws);
 
     return dispatchData;
 }
@@ -74,7 +73,7 @@ KernelsData ISTFTKernelBase::GetCommonKernelsData(const Params& params) const {
                      "",
                      false,
                      false,
-                     prim_params.inputs.size(),
+                     (int)prim_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      prim_params.is_shape_agnostic);
