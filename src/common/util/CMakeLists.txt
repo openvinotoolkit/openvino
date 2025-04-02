@@ -72,6 +72,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} PUBLIC openvino::p
 if (WIN32)
     set(MONITORS_WIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/)
     target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${MONITORS_WIN_INCLUDE_DIR}>)
+    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
