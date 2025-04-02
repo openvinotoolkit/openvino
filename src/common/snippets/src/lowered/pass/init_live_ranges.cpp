@@ -21,8 +21,7 @@ inline bool pass_through_expr(const ExpressionPtr& expr) {
 #ifdef SNIPPETS_DEBUG_CAPS
            || ov::is_type_any_of<op::PerfCountBeginBase, op::PerfCountEndBase>(node)
 #endif
-           // TODO: investigate if we need to check external parameters here
-           || ov::is_type<BufferExpression>(expr) || ov::snippets::is_external_parameter(node);
+           || ov::is_type<BufferExpression>(expr);
 }
 
 } // namespace
