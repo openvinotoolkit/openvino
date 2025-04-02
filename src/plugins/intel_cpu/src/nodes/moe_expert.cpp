@@ -47,15 +47,21 @@ void MOEExpert::selectOptimalPrimitiveDescriptor() {
     std::vector<PortConfig> inConfs;
     std::vector<Input::InputConfig> graphInputConfig;
 
-    auto mainInputDesc = getParentOutputMemDesc(getParentEdgeAt(0));
-    auto mainInputPrc = mainInputDesc->getPrecision();  // we have to align precision across all the inputs
-
-    inConfs.emplace_back(mainInputDesc);
+    auto mainInputPrc = getOriginalInputPrecisionAtPort(0);
 
     constexpr bool isInPlace = true;
-    graphInputConfig.emplace_back(node::Input::InputConfig{mainInputDesc, isInPlace});
+    {
+        auto desc = getParentOutputMemDesc(getParentEdgeAt(0))->cloneWithNewPrecision(mainInputPrc);
+        inConfs.emplace_back(desc);
+        graphInputConfig.emplace_back(node::Input::InputConfig{desc, isInPlace});
+    }
 
-    for (size_t i = 1; i < getParentEdges().size(); i++) {
+    // expert mask is i32
+    auto expertMaskInputDesc = getParentOutputMemDesc(getParentEdgeAt(1));
+    inConfs.emplace_back(expertMaskInputDesc);
+    graphInputConfig.emplace_back(node::Input::InputConfig{expertMaskInputDesc, isInPlace});
+
+    for (size_t i = 2; i < getParentEdges().size(); i++) {
         auto desc = getParentOutputMemDesc(getParentEdgeAt(i))->cloneWithNewPrecision(mainInputPrc);
         inConfs.emplace_back(desc);
         graphInputConfig.emplace_back(node::Input::InputConfig{desc, isInPlace});
@@ -63,7 +69,7 @@ void MOEExpert::selectOptimalPrimitiveDescriptor() {
 
     std::vector<Input::OutputConfig> graphOutputConfig;
     // enforce the same memory descriptor on the output as on the input to allow inPlace memory
-    graphOutputConfig.emplace_back(inConfs.front().getMemDesc(), isInPlace);
+    graphOutputConfig.emplace_back(inConfs.front().getMemDesc(), false);
 
     // configure the inner graph to get the information about output memory descriptors
     m_graph.Init(m_body, context, graphInputConfig, graphOutputConfig);

@@ -38,17 +38,21 @@ public:
         return result.str();
     }
 
-    std::shared_ptr<ov::Model> BuildMoeExpert(bool expected_pattern) {
+    std::shared_ptr<ov::Model> BuildMoeExpert(ElementType inType, bool expected_pattern) {
         // shape: [expert_number, topk, batch]
         auto expert_mask = std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::PartialShape{128, 8, -1});
         // shape: [batch * seq_len, hidden_dim]
-        auto final_hidden_states = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, 2048});
+        auto final_hidden_states_ = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 2048});
         // shape: [1, batch * seq_len, hidden_dim]
-        auto hidden_states = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 2048});
+        auto hidden_states_ = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{1, -1, 2048});
         
         auto routing_weights_shapeof_split = makeConst(element::i32, ov::Shape({1,}), {8});
         // shape: [self.topk * batch, 1]
-        auto routing_weights =  std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, 1});
+        auto routing_weights_ =  std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 1});
+
+        auto final_hidden_states = makeOP<opset1::Convert>({final_hidden_states_}, {{"destination_type", "f32"}});
+        auto hidden_states = makeOP<opset1::Convert>({hidden_states_}, {{"destination_type", "f32"}});
+        auto routing_weights = makeOP<opset1::Convert>({routing_weights_}, {{"destination_type", "f32"}});
 
         // ----------------------------- pattern begin
         // expert_mask[expert_idx]
@@ -119,7 +123,7 @@ public:
         auto index_add__Broadcast_26 = makeOP<opset3::Broadcast>({mul_Multiply_3, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});   //  tensor_array<f32[?,2048]> __module.model.model.layers.0.mlp/aten::index_add_/Broadcast_26(__module.model.model.layers.0.mlp/aten::mul/Multiply_3, __module.model.model.layers.0.mlp/aten::index_add_/ShapeOf_22)
         auto index_add__ScatterElementsUpdate_8 = makeOP<opset12::ScatterElementsUpdate>({final_hidden_states/*index_add__ScatterElementsUpdate_5*/, index_add__Broadcast_25, index_add__Broadcast_26, 0}, {{"reduction", "sum"}, {"use_init_val", true}});   //  tensor_array<f32[?,2048]> __module.model.model.layers.0.mlp/aten::index_add_/ScatterElementsUpdate_8(__module.model.model.layers.0.mlp/aten::index_add_/ScatterElementsUpdate_5, __module.model.model.layers.0.mlp/aten::index_add_/Broadcast_25, __module.model.model.layers.0.mlp/aten::index_add_/Broadcast_26, 160)
 
-        return std::make_shared<ov::Model>(ov::NodeVector{index_add__ScatterElementsUpdate_8}, ov::ParameterVector{final_hidden_states, expert_mask, hidden_states, routing_weights});
+        return std::make_shared<ov::Model>(ov::NodeVector{index_add__ScatterElementsUpdate_8}, ov::ParameterVector{final_hidden_states_, expert_mask, hidden_states_, routing_weights_});
     }
 
     void SetUp() override {
@@ -129,16 +133,16 @@ public:
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         if (inType == ElementType::bf16) {
-            configuration.insert({"ENFORCE_BF16", "YES"});
+            configuration.insert({"INFERENCE_PRECISION_HINT", "BF16"});
             rel_threshold = 0.01f;
         } else {
             configuration.insert({"INFERENCE_PRECISION_HINT", "FP32"});
         }
 
-        function = BuildMoeExpert(true);
+        function = BuildMoeExpert(inType, true);
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        functionRefs = BuildMoeExpert(false);
+        functionRefs = BuildMoeExpert(inType, false);
     }
 
     template<typename IT, typename T>
@@ -233,7 +237,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_MOEExpertTest,
                          MOEExpertTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32)),
+                         ::testing::Combine(::testing::Values(ElementType::bf16, ElementType::f32)),
                          MOEExpertTest::getTestCaseName);
 
 }  // namespace
