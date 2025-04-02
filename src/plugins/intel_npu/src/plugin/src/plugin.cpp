@@ -326,6 +326,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<WEIGHTS_PATH>();
           }}},
+        {ov::hint::model.name(),
+        {true,
+            ov::PropertyMutability::RW,
+            [](const Config& config) {
+                return config.get<MODEL_PTR>();
+            }}},
         {ov::device::uuid.name(),
          {true,
           ov::PropertyMutability::RO,
@@ -766,7 +772,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    auto originalModel = model->clone();
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig);
 
@@ -774,7 +779,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<intel_npu::IGraph> graph;
     try {
         _logger.debug("performing compile");
-        graph = compiler->compile(model, localConfig);
+        graph = compiler->compile(model->clone(), localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -784,7 +789,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(originalModel, shared_from_this(), device, graph, localConfig);
+        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
