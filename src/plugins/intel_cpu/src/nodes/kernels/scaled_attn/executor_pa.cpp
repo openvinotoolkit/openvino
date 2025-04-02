@@ -1504,10 +1504,11 @@ struct MHAHelper {
         // resize temporary buffers, weight.size(3) will be aligned to block_size
         _weight.resize<float>({static_cast<size_t>(_nthr), H, _block_size, new_score_stride});
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
-        if (_quant_key_bychannel)
+        if (_quant_key_bychannel) {
             _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, std::max(S, SV)});
-        else
+        } else {
             _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, SV});
+        }
 
         // TODO: kernel supports stride
         if (_qk_gemm.empty() || prev_score_stride < new_score_stride) {
@@ -2503,19 +2504,21 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         _helper._value_group_size = _helper._value_group_size ? _helper._value_group_size : SV;
 
         // check by_hidden_dims parameter of value cache
-        if (!value_group_num && v_cache.get_precision().is_integral())
+        if ((value_group_num == 0u) && v_cache.get_precision().is_integral()) {
             OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
                            _helper._value_group_size,
                            " should be smaller than hidden_dims");
+        }
         size_t S = 0;
         if (_helper._quant_key_bychannel) {
             S = k_cache.size(3);
         } else {
             // check by_hidden_dims parameter of key cache
-            if (!key_group_num && k_cache.get_precision().is_integral())
+            if ((key_group_num == 0u) && k_cache.get_precision().is_integral()) {
                 OPENVINO_THROW("PagedAttn key cache gets wrong group_size, ",
                                _helper._key_group_size,
                                " should be smaller than hidden_dims");
+            }
             S = k_cache.size(3) - (k_cache.get_precision().is_real() ? 0 : key_params_size * key_group_num);
             _helper._key_group_size = _helper._key_group_size ? _helper._key_group_size : S;
         }

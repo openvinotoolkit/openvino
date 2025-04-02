@@ -156,14 +156,14 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
     const auto maxRank =
         std::max({srcDesc->getShape().getRank(), weiDesc->getShape().getRank(), dstDesc->getShape().getRank()});
     const auto normWeiDims = normalizeToRank(weiDesc->getShape().getStaticDims(), maxRank);
-    if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
+    if (memory.count(ARG_WEI | ARG_ATTR_SCALES) != 0u) {
         auto dstPrc = ov::element::f32;
         dnnlpoc.appendDecompressionScales(memory.at(ARG_WEI | ARG_ATTR_SCALES),
                                           !weightsNonTransposed,
                                           dstPrc,
                                           normWeiDims);
     }
-    if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
+    if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS) != 0u) {
         // TODO: clarify oneDNN requirements on ZP precision
         auto zp = memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS);
         auto zpPrc = zp->getPrecision();

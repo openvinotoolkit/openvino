@@ -557,7 +557,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     nodeConfig.inConfs.resize(srcDescs.size());
 
     for (const auto& desc : nodeDescriptors) {
-        if (m_atoi.count(desc.first)) {
+        if (m_atoi.count(desc.first) != 0u) {
             nodeConfig.inConfs[m_atoi[desc.first]] = desc.second;
         }
     }
@@ -601,7 +601,7 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         memory[ARG_DST] = getDstMemoryAtPort(0);
         tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
-        if (memory.count(ARG_DST | ARG_ATTR_SCALES)) {
+        if (memory.count(ARG_DST | ARG_ATTR_SCALES) != 0u) {
             memory[ARG_DST | ARG_ATTR_SCALES] = split_horizontal(context->getEngine(),
                                                                  memory[ARG_DST | ARG_ATTR_SCALES],
                                                                  0,
@@ -609,7 +609,7 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
                                                                  tp_cfg.w_size);
         }
 
-        if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
+        if (memory.count(ARG_WEI | ARG_ATTR_SCALES) != 0u) {
             auto scale_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_SCALES]);
             memory[ARG_WEI | ARG_ATTR_SCALES] =
                 attrs.weightsNonTransposed
@@ -617,7 +617,7 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
                     : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
-        if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
+        if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS) != 0u) {
             auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_ZERO_POINTS]);
             auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
             if (element_num == 1) {

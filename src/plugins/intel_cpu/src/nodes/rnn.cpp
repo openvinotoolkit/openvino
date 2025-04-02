@@ -361,7 +361,7 @@ bool RNN::testNativeOrder(const std::shared_ptr<const ov::Node>& op) {
         return true;
     }
     const auto& rtInfo = op->get_rt_info();
-    if (rtInfo.count("seqAxis")) {
+    if (rtInfo.count("seqAxis") != 0u) {
         return rtInfo.at("seqAxis").as<int64_t>() == 0;
     }
     return false;
@@ -508,15 +508,15 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 
     const auto& rtInfo = op->get_rt_info();
 
-    if (rtInfo.count("inputScale")) {
+    if (rtInfo.count("inputScale") != 0u) {
         inputScale = rtInfo.at("inputScale").as<float>();
     }
 
-    if (rtInfo.count("inputShift")) {
+    if (rtInfo.count("inputShift") != 0u) {
         inputShift = rtInfo.at("inputShift").as<float>();
     }
 
-    if (rtInfo.count("weightsScales")) {
+    if (rtInfo.count("weightsScales") != 0u) {
         weightsScales = rtInfo.at("weightsScales").as<std::vector<float>>();
     }
 
@@ -1386,19 +1386,19 @@ void RNN::prepareParams() {
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 
-    if (!primArgs.count(DNNL_ARG_WEIGHTS_LAYER) || !prevExecPtr ||
+    if ((primArgs.count(DNNL_ARG_WEIGHTS_LAYER) == 0u) || !prevExecPtr ||
         !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
         prepareMemory(execPtr->getWeightDesc(), 0);
         primArgs[DNNL_ARG_WEIGHTS_LAYER] = internalBlobMemory[0]->getPrimitive();
     }
 
-    if (!primArgs.count(DNNL_ARG_WEIGHTS_ITER) || !prevExecPtr ||
+    if ((primArgs.count(DNNL_ARG_WEIGHTS_ITER) == 0u) || !prevExecPtr ||
         !execPtr->getWeightIterDesc()->isCompatible(*(prevExecPtr->getWeightIterDesc()))) {
         prepareMemory(execPtr->getWeightIterDesc(), 1);
         primArgs[DNNL_ARG_WEIGHTS_ITER] = internalBlobMemory[1]->getPrimitive();
     }
 
-    if (!primArgs.count(DNNL_ARG_BIAS) || !prevExecPtr ||
+    if ((primArgs.count(DNNL_ARG_BIAS) == 0u) || !prevExecPtr ||
         !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
         prepareMemory(execPtr->getBiasDesc(), 2);
         primArgs[DNNL_ARG_BIAS] = internalBlobMemory[2]->getPrimitive();

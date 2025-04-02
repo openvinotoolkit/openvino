@@ -65,11 +65,13 @@ void ExperimentalDetectronPriorGridGenerator::execute(const dnnl::stream& strm) 
     const int layer_width = grid_w_ ? grid_w_ : getParentEdgeAt(INPUT_FEATUREMAP)->getMemory().getStaticDims()[3];
     const int layer_height = grid_h_ ? grid_h_ : getParentEdgeAt(INPUT_FEATUREMAP)->getMemory().getStaticDims()[2];
     const float step_w =
-        stride_w_ ? stride_w_
-                  : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[3]) / layer_width;
+        (stride_w_ != 0.0f)
+            ? stride_w_
+            : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[3]) / layer_width;
     const float step_h =
-        stride_h_ ? stride_h_
-                  : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[2]) / layer_height;
+        (stride_h_ != 0.0f)
+            ? stride_h_
+            : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[2]) / layer_height;
 
     const auto* bottom_data_0 = getSrcDataAtPortAs<const float>(0);
     auto* top_data_0 = getDstDataAtPortAs<float>(OUTPUT_ROIS);
