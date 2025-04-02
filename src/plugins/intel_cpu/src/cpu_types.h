@@ -136,7 +136,8 @@ enum class Type {
     RMS,
     SearchSorted,
     SegmentMax,
-    LoRA
+    LoRA,
+    MOEExpert
 };
 
 enum class Algorithm {

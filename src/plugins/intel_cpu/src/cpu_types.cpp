@@ -263,7 +263,9 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"QKVProjection", Type::QKVProjection},
         {"RMS", Type::RMS},
         {"SearchSorted", Type::SearchSorted},
-        {"LoraSubgraph", Type::LoRA}};
+        {"LoraSubgraph", Type::LoRA},
+        {"MOEExpert", Type::MOEExpert}
+        };
     return type_to_name_tbl;
 }
 
@@ -397,6 +399,7 @@ std::string NameFromType(const Type type) {
         CASE(SearchSorted);
         CASE(SegmentMax);
         CASE(LoRA);
+        CASE(MOEExpert);
         CASE(Unknown);
     }
 #undef CASE
