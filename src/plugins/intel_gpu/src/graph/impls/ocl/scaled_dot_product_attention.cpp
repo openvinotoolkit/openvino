@@ -257,7 +257,7 @@ protected:
         }
 
         if (query_shape[query_shape.size() - 1].is_static())
-            config.head_size = query_shape[query_shape.size() - 1].get_length();
+            config.k_head_size = query_shape[query_shape.size() - 1].get_length();
 
         config.is_causal = desc->is_causal;
 

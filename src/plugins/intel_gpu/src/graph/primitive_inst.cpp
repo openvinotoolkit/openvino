@@ -404,7 +404,7 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!_node->is_type<kv_cache>() && !input_shape_changed && _impl_params->get_output_layout().is_static())
+    if (!_node->is_type<kv_cache>() && !_node->is_type<strided_slice>() && !input_shape_changed && _impl_params->get_output_layout().is_static())
         return;
 
     std::vector<event::ptr> dependencies_events;
@@ -455,7 +455,6 @@ void primitive_inst::update_shape() {
     }
 
     _impl_params->memory_deps = memory_deps;
-
 
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
     for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
