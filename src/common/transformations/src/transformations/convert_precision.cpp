@@ -13,6 +13,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/reference/convert.hpp"
+#include "openvino/cc/factory.h"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp"
@@ -25,6 +26,8 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
+
+OPENVINO_CC_DOMAINS(type_to_fuse_map);
 
 bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
                             const precisions_map& precisions,
