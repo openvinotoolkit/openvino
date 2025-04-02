@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// #if __OPENCL_C_VERSION__ >= CL_VERSION_3_0
 #pragma OPENCL EXTENSION cl_ext_float_atomics : enable
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 
-#define str(TYPE)              TYPE
-#define atomicadd(TYPE, a, b)  _atomicadd(TYPE, a, b)
-#define _atomicadd(TYPE, a, b) atomicadd_##TYPE(a, b)
-#define atomicadd_float(a, b)  atomic_fetch_add((volatile atomic_float*)(a), (b))
-#define atomicadd_half(a, b)   _atomicadd_half((volatile atomic_half*)(a), (b))
+#define atomicAdd(TYPE, a, b)  _atomicAdd(TYPE, a, b)
+#define _atomicAdd(TYPE, a, b) atomicAdd_##TYPE(a, b)
+#define atomicAdd_float(a, b)  atomic_fetch_add((volatile atomic_float*)(a), (b))
+#define atomicAdd_half(a, b)   _atomicAdd_half((volatile atomic_half*)(a), (b))
 
-inline half _atomicadd_half(volatile atomic_half* address, const half value) {
+inline half _atomicAdd_half(volatile atomic_half* address, const half value) {
     half old = value;
     half orig;
     while ((old = atomic_exchange(address, (orig = atomic_exchange(address, 0)) + old)) != 0)
@@ -21,123 +19,116 @@ inline half _atomicadd_half(volatile atomic_half* address, const half value) {
 }
 
 // #else
-//   inline float atomicadd(volatile __global float* address, const float value) {
+//   inline float atomicAdd(volatile __global float* address, const float value) {
 //     float old = value, orig;
 //     while ((old = atomic_xchg(address, (orig = atomic_xchg(address, 0.0f)) + old)) != 0.0f);
 //     return orig;
 //   }
 // #endif
 
-inline int calcDivisor(int idx, int frameSize, int frameStep, int bufferSize) {
-    int earliestStartIdx = max(0, idx - frameSize + 1);
+// Calculates how many values correspond to the given global index.
+inline int FUNC(calcBinSize)(int globalIdx, int frameSize, int frameStep, int bufferSize) {
+    int earliestStartIdx = max(0, globalIdx - frameSize + 1);
     int realStartIdx = ((earliestStartIdx + frameStep - 1) / frameStep) * frameStep;
     int lastPossibleIdx = bufferSize - frameSize;
 
     if (lastPossibleIdx < realStartIdx)
         return 0;
 
-    int ret = ((min(lastPossibleIdx, idx) - realStartIdx) / frameStep) + 1;
+    int ret = ((min(lastPossibleIdx, globalIdx) - realStartIdx) / frameStep) + 1;
     return ret;
 }
 
-inline bool IsNotBetween(int value, int min, int max) {
-    return (value < min || value >= max);
+inline bool FUNC(isBetween)(int value, int min, int max) {
+    return (value >= min && value < max);
 }
 
 // alternative: https://github.com/OpenCL/ComplexMath/blob/master/clcomplex.h
 typedef float2 cfloat;
 #define real(a)      ((a).s0)
 #define imag(a)      ((a).s1)
-#define cmult(a, b)  ((cfloat)(real(a) * real(b) - imag(a) * imag(b), real(a) * imag(b) + imag(a) * real(b)))
-#define crmult(a, b) ((cfloat)(real(a) * (b), imag(a) * (b)))
-#define cadd(a, b)   ((cfloat)(real(a) + real(b), imag(a) + imag(b)))
-#define csub(a, b)   ((cfloat)(real(a) - real(b), imag(a) - imag(b)))
+#define crmult(a, b) (real(a) * real(b) - imag(a) * imag(b))
 #define expi(x)      ((cfloat)(cos(x), sin(x)))
-#define expmi(x)     ((cfloat)(cos(x), -sin(x)))
-#define czero()      ((cfloat)(0))
 #define conj(x)      ((cfloat)(real(x), -imag(x)))
 
-// Unoptimized, the istft impl.
+// Unoptimized istft impl.
 KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict signal,
                   const __global INPUT1_TYPE* restrict window,
-                  const __global INPUT2_TYPE* restrict frame_size_buff,
-                  const __global INPUT3_TYPE* restrict frame_step_buff,
+                  const __global INPUT2_TYPE* restrict frameSizeBuff,
+                  const __global INPUT3_TYPE* restrict frameStepBuff,
 #if LENGTH_BUFFER
-                  const __global INPUT4_TYPE* restrict length_buff,
+                  const __global INPUT4_TYPE* restrict lengthBuff,
 #endif
                   volatile __global OUTPUT_TYPE* restrict output) {
+
     const int batch = get_global_id(0);
-    const int frame_id = get_global_id(1);
+    const int frameID = get_global_id(1);
     const int windowIdx = get_global_id(2);
-    const int frame_size = (int)frame_size_buff[0];
-    const int frame_step = (int)frame_step_buff[0];
+    const int frameSize = (int)frameSizeBuff[0];
+    const int frameStep = (int)frameStepBuff[0];
     const int window_size = INPUT1_SIZE_X;
     const int freqs = INPUT0_FEATURE_NUM;
-    const int DEFAULT_OUTPUT_SIZE = (INPUT0_SIZE_Y - 1) * frame_step + frame_size;
+    const int DEFAULT_OUTPUT_SIZE = (INPUT0_SIZE_Y - 1) * frameStep + frameSize;
 
 #if LENGTH_BUFFER
-    const int wantedLength = (int)length_buff[0];
+    const int wantedLength = (int)lengthBuff[0];
 #endif
 
     const float windowVal = (float)window[windowIdx];
-    const float windowValPow2 = windowVal * windowVal;
-
-    const int frameIdxStart = frame_id * frame_step;
+    const int frameIdxStartWithinBatch = frameID * frameStep;
 
     // Gather normalization sum for current windowIdx.
-    const int outputIdxWithinBatch = windowIdx + frameIdxStart;
+    const int outputIdxWithinBatch = windowIdx + frameIdxStartWithinBatch;
     float normalizationSum = 0.0f;
-    const int binSize = calcDivisor(windowIdx + frameIdxStart, frame_size, frame_step, DEFAULT_OUTPUT_SIZE);
-    int startIDx = windowIdx % frame_step;
-    while ((outputIdxWithinBatch + (frame_size - startIDx - 1)) >= DEFAULT_OUTPUT_SIZE)
-        startIDx += frame_step;
+    const int binSize = FUNC_CALL(calcBinSize)(windowIdx + frameIdxStartWithinBatch, frameSize, frameStep, DEFAULT_OUTPUT_SIZE);
+    int startIDx = windowIdx % frameStep;
+    while ((outputIdxWithinBatch + (frameSize - startIDx - 1)) >= DEFAULT_OUTPUT_SIZE)
+        startIDx += frameStep;
 
     for (int i = 0; i < binSize; ++i) {
-        const int idx = startIDx + i * frame_step;
+        const int idx = startIDx + i * frameStep;
         const float val = window[idx];
         normalizationSum += val * val;
     }
 
-    // Calculate the irDFT value for the current windowIdx.
-    // idft_power = 2*PI*(n/N) from idft def.
-    const float idft_power = 2.0f * M_PI_F * (float)windowIdx / (float)frame_size;
+    // Calculate the IRDFT value for the current windowIdx.
+    // idftPower = 2*PI*(n/N) from idft def.
+    const float idftPower = 2.0f * M_PI_F * (float)windowIdx / (float)frameSize;
 
-    const bool frame_size_even = frame_size % 2 == 0;
+    const bool frameSize_even = frameSize % 2 == 0;
+    const int freqsHandledInLoop = frameSize_even ? freqs - 1 : freqs;
 
-    const int freqsHandledInLoop = frame_size_even ? freqs - 1 : freqs;
-
-    cfloat res;
-    real(res) = signal[INPUT0_GET_INDEX(batch, 0, frame_id, 0)];
-    imag(res) = signal[INPUT0_GET_INDEX(batch, 0, frame_id, 1)];
-    for (int freq_id = 1; freq_id < freqsHandledInLoop; ++freq_id) {
+    float result = signal[INPUT0_GET_INDEX(batch, 0, frameID, 0)];
+    for (int freqID = 1; freqID < freqsHandledInLoop; ++freqID) {
         cfloat freqVal_i;
-        real(freqVal_i) = signal[INPUT0_GET_INDEX(batch, freq_id, frame_id, 0)];
-        imag(freqVal_i) = signal[INPUT0_GET_INDEX(batch, freq_id, frame_id, 1)];
+        real(freqVal_i) = signal[INPUT0_GET_INDEX(batch, freqID, frameID, 0)];
+        imag(freqVal_i) = signal[INPUT0_GET_INDEX(batch, freqID, frameID, 1)];
 
-        const cfloat e_i = expi(idft_power * (float)(freq_id));
-        const cfloat val_i = cmult(freqVal_i, e_i);
-        res = cadd(res, val_i);
+        const cfloat e_i = expi(idftPower * (float)(freqID));
+        const float val_i = crmult(freqVal_i, e_i);
+        result += val_i;
 
-        const cfloat e_i_n = expi(idft_power * (float)(frame_size - freq_id));
-        const cfloat val_i_n = cmult(conj(freqVal_i), e_i_n);
-        res = cadd(res, val_i_n);
+        const cfloat e_i_n = expi(idftPower * (float)(frameSize - freqID));
+        const float val_i_n = crmult(conj(freqVal_i), e_i_n);
+        result += val_i_n;
     }
 
-    if (frame_size_even) {
+    if (frameSize_even) {
         cfloat lastFreq;
-        real(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs - 1, frame_id, 0)];
-        imag(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs - 1, frame_id, 1)];
+        real(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs - 1, frameID, 0)];
+        imag(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs - 1, frameID, 1)];
 
-        const cfloat e_i = expi(idft_power * (float)(freqs - 1));
-        const cfloat val_i = cmult(lastFreq, e_i);
-        res = cadd(res, val_i);
+        const cfloat e_i = expi(idftPower * (float)(freqs - 1));
+        const float val_i = crmult(lastFreq, e_i);
+        result += val_i;
     }
 
-    // Apply any normalization.
-    const float finalIRDFTVal = real(res) / frame_size;
+    const float finalIRDFTVal = result / frameSize;
 
+    // IRDFT calculation is done.
+    // Apply any normalization.
 #if NORMALIZED
-    const float scale = sqrt((float)frame_size);
+    const float scale = sqrt((float)frameSize);
 #else
     const float scale = 1.0f;
 #endif
@@ -145,12 +136,13 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     const float finalVAl = (finalIRDFTVal * windowVal * scale) / (normalizationSum);
     const OUTPUT_TYPE finalVal = (OUTPUT_TYPE)(finalVAl);
 
+    // Write the result to the output buffer.
     int finalOutputIdxWithinBatch = outputIdxWithinBatch;
 
 #if CENTER
-    const int margin = frame_size / 2;
+    const int margin = frameSize / 2;
     const int lastIdx = LENGTH_BUFFER ? DEFAULT_OUTPUT_SIZE : DEFAULT_OUTPUT_SIZE - margin;
-    if (IsNotBetween(finalOutputIdxWithinBatch, margin, lastIdx))
+    if (!FUNC_CALL(isBetween)(finalOutputIdxWithinBatch, margin, lastIdx))
         return;
     finalOutputIdxWithinBatch -= margin;
 #endif
@@ -164,5 +156,5 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     const int globalOutputIdx = OUTPUT_GET_INDEX(0, 0, batch, finalOutputIdxWithinBatch);
 
     // Perform last reduction atomically.
-    const float prev = atomicadd(OUTPUT_TYPE, output + globalOutputIdx, finalVal);
+    atomicAdd(OUTPUT_TYPE, output + globalOutputIdx, finalVal);
 }
