@@ -1376,9 +1376,8 @@ void Transformations::MainSnippets() {
         snippets::pass::TokenizeSnippets);
 
     auto mm_supports_transpose_b = [this](const std::shared_ptr<const ov::Node>& n) {
-        MAYBE_UNUSED(config.inferencePrecision);
-        // Note: BrgemmTPP doesn't support transposed KN natively
-        // so we should extract transposes for the corresponding matmul nodes
+    // Note: BrgemmTPP doesn't support transposed KN natively
+    // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
         // TPP doesn't support dynamic shapes -> there will be BrgemmCPU node
         if (!n->is_dynamic()) {

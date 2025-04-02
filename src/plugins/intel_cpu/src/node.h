@@ -559,8 +559,7 @@ public:
      * The main use case are nodes with nested graphs.
      * Use this method to make nested graphs a part of global allocation procedure
      */
-    virtual int registerToAllocationContext(int offset, AllocationContext& context) {
-        (void)context;  // nothing to register by default
+    virtual int registerToAllocationContext(int offset, [[maybe_unused]] AllocationContext& context) {
         return offset;
     }
 

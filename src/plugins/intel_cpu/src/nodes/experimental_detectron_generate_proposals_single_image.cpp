@@ -27,12 +27,10 @@ struct Indexer4d {
     int dim23_;
     int dim123_;
 
-    explicit Indexer4d(int dim0, int dim1, int dim2, int dim3)
+    explicit Indexer4d([[maybe_unused]] int dim0, int dim1, int dim2, int dim3)
         : dim3_(dim3),
           dim23_(dim2 * dim3),
-          dim123_(dim1 * dim2 * dim3) {
-        (void)dim0;
-    }
+          dim123_(dim1 * dim2 * dim3) {}
 
     int operator()(int i, int j, int k, int n) const {
         return i * dim123_ + j * dim23_ + k * dim3_ + n;

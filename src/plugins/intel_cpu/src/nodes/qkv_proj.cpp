@@ -326,8 +326,7 @@ void QKVProjection::createPrimitive() {
     }
 }
 
-void QKVProjection::execute(const dnnl::stream& strm) {
-    MAYBE_UNUSED(strm);
+void QKVProjection::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute();
 }
 

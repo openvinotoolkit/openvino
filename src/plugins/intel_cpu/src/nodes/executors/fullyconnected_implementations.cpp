@@ -27,7 +27,6 @@
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "utils/cpp/maybe_unused.hpp"
 #include "utils/debug_capabilities.h"
 
 #if defined(OV_CPU_WITH_KLEIDIAI)
@@ -211,15 +210,15 @@ std::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Co
     return std::optional<executor::Config<Attrs>>(FCConfig{optimalDescriptors, config.attrs, config.postOps});
 }
 
-OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noWeightsDecompression(const FCConfig& config) {
+[[maybe_unused]] static inline bool noWeightsDecompression(const FCConfig& config) {
     return !DnnlFCPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config), config.attrs.modelType);
 }
 
-OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noSparseDecompression(const FCConfig& config) {
+[[maybe_unused]] static inline bool noSparseDecompression(const FCConfig& config) {
     return !(config.attrs.sparseWeights);
 }
 
-OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noPostOps(const FCConfig& config) {
+[[maybe_unused]] static inline bool noPostOps(const FCConfig& config) {
     return config.postOps.empty();
 }
 
