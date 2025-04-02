@@ -17,19 +17,22 @@ static void CreateBatchToSpaceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto rank = op->get_input_partial_shape(0).size();
-    auto format = cldnn::format::get_default_format(rank);
-
-    std::vector<cldnn::tensor> tensor_inputs;
-    tensor_inputs.reserve(3);
-
     auto output_pshape = op->get_output_partial_shape(0);
     auto out_size = output_pshape.is_static() ? tensor_from_dims(output_pshape.to_shape()) : cldnn::tensor();
 
-    if (p.use_new_shape_infer() || op->is_dynamic()) {
-        auto batchToSpacePrim = cldnn::batch_to_space(layerName, inputs, out_size);
-        p.add_primitive(*op, batchToSpacePrim);
-    } else {
+    bool constant_shape = true;
+    for (size_t i = 1; i < 4; ++i) {
+        auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
+        if (!inConst) {
+            constant_shape = false;
+            break;
+        }
+    }
+
+    if (!p.use_new_shape_infer() && !op->is_dynamic() && constant_shape) {
+        std::vector<cldnn::tensor> tensor_inputs;
+        auto rank = op->get_input_partial_shape(0).size();
+        auto format = cldnn::format::get_default_format(rank);
         for (size_t i = 1; i < 4; ++i) {
             auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
 
@@ -48,6 +51,9 @@ static void CreateBatchToSpaceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
                                                       tensor_inputs[2],     // crops_end
                                                       out_size);
 
+        p.add_primitive(*op, batchToSpacePrim);
+    } else {
+        auto batchToSpacePrim = cldnn::batch_to_space(layerName, inputs, out_size);
         p.add_primitive(*op, batchToSpacePrim);
     }
 }
