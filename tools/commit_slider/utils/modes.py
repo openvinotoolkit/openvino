@@ -531,6 +531,10 @@ class CompareBlobsMode(Mode):
         super().__init__(cfg)
         self.createCash()
         self.maxDiff = 0
+         # option of automatic matching of comparing blobs i.e.
+         # blob11_for_commit_1.ieb <--> blob12_for_commit_1.ieb
+         # blob21_for_commit_2.ieb <--> blob22_for_commit_2.ieb
+        self.autoMatch = False
 
     def prepareRun(self, list, cfg):
         # we need to exclude initial prerun-cash handling, as it may

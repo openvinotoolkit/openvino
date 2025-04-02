@@ -147,6 +147,8 @@ def getBlobDiff(file1, file2):
             break
         line = content[i]
         if "nan" in sampleLine.lower() or "nan" in line.lower():
+            if "nan" in sampleLine.lower() and "nan" in line.lower():
+                continue
             return bigFloatNumber
         sampleVal = 0
         val = 0
