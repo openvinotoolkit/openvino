@@ -72,6 +72,7 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
             .github/actions/install_ov_wheels/action.yml
+            .github/actions/validate_pyi_files/action.yml
           sparse-checkout-cone-mode: false
           path: 'action_root'
 
