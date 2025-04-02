@@ -4,8 +4,7 @@
 Napi::FunctionReference NodeWrap::constructor;
 
 // NodeWrap constructor
-NodeWrap::NodeWrap(const Napi::CallbackInfo& info, ov::Node* node)
-    : Napi::ObjectWrap<NodeWrap>(info), node_(node) {
+NodeWrap::NodeWrap(const Napi::CallbackInfo& info, ov::Node* node) : Napi::ObjectWrap<NodeWrap>(info), node_(node) {
     assert(node_ != nullptr && "Node pointer cannot be null");
 }
 
@@ -32,9 +31,11 @@ Napi::Object NodeWrap::New(Napi::Env env, ov::Node* node) {
 }
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
-    Napi::Function func = DefineClass(env, "Node", {
-        InstanceMethod("getName", &NodeWrap::get_name),
-    });
+    Napi::Function func = DefineClass(env, 
+                                      "Node", 
+                                      {
+                                        InstanceMethod("getName", &NodeWrap::get_name),
+                                      });
 
     // Store the class constructor in the static member
     NodeWrap::constructor = Napi::Persistent(func);
