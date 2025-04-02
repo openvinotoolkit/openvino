@@ -9,7 +9,7 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/prior_box.hpp"
-
+#include "intel_gpu/primitives/moe_expert.hpp"
 
 namespace cldnn {
 namespace common {
@@ -26,6 +26,7 @@ REGISTER_COMMON(condition);
 REGISTER_COMMON(data);
 REGISTER_COMMON(input_layout);
 REGISTER_COMMON(loop);
+REGISTER_COMMON(moe_expert);
 
 #undef REGISTER_COMMON
 

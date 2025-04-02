@@ -33,6 +33,7 @@
 #include "read_value_inst.h"
 #include "kv_cache_inst.h"
 #include "condition_inst.h"
+#include "moe_expert_inst.h"
 #include "paged_attention_inst.h"
 #include "gather_inst.h"
 #include "broadcast_inst.h"
@@ -1947,7 +1948,7 @@ void primitive_inst::prepare_primitive() {
     }
     on_execute();
 
-    if (!_node->is_type<condition>() && !_node->is_type<loop>()) {
+    if (!_node->is_type<condition>() && !_node->is_type<loop>() && !_node->is_type<moe_expert>()) {
         for (size_t i = 0; i < _outputs.size(); ++i) {
             if (!orig_outputs[i] && !_outputs[i])
                 continue;

@@ -1,4 +1,10 @@
+#pragma once
 
+#ifndef WIN32
+#define ENABLE_LINUX_PERF
+#endif
+
+#ifdef ENABLE_LINUX_PERF
 #include <linux/perf_event.h>
 #include <time.h>
 //#include <linux/time.h>
@@ -1182,8 +1188,9 @@ struct PerfEventGroup : public IPerfEventDumper {
 };
 
 using ProfileScope = PerfEventGroup::ProfileScope;
+#endif
 
-#if 1
+#ifdef ENABLE_LINUX_PERF
 // pwe-thread event group with default events pre-selected
 template <typename ... Args>
 ProfileScope Profile(const std::string& title, int id = 0, Args&&... args) {
@@ -1221,6 +1228,8 @@ inline int Init() {
 }
 
 #else
+
+namespace LinuxPerf {
 
 template <typename ... Args>
 int Profile(const std::string& title, int id = 0, Args&&... args) {

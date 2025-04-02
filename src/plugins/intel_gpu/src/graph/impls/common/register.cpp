@@ -15,6 +15,7 @@ void register_implementations() {
     REGISTER_COMMON(data);
     REGISTER_COMMON(input_layout);
     REGISTER_COMMON(loop);
+    REGISTER_COMMON(moe_expert);
 }
 
 }  // namespace common

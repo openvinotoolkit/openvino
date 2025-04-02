@@ -362,17 +362,20 @@ ov::pass::FuseMoeExpert::FuseMoeExpert() {
         std::shared_ptr<ov::Model> body;
         {
             // shape: [expert_number, topk, batch]
+#define GETTYPE(n) pattern_map.at(n).get_element_type()
             // auto then_nonzero = std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::PartialShape{2, -1});
-            auto then_expert_mask = std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::PartialShape{expert_num, topk, -1});
+            auto then_expert_mask =
+                std::make_shared<ov::opset1::Parameter>(GETTYPE(expert_mask), ov::PartialShape{expert_num, topk, -1});
 
             // shape: [batch * seq_len, hidden_dim]
-            auto then_final_hidden_states = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, static_cast<int>(hidden_size)});
+            auto then_final_hidden_states =
+                std::make_shared<ov::opset1::Parameter>(GETTYPE(final_hidden_states), ov::PartialShape{-1, static_cast<int>(hidden_size)});
             // shape: [1, batch * seq_len, hidden_dim]
-            auto then_hidden_states = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, -1, static_cast<int>(hidden_size)});
+            auto then_hidden_states = std::make_shared<ov::opset1::Parameter>(GETTYPE(hidden_states), ov::PartialShape{1, -1, static_cast<int>(hidden_size)});
 
             auto routing_weights_shapeof_split = makeConst(element::i32, {1}, std::vector<int>{static_cast<int>(topk)}); //std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{1});
             // shape[self.topk * batch, 1]
-            auto then_routing_weights =  std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, 1});
+            auto then_routing_weights = std::make_shared<ov::opset1::Parameter>(GETTYPE(routing_weights), ov::PartialShape{-1, 1});
 
             auto select_Gather_2 = makeOP<opset8::Gather>({then_expert_mask, static_cast<int>(expert_no), 0}, {{"batch_dims", 0}});   //  tensor_array<i64[8,?]> __module.model.model.layers.0.mlp/aten::select/Gather_2(__module.model.model.layers.0.mlp/aten::permute/Transpose, 298, 160)
             // x = torch.where(expert_mask[expert_idx]), x shape: [2, nonzero], dim0: topk, dim1: batch
