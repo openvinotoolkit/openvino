@@ -573,7 +573,7 @@ void jitUniGatherKernel<x64::avx512_core>::calcSrcShiftLong(Vmm* vAuxPool, bool 
 }
 
 template <x64::cpu_isa_t isa>
-void jitUniGatherKernel<isa>::calcSrcShiftLongBlock([[maybe_unused]] Vmm* vAuxPool, [[maybe_unused]] bool shiftFirst) {
+void jitUniGatherKernel<isa>::calcSrcShiftLongBlock(Vmm* /*vAuxPool*/, bool /*shiftFirst*/) {
     // Most likely there will no significant performance gain vs memcpy in reference implementation on big blocks after
     // axis, therefore no time was invested to this case yet.
     OPENVINO_THROW("Unsupported case.");
