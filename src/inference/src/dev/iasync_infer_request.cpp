@@ -276,3 +276,5 @@ const std::vector<ov::Output<const ov::Node>>& ov::IAsyncInferRequest::get_input
 const std::vector<ov::Output<const ov::Node>>& ov::IAsyncInferRequest::get_outputs() const {
     return m_sync_request->get_outputs();
 }
+// docker run -v /home/praasz/projects/openvino:/openvino:rw quay.io/fedora/fedora:rawhide sh -c 'env | grep -i  _PROXY'
+// dnf config-manager --save --setopt proxy=http_proxy=http://proxy-dmz.intel.com:911
