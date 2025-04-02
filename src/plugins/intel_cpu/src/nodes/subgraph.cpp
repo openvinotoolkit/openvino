@@ -366,13 +366,13 @@ void Subgraph::createPrimitive() {
         input_num = config.inConfs.size();
         output_num = config.outConfs.size();
 
-        initAttributes(); // needed for getIOPrecisions
+        initAttributes();
         optimizeIR();
-        initMemoryPtrs(); // needed for initPluginBlockedShapes, can be avoided if necessary
-        initPluginBlockedShapes(); // inits shapes that are used only starting from prepareParams stage
+        initMemoryPtrs();
+        initPluginBlockedShapes();
         prepareWeights();
         // Init starts offsets should be after `prepareWeights`
-        initStartOffsets(); // inits offsets that are used only starting from prepareParams stage
+        initStartOffsets();
     }
 
     Node::createPrimitive();
@@ -684,9 +684,10 @@ void Subgraph::optimizeIR() {
 
     // DataFlow transformations includes AnalyzeBroadcastableInputs pass:
     // we should verify that the received map is aligned with our blocked input shapes
-    OPENVINO_ASSERT((broadcastable_inputs.size() < in_blocked_shapes.size()) ||
-                        (!broadcastable_inputs.empty() && broadcastable_inputs.rbegin()->first < in_blocked_shapes.size()),
-                    "Incorrect indexes of broadcastable inputs of Subgraph");
+    OPENVINO_ASSERT(
+        (broadcastable_inputs.size() < in_blocked_shapes.size()) ||
+            (!broadcastable_inputs.empty() && broadcastable_inputs.rbegin()->first < in_blocked_shapes.size()),
+        "Incorrect indexes of broadcastable inputs of Subgraph");
     for (const auto broadcastable_input : broadcastable_inputs) {
         OPENVINO_ASSERT(broadcastable_input.second < in_blocked_shapes[broadcastable_input.first].first.size(),
                         "Incorrect processing dimension index of broadcastable index");

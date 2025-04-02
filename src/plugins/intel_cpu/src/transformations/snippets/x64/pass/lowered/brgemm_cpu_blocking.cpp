@@ -96,7 +96,7 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                                                                     k_block);
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    // Need to create not processed postops ports for postop inputs
+    // Note: postop ports are always created as not processed
     auto create_not_processed_postops_ports = [&]() {
         const auto postops_inputs = brgemm->get_postop_inputs();
         if (postops_inputs.empty()) {

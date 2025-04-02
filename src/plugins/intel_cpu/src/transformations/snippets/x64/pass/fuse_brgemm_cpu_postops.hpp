@@ -8,6 +8,12 @@
 
 namespace ov::intel_cpu::pass {
 
+class FuseConvert : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("FuseConvert");
+    FuseConvert();
+};
+
 class FuseScaleShift : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("FuseScaleShift");
@@ -29,6 +35,7 @@ public:
     OPENVINO_GRAPH_REWRITE_RTTI("FuseBrgemmCPUPostops");
     FuseBrgemmCPUPostops(std::set<size_t>& brgemm_external_params_idces)
         : m_brgemm_external_params_idces(brgemm_external_params_idces) {
+        add_matcher<FuseConvert>();
         add_matcher<FuseScaleShift>();
         add_matcher<FuseBinaryEltwise>(m_external_params);
     }

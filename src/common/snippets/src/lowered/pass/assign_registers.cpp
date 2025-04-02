@@ -7,7 +7,6 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/kernel.hpp"
-#include "snippets/rt_info/external_parameter.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
 
@@ -25,7 +24,7 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
         std::vector<ExpressionPtr> internal_parameters;
         internal_parameters.reserve(linear_ir.get_parameters().size());
         for (const auto& param : linear_ir.get_parameters()) {
-            if (!ov::snippets::is_external_parameter(param->get_node())) {
+            if (!param->get_output_port_descriptor(0)->get_reg().is_ignored()) {
                 internal_parameters.push_back(param);
             }
         }
@@ -189,10 +188,16 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         for (const auto& live_reg : expr->get_live_regs())
             mapped_live_regs.insert(assigned_reg_map[live_reg]);
         expr->set_live_regs(mapped_live_regs);
-        for (const auto& in : expr->get_input_port_descriptors())
-            in->set_reg(assigned_reg_map[in->get_reg()]);
-        for (const auto& out : expr->get_output_port_descriptors())
-            out->set_reg(assigned_reg_map[out->get_reg()]);
+        for (const auto& in : expr->get_input_port_descriptors()) {
+            if (!in->get_reg().is_ignored()) {
+                in->set_reg(assigned_reg_map[in->get_reg()]);
+            }
+        }
+        for (const auto& out : expr->get_output_port_descriptors()) {
+            if (!out->get_reg().is_ignored()) {
+                out->set_reg(assigned_reg_map[out->get_reg()]);
+            }
+        }
     }
     return false;
 }

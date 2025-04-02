@@ -149,7 +149,6 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                                                nullptr) == dnnl_success,
                               "Cannot initialize brgemm descriptor due to invalid params");
 
-    // TODO: place postops fusion here
     primitive_attr_t attr;
     attr.set_post_ops(post_ops);
     dnnl::memory::desc dst_desc({M, N}, static_cast<dnnl::memory::data_type>(dt_out), dnnl::memory::format_tag::ab);

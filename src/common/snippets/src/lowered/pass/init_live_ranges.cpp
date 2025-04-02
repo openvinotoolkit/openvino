@@ -7,7 +7,6 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets/rt_info/external_parameter.hpp"
 
 namespace ov {
 namespace snippets {

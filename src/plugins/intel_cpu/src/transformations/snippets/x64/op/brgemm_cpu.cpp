@@ -103,14 +103,12 @@ void BrgemmCPU::validate_with_scratchpad() const {
 }
 
 void BrgemmCPU::validate_inputs() const {
-    // TODO: take into account only binary postops since other ones don't have inputs
-    // const auto expected_input_size = m_main_inputs_count + m_post_ops_config.size();
-    // OPENVINO_ASSERT(get_input_size() == expected_input_size,
-    //                 "BrgemmCPU expects ",
-    //                 expected_input_size,
-    //                 " inputs whereas it got ",
-    //                 get_input_size(),
-    //                 " inputs");
+    OPENVINO_ASSERT(get_input_size() >= m_main_inputs_count,
+                    "BrgemmCPU expects at least ",
+                    m_main_inputs_count,
+                    " inputs whereas it got ",
+                    get_input_size(),
+                    " inputs");
 }
 
 std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {

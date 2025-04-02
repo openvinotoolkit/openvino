@@ -39,6 +39,8 @@ private:
     std::shared_ptr<x64::BrgemmBaseKernelExecutor> m_kernel_executor = nullptr;
     std::optional<size_t> m_binary_postops_offset = std::nullopt;
 
+    bool m_with_scratchpad = false;
+
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter);
 #endif

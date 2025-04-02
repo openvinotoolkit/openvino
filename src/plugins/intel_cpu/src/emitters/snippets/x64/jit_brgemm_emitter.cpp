@@ -64,7 +64,8 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
                     utils::get_buffer_cluster_id(expr->get_input_port(1)),
                     utils::get_buffer_cluster_id(expr->get_output_port(0))};
-    if (with_scratchpad(brgemm_type)) {
+    m_with_scratchpad = with_scratchpad(brgemm_type);
+    if (m_with_scratchpad) {
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
     }
@@ -112,17 +113,17 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    // TODO: handle postops here
-    // OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == in.size() + 1 && (out.size() == 1),
-    //                           "expects 3 inputs if there are compensations/wsp");
+    const size_t main_inputs_count = m_with_scratchpad ? 3 : 2;
+    OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == main_inputs_count + 1, "invalid memory offsets size");
+    OV_CPU_JIT_EMITTER_ASSERT(in.size() >= main_inputs_count && out.size() == 1,
+                              "expects 3 inputs if there are compensations/wsp");
 }
 
 void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
     std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
     init_binary_call_regs(2, mem_ptrs_idxs);
-    // TODO: investigate if it is needed
-    if (m_memory_offsets.size() > 3) {
+    if (m_with_scratchpad) {
         OV_CPU_JIT_EMITTER_ASSERT(in.size() >= 3, "expects 3 inputs if there are compensations/wsp");
         mem_ptrs_idxs.emplace_back(in[2]);
     }
