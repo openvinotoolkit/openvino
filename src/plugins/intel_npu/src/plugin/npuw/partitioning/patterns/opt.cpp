@@ -1410,9 +1410,8 @@ DQUnpackDictMatMulCWf8::DQUnpackDictMatMulCWf8(Context::Ref ctx) {
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
-    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
     auto qmmi = opp::any_input();
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qmuls});
     auto qres = opp::wrap_type<ov::op::v0::Result>({qmm});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
@@ -1445,15 +1444,9 @@ DQUnpackDictMatMulCWf8::DQUnpackDictMatMulCWf8(Context::Ref ctx) {
             auto new_wi = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
             std::cout << "here 3" << std::endl;
             auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, new_wi, false, true);
+            auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, matched_qcoeff->get_element_type());
 
-            auto qcvtm_iter = node_to_output.find(qcvtm);
-            if (qcvtm_iter != node_to_output.end()) {
-                auto matched_qcvtm = qcvtm_iter->second.get_node_shared_ptr();
-                auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, matched_qcvtm->get_element_type());
-                matched_result->input(0).replace_source_output(new_out);
-            } else {
-                matched_result->input(0).replace_source_output(new_mm);
-            }
+            matched_result->input(0).replace_source_output(new_out);
             std::cout << "here 4" << std::endl;
         }
         return false;  // root has changed (yet)
