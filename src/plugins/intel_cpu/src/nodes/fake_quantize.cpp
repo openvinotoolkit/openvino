@@ -8,7 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <common/dnnl_thread.hpp>
+// #include <common/dnnl_thread.hpp>
 #include <memory>
 #include <set>
 #include <shape_inference/shape_inference_pass_through.hpp>
@@ -1709,7 +1709,7 @@ void FakeQuantize::executeReference() {
         auto thresholds = internalBlobMemory[0]->getDataAs<const float>();
         auto output_mask = internalBlobMemory[1]->getDataAs<const uint32_t>();
 
-        parallel_nd(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
+        parallel_for5d(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
             uint8_t bin_val = 0x00;
             for (int c = cb * nbits, shift = 0; c < std::min(static_cast<dim_t>(C), (cb + 1) * nbits); c++, shift++) {
                 size_t src_off = srcDims.size() == 4 ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3]
@@ -1737,7 +1737,7 @@ void FakeQuantize::executeReference() {
     } else {
         auto dst = dstMemory->getDataAs<float>();
 
-        parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
+        parallel_for5d(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = srcDims.size() == 5
                                  ? n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4]
                              : srcDims.size() == 4 ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3]
@@ -1803,7 +1803,7 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
 
     int nbits = 8;
 
-    parallel_nd(N, H, W, [&](dim_t n, dim_t h, dim_t w) {
+    parallel_for3d(N, H, W, [&](dim_t n, dim_t h, dim_t w) {
         auto arg = jit_quantize_call_args();
 
         arg.from = &src[(n * s_str[0] + h * s_str[2] + w * s_str[3]) * sizeof(float)];
@@ -1860,7 +1860,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     const int W = srcDims.size() > 3 ? srcDims[srcDims.size() - 1] : 1;
 
     if (srcDesc.hasLayoutType(LayoutType::ncsp) && srcDesc.getShape().getRank() == 3) {
-        parallel_nd(N, CB, D, [&](dim_t n, dim_t cb, dim_t d) {
+        parallel_for3d(N, CB, D, [&](dim_t n, dim_t cb, dim_t d) {
             auto arg = jit_quantize_call_args();
 
             int c = cb * blk_size;
@@ -1891,7 +1891,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     } else if (jqp.is_planar && srcDims.size() > 2) {
         const int batch_size = 256;
         const int B = div_up(H * W, batch_size);
-        parallel_nd(N, CB, D, B, [&](dim_t n, dim_t cb, dim_t d, dim_t b) {
+        parallel_for4d(N, CB, D, B, [&](dim_t n, dim_t cb, dim_t d, dim_t b) {
             auto arg = jit_quantize_call_args();
 
             const int c = cb * blk_size;
@@ -1926,7 +1926,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
             (*pKernel)(&arg);
         });
     } else {
-        parallel_nd_legacy(N, CB, D, H, [&](dim_t n, dim_t cb, dim_t d, dim_t h) {
+        parallel_for4d(N, CB, D, H, [&](dim_t n, dim_t cb, dim_t d, dim_t h) {
             auto arg = jit_quantize_call_args();
 
             int c = cb * blk_size;

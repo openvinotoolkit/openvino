@@ -22,6 +22,8 @@
 #define OV_THREAD_SEQ      2
 #define OV_THREAD_TBB_AUTO 3
 
+#define TBB_OPTION 2
+
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    ifndef NOMINMAX
 #        define NOMINMAX
@@ -429,6 +431,8 @@ typename std::enable_if<N_ARGS == sizeof...(T), void>::type call_with_args(const
 }
 }  // namespace helpers
 
+constexpr int MULTIPLIER = 32;
+
 template <typename T0, typename F>
 void for_1d(const int& ithr, const int& nthr, const T0& D0, const F& func) {
     T0 d0{0}, end{0};
@@ -441,25 +445,30 @@ template <typename T0, typename F>
 void parallel_for(const T0& D0, const F& func) {
 #if OV_THREAD == OV_THREAD_TBB
     auto work_amount = static_cast<size_t>(D0);
-    int nthr = parallel_get_max_threads();
-    if (static_cast<size_t>(nthr) > work_amount)
-        nthr = static_cast<int>(work_amount);
-    if (nthr == 1) {
+    const int nthr = parallel_get_max_threads();
+    int virtual_threads = nthr;
+    if (TBB_OPTION == 2) {
+        virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
+    }
+    if (static_cast<size_t>(virtual_threads) > work_amount)
+        virtual_threads = static_cast<int>(work_amount);
+    if (virtual_threads == 1) {
         for_1d(0, 1, D0, func);
     } else {
-        tbb::parallel_for(
-            0,
-            nthr,
-            [&](int ithr) {
-                for_1d(ithr, nthr, D0, func);
-            },
-            tbb::static_partitioner());
+        if (TBB_OPTION == 1) {
+            tbb::parallel_for(
+                0,
+                virtual_threads,
+                [&](int ithr) {
+                    for_1d(ithr, virtual_threads, D0, func);
+                },
+                tbb::static_partitioner());
+        } else {
+            tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                for_1d(ithr, virtual_threads, D0, func);
+            });
+        }
     }
-#elif OV_THREAD == OV_THREAD_TBB_AUTO
-    const int nthr = parallel_get_max_threads();
-    tbb::parallel_for(0, nthr, [&](int ithr) {
-        for_1d(ithr, nthr, D0, func);
-    });
 #elif OV_THREAD == OV_THREAD_OMP
 // Please note that this function does not guarantee execution on the same number of threads from call to call.
 // Use the parallel_nt* functions if the procedure depends on a certain number of threads.
@@ -491,25 +500,30 @@ template <typename T0, typename T1, typename F>
 void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
 #if OV_THREAD == OV_THREAD_TBB
     auto work_amount = static_cast<size_t>(D0 * D1);
-    int nthr = parallel_get_max_threads();
-    if (static_cast<size_t>(nthr) > work_amount)
-        nthr = static_cast<int>(work_amount);
-    if (nthr == 1) {
+    const int nthr = parallel_get_max_threads();
+    int virtual_threads = nthr;
+    if (TBB_OPTION == 2) {
+        virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
+    }
+    if (static_cast<size_t>(virtual_threads) > work_amount)
+        virtual_threads = static_cast<int>(work_amount);
+    if (virtual_threads == 1) {
         for_2d(0, 1, D0, D1, func);
     } else {
-        tbb::parallel_for(
-            0,
-            nthr,
-            [&](int ithr) {
-                for_2d(ithr, nthr, D0, D1, func);
-            },
-            tbb::static_partitioner());
+        if (TBB_OPTION == 1) {
+            tbb::parallel_for(
+                0,
+                virtual_threads,
+                [&](int ithr) {
+                    for_2d(ithr, virtual_threads, D0, D1, func);
+                },
+                tbb::static_partitioner());
+        } else {
+            tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                for_2d(ithr, virtual_threads, D0, D1, func);
+            });
+        }
     }
-#elif OV_THREAD == OV_THREAD_TBB_AUTO
-    const int nthr = parallel_get_max_threads();
-    tbb::parallel_for(0, nthr, [&](int ithr) {
-        for_2d(ithr, nthr, D0, D1, func);
-    });
 #elif OV_THREAD == OV_THREAD_OMP
 // Please note that this function does not guarantee execution on the same number of threads from call to call.
 // Use the parallel_nt* functions if the procedure depends on a certain number of threads.
@@ -559,25 +573,30 @@ template <typename T0, typename T1, typename T2, typename F>
 void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
 #if OV_THREAD == OV_THREAD_TBB
     auto work_amount = static_cast<size_t>(D0 * D1 * D2);
-    int nthr = parallel_get_max_threads();
-    if (static_cast<size_t>(nthr) > work_amount)
-        nthr = static_cast<int>(work_amount);
-    if (nthr == 1) {
+    const int nthr = parallel_get_max_threads();
+    int virtual_threads = nthr;
+    if (TBB_OPTION == 2) {
+        virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
+    }
+    if (static_cast<size_t>(virtual_threads) > work_amount)
+        virtual_threads = static_cast<int>(work_amount);
+    if (virtual_threads == 1) {
         for_3d(0, 1, D0, D1, D2, func);
     } else {
-        tbb::parallel_for(
-            0,
-            nthr,
-            [&](int ithr) {
-                for_3d(ithr, nthr, D0, D1, D2, func);
-            },
-            tbb::static_partitioner());
+        if (TBB_OPTION == 1) {
+            tbb::parallel_for(
+                0,
+                virtual_threads,
+                [&](int ithr) {
+                    for_3d(ithr, virtual_threads, D0, D1, D2, func);
+                },
+                tbb::static_partitioner());
+        } else {
+            tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                for_3d(ithr, virtual_threads, D0, D1, D2, func);
+            });
+        }
     }
-#elif OV_THREAD == OV_THREAD_TBB_AUTO
-    const int nthr = parallel_get_max_threads();
-    tbb::parallel_for(0, nthr, [&](int ithr) {
-        for_3d(ithr, nthr, D0, D1, D2, func);
-    });
 #elif OV_THREAD == OV_THREAD_OMP
 // Please note that this function does not guarantee execution on the same number of threads from call to call.
 // Use the parallel_nt* functions if the procedure depends on a certain number of threads.
@@ -631,25 +650,29 @@ template <typename T0, typename T1, typename T2, typename T3, typename F>
 void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const F& func) {
 #if OV_THREAD == OV_THREAD_TBB
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3);
-    int nthr = parallel_get_max_threads();
-    if (static_cast<size_t>(nthr) > work_amount)
-        nthr = static_cast<int>(work_amount);
-    if (nthr == 1) {
+    const int nthr = parallel_get_max_threads();
+    int virtual_threads = nthr;
+    if (TBB_OPTION == 2)
+        virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
+    if (static_cast<size_t>(virtual_threads) > work_amount)
+        virtual_threads = static_cast<int>(work_amount);
+    if (virtual_threads == 1) {
         for_4d(0, 1, D0, D1, D2, D3, func);
     } else {
-        tbb::parallel_for(
-            0,
-            nthr,
-            [&](int ithr) {
-                for_4d(ithr, nthr, D0, D1, D2, D3, func);
-            },
-            tbb::static_partitioner());
+        if (TBB_OPTION == 1) {
+            tbb::parallel_for(
+                0,
+                virtual_threads,
+                [&](int ithr) {
+                    for_4d(ithr, virtual_threads, D0, D1, D2, D3, func);
+                },
+                tbb::static_partitioner());
+        } else {
+            tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                for_4d(ithr, virtual_threads, D0, D1, D2, D3, func);
+            });
+        }
     }
-#elif OV_THREAD == OV_THREAD_TBB_AUTO
-    const int nthr = parallel_get_max_threads();
-    tbb::parallel_for(0, nthr, [&](int ithr) {
-        for_4d(ithr, nthr, D0, D1, D2, D3, func);
-    });
 #elif OV_THREAD == OV_THREAD_OMP
 // Please note that this function does not guarantee execution on the same number of threads from call to call.
 // Use the parallel_nt* functions if the procedure depends on a certain number of threads.
@@ -691,25 +714,29 @@ template <typename T0, typename T1, typename T2, typename T3, typename T4, typen
 void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const F& func) {
 #if OV_THREAD == OV_THREAD_TBB
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4);
-    int nthr = parallel_get_max_threads();
-    if (static_cast<size_t>(nthr) > work_amount)
-        nthr = static_cast<int>(work_amount);
-    if (nthr == 1) {
+    const int nthr = parallel_get_max_threads();
+    int virtual_threads = nthr;
+    if (TBB_OPTION == 2)
+        virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
+    if (static_cast<size_t>(virtual_threads) > work_amount)
+        virtual_threads = static_cast<int>(work_amount);
+    if (virtual_threads == 1) {
         for_5d(0, 1, D0, D1, D2, D3, D4, func);
     } else {
-        tbb::parallel_for(
-            0,
-            nthr,
-            [&](int ithr) {
-                for_5d(ithr, nthr, D0, D1, D2, D3, D4, func);
-            },
-            tbb::static_partitioner());
+        if (TBB_OPTION == 1) {
+            tbb::parallel_for(
+                0,
+                virtual_threads,
+                [&](int ithr) {
+                    for_5d(ithr, virtual_threads, D0, D1, D2, D3, D4, func);
+                },
+                tbb::static_partitioner());
+        } else {
+            tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                for_5d(ithr, virtual_threads, D0, D1, D2, D3, D4, func);
+            });
+        }
     }
-#elif OV_THREAD == OV_THREAD_TBB_AUTO
-    const int nthr = parallel_get_max_threads();
-    tbb::parallel_for(0, nthr, [&](int ithr) {
-        for_5d(ithr, nthr, D0, D1, D2, D3, D4, func);
-    });
 #elif OV_THREAD == OV_THREAD_OMP
 // Please note that this function does not guarantee execution on the same number of threads from call to call.
 // Use the parallel_nt* functions if the procedure depends on a certain number of threads.
@@ -753,25 +780,29 @@ template <typename T0, typename T1, typename T2, typename T3, typename T4, typen
 void parallel_for6d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const T5& D5, const F& func) {
 #if OV_THREAD == OV_THREAD_TBB
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4 * D5);
-    int nthr = parallel_get_max_threads();
-    if (static_cast<size_t>(nthr) > work_amount)
-        nthr = static_cast<int>(work_amount);
-    if (nthr == 1) {
+    const int nthr = parallel_get_max_threads();
+    int virtual_threads = nthr;
+    if (TBB_OPTION == 2)
+        virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
+    if (static_cast<size_t>(virtual_threads) > work_amount)
+        virtual_threads = static_cast<int>(work_amount);
+    if (virtual_threads == 1) {
         for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);
     } else {
-        tbb::parallel_for(
-            0,
-            nthr,
-            [&](int ithr) {
-                for_6d(ithr, nthr, D0, D1, D2, D3, D4, D5, func);
-            },
-            tbb::static_partitioner());
+        if (TBB_OPTION == 1) {
+            tbb::parallel_for(
+                0,
+                virtual_threads,
+                [&](int ithr) {
+                    for_6d(ithr, virtual_threads, D0, D1, D2, D3, D4, D5, func);
+                },
+                tbb::static_partitioner());
+        } else {
+            tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                for_6d(ithr, virtual_threads, D0, D1, D2, D3, D4, D5, func);
+            });
+        }
     }
-#elif OV_THREAD == OV_THREAD_TBB_AUTO
-    const int nthr = parallel_get_max_threads();
-    tbb::parallel_for(0, nthr, [&](int ithr) {
-        for_6d(ithr, nthr, D0, D1, D2, D3, D4, D5, func);
-    });
 #elif OV_THREAD == OV_THREAD_OMP
 // Please note that this function does not guarantee execution on the same number of threads from call to call.
 // Use the parallel_nt* functions if the procedure depends on a certain number of threads.

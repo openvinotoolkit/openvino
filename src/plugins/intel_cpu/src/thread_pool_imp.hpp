@@ -15,6 +15,8 @@
 
 namespace ov::intel_cpu {
 
+int dnnl_get_multiplier();
+
 class threadpool_t : public dnnl::threadpool_interop::threadpool_iface {
 private:
     int _num_threads;
@@ -43,6 +45,33 @@ public:
     }
 };
 
-threadpool_t* get_thread_pool();
+class threadpool_auto : public dnnl::threadpool_interop::threadpool_iface {
+private:
+    int _num_threads;
+public:
+    explicit threadpool_auto(int num_threads) {
+        _num_threads = num_threads;
+    }
+    int get_num_threads() const override {
+        int num = parallel_get_max_threads() * dnnl_get_multiplier();
+        return num;
+    }
+    bool get_in_parallel() const override {
+        return 0;
+    }
+    uint64_t get_flags() const override {
+        return 0;
+    }
+    void parallel_for(int n, const std::function<void(int, int)>& fn) override {
+        tbb::parallel_for(
+            0,
+            n,
+            [&](int i) {
+                fn(i, n);
+            });
+    }
+};
+
+dnnl::threadpool_interop::threadpool_iface* get_thread_pool();
 
 }  // namespace ov::intel_cpu
