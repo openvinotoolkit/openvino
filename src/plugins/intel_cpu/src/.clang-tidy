@@ -46,6 +46,7 @@ Checks: >
   google-*,
   modernize-*,
   cppcoreguidelines-prefer-member-initializer,
+  readability-container-size-empty,
   readability-else-after-return,
   -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,

@@ -88,7 +88,7 @@ void SyncInferRequest::infer() {
     }
 
     convert_batched_tensors();
-    if (m_batched_tensors.size() > 0) {
+    if (!m_batched_tensors.empty()) {
         // batched_tensors will be updated for each infer, external_ptr should be update together
         update_external_tensor_ptrs();
     }
@@ -349,8 +349,8 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     // WA: legacy api create blob with ANY layout will not set BlockingDesc, which will lead to tensor.get_shape()
     // return empty shape but tensor.get_size() return correct value, and tensor.reshape() cannot update
     // BlockingDesc, so to construct new tensor with original tensor's data, which is only for ov legacy api usage.
-    if (in_port.get_partial_shape().is_static() && in_tensor->get_size() > 0 && in_tensor->get_shape().size() == 0 &&
-        in_tensor->get_size() == ov::shape_size(in_port.get_shape()) && in_port.get_shape().size() > 0) {
+    if (in_port.get_partial_shape().is_static() && in_tensor->get_size() > 0 && in_tensor->get_shape().empty() &&
+        in_tensor->get_size() == ov::shape_size(in_port.get_shape()) && !in_port.get_shape().empty()) {
         tensor = ov::make_tensor(in_tensor->get_element_type(), in_port.get_shape(), in_tensor->data());
     }
     auto port_found = find_port(in_port);
@@ -619,7 +619,7 @@ void SyncInferRequest::sub_streams_infer() {
 
     size_t requests_num = requests.size();
 
-    if (requests.size() > 0) {
+    if (!requests.empty()) {
         for (const auto& output : outputs) {
             auto tensor = requests[0]->get_tensor(output);
             set_tensor(output, tensor);

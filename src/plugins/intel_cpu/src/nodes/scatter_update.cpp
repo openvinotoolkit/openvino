@@ -861,7 +861,7 @@ void ScatterUpdate::execute(const dnnl::stream& strm) {
         auto updateDims = updateMemPtr->getStaticDims();
         if (updateDims.size() <= 1) {
             DEBUG_LOG(getName(), " exec1DCase");
-            auto updateCnt = (updateDims.size() == 0) ? 1 : updateDims[0];
+            auto updateCnt = (updateDims.empty()) ? 1 : updateDims[0];
             auto srcLength = srcMemPtr->getStaticDims()[0];
             auto* psrc = reinterpret_cast<int32_t*>(srcPtr);
             auto* pdst = reinterpret_cast<int32_t*>(dstPtr);
