@@ -26,7 +26,7 @@ QueryWrapper::~QueryWrapper() {
     if (hPdh) {
         using PdhCloseQuery_fn = void (*)(PDH_HQUERY);
         auto pPdhCloseQuery = reinterpret_cast<PdhCloseQuery_fn>(GetProcAddress(hPdh, "PdhCloseQuery"));
-        if (PdhCloseQuery) {
+        if (pPdhCloseQuery) {
             pPdhCloseQuery(query);
         }
     }
