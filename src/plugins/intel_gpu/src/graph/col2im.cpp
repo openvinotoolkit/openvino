@@ -13,29 +13,49 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(col2im)
 
+bool col2im_inst::validate_num_blocks(kernel_impl_params const& impl_param, size_t candidate_num_blocks) {
+    constexpr size_t spatial_dims = 2;
+    auto desc = impl_param.typed_desc<col2im>();
+
+    size_t L_calculated = 1;
+    for (size_t d = 0; d < spatial_dims; ++d) {
+        L_calculated *= ((desc->output_shape[d] + desc->padding_begin[d] + desc->padding_end[d] -
+                                (desc->dilation[d] * (desc->kernel_shape[d] - 1)) - 1) / desc->stride[d]) + 1;
+    }
+
+    return (candidate_num_blocks == L_calculated);
+}
+
 layout col2im_inst::calc_output_layout(col2im_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<col2im>();
 
     auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 
-    auto out_size = input_layout.get_tensor();
-    const size_t feature = input_layout.feature() / (desc->kernel_shape[0] * desc->kernel_shape[1]);
+    bool is_batched = true;
+    auto num_blocks_l = input_layout.spatial(1);
+    if (num_blocks_l == 1 && !validate_num_blocks(impl_param, input_layout.spatial(1)))
+        is_batched = false;
+
+    auto out_tensor = input_layout.get_tensor();
+    auto num_elements = is_batched ? input_layout.feature() : input_layout.batch();
+
+    const size_t batch = is_batched ? input_layout.batch() : 1;
+    const size_t feature = num_elements / (desc->kernel_shape[0] * desc->kernel_shape[1]);
     const size_t y = desc->output_shape[1];
     const size_t x = desc->output_shape[0];
-
     if (format::spatial_num(input_layout.format) == 3) {
         const size_t z = 1;
-        out_size = tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z));
+        out_tensor = tensor(TensorValue(batch), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z));
     } else {
-        out_size = tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y));
+        out_tensor = tensor(TensorValue(batch), TensorValue(feature), TensorValue(x), TensorValue(y));
     }
 
     if (impl_param.has_fused_primitives()) {
         input_layout.data_type = impl_param.get_output_element_type();
     }
 
-    return layout{input_layout.data_type, input_format, out_size};
+    return layout{input_layout.data_type, input_format, out_tensor};
 }
 
 template<typename ShapeType>

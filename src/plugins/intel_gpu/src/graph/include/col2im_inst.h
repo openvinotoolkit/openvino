@@ -39,6 +39,8 @@ public:
     static std::string to_string(col2im_node const& node);
 
     typed_primitive_inst(network& network, col2im_node const& desc);
+
+    static bool validate_num_blocks(kernel_impl_params const& impl_param, size_t candidate_num_blocks);
 };
 
 using col2im_inst = typed_primitive_inst<col2im>;

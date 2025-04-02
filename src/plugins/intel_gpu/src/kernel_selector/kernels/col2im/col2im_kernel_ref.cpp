@@ -31,7 +31,10 @@ ParamsKey Col2ImKernelRef::GetSupportedKey() const {
 CommonDispatchData Col2ImKernelRef::SetDefault(const col2im_params& params) const {
     CommonDispatchData dispatchData;
 
-    dispatchData.gws = {1, 1, params.outputs[0].Batch().v};
+    bool is_batched = Parent::CheckCol2ImContainBatch(params);
+    const auto batches = is_batched ? params.outputs[0].Batch().v : 1;
+
+    dispatchData.gws = {1, 1, batches};
     dispatchData.lws = {1, 1, 1};
 
     return dispatchData;

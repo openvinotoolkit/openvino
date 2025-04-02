@@ -32,11 +32,15 @@ CommonDispatchData Col2ImKernelOpt::SetDefault(const col2im_params& params) cons
     CommonDispatchData dispatchData;
 
     auto input = params.inputs[0];
-    const auto num_elements_for_block = input.Feature().v;
+    bool is_batched = Parent::CheckCol2ImContainBatch(params);
+
+    const auto batches = is_batched ? params.outputs[0].Batch().v : 1;
+
+    const auto num_elements_for_block = is_batched ? input.Feature().v : input.Batch().v;
     const auto kernel_product = params.kernel_size.x * params.kernel_size.y;
     const auto num_channels = num_elements_for_block / kernel_product;
 
-    dispatchData.gws = {num_channels, 1, params.outputs[0].Batch().v};
+    dispatchData.gws = {num_channels, 1, batches};
     dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
