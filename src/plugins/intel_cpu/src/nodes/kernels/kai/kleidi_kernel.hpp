@@ -1,3 +1,9 @@
+// Copyright (C) 2024 FUJITSU LIMITED
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
 #include <arm_neon.h>
 #include <kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla.h>
 #include <kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p_interface.h>
