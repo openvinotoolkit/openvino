@@ -13,7 +13,6 @@
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/scalar.hpp"
-#include "snippets/rt_info/external_parameter.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
@@ -27,7 +26,7 @@ using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
 
 namespace {
 std::shared_ptr<BrgemmCPU> clone_with_new_params(
-    const std::shared_ptr<BrgemmCPU>& brgemm,
+    const std::shared_ptr<const BrgemmCPU>& brgemm,
     const BrgemmCPU::PostopsConfig& postops,
     const ov::OutputVector& new_inputs,
     const std::vector<ov::snippets::modifier::MemoryAccess::PortDescriptor>& new_in_descs) {
@@ -35,8 +34,7 @@ std::shared_ptr<BrgemmCPU> clone_with_new_params(
         std::make_shared<BrgemmCPU>(new_inputs,
                                     brgemm->get_type(),
                                     new_in_descs,
-                                    // TODO: rewrite
-                                    brgemm->get_output_port_descriptors().back(),
+                                    brgemm->get_output_port_descriptor(0),
                                     PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0))->get_layout(),
                                     PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1))->get_layout(),
                                     PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0))->get_layout(),
@@ -46,10 +44,10 @@ std::shared_ptr<BrgemmCPU> clone_with_new_params(
     // PortDescriptors are copied manually since it is not copyable attribute
     for (size_t i = 0; i < brgemm->get_input_size(); ++i) {
         const auto in_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(i));
-        PortDescriptorUtils::set_port_descriptor(new_brgemm->input(i), in_desc->get_subtensor(), in_desc->get_layout());
+        PortDescriptorUtils::set_port_descriptor_ptr(new_brgemm->input(i), in_desc);
     }
     const auto out_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0));
-    PortDescriptorUtils::set_port_descriptor(new_brgemm->output(0), out_desc->get_subtensor(), out_desc->get_layout());
+    PortDescriptorUtils::set_port_descriptor_ptr(new_brgemm->output(0), out_desc);
     return new_brgemm;
 }
 
@@ -59,15 +57,40 @@ auto brgemm_predicate = [](const Output<Node>& output) {
 
 }  // namespace
 
+pass::FuseConvert::FuseConvert() {
+    MATCHER_SCOPE(FuseConvert);
+
+    auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
+    auto m_convert = wrap_type<ov::snippets::op::ConvertSaturation>({m_brgemm}, type_matches_any({ov::element::f32}));
+
+    auto callback = [=](Matcher& m) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseConvert")
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto convert = pattern_map.at(m_convert).get_node_shared_ptr();
+        const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
+
+        auto postops_config = brgemm->get_postops_config();
+        postops_config.forced_output_type = convert->get_output_element_type(0);
+        std::cout << "[ INFO ] FuseConvert fused convert with out precision: " << convert->get_output_element_type(0)
+                  << std::endl;
+        auto new_brgemm =
+            clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
+        ov::copy_runtime_info({brgemm, convert}, new_brgemm);
+        ov::replace_node(convert, new_brgemm);
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(m_convert, matcher_name);
+    register_matcher(m, callback);
+}
+
 pass::FuseScaleShift::FuseScaleShift() {
     MATCHER_SCOPE(FuseScaleShift);
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
-    auto m_optional_convert = optional<ov::snippets::op::ConvertSaturation>(m_brgemm);
-
     auto m_scalar = wrap_type<ov::snippets::op::Scalar>(type_matches(ov::element::f32));
-    auto m_scale = wrap_type<ov::op::v1::Multiply>({m_optional_convert, m_scalar});
-    auto m_shift = wrap_type<ov::op::v1::Add>({m_optional_convert, m_scalar});
+    auto m_scale = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_scalar});
+    auto m_shift = wrap_type<ov::op::v1::Add>({m_brgemm, m_scalar});
     auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_scale, m_shift});
 
     auto callback = [=](Matcher& m) {
@@ -110,17 +133,15 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
     : m_external_params(external_params) {
     MATCHER_SCOPE(FuseBinaryEltwise);
 
-    auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
-    auto m_optional_convert = optional<ov::snippets::op::ConvertSaturation>(m_brgemm);
-
     auto binary_input_predicate = [](const Output<Node>& output) {
         return has_static_shape()(output) && type_matches(ov::element::f32)(output) && consumers_count(1)(output);
     };
 
+    auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_postop_input = wrap_type<ov::op::v0::Parameter>(binary_input_predicate);
     auto m_rank_norm = optional<ov::snippets::op::RankNormalization>(m_postop_input);
-    auto m_mul = wrap_type<ov::op::v1::Multiply>({m_optional_convert, m_postop_input});
-    auto m_add = wrap_type<ov::op::v1::Add>({m_optional_convert, m_postop_input});
+    auto m_mul = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_postop_input});
+    auto m_add = wrap_type<ov::op::v1::Add>({m_brgemm, m_postop_input});
     auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_mul, m_add});
 
     auto callback = [=](Matcher& m) {
@@ -170,12 +191,17 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         auto input_descs = brgemm->get_input_port_descriptors();
         brgemm_inputs.push_back(postop_input);
         input_descs.push_back(ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0});
-        ov::snippets::mark_as_external_parameter(postop_input_node);
         m_external_params.insert(postop_input_node);
 
         auto new_brgemm = clone_with_new_params(brgemm, postops_config, brgemm_inputs, input_descs);
         ov::copy_runtime_info({brgemm, post_op}, new_brgemm);
         ov::replace_node(post_op, new_brgemm);
+
+        // Note: binary postop's output and the corresponding matmul's input are marked as ignored
+        // since they shouldn't be processed by the common lowering pipeline,
+        // and will be handled by the brgemm kernel itself
+        PortDescriptorUtils::set_ignored_reg_type(new_brgemm->inputs().back());
+        PortDescriptorUtils::set_ignored_reg_type(postop_input);
         m_fused_postops_count++;
         return true;
     };

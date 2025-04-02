@@ -36,7 +36,9 @@ public:
 
     template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
     T get_value() const {
-        return cast_vector<T>()[0];
+        const auto vec = cast_vector<T>();
+        OPENVINO_ASSERT(vec.size() == 1, "Scalar must have a single value");
+        return vec[0];
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

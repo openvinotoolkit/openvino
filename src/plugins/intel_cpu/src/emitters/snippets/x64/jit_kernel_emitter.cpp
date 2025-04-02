@@ -5,7 +5,6 @@
 #include "jit_kernel_emitter.hpp"
 
 #include "jit_snippets_emitters.hpp"
-#include "snippets/rt_info/external_parameter.hpp"
 #include "snippets/utils/reg_utils.hpp"
 #include "utils.hpp"
 
@@ -29,8 +28,9 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
     const auto& buffers = body->get_buffers();
     std::vector<snippets::Reg> data_ptr_regs;
     for (const auto& param : parameters) {
-        if (!ov::snippets::is_external_parameter(param->get_node())) {
-            data_ptr_regs.push_back(param->get_output_port_descriptor(0)->get_reg());
+        const auto& reg = param->get_output_port_descriptor(0)->get_reg();
+        if (!reg.is_ignored()) {
+            data_ptr_regs.push_back(reg);
         }
     }
     num_inputs = data_ptr_regs.size();

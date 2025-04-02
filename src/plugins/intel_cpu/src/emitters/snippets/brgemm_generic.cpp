@@ -115,9 +115,8 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
     const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     const auto& input_pds = expr->get_input_port_descriptors();
     const auto& output_pds = expr->get_output_port_descriptors();
-    // TODO: handle postops here
-    // OV_CPU_JIT_EMITTER_ASSERT((input_pds.size() == 2 || input_pds.size() == 3) && output_pds.size() == 1,
-    //                           "Invalid number of in/out port descriptors");
+    OV_CPU_JIT_EMITTER_ASSERT(input_pds.size() >= 2 && output_pds.size() == 1,
+                              "Invalid number of in/out port descriptors");
 
     const auto& in0_shape = snippets::utils::get_planar_vdims(input_pds[0]->get_shape(), input_pds[0]->get_layout());
     const auto& in1_shape = snippets::utils::get_planar_vdims(input_pds[1]->get_shape(), input_pds[1]->get_layout());
@@ -174,7 +173,6 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
             return p.get_dim_idx() == 0 && p.is_processed();
         };
-        // TODO: check compensations port
         OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_processed() && check_port(in_ports[1]) &&
                             check_port(out_ports.back()),
                         "Incorrect Loop by Brgemm dimension N");
