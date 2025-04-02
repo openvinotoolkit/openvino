@@ -931,7 +931,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         return format::bfyx;
     }
 
-    if (node.is_dynamic() && use_onednn_impls && onednn_valid_post_ops && 
+    if (node.is_dynamic() && use_onednn_impls && onednn_valid_post_ops &&
         output_layout.get_partial_shape().size() == 4 && !i8_u8_input && !node.has_padded_dependency() &&
         input_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].is_static()) {
         bool correct_data_type = ((input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32) &&
