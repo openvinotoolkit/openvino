@@ -217,9 +217,7 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() {
         auto value = _memory_usage_data[idx].load();
         std::ostringstream oss;
         oss << type;
-        if (value != 0 || statistics.count(oss.str())) {
-            statistics[oss.str()] = value;
-        }
+        statistics[oss.str()] = value;
     };
 
     add_stat(allocation_type::unknown);
