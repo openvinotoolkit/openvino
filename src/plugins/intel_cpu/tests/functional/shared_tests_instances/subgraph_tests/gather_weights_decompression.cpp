@@ -45,7 +45,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeights_basic,
                                             ::testing::ValuesIn(per_tensor_scale)),
                          GatherWeightsDecompression::get_test_case_name);
 
-// fp16/bf16 constant + convert(16bit to f32) + gather case
+// fp16/bf16 constant + convert(16bit to f32) + gather to gather(f16/bf16 input and f32 output)
 TEST_P(GatherWeightsDecompressionWithoutScale, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
