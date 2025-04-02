@@ -1853,7 +1853,7 @@ void Partitioner::optimize(const std::string& func_name) {
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
-        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWi8f8>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWf8>(std::ref(ctx));
         // NB: This pass is disabled for reason! It doesn't make things better
         // rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulGQi>(std::ref(ctx));
         //rewr.add_matcher<ov::npuw::patterns::opt::CompressDictMatMulf32>(std::ref(ctx)); // FIXME: enable back!
@@ -1962,6 +1962,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 std::cout << "here133" << std::endl;
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
                 const auto& new_shape = params_to_gather.pnew->get_shape();
+                std::cout << "ALEXS partitioning " << new_elem_type << std::endl;
                 // Note: no allocation needed for this tensor - set to _closure and dummy in _lazy_closure
                 // FIXME: It turns out this tensor will be completely unused.
                 // It will just sit in the memory to do nothing.
