@@ -286,7 +286,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 };
 
                 return std::make_shared<
-                    DnnlFCExecutor<DnnlConvolutionPrimitive, FCAttrs, DnnlShapeAgnosticData, ConvolutionInstantiator>>(
+                    DnnlExecutor<DnnlConvolutionPrimitive, FCAttrs, DnnlShapeAgnosticData, ConvolutionInstantiator>>(
                     attrs,
                     postOps,
                     memory,
@@ -430,7 +430,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 };
 
                 return std::make_shared<
-                    DnnlFCExecutor<DnnlMatMulPrimitive, FCAttrs, DnnlShapeAgnosticData, MatMulInstantiator>>(
+                    DnnlExecutor<DnnlMatMulPrimitive, FCAttrs, DnnlShapeAgnosticData, MatMulInstantiator>>(
                     attrs,
                     postOps,
                     memory,
@@ -456,7 +456,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                const PostOps& postOps,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) {
-                return std::make_shared<DnnlFCExecutor<DnnlFCPrimitive, FCAttrs, DnnlShapeAgnosticData>>(attrs,
+                return std::make_shared<DnnlExecutor<DnnlFCPrimitive, FCAttrs, DnnlShapeAgnosticData>>(attrs,
                                                                                                          postOps,
                                                                                                          memory,
                                                                                                          context,

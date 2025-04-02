@@ -11,9 +11,7 @@
 #include "oneapi/dnnl/dnnl.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Convolution : public Node {
 public:
@@ -21,7 +19,7 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
     int registerToAllocationContext(int offset, AllocationContext& context) override;
@@ -80,7 +78,7 @@ protected:
 private:
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    using executorPtr = std::shared_ptr<DnnlExecutorLegacy>;
 
     std::tuple<ov::element::Type, ov::element::Type> getDstAndSumPrecision();
     std::tuple<VecMemoryDescs, MemoryDescPtr> initMemoryDescriptors(ov::element::Type dstType) const;
@@ -138,6 +136,4 @@ private:
     bool useJitPlanar = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

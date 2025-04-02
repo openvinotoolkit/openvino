@@ -554,7 +554,7 @@ MemoryDescPtr MatMul::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_
         return std::make_shared<CpuBlockedMemoryDesc>(
             DnnlExtensionUtils::DataTypeToElementType(desc.get_data_type()),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
-    }                                  // bias
+    }  // bias
     return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
@@ -662,14 +662,14 @@ void MatMul::prepareParams() {
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
         if (found) {
-            return std::make_shared<DnnlExecutor>(prim_desc);
+            return std::make_shared<DnnlExecutorLegacy>(prim_desc);
         }
 
         // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
         // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
         // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
         // undefined input shapes but not available for primitive_desc with input batch 1.
-        return std::make_shared<DnnlExecutor>(first_desc);
+        return std::make_shared<DnnlExecutorLegacy>(first_desc);
     };
 
     auto cache = context->getParamsCache();
