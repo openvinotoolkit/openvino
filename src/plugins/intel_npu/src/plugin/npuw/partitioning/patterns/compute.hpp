@@ -87,6 +87,18 @@ public:
     FakeQuantize(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
+class FakeConvertTranspose : public ov::pass::MatcherPass {
+    public:
+        OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::compute::FakeConvertTranspose");
+        FakeConvertTranspose(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+    };
+
+    class FakeConvertTranspose2 : public ov::pass::MatcherPass {
+        public:
+            OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::compute::FakeConvertTranspose2");
+            FakeConvertTranspose2(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+        };
+
 }  // namespace compute
 }  // namespace patterns
 }  // namespace npuw

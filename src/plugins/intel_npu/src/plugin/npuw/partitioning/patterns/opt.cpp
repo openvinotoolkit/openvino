@@ -165,6 +165,7 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
              ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::op::util::is_parameter(matched_node_qcoeff) || ov::op::util::is_constant(matched_node_qcoeff)) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+                std::cout << "ALEX DQMatMulCWi matched" << std::endl;
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
             auto matched_node_muls = node_to_output.at(qmuls).get_node_shared_ptr();
             auto matched_node_mmi = node_to_output.at(qmmi).get_node_shared_ptr();
@@ -172,12 +173,15 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
             auto& matched_node_muls_out = uat::_(node_to_output).at_or_at(qcvtm, qmuls);
 
             if (!ctx.get().mm_dq_full) {
+                std::cout << "ALEX DQMatMulCWi matched - no full" << std::endl;
                 const auto& matm_mul_out_shape = matched_matmul->get_output_shape(0);
                 const auto& matm_mul_in_shape = matched_matmul->get_input_shape(1);
                 NPUW_ASSERT(matm_mul_out_shape.back() == matm_mul_in_shape.front());
                 NPUW_ASSERT(matched_matmul->get_transpose_b());
                 return false;  // root hasn't changed
             }
+
+            std::cout << "ALEX DQMatMulCWi matched - full" << std::endl;
 
             // Reconnect MatMul to read from Convert(W) directly.
             // Note: ACT has to be converted too.
@@ -1054,6 +1058,8 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
+        std::cout << "ALEX lift DQLiftGatherSymCW matched" << std::endl;
+
         // Create new gathers on W and S respectively
         auto matched_out_w = node_to_output.at(qweight);
         auto matched_out_s = node_to_output.at(qcoeff);
@@ -1278,6 +1284,7 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
                                 qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
                                 qweight_type == ov::element::f8e8m0)) {
             std::cout << "here 1" << std::endl;
+            std::cout << "alex host gather HostGatherDQ matched" << std::endl;
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
@@ -1399,6 +1406,7 @@ DQUnpackDictMatMulCWi8f8::DQUnpackDictMatMulCWi8f8(Context::Ref ctx) {
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+                std::cout << "ALEX DQUNPACK DQUnpackDictMatMulCWi8f8 matched" << std::endl;
                 std::cout << "here 2" << std::endl;
             auto new_cvt_a =
                 std::make_shared<ov::op::v0::Convert>(matched_mmi, matched_node_qcoeff->get_element_type());

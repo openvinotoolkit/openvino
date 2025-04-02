@@ -523,6 +523,71 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     register_matcher(std::make_shared<opp::Matcher>(matmul, "TagFakeQuantize"), std::move(callback));
 }
 
+// TODO: visualize
+FakeConvertTranspose::FakeConvertTranspose(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto fake_input = opp::any_input();
+    auto fake_convert = opp::wrap_type<ov::op::v13::FakeConvert>({fake_input, opp::any_input(), opp::any_input()});
+    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({fake_convert, opp::any_input()});
+    auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), reshape});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        std::cout << "FakeConvertTranspose matched" << std::endl;
+
+        auto matched_fake_input = node_to_output.at(fake_input).get_node_shared_ptr();
+        auto matched_fake_convert = node_to_output.at(fake_convert).get_node_shared_ptr();
+        auto matched_transpose = node_to_output.at(transpose).get_node_shared_ptr();
+        auto matched_reshape = node_to_output.at(reshape).get_node_shared_ptr();
+        auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+
+        node_to_gptr->at(matched_fake_input)->isolate(isol_tag);
+        node_to_gptr->at(matched_fake_convert)->isolate(isol_tag);
+        node_to_gptr->at(matched_transpose)->isolate(isol_tag);
+        node_to_gptr->at(matched_reshape)->isolate(isol_tag);
+        node_to_gptr->at(matched_matmul)->isolate(isol_tag);
+
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(matmul, "TagFakeConvertTranspose"), std::move(callback));
+}
+
+FakeConvertTranspose2::FakeConvertTranspose2(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto fake_input = opp::any_input();
+    auto fake_convert = opp::wrap_type<ov::op::v13::FakeConvert>({fake_input, opp::any_input(), opp::any_input()});
+    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({fake_convert, opp::any_input()});
+    auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({reshape, opp::any_input()});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        std::cout << "FakeConvertTranspose2 matched" << std::endl;
+
+        auto matched_fake_input = node_to_output.at(fake_input).get_node_shared_ptr();
+        auto matched_fake_convert = node_to_output.at(fake_convert).get_node_shared_ptr();
+        auto matched_transpose = node_to_output.at(transpose).get_node_shared_ptr();
+        auto matched_reshape = node_to_output.at(reshape).get_node_shared_ptr();
+        auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+
+        node_to_gptr->at(matched_fake_input)->isolate(isol_tag);
+        node_to_gptr->at(matched_fake_convert)->isolate(isol_tag);
+        node_to_gptr->at(matched_transpose)->isolate(isol_tag);
+        node_to_gptr->at(matched_reshape)->isolate(isol_tag);
+        node_to_gptr->at(matched_matmul)->isolate(isol_tag);
+
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(matmul, "TagFakeConvertTranspose2"), std::move(callback));
+}
+
 }  // namespace compute
 }  // namespace patterns
 }  // namespace npuw
