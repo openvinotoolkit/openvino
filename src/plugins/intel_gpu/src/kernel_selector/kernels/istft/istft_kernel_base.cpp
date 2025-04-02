@@ -73,7 +73,7 @@ KernelsData ISTFTKernelBase::GetCommonKernelsData(const Params& params) const {
                      "",
                      false,
                      false,
-                     (int)prim_params.inputs.size(),
+                     static_cast<int>(prim_params.inputs.size()),
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      prim_params.is_shape_agnostic);
