@@ -747,7 +747,7 @@ public:
                               const float beta,
                               const float gamma,
                               const ov::element::TypeVector& input_precisions = {},
-	                          const ov::element::TypeVector& output_precisions = {}) {
+                              const ov::element::TypeVector& output_precisions = {}) {
 #if defined(OPENVINO_ARCH_X86_64)
         const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::x64::sse41);
 #elif defined(OPENVINO_ARCH_ARM64)
@@ -785,10 +785,10 @@ public:
         }
 
         std::set<ov::element::Type> supported_input_precisions = std::set<ov::element::Type>{ov::element::f16,
-            ov::element::f32,
-            ov::element::i32,
-            ov::element::i8,
-            ov::element::u8};
+                                                                                             ov::element::f32,
+                                                                                             ov::element::i32,
+                                                                                             ov::element::i8,
+                                                                                             ov::element::u8};
 
         std::set<ov::element::Type> supported_output_precisions = supported_input_precisions;
         if (one_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
@@ -822,9 +822,9 @@ public:
         }
 
         const std::set<ov::element::Type> supported_input_precisions = {ov::element::f32,
-            ov::element::i32,
-            ov::element::i8,
-            ov::element::u8};
+                                                                        ov::element::i32,
+                                                                        ov::element::i8,
+                                                                        ov::element::u8};
         auto supported_output_precisions = supported_input_precisions;
 #endif
 
