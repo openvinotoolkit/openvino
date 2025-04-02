@@ -112,9 +112,9 @@ void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
 }
 
 void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
-    const ov::SoPtr<ov::ITensor>& scale,
-    const ov::SoPtr<ov::ITensor>& to,
-    const ov::npuw::util::UnpackOptions& unpack_options) {
+                  const ov::SoPtr<ov::ITensor>& scale,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions& unpack_options) {
     auto from_shape = from->get_shape();
     auto scale_shape = scale->get_shape();
 
@@ -123,8 +123,7 @@ void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(scale->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
     NPUW_ASSERT(from_shape[0] == scale_shape[0]);
-    NPUW_ASSERT(from->get_element_type() == ov::element::f8e4m3 ||
-                from->get_element_type() == ov::element::f8e5m2 ||
+    NPUW_ASSERT(from->get_element_type() == ov::element::f8e4m3 || from->get_element_type() == ov::element::f8e5m2 ||
                 from->get_element_type() == ov::element::f8e8m0);
     NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
     NPUW_ASSERT(to->get_element_type() == ov::element::f16);
@@ -227,9 +226,8 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         ov::npuw::util::XARCH::unpack_i8f16_scale(from, scale, to, unpack_options);
     } else if (type_from == ov::element::nf4) {
         unpack_nf4f16(from, scale, to, unpack_options);
-    } else if (type_from == ov::element::f8e4m3 ||
-                type_from == ov::element::f8e5m2 ||
-                type_from == ov::element::f8e8m0) {
+    } else if (type_from == ov::element::f8e4m3 || type_from == ov::element::f8e5m2 ||
+               type_from == ov::element::f8e8m0) {
         // FIXME: IMplement XARCH::unpack
         unpack_f8f16(from, scale, to, unpack_options);
     } else {

@@ -524,7 +524,8 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 }
 
 // TODO: visualize
-FakeConvertTranspose::FakeConvertTranspose(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+FakeConvertTranspose::FakeConvertTranspose(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                                           const std::string& isol_tag) {
     auto fake_input = opp::any_input();
     auto fake_convert = opp::wrap_type<ov::op::v13::FakeConvert>({fake_input, opp::any_input(), opp::any_input()});
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({fake_convert, opp::any_input()});
@@ -556,7 +557,8 @@ FakeConvertTranspose::FakeConvertTranspose(const std::shared_ptr<ov::npuw::onlin
     register_matcher(std::make_shared<opp::Matcher>(matmul, "TagFakeConvertTranspose"), std::move(callback));
 }
 
-FakeConvertTranspose2::FakeConvertTranspose2(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+FakeConvertTranspose2::FakeConvertTranspose2(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                                             const std::string& isol_tag) {
     auto fake_input = opp::any_input();
     auto fake_convert = opp::wrap_type<ov::op::v13::FakeConvert>({fake_input, opp::any_input(), opp::any_input()});
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({fake_convert, opp::any_input()});

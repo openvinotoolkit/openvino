@@ -166,7 +166,7 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
              ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::op::util::is_parameter(matched_node_qcoeff) || ov::op::util::is_constant(matched_node_qcoeff)) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-                std::cout << "ALEX DQMatMulCWi matched" << std::endl;
+            std::cout << "ALEX DQMatMulCWi matched" << std::endl;
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
             auto matched_node_muls = node_to_output.at(qmuls).get_node_shared_ptr();
             auto matched_node_mmi = node_to_output.at(qmmi).get_node_shared_ptr();
@@ -1436,10 +1436,9 @@ DQUnpackDictMatMulCWf8::DQUnpackDictMatMulCWf8(Context::Ref ctx) {
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-                std::cout << "ALEX DQUNPACK DQUnpackDictMatMulCWf8 matched" << std::endl;
-                std::cout << "here 2" << std::endl;
-            auto new_cvt_a =
-                std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
+            std::cout << "ALEX DQUNPACK DQUnpackDictMatMulCWf8 matched" << std::endl;
+            std::cout << "here 2" << std::endl;
+            auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 
             auto new_wi = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
             std::cout << "here 3" << std::endl;

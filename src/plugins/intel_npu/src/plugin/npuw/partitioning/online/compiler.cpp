@@ -22,14 +22,15 @@ namespace online {
 namespace detail {
 
 namespace {
-static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
-                                                                 "P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,"
-                                                                 "P:DQMatMulGQi4/compute,P:DQMatMulCWi4/compute,"
-                                                                 "P:DQMatMulConv/compute,"
-                                                                 "P:VocabMatMul/compute,"
-                                                                 "P:RMSNorm/compute,P:RMSNorm2/compute,"
-                                                                 "P:VariadicSplit/compute"},
-                                                                {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake,P:FakeConvertTranspose/fake,P:FakeConvertTranspose2/fake"}};
+static const std::map<std::string, std::string> ISOL_PRESETS = {
+    {"COMPUTE",
+     "P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,"
+     "P:DQMatMulGQi4/compute,P:DQMatMulCWi4/compute,"
+     "P:DQMatMulConv/compute,"
+     "P:VocabMatMul/compute,"
+     "P:RMSNorm/compute,P:RMSNorm2/compute,"
+     "P:VariadicSplit/compute"},
+    {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake,P:FakeConvertTranspose/fake,P:FakeConvertTranspose2/fake"}};
 }
 
 // For missing declaration warning
