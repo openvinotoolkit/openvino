@@ -169,8 +169,6 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     auto type_from = from->get_element_type();
     auto type_to = to->get_element_type();
 
-    std::cout << "unpack " << type_from << ' ' << type_to << std::endl;
-
     // FIXME: Move under common switch when XARCH::unpack is implemented
     if (type_from == ov::element::nf4 && type_to == ov::element::f16) {
         unpack_nf4f16(from, to, unpack_options);

@@ -31,7 +31,6 @@ void Context::permute(PPtr orig_param, const Context::Axes& order) {
 }
 
 void Context::to_f16(PPtr orig_param) {
-    std::cout << "to_f16" << std::endl;
     closures_to_f16.insert(orig_param);
 
     orig_param->set_element_type(ov::element::f16);
@@ -118,7 +117,6 @@ Context::PPtr Context::host_gather(Context::PPtr w, Context::PPtr ids) {
     ov::Shape new_shape = {1, ids_shape[1], w_shape[1]};
     auto new_param = std::make_shared<ov::op::v0::Parameter>(w->get_element_type(), new_shape);
     params_to_gather = Gather{new_param, w, ids};
-    std::cout << "ALEXS host_gather" << new_param->get_element_type() << std::endl;
     return new_param;
 }
 
@@ -166,7 +164,6 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
              ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::op::util::is_parameter(matched_node_qcoeff) || ov::op::util::is_constant(matched_node_qcoeff)) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-            std::cout << "ALEX DQMatMulCWi matched" << std::endl;
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
             auto matched_node_muls = node_to_output.at(qmuls).get_node_shared_ptr();
             auto matched_node_mmi = node_to_output.at(qmmi).get_node_shared_ptr();
@@ -174,15 +171,12 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
             auto& matched_node_muls_out = uat::_(node_to_output).at_or_at(qcvtm, qmuls);
 
             if (!ctx.get().mm_dq_full) {
-                std::cout << "ALEX DQMatMulCWi matched - no full" << std::endl;
                 const auto& matm_mul_out_shape = matched_matmul->get_output_shape(0);
                 const auto& matm_mul_in_shape = matched_matmul->get_input_shape(1);
                 NPUW_ASSERT(matm_mul_out_shape.back() == matm_mul_in_shape.front());
                 NPUW_ASSERT(matched_matmul->get_transpose_b());
                 return false;  // root hasn't changed
             }
-
-            std::cout << "ALEX DQMatMulCWi matched - full" << std::endl;
 
             // Reconnect MatMul to read from Convert(W) directly.
             // Note: ACT has to be converted too.
@@ -312,7 +306,6 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             // Mark W closure to transpose, and transpose the respective parameter
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
-            std::cout << "DQMatMulGQi" << std::endl;
             // Mark S closure to be lowered fo f16
             ctx.get().to_f16(matched_qcoeff);
 
@@ -598,7 +591,6 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
             // Mark W closure to transpose, and transpose the respective parameter
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
-            std::cout << "DQMatMulGQiP" << std::endl;
             // Mark S closure to be lowered fo f16
             ctx.get().to_f16(matched_qcoeff);
 
@@ -1015,11 +1007,8 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
         auto matched_out_ids = uat::_(node_to_output).at_or_at(cvtids, pids);
         const auto& matched_out_gather = node_to_output.at(gather);
 
-        std::cout << "ALEX matched DQLiftGatherSymCW" << std::endl;
-
         // Handle case with f32 scale
         if (matched_out_s.get_element_type() != ov::element::f16) {
-            std::cout << "ALEX matched DQLiftGatherSymCW f32" << std::endl;
             auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
             auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
             auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
@@ -1045,22 +1034,19 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_g_w, new_g_s);
         std::shared_ptr<ov::Node> new_out = new_mul;
         if (matched_out_s.get_element_type() != ov::element::f16) {
-            std::cout << "here 1" << std::endl;
             new_out = std::make_shared<ov::op::v0::Convert>(new_mul, matched_out_s.get_element_type());
         }
 
         // Check optional convert
         if (auto qcvtm_iter = node_to_output.find(qcvtm); qcvtm_iter != node_to_output.end()) {
-            std::cout << "here 2" << std::endl;
             NPUW_ASSERT(matched_out_s.get_element_type() != ov::element::f16);
             new_out = std::make_shared<ov::op::v0::Convert>(new_mul, qcvtm_iter->second.get_element_type());
         }
-        std::cout << "here 3" << std::endl;
+
         // Reconnect old gather readers to the new Multiply
         for (auto&& r : matched_out_gather.get_target_inputs()) {
             r.replace_source_output(new_out);
         }
-        std::cout << "here 4" << std::endl;
 
         return true;  // root was changed
     };
@@ -1085,8 +1071,6 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-
-        std::cout << "ALEX lift DQLiftGatherSymCW matched" << std::endl;
 
         // Create new gathers on W and S respectively
         auto matched_out_w = node_to_output.at(qweight);
@@ -1253,7 +1237,6 @@ HostGather::HostGather(Context::Ref ctx) {
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
             if (qweight_type == ov::element::f32) {
-                std::cout << "HostGather" << std::endl;
                 ctx.get().to_f16(matched_qweight);
             }
             auto new_param = ctx.get().host_gather(matched_qweight, matched_ids);
@@ -1313,8 +1296,6 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         if (out_len >= 2048 && (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
                                 qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
                                 qweight_type == ov::element::f8e8m0)) {
-            std::cout << "here 1" << std::endl;
-            std::cout << "alex host gather HostGatherDQ matched" << std::endl;
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
@@ -1323,9 +1304,7 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
-            // f8, f32, f16
             auto newvocab = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
-            std::cout << "ALEXS " << newvocab->get_element_type() << std::endl;
             auto new_param = ctx.get().host_gather(newvocab, matched_ids);
             for (auto&& r : matched_out_mul.get_target_inputs()) {
                 r.replace_source_output(new_param);
@@ -1436,17 +1415,14 @@ DQUnpackDictMatMulCWf8::DQUnpackDictMatMulCWf8(Context::Ref ctx) {
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-            std::cout << "ALEX DQUNPACK DQUnpackDictMatMulCWf8 matched" << std::endl;
-            std::cout << "here 2" << std::endl;
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 
             auto new_wi = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
-            std::cout << "here 3" << std::endl;
+
             auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, new_wi, false, true);
             auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, matched_qcoeff->get_element_type());
 
             matched_result->input(0).replace_source_output(new_out);
-            std::cout << "here 4" << std::endl;
         }
         return false;  // root has changed (yet)
     };
@@ -1539,7 +1515,6 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
         if (ov::element::f32 == matched_weight->get_element_type()) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 
-            std::cout << "CompressDictMatMulf32" << std::endl;
             ctx.get().to_f16(matched_weight);
             auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a,
                                                                matched_weight,
