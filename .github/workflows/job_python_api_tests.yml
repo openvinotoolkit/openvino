@@ -95,6 +95,9 @@ jobs:
       - name: Install Python API tests dependencies
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/tests/bindings/python/requirements_test.txt
 
+      - name: Verify Python stub .pyi files
+        uses: ./action_root/.github/actions/validate_pyi_files
+
       #
       # Tests
       #

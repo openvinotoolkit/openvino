@@ -1,0 +1,23 @@
+name: 'Verify that Python stub .pyi files are up to date'
+description: 'Generates .pyi files and compares them to the committed files'
+runs:
+  using: 'composite'
+  steps:
+    - name: Verify .pyi files (Windows)
+      shell: pwsh
+      if: runner.os == 'Windows'
+      run: |
+        ./scripts/generate_pyapi_stubs.bat "${{ env.ACTION_PATH }}/generated_pyi_files"
+
+    - name: Verify .pyi files (Linux and macOS)
+      shell: bash
+      if: runner.os != 'Windows'
+      run: |
+        ./scripts/generate_pyapi_stubs.sh "${{ env.ACTION_PATH }}/generated_pyi_files"
+
+    - name: Compare .pyi files
+      shell: bash
+      run: |
+        python3 ${{ env.OPENVINO_REPO }}/src/bindings/python/scripts/compare_pyi_files.py \
+          "${{ env.ACTION_PATH }}/generated_pyi_files" \
+          "${{ env.OPENVINO_REPO }}/src/bindings/python"
