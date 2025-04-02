@@ -8,7 +8,6 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
 #include "registry/implementation_manager.hpp"
-#include "intel_gpu/primitives/dynamic_quantize.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 

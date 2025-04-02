@@ -53,7 +53,7 @@ layout dynamic_quantize_inst::calc_output_layout(dynamic_quantize_node const& /*
 }
 
 template<typename ShapeType>
-std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(dynamic_quantize_node const& node,
+std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_quantize_node &node,
                                                                  const layout &act_layout,
                                                                  const dynamic_quantize::Attributes& attrs) {
     ov::op::internal::DynamicQuantize op;
@@ -84,7 +84,7 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(dynamic_quantiz
     return output_layouts;
 }
 
-template std::vector<layout> dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(dynamic_quantize_node const& node,
+template std::vector<layout> dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(const dynamic_quantize_node &node,
                                                                                             const layout &act_layout,
                                                                                             const dynamic_quantize::Attributes& config);
 
@@ -96,8 +96,8 @@ std::vector<layout> dynamic_quantize_inst::calc_output_layouts(dynamic_quantize_
     return __calc_output_layouts<ov::PartialShape>(node, input_layout, desc->attrs);
 }
 
-template std::vector<layout> dynamic_quantize_inst::calc_output_layouts<ov::PartialShape>(dynamic_quantize_node const& node,
-                                                                                const kernel_impl_params& impl_param);
+template std::vector<layout> dynamic_quantize_inst::calc_output_layouts<ov::PartialShape>(const dynamic_quantize_node &node,
+                                                                                          const kernel_impl_params& impl_param);
 
 std::string dynamic_quantize_inst::to_string(dynamic_quantize_node const& node) {
     auto desc = node.get_primitive();
