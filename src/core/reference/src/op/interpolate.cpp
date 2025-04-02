@@ -9,6 +9,67 @@
 namespace ov {
 namespace reference {
 
+std::function<int64_t(float, bool)> get_func(Nearest_mode mode) {
+    switch (mode) {
+    case Nearest_mode::ROUND_PREFER_CEIL:
+        return [](float x_original, bool) {
+            return static_cast<int64_t>(std::round(x_original));
+        };
+    case Nearest_mode::FLOOR:
+        return [](float x_original, bool) {
+            return static_cast<int64_t>(std::floor(x_original));
+        };
+    case Nearest_mode::CEIL:
+        return [](float x_original, bool) {
+            return static_cast<int64_t>(std::ceil(x_original));
+        };
+    case Nearest_mode::SIMPLE:
+        return [](float x_original, bool is_downsample) {
+            if (is_downsample) {
+                return static_cast<int64_t>(std::ceil(x_original));
+            } else {
+                return static_cast<int64_t>(x_original);
+            }
+        };
+    default:
+        return [](float x_original, bool) {
+            if (x_original == static_cast<int64_t>(x_original) + 0.5f) {
+                return static_cast<int64_t>(std::floor(x_original));
+            }
+            return static_cast<int64_t>(std::round(x_original));
+        };
+    }
+}
+
+std::function<float(float, float, float, float)> get_func(Transform_mode mode) {
+    switch (mode) {
+    case Transform_mode::PYTORCH_HALF_PIXEL:
+        return [](float x_resized, float x_scale, float length_resized, float) {
+            return length_resized > 1 ? (x_resized + 0.5f) / x_scale - 0.5f : 0.0f;
+        };
+        break;
+    case Transform_mode::ASYMMETRIC:
+        return [](float x_resized, float x_scale, float, float) {
+            return x_resized / x_scale;
+        };
+        break;
+    case Transform_mode::TF_HALF_PIXEL_FOR_NN:
+        return [](float x_resized, float x_scale, float, float) {
+            return (x_resized + 0.5f) / x_scale;
+        };
+        break;
+    case Transform_mode::ALIGN_CORNERS:
+        return [](float x_resized, float, float length_resized, float length_original) {
+            return length_resized == 1 ? 0 : x_resized * (length_original - 1) / (length_resized - 1);
+        };
+        break;
+    default:
+        return [](float x_resized, float x_scale, float, float) {
+            return ((x_resized + 0.5f) / x_scale) - 0.5f;
+        };
+    }
+}
+
 float InterpolateEvalHelper::triangle_coeff(float dz) {
     return std::max(0.0f, 1.0f - std::fabs(dz));
 }
@@ -221,6 +282,111 @@ InterpolateEvalHelper::LinearModeInnerIterationResult InterpolateEvalHelper::inn
     result.inner_coord = std::move(inner_coord);
 
     return result;
+}
+
+void pad_input_data(const uint8_t* data_ptr,
+                    uint8_t* padded_data_ptr,
+                    size_t type_size,
+                    const ov::Shape& input_shape,
+                    const ov::Shape& padded_input_shape,
+                    const std::vector<size_t>& pads_begin) {
+    const CoordinateTransformBasic input_transform{input_shape};
+
+    for (const Coordinate& input_coord : input_transform) {
+        auto padded_coord = input_coord;
+        size_t i = 0;
+        for (size_t pad : pads_begin) {
+            padded_coord[i] += pad;
+            ++i;
+        }
+        uint8_t* dst_ptr = padded_data_ptr + type_size * coordinate_index(padded_coord, padded_input_shape);
+        const uint8_t* src_ptr = data_ptr + type_size * coordinate_index(input_coord, input_shape);
+        memcpy(dst_ptr, src_ptr, type_size);
+    }
+}
+
+PartialShape get_padded_input_shape(const PartialShape& input_shape, const op::v0::Interpolate::Attributes& attrs) {
+    const auto input_rank = input_shape.rank().get_length();
+
+    PartialShape padded_input_shape = input_shape;
+
+    auto pads_begin = attrs.pads_begin;
+    auto pads_end = attrs.pads_end;
+    pads_begin.resize(input_rank);
+    pads_end.resize(input_rank);
+    for (int64_t i = 0; i < input_rank; ++i) {
+        if (input_shape[i].is_static()) {
+            auto new_length = pads_begin[i] + pads_end[i] + input_shape[i].get_length();
+            padded_input_shape[i] = Dimension(new_length);
+        }
+    }
+
+    return padded_input_shape;
+}
+
+std::vector<float> get_scales(const PartialShape& input_data_partial_shape,
+                              const Shape& out_shape,
+                              const op::v0::Interpolate::Attributes& attrs) {
+    std::vector<float> scales(attrs.axes.size(), 1.0f);
+    auto input_shape = input_data_partial_shape.to_shape();
+    size_t i = 0;
+    for (size_t axis : attrs.axes) {
+        scales[i] = static_cast<float>(out_shape.at(axis)) / input_shape.at(axis);
+        i++;
+    }
+
+    return scales;
+}
+
+op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialShape& input_partial_shape,
+                                                         const op::v0::Interpolate::Attributes& attrs_v0) {
+    auto input_shape_rank = input_partial_shape.rank().get_length();
+
+    op::v4::Interpolate::InterpolateAttrs attrs_v4;
+    if (attrs_v0.mode == "nearest") {
+        attrs_v4.mode = InterpolateMode::NEAREST;
+    } else if (attrs_v0.mode == "linear") {
+        if (input_shape_rank < 5) {
+            attrs_v4.mode = InterpolateMode::LINEAR_ONNX;
+        } else if (input_shape_rank == 5) {
+            attrs_v4.mode = InterpolateMode::LINEAR;
+        } else {
+            OPENVINO_ASSERT(false, "Failed to process ", attrs_v0.mode);
+        }
+    } else if (attrs_v0.mode == "cubic") {
+        attrs_v4.mode = InterpolateMode::CUBIC;
+    } else if (attrs_v0.mode == "linear_onnx") {
+        attrs_v4.mode = InterpolateMode::LINEAR_ONNX;
+    } else {
+        OPENVINO_ASSERT(false, "Failed to process ", attrs_v0.mode);
+    }
+
+    attrs_v4.shape_calculation_mode = op::v4::Interpolate::ShapeCalcMode::SIZES;
+    attrs_v4.nearest_mode = Nearest_mode::SIMPLE;
+    attrs_v4.pads_begin = attrs_v0.pads_begin;
+    attrs_v4.pads_end = attrs_v0.pads_end;
+    attrs_v4.antialias = attrs_v0.antialias;
+    attrs_v4.coordinate_transformation_mode = Transform_mode::ASYMMETRIC;
+    attrs_v4.cube_coeff = -0.75f;
+
+    if (attrs_v0.align_corners) {
+        attrs_v4.coordinate_transformation_mode = Transform_mode::ALIGN_CORNERS;
+    } else if ((attrs_v4.mode == InterpolateMode::LINEAR_ONNX || attrs_v4.mode == InterpolateMode::LINEAR) &&
+               std::all_of(attrs_v4.pads_begin.begin(),
+                           attrs_v4.pads_begin.end(),
+                           [](size_t i) {
+                               return i == 0;
+                           }) &&
+               std::all_of(attrs_v4.pads_end.begin(),
+                           attrs_v4.pads_end.end(),
+                           [](size_t i) {
+                               return i == 0;
+                           }) &&
+               !(input_shape_rank - 2 == 2 && attrs_v0.axes == AxisSet{2, 3})) {
+        attrs_v4.coordinate_transformation_mode = Transform_mode::HALF_PIXEL;
+    }
+
+    return attrs_v4;
 }
 }  // namespace reference
 }  // namespace ov
