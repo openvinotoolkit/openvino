@@ -900,7 +900,9 @@ bool NormalizeL2::canFuse(const NodePtr& node) const {
     return !attrs.cornerCase && canFuseSimpleOperation(node);
 }
 
-void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDims& dims, [[maybe_unused]] bool initWeights) {
+void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs,
+                             const VectorDims& dims,
+                             [[maybe_unused]] bool initWeights) {
     dnnl::post_ops ops;
 
     postOpsDataPtrs.clear();

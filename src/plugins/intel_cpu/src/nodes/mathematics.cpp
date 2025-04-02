@@ -283,7 +283,8 @@ Math::getInitializers() {
              []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathTan;
              }},
-            {ov::op::v3::Atanh::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
+            {ov::op::v3::Atanh::get_type_info_static(),
+             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Math& node) {
                  node.algorithm = Algorithm::MathAtanh;
              }}};
     return initializers;

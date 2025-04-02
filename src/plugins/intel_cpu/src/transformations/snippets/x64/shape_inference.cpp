@@ -32,10 +32,12 @@ ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov
     return {};
 }
 
-#define SHAPE_INFER_PREDEFINED(OP, InferType)                                              \
-    {OP::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) { \
-         return std::make_shared<InferType>();                                             \
-     }}
+#define SHAPE_INFER_PREDEFINED(OP, InferType)                                                 \
+    {                                                                                         \
+        OP::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) { \
+            return std::make_shared<InferType>();                                             \
+        }                                                                                     \
+    }
 #define SHAPE_INFER_OP_SPECIFIC(OP)                                          \
     {                                                                        \
         OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \

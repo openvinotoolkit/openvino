@@ -1936,42 +1936,42 @@ private:
 const std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>& op, Reduce& node)>>&
 Reduce::getInitializers() {
     static const std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Reduce&)>>
-        initializers = {
-            {ov::opset4::ReduceL1::get_type_info_static(),
-             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceL1;
-             }},
-            {ov::opset4::ReduceL2::get_type_info_static(),
-             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceL2;
-             }},
-            {ov::opset1::ReduceLogicalAnd::get_type_info_static(),
-             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceAnd;
-             }},
-            {ov::opset1::ReduceLogicalOr::get_type_info_static(),
-             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceOr;
-             }},
-            {ov::opset1::ReduceMax::get_type_info_static(),
-             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceMax;
-             }},
-            {ov::opset1::ReduceMean::get_type_info_static(),
-             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceMean;
-             }},
-            {ov::opset1::ReduceMin::get_type_info_static(),
-             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceMin;
-             }},
-            {ov::opset1::ReduceProd::get_type_info_static(),
-             []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceProd;
-             }},
-            {ov::opset1::ReduceSum::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceSum;
-             }}};
+        initializers = {{ov::opset4::ReduceL1::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceL1;
+                         }},
+                        {ov::opset4::ReduceL2::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceL2;
+                         }},
+                        {ov::opset1::ReduceLogicalAnd::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceAnd;
+                         }},
+                        {ov::opset1::ReduceLogicalOr::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceOr;
+                         }},
+                        {ov::opset1::ReduceMax::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceMax;
+                         }},
+                        {ov::opset1::ReduceMean::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceMean;
+                         }},
+                        {ov::opset1::ReduceMin::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceMin;
+                         }},
+                        {ov::opset1::ReduceProd::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceProd;
+                         }},
+                        {ov::opset1::ReduceSum::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceSum;
+                         }}};
     return initializers;
 }
 

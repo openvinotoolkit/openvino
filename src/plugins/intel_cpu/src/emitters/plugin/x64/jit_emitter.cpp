@@ -58,7 +58,8 @@ size_t jit_emitter::aux_gprs_count() const {
     return entry_map_.empty() ? 0 : 1;
 }
 
-std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions([[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {};
 }
 
