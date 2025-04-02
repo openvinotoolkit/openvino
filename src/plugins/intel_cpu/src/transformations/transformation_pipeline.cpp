@@ -1375,7 +1375,7 @@ void Transformations::MainSnippets() {
         },
         snippets::pass::TokenizeSnippets);
 
-    auto mm_supports_transpose_b = [this](const std::shared_ptr<const ov::Node>& n) {
+    auto mm_supports_transpose_b = [](const std::shared_ptr<const ov::Node>& n) {
     // Note: BrgemmTPP doesn't support transposed KN natively
     // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
