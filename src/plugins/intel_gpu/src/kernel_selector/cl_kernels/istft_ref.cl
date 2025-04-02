@@ -43,6 +43,15 @@ inline bool FUNC(isBetween)(int value, int min, int max) {
     return (value >= min && value < max);
 }
 
+inline float FUNC(getWindowVal)(const INPUT1_TYPE* restrict windowBuff, int globalWindowIdx, int windowSize, int frameSize) {
+    const int windowPadLeft = (frameSize - windowSize) / 2;
+    if (FUNC_CALL(isBetween)(globalWindowIdx, windowPadLeft, windowPadLeft + windowSize)) {
+        return (float)windowBuff[globalWindowIdx - windowPadLeft];
+    }
+
+    return 0.0f;
+}
+
 // alternative: https://github.com/OpenCL/ComplexMath/blob/master/clcomplex.h
 typedef float2 cfloat;
 #define real(a)      ((a).s0)
@@ -53,7 +62,7 @@ typedef float2 cfloat;
 
 // Unoptimized istft impl.
 KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict signal,
-                  const __global INPUT1_TYPE* restrict window,
+                  const __global INPUT1_TYPE* restrict windowBuff,
                   const __global INPUT2_TYPE* restrict frameSizeBuff,
                   const __global INPUT3_TYPE* restrict frameStepBuff,
 #if LENGTH_BUFFER
@@ -66,34 +75,37 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     const int windowIdx = get_global_id(2);
     const int frameSize = (int)frameSizeBuff[0];
     const int frameStep = (int)frameStepBuff[0];
-    const int window_size = INPUT1_SIZE_X;
+    const int windowSize = INPUT1_SIZE_X;
     const int freqs = INPUT0_FEATURE_NUM;
     const int DEFAULT_OUTPUT_SIZE = (INPUT0_SIZE_Y - 1) * frameStep + frameSize;
+
+    const int windowPadLeft = (frameSize - windowSize) / 2;
+    const int globalWindowIdx = windowIdx + windowPadLeft;
 
 #if LENGTH_BUFFER
     const int wantedLength = (int)lengthBuff[0];
 #endif
 
-    const float windowVal = (float)window[windowIdx];
+    const float windowVal = FUNC_CALL(getWindowVal)(windowBuff, globalWindowIdx, windowSize, frameSize);
     const int frameIdxStartWithinBatch = frameID * frameStep;
 
-    // Gather normalization sum for current windowIdx.
-    const int outputIdxWithinBatch = windowIdx + frameIdxStartWithinBatch;
+    // Gather normalization sum for current globalWindowIdx.
+    const int outputIdxWithinBatch = globalWindowIdx + frameIdxStartWithinBatch;
     float normalizationSum = 0.0f;
-    const int binSize = FUNC_CALL(calcBinSize)(windowIdx + frameIdxStartWithinBatch, frameSize, frameStep, DEFAULT_OUTPUT_SIZE);
-    int startIDx = windowIdx % frameStep;
+    const int binSize = FUNC_CALL(calcBinSize)(globalWindowIdx + frameIdxStartWithinBatch, frameSize, frameStep, DEFAULT_OUTPUT_SIZE);
+    int startIDx = globalWindowIdx % frameStep;
     while ((outputIdxWithinBatch + (frameSize - startIDx - 1)) >= DEFAULT_OUTPUT_SIZE)
         startIDx += frameStep;
 
     for (int i = 0; i < binSize; ++i) {
         const int idx = startIDx + i * frameStep;
-        const float val = window[idx];
+        const float val = FUNC_CALL(getWindowVal)(windowBuff, idx, windowSize, frameSize);;
         normalizationSum += val * val;
     }
 
-    // Calculate the IRDFT value for the current windowIdx.
+    // Calculate the IRDFT value for the current globalWindowIdx.
     // idftPower = 2*PI*(n/N) from idft def.
-    const float idftPower = 2.0f * M_PI_F * (float)windowIdx / (float)frameSize;
+    const float idftPower = 2.0f * M_PI_F * (float)globalWindowIdx / (float)frameSize;
 
     const bool frameSize_even = frameSize % 2 == 0;
     const int freqsHandledInLoop = frameSize_even ? freqs - 1 : freqs;
