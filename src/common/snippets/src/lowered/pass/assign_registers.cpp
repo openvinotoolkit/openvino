@@ -184,10 +184,6 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     assigned_reg_map.insert(map_gpr.begin(), map_gpr.end());
 
     for (const auto& expr : exprs) {
-        // TODO: investigate if we need to skip external parameters here
-        if (ov::snippets::is_external_parameter(expr->get_node())) {
-            continue;
-        }
         // Note: manually assigned regs are always live => add them to all expressions
         std::set<Reg> mapped_live_regs = global_regs;
         for (const auto& live_reg : expr->get_live_regs())
