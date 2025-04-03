@@ -14,10 +14,10 @@ public:
     FuseConvert();
 };
 
-class FuseScaleShift : public ov::pass::MatcherPass {
+class FuseScalarEltwise : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FuseScaleShift");
-    FuseScaleShift();
+    OPENVINO_MATCHER_PASS_RTTI("FuseScalarEltwise");
+    FuseScalarEltwise();
 };
 
 class FuseBinaryEltwise : public ov::pass::MatcherPass {
@@ -36,7 +36,7 @@ public:
     FuseBrgemmCPUPostops(std::set<size_t>& brgemm_external_params_idces)
         : m_brgemm_external_params_idces(brgemm_external_params_idces) {
         add_matcher<FuseConvert>();
-        add_matcher<FuseScaleShift>();
+        add_matcher<FuseScalarEltwise>();
         add_matcher<FuseBinaryEltwise>(m_external_params);
     }
 
