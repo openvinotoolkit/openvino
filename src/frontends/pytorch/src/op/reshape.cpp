@@ -57,9 +57,7 @@ OutputVector translate_ravel(const NodeContext& context) {
     if (complex_type_mark) {
         tensor = complex_type_mark->get_data();
 
-        auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-        auto const_2 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2}));
-        new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{const_neg_1, const_2}, 0));
+        new_shape = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {-1, 2}));
     }
 
     auto reshape = context.mark_node(std::make_shared<v1::Reshape>(tensor, new_shape, false));
