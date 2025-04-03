@@ -84,17 +84,19 @@ pass::FuseConvert::FuseConvert() {
     register_matcher(m, callback);
 }
 
-pass::FuseScaleShift::FuseScaleShift() {
-    MATCHER_SCOPE(FuseScaleShift);
+pass::FuseScalarEltwise::FuseScalarEltwise() {
+    MATCHER_SCOPE(FuseScalarEltwise);
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_scalar = wrap_type<ov::snippets::op::Scalar>(type_matches(ov::element::f32));
     auto m_scale = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_scalar});
     auto m_shift = wrap_type<ov::op::v1::Add>({m_brgemm, m_scalar});
-    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_scale, m_shift});
+    auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_scalar});
+    auto m_min = wrap_type<ov::op::v1::Minimum>({m_brgemm, m_scalar});
+    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_scale, m_shift, m_max, m_min});
 
     auto callback = [=](Matcher& m) {
-        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScaleShift")
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScalarEltwise")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto post_op = pattern_map.at(m_postop).get_node_shared_ptr();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
@@ -108,13 +110,25 @@ pass::FuseScaleShift::FuseScaleShift() {
                                                                    dnnl::impl::alg_kind_t::dnnl_eltwise_linear,
                                                                    scalar_value,
                                                                    0.f) == dnnl_success);
-            std::cout << "[ INFO ] FuseScaleShift fused scale: " << scalar_value << std::endl;
+            std::cout << "[ INFO ] FuseScalarEltwise fused scale: " << scalar_value << std::endl;
         } else if (pattern_map.count(m_shift)) {
             OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f,
                                                                    dnnl::impl::alg_kind_t::dnnl_eltwise_linear,
                                                                    1.f,
                                                                    scalar_value) == dnnl_success);
-            std::cout << "[ INFO ] FuseScaleShift fused shift: " << scalar_value << std::endl;
+            std::cout << "[ INFO ] FuseScalarEltwise fused shift: " << scalar_value << std::endl;
+        } else if (pattern_map.count(m_max)) {
+            OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f,
+                                                                   dnnl::impl::alg_kind_t::dnnl_eltwise_clip,
+                                                                   scalar_value,
+                                                                   std::numeric_limits<float>::max()) == dnnl_success);
+            std::cout << "[ INFO ] FuseScalarEltwise fused max: " << scalar_value << std::endl;
+        } else if (pattern_map.count(m_min)) {
+            OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f,
+                                                                   dnnl::impl::alg_kind_t::dnnl_eltwise_clip,
+                                                                   -std::numeric_limits<float>::max(),
+                                                                   scalar_value) == dnnl_success);
+            std::cout << "[ INFO ] FuseScalarEltwise fused min: " << scalar_value << std::endl;
         } else {
             OPENVINO_THROW("Unexpected postop: ", post_op);
         }
@@ -147,7 +161,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
     auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_mul, m_add, m_max, m_min});
 
     auto callback = [=](Matcher& m) {
-        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScaleShift")
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScalarEltwise")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto post_op = pattern_map.at(m_postop).get_node_shared_ptr();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
