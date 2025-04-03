@@ -27,6 +27,7 @@ void intel_npu::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<WORKLOAD_TYPE>();
     desc.add<TURBO>();
     desc.add<WEIGHTS_PATH>();
+    desc.add<MODEL_PTR>();
     desc.add<BYPASS_UMD_CACHING>();
     desc.add<RUN_INFERENCES_SEQUENTIALLY>();
     desc.add<DISABLE_VERSION_CHECK>();

@@ -81,6 +81,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canExportModel.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModelWithIncorrectConfig.*)",
+        // requires support CACHE_MODE
+        R"(.*OVCompiledModelBaseTest.*import_from_weightless_blob.*)",
+        R"(.*OVCompiledModelBaseTest.*compile_from_weightless_blob.*)",
+        R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*)",
+
         // CPU does not support dynamic rank
         // Issue: 66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
@@ -280,6 +285,49 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TestsROIAlign.*)",
         // Issue: 136881
         R"(.*smoke_CompareWithRefs_4D_BitwiseShift_overflow_i32_cast.*_eltwise_op_type=BitwiseLeft.*_model_type=.*(i16|u16).*)",
+        // Issue: 163083
+        // Issue: 163116
+        R"(.*RandomUniformLayerTestCPU.*OutPrc=bf16.*)",
+        // Issue: 163117
+        R"(.*InterpolateCubic_Layout_Test.*)",
+        // Issue: 163171
+        R"(.*CPUDetectionOutputDynamic3InLargeTensor.*)",
+        // Issue: 163168
+        R"(.*UniqueLayerTestCPU.*)",
+        // Issue: 163175
+        R"(.*GridSampleLayerTestCPU.*dataPrc=i8.*)",
+        R"(.*GridSampleLayerTestCPU.*dataPrc=bf16.*)",
+        // Issue: 163177
+        R"(.*NmsRotatedOpTest.*ScoreThr=0\.4.*)",
+        // Issue: 163222
+        R"(.*bf16.*LSTMSequenceCPUTest.*)",
+        // Issue: 163223
+        R"(.*bf16.*AUGRUSequenceCPUTest.*)",
+        // Issue: 163224
+        R"(.*bf16.*GRUSequenceCPUTest.*)",
+        // Issue: 163227
+        R"(.*QuantizedModelsTests\.MaxPoolFQ.*)",
+        R"(.*QuantizedModelsTests\.MaxPoolQDQ.*)",
+        // Issue: 163268
+        R"(.*QuantizedModelsTests\.ConvolutionQDQ.*)",
+        R"(.*QuantizedModelsTests\.ConvolutionFQ.*)",
+        // Issue: 163230
+        R"(.*ProposalLayerTest.*)",
+        // Issue: 163232
+        R"(.*FC_3D_BF16.*MatMulLayerCPUTest.*)",
+        // Issue: 163242
+        R"(.*bf16.*RNNSequenceCPUTest.*)",
+        // Issue: 163250
+        R"(.*OnnxModelWithExtensionFromDSO.*)",
+        // Issue: 163273
+        // todo: define correct area
+        R"(.*Deconv_2D_Planar_FP16.*DeconvolutionLayerCPUTest.*)",
+        // Issue: 163275
+        R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
+        // Issue: 163348
+        R"(.*CpuReservationTest.*Mutiple_CompiledModel_Reservation.*)",
+        // Issue: 163351
+        R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
@@ -565,6 +613,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*OVInferenceChaining.*StaticOutputToStaticInput.*)");
     retVector.emplace_back(R"(.*OVInferenceChainingStatic.*StaticOutputToStaticInput.*)");
     retVector.emplace_back(R"(.*ReduceCPULayerTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+    // Issue: 164799
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*)");
 #endif
     if (!ov::with_cpu_x86_avx512_core_vnni() &&
         !ov::with_cpu_x86_avx2_vnni() &&
@@ -622,6 +672,12 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets.*MHAFQ.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*PrecisionPropagation_Convertion.*)");
     retVector.emplace_back(R"(.*smoke_MHAQuant.*)");
+    if (!ov::with_cpu_x86_avx512_core_amx()) {
+        // Issue: 165178
+        retVector.emplace_back(R"(.*smoke_Snippets_Softmax/Softmax\.CompareWithRefImpl/IS=\[\]_TS=\(\(.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MHA.*IS\[0\]=\[\]_\(.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmax/TransposeSoftmax\.CompareWithRefImpl/IS\[0\]=\[\]_TS\[0\]=\(\(.*)");
+    }
 #endif
 
     if (ov::with_cpu_x86_avx512_core_amx()) {
