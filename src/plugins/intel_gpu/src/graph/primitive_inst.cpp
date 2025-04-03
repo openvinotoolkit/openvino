@@ -955,6 +955,32 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                                           is_output_buffer(this, true),
                                           output_memory_ptr(i).get(),
                                           true);
+            std::cout << __FILE__ << ":" << __LINE__ << " " << id()
+                << " has padding: " << static_cast<bool>(_outputs[i]->get_layout().data_padding) << std::endl;
+            // memory_pool does not reset padded memory to be reused.
+            if (static_cast<bool>(_outputs[i]->get_layout().data_padding)
+                && need_reset_output_memory() && !can_be_optimized()) {
+                auto mem_ptr = _outputs[i];
+                auto num_users = memory_pool::count_users_in_padded_pool(_network.get_memory_pool(), mem_ptr);
+                std::cout << __FILE__ << ":" << __LINE__ << " " << id()
+                        << ", actual: " << actual_layouts[i].to_short_string()
+                        << ", updated_layouts: " << updated_layouts[i].to_short_string()
+                        << ", updated_params: " << updated_params.output_layouts[i].to_short_string()
+                        << ", output memory: " << _outputs[i]->get_layout().to_short_string()
+                        << std::endl;
+                // If the memory is already being used in more than 1 layer, it need to reset.
+                if (num_users > 1) {
+                    std::cout << __FILE__ << ":" << __LINE__ << " " << id()
+                        << ", actual: " << actual_layouts[i].to_short_string()
+                        << ", updated_layouts: " << updated_layouts[i].to_short_string()
+                        << ", updated_params: " << updated_params.output_layouts[i].to_short_string()
+                        << ", output memory: " << _outputs[i]->get_layout().to_short_string()
+                        << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset padded output memory considering user" << std::endl;
+                    add_dep_event(_outputs[i]->fill(_network.get_stream()));
+                }
+            }
+
             _max_output_layout_count[i] = updated_params.output_layouts[i].get_linear_size();
             set_flag(ExecutionFlags::MEMORY_CHANGED);
             GPU_DEBUG_CODE(std::string memalloc_info = "");
