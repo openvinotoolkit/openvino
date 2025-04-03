@@ -421,7 +421,7 @@ JitConstants make_layout_jit_constants(const std::string& name, const cldnn::lay
     JitConstants definitions{
         {name + "_VIEW_OFFSET", to_code_string(0)},  // FIXME
         {name + "_LENGTH", to_code_string(value.is_static() ? value.count() : 0)},
-        {name + "_DIMS", to_code_string(value.get_rank())},
+        {name + "_DIMS", to_code_string(value.get_partial_shape().size())}, // Use actual shape dimension not format dimension
         {name + "_SIMPLE", to_code_string(cldnn::format::is_simple_data_format(value.format))},
         {name + "_GROUPED", to_code_string(cldnn::format::is_grouped(value.format))},
         {name + "_LAYOUT_" + to_code_string(format_string(value.format)), "1"},
