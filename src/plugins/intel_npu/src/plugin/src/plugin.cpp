@@ -102,7 +102,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
  * @param isBatchingSupported  Newer driver versions support batching mode on the plugin.
  * @param config A configuration map.
  */
-void set_batch_config(bool isBatchingSupported, FilteredConfig config) {
+void set_batch_config(bool isBatchingSupported, FilteredConfig& config) {
     if (!isBatchingSupported) {
         if (config.has<BATCH_MODE>()) {
             if (config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
@@ -250,17 +250,17 @@ void Plugin::init_options() {
         }
     }
 
-    recheck_compiler_support(_globalConfig);
+    filter_config_by_compiler_support(_globalConfig);
 
     if (_backend) {
         _backend->registerOptions(*_options);
     }
 
-    // parse again env_variables after backend is initialized to get backend proprieties
+    // parse again env_variables to update registered configs which have env vars set
     _globalConfig.parseEnvVars();
 }
 
-void Plugin::recheck_compiler_support(FilteredConfig& cfg) const {
+void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     bool legacy = false;
     bool nocompiler = false;
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
@@ -298,24 +298,31 @@ void Plugin::recheck_compiler_support(FilteredConfig& cfg) const {
     cfg.walkEnables([&](const std::string& key) {
         bool isEnabled = false;
         auto opt = cfg.getOpt(key);
+        // Runtime (plugin-only) options are always enabled
         if (opt.mode() == OptionMode::RunTime) {
             isEnabled = true;
-        } else {
+        } else {  // Compiler and common options
             if (nocompiler && (opt.mode() == OptionMode::CompileTime)) {
                 // we do not register compileTime options if there is no compiler
                 isEnabled = false;
             } else if (legacy) {
+                // Compiler or common option in Legacy mode? Checking its supported version
                 if (compiler_version >= opt.compilerSupportVersion()) {
                     isEnabled = true;
                 }
             } else {
+                // We have compiler, we are not in legacy mode = we have a valid list of supported options
+                // Searching in the list
                 auto it = std::find(compiler_support_list.begin(), compiler_support_list.end(), key);
                 if (it != compiler_support_list.end()) {
                     isEnabled = true;
                 } else {
+                    // Not found in the supported options list.
                     if (compiler != nullptr) {
+                        // Checking if it is a private option?
                         isEnabled = compiler->is_option_supported(key);
                     } else {
+                        // Not in the list and not a private option = disabling
                         isEnabled = false;
                     }
                 }
@@ -348,7 +355,7 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
             // Set new compiler type
             localConfig.update({{std::string(COMPILER_TYPE::key()), it->second}});
             // enable/disable config keys based on what the new compiler supports
-            recheck_compiler_support(localConfig);
+            filter_config_by_compiler_support(localConfig);
             compiler_changed = true;
         }
     }
@@ -386,7 +393,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         if (it != properties.end()) {
             _globalConfig.update({{std::string(COMPILER_TYPE::key()), it->second.as<std::string>()}});
             // enable/disable config keys based on what the new compiler supports
-            recheck_compiler_support(_globalConfig);
+            filter_config_by_compiler_support(_globalConfig);
             // 2. Reset properties for the new options
             _properties->registerProperties();
         }
@@ -413,7 +420,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
-    OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -435,6 +441,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
     const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
+    OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
     update_log_level(localPropertiesMap);
 
@@ -542,7 +549,6 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
-    OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
 
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
@@ -579,6 +585,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
     const auto propertiesMap = any_copy(npu_plugin_properties);
+    OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =

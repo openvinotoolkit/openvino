@@ -57,7 +57,7 @@ public:
 
 private:
     void init_options();
-    void recheck_compiler_support(FilteredConfig& cfg) const;
+    void filter_config_by_compiler_support(FilteredConfig& cfg) const;
     FilteredConfig fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                      const std::unique_ptr<ICompilerAdapter>& compiler,
                                      OptionMode mode = OptionMode::Both) const;
