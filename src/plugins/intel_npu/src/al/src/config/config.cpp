@@ -175,14 +175,6 @@ details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) c
     return desc;
 }
 
-void OptionsDesc::remove(std::string_view key) {
-    std::string searchKey{key};
-    auto it = _impl.find(searchKey);
-    if (it != _impl.end()) {
-        _impl.erase(it);
-    }
-}
-
 void OptionsDesc::reset() {
     _impl.clear();
 }
