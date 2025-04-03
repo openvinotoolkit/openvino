@@ -166,7 +166,7 @@ std::vector<MemoryPtr> SubgraphExecutor::prepare_weights(const std::vector<Memor
         const auto& src_mem_ptr = in_mem_ptrs[idx];
 
         auto create = [&]() {
-            const auto& dst_mem_ptr = std::make_shared<Memory>(context->getEngine(), repacked_input.desc());
+            const auto& dst_mem_ptr = std::make_shared<Memory>(repacked_input.desc());
             separately_repack_input(src_mem_ptr, dst_mem_ptr, repacked_input, dst_mem_ptr->getShape().getDims().size());
             return dst_mem_ptr;
         };
