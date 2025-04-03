@@ -142,7 +142,9 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
     auto m_rank_norm = optional<ov::snippets::op::RankNormalization>(m_postop_input);
     auto m_mul = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_rank_norm});
     auto m_add = wrap_type<ov::op::v1::Add>({m_brgemm, m_rank_norm});
-    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_mul, m_add});
+    auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_rank_norm});
+    auto m_min = wrap_type<ov::op::v1::Minimum>({m_brgemm, m_rank_norm});
+    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_mul, m_add, m_max, m_min});
 
     auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScaleShift")
@@ -182,6 +184,14 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             OPENVINO_ASSERT(postops_config.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_add,
                                                                   memory_desc.getDnnlDesc().get()) == dnnl_success);
             std::cout << "[ INFO ] FuseBinaryEltwise fused binary add\n";
+        } else if (pattern_map.count(m_max)) {
+            OPENVINO_ASSERT(postops_config.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_max,
+                                                                  memory_desc.getDnnlDesc().get()) == dnnl_success);
+            std::cout << "[ INFO ] FuseBinaryEltwise fused binary max\n";
+        } else if (pattern_map.count(m_min)) {
+            OPENVINO_ASSERT(postops_config.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_min,
+                                                                  memory_desc.getDnnlDesc().get()) == dnnl_success);
+            std::cout << "[ INFO ] FuseBinaryEltwise fused binary min\n";
         } else {
             OPENVINO_THROW("Unexpected postop: ", post_op);
         }
