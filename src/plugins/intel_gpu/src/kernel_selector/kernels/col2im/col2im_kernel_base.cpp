@@ -62,10 +62,11 @@ JitConstants Col2ImKernelBase::GetJitConstants(const col2im_params& params) cons
     // Consider input tensor : (N, C * Product(kernel_size), L)
     bool is_batched = CheckCol2ImContainBatch(params);
 
-    const auto num_elements_for_block = is_batched ? input.Feature().v : input.Batch().v;
     const auto num_blocks = is_batched ? input.Y().v : input.Feature().v;
-    const auto kernel_product = params.kernel_size.x * params.kernel_size.y;
-    const auto num_channels = num_elements_for_block / kernel_product;
+
+    const size_t num_elements_for_block = is_batched ? input.Feature().v : input.Batch().v;
+    const size_t kernel_product = (size_t)(params.kernel_size.x * params.kernel_size.y);
+    const size_t num_channels = std::max(num_elements_for_block / kernel_product, (size_t)1);
     jit.AddConstant(MakeJitConstant("NUM_ELEMENTS_FOR_BLOCK", num_elements_for_block));
     jit.AddConstant(MakeJitConstant("KERNEL_PRODUCT", kernel_product));
     jit.AddConstant(MakeJitConstant("NUM_CHANNELS", num_channels));

@@ -41,9 +41,10 @@ layout col2im_inst::calc_output_layout(col2im_node const& node, kernel_impl_para
     auto num_elements = is_batched ? input_layout.feature() : input_layout.batch();
 
     const size_t batch = is_batched ? input_layout.batch() : 1;
-    const size_t feature = num_elements / (desc->kernel_shape[0] * desc->kernel_shape[1]);
+    const size_t feature = std::max(num_elements / (desc->kernel_shape[0] * desc->kernel_shape[1]), (size_t)1);
     const size_t y = desc->output_shape[1];
     const size_t x = desc->output_shape[0];
+
     if (format::spatial_num(input_layout.format) == 3) {
         const size_t z = 1;
         out_tensor = tensor(TensorValue(batch), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z));
