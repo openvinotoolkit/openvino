@@ -202,7 +202,7 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
             jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_SCORES_OUTPUT", 1));
         }
     } else {
-        size_t scale_idx = params.conf.has_const_attn_mask_val ? 4 : 5;
+        size_t scale_idx = params.conf.has_const_attn_mask_val ? 3 : 4;
         if (params.inputs.size() > scale_idx) {
             jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", 1));
         } else if (params.conf.has_const_scale_val) {

@@ -84,7 +84,7 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
             jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", 0));
             jit.AddConstant(MakeJitConstant("STATIC_SCALAR_ATTN_MASK_VALUE", params.conf.attn_mask_val));
         } else {
-            jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 4));
+            jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
         }
     }
 

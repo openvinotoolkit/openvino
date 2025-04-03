@@ -449,7 +449,6 @@ ParamsKey SDPAKernelMicro::GetSupportedKey() const {
 bool SDPAKernelMicro::Validate(const Params& p) const {
     if (!Parent::Validate(p))
         return false;
-
     const sdpa_params& params = static_cast<const sdpa_params&>(p);
 
     if (params.should_use_sdpa_opt)
@@ -483,7 +482,7 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
         }
     }
 
-    const auto scale_idx = 4lu;
+    const auto scale_idx = params.conf.is_paged_attention || params.conf.has_const_attn_mask_val ? 4lu : 3lu;
     if (!params.conf.has_const_scale_val && params.inputs.size() > scale_idx && !params.inputs[scale_idx].is_dynamic() &&
         params.inputs[scale_idx].LogicalSize() == 1) {
         return false;
