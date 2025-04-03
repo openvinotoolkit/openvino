@@ -102,7 +102,7 @@ ov::device::LUID Metrics::GetDeviceLUID(const std::string& specifiedDeviceName) 
 
 std::string Metrics::GetBackendName() const {
     if (_backend == nullptr) {
-        OPENVINO_THROW("No available backends");
+        OPENVINO_THROW("No available backend");
     }
 
     return _backend->getName();
@@ -110,7 +110,7 @@ std::string Metrics::GetBackendName() const {
 
 uint32_t Metrics::GetDriverVersion() const {
     if (_backend == nullptr) {
-        OPENVINO_THROW("No available backends");
+        OPENVINO_THROW("No available backend");
     }
 
     return _backend->getDriverVersion();
@@ -118,7 +118,7 @@ uint32_t Metrics::GetDriverVersion() const {
 
 uint32_t Metrics::GetGraphExtVersion() const {
     if (_backend == nullptr) {
-        OPENVINO_THROW("No available backends");
+        OPENVINO_THROW("No available backend");
     }
 
     return _backend->getGraphExtVersion();
@@ -218,12 +218,11 @@ ov::device::Type Metrics::GetDeviceType(const std::string& specifiedDeviceName) 
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
-std::string Metrics::GetCompilationPlatform(const std::string_view platform, const std::string& deviceId) const {
-    return _backends->getCompilationPlatform(platform, deviceId);
-}
-
 bool Metrics::IsCommandQueueExtSupported() const {
-    return _backends->isCommandQueueExtSupported();
+    if (_backend == nullptr) {
+        OPENVINO_THROW("No available backend");
+    }
+    return _backend->isCommandQueueExtSupported();
 }
 
 }  // namespace intel_npu

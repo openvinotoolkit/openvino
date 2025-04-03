@@ -22,7 +22,7 @@ public:
     Properties(const PropertiesType pType,
                FilteredConfig& config,
                const std::shared_ptr<Metrics>& metrics = nullptr,
-               const ov::SoPtr<IEngineBackend>& backend = nullptr);
+               const ov::SoPtr<IEngineBackend>& backend = {nullptr});
 
     /**
      * @brief Initialize the properties map and try registering the properties for npu-plugin and compiled-model

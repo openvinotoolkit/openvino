@@ -241,6 +241,8 @@ void Plugin::init_options() {
     REGISTER_OPTION(STEPPING);
     REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
+    REGISTER_OPTION(MODEL_PTR);
+    REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(TURBO);
@@ -400,7 +402,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     }
     // Init backends if needed
     if (_backend != nullptr) {
-        _backend->setup(_globalConfig);
+        _backend->updateInfo(_globalConfig);
     }
 }
 

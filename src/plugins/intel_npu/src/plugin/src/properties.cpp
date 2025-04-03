@@ -6,6 +6,7 @@
 #include "properties.hpp"
 
 #include "compiler_adapter_factory.hpp"
+#include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/options.hpp"
 
 namespace intel_npu {
@@ -353,7 +354,10 @@ void Properties::registerProperties() {
             true,
             static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
                 config,
-                _metrics->GetCompilationPlatform(config.get<PLATFORM>(), config.get<DEVICE_ID>())))));
+                utils::getCompilationPlatform(
+                    config.get<PLATFORM>(),
+                    config.get<DEVICE_ID>(),
+                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames())))));
         REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
         REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
@@ -381,10 +385,12 @@ void Properties::registerProperties() {
                                    const auto specifiedDeviceName = get_specified_device_name(config);
                                    return _metrics->GetFullDeviceName(specifiedDeviceName);
                                });
-        REGISTER_CUSTOM_METRIC(ov::device::luid, _backends->isLUIDExtSupported(), [&](const Config& config) {
-            const auto specifiedDeviceName = get_specified_device_name(config);
-            return _metrics->GetDeviceLUID(specifiedDeviceName);
-        });
+        REGISTER_CUSTOM_METRIC(ov::device::luid,
+                               _backend == nullptr ? false : _backend->isLUIDExtSupported(),
+                               [&](const Config& config) {
+                                   const auto specifiedDeviceName = get_specified_device_name(config);
+                                   return _metrics->GetDeviceLUID(specifiedDeviceName);
+                               });
         REGISTER_CUSTOM_METRIC(ov::device::uuid, true, [&](const Config& config) {
             const auto specifiedDeviceName = get_specified_device_name(config);
             auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);

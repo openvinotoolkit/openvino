@@ -1374,7 +1374,7 @@ struct MODEL_PTR final : OptionBase<MODEL_PTR, std::shared_ptr<const ov::Model>>
     static std::shared_ptr<const ov::Model> parse(std::string_view) {
         return nullptr;
     }
-    static std::string toString(const std::shared_ptr<const ov::Model>& m) {
+    static std::string toString(const std::shared_ptr<const ov::Model>& /* unused m*/) {
         return "";
     }
 
