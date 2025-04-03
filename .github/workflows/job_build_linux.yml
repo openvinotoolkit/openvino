@@ -209,12 +209,13 @@ jobs:
           
             $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
             
+            
+            CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
             if [[ "${OS}" == 'debian_10' ]]; then
-              export CMAKE_TOOLCHAIN_FILE=/__w/openvino/openvino/openvino/cmake/arm.toolchain.cmake
-              export PYTHON_MODULE_EXTENSION=$(/usr/local/bin/python${py_version}-config --extension-suffix)
+              CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=/__w/openvino/openvino/openvino/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/usr/local/bin/python${py_version}-config --extension-suffix)"
             fi
             
-            cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}
+            cmake ${CMAKE_OPTIONS} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}
             cmake --build ${PY_BUILD_DIR} --parallel $(nproc)
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component pyopenvino_python$py_version
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
