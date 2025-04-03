@@ -33,6 +33,7 @@
 #include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/node_util.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_value.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -117,6 +118,9 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     friend class Model;
 
 protected:
+    friend bool op::util::input_sources_are_equal(const std::shared_ptr<Node>& lhs,
+                                                  const std::shared_ptr<Node>& rhs,
+                                                  const size_t& input_index);
     descriptor::Input& get_input_descriptor(size_t position);
     descriptor::Output& get_output_descriptor(size_t position);
 
@@ -405,7 +409,6 @@ public:
     Input<const Node> input(size_t input_index) const;
 
     Output<Node> input_value(size_t input_index) const;
-    std::tuple<ov::Node*, size_t> input_value_raw(size_t input_index) const;
 
     /// \return A handle to the `output_index`th output of this node.
     /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.

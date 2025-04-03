@@ -61,7 +61,7 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
     if (input_size != rhs->get_input_size())
         return false;
     for (size_t i = 0; i < input_size; ++i) {
-        if (lhs->input_value_raw(i) == rhs->input_value_raw(i))
+        if (ov::op::util::input_sources_are_equal(lhs, rhs, i))
             continue;
         auto lhs_constant = as_type<v0::Constant>(lhs->get_input_node_ptr(i));
         auto rhs_constant = as_type<v0::Constant>(rhs->get_input_node_ptr(i));

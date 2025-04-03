@@ -28,5 +28,17 @@ namespace op::util {
  * @param output_port - output port to rename
  */
 void OPENVINO_API set_name(ov::Node& node, const std::string& name, size_t output_port = 0);
+
+/**
+ * @brief Checks if sources of inputs of two nodes are equal
+ * @param lhs - node to check input
+ * @param rhs - other node to check input
+ * @param input_index - input port index to get the source
+ * @return true if sources share same node and output index otherwise false
+ */
+bool input_sources_are_equal(const std::shared_ptr<Node>& lhs,
+                             const std::shared_ptr<Node>& rhs,
+                             const size_t& input_index);
+
 }  // namespace op::util
 }  // namespace ov
