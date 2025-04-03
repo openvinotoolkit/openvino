@@ -98,11 +98,11 @@ SDPAFusion::SDPAFusion() {
         }
 
         // make sure there is only one scaling
-        if (pattern_map.count(k_opt_transposed_scaled) > 0 && pattern_map.count(qk_scaled) > 0)
+        if (pattern_map.count(k_opt_transposed_scaled) && pattern_map.count(qk_scaled))
             return false;
         // make sure that if inputs are reshaped the output is reshaped back
-        bool inputs_reshaped = pattern_map.count(q) > 0 && pattern_map.count(k) > 0 && pattern_map.count(v) > 0;
-        bool output_reshaped = pattern_map.count(qkv) > 0;
+        bool inputs_reshaped = pattern_map.count(q) && pattern_map.count(k) && pattern_map.count(v);
+        bool output_reshaped = pattern_map.count(qkv);
         if ((inputs_reshaped && !output_reshaped) || (!inputs_reshaped && output_reshaped))
             return false;
 
@@ -141,9 +141,7 @@ SDPAFusion::SDPAFusion() {
 
         auto T = q_node.get_element_type();
         // make sure that all inputs to SDPA (query, key and value) have the same batch
-        if (k_node_ps[0] != N)
-            return false;
-        if (v_node_ps[0] != N)
+        if ((k_node_ps[0] != N) || (v_node_ps[0] != N))
             return false;
 
         // make sure that number of heads of value is the same as for key
@@ -173,7 +171,7 @@ SDPAFusion::SDPAFusion() {
         }
 
         ov::Output<ov::Node> scale_node;
-        if (pattern_map.count(attn_scale) > 0) {
+        if (pattern_map.count(attn_scale)) {
             scale_node = pattern_map.at(attn_scale);
             auto attn_scale_out_ps = scale_node.get_partial_shape();
             // we need to be able to cast attn_scale layer to Constant layer
@@ -188,7 +186,7 @@ SDPAFusion::SDPAFusion() {
         }
 
         Output<ov::Node> mask_input;
-        if (pattern_map.count(mask) > 0 && pattern_map.count(qk_opt_scaled_opt_mask_added) > 0) {
+        if (pattern_map.count(mask) && pattern_map.count(qk_opt_scaled_opt_mask_added)) {
             ov::Output<ov::Node> qk_out = pattern_map.at(qk_opt_scaled_opt_mask_added);
             // Get shape of the first input
             auto qk_out_ps = qk_out.get_target_inputs().begin()->get_partial_shape();
