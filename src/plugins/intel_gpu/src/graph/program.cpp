@@ -500,6 +500,7 @@ void program::build_program(bool is_internal) {
     }
 
     if (!is_internal) {
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::transfer_memory_to_device");
         prim_info = get_current_stage_info();
         if (get_engine().get_device_info().has_separate_cache)
             transfer_memory_to_device();
@@ -745,15 +746,23 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
 }
 
 void program::prepare_memory_dependencies() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::prepare_memory_dependencies");
+
     if (!_config.get_enable_memory_pool())
         return;
     for (auto& node : get_processing_order()) {
         if (node->likely_from_mempool())
             node->add_memory_dependency(node->get_unique_id());
     }
+
     apply_opt_pass<basic_memory_dependencies>();
+    std::cout << "End basic_memory_dependencies\n";
     apply_opt_pass<skipped_branch_memory_dependencies>();
-    apply_opt_pass<oooq_memory_dependencies>();
+    std::cout << "End skipped_branch_memory_dependencies\n";
+    if (_config.get_queue_type() == QueueTypes::out_of_order) {
+        apply_opt_pass<oooq_memory_dependencies>();
+        std::cout << "End oooq_memory_dependencies\n";
+    }
 }
 
 std::string program::get_memory_dependencies_string() const {

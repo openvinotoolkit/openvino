@@ -2453,7 +2453,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
             GPU_DEBUG_LOG << "[" << _node.id() << ": constant]" << std::endl;
             return _engine.allocate_memory(layout, alloc_type, reset);
         }
-    } else if (!_node.can_share_buffer() || impl_params.can_be_optimized() || _node.is_output()) {
+    } else if (!_node.can_share_buffer() || _node.can_be_optimized() || _node.is_output()) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
         return _engine.allocate_memory(layout, alloc_type, reset);
     } else {

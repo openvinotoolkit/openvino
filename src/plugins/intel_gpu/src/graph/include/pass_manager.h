@@ -316,18 +316,14 @@ public:
     // Permute may allocate from the same block of Node2 and override its input; Similarly, since Reshape and Permute MAY or MAY NOT be optimized
     // out in runtime, Node3 should be memory-dependent to all of its three predecessors, to avoid memory conflicting.
     void add_memory_dependency(program_node* node, program_node* dep) {
-        if (node->get_unique_id() == dep->get_unique_id()) {
-            return;
-        }
+        if (!node->likely_from_mempool()) return;
+        if (!dep->likely_from_mempool()) return;
 
-        if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) && ((node->can_be_optimized() && !node->is_runtime_skippable())
-            || !dep->can_be_optimized())) {
-            if (node->likely_from_mempool() && dep->likely_from_mempool())
-                node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+        if (node->can_be_optimized() || !dep->can_be_optimized()) {
+            node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
-            if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
-                if (node->likely_from_mempool() && dep->likely_from_mempool())
-                    node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+            if (node->get_unique_id() == dep->get_unique_id()) {
+                return;
             }
 
             for (const auto& subdep : dep->get_dependencies()) {
