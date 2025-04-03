@@ -38,8 +38,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*Inference.*)",
-            // TODO: Issue 114262
-            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.Inference/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*eltwise_op_type=Pow.*model_type=i64.*)",
             // TODO: Issue: 68712
@@ -200,6 +198,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)",
             // Issue: 142900
             R"(.*smoke_TestsROIAlign_.*ROIAlignV9LayerTest.*)",
+            // Use weight from model not from path hint
+            R"(.*compile_from_weightless_blob.*)",
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
