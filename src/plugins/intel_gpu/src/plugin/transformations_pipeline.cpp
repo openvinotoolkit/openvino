@@ -598,7 +598,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
-        // manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ov::pass::ConvertNMSRotatedToNMSIEInternal>();
         manager.register_pass<ov::pass::ConvertGP9ToGPIEInternal>();
         manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
