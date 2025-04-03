@@ -119,9 +119,6 @@ FullyConnected_GEMV::DispatchData FullyConnected_GEMV::SetDefault(const fully_co
         global[0] = params.weights.OFM().v;
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
         global[0] = params.weights.OFM().v / 2;
-        // if (is_swiglu_fused(params)) {
-        //     global[0] = params.weights.OFM().v / 4;
-        // }
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
         global[0] = params.weights.OFM().v / 4;
     }
@@ -132,8 +129,8 @@ FullyConnected_GEMV::DispatchData FullyConnected_GEMV::SetDefault(const fully_co
     return dispatchData;
 }
 
-KernelsPriority FullyConnected_GEMV::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_9;
+KernelsPriority FullyConnected_GEMV::GetKernelsPriority(const Params& params) const {
+    return params.is_shape_agnostic ? FORCE_PRIORITY_9 : FORCE_PRIORITY_2;
 }
 
 JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& params,
