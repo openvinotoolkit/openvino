@@ -3,33 +3,24 @@ description: 'Generates .pyi files and compares them to the committed files'
 runs:
   using: 'composite'
   steps:
-    - name: Debug directory contents (Linux and macOS)
-      shell: bash
-      if: runner.os != 'Windows'
-      run: |
-        echo "Contents of /__w/openvino:"
-        ls -l /__w/openvino || echo "/__w/openvino does not exist"
-        echo "Contents of /__w/openvino/openvino:"
-        ls -l /__w/openvino/openvino || echo "/__w/openvino/openvino does not exist"
-        echo "Contents of /__w/openvino/openvino/openvino:"
-        ls -l /__w/openvino/openvino/openvino || echo "/__w/openvino/openvino/openvino does not exist"
-
     - name: Verify .pyi files (Windows)
       shell: pwsh
       if: runner.os == 'Windows'
       run: |
-        ${{ env.INSTALL_TEST_DIR }}\tests\bindings\python\scripts\generate_pyapi_stubs.bat `
+        ${{ env.OPENVINO_REPO }}\src\bindings\python\scripts\generate_pyapi_stubs.bat `
           "${{ env.ACTION_PATH }}\generated_pyi_files"
         python ${{ env.ACTION_PATH }}\compare_pyi_files.py `
           "${{ env.ACTION_PATH }}\generated_pyi_files" `
-          "${{ env.INSTALL_TEST_DIR }}\tests\bindings\python"
+          "${{ env.OPENVINO_REPO }}\src\bindings\python"
 
     - name: Verify .pyi files (Linux and macOS)
       shell: bash
       if: runner.os != 'Windows'
-      run: |
-        ${{ env.INSTALL_TEST_DIR }}/tests/bindings/python/scripts/generate_pyapi_stubs.sh \
+        echo "OPENVINO_REPO: ${{ env.OPENVINO_REPO }}"
+        echo "Contents of ${{ env.OPENVINO_REPO }}/src/bindings/python:"
+        ls -la "${{ env.OPENVINO_REPO }}/src/bindings/python"
+        ${{ env.OPENVINO_REPO }}/src/bindings/python/scripts/generate_pyapi_stubs.sh \
           "${{ env.ACTION_PATH }}/generated_pyi_files"
         python3 ${{ env.ACTION_PATH }}/compare_pyi_files.py \
           "${{ env.ACTION_PATH }}/generated_pyi_files" \
-          "${{ env.INSTALL_TEST_DIR }}/tests/bindings/python"
+          "${{ env.OPENVINO_REPO }}/src/bindings/python"

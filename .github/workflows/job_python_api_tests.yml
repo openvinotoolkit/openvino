@@ -73,9 +73,6 @@ jobs:
             .github/actions/setup_python/action.yml
             .github/actions/install_ov_wheels/action.yml
             .github/actions/validate_pyi_files/action.yml
-            src/bindings/python/scripts/generate_pyapi_stubs.sh
-            src/bindings/python/scripts/generate_pyapi_stubs.bat
-            src/bindings/python/scripts/compare_pyi_files.py
           sparse-checkout-cone-mode: false
           path: 'action_root'
 
@@ -101,6 +98,9 @@ jobs:
 
       - name: Verify Python stub .pyi files
         uses: ./action_root/.github/actions/validate_pyi_files
+        with:
+          sparse-checkout: 'src/bindings/python'
+          path: ${{ env.OPENVINO_REPO }}
 
       #
       # Tests
