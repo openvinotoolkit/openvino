@@ -105,29 +105,29 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
 
         auto postops_config = brgemm->get_postops_config();
         postops_config.forced_output_type = post_op->get_output_element_type(0);
+
+        using namespace dnnl::impl;
+        auto append_eltwise = [&postops_config, &post_op](alg_kind_t alg_kind, float alpha, float beta) {
+            OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f, alg_kind, alpha, beta) == dnnl_success,
+                            "Failed to append scalar eltwise ",
+                            post_op,
+                            " to brgemm postops. Alpha = ",
+                            alpha,
+                            " Beta = ",
+                            beta);
+        };
+
         if (pattern_map.count(m_scale)) {
-            OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f,
-                                                                   dnnl::impl::alg_kind_t::dnnl_eltwise_linear,
-                                                                   scalar_value,
-                                                                   0.f) == dnnl_success);
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, scalar_value, 0.f);
             std::cout << "[ INFO ] FuseScalarEltwise fused scale: " << scalar_value << std::endl;
         } else if (pattern_map.count(m_shift)) {
-            OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f,
-                                                                   dnnl::impl::alg_kind_t::dnnl_eltwise_linear,
-                                                                   1.f,
-                                                                   scalar_value) == dnnl_success);
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.f, scalar_value);
             std::cout << "[ INFO ] FuseScalarEltwise fused shift: " << scalar_value << std::endl;
         } else if (pattern_map.count(m_max)) {
-            OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f,
-                                                                   dnnl::impl::alg_kind_t::dnnl_eltwise_clip,
-                                                                   scalar_value,
-                                                                   std::numeric_limits<float>::max()) == dnnl_success);
+            append_eltwise(alg_kind_t::dnnl_eltwise_clip, scalar_value, std::numeric_limits<float>::max());
             std::cout << "[ INFO ] FuseScalarEltwise fused max: " << scalar_value << std::endl;
         } else if (pattern_map.count(m_min)) {
-            OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f,
-                                                                   dnnl::impl::alg_kind_t::dnnl_eltwise_clip,
-                                                                   -std::numeric_limits<float>::max(),
-                                                                   scalar_value) == dnnl_success);
+            append_eltwise(alg_kind_t::dnnl_eltwise_clip, -std::numeric_limits<float>::max(), scalar_value);
             std::cout << "[ INFO ] FuseScalarEltwise fused min: " << scalar_value << std::endl;
         } else {
             OPENVINO_THROW("Unexpected postop: ", post_op);
@@ -188,23 +188,29 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             std::cout << "[ INFO ] binary_postops_offset is set to " << m_fused_postops_count << std::endl;
         } else {
             std::cout << "[ INFO ] binary postops is already set to " << postops_config.binary_postops_offset.value()
-                      << std::endl;
+                  << std::endl;
         }
+
+        using namespace dnnl::impl;
+        auto append_binary = [&postops_config, &post_op, &memory_desc](alg_kind_t alg_kind) {
+            OPENVINO_ASSERT(
+                postops_config.post_ops.append_binary(alg_kind, memory_desc.getDnnlDesc().get()) == dnnl_success,
+                "Failed to append binary eltwise ",
+                post_op,
+                " to brgemm postops.");
+        };
+
         if (pattern_map.count(m_mul)) {
-            OPENVINO_ASSERT(postops_config.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_mul,
-                                                                  memory_desc.getDnnlDesc().get()) == dnnl_success);
+            append_binary(alg_kind_t::dnnl_binary_mul);
             std::cout << "[ INFO ] FuseBinaryEltwise fused binary mul\n";
         } else if (pattern_map.count(m_add)) {
-            OPENVINO_ASSERT(postops_config.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_add,
-                                                                  memory_desc.getDnnlDesc().get()) == dnnl_success);
+            append_binary(alg_kind_t::dnnl_binary_add);
             std::cout << "[ INFO ] FuseBinaryEltwise fused binary add\n";
         } else if (pattern_map.count(m_max)) {
-            OPENVINO_ASSERT(postops_config.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_max,
-                                                                  memory_desc.getDnnlDesc().get()) == dnnl_success);
+            append_binary(alg_kind_t::dnnl_binary_max);
             std::cout << "[ INFO ] FuseBinaryEltwise fused binary max\n";
         } else if (pattern_map.count(m_min)) {
-            OPENVINO_ASSERT(postops_config.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_min,
-                                                                  memory_desc.getDnnlDesc().get()) == dnnl_success);
+            append_binary(alg_kind_t::dnnl_binary_min);
             std::cout << "[ INFO ] FuseBinaryEltwise fused binary min\n";
         } else {
             OPENVINO_THROW("Unexpected postop: ", post_op);
