@@ -1716,7 +1716,9 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceTopKConcat) {
         auto topk_values = std::make_shared<ov::op::v0::Result>(topk->output(0));
         auto topk_values1 = make_shared<op::v0::Convert>(topk->output(1), element::f32);
         auto topk_values1_f32 = std::make_shared<ov::op::v0::Result>(topk_values1);
-        auto concat1 = make_shared<ov::op::v0::Concat>(ov::as_output_vector({topk_values, topk_values1_f32, strided_slice2}), axis);
+        auto concat1 =
+            make_shared<ov::op::v0::Concat>(ov::as_output_vector({topk_values, topk_values1_f32, strided_slice2}),
+                                            axis);
 
         auto result = std::make_shared<op::v0::Result>(concat1);
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2, param3});
@@ -1736,7 +1738,9 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceTopKConcat) {
         auto topk_values = std::make_shared<ov::op::v0::Result>(topk->output(0));
         auto topk_values1 = make_shared<op::v0::Convert>(topk->output(1), element::f32);
         auto topk_values1_f32 = std::make_shared<ov::op::v0::Result>(topk_values1);
-        auto concat = make_shared<ov::op::v0::Concat>(ov::as_output_vector({topk_values, topk_values1_f32, param2, param3}), axis);
+        auto concat =
+            make_shared<ov::op::v0::Concat>(ov::as_output_vector({topk_values, topk_values1_f32, param2, param3}),
+                                            axis);
         auto result = std::make_shared<op::v0::Result>(concat);
 
         model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2, param3});
