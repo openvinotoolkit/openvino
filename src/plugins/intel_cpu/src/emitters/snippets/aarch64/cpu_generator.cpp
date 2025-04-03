@@ -26,6 +26,10 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/aarch64/jit_perf_count_chrono_emitters.hpp"
+#endif
+
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "emitters/tpp/aarch64/jit_brgemm_emitter.hpp"
 #    include "transformations/tpp/common/op/brgemm.hpp"
@@ -214,6 +218,12 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_CPU_EMITTER(jit_swish_emitter);
     jitters[ov::op::v0::Tanh::get_type_info_static()] = CREATE_CPU_EMITTER(jit_tanh_emitter);
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    jitters[snippets::op::PerfCountBegin::get_type_info_static()] =
+        CREATE_CPU_EMITTER(jit_perf_count_chrono_start_emitter);
+    jitters[snippets::op::PerfCountEnd::get_type_info_static()] = CREATE_CPU_EMITTER(jit_perf_count_chrono_end_emitter);
+#endif
+
 #ifdef SNIPPETS_LIBXSMM_TPP
     // brgemm
     jitters[ov::intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =
@@ -324,7 +334,12 @@ ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Outpu
 }
 
 bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<snippets::Emitter>& e) const {
-    return false;
+    bool need = false;
+#ifdef SNIPPETS_DEBUG_CAPS
+    need = need || std::dynamic_pointer_cast<intel_cpu::aarch64::jit_perf_count_chrono_start_emitter>(e) ||
+           std::dynamic_pointer_cast<intel_cpu::aarch64::jit_perf_count_chrono_end_emitter>(e);
+#endif
+    return need;
 }
 
 }  // namespace intel_cpu::aarch64

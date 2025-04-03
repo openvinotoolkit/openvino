@@ -23,15 +23,16 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
                                        const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    // const auto& brgemm_node = as_type_ptr<intel_cpu::tpp::op::BrgemmTPP>(expr->get_node());
-    // const auto& brg0Prc = brgemm_node->get_input_element_type(0);
-    // const auto& brg1Prc = brgemm_node->get_input_element_type(1);
-    // BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc);
-    // register used to update, no need kleidiai, as the ukernel is reused
-    // m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache,
-    // kernel_config);
+#ifdef KLEIDIAI_BACKEDN
     BrgemmKernelKaiConfig kernel_config;
     m_kernel_executor = kernel_table->register_kernel<BrgemmKaiKernelExecutor>(expr, kernel_config);
+#else
+    const auto& brgemm_node = as_type_ptr<intel_cpu::tpp::op::BrgemmTPP>(expr->get_node());
+    const auto& brg0Prc = brgemm_node->get_input_element_type(0);
+    const auto& brg1Prc = brgemm_node->get_input_element_type(1);
+    BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc);
+    m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+#endif
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
@@ -81,8 +82,11 @@ const uintptr_t jit_brgemm_emitter::get_compiled_kernel_ptr() const {
 }
 
 const uintptr_t jit_brgemm_emitter::get_execute_function_ptr() const {
-    // return reinterpret_cast<const uintptr_t>(BrgemmKernelExecutor::execute);
+#ifdef KLEIDIAI_BACKEDN
     return reinterpret_cast<const uintptr_t>(BrgemmKaiKernelExecutor::execute);
+#else
+    return reinterpret_cast<const uintptr_t>(BrgemmKernelExecutor::execute);
+#endif
 }
 
 }  // namespace ov::intel_cpu::aarch64

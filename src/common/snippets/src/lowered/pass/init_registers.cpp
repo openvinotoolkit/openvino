@@ -23,7 +23,9 @@ bool InitRegisters::run(LinearIR& linear_ir) {
     lowered::pass::PassPipeline reg_pipeline(m_pass_config);
     reg_pipeline.register_pass<lowered::pass::InitLiveRanges>(m_reg_manager);
     reg_pipeline.register_pass<lowered::pass::AssignRegisters>(m_reg_manager);
+#ifdef OPENVINO_ARCH_X86_64
     reg_pipeline.register_pass<lowered::pass::InsertRegSpills>(m_reg_manager);
+#endif
     reg_pipeline.run(linear_ir);
     return true;
 }
