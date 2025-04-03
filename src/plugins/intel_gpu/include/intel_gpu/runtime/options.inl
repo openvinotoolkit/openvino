@@ -78,7 +78,7 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fc_swiglu_fusion, false, "Disable 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fake_alignment, false, "Disable fake alignment feature which tries to keep gpu friendly memory alignment for arbitrary tensor shapes")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memory reuse for activation tensors")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_skip_reorder, false, "Disable skip reorder optimization applied in runtime")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_dynamic_quantization_opt, false, "Disable dynamic quantization optimization for 2nd token. That is, enforce dynamic quantization for both 1st and 2nd token")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, apply_dynamic_quantization_b1, false, "Apply dynamic quantization for batch=1 case if dynamic quantization is turned on for OneDNN")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, load_dump_raw_binary, std::vector<std::string>{}, "List of layers to load raw binary")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, start_after_processes, std::vector<std::string>{}, "Start inference after specified list of processes")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dry_run_path, "", "Enables mode which partially compiles a model and stores runtime model into specified directory")

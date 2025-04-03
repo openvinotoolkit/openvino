@@ -160,7 +160,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_f
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"GPU_DISABLE_FC_SWIGLU_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_skip_reorder{"GPU_DISABLE_RUNTIME_SKIP_REORDER"};
-static constexpr Property<bool, ov::PropertyMutability::RW> disable_dynamic_quantization_opt{"GPU_DISABLE_DYNAMIC_QUANTIZATION_OPT"};
+static constexpr Property<bool, ov::PropertyMutability::RW> apply_dynamic_quantization_b1{"GPU_APPLY_DYNAMIC_QUANTIZATION_B1"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> usm_policy{"GPU_USM_POLICY"};
 static constexpr Property<bool, ov::PropertyMutability::RW> asym_dynamic_quantization{"GPU_ASYM_DYNAMIC_QUANTIZATION"};
 static constexpr Property<ShapePredictor::Settings, ov::PropertyMutability::RW> shape_predictor_settings{"GPU_SHAPE_PREDICTOR_SETTINGS"};

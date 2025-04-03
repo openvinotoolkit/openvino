@@ -20,7 +20,7 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
         || !act_layout.is_static())
         return false;
 
-    GPU_DEBUG_IF(node.get_program().get_config().get_disable_dynamic_quantization_opt()) {
+    GPU_DEBUG_IF(node.get_program().get_config().get_apply_dynamic_quantization_b1()) {
         return false;
     }
 
