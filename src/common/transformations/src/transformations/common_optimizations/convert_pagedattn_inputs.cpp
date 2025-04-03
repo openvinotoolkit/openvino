@@ -15,8 +15,6 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
-
-#include "openvino/core/constant_fold_utils.hpp"
 using namespace ov::gen_pattern;
 
 ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
