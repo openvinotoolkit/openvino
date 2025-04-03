@@ -2,15 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// Enable atomic operations for float and half types
 #pragma OPENCL EXTENSION cl_ext_float_atomics : enable
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 
 #define atomicAdd(TYPE, a, b)  _atomicAdd(TYPE, a, b)
 #define _atomicAdd(TYPE, a, b) atomicAdd_##TYPE(a, b)
-#define atomicAdd_float(a, b)  atomic_fetch_add((volatile atomic_float*)(a), (b))
-#define atomicAdd_half(a, b)   _atomicAdd_half((volatile atomic_half*)(a), (b))
+#define atomicAdd_float(a, b)  FUNC_CALL(_atomicAdd_float)((volatile global atomic_float*)(a), (b))
+#define atomicAdd_half(a, b)   FUNC_CALL(_atomicAdd_half)((volatile global atomic_half*)(a), (b))
 
-inline half _atomicAdd_half(volatile atomic_half* address, const half value) {
+// WARNING: It is not possible to use check if atomic_fetch_add for half is available.
+// Clang compiler always define __opencl_c_ext_fp16_global_atomic_load_store if cl_khr_fp16
+// is enabled. This is a workaround solution.
+inline half FUNC(_atomicAdd_half)(volatile atomic_half* address, half value) {
+#ifndef __opencl_c_ext_fp16_global_atomic_load_store
+#    error "ISTFT requires __opencl_c_ext_fp16_global_atomic_load_store extension"
+#endif
     half old = value;
     half orig;
     while ((old = atomic_exchange(address, (orig = atomic_exchange(address, 0)) + old)) != 0)
@@ -18,24 +25,31 @@ inline half _atomicAdd_half(volatile atomic_half* address, const half value) {
     return orig;
 }
 
-// #else
-//   inline float atomicAdd(volatile __global float* address, const float value) {
-//     float old = value, orig;
-//     while ((old = atomic_xchg(address, (orig = atomic_xchg(address, 0.0f)) + old)) != 0.0f);
-//     return orig;
-//   }
-// #endif
+#ifdef __opencl_c_ext_fp32_local_atomic_add
+inline float FUNC(_atomicAdd_float)(volatile atomic_float* address, float value) {
+    return atomic_fetch_add(address, value);
+}
+#else
+inline float FUNC(_atomicAdd_float)(volatile atomic_float* address, float value) {
+    float old = value;
+    float orig;
+    while ((old = atomic_exchange(address, (orig = atomic_exchange(address, 0.0f)) + old)) != 0.0f)
+        ;
+    return orig;
+}
+#endif
+// ------------------------------------------------------------------------------
 
-// Calculates how many values correspond to the given global index.
+// Calculates how many values from different frames correspond to the given global output index.
 inline int FUNC(calcBinSize)(int globalIdx, int frameSize, int frameStep, int bufferSize) {
-    int earliestStartIdx = max(0, globalIdx - frameSize + 1);
-    int realStartIdx = ((earliestStartIdx + frameStep - 1) / frameStep) * frameStep;
+    int earlieststartIdx = max(0, globalIdx - frameSize + 1);
+    int realstartIdx = ((earlieststartIdx + frameStep - 1) / frameStep) * frameStep;
     int lastPossibleIdx = bufferSize - frameSize;
 
-    if (lastPossibleIdx < realStartIdx)
+    if (lastPossibleIdx < realstartIdx)
         return 0;
 
-    int ret = ((min(lastPossibleIdx, globalIdx) - realStartIdx) / frameStep) + 1;
+    int ret = ((min(lastPossibleIdx, globalIdx) - realstartIdx) / frameStep) + 1;
     return ret;
 }
 
@@ -43,6 +57,7 @@ inline bool FUNC(isBetween)(int value, int min, int max) {
     return (value >= min && value < max);
 }
 
+// Needed to apply zero padding to the window.
 inline float FUNC(getWindowVal)(const INPUT1_TYPE* restrict windowBuff, int globalWindowIdx, int windowSize, int frameSize) {
     const int windowPadLeft = (frameSize - windowSize) / 2;
     if (FUNC_CALL(isBetween)(globalWindowIdx, windowPadLeft, windowPadLeft + windowSize)) {
@@ -52,7 +67,6 @@ inline float FUNC(getWindowVal)(const INPUT1_TYPE* restrict windowBuff, int glob
     return 0.0f;
 }
 
-// alternative: https://github.com/OpenCL/ComplexMath/blob/master/clcomplex.h
 typedef float2 cfloat;
 #define real(a)      ((a).s0)
 #define imag(a)      ((a).s1)
@@ -60,7 +74,11 @@ typedef float2 cfloat;
 #define expi(x)      ((cfloat)(cos(x), sin(x)))
 #define conj(x)      ((cfloat)(real(x), -imag(x)))
 
-// Unoptimized istft impl.
+///////////////////////////////////////////////////////////////////
+//
+// Basic, reference istft impl.
+//
+///////////////////////////////////////////////////////////////////
 KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict signal,
                   const __global INPUT1_TYPE* restrict windowBuff,
                   const __global INPUT2_TYPE* restrict frameSizeBuff,
@@ -89,17 +107,17 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     const float windowVal = FUNC_CALL(getWindowVal)(windowBuff, globalWindowIdx, windowSize, frameSize);
     const int frameIdxStartWithinBatch = frameID * frameStep;
 
-    // Gather normalization sum for current globalWindowIdx.
+    // Gather normalization sum for current outputIdxWithinBatch.
     const int outputIdxWithinBatch = globalWindowIdx + frameIdxStartWithinBatch;
     float normalizationSum = 0.0f;
-    const int binSize = FUNC_CALL(calcBinSize)(globalWindowIdx + frameIdxStartWithinBatch, frameSize, frameStep, DEFAULT_OUTPUT_SIZE);
-    int startIDx = globalWindowIdx % frameStep;
-    while ((outputIdxWithinBatch + (frameSize - startIDx - 1)) >= DEFAULT_OUTPUT_SIZE)
-        startIDx += frameStep;
+    const int binSize = FUNC_CALL(calcBinSize)(outputIdxWithinBatch, frameSize, frameStep, DEFAULT_OUTPUT_SIZE);
+    int startIdx = globalWindowIdx % frameStep;
+    while ((outputIdxWithinBatch + (frameSize - startIdx - 1)) >= DEFAULT_OUTPUT_SIZE)
+        startIdx += frameStep;
 
     for (int i = 0; i < binSize; ++i) {
-        const int idx = startIDx + i * frameStep;
-        const float val = FUNC_CALL(getWindowVal)(windowBuff, idx, windowSize, frameSize);;
+        const int idx = startIdx + i * frameStep;
+        const float val = FUNC_CALL(getWindowVal)(windowBuff, idx, windowSize, frameSize);
         normalizationSum += val * val;
     }
 
@@ -111,6 +129,7 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     const int freqsHandledInLoop = frameSize_even ? freqs - 1 : freqs;
 
     float result = signal[INPUT0_GET_INDEX(batch, 0, frameID, 0)];
+    // NOTE: since this is real IDFT, we can skip the imaginary part of the first frequency
     for (int freqID = 1; freqID < freqsHandledInLoop; ++freqID) {
         cfloat freqVal_i;
         real(freqVal_i) = signal[INPUT0_GET_INDEX(batch, freqID, frameID, 0)];
@@ -170,3 +189,13 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     // Perform last reduction atomically.
     atomicAdd(OUTPUT_TYPE, output + globalOutputIdx, finalVal);
 }
+
+#undef real
+#undef imag
+#undef crmult
+#undef expi
+#undef conj
+#undef atomicAdd
+#undef _atomicAdd
+#undef atomicAdd_float
+#undef atomicAdd_half
