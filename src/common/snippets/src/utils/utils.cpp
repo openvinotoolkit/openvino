@@ -165,6 +165,12 @@ int64_t get_stride(size_t dim_idx, const VectorDims& shape) {
     return stride;
 }
 
+VectorDims get_planar_layout(size_t rank) {
+    VectorDims layout(rank);
+    std::iota(layout.begin(), layout.end(), 0);
+    return layout;
+}
+
 ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order) {
     return get_pshape(shape, order, true);
 }
@@ -332,6 +338,18 @@ int64_t get_dim_in_stride(const VectorDims& shape, const VectorDims& layout, siz
 
 int64_t get_dim_out_stride(const VectorDims& shape, const VectorDims& layout, size_t idx) {
     return get_stride(utils::get_output_dim_idx(layout, idx), shape);
+}
+
+void init_strides(const VectorDims& shape, size_t rank, size_t data_size, size_t start_idx, VectorDims& offsets) {
+    OPENVINO_ASSERT(start_idx < rank, "Incorrect start index. Should be less than target rank");
+    auto dim_step = data_size;
+    offsets.resize(rank);
+    std::fill(offsets.begin(), offsets.end(), 0);
+    offsets[offsets.size() - 1] = dim_step;
+    for (int i = static_cast<int>(shape.size()) - 2; i >= 0; i--) {
+        dim_step *= shape[i + 1];
+        offsets[i + start_idx] = shape[i] != 1 ? dim_step : 0;
+    }
 }
 
 void visit_path(const lowered::ExpressionPtr& expr,
