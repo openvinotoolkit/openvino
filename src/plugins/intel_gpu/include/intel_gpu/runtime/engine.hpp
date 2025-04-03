@@ -117,7 +117,7 @@ public:
 
     /// Returns statistics of GPU memory allocated by engine in current process for all allocation types.
     /// @note It contains information about current memory usage
-    std::map<std::string, uint64_t> get_memory_statistics();
+    std::map<std::string, uint64_t> get_memory_statistics() const;
 
     /// Adds @p bytes count to currently used memory size of the specified allocation @p type
     void add_memory_used(uint64_t bytes, allocation_type type);
@@ -175,7 +175,6 @@ protected:
     /// Create engine for given @p device and @p configuration
     engine(const device::ptr device);
     const device::ptr _device;
-    std::map<std::string, uint64_t> statistics;
 
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _memory_usage_data{};
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _peak_memory_usage_data{};

@@ -211,7 +211,8 @@ uint64_t engine::get_used_device_memory(allocation_type type) const {
     return _memory_usage_data[static_cast<size_t>(type)].load();
 }
 
-std::map<std::string, uint64_t> engine::get_memory_statistics() {
+std::map<std::string, uint64_t> engine::get_memory_statistics() const {
+    std::map<std::string, uint64_t> statistics;
     const auto add_stat = [&](allocation_type type) {
         auto idx = static_cast<size_t>(type);
         auto value = _memory_usage_data[idx].load();
