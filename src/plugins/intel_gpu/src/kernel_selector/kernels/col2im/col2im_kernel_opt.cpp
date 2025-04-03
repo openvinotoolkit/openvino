@@ -36,9 +36,9 @@ CommonDispatchData Col2ImKernelOpt::SetDefault(const col2im_params& params) cons
 
     const auto batches = is_batched ? params.outputs[0].Batch().v : 1;
 
-    const auto num_elements_for_block = is_batched ? input.Feature().v : input.Batch().v;
-    const auto kernel_product = params.kernel_size.x * params.kernel_size.y;
-    const auto num_channels = num_elements_for_block / kernel_product;
+    const size_t num_elements_for_block = is_batched ? input.Feature().v : input.Batch().v;
+    const size_t kernel_product = (size_t)(params.kernel_size.x * params.kernel_size.y);
+    const size_t num_channels = std::max(num_elements_for_block / kernel_product, (size_t)1);
 
     dispatchData.gws = {num_channels, 1, batches};
     dispatchData.lws = {1, 1, 1};
