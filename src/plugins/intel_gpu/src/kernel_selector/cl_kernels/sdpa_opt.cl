@@ -420,6 +420,8 @@ KERNEL(sdpa_opt)(
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
                         qk_val[seq_idx] += attn_mask[attn_mask_offset];
+#elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
+                        qk_val[seq_idx] += STATIC_SCALAR_ATTN_MASK_VALUE;
 #endif
 
                         // Update qk_max value
@@ -802,7 +804,7 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
     // Apply scale to attn_mask
-#if IS_CAUSAL || HAS_ATTN_MASK_INPUT
+#if IS_CAUSAL || HAS_ATTN_MASK_INPUT || defined(STATIC_SCALAR_ATTN_MASK_VALUE)
     mask_vec *= scale_val;
 #endif
 

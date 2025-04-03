@@ -311,6 +311,9 @@ public:
         if (desc->scale_val.has_value()) {
             data_inputs_num--;
         }
+        if (desc->attn_mask_val.has_value()) {
+            data_inputs_num--;
+        }
 
         auto has_zp_input_buffers = desc->get_compression_zp_inputs_num() > 0;
         if (desc->is_kv_compressed) {

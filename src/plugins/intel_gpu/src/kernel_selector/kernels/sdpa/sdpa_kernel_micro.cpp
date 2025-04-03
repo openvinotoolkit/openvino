@@ -476,13 +476,16 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
         return false;
 
     // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs
-    const auto mask_idx = params.conf.is_paged_attention ? 4lu : 3lu;
-    if (!params.conf.has_const_attn_mask_val && params.inputs.size() > mask_idx && !params.inputs[mask_idx].is_dynamic() && params.inputs[mask_idx].LogicalSize() == 1) {
-        return false;
+    if (!params.conf.is_paged_attention) {
+        const auto mask_idx = 3lu;
+        if (!params.conf.has_const_attn_mask_val && params.inputs.size() > mask_idx && !params.inputs[mask_idx].is_dynamic() && params.inputs[mask_idx].LogicalSize() == 1) {
+            return false;
+        }
     }
 
-    const auto scale_idx = params.conf.is_paged_attention ? 5lu : 4lu;
-    if (!params.conf.has_const_scale_val && params.inputs.size() > scale_idx && !params.inputs[scale_idx].is_dynamic() && params.inputs[scale_idx].LogicalSize() == 1) {
+    const auto scale_idx = 4lu;
+    if (!params.conf.has_const_scale_val && params.inputs.size() > scale_idx && !params.inputs[scale_idx].is_dynamic() &&
+        params.inputs[scale_idx].LogicalSize() == 1) {
         return false;
     }
 
@@ -533,13 +536,17 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
 
     size_t attn_input_idx = 3;
     size_t scale_input_idx = 4;
-    if (params.conf.has_const_attn_mask_val) {
-        jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
-        jit.AddConstant(MakeJitConstant("STATIC_SCALAR_ATTN_MASK_VALUE", params.conf.attn_mask_val));
-        scale_input_idx -= 1;
+    if (!params.conf.is_paged_attention) {
+        if (params.conf.has_const_attn_mask_val) {
+            jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
+            jit.AddConstant(MakeJitConstant("STATIC_SCALAR_ATTN_MASK_VALUE", params.conf.attn_mask_val));
+            scale_input_idx -= 1;
+        } else {
+            jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", data_inputs > attn_input_idx));
+        }
     } else {
         jit.AddConstant(MakeJitConstant("WITH_CAUSAL_MASK", params.conf.is_causal));
-        jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", data_inputs > attn_input_idx));
+        jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
     }
 
     if (params.conf.has_const_scale_val) {
