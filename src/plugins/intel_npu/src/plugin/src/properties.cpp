@@ -409,6 +409,17 @@ void Properties::registerProperties() {
             auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, config.get<COMPILER_TYPE>());
             return dummyCompiler->get_version();
         });
+        REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
+            // return a dynamically created list based on what is supported in current configuration
+            std::vector<ov::PropertyName> caching_props{};
+            // walk the static caching properties, add only what is supported now
+            for (auto prop : _cachingProperties) {
+                if (_config.isAvailable(prop)) {
+                    caching_props.emplace_back(prop);
+                }
+            }
+            return caching_props;
+        });
     } else if (_pType == PropertiesType::COMPILED_MODEL) {
         /// 2.2 Metrics for CompiledModel-only (or those which need to be handled differently)
         REGISTER_CUSTOM_METRIC(ov::model_name, true, [](const Config&) {
@@ -434,18 +445,6 @@ void Properties::registerProperties() {
     }
     // 2.3. Common metrics (exposed same way by both Plugin and CompiledModel)
     REGISTER_SIMPLE_METRIC(ov::supported_properties, true, _supportedProperties);
-
-    REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
-        // return a dynamically created list based on what is supported in current configuration
-        std::vector<ov::PropertyName> caching_props{};
-        // walk the static caching properties, add only what is supported now
-        for (auto prop : _cachingProperties) {
-            if (_config.isAvailable(prop)) {
-                caching_props.emplace_back(prop);
-            }
-        }
-        return caching_props;
-    });
 
     // 3. Populate supported properties list
     // ========
