@@ -206,6 +206,7 @@ struct format {
         os_i_osv16__ai8,                              ///< format used only for fully connected weights
         os_i_osv8__ai8,                               ///< format used only for fully connected weights
 
+        goix,                                         ///< format used for weights for 1D convolution
         goiyx,                                        ///< format used for weights for 2D convolution
         gioyx,                                        ///< format used for weights for 2D deconvolution
         gyxio,                                        ///< format used for weights for 2D convolution
