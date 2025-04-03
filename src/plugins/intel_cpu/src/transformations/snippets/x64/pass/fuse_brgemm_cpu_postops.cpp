@@ -39,7 +39,6 @@ std::shared_ptr<BrgemmCPU> clone_with_new_params(
                                     PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1))->get_layout(),
                                     PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0))->get_layout(),
                                     postops);
-    new_brgemm->set_friendly_name(brgemm->get_friendly_name());
 
     // PortDescriptors are copied manually since it is not copyable attribute
     for (size_t i = 0; i < brgemm->get_input_size(); ++i) {
@@ -77,6 +76,7 @@ pass::FuseConvert::FuseConvert() {
                   << std::endl;
         auto new_brgemm =
             clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
+        new_brgemm->set_friendly_name(convert->get_friendly_name());
         ov::copy_runtime_info({brgemm, convert}, new_brgemm);
         ov::replace_node(convert, new_brgemm);
         return true;
@@ -117,25 +117,23 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
                             alpha,
                             " Beta = ",
                             beta);
+            std::cout << "[ INFO ] FuseScalarEltwise fused node " << post_op->get_type_name() << std::endl;
         };
 
         if (pattern_map.count(m_scale)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_linear, scalar_value, 0.f);
-            std::cout << "[ INFO ] FuseScalarEltwise fused scale: " << scalar_value << std::endl;
         } else if (pattern_map.count(m_shift)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.f, scalar_value);
-            std::cout << "[ INFO ] FuseScalarEltwise fused shift: " << scalar_value << std::endl;
         } else if (pattern_map.count(m_max)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_clip, scalar_value, std::numeric_limits<float>::max());
-            std::cout << "[ INFO ] FuseScalarEltwise fused max: " << scalar_value << std::endl;
         } else if (pattern_map.count(m_min)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_clip, -std::numeric_limits<float>::max(), scalar_value);
-            std::cout << "[ INFO ] FuseScalarEltwise fused min: " << scalar_value << std::endl;
         } else {
             OPENVINO_THROW("Unexpected postop: ", post_op);
         }
         auto new_brgemm =
             clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
+        new_brgemm->set_friendly_name(post_op->get_friendly_name());
         ov::copy_runtime_info({brgemm, post_op}, new_brgemm);
         ov::replace_node(post_op, new_brgemm);
         return true;
@@ -212,20 +210,17 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
                 "Failed to append binary eltwise ",
                 post_op,
                 " to brgemm postops.");
+            std::cout << "[ INFO ] FuseBinaryEltwise fused node " << post_op->get_type_name() << std::endl;
         };
 
         if (pattern_map.count(m_mul)) {
             append_binary(alg_kind_t::dnnl_binary_mul);
-            std::cout << "[ INFO ] FuseBinaryEltwise fused binary mul\n";
         } else if (pattern_map.count(m_add)) {
             append_binary(alg_kind_t::dnnl_binary_add);
-            std::cout << "[ INFO ] FuseBinaryEltwise fused binary add\n";
         } else if (pattern_map.count(m_max)) {
             append_binary(alg_kind_t::dnnl_binary_max);
-            std::cout << "[ INFO ] FuseBinaryEltwise fused binary max\n";
         } else if (pattern_map.count(m_min)) {
             append_binary(alg_kind_t::dnnl_binary_min);
-            std::cout << "[ INFO ] FuseBinaryEltwise fused binary min\n";
         } else {
             OPENVINO_THROW("Unexpected postop: ", post_op);
         }
@@ -241,6 +236,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         input_descs.push_back(ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0});
 
         auto new_brgemm = clone_with_new_params(brgemm, postops_config, brgemm_inputs, input_descs);
+        new_brgemm->set_friendly_name(post_op->get_friendly_name());
         ov::copy_runtime_info({brgemm, post_op}, new_brgemm);
         ov::replace_node(post_op, new_brgemm);
 
