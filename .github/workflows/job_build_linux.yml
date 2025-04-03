@@ -211,6 +211,7 @@ jobs:
             
             if [[ "${OS}" == 'debian_10' ]]; then
               export CMAKE_TOOLCHAIN_FILE=/__w/openvino/openvino/openvino/cmake/arm.toolchain.cmake
+              export PYTHON_MODULE_EXTENSION=$(/usr/local/bin/python${py_version}-config --extension-suffix)
             fi
             
             cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}

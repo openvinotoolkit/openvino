@@ -21,7 +21,7 @@ RUN apt-get update && \
         tzdata \
         # parallel gzip
         pigz \
-        # Pythons \
+        # Python
         python3 \
         python3-pip \
         python3-dev \
