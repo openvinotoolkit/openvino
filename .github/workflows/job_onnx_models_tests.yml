@@ -87,11 +87,20 @@ jobs:
       # - name: Update Models
       #   run: bash ${OPENVINO_REPO}/src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d ${MODELS_SHARE_PATH} -o -s "${{ env.ONNX_MODEL_ZOO_SHA }}"
 
+      - name: Fetch install wheels action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions/install_ov_wheels/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'action_root'
+
       - name: Install OpenVINO Python wheels
-        run: |
-          # Install the core OV wheel
-          python3 -m pip install ./openvino-*.whl
-        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
+        uses: ./action_root/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino'
 
       - name: Install ONNX Models tests requirements
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_onnx
