@@ -140,8 +140,8 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_postop_input = wrap_type<ov::op::v0::Parameter>(binary_input_predicate);
     auto m_rank_norm = optional<ov::snippets::op::RankNormalization>(m_postop_input);
-    auto m_mul = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_postop_input});
-    auto m_add = wrap_type<ov::op::v1::Add>({m_brgemm, m_postop_input});
+    auto m_mul = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_rank_norm});
+    auto m_add = wrap_type<ov::op::v1::Add>({m_brgemm, m_rank_norm});
     auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_mul, m_add});
 
     auto callback = [=](Matcher& m) {
@@ -156,10 +156,9 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         }
         const size_t OC = OC_dim.get_length();
 
-        const auto& postop_input = pattern_map.at(m_postop_input);
-        auto postop_input_node = ov::as_type_ptr<ov::op::v0::Parameter>(postop_input.get_node_shared_ptr());
-        const auto& postop_shape = postop_input.get_shape();
-        if (ov::shape_size(postop_shape) != OC || postop_shape.back() != OC) {
+        const auto& parameter_out = pattern_map.at(m_postop_input);
+        const auto& parameter_shape = parameter_out.get_shape();
+        if (ov::shape_size(parameter_shape) != OC || parameter_shape.back() != OC) {
             return false;
         }
 
@@ -187,11 +186,15 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             OPENVINO_THROW("Unexpected postop: ", post_op);
         }
 
+        const auto postop_input_node = ov::as_type_ptr<ov::op::v0::Parameter>(parameter_out.get_node_shared_ptr());
+        OPENVINO_ASSERT(postop_input_node != nullptr,
+                        "postop_input_node is nullptr. It should be a Parameter node");
+        m_external_params.insert(postop_input_node);
+
         auto brgemm_inputs = brgemm->input_values();
         auto input_descs = brgemm->get_input_port_descriptors();
-        brgemm_inputs.push_back(postop_input);
+        brgemm_inputs.push_back(pattern_map.count(m_rank_norm) ? pattern_map.at(m_rank_norm) : parameter_out);
         input_descs.push_back(ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0});
-        m_external_params.insert(postop_input_node);
 
         auto new_brgemm = clone_with_new_params(brgemm, postops_config, brgemm_inputs, input_descs);
         ov::copy_runtime_info({brgemm, post_op}, new_brgemm);
@@ -201,7 +204,12 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         // since they shouldn't be processed by the common lowering pipeline,
         // and will be handled by the brgemm kernel itself
         PortDescriptorUtils::set_ignored_reg_type(new_brgemm->inputs().back());
-        PortDescriptorUtils::set_ignored_reg_type(postop_input);
+        PortDescriptorUtils::set_ignored_reg_type(parameter_out);
+        if (pattern_map.count(m_rank_norm)) {
+            const auto rank_norm = pattern_map.at(m_rank_norm).get_node_shared_ptr();
+            PortDescriptorUtils::set_ignored_reg_type(rank_norm->input(0));
+            PortDescriptorUtils::set_ignored_reg_type(rank_norm->output(0));
+        }
         m_fused_postops_count++;
         return true;
     };
