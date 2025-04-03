@@ -8,6 +8,9 @@
 #include "emitters/tpp/aarch64/kernel_executors/kleidiai_gemm.hpp"
 #include "emitters/tpp/common/kernel_executors/brgemm.hpp"
 
+// comment out to use libxsmm backend
+#define KLEIDIAI_BACKEDN
+
 namespace ov::intel_cpu::aarch64 {
 
 class jit_brgemm_emitter : public jit_emitter {
@@ -36,8 +39,11 @@ protected:
     const uintptr_t get_execute_function_ptr() const;
     const uintptr_t get_compiled_kernel_ptr() const;
 
-    // std::shared_ptr<ov::intel_cpu::tpp::BrgemmKernelExecutor> m_kernel_executor = nullptr;
+#ifdef KLEIDIAI_BACKEDN
     std::shared_ptr<ov::intel_cpu::tpp::BrgemmKaiKernelExecutor> m_kernel_executor = nullptr;
+#else
+    std::shared_ptr<ov::intel_cpu::tpp::BrgemmKernelExecutor> m_kernel_executor = nullptr;
+#endif
 };
 
 }  // namespace ov::intel_cpu::aarch64
