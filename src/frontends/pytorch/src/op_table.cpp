@@ -218,6 +218,7 @@ OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
+OP_CONVERTER(translate_replace);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
 OP_CONVERTER(translate_rms_norm);
@@ -659,6 +660,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::remainder", op::translate_remainder},
         {"aten::repeat", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
+        {"aten::replace", op::translate_replace},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
         // TO DO: enable behaviour for resolve_conj and resolve_neg complex tensors,
