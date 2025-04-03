@@ -112,7 +112,7 @@ jobs:
           repository: 'openvinotoolkit/openvino.genai'
           path: ${{ env.OPENVINO_GENAI_REPO }}
           submodules: 'true'
-          ref: refs/pull/1999/head
+          ref: ${{ env.TARGET_BRANCH }}
 
       #
       # Print system info
