@@ -51,7 +51,7 @@ std::shared_ptr<BrgemmCPU> clone_with_new_params(
     return new_brgemm;
 }
 
-auto brgemm_predicate = [](const Output<Node>& output) {
+auto common_brgemm_predicate = [](const Output<Node>& output) {
     return has_static_rank()(output) && consumers_count(1)(output);
 };
 
@@ -60,8 +60,10 @@ auto brgemm_predicate = [](const Output<Node>& output) {
 pass::FuseConvert::FuseConvert() {
     MATCHER_SCOPE(FuseConvert);
 
-    auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
-    auto m_convert = wrap_type<ov::snippets::op::ConvertSaturation>({m_brgemm}, type_matches_any({ov::element::f32}));
+    auto m_brgemm = wrap_type<BrgemmCPU>(common_brgemm_predicate);
+    auto m_convert = wrap_type<ov::snippets::op::ConvertSaturation>(
+        {m_brgemm},
+        type_matches_any({ov::element::f32, ov::element::i8, ov::element::u8}));
 
     auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseConvert")
@@ -87,7 +89,7 @@ pass::FuseConvert::FuseConvert() {
 pass::FuseScalarEltwise::FuseScalarEltwise() {
     MATCHER_SCOPE(FuseScalarEltwise);
 
-    auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
+    auto m_brgemm = wrap_type<BrgemmCPU>(common_brgemm_predicate);
     auto m_scalar = wrap_type<ov::snippets::op::Scalar>(type_matches(ov::element::f32));
     auto m_scale = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_scalar});
     auto m_shift = wrap_type<ov::op::v1::Add>({m_brgemm, m_scalar});
@@ -149,6 +151,18 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
 
     auto binary_input_predicate = [](const Output<Node>& output) {
         return has_static_shape()(output) && type_matches(ov::element::f32)(output) && consumers_count(1)(output);
+    };
+
+    auto brgemm_predicate = [](const Output<Node>& output) {
+        const auto brgemm = output.get_node_shared_ptr();
+        // Note: binary postops are not supported in case of blocking enabled,
+        // so f32 precision is not included in supported list
+        static const ov::element::TypeVector supported_in_precisions{ov::element::bf16,
+                                                                     ov::element::i8,
+                                                                     ov::element::u8};
+        return common_brgemm_predicate(output) &&
+               type_matches_any(supported_in_precisions)(brgemm->input_value(0)) &&
+               type_matches_any(supported_in_precisions)(brgemm->input_value(1));
     };
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
