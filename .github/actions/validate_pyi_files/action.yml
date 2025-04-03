@@ -14,33 +14,22 @@ runs:
         echo "Contents of /__w/openvino/openvino/openvino:"
         ls -l /__w/openvino/openvino/openvino || echo "/__w/openvino/openvino/openvino does not exist"
 
-    - name: Debug directory contents (Windows)
-      shell: pwsh
-      if: runner.os == 'Windows'
-      run: |
-        Write-Host "Contents of /__w/openvino:"
-        Get-ChildItem -Path /__w/openvino -ErrorAction SilentlyContinue || Write-Host "/__w/openvino does not exist"
-        Write-Host "Contents of /__w/openvino/openvino:"
-        Get-ChildItem -Path /__w/openvino/openvino -ErrorAction SilentlyContinue || Write-Host "/__w/openvino/openvino does not exist"
-        Write-Host "Contents of /__w/openvino/openvino/openvino:"
-        Get-ChildItem -Path /__w/openvino/openvino/openvino -ErrorAction SilentlyContinue || Write-Host "/__w/openvino/openvino/openvino does not exist"
-
     - name: Verify .pyi files (Windows)
       shell: pwsh
       if: runner.os == 'Windows'
       run: |
-        ${{ env.OPENVINO_REPO }}\src\bindings\python\scripts\generate_pyapi_stubs.bat `
+        ${{ env.INSTALL_TEST_DIR }}\tests\bindings\python\scripts\generate_pyapi_stubs.bat `
           "${{ env.ACTION_PATH }}\generated_pyi_files"
-        python ${{ env.OPENVINO_REPO }}\src\bindings\python\scripts\compare_pyi_files.py `
+        python ${{ env.ACTION_PATH }}\compare_pyi_files.py `
           "${{ env.ACTION_PATH }}\generated_pyi_files" `
-          "${{ env.OPENVINO_REPO }}\src\bindings\python"
+          "${{ env.INSTALL_TEST_DIR }}\tests\bindings\python"
 
     - name: Verify .pyi files (Linux and macOS)
       shell: bash
       if: runner.os != 'Windows'
       run: |
-        ${{ env.OPENVINO_REPO }}/src/bindings/python/scripts/generate_pyapi_stubs.sh \
+        ${{ env.INSTALL_TEST_DIR }}/tests/bindings/python/scripts/generate_pyapi_stubs.sh \
           "${{ env.ACTION_PATH }}/generated_pyi_files"
-        python3 ${{ env.OPENVINO_REPO }}/src/bindings/python/scripts/compare_pyi_files.py \
+        python3 ${{ env.ACTION_PATH }}/compare_pyi_files.py \
           "${{ env.ACTION_PATH }}/generated_pyi_files" \
-          "${{ env.OPENVINO_REPO }}/src/bindings/python"
+          "${{ env.INSTALL_TEST_DIR }}/tests/bindings/python"
