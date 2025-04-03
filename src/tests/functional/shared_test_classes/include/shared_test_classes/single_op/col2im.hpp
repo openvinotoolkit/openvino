@@ -44,5 +44,5 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
 }  // namespace Col2Im
-}  // test
-}  // ov
+}  // namespace test
+}  // namespace ov
