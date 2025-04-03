@@ -8,7 +8,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <fstream>
-#include <mutex>
 #include <thread>
 
 #include "common_test_utils/common_utils.hpp"
@@ -169,45 +168,10 @@ TEST_F(CoreThreadingTests, GetAvailableDevices) {
 }
 
 #if defined(ENABLE_OV_IR_FRONTEND)
-
-namespace ov {
-namespace test {
-namespace util {
-class Barrier {
-private:
-    std::mutex m_mutex;
-    std::condition_variable m_cv;
-    size_t m_count;
-    const size_t m_expected;
-    size_t m_wait_id;
-
-public:
-    explicit Barrier(std::size_t count) : m_count{count}, m_expected{count}, m_wait_id{} {}
-
-    void arrive_and_wait() {
-        std::unique_lock<std::mutex> lock(m_mutex);
-
-        if (--m_count == 0) {
-            ++m_wait_id;
-            m_count = m_expected;
-            m_cv.notify_all();
-        } else {
-            const auto wait_id = m_wait_id;
-            m_cv.wait(lock, [this, wait_id] {
-                return wait_id != m_wait_id;
-            });
-        }
-    }
-};
-}  // namespace util
-}  // namespace test
-}  // namespace ov
-
 // tested function: read_model and add_extension
 TEST_F(CoreThreadingTests, ReadModel) {
     ov::Core core;
     auto model = core.read_model(modelName, weightsName);
-
     constexpr size_t threads_num = 12;
 
     runParallel(

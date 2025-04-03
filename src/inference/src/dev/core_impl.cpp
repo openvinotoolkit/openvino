@@ -908,7 +908,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-                const auto model = util::read_model(model_path, "", get_extensions_copy(), parsed._core_config.get_enable_mmap());
+                const auto model =
+                    util::read_model(model_path, "", get_extensions_copy(), parsed._core_config.get_enable_mmap());
                 return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
             });
     } else {
@@ -1430,7 +1431,7 @@ void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& 
     }
 }
 
-std::vector<ov::Extension::Ptr> ov::CoreImpl::get_extensions_copy() const{
+std::vector<ov::Extension::Ptr> ov::CoreImpl::get_extensions_copy() const {
     std::lock_guard<std::mutex> lock(get_mutex());
     std::vector<ov::Extension::Ptr> extensions_copy(extensions.begin(), extensions.end());
     return extensions_copy;
