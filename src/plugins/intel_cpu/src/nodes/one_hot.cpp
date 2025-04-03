@@ -4,13 +4,25 @@
 
 #include "one_hot.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "common/cpu_memcpy.h"
-#include "dnnl_types.h"
-#include "nodes/common/blocked_desc_creator.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "selective_build.h"
 #include "shape_inference/custom/one_hot.hpp"

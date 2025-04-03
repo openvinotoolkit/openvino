@@ -4,8 +4,16 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov::intel_cpu {
 

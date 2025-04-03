@@ -4,6 +4,11 @@
 
 #include "qkv_proj.hpp"
 
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "transformations/itt.hpp"
 
 namespace ov::intel_cpu {

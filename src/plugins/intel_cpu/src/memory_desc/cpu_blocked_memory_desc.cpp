@@ -4,7 +4,19 @@
 
 #include "cpu_blocked_memory_desc.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <numeric>
+
+#include "cpu_shape.h"
+#include "cpu_types.h"
 #include "dnnl_blocked_memory_desc.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {

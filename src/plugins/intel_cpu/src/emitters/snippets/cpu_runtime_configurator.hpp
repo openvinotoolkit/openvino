@@ -4,11 +4,17 @@
 
 #pragma once
 
+#include <cstddef>
+#include <string>
+#include <vector>
+
 #include "cache/multi_cache.h"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/repacked_input.hpp"
-#include "snippets/lowered/port_descriptor.hpp"
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/runtime_configurator.hpp"
+#include "snippets/shape_types.hpp"
 
 namespace ov::intel_cpu {
 

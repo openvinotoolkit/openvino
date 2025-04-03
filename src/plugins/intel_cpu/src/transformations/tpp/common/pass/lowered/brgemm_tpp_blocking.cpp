@@ -4,11 +4,20 @@
 
 #include "brgemm_tpp_blocking.hpp"
 
-#include "snippets/itt.hpp"
+#include <cstddef>
+#include <memory>
+#include <tuple>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/pass/brgemm_blocking.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/tpp/common/op/brgemm.hpp"
 
 namespace ov::intel_cpu::tpp::pass {
 

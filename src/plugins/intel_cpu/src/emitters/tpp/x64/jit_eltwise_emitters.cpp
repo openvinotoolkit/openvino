@@ -4,6 +4,25 @@
 
 #include "jit_eltwise_emitters.hpp"
 
+#include <libxsmm.h>
+#include <libxsmm_typedefs.h>
+
+#include <algorithm>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
+
+#include "emitters/tpp/common/utils.hpp"
+#include "emitters/tpp/x64/jit_tpp_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "transformations/tpp/x64/op/eltwise.hpp"
 
 namespace ov::intel_cpu {

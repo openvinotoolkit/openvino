@@ -4,17 +4,38 @@
 
 #include "dft.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <iterator>
 #include <memory>
-#include <openvino/opsets/opset7.hpp>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/kernels/x64/dft_uni_kernel.hpp"
 #include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "utils/general_utils.h"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/dft.hpp"
+#include "openvino/op/idft.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/ngraph_utils.hpp"
 
 using namespace dnnl::impl;

@@ -1,12 +1,21 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <limits>
+#include <map>
 #include <type_traits>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
+#include "utils/plain_tensor.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -14,7 +23,7 @@
 
 #include "attn_quant.hpp"
 #include "attn_quant_kernel.hpp"
-#include "common.hpp"
+#include "nodes/kernels/scaled_attn/common.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 
@@ -232,8 +241,9 @@ static void quant_u8_by_channel_kernel(const T* src,
             min = std::min(min, tmp);
         }
         float temp_scale = (max - min) / 255;
-        if (temp_scale == 0)
+        if (temp_scale == 0) {
             temp_scale = 0.0001f;
+        }
         float temp_zp = -min / temp_scale;
         scale[j] = temp_scale;
         zp[j] = temp_zp;
@@ -510,7 +520,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     if (quant_key_by_channel) {
         parallel_for2d(past_lens.size(0), H, [&](size_t sub_seq_id, size_t h) {
             auto past_len = past_lens.ptr<int32_t>()[sub_seq_id];
-            float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
+            auto* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
             auto q_len =
                 subsequence_begins.ptr<int32_t>()[sub_seq_id + 1] - subsequence_begins.ptr<int32_t>()[sub_seq_id];
             auto block_number_start = block_indices_begins.ptr<int32_t>()[sub_seq_id];
@@ -603,8 +613,9 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     } else {
         parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
             auto slot = slot_mapping.ptr<int32_t>(b)[m];
-            if (slot < 0)
+            if (slot < 0) {
                 return;
+            }
             auto block_number = slot / block_size;
             auto block_offset = slot % block_size;
             // The layout for per token per head:

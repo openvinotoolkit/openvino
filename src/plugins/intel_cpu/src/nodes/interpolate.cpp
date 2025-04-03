@@ -4,9 +4,24 @@
 
 #include "interpolate.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
 #include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <common/c_types_map.hpp>
+#include <common/primitive_attr.hpp>
+#include <common/primitive_hashing_utils.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -15,22 +30,36 @@
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "cpu/x64/jit_uni_eltwise.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "fake_quantize.h"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/interpolate.hpp"
+#include "nodes/executors/interpolate_list.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/interpolate.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "shape_inference/shape_inference.hpp"
-#include "shape_inference/static_shape.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
-#include "utils/cpu_utils.hpp"
+#include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
+#include "utils/precision_support.h"
 
 using namespace dnnl;
 

@@ -47,6 +47,7 @@ Checks: >
   modernize-*,
   cppcoreguidelines-prefer-member-initializer,
   readability-else-after-return,
+  misc-include-cleaner,
   -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,
   -bugprone-implicit-widening-of-multiplication-result,
@@ -93,6 +94,9 @@ CheckOptions:
     value: "3"
   - key: modernize-use-override.AllowOverrideAndFinal
     value: true
+  # itt and conditional compilation are implemented via tricky macro combinations
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: ".*/itt.h;.*/itt.hpp;.*/selective_build.h"
 ### To be considered to enable:
 #  # Unifies the usage of the statements
 #  - key: readability-braces-around-statements.ShortStatementLines

@@ -3,12 +3,19 @@
 
 #include "decompose_rms_norm.hpp"
 
-#include "itt.hpp"
-#include "openvino/core/rt_info.hpp"
+#include <memory>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/rms.hpp"
-#include "transformations/utils/utils.hpp"
 
 namespace ov::intel_cpu {
 

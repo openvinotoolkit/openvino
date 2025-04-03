@@ -4,8 +4,25 @@
 
 #include "jit_loop_emitters.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/x64/utils.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 
 using namespace Xbyak;

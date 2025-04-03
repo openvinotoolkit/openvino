@@ -4,9 +4,40 @@
 
 #include "random_uniform.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <ctime>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <random>
+#include <string>
+#include <utility>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "kernels/x64/random_uniform.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 

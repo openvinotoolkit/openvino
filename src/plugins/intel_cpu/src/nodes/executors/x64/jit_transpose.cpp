@@ -4,7 +4,17 @@
 
 #include "jit_transpose.hpp"
 
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/common/permute_kernel.h"
+#include "nodes/executors/transpose.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;

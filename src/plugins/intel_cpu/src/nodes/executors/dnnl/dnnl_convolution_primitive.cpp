@@ -4,8 +4,15 @@
 
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 
-#include <common/primitive_desc_iface.hpp>
+#include <cassert>
+#include <common/primitive_hashing_utils.hpp>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <map>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <utility>
 #include <vector>
 
 #include "dnnl_extension_utils.h"
@@ -15,11 +22,16 @@
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
+#include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/core/type/element_type.hpp"
+#include "post_ops.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 

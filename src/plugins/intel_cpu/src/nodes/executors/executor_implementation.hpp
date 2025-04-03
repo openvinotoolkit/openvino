@@ -10,6 +10,9 @@
 
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "post_ops.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 

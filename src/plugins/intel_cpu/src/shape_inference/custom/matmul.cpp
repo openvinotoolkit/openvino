@@ -4,9 +4,21 @@
 
 #include "matmul.hpp"
 
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/shape_inference.hpp"
-#include "utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 

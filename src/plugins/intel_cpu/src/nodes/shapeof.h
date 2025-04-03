@@ -7,10 +7,11 @@
 #include <node.h>
 
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
-#include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {

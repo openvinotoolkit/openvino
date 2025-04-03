@@ -5,10 +5,13 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/executors/executor.hpp"
 

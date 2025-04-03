@@ -4,15 +4,28 @@
 
 #include "mha_fusion.hpp"
 
-#include "itt.hpp"
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "simplify_fakequantize.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
-#include "transformations/utils/utils.hpp"
 
 // TODO: draw pattern
 ov::intel_cpu::MHAFloatFusion::MHAFloatFusion() {

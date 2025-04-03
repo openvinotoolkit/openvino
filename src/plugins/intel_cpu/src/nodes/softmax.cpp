@@ -5,15 +5,36 @@
 #include "softmax.h"
 
 #include <memory_desc/cpu_memory_desc_utils.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
+#include <common/utils.hpp>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
+#include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
+#include "nodes/common/dnnl_executor.h"
+#include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 

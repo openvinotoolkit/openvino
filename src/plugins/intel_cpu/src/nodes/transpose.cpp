@@ -4,14 +4,38 @@
 
 #include "transpose.h"
 
-#include <string>
+#include <oneapi/dnnl/dnnl_types.h>
 
-#include "common/primitive_hashing_utils.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/common/reorder_prim.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "nodes/executors/transpose_list.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "shape_inference/custom/transpose.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 using namespace dnnl;
 
 namespace ov::intel_cpu::node {

@@ -4,20 +4,48 @@
 
 #include "roi_align.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <algorithm>
 #include <cmath>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/opsets/opset9.hpp>
 #include <string>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
 #include <utils/bfloat16.hpp>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 using namespace dnnl::impl;

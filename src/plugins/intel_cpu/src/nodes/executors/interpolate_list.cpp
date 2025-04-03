@@ -4,6 +4,10 @@
 
 #include "interpolate_list.hpp"
 
+#include <vector>
+
+#include "nodes/executors/executor.hpp"
+
 namespace ov::intel_cpu {
 
 const std::vector<InterpolateExecutorDesc>& getInterpolateExecutorsList() {

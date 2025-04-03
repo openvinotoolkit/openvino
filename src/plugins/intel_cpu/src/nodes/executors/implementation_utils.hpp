@@ -7,7 +7,6 @@
 #include <cstdlib>
 
 #include "cpu_types.h"
-#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/type/element_type.hpp"
 

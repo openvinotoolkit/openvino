@@ -4,7 +4,18 @@
 
 #include "bin_conv.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cassert>
+#include <common/c_types_map.hpp>
+#include <common/nstl.hpp>
+#include <common/primitive_attr.hpp>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
@@ -13,12 +24,27 @@
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/binary_convolution.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 

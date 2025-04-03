@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "post_ops.hpp"
 #ifdef CPU_DEBUG_CAPS
 #    pragma once
 

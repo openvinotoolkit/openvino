@@ -5,25 +5,47 @@
 #include "pooling.h"
 
 #include <memory_desc/cpu_memory_desc_utils.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "fake_quantize.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/common/dnnl_executor.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/pooling_list.hpp"
 #include "nodes/node_config.h"
-#include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/avg_pool_base.hpp"
+#include "openvino/op/util/max_pool_base.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
 // to access and change C pooling primitive desc internal padding field
-#include <common/pooling_pd.hpp>
-#include <common/primitive_desc_iface.hpp>
 
 #if defined(OV_CPU_WITH_ACL)
 #    include "executors/acl/acl_utils.hpp"

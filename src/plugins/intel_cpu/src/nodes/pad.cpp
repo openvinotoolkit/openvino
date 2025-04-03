@@ -4,14 +4,43 @@
 
 #include "pad.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/core/type/float16.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/pad.hpp>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 

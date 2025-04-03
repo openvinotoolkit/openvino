@@ -4,10 +4,15 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
+#include <set>
+#include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "snippets/generator.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov::intel_cpu::pass {
 

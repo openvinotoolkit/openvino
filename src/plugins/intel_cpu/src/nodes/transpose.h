@@ -4,13 +4,19 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <utility>
-#include <vector>
 
-#include "common/permute_kernel.h"
-#include "executors/transpose_list.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "node.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

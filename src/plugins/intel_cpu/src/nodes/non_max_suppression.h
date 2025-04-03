@@ -4,8 +4,19 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/x64/non_max_suppression.hpp"
 #include "node.h"
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {

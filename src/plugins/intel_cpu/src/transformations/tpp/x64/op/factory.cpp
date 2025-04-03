@@ -4,10 +4,27 @@
 
 #include "factory.hpp"
 
+#include <algorithm>
+#include <memory>
+#include <set>
+#include <unordered_map>
+#include <vector>
+
 #include "eltwise.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/type_relaxed.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/subtract.hpp"
 #include "reduce.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/reduce.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 namespace {

@@ -6,26 +6,39 @@
 
 #include <utils/general_utils.h>
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <limits>
+#include <memory>
 #include <openvino/core/rt_info.hpp>
 #include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/gen_pattern.hpp>
-#include <transformations/utils/utils.hpp>
+#include <tuple>
+#include <vector>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "ov_ops/type_relaxed.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 #include "transformations/defs.hpp"
-#include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 using namespace ov::gen_pattern;
 

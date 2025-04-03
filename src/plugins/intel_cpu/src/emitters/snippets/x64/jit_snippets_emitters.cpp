@@ -4,6 +4,23 @@
 
 #include "jit_snippets_emitters.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <climits>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "snippets/lowered/expression.hpp"
+
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;

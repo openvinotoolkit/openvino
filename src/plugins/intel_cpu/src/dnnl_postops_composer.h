@@ -8,11 +8,18 @@
  */
 #pragma once
 
-#include <dnnl_types.h>
+#include <cstddef>
+#include <cstdint>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 
 namespace ov {

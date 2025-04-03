@@ -4,9 +4,20 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <vector>
+
+#include "cache/multi_cache.h"
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/op/subgraph.hpp"
 

@@ -4,14 +4,32 @@
 
 #include "graph.h"
 
+#include <oneapi/dnnl/dnnl.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+#include <oneapi/tbb/detail/_task.h>
+#include <oneapi/tbb/task_group.h>
+#include <oneapi/tbb/version.h>
+
 #include <algorithm>
+#include <atomic>
+#include <cassert>
+#include <common/z_magic.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
+#include <deque>
+#include <exception>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
+#include <new>
+#include <numeric>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -20,7 +38,7 @@
 #include <vector>
 
 #include "allocation_context.hpp"
-#include "common/primitive_desc_iface.hpp"
+#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "edge.h"
 #include "graph_context.h"
@@ -29,8 +47,9 @@
 #include "infer_request.h"
 #include "itt.h"
 #include "memory_control.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_state.h"
 #include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
@@ -42,16 +61,26 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/runtime/exception.hpp"
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/so_ptr.hpp"
+#include "perf_count.h"
+#include "proxy_mem_blk.h"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
-#include "utils/precision_support.h"
 #include "utils/verbose.h"
+#include "weights_cache.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
