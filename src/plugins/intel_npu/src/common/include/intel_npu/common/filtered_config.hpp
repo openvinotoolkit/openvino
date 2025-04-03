@@ -118,7 +118,7 @@ public:
 private:
     EnableMap _enabled;  ///< Map to track whether specific configuration keys are enabled or disabled.
 
-    ConfigMap _internal_compiler_configs;  ///< Mapt to store internal (hidden) configurations used for compiler.
+    ConfigMap _internal_compiler_configs;  ///< Map to store internal (hidden) configurations used for compiler.
 };
 
 }  // namespace intel_npu
