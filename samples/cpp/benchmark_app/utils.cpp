@@ -877,15 +877,17 @@ std::vector<std::string> filter_files_by_extensions(const std::vector<std::strin
 std::string parameter_name_to_tensor_name(const std::string& name,
                                           const std::vector<ov::Output<const ov::Node>>& inputs_info,
                                           const std::vector<ov::Output<const ov::Node>>& outputs_info) {
-    const auto input_info = std::find_if(inputs_info.begin(), inputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
-        return (port.get_names().count(name) > 0) || (name == port.get_node()->get_friendly_name());
-    });
+    const auto input_info =
+        std::find_if(inputs_info.begin(), inputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
+            return (port.get_names().count(name) > 0) || (name == port.get_node()->get_friendly_name());
+        });
     if (input_info != inputs_info.end()) {
         return input_info->get_any_name();
     }
-    const auto output_info = std::find_if(outputs_info.begin(), outputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
-        return (port.get_names().count(name) > 0) || (name == port.get_node()->get_friendly_name());
-    });
+    const auto output_info =
+        std::find_if(outputs_info.begin(), outputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
+            return (port.get_names().count(name) > 0) || (name == port.get_node()->get_friendly_name());
+        });
     if (output_info != outputs_info.end()) {
         return output_info->get_any_name();
     }
