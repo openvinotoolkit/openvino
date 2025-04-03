@@ -598,7 +598,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
-        manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
+        // manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ov::pass::ConvertNMSRotatedToNMSIEInternal>();
         manager.register_pass<ov::pass::ConvertGP9ToGPIEInternal>();
         manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
@@ -1212,6 +1212,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
         manager.register_pass<ov::pass::EliminatePad>();
+        manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
