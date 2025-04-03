@@ -191,8 +191,8 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}
 
       - name: Pack openvino_developer_package
-        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
-        working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}
+        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/developer_package.tar.gz
+        working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}/developer_package
 
       - name: Pack openvino_tests
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -308,7 +308,7 @@ jobs:
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_developer_package
-          path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+          path: ${{ env.BUILD_DIR }}/developer_package.tar.gz
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO js package
@@ -387,7 +387,7 @@ jobs:
           artifacts: |
             ${{ env.ARTIFACTS_DIR }}/${{ env.MANIFEST_FILE }}
             ${{ env.ARTIFACTS_DIR }}/openvino_package.tar.gz
-            ${{ env.ARTIFACTS_DIR }}/openvino_developer_package.tar.gz
+            ${{ env.ARTIFACTS_DIR }}/developer_package.tar.gz
             ${{ env.WHEELS_DIR }}
             ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/openvino_js_package.tar.gz', env.ARTIFACTS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
