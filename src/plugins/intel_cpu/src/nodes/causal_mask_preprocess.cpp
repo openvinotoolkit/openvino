@@ -47,8 +47,7 @@ template <typename T>
 struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPreprocess::Executor {
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  intel_cpu::Node* pnode,
-                 const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
-        (void)config;
+                 [[maybe_unused]] const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
         ov::intel_cpu::PlainTensor t_attention_mask(pnode->getSrcMemoryAtPort(0));
         ov::intel_cpu::PlainTensor t_batch_size(pnode->getSrcMemoryAtPort(1));
         ov::intel_cpu::PlainTensor t_cache_positions(pnode->getSrcMemoryAtPort(2));
