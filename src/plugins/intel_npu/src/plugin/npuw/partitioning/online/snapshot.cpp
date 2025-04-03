@@ -497,7 +497,6 @@ void Snapshot::earlyRegroup() {
             HNDL(VariadicSplit);
             HNDL_FAKE(FakeConvert);
             HNDL_FAKE(FakeQuantize);
-            HNDL_FAKE(FakeConvertTranspose);
 #undef HNDL_FAKE
 #undef HNDL
         }
