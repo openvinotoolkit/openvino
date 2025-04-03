@@ -123,12 +123,12 @@ RUN tar -xf Python-3.13.2.tar.xz && \
 
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN python3 -m pip install --upgrade pip==24.0
-RUN python3.9 -m pip install --upgrade pip==24.0
-RUN python3.10 -m pip install --upgrade pip==24.0
-RUN python3.11 -m pip install --upgrade pip==24.0
-RUN python3.12 -m pip install --upgrade pip==24.0
-RUN python3.13 -m pip install --upgrade pip==24.0
+RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.9 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.13 -m pip install --upgrade pip==${PIP_VERSION}
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build

@@ -208,12 +208,18 @@ jobs:
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
           
             $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          
+            
+            if [[ "${OS}" == 'debian_10' ]]; then
+              export CMAKE_TOOLCHAIN_FILE=/__w/openvino/openvino/openvino/cmake/arm.toolchain.cmake
+            fi
+            
             cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}
             cmake --build ${PY_BUILD_DIR} --parallel $(nproc)
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component pyopenvino_python$py_version
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
           done
+        env:
+          OS: ${{ inputs.os }}
 
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
