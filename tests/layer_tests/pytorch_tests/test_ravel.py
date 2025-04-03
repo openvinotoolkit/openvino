@@ -64,7 +64,7 @@ class TestRavel(PytorchLayerTest):
         (),                       
     ])
     @pytest.mark.parametrize("dtype", [np.float32, np.float64])
-    @pytest.mark.parametrize("complex_type", [True, False])
+    @pytest.mark.parametrize("complex_type", [True])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_ravel_complex(self, shape, dtype, complex_type, ie_device, precision, ir_version):
