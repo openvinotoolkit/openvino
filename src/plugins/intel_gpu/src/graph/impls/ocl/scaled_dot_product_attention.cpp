@@ -105,7 +105,7 @@ protected:
         auto inputs_num = instance.inputs_memory_count();
         if (instance.has_indirect_inputs() && stage == default_sdpa)
             inputs_num--;
-    
+
         const size_t attn_mask_idx = 3;
         const size_t scale_idx = 4;
         for (size_t i = 0; i < inputs_num; i++) {

@@ -477,7 +477,8 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs
     if (!params.conf.is_paged_attention) {
         const auto mask_idx = 3lu;
-        if (!params.conf.has_const_attn_mask_val && params.inputs.size() > mask_idx && !params.inputs[mask_idx].is_dynamic() && params.inputs[mask_idx].LogicalSize() == 1) {
+        if (!params.conf.has_const_attn_mask_val && params.inputs.size() > mask_idx && !params.inputs[mask_idx].is_dynamic() &&
+            params.inputs[mask_idx].LogicalSize() == 1) {
             return false;
         }
     }
