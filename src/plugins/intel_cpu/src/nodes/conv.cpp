@@ -954,32 +954,32 @@ dnnl::convolution_forward::primitive_desc createDescriptorInternal(const dnnl::e
                                                                    dnnl::algorithm alg,
                                                                    const dnnl::primitive_attr& attr) {
     if (withBiases) {
-        return dnnl::convolution_forward::primitive_desc(engine,
-                                                         prop_kind::forward_inference,
-                                                         alg,
-                                                         inputDesc,
-                                                         weightDesc,
-                                                         biasDesc,
-                                                         outputDesc,
-                                                         dnnl::memory::dims(stride.begin(), stride.end()),
-                                                         dnnl::memory::dims(dilation.begin(), dilation.end()),
-                                                         dnnl::memory::dims(paddingL.begin(), paddingL.end()),
-                                                         dnnl::memory::dims(paddingR.begin(), paddingR.end()),
-                                                         attr,
-                                                         true);  // allow_empty
+        return {engine,
+                prop_kind::forward_inference,
+                alg,
+                inputDesc,
+                weightDesc,
+                biasDesc,
+                outputDesc,
+                dnnl::memory::dims(stride.begin(), stride.end()),
+                dnnl::memory::dims(dilation.begin(), dilation.end()),
+                dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+                dnnl::memory::dims(paddingR.begin(), paddingR.end()),
+                attr,
+                true};  // allow_empty
     }
-    return dnnl::convolution_forward::primitive_desc(engine,
-                                                     prop_kind::forward_inference,
-                                                     alg,
-                                                     inputDesc,
-                                                     weightDesc,
-                                                     outputDesc,
-                                                     dnnl::memory::dims(stride.begin(), stride.end()),
-                                                     dnnl::memory::dims(dilation.begin(), dilation.end()),
-                                                     dnnl::memory::dims(paddingL.begin(), paddingL.end()),
-                                                     dnnl::memory::dims(paddingR.begin(), paddingR.end()),
-                                                     attr,
-                                                     true);  // allow_empty
+    return {engine,
+            prop_kind::forward_inference,
+            alg,
+            inputDesc,
+            weightDesc,
+            outputDesc,
+            dnnl::memory::dims(stride.begin(), stride.end()),
+            dnnl::memory::dims(dilation.begin(), dilation.end()),
+            dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+            dnnl::memory::dims(paddingR.begin(), paddingR.end()),
+            attr,
+            true};  // allow_empty
 }
 }  // namespace
 
