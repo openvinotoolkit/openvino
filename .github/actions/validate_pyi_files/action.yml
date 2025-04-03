@@ -3,6 +3,28 @@ description: 'Generates .pyi files and compares them to the committed files'
 runs:
   using: 'composite'
   steps:
+    - name: Debug directory contents (Linux and macOS)
+      shell: bash
+      if: runner.os != 'Windows'
+      run: |
+        echo "Contents of /__w/openvino:"
+        ls -l /__w/openvino || echo "/__w/openvino does not exist"
+        echo "Contents of /__w/openvino/openvino:"
+        ls -l /__w/openvino/openvino || echo "/__w/openvino/openvino does not exist"
+        echo "Contents of /__w/openvino/openvino/openvino:"
+        ls -l /__w/openvino/openvino/openvino || echo "/__w/openvino/openvino/openvino does not exist"
+
+    - name: Debug directory contents (Windows)
+      shell: pwsh
+      if: runner.os == 'Windows'
+      run: |
+        Write-Host "Contents of /__w/openvino:"
+        Get-ChildItem -Path /__w/openvino -ErrorAction SilentlyContinue || Write-Host "/__w/openvino does not exist"
+        Write-Host "Contents of /__w/openvino/openvino:"
+        Get-ChildItem -Path /__w/openvino/openvino -ErrorAction SilentlyContinue || Write-Host "/__w/openvino/openvino does not exist"
+        Write-Host "Contents of /__w/openvino/openvino/openvino:"
+        Get-ChildItem -Path /__w/openvino/openvino/openvino -ErrorAction SilentlyContinue || Write-Host "/__w/openvino/openvino/openvino does not exist"
+
     - name: Verify .pyi files (Windows)
       shell: pwsh
       if: runner.os == 'Windows'
