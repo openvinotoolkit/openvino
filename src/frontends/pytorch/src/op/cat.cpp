@@ -177,6 +177,17 @@ OutputVector translate_vstack(const NodeContext& context) {
     return out;
 };
 
+OutputVector translate_autocast_to_full_precision(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    auto input = context.get_input(0);
+    const auto input_type = input.get_element_type();
+    if (input_type == element::f32) {
+        return {input};
+    }
+    auto full_precision_tensor = context.mark_node(std::make_shared<v1::ConvertLike>(input, input, element::f32));
+    return {full_precision_tensor};
+}
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
