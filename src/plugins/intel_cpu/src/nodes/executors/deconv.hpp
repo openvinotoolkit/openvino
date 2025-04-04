@@ -53,7 +53,7 @@ using DeconvExecutorCPtr = std::shared_ptr<const DeconvExecutor>;
 
 class DeconvExecutorBuilder {
 public:
-    ~DeconvExecutorBuilder() = default;
+    virtual ~DeconvExecutorBuilder() = default;
     [[nodiscard]] virtual bool isSupported(const DeconvAttrs& convAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;

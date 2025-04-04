@@ -168,7 +168,7 @@ using InterpolateExecutorCPtr = std::shared_ptr<const InterpolateExecutor>;
 
 class InterpolateExecutorBuilder {
 public:
-    ~InterpolateExecutorBuilder() = default;
+    virtual ~InterpolateExecutorBuilder() = default;
     [[nodiscard]] virtual bool isSupported(const InterpolateAttrs& InterpolateAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
