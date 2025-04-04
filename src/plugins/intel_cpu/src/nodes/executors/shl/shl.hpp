@@ -133,7 +133,7 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
     }
 
     [[nodiscard]] ShlTensor cloneWithNewShape(const VectorDims& shape) const {
-        ShlTensor cloned(*this);
+        const ShlTensor cloned(*this);
         cloned.setShape(shape);
         return cloned;
     }

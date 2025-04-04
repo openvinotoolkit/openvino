@@ -254,8 +254,8 @@ bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, con
     }
 
     auto consumers = node->output(0).get_target_inputs();
-    for (auto& input : consumers) {
-        const auto consumer = input.get_node();
+    for (const auto& input : consumers) {
+        auto* const consumer = input.get_node();
         if (ov::is_type_any_of<ov::op::v0::Result, ov::op::v0::Convert>(consumer)) {
             continue;
         }
@@ -428,16 +428,16 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         return map;
     };
 
-    type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
+    const type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
     if (config.inferencePrecision == ov::element::f16) {
-        precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
+        const precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         type_to_fuse_map fuse_map = {};
 #else
-        type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
+        const type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
@@ -469,7 +469,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     cacheConfig.keyCacheBlockSize = 32;
     cacheConfig.valueCacheBlockSize = 32;
 
-    bool byChannel = node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode);
+    const bool byChannel = node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode);
     cacheConfig.keyCacheQuantBychannel = byChannel;
     cacheConfig.valueCacheQuantBychannel = false;
     cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
@@ -1099,7 +1099,7 @@ void Transformations::MainSnippets() {
     //  - CPU Node Subgraph requires bf16 on output when inference precision is bf16.
     // To avoid situations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
-    bool mha_token_enable_transpose_on_output = one_of(config.inferencePrecision, element::f32, element::dynamic);
+    const bool mha_token_enable_transpose_on_output = one_of(config.inferencePrecision, element::f32, element::dynamic);
     size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
     if (concurrency == 0) {
         concurrency = parallel_get_max_threads();
@@ -1108,24 +1108,24 @@ void Transformations::MainSnippets() {
     // Runtime caching should be enabled in case of dynamic Subgraphs in CPU Plugin: to reduce overheads of
     // ShapeInference and CodeGeneration If runtime cache capacity is zero, it means that rtCache won't be used and we
     // shouldn't tokenize dynamic Subgraphs - it will lead to performance degradations
-    bool is_dynamic_mha_token_enabled = config.rtCacheCapacity != 0;
 #if defined(OPENVINO_ARCH_ARM64)
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform
     // register, 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
     size_t data_ptr_gpr_count = 23;
     // ARM doesn't even support MHA yet
-    is_dynamic_mha_token_enabled = false;
+    const bool is_dynamic_mha_token_enabled = false;
 #else
+    const bool is_dynamic_mha_token_enabled = config.rtCacheCapacity != 0;
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
-    size_t data_ptr_gpr_count = 11;
+    const size_t data_ptr_gpr_count = 11;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
     // Config::SnippetsMode::IgnoreCallback
-    bool split_m_dimension = !ignoreCallback;
+    const bool split_m_dimension = !ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
-    std::set<size_t> mha_supported_transpose_ranks = {4};
+    const std::set<size_t> mha_supported_transpose_ranks = {4};
     snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency,
                                                                      data_ptr_gpr_count,
                                                                      split_m_dimension,

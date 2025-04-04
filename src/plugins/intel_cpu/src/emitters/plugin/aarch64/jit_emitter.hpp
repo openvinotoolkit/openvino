@@ -136,7 +136,7 @@ protected:
     }
 
     void push_arg_entry_of(const std::string& key, const table_entry_val_t val, const bool broadcast) {
-        mapped_table_entry_t te{0, val, broadcast};
+        const mapped_table_entry_t te{0, val, broadcast};
         entry_map_.insert(std::make_pair(key, te));
     }
 

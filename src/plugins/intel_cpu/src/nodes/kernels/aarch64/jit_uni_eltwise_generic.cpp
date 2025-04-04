@@ -41,7 +41,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
     const auto& jep = jep_;
 
-    XReg param2 = abi_param2;
+    const XReg param2 = abi_param2;
     const int offset_count = jep.input_size - 1;
 
     // ptrs initializing
@@ -53,8 +53,8 @@ void jit_uni_eltwise_generic<isa>::generate() {
             ldr(get_src_reg(i),
                 ptr(reg_const_params,
                     static_cast<int32_t>(offsetof(jit_eltwise_call_args_ptrs, src_ptr[0]) + i * sizeof(size_t))));
-            XReg offset_reg = get_aux_gpr(0);  // X_TMP_0;
-            XReg index_reg = get_aux_gpr(1);   // X_TMP_1;
+            const XReg offset_reg = get_aux_gpr(0);  // X_TMP_0;
+            const XReg index_reg = get_aux_gpr(1);   // X_TMP_1;
             for (int j = 0; j < offset_count; j++) {
                 ldr(offset_reg, ptr(start_to_offsets, static_cast<int32_t>(j * sizeof(size_t))));
                 ldr(index_reg, ptr(reg_indexes, static_cast<int32_t>(j * sizeof(size_t))));
@@ -65,8 +65,8 @@ void jit_uni_eltwise_generic<isa>::generate() {
         ldr(start_to_offsets,
             ptr(reg_const_params, static_cast<int32_t>(offsetof(jit_eltwise_call_args_ptrs, dst_offsets))));
         ldr(reg_dst, ptr(reg_const_params, static_cast<int32_t>(offsetof(jit_eltwise_call_args_ptrs, dst_ptr))));
-        XReg offset_reg = get_aux_gpr(0);  // X_TMP_0;
-        XReg index_reg = get_aux_gpr(1);   // X_TMP_1;
+        const XReg offset_reg = get_aux_gpr(0);  // X_TMP_0;
+        const XReg index_reg = get_aux_gpr(1);   // X_TMP_1;
         for (int j = 0; j < offset_count; j++) {
             ldr(offset_reg, ptr(start_to_offsets, static_cast<int32_t>(j * sizeof(size_t))));
             ldr(index_reg, ptr(reg_indexes, static_cast<int32_t>(j * sizeof(size_t))));
@@ -81,10 +81,10 @@ void jit_uni_eltwise_generic<isa>::generate() {
         auto init_ptrs_with_offsets = [this, offset_count, param2](XReg pointer, const std::vector<size_t>& offsets) {
             for (int j = 0; j < offset_count; j++) {
                 if (jep_.dims[j] != 1 && offsets[j] != 0) {
-                    XReg offset_reg(get_aux_gpr(0));
+                    const XReg offset_reg(get_aux_gpr(0));
                     mov(offset_reg, offsets[j]);
 
-                    XReg index_reg(get_aux_gpr(1));
+                    const XReg index_reg(get_aux_gpr(1));
                     ldr(index_reg, ptr(param2, static_cast<int32_t>(j * sizeof(size_t))));
                     madd(pointer, offset_reg, index_reg, pointer);
                 }
@@ -176,7 +176,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
                 store_vector(reg_dst, vmm_dst, exec_prc, jep.dst_prc, j * vec_step * jep.dst_prc.size());
             }
 
-            size_t tail_start = min_src_size - min_src_size % vec_step;
+            const size_t tail_start = min_src_size - min_src_size % vec_step;
             for (size_t j = tail_start; j < min_src_size; j++) {
                 for (size_t i = 0; i < jep.inputs_number; i++) {
                     if (jep.src_size[i] != 1) {
@@ -192,7 +192,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
                 apply_post_ops();
 
-                SReg sc_dst_reg{vmm_dst.getIdx()};
+                const SReg sc_dst_reg{vmm_dst.getIdx()};
                 store_scalar(reg_dst, sc_dst_reg, exec_prc, jep.dst_prc, j * jep.dst_prc.size());
             }
 
@@ -270,7 +270,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
         apply_post_ops();
 
-        SReg sc_dst_reg{vmm_dst.getIdx()};
+        const SReg sc_dst_reg{vmm_dst.getIdx()};
         store_scalar(reg_dst, sc_dst_reg, exec_prc, jep.dst_prc);
 
         for (size_t i = 0; i < jep.inputs_number; i++) {
@@ -412,7 +412,7 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
         ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
 
         // scalar is loaded, operates with vector
-        TReg vec(data.getIdx());
+        const TReg vec(data.getIdx());
         sshll(vec.h8, vec.b8, 0);
         sshll(vec.s4, vec.h4, 0);
         break;
@@ -421,7 +421,7 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
         ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
 
         // scalar is loaded, operates with vector
-        TReg vec(data.getIdx());
+        const TReg vec(data.getIdx());
         ushll(vec.h8, vec.b8, 0);
         ushll(vec.s4, vec.h4, 0);
         break;
@@ -542,14 +542,14 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                 break;
             }
             case ov::element::i8: {
-                TReg vec_data(data.getIdx());
+                const TReg vec_data(data.getIdx());
                 fcvtms(vec_data.s, vec_data.s);
                 xtn(vec_data.h4, vec_data.s4);
                 xtn(vec_data.b8, vec_data.h8);
                 break;
             }
             case ov::element::u8: {
-                TReg vec_data(data.getIdx());
+                const TReg vec_data(data.getIdx());
                 fcvtmu(vec_data.s, vec_data.s);
                 xtn(vec_data.h4, vec_data.s4);
                 xtn(vec_data.b8, vec_data.h8);

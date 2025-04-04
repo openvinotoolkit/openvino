@@ -129,7 +129,7 @@ protected:
     using mapped_table_t = std::multimap<std::string, mapped_table_entry_t>;
 
     void push_arg_entry_of(const std::string& key, const table_entry_val_t val) {
-        mapped_table_entry_t te{0, val};
+        const mapped_table_entry_t te{0, val};
         entry_map_.insert(std::make_pair(key, te));
     }
 

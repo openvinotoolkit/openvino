@@ -41,7 +41,7 @@ ov::intel_cpu::MHAFloatFusion::MHAFloatFusion() {
     auto matmul1 = std::make_shared<ov::opset3::MatMul>(reshape1, transpose2);
     auto transpose3 = std::make_shared<ov::opset3::Transpose>(matmul1, in10);
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose0_in = pattern_to_output.at(in0);
         auto transpose1_in = pattern_to_output.at(in1);
@@ -108,7 +108,7 @@ ov::intel_cpu::MHAFloatFusion::MHAFloatFusion() {
                 return false;
             }
 
-            std::vector<int64_t> reshapeConstData = {
+            const std::vector<int64_t> reshapeConstData = {
                 static_cast<int64_t>(reshape0_node->get_input_shape(0)[0] * reshape0_node->get_input_shape(0)[1] *
                                      reshape0_node->get_input_shape(0)[2]),
                 -1};
@@ -145,7 +145,7 @@ ov::intel_cpu::MHAFloatFusion::MHAFloatFusion() {
             return false;
         }
 
-        bool is_mul_first = true;
+        const bool is_mul_first = true;
         auto transpose3_node = pattern_to_output.at(transpose3).get_node_shared_ptr();
         auto mha = std::make_shared<ov::intel_cpu::MHANode>(transpose0_in,
                                                             transpose1_in,
@@ -206,7 +206,7 @@ ov::intel_cpu::MHAFloatFusion2::MHAFloatFusion2() {
     auto matmul1 = std::make_shared<ov::opset3::MatMul>(softmax, transpose2);
     auto transpose3 = std::make_shared<ov::opset3::Transpose>(matmul1, in10);
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose0_in = pattern_to_output.at(in0);
         auto transpose1_in = pattern_to_output.at(in1);
@@ -344,7 +344,7 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
                                                                 ov::pass::pattern::wrap_type<ov::opset4::Constant>()});
     auto transpose3 = std::make_shared<ov::opset3::Transpose>(fakeQuantize2, in10);
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose0_in = pattern_to_output.at(in0);
         auto transpose1_in = pattern_to_output.at(in1);
@@ -419,7 +419,7 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
                 return false;
             }
 
-            std::vector<int64_t> reshapeConstData = {
+            const std::vector<int64_t> reshapeConstData = {
                 static_cast<int64_t>(reshape0_node->get_input_shape(0)[0] * reshape0_node->get_input_shape(0)[1] *
                                      reshape0_node->get_input_shape(0)[2]),
                 -1};
@@ -477,7 +477,7 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
             }
         }
 
-        bool is_mul_first = false;
+        const bool is_mul_first = false;
         auto transpose3_node = pattern_to_output.at(transpose3).get_node_shared_ptr();
         auto mha = std::make_shared<ov::intel_cpu::MHANode>(
             transpose0_in,
@@ -563,7 +563,7 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
     auto in11 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{matmul1, fakeQuantize1});
     auto transpose3 = std::make_shared<ov::opset3::Transpose>(in11, in10);
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose0_in = pattern_to_output.at(in0);
         auto transpose1_in = pattern_to_output.at(in1);
@@ -658,7 +658,7 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
             return false;
         }
 
-        bool is_mul_first = true;
+        const bool is_mul_first = true;
         auto transpose3_node = pattern_to_output.at(transpose3).get_node_shared_ptr();
         auto mha = std::make_shared<ov::intel_cpu::MHANode>(transpose0_in,
                                                             transpose1_in,

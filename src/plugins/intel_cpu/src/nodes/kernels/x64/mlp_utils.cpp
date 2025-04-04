@@ -145,8 +145,8 @@ void llm_mlp_dequantize_i32_f32(int Batch,
                                 float* p_wscale_per_oc,
                                 bool asym) {
     for (int b = 0; b < Batch; b++, src += stride_src, dst += stride_dst) {
-        float s1 = p_src_scale_per_row[b];
-        float z1s1 = p_src_zp_per_row[b] * s1;
+        const float s1 = p_src_scale_per_row[b];
+        const float z1s1 = p_src_zp_per_row[b] * s1;
         int oc = 0;
 #if defined(HAVE_AVX512F)
         if (asym) {
@@ -180,7 +180,7 @@ void llm_mlp_dequantize_i32_f32(int Batch,
             //      = sum{[qi*wi] *(s1*s2) - z1*s1*wi*s2}
             //      = sum{qi*wi} *(s1*s2) - sum{wi}*(z1*s1*s2)
             //
-            float s2 = p_wscale_per_oc[oc];
+            const float s2 = p_wscale_per_oc[oc];
             if (asym) {
                 dst[oc] = src[oc] * (s1 * s2) - p_wsum_per_oc[oc] * (z1s1 * s2);
             } else {

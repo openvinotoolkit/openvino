@@ -812,10 +812,10 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto xmm0 = Xmm(0), xmm1 = Xmm(1);
 
     // caller obligation to save gprs as callee may use them
-    size_t gpr_size = 8;
-    Xbyak::Operand gprs_to_save[] =
+    const size_t gpr_size = 8;
+    const Xbyak::Operand gprs_to_save[] =
         {h->r8, h->r9, h->r10, h->r11, h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
-    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+    const size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
     h->sub(h->rsp, n_gprs_to_save * gpr_size);
     for (size_t i = 0; i < n_gprs_to_save; ++i) {
@@ -823,7 +823,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     }
 
     // caller obligation to save k-regs as callee may use them
-    size_t n_k_regs_to_save = 8;
+    const size_t n_k_regs_to_save = 8;
     if (isa == x64::avx512_core) {
         h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
         for (size_t i = 0; i < n_k_regs_to_save; ++i) {
@@ -1801,10 +1801,10 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->uni_vmovups(vmm_aux0, table_val("power"));
 
         // caller obligation to save gprs as callee may use them
-        size_t gpr_size = 8;
-        Xbyak::Operand gprs_to_save[] =
+        const size_t gpr_size = 8;
+        const Xbyak::Operand gprs_to_save[] =
             {h->r8, h->r9, h->r10, h->r11, h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
-        size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+        const size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
         h->sub(h->rsp, n_gprs_to_save * gpr_size);
         for (size_t i = 0; i < n_gprs_to_save; ++i) {
@@ -1812,7 +1812,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         }
 
         // caller obligation to save k-regs as callee may use them
-        size_t n_k_regs_to_save = 8;
+        const size_t n_k_regs_to_save = 8;
         if (isa == x64::avx512_core) {
             h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
             for (size_t i = 0; i < n_k_regs_to_save; ++i) {
@@ -2351,7 +2351,7 @@ void jit_is_finite_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>
                                                        const std::vector<size_t>& out_vec_idxs) const {
     auto vmm_src = Zmm(in_vec_idxs[0]);
     auto vmm_dst = Zmm(out_vec_idxs[0]);
-    auto& ones_mask = h->k1;
+    const auto& ones_mask = h->k1;
     auto reg32_one = Reg32(aux_gpr_idxs[0]);
 
     h->mov(reg32_one, CONST_1_F);
@@ -2408,7 +2408,7 @@ void jit_is_inf_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>& i
     auto vmm_dst = Zmm(out_vec_idxs[0]);
 
     if (detect_negative || detect_positive) {
-        auto& ones_mask = h->k1;
+        const auto& ones_mask = h->k1;
         auto reg32_one = Reg32(aux_gpr_idxs[0]);
         uint8_t imm = detect_negative ? 0B00010000 : 0B00000000;
         if (detect_positive) {
@@ -2483,7 +2483,7 @@ void jit_is_nan_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>& i
                                                     const std::vector<size_t>& out_vec_idxs) const {
     auto vmm_src = Zmm(in_vec_idxs[0]);
     auto vmm_dst = Zmm(out_vec_idxs[0]);
-    auto& ones_mask = h->k1;
+    const auto& ones_mask = h->k1;
     auto reg32_one = Reg32(aux_gpr_idxs[0]);
 
     h->mov(reg32_one, CONST_1_F);

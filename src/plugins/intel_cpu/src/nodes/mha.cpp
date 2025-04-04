@@ -66,7 +66,7 @@ private:
         Xbyak::Label mul_loop_label;
         Xbyak::Label mul_end_label;
 
-        size_t tail_size = jcp_.work_amount % vec_size;
+        const size_t tail_size = jcp_.work_amount % vec_size;
 
         mov(reg_buffer_aux, reg_buffer);
         mov(reg_work_amount, jcp_.work_amount);
@@ -201,7 +201,7 @@ private:
     }
 
     void mul_add_max(size_t step) {
-        bool is_tail = step < vec_size;
+        const bool is_tail = step < vec_size;
 
         load(get_vmm_in(0), reg_in0, jcp_.src_prc, step, is_tail);
         load(get_vmm_in(2), reg_add_in1, ov::element::f32, step, is_tail);
@@ -240,7 +240,7 @@ private:
     }
 
     void sub_exp_reduce(size_t step) {
-        bool is_tail = step < vec_size;
+        const bool is_tail = step < vec_size;
 
         load(get_vmm_in(0), reg_buffer_aux, ov::element::f32, step, is_tail);
 
@@ -259,7 +259,7 @@ private:
     }
 
     void mul_loop(size_t step) {
-        bool is_tail = step < vec_size;
+        const bool is_tail = step < vec_size;
 
         load(get_vmm_in(0), reg_buffer, ov::element::f32, step, is_tail);
 
@@ -421,7 +421,7 @@ private:
             cmp(reg_outter_work_amount, 1);
             jl(convert_reorder_outter_end_label, T_NEAR);
 
-            size_t tail_size = jcp_.inner_work_amount % vec_size;
+            const size_t tail_size = jcp_.inner_work_amount % vec_size;
             mov(reg_inner_work_amount, jcp_.inner_work_amount);
             mov(reg_in_aux, reg_in);
             mov(reg_out_aux, reg_out);
@@ -463,7 +463,7 @@ private:
     }
 
     void convert_reorder(size_t step) {
-        bool is_tail = step < vec_size;
+        const bool is_tail = step < vec_size;
 
         load(vmm_in, reg_in_aux, jcp_.src_prc, step, is_tail);
 
@@ -587,7 +587,7 @@ private:
             cmp(reg_outter_work_amount, 1);
             jl(convert_transpose_outter_end_label, T_NEAR);
 
-            size_t tail_size = jcp_.inner_work_amount % vec_size;
+            const size_t tail_size = jcp_.inner_work_amount % vec_size;
             mov(reg_inner_work_amount, jcp_.inner_work_amount);
             mov(reg_in_aux, reg_in);
             mov(reg_out_aux, reg_out);
@@ -629,7 +629,7 @@ private:
     }
 
     void convert_transpose(size_t step) {
-        bool is_tail = step < vec_size;
+        const bool is_tail = step < vec_size;
 
         sub(rsp, jcp_.src_prc.size() * vec_size);
         for (size_t i = 0; i < step; i++) {
@@ -864,7 +864,7 @@ void MHA::initSupportedPrimitiveDescriptors() {
 void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {
 #ifdef OPENVINO_ARCH_X86_64
     brgemm_desc_t brgDesc;
-    brgemm_strides_t strides{static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
+    const brgemm_strides_t strides{static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
 
     const bool is_int8 =
         one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
@@ -1014,22 +1014,22 @@ void MHA::prepareParams() {
     strTranspose2In0 = memDescTranspose2In0->getStrides();
     strOut = memDescOut->getStrides();
 
-    std::vector<size_t> orderTranspose0 = {0, 2, 1, 3};
+    const std::vector<size_t> orderTranspose0 = {0, 2, 1, 3};
     dimsMatMul0In0 = transpose(dimsTranspose0In0, orderTranspose0);
 
-    std::vector<size_t> orderTranspose1 = {0, 2, 3, 1};
+    const std::vector<size_t> orderTranspose1 = {0, 2, 3, 1};
     dimsMatMul0In1 = transpose(dimsTranspose1In0, orderTranspose1);
 
     dimsMatMul0Out = {dimsMatMul0In0[0], dimsMatMul0In0[1], dimsMatMul0In0[2], dimsMatMul0In1[3]};
 
-    std::vector<size_t> orderTranspose2 = {0, 2, 1, 3};
+    const std::vector<size_t> orderTranspose2 = {0, 2, 1, 3};
     dimsMatMul1In1 = transpose(dimsTranspose2In0, orderTranspose2);
 
-    bool isAMXSupported = mayiuse(avx512_core_amx);
+    const bool isAMXSupported = mayiuse(avx512_core_amx);
 
     m_threads_num = parallel_get_max_threads();
 
-    size_t matmulOptimalM = 32;
+    const size_t matmulOptimalM = 32;
 
     batch0 = dimsMatMul0Out[0];
     batch1 = dimsMatMul0Out[1];
@@ -1043,7 +1043,7 @@ void MHA::prepareParams() {
 
     auto brg0Prc = inputPrecisions[0];
     brg0VnniFactor = 4 / brg0Prc.size();
-    bool brg0WithAMX =
+    const bool brg0WithAMX =
         isAMXSupported && brg0Prc != ov::element::f32 && (K0 % brg0VnniFactor == 0) && (N0 % brg0VnniFactor == 0);
 
     N0_blk = brg0Prc == ov::element::f32 ? N0 : brg0Prc == ov::element::bf16 ? 32 : 64;
@@ -1112,7 +1112,7 @@ void MHA::prepareParams() {
     auto brg1PrcIn0 = !fqScales2.empty() ? fqPrc2 : inputPrecisions[3];
     auto brg1PrcIn1 = inputPrecisions[3];
     brg1VnniFactor = 4 / brg1PrcIn0.size();
-    bool brg1WithAMX =
+    const bool brg1WithAMX =
         isAMXSupported && brg1PrcIn0 != ov::element::f32 && (K1 % brg1VnniFactor == 0) && (N1 % brg1VnniFactor == 0);
 
     N1_blk = brg1PrcIn1 == ov::element::f32 ? N1 : brg1PrcIn1 == ov::element::bf16 ? 32 : 64;
@@ -1323,7 +1323,7 @@ void MHA::callBrgemm(brgemmCtx& ctx,
         amx_tile_configure(ctx.palette);
     }
     if (ctx.is_with_comp) {
-        brgemm_post_ops_data_t post_ops_data;
+        const brgemm_post_ops_data_t post_ops_data;
         brgemm_kernel_execute_postops(brgKernel.get(), 1, pin0, pin1, nullptr, pout, pout, post_ops_data, wsp);
     } else {
         brgemm_kernel_execute(brgKernel.get(), 1, pin0, pin1, nullptr, pout, wsp);
@@ -1344,27 +1344,27 @@ void MHA::mhaImpl() {
     auto outPrcSize = outputPrecision.size();
 
     auto spatial_loop = [&](size_t i0, size_t i1) {
-        size_t threadNum = parallel_get_thread_num();
+        const size_t threadNum = parallel_get_thread_num();
 
-        auto pTranspose0In0_aux = pTranspose0In0 + (i0 * strTranspose0In0[0] + i1 * strTranspose0In0[2]) *
-                                                       inputPrecisions[0].size();  // order 0213
-        auto pTranspose1In0_aux = pTranspose1In0 + (i0 * strTranspose1In0[0] + i1 * strTranspose1In0[2]) *
-                                                       inputPrecisions[1].size();  // order 0231
+        const auto* pTranspose0In0_aux = pTranspose0In0 + (i0 * strTranspose0In0[0] + i1 * strTranspose0In0[2]) *
+                                                              inputPrecisions[0].size();  // order 0213
+        const auto* pTranspose1In0_aux = pTranspose1In0 + (i0 * strTranspose1In0[0] + i1 * strTranspose1In0[2]) *
+                                                              inputPrecisions[1].size();  // order 0231
 
-        auto pAddIn1_aux = pAddIn1 + i0 * strAddIn1[0];  // order 0231
+        const auto* pAddIn1_aux = pAddIn1 + i0 * strAddIn1[0];  // order 0231
 
-        auto bufferMatMul0In1_local =
+        auto* bufferMatMul0In1_local =
             reinterpret_cast<uint8_t*>(bufferMatMul0In1.data() + threadNum * bufferMatMul0In1Size);
-        auto bufferMatMul0Out_local =
+        auto* bufferMatMul0Out_local =
             reinterpret_cast<uint8_t*>(bufferMatMul0Out.data() + threadNum * bufferMatMul0OutSize);
-        auto bufferMatMul1In1_local =
+        auto* bufferMatMul1In1_local =
             reinterpret_cast<uint8_t*>(bufferMatMul1In1.data() + threadNum * bufferMatMul1In1Size);
-        auto bufferMatMul1Out_local =
+        auto* bufferMatMul1Out_local =
             reinterpret_cast<uint8_t*>(bufferMatMul1Out.data() + threadNum * bufferMatMul1OutSize);
 
-        auto pTranspose1Out_aux = brgCopyBKernel0 ? bufferMatMul1In1_local : bufferMatMul0In1_local;
-        auto pTranspose2In0_aux = pTranspose2In0 + (i0 * strTranspose2In0[0] + i1 * strTranspose2In0[2]) *
-                                                       inputPrecisions[3].size();  // order 0213
+        auto* pTranspose1Out_aux = brgCopyBKernel0 ? bufferMatMul1In1_local : bufferMatMul0In1_local;
+        const auto* pTranspose2In0_aux = pTranspose2In0 + (i0 * strTranspose2In0[0] + i1 * strTranspose2In0[2]) *
+                                                              inputPrecisions[3].size();  // order 0213
 
         if (convertTransposeKernel) {
             jit_convert_transpose_call_args call_args;
@@ -1381,18 +1381,18 @@ void MHA::mhaImpl() {
                       {strTranspose1In0[3], strTranspose1In0[1]});
         }
 
-        auto bufferCompensation0_aux =
+        auto* bufferCompensation0_aux =
             !bufferCompensation0.empty() ? bufferCompensation0.data() + threadNum * bufferCompensation0Size : nullptr;
-        auto bufferCompensation1_aux =
+        auto* bufferCompensation1_aux =
             !bufferCompensation1.empty() ? bufferCompensation1.data() + threadNum * bufferCompensation1Size : nullptr;
 
-        auto wsp_local = !wsp.empty() ? wsp.data() + threadNum * wsp_size_per_thread : nullptr;
+        auto* wsp_local = !wsp.empty() ? wsp.data() + threadNum * wsp_size_per_thread : nullptr;
 
-        auto pMatMul0In1 = reinterpret_cast<uint8_t*>(pTranspose1Out_aux);
+        auto* pMatMul0In1 = reinterpret_cast<uint8_t*>(pTranspose1Out_aux);
         if (brgCopyBKernel0) {
             for (size_t nb = 0; nb < div_up(N0, N0_blk); nb++) {
-                auto pCopyKernel0In = pMatMul0In1 + nb * N0_blk * inputPrecisions[0].size();
-                auto pCopyKernel0Out =
+                auto* pCopyKernel0In = pMatMul0In1 + nb * N0_blk * inputPrecisions[0].size();
+                auto* pCopyKernel0Out =
                     bufferMatMul0In1_local + nb * N0_blk * brg0VnniFactor * inputPrecisions[0].size();
 
                 auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
@@ -1413,12 +1413,12 @@ void MHA::mhaImpl() {
             pMatMul0In1 = bufferMatMul0In1_local;
         }
 
-        auto pMatMul1In1 = pTranspose2In0_aux;
+        const auto* pMatMul1In1 = pTranspose2In0_aux;
         if (brgCopyBKernel1) {
             for (size_t nb = 0; nb < div_up(N1, N1_blk); nb++) {
-                auto pCopyKernel1In = pMatMul1In1 + nb * N1_blk * inputPrecisions[3].size();
-                auto pCopyKernel1Out = reinterpret_cast<uint8_t*>(bufferMatMul1In1_local) +
-                                       nb * N1_blk * brg1VnniFactor * inputPrecisions[3].size();
+                const auto* pCopyKernel1In = pMatMul1In1 + nb * N1_blk * inputPrecisions[3].size();
+                auto* pCopyKernel1Out = reinterpret_cast<uint8_t*>(bufferMatMul1In1_local) +
+                                        nb * N1_blk * brg1VnniFactor * inputPrecisions[3].size();
 
                 auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
 
@@ -1442,7 +1442,7 @@ void MHA::mhaImpl() {
             const bool is_M_tail = (M - mb * M_blk < M_blk);
             auto cur_M_blk = is_M_tail ? M_tail : M_blk;
 
-            auto pMatMul0In0 = pTranspose0In0_aux + (mb * M_blk * batch1 * K0) * inputPrecisions[0].size();
+            const auto* pMatMul0In0 = pTranspose0In0_aux + (mb * M_blk * batch1 * K0) * inputPrecisions[0].size();
 
             // TODO: matrix A copy should be performed to enable AMX matmuls for arbitrary shapes
             // if (brgCopyAKernel0) {
@@ -1469,20 +1469,20 @@ void MHA::mhaImpl() {
             //     pMatMul0In0 = reinterpret_cast<const data_type*>(bufferMatMul0In0_local);
             // }
 
-            auto pMatMul0Out = bufferMatMul0Out_local;
+            auto* pMatMul0Out = bufferMatMul0Out_local;
 
-            size_t brgIdx0 = getBrgIdx(0, 0, 0);
-            size_t K0_step0 = brgCtxs0[brgIdx0].K;
-            size_t K0_step1 = brgCtxs0[brgIdx0].K * brgCtxs0[brgIdx0].LDB;
-            size_t N0_step0 = brgCtxs0[brgIdx0].N * brg0VnniFactor;
-            size_t N0_step1 = brgCtxs0[brgIdx0].N;
+            const size_t brgIdx0 = getBrgIdx(0, 0, 0);
+            const size_t K0_step0 = brgCtxs0[brgIdx0].K;
+            const size_t K0_step1 = brgCtxs0[brgIdx0].K * brgCtxs0[brgIdx0].LDB;
+            const size_t N0_step0 = brgCtxs0[brgIdx0].N * brg0VnniFactor;
+            const size_t N0_step1 = brgCtxs0[brgIdx0].N;
             for (size_t n = 0; n < 2; n++) {
                 for (size_t k = 0; k < 2; k++) {
-                    size_t mIdx = is_M_tail ? 1 : 0;
+                    const size_t mIdx = is_M_tail ? 1 : 0;
                     auto& brgemmCtx = brgCtxs0[getBrgIdx(mIdx, k, n)];
 
-                    auto wsp = brgemmCtx.is_with_comp ? reinterpret_cast<void*>(bufferCompensation0_aux + n * N0_step1)
-                                                      : reinterpret_cast<void*>(wsp_local);
+                    auto* wsp = brgemmCtx.is_with_comp ? reinterpret_cast<void*>(bufferCompensation0_aux + n * N0_step1)
+                                                       : reinterpret_cast<void*>(wsp_local);
 
                     if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
                         callBrgemm(brgemmCtx,
@@ -1495,7 +1495,7 @@ void MHA::mhaImpl() {
                 }
             }
 
-            auto pMulIn1 = reinterpret_cast<float*>(mulScales.empty() ? nullptr : mulScales.data());
+            auto* pMulIn1 = reinterpret_cast<float*>(mulScales.empty() ? nullptr : mulScales.data());
             for (size_t m = 0; m < cur_M_blk; m++) {
                 jit_mul_add_softmax_call_args call_args;
                 call_args.p_in0 = pMatMul0Out + m * N0 * accPrecision0.size();
@@ -1509,24 +1509,24 @@ void MHA::mhaImpl() {
                 (*mulAddSoftmaxKernel)(&call_args);
             }
 
-            auto pMatMul1In0 = bufferMatMul0Out_local;
-            auto pOut_aux = pout + (i0 * strOut[0] + i1 * strOut[2]) * outPrcSize;
+            auto* pMatMul1In0 = bufferMatMul0Out_local;
+            auto* pOut_aux = pout + (i0 * strOut[0] + i1 * strOut[2]) * outPrcSize;
 
-            auto pMatMul1Out = outputPrecision == ov::element::f32 ? pOut_aux + (mb * M_blk * batch1 * N1) * outPrcSize
-                                                                   : bufferMatMul1Out_local;
+            auto* pMatMul1Out = outputPrecision == ov::element::f32 ? pOut_aux + (mb * M_blk * batch1 * N1) * outPrcSize
+                                                                    : bufferMatMul1Out_local;
 
-            size_t brgIdx1 = getBrgIdx(0, 0, 0);
-            size_t K1_step0 = brgCtxs1[brgIdx1].K;
-            size_t K1_step1 = brgCtxs1[brgIdx1].K * brgCtxs1[brgIdx1].LDB;
-            size_t N1_step0 = brgCtxs1[brgIdx1].N * brg1VnniFactor;
-            size_t N1_step1 = brgCtxs1[brgIdx1].N;
+            const size_t brgIdx1 = getBrgIdx(0, 0, 0);
+            const size_t K1_step0 = brgCtxs1[brgIdx1].K;
+            const size_t K1_step1 = brgCtxs1[brgIdx1].K * brgCtxs1[brgIdx1].LDB;
+            const size_t N1_step0 = brgCtxs1[brgIdx1].N * brg1VnniFactor;
+            const size_t N1_step1 = brgCtxs1[brgIdx1].N;
             for (size_t n = 0; n < 2; n++) {
                 for (size_t k = 0; k < 2; k++) {
-                    size_t mIdx = is_M_tail ? 1 : 0;
+                    const size_t mIdx = is_M_tail ? 1 : 0;
                     auto& brgemmCtx = brgCtxs1[getBrgIdx(mIdx, k, n)];
 
-                    auto wsp = brgemmCtx.is_with_comp ? reinterpret_cast<void*>(bufferCompensation1_aux + n * N1_step1)
-                                                      : reinterpret_cast<void*>(wsp_local);
+                    auto* wsp = brgemmCtx.is_with_comp ? reinterpret_cast<void*>(bufferCompensation1_aux + n * N1_step1)
+                                                       : reinterpret_cast<void*>(wsp_local);
 
                     if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
                         callBrgemm(brgemmCtx,

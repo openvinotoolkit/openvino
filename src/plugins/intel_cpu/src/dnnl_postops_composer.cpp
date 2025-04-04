@@ -227,12 +227,12 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
                 return abs(val - ref) < zero_thr;
             });
         };
-    size_t OC = std::max({inputScale.size(),
-                          inputShift.size(),
-                          cropLow.size(),
-                          cropHigh.size(),
-                          outputScale.size(),
-                          outputShift.size()});
+    const size_t OC = std::max({inputScale.size(),
+                                inputShift.size(),
+                                cropLow.size(),
+                                cropHigh.size(),
+                                outputScale.size(),
+                                outputShift.size()});
 
     OPENVINO_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
     OPENVINO_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
@@ -417,7 +417,7 @@ void DnnlPostOpsComposer::updateWeiScales() {
     DEBUG_LOG("Set weight scales mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", wei_scale_mask);
     attr.set_scales_mask(DNNL_ARG_WEIGHTS, wei_scale_mask);
 
-    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({wei_scale_values.size()}));
+    const DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({wei_scale_values.size()}));
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     memcpy(mem->getData(), wei_scale_values.data(), wei_scale_values.size() * sizeof(float));
     cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = mem;
@@ -432,7 +432,7 @@ void DnnlPostOpsComposer::updateDestScales() {
     DEBUG_LOG("Set dest scale mask ", "DNNL_ARG: ", DNNL_ARG_DST, " mask: ", 0);
     attr.set_scales_mask(DNNL_ARG_DST, 0);
 
-    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({1}));
+    const DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({1}));
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     memcpy(mem->getData(), &dst_scale_val, sizeof(float));
     cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST] = mem;
@@ -448,7 +448,7 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
 
     DEBUG_LOG("Append binary post op with algorithm: ", convert_to_c(alg), " Shape: ", Shape(*pdims));
 
-    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
+    const DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
 
     // copy the data as args
@@ -647,15 +647,15 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
     const size_t OC = shape[shape.size() - 2];
     const size_t G = shape[shape.size() - 1];
 
-    Shape dstShape = Shape({OC, G});
+    const Shape dstShape = Shape({OC, G});
 
-    DnnlBlockedMemoryDesc dstMemoryDesc(dstShape,
-                                        DnnlExtensionUtils::ElementTypeToDataType(dstPrc),
-                                        dnnl::memory::format_tag::io);
+    const DnnlBlockedMemoryDesc dstMemoryDesc(dstShape,
+                                              DnnlExtensionUtils::ElementTypeToDataType(dstPrc),
+                                              dnnl::memory::format_tag::io);
     auto dstMem = std::make_shared<Memory>(engine, dstMemoryDesc);
     auto srcFormat = needTranspose ? dnnl::memory::format_tag::oi : dnnl::memory::format_tag::io;
 
-    DnnlBlockedMemoryDesc srcMemoryDesc(
+    const DnnlBlockedMemoryDesc srcMemoryDesc(
         dstShape,
         DnnlExtensionUtils::ElementTypeToDataType(paramsPtr->getDescPtr()->getPrecision()),
         srcFormat);
@@ -670,10 +670,10 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
         return {};
     }
 
-    int N = weiDims[weiDims.size() - 2];
-    int K = weiDims[weiDims.size() - 1];
-    dnnl::memory::dim groupN = N / scaleDims[0];
-    dnnl::memory::dim groupK = K / scaleDims[1];
+    const int N = weiDims[weiDims.size() - 2];
+    const int K = weiDims[weiDims.size() - 1];
+    const dnnl::memory::dim groupN = N / scaleDims[0];
+    const dnnl::memory::dim groupK = K / scaleDims[1];
 
     return {groupK, groupN};
 }
@@ -681,8 +681,8 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
 static int getMask(const VectorDims& weiDims, const dnnl::memory::dims& groupDims) {
     const int maskN = 1 << (weiDims.size() - 1);
     const int maskK = 1 << (weiDims.size() - 2);
-    int N = weiDims[weiDims.size() - 2];
-    int K = weiDims[weiDims.size() - 1];
+    const int N = weiDims[weiDims.size() - 2];
+    const int K = weiDims[weiDims.size() - 1];
     int mask = 0;
     if (!groupDims.empty() && groupDims[1] != N) {
         mask += maskN;
@@ -767,7 +767,7 @@ void DnnlPostOpsComposer::setDynamicQuantizationParams(uint64_t groupSize) {
 DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
     for (size_t i = 0; i < postOps.size(); ++i) {
         const auto& postOp = postOps[i];
-        bool isLastPostOp = (i == (postOps.size() - 1));
+        const bool isLastPostOp = (i == (postOps.size() - 1));
         // @todo replace dynamic cast with an interface for appending to DNNL postops
         if (const auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOp)) {
             appendAttrPostOps(*activation, isLastPostOp);

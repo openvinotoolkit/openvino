@@ -49,7 +49,7 @@ void DnnlExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, 
     std::unordered_map<int, dnnl::memory> outputMem;
     for (auto& outReorder : outputReorders) {
         if (primArgs.count(outReorder.first)) {
-            dnnl::memory memSrc(outReorder.second.getSrcDesc(), strm.get_engine());
+            const dnnl::memory memSrc(outReorder.second.getSrcDesc(), strm.get_engine());
             outputMem[outReorder.first] = primArgs[outReorder.first];
             primArgs[outReorder.first] = memSrc;
         } else {
@@ -77,7 +77,7 @@ const_dnnl_primitive_desc_t DnnlExecutor::getPrimitiveDesc() const {
 }
 
 impl_desc_type DnnlExecutor::getImplementationType() const {
-    auto pd = getPrimitiveDesc();
+    const auto* pd = getPrimitiveDesc();
     return parse_impl_name(DnnlExtensionUtils::query_impl_info_str(pd));
 }
 

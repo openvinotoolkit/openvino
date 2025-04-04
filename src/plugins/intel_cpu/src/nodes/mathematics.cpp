@@ -66,7 +66,7 @@ void Math::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
-    size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
+    const size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     const auto* src_data = getSrcDataAtPortAs<const float>(0);
     auto* dst_data = getDstDataAtPortAs<float>(0);
 
@@ -147,7 +147,7 @@ void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
         alpha = (alpha == 0.0f) ? 1.67326f : alpha;
         gamma = (gamma == 0.0f) ? 1.0507f : gamma;
         parallel_for(dataSize, [&](size_t i) {
-            float x = src_data[i];
+            const float x = src_data[i];
             dst_data[i] = (x > 0.0f) ? (gamma * x) : (gamma * alpha * (std::exp(x) - 1.0f));
         });
         break;
@@ -181,7 +181,7 @@ void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
         break;
     case Algorithm::MathSoftsign:
         parallel_for(dataSize, [&](size_t i) {
-            float x = src_data[i];
+            const float x = src_data[i];
             dst_data[i] = x / (1.f + (std::abs)(x));
         });
         break;
