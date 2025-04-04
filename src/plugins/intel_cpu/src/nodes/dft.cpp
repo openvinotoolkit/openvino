@@ -24,10 +24,6 @@ namespace ov::intel_cpu::node {
 
 bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         if (!ov::is_type_any_of<const op::v7::DFT, const op::v7::IDFT>(op)) {
             errorMessage = "Only opset7 DFT/IDFT operation is supported";
             return false;
@@ -43,31 +39,6 @@ DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
-    }
-
-    const size_t inputsNumber = getOriginalInputsNumber();
-    if (inputsNumber != 2 && inputsNumber != 3) {
-        THROW_CPU_NODE_ERR("has invalid number of input/output edges: ", inputsNumber);
-    }
-
-    /* Data */
-    inputShape = inputShapes[DATA_INDEX].getStaticDims();
-    if (inputShape.size() < 2) {
-        THROW_CPU_NODE_ERR("has invalid 'data' input tensor with rank: ", inputShape.size());
-    }
-
-    /* Axes */
-    const auto axesRank = inputShapes[AXES_INDEX].getRank();
-    if (axesRank != 1) {
-        THROW_CPU_NODE_ERR("has invalid 'axes' input tensor with rank: ", axesRank);
-    }
-
-    /* Signal size */
-    if (inputsNumber > SIGNAL_SIZE_INDEX) {
-        const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
-        if (signalSizeRank != 1) {
-            THROW_CPU_NODE_ERR("has invalid 'signal_size' input tensor with rank: ", signalSizeRank);
-        }
     }
 
     inverse = !ov::is_type<op::v7::DFT>(op);
@@ -245,11 +216,16 @@ void copyDataToOutputWithSignalSize(const float* input,
 
 }  // namespace
 
-void DFT::execute(const dnnl::stream& strm) {
-    const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
+void DFT::executeDynamicImpl(const dnnl::stream& strm) {
+    execute(strm);
+}
 
+void DFT::execute(const dnnl::stream& strm) {
     const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
     const auto outputDataEdge = getChildEdgeAt(0);
+
+    const auto& outputShape = outputDataEdge->getMemory().getStaticDims();
+    inputShape = inputDataEdge->getMemory().getStaticDims();
 
     const auto src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
     auto dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
@@ -613,5 +589,11 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         }
     }
 #endif
+}
+
+bool DFT::needShapeInfer() const {
+    // TODO: Implement needShapeInfer logic
+    return true;
+    // return Node::needShapeInfer();
 }
 }  // namespace ov::intel_cpu::node
