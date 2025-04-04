@@ -366,10 +366,10 @@ void Subgraph::createPrimitive() {
         input_num = config.inConfs.size();
         output_num = config.outConfs.size();
 
-        initAttributes();
-        optimizeIR();
         initMemoryPtrs();
         initPluginBlockedShapes();
+        initAttributes();
+        optimizeIR();
         prepareWeights();
         // Init starts offsets should be after `prepareWeights`
         initStartOffsets();
@@ -399,12 +399,12 @@ void Subgraph::initAttributes() {
     subgraph_attrs->outMemOrders.resize(output_num);
 
     for (size_t i = 0; i < input_num; i++) {
-        const auto& memDesc = getSrcMemoryAtPort(i)->getDescWithType<BlockedMemoryDesc>();
+        const auto& memDesc = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>();
         subgraph_attrs->inMemPrecs[i] = memDesc->getPrecision();
         subgraph_attrs->inMemOrders[i] = memDesc->getOrder();
     }
     for (size_t i = 0; i < output_num; i++) {
-        const auto& memDesc = getDstMemoryAtPort(i)->getDescWithType<BlockedMemoryDesc>();
+        const auto& memDesc = dstMemPtrs[i]->getDescWithType<BlockedMemoryDesc>();
         subgraph_attrs->outMemPrecs[i] = memDesc->getPrecision();
         subgraph_attrs->outMemOrders[i] = memDesc->getOrder();
     }

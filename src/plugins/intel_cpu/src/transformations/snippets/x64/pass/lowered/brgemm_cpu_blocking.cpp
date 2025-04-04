@@ -64,12 +64,6 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
         n_blk = get_full_dim_value();
         k_blk = get_full_dim_value();
     }
-    if (brgemm->get_postops_config().post_ops.len() != 0) {
-        // TODO: support postops in case of K blocking
-        // Disable K/N blocking for now
-        k_blk = get_full_dim_value();
-        n_blk = get_full_dim_value();
-    }
     return std::make_tuple(m_blk, n_blk, k_blk);
 }
 

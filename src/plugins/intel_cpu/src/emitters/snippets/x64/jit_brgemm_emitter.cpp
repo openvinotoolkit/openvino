@@ -7,7 +7,6 @@
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
@@ -124,7 +123,6 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
     init_binary_call_regs(2, mem_ptrs_idxs);
     if (m_with_scratchpad) {
-        OV_CPU_JIT_EMITTER_ASSERT(in.size() >= 3, "expects 3 inputs if there are compensations/wsp");
         mem_ptrs_idxs.emplace_back(in[2]);
     }
 

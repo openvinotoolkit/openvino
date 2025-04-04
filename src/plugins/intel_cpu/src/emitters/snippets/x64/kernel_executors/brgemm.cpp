@@ -99,6 +99,7 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
     const auto is_with_comp = config.get_beta() == 0 && config.is_with_comp();
     // TODO: support postops in case of blocking.
     // In this case, postops must be applied only on last K blocking loop iteration.
+    // Ticket: 165567
     const auto apply_post_ops = true;
     execute_brgemm_kernel(kernel->brgemm_kernel,
                           args->A,

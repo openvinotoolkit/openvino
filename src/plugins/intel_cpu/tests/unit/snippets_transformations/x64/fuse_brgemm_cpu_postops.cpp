@@ -68,8 +68,10 @@ protected:
         ASSERT_EQ(external_params_idces, expected_external_params_idces);
     }
 
-    std::set<size_t> external_params_idces = {};
     std::set<size_t> expected_external_params_idces = {};
+
+private:
+    std::set<size_t> external_params_idces = {};
 };
 
 using FuseConvertParams = std::tuple<std::pair<ov::element::Type, ov::element::Type>,  // Brgemm input precisions
@@ -267,7 +269,6 @@ TEST_P(FuseScalarEltwiseTests, CompareFunctions) {}
 TEST_P(FuseBinaryEltwiseTests, CompareFunctions) {}
 
 const std::vector<std::pair<ov::element::Type, ov::element::Type>> input_precisions = {
-    {ov::element::f32, ov::element::f32},
     {ov::element::i8, ov::element::i8},
     {ov::element::u8, ov::element::i8},
     {ov::element::bf16, ov::element::bf16}};
@@ -293,14 +294,9 @@ INSTANTIATE_TEST_SUITE_P(FuseBrgemmCPUPostopsTests,
 
 const std::vector<ov::PartialShape> postop_input_shapes = {{1, 1, 1, 128}, {128}};
 
-const std::vector<std::pair<ov::element::Type, ov::element::Type>> binary_postops_input_precisions = {
-    {ov::element::i8, ov::element::i8},
-    {ov::element::u8, ov::element::i8},
-    {ov::element::bf16, ov::element::bf16}};
-
 INSTANTIATE_TEST_SUITE_P(FuseBrgemmCPUPostopsTests,
                          FuseBinaryEltwiseTests,
-                         ::testing::Combine(::testing::ValuesIn(binary_postops_input_precisions),
+                         ::testing::Combine(::testing::ValuesIn(input_precisions),
                                             ::testing::ValuesIn(eltwise_postop_types),
                                             ::testing::ValuesIn(postop_input_shapes)),
                          FuseBinaryEltwiseTests::getTestCaseName);
@@ -309,21 +305,22 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseScaleShift) {
     const float scale_val = 2.f;
     const float shift_val = 3.f;
     {
-        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_a_shape);
-        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_b_shape);
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_b_shape);
         auto brgemm = make_brgemm({input1, input2});
+        auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm, ov::element::f32);
 
         auto scale = std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, scale_val);
         auto shift = std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, shift_val);
-        auto scale_op = std::make_shared<ov::opset1::Multiply>(brgemm, scale);
+        auto scale_op = std::make_shared<ov::opset1::Multiply>(convert, scale);
         auto shift_op = std::make_shared<ov::opset1::Add>(scale_op, shift);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{shift_op}, ov::ParameterVector{input1, input2});
     }
 
     {
-        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_a_shape);
-        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_b_shape);
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_b_shape);
         BrgemmCPU::PostopsConfig postops;
         postops.forced_output_type = ov::element::f32;
         postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, scale_val, shift_val);
@@ -337,21 +334,22 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseClip) {
     const float in_low = 0.f;
     const float in_high = 6.f;
     {
-        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_a_shape);
-        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_b_shape);
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_b_shape);
         auto brgemm = make_brgemm({input1, input2});
+        auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm, ov::element::f32);
 
         auto max_scalar = std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, in_low);
         auto min_scalar = std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, in_high);
-        auto max_op = std::make_shared<ov::opset1::Maximum>(brgemm, max_scalar);
+        auto max_op = std::make_shared<ov::opset1::Maximum>(convert, max_scalar);
         auto min_op = std::make_shared<ov::opset1::Minimum>(max_op, min_scalar);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{min_op}, ov::ParameterVector{input1, input2});
     }
 
     {
-        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_a_shape);
-        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_b_shape);
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_b_shape);
         BrgemmCPU::PostopsConfig postops;
         postops.forced_output_type = ov::element::f32;
         postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_clip, in_low, in_high);
@@ -361,7 +359,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseClip) {
     }
 }
 
-TEST_F(FuseBrgemmCPUPostopsTests, FuseMultipleTransformations) {
+TEST_F(FuseBrgemmCPUPostopsTests, BrgemmPostopsCascade) {
     const float in_low = 0.f;
     const float in_high = 6.f;
     const float scalar_mul = 2.f;
@@ -398,7 +396,6 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseMultipleTransformations) {
             auto mul_op = std::make_shared<ov::opset1::Multiply>(min_op, scalar_mul_node);
             return std::make_shared<ov::snippets::op::ConvertSaturation>(mul_op, ov::element::u8);
         };
-        // Create the test model
 
         auto brgemm1 = make_brgemm({input1, input2});
         auto sequence1 = build_sequence(brgemm1);
@@ -426,7 +423,6 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseMultipleTransformations) {
             postops.forced_output_type = ov::element::u8;
             return postops;
         };
-        // Create the reference model
         auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_input_shape);
         auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_input_shape);
         auto binary_mul_param1 =
@@ -463,6 +459,11 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseMultipleTransformations) {
 
 TEST_F(FuseBrgemmCPUPostopsTests, NegativeUnsupportedConvertDstType) {
     model = FuseConvertTests::get_model({ov::element::bf16, ov::element::bf16}, ov::element::bf16);
+}
+
+TEST_F(FuseBrgemmCPUPostopsTests, NegativeScalarUnsupportedPrecision) {
+    model = FuseScalarEltwiseTests::get_model({ov::element::f32, ov::element::f32},
+                                              ov::opset1::Add::get_type_info_static());
 }
 
 TEST_F(FuseBrgemmCPUPostopsTests, NegativeBinaryUnsupportedPrecision) {
