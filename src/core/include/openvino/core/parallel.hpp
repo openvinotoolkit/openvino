@@ -22,7 +22,7 @@
 #define OV_THREAD_SEQ      2
 #define OV_THREAD_TBB_AUTO 3
 
-#define TBB_OPTION 2
+#define TBB_OPTION 1
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    ifndef NOMINMAX
