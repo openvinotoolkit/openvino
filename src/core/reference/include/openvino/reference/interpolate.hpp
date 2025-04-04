@@ -29,7 +29,9 @@ using InterpolateMode = op::v4::Interpolate::InterpolateMode;
 /// \param mode the calculation mode
 ///
 /// \return The function to calculate the nearest pixel.
-std::function<int64_t(float, bool)> get_func(Nearest_mode mode);
+using NearestFuncPtr = int64_t (*)(float, bool);
+NearestFuncPtr get_func(Nearest_mode mode);
+
 /// \brief Calculation of nearest pixel.
 class GetNearestPixel final {
 public:
@@ -54,9 +56,7 @@ public:
     }
 
 private:
-    using Func = std::function<int64_t(float, bool)>;
-
-    Func m_func;
+    NearestFuncPtr m_func;
 };
 
 /// \brief Gets the function to calculate the source coordinate.
@@ -64,7 +64,8 @@ private:
 /// \param mode the calculation mode
 ///
 /// \return The function to calculate the source coordinate.
-std::function<float(float, float, float, float)> get_func(Transform_mode mode);
+using TransformFuncPtr = float (*)(float, float, float, float);
+TransformFuncPtr get_func(Transform_mode mode);
 
 /// \brief Calculation of the source coordinate using the resized coordinate
 class GetOriginalCoordinate final {
@@ -95,9 +96,7 @@ public:
     }
 
 private:
-    using Func = std::function<float(float, float, float, float)>;
-
-    Func m_func;
+    TransformFuncPtr m_func;
 };
 
 /// \brief Helper class to implent non-template parts of the interpolation calculation.
