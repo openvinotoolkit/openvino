@@ -34,7 +34,7 @@ public:
     [[nodiscard]] dnnl_data_type_t get_dt_in1() const {
         return get_static_params()->dt_in1;
     }
-    dnnl_data_type_t get_dt_out() const {
+    [[nodiscard]] dnnl_data_type_t get_dt_out() const {
         return get_static_params()->dt_out;
     }
 
@@ -42,7 +42,7 @@ public:
         return get_static_params()->isa;
     }
 
-    const dnnl_post_ops& get_post_ops() const {
+    [[nodiscard]] const dnnl_post_ops& get_post_ops() const {
         return get_static_params()->post_ops;
     }
 

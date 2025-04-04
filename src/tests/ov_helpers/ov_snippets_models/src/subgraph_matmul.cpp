@@ -141,16 +141,7 @@ std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
         in1 = std::make_shared<op::v1::Transpose>(in1, const_order);
     }
     auto matmul = std::make_shared<op::v0::MatMul>(in0, in1);
-    const auto& out_shape = matmul->get_output_partial_shape(0);
-    const auto& out_channels = *out_shape.rbegin();
-    OPENVINO_ASSERT(out_channels.is_static());
-
-    ov::Shape bias_shape(out_shape.size(), 1);
-    bias_shape.back() = out_channels.get_length();
-    const auto bias = ov::test::utils::make_constant(matmul->get_output_element_type(0), bias_shape);
-    const auto add = std::make_shared<ov::op::v1::Add>(matmul, bias);
-    const auto relu = std::make_shared<ov::op::v0::Relu>(add);
-    std::shared_ptr<ov::Node> out = relu;
+    std::shared_ptr<ov::Node> out = matmul;
     if (pos == 2) {
         out = std::make_shared<op::v1::Transpose>(out, const_order);
     }
@@ -381,6 +372,7 @@ std::shared_ptr<ov::Model> MatMulEltwiseChainCascadeFunction::initOriginal() con
     auto eltwise_chain_2 = build_eltwise_chain(matmul2);
     return std::make_shared<ov::Model>(NodeVector{eltwise_chain_2}, params);
 }
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

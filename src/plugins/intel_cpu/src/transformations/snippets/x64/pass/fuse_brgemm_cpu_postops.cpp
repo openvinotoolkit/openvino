@@ -13,10 +13,8 @@
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/scalar.hpp"
-#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -52,20 +50,53 @@ std::shared_ptr<BrgemmCPU> clone_with_new_params(
     return new_brgemm;
 }
 
-auto common_brgemm_predicate = [](const Output<Node>& output) {
-    return has_static_rank()(output) && consumers_count(1)(output);
+auto brgemm_predicate = [](const Output<Node>& output) {
+    const auto brgemm = output.get_node_shared_ptr();
+    // Note: binary postops are not supported in case of blocking enabled,
+    // so f32 precision is not included in supported list
+    // Ticket: 165567
+    static const ov::element::TypeVector supported_in_precisions{ov::element::bf16, ov::element::i8, ov::element::u8};
+    return has_static_rank()(output) && consumers_count(1)(output) &&
+           type_matches_any(supported_in_precisions)(brgemm->input_value(0)) &&
+           type_matches_any(supported_in_precisions)(brgemm->input_value(1));
 };
 
-auto common_scalar_predicate = [](const Output<Node>& output) {
+auto scalar_predicate = [](const Output<Node>& output) {
     return type_matches(ov::element::f32)(output);
 };
 
 }  // namespace
 
+pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops(std::set<size_t>& brgemm_external_params_idces)
+    : m_brgemm_external_params_idces(brgemm_external_params_idces) {
+    add_matcher<FuseScaleShift>();
+    add_matcher<FuseClip>();
+    add_matcher<FuseConvert>();
+    add_matcher<FuseScalarEltwise>();
+    add_matcher<FuseBinaryEltwise>(m_external_params);
+}
+
+bool pass::FuseBrgemmCPUPostops::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    RUN_ON_MODEL_SCOPE(FuseBrgemmCPUPostops);
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseBrgemmCPUPostops")
+    const auto res = GraphRewrite::run_on_model(m);
+    for (const auto& param : m_external_params) {
+        m_brgemm_external_params_idces.insert(m->get_parameter_index(param));
+    }
+    if (!m_brgemm_external_params_idces.empty()) {
+        std::cout << " [ INFO ] FuseBrgemmCPUPostops m_brgemm_external_params_idces = { ";
+        for (const auto& idx : m_brgemm_external_params_idces) {
+            std::cout << idx << " ";
+        }
+        std::cout << "}" << std::endl;
+    }
+    return res;
+}
+
 pass::FuseConvert::FuseConvert() {
     MATCHER_SCOPE(FuseConvert);
 
-    auto m_brgemm = wrap_type<BrgemmCPU>(common_brgemm_predicate);
+    auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_convert =
         wrap_type<ConvertSaturation>({m_brgemm},
                                      type_matches_any({ov::element::f32, ov::element::i8, ov::element::u8}));
@@ -117,8 +148,8 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
         return true;
     };
 
-    auto m_brgemm = wrap_type<BrgemmCPU>(common_brgemm_predicate);
-    auto m_scalar = wrap_type<Scalar>(common_scalar_predicate);
+    auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
+    auto m_scalar = wrap_type<Scalar>(scalar_predicate);
     auto m_scale = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_scalar}, not_scale_shift_pattern);
     auto m_shift = wrap_type<ov::op::v1::Add>({m_brgemm, m_scalar});
     auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_scalar}, not_clip_pattern);
@@ -177,18 +208,6 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
 
     auto binary_input_predicate = [](const Output<Node>& output) {
         return has_static_shape()(output) && type_matches(ov::element::f32)(output) && consumers_count(1)(output);
-    };
-
-    auto brgemm_predicate = [](const Output<Node>& output) {
-        const auto brgemm = output.get_node_shared_ptr();
-        // Note: binary postops are not supported in case of blocking enabled,
-        // so f32 precision is not included in supported list
-        static const ov::element::TypeVector supported_in_precisions{ov::element::bf16,
-                                                                     ov::element::i8,
-                                                                     ov::element::u8};
-        return common_brgemm_predicate(output) &&
-               type_matches_any(supported_in_precisions)(brgemm->input_value(0)) &&
-               type_matches_any(supported_in_precisions)(brgemm->input_value(1));
     };
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
@@ -253,10 +272,6 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             OPENVINO_THROW("Unexpected postop: ", post_op);
         }
 
-        const auto postop_input_node = ov::as_type_ptr<ov::op::v0::Parameter>(parameter_out.get_node_shared_ptr());
-        OPENVINO_ASSERT(postop_input_node != nullptr, "postop_input_node is nullptr. It should be a Parameter node");
-        m_external_params.insert(postop_input_node);
-
         auto brgemm_inputs = brgemm->input_values();
         auto input_descs = brgemm->get_input_port_descriptors();
         brgemm_inputs.push_back(pattern_map.count(m_rank_norm) ? pattern_map.at(m_rank_norm) : parameter_out);
@@ -277,6 +292,8 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             PortDescriptorUtils::set_ignored_reg_type(rank_norm->input(0));
             PortDescriptorUtils::set_ignored_reg_type(rank_norm->output(0));
         }
+
+        m_external_params.insert(ov::as_type_ptr<ov::op::v0::Parameter>(parameter_out.get_node_shared_ptr()));
         m_fused_postops_count++;
         return true;
     };
@@ -288,10 +305,10 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
 pass::FuseScaleShift::FuseScaleShift() {
     MATCHER_SCOPE(FuseScaleShift);
 
-    auto m_brgemm = wrap_type<BrgemmCPU>(common_brgemm_predicate);
-    auto m_alpha = wrap_type<Scalar>(common_scalar_predicate);
+    auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
+    auto m_alpha = wrap_type<Scalar>(scalar_predicate);
     auto m_scale = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_alpha}, consumers_count(1));
-    auto m_beta = wrap_type<Scalar>(common_scalar_predicate);
+    auto m_beta = wrap_type<Scalar>(scalar_predicate);
     auto m_shift = wrap_type<ov::op::v1::Add>({m_scale, m_beta});
 
     auto callback = [=](Matcher& m) {
@@ -332,10 +349,10 @@ pass::FuseScaleShift::FuseScaleShift() {
 pass::FuseClip::FuseClip() {
     MATCHER_SCOPE(FuseClip);
 
-    auto m_brgemm = wrap_type<BrgemmCPU>(common_brgemm_predicate);
-    auto m_in_low = wrap_type<Scalar>(common_scalar_predicate);
+    auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
+    auto m_in_low = wrap_type<Scalar>(scalar_predicate);
     auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_in_low}, consumers_count(1));
-    auto m_in_high = wrap_type<Scalar>(common_scalar_predicate);
+    auto m_in_high = wrap_type<Scalar>(scalar_predicate);
     auto m_min = wrap_type<ov::op::v1::Minimum>({m_max, m_in_high});
 
     auto callback = [=](Matcher& m) {
@@ -374,32 +391,6 @@ pass::FuseClip::FuseClip() {
 
     auto m = std::make_shared<Matcher>(m_min, matcher_name);
     register_matcher(m, callback);
-}
-
-pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops(std::set<size_t>& brgemm_external_params_idces)
-    : m_brgemm_external_params_idces(brgemm_external_params_idces) {
-    add_matcher<FuseScaleShift>();
-    add_matcher<FuseClip>();
-    add_matcher<FuseConvert>();
-    add_matcher<FuseScalarEltwise>();
-    add_matcher<FuseBinaryEltwise>(m_external_params);
-}
-
-bool pass::FuseBrgemmCPUPostops::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    RUN_ON_MODEL_SCOPE(FuseBrgemmCPUPostops);
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseBrgemmCPUPostops")
-    const auto res = GraphRewrite::run_on_model(m);
-    for (const auto& param : m_external_params) {
-        m_brgemm_external_params_idces.insert(m->get_parameter_index(param));
-    }
-    if (!m_brgemm_external_params_idces.empty()) {
-        std::cout << " [ INFO ] FuseBrgemmCPUPostops m_brgemm_external_params_idces = { ";
-        for (const auto& idx : m_brgemm_external_params_idces) {
-            std::cout << idx << " ";
-        }
-        std::cout << "}" << std::endl;
-    }
-    return res;
 }
 
 }  // namespace ov::intel_cpu
