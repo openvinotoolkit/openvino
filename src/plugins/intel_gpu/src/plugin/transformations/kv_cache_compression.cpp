@@ -102,8 +102,8 @@ std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed>
                     std::shared_ptr<ov::intel_gpu::op::KVCache> kv_cache_node,
                     const ov::op::internal::DynamicQuantize::Attributes& quantization_attrs) {
     OutputVector kv_cache_inputs = { past_rv_node->output(0),
-                                     kv_cache_node->get_input_node_shared_ptr(1),
-                                     kv_cache_node->get_input_node_shared_ptr(2),
+                                     kv_cache_node->input_value(1),
+                                     kv_cache_node->input_value(2),
                                      past_rv_node->output(1) };
 
     if (quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
