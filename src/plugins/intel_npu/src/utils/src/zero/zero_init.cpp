@@ -309,6 +309,11 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
 }
 
+const std::shared_ptr<ZeroInitStructsHolder>& ZeroInitStructsHolder::getInstance() {
+    static std::shared_ptr<ZeroInitStructsHolder> instance = std::make_shared<ZeroInitStructsHolder>();
+    return instance;
+}
+
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     if (context) {
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
