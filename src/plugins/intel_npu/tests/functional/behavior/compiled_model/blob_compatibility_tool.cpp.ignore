@@ -245,12 +245,21 @@ int main(int argc, char* argv[]) {
         std::cout << "Driver Version: " << driver_version << std::endl;
         std::cout << std::endl;
 
+        auto config = ov::AnyMap{};
+        // fix "Cannot get length of dynamic dimension" throw at `firstOutputShape[BATCH_AXIS].get_length()` for ov versions < 2025.1
+        auto supportedProperties = core.get_property(DEVICE_NPU, ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
+        if (auto prop = std::find(supportedProperties.begin(), supportedProperties.end(), "NPU_DEFER_WEIGHTS_LOAD"); prop != supportedProperties.end()) {
+            config.insert({"NPU_DEFER_WEIGHTS_LOAD", true});
+        } else {
+            config.insert({"NPU_CREATE_EXECUTOR", false});
+        }
+
         for(auto&& model : models) {
             std::string outputFileName = "blob_compatibility_";
             std::replace(version.begin(), version.end(), '.', '_');
             std::cout << "Compiling model " << model->get_friendly_name() << "..." << std::endl;
             outputFileName += model->get_friendly_name() + "_" + platform + "_ov_" + version.substr(0, version.find('-')) + "_driver_" + driver_version + ".blob";
-            auto compiledModel = core.compile_model(model, DEVICE_NPU, {});
+            auto compiledModel = core.compile_model(model, DEVICE_NPU, config);
             // auto inferRequest = compiledModel.create_infer_request();
             // inferRequest.infer();
             std::ofstream outputFile(outputFileName, std::ios::binary);

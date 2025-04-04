@@ -195,6 +195,13 @@ std::shared_ptr<ov::Model> make_read_concat_split_assign() {
     return model;
 }
 
+namespace {
+
+const char* const BLOB_PREFIX = "blob_compatibility_";
+const char* const BLOB_SUFFIX = ".blob";
+
+}  // namespace
+
 std::shared_ptr<ov::Model> multi_output_split_dynamic() {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
     const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
@@ -223,14 +230,19 @@ class OVBlobCompatibilityNPU : public OVCompiledNetworkTestBase,
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        auto params = this->GetParam();
-        target_device = std::get<0>(params);
-        if (ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM != std::get<2>(params)) {
-            GTEST_SKIP();
-        }
-        blobName = "blob_compatibility_" + std::get<1>(params) + "_" + std::get<2>(params) + "_" + std::get<3>(params) +
-                   "_" + std::get<4>(params) + ".blob";
+        std::string model_name, platform, ov_release, driver;
+        std::tie(target_device, model_name, platform, ov_release, driver) = this->GetParam();
+        blobName = BLOB_PREFIX + model_name + "_" + platform + "_" + ov_release + "_" + driver + BLOB_SUFFIX;
         APIBaseTest::SetUp();
+    }
+
+    static std::string getTestCaseName(testing::TestParamInfo<BlobCompatibilityParams> obj) {
+        std::string target_device, model_name, platform, ov_release, driver;
+        std::tie(target_device, model_name, platform, ov_release, driver) = obj.param;
+        std::ostringstream result;
+        result << "targetDevice=" << target_device << "_blobName=\"" << BLOB_PREFIX << model_name << "_" << platform
+               << "_" << ov_release << "_" << driver << BLOB_SUFFIX << "\"";
+        return result.str();
     }
 
 protected:
@@ -238,13 +250,13 @@ protected:
 };
 
 TEST_P(OVBlobCompatibilityNPU, CheckBlobsWithDifferentVersionsAreCompatible) {
-    std::ifstream blobStream(blobName, std::ios::binary);
+    std::ifstream blobStream(blobName, std::ios::binary | std::ios::in);
     if (!blobStream.is_open()) {
         GTEST_FAIL() << blobName << " could not be opened. Is it located at the path of the executable?";
     }
 
     ov::Core core;
-    OV_ASSERT_NO_THROW(core.import_model(blobStream, target_device, {}));
+    OV_ASSERT_NO_THROW(core.import_model(blobStream, target_device, {ov::intel_npu::disable_version_check(true)}));
 }
 
 }  // namespace behavior
