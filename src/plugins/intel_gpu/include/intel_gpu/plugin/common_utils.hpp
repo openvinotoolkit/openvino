@@ -142,7 +142,7 @@ void convert_and_copy(
     cldnn::memory::ptr dst,
     cldnn::stream& stream,
     const cldnn::layout& src_layout = cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
-void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream);
+void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor* dst, const cldnn::stream& stream);
 void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::stream& stream);
 void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldnn::stream& stream);
 

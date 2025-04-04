@@ -162,7 +162,7 @@ template <element::Type_t ET>
 bool evaluate(const Tensor& feature_maps,
               const Tensor& rois,
               const std::vector<int64_t>& batch_indices_vec_scaled_up,
-              const Tensor& out,
+              Tensor& out,
               const int pooled_height,
               const int pooled_width,
               const int sampling_ratio,
@@ -189,7 +189,7 @@ bool evaluate(const Tensor& feature_maps,
 }
 
 bool evaluate(const TensorVector& args,
-              const Tensor& out,
+              Tensor& out,
               const int pooled_height,
               const int pooled_width,
               const int sampling_ratio,

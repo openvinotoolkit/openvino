@@ -82,8 +82,8 @@ inline void validate_colors(const ov::Tensor& expected, const ov::Tensor& actual
 #define CASE(X)                                                             \
     case X:                                                                 \
         validate_colors(                                                    \
-                static_cast<ov::fundamental_type_for<X>*>(expected.data()), \
-                static_cast<ov::fundamental_type_for<X>*>(actual.data()),   \
+                static_cast<const ov::fundamental_type_for<X>*>(expected.data()), \
+                static_cast<const ov::fundamental_type_for<X>*>(actual.data()),   \
                                                      expected.get_size(),   \
                                                      dev_threshold,         \
                                                      abs_threshold);        \
