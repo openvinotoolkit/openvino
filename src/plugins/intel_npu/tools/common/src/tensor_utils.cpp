@@ -462,7 +462,7 @@ std::vector<std::vector<float>> parseTensorsAsFP32(const std::map<std::string, o
         std::vector<float> result(size);
         std::copy_n(dataBuffer, size, result.begin());
 
-        results.push_back(result);
+        results.push_back(std::move(result));
     }
 
     return results;
