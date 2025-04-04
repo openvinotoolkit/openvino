@@ -76,7 +76,7 @@ SoftMax::SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 }
 
 void SoftMax::getSupportedDescriptors() {
-    if (descs.size()) {
+    if (!descs.empty()) {
         return;
     }
 
@@ -89,7 +89,7 @@ void SoftMax::getSupportedDescriptors() {
     if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("Incorrect number of input edges");
     }
-    if (!getChildEdges().size()) {
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("Incorrect number of output edges");
     }
 

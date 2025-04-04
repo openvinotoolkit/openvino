@@ -82,7 +82,7 @@ void GRN::prepareParams() {
         }
     }
 
-    if (dataDims.size() > 0) {
+    if (!dataDims.empty()) {
         N = static_cast<int>(dataDims[0]);
     }
     if (dataDims.size() > 1) {

@@ -370,8 +370,8 @@ void Gather::prepareParams() {
     if (dataSrcRank <= 1 && dataMemPtr->getDesc().getPrecision() == ov::element::i32) {
         const auto& dataDims = dataMemPtr->getStaticDims();
         const auto& idxDims = idxMemPtr->getStaticDims();
-        if ((dataDims.size() == 0 || (dataDims.size() == 1 && dataDims[0] <= 64)) &&
-            (idxDims.size() == 0 || (idxDims.size() == 1 && idxDims[0] <= 64))) {
+        if ((dataDims.empty() || (dataDims.size() == 1 && dataDims[0] <= 64)) &&
+            (idxDims.empty() || (idxDims.size() == 1 && idxDims[0] <= 64))) {
             canOptimize1DCase = true;
             return;
         }
@@ -944,7 +944,7 @@ void Gather::exec1DCase() {
     const auto* pidx = idxMemPtr->getDataAs<int32_t>();
 
     const auto& idxDims = idxMemPtr->getStaticDims();
-    const auto idxCnt = (idxDims.size() == 0) ? 1 : idxDims[0];
+    const auto idxCnt = (idxDims.empty()) ? 1 : idxDims[0];
     auto axisDim = srcMemPtr->getStaticDims()[0];
     for (size_t i = 0; i < idxCnt; i++) {
         auto ii = pidx[i];

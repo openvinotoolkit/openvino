@@ -511,7 +511,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                 }
             }
             fb.reserve(sorted_boxes.size());
-            if (sorted_boxes.size() > 0) {
+            if (!sorted_boxes.empty()) {
                 auto adaptive_threshold = m_iouThreshold;
                 int max_out_box =
                     (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
@@ -626,7 +626,7 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
             }
 
             int io_selection_size = 0;
-            if (sorted_boxes.size() > 0) {
+            if (!sorted_boxes.empty()) {
                 parallel_sort(sorted_boxes.begin(),
                               sorted_boxes.end(),
                               [](const std::pair<float, int>& l, const std::pair<float, int>& r) {

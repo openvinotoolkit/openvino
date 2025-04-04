@@ -201,7 +201,7 @@ void Bucketize::prepareParams() {
 
     // update with_bins/num_values/num_bin_values
     auto input_tensor_dims = inputTensorMemPtr->getStaticDims();
-    if (input_tensor_dims.size() < 1) {
+    if (input_tensor_dims.empty()) {
         THROW_CPU_NODE_ERR("has incorrect dimensions of the input.");
     }
     auto input_bin_dims = inputBinsMemPtr->getStaticDims();

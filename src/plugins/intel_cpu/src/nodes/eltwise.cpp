@@ -1411,7 +1411,7 @@ bool Eltwise::isWithBroadcast() {
 }
 
 void Eltwise::getSupportedDescriptors() {
-    if (getParentEdges().size() < 1) {
+    if (getParentEdges().empty()) {
         THROW_CPU_NODE_ERR("Incorrect number of input edges");
     }
     if (getChildEdges().empty()) {

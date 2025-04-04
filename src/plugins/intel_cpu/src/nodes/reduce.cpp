@@ -3746,7 +3746,7 @@ void Reduce::setJITBeyond5D() {
 std::vector<int> Reduce::update_src_dims() {
     std::vector<int> reduce_axes = raw_axes;
 
-    if (reduce_axes.size() < 1) {
+    if (reduce_axes.empty()) {
         return reduce_axes;
     }
 

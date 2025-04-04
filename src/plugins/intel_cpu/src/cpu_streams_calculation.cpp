@@ -217,7 +217,7 @@ std::vector<std::vector<int>> get_streams_info_table(
             }
         }
         if (input_threads > 0) {
-            if (hint_model_distribution_policy.size() == 0) {
+            if (hint_model_distribution_policy.empty()) {
                 n_threads_per_stream = std::min(input_threads, proc_type_table[0][ALL_PROC]);
             } else {
                 for (auto& row : proc_socket_table) {

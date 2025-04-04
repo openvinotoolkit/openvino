@@ -513,7 +513,7 @@ void DFT::updateTwiddlesFFT(size_t n_complex, bool inverse) {
     size_t numBlocks = 1;
 
     twiddlesFFT.reserve((n_complex - 1) * 2);
-    if (twiddlesFFT.size() == 0) {
+    if (twiddlesFFT.empty()) {
         twiddlesFFT.emplace_back(1.0f);   //  cos(0)
         twiddlesFFT.emplace_back(-0.0f);  // -sin(0)
     } else {
