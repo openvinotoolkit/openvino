@@ -1477,7 +1477,7 @@ void RNN::cleanup() {
     }
 }
 
-RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExecutor(pd) {
+RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExecutorLegacy(pd) {
     wghts_iter_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(1));
     bias_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(2));
 }

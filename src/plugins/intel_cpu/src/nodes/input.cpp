@@ -599,6 +599,13 @@ Input::Input(const MemoryDescPtr& memDesc,
     extMemDesc = memDesc;
 }
 
+Input::Input(const MemoryPtr& mem, const std::string& name, const std::string& type, const GraphContext::CPtr& context)
+    : Input(mem->getDesc().getShape(), mem->getDesc().getPrecision(), name, type, context) {
+    extMemDesc = mem->getDescPtr();  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    memoryPtr = mem;                 // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    constant = Node::ConstantType::Const;
+}
+
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const InputConfig& config)
     : Input(op, context) {
     extMemDesc = config.desc;

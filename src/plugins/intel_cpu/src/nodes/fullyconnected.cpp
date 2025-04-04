@@ -245,7 +245,10 @@ void FullyConnected::prepareParams() {
     needPrepareParamsForTensorParallel();
 
     executor->update(memory);
-    // @todo avoid updating implementation type in scope of every prepareParams call
+    // @todo avoid updating implementation type in scope of every prepareParams call.
+    // Currently the tests are implemented in such way that the actual used implementation type is changed
+    // based on a shape and the expected implementation type is determined by the last shape.
+    // I.e. for convolution it is different. The dymmy shape determines the expected implementation type.
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 }
 
@@ -416,6 +419,7 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
         impl_desc_type::shl,
         impl_desc_type::brgemm_sparse_avx512_amx,
         impl_desc_type::brgemm_avx512_amx,
+        impl_desc_type::brgconv_avx512_1x1,
         impl_desc_type::brgemm_avx512,
         impl_desc_type::brgemm_avx2,
         impl_desc_type::gemm_blas,
@@ -551,7 +555,8 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, postOps, executionContext, descs);
-    const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
+    const std::vector<MemoryDescArgs> nodeDescriptorsList = factory->getProperMemoryDescriptors(descs);
+    const MemoryDescArgs& nodeDescriptors = nodeDescriptorsList.front();
 
     NodeConfig nodeConfig;
     nodeConfig.inConfs.resize(srcDescs.size());

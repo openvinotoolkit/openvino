@@ -51,7 +51,7 @@ protected:
     AttrPtr initPrimitiveAttr(const VectorDims& dims);
 
 private:
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    using executorPtr = std::shared_ptr<DnnlExecutorLegacy>;
     executorPtr execPtr = nullptr;
     dnnl::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr& outMemDesc);
     std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const;

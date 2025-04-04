@@ -46,6 +46,8 @@ public:
           const std::string& type,
           const GraphContext::CPtr& context);
 
+    Input(const MemoryPtr& mem, const std::string& name, const std::string& type, const GraphContext::CPtr& context);
+
     Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const InputConfig& config);
 
     Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const OutputConfig& config);
