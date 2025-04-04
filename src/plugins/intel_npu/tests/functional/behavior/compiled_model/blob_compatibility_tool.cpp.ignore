@@ -30,6 +30,7 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
 
 // #include <gtest/gtest.h>
@@ -199,15 +200,12 @@ std::shared_ptr<ov::Model> make_read_concat_split_assign() {
     return model;
 }
 
-std::shared_ptr<ov::Model> multi_output_split_dynamic() {
-    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-    const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-    const auto split = std::make_shared<ov::op::v1::Split>(data, axis, 2);
-    auto abs = std::make_shared<ov::op::v0::Abs>(split->output(1));
+std::shared_ptr<ov::Model> make_dynamic_softmax() {
+    const ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ov::Dimension(1, 32), ov::Dimension(1, 32), 64})};
+    const auto softMax = std::make_shared<ov::op::v1::Softmax>(params.at(0), 2);
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(softMax)};
 
-    auto model = std::make_shared<ov::Model>(abs, ov::ParameterVector{data});
-    model->set_friendly_name("dummy_model_dynamic_shapes");
-    return model;
+    return std::make_shared<ov::Model>(results, params, "dummy_model_dynamic_shapes");
 }
 
 const std::vector<std::string> platforms = { "MTL", "LNL" };
@@ -229,7 +227,7 @@ int main(int argc, char* argv[]) {
 
         auto core = ov::Core();
         const char* DEVICE_NPU = "NPU";
-        const auto models = std::vector<std::shared_ptr<ov::Model>> {make_conv_pool_relu(), make_read_concat_split_assign(), multi_output_split_dynamic()};
+        const auto models = std::vector<std::shared_ptr<ov::Model>> {make_conv_pool_relu(), make_read_concat_split_assign(), make_dynamic_softmax()};
 
         auto devices = core.get_available_devices();
         std::cout << "AVAILABLE DEVICES: ";
@@ -253,6 +251,8 @@ int main(int argc, char* argv[]) {
             std::cout << "Compiling model " << model->get_friendly_name() << "..." << std::endl;
             outputFileName += model->get_friendly_name() + "_" + platform + "_ov_" + version.substr(0, version.find('-')) + "_driver_" + driver_version + ".blob";
             auto compiledModel = core.compile_model(model, DEVICE_NPU, {});
+            // auto inferRequest = compiledModel.create_infer_request();
+            // inferRequest.infer();
             std::ofstream outputFile(outputFileName, std::ios::binary);
             std::cout << "Writing blob " << outputFileName << std::endl;
             compiledModel.export_model(outputFile);
