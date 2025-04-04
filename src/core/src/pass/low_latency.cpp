@@ -14,6 +14,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace {
 std::string generate_variable_name(const std::string& op_name, const std::string& param_name, int64_t variable_idx) {

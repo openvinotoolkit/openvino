@@ -16,6 +16,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
     MATCHER_SCOPE(ConvertNMSToNMSIEInternal);

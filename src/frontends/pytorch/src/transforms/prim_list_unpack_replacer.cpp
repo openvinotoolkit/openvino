@@ -30,6 +30,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace frontend {

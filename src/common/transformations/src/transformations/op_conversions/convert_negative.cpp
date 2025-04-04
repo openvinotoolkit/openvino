@@ -13,6 +13,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertNegative::ConvertNegative() {
     MATCHER_SCOPE(ConvertNegative);

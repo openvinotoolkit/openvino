@@ -15,6 +15,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
     MATCHER_SCOPE(FakeConvertDecomposition);

@@ -21,6 +21,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/augru_cell.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace std;
 using namespace ov::element;

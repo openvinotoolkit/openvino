@@ -9,6 +9,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
     MATCHER_SCOPE(ConvertConvertPromoteTypes);

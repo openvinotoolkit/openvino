@@ -18,6 +18,7 @@
 #include "ov_ops/gather_compressed.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
     using namespace ov::pass::pattern;

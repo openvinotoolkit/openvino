@@ -17,6 +17,7 @@
 #include "openvino/op/matmul.hpp"
 
 #include <unordered_map>
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
 

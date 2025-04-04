@@ -14,6 +14,7 @@
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov::op;
 

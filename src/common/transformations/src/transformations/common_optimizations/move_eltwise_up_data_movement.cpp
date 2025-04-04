@@ -17,6 +17,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace {
 bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node,

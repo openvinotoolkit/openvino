@@ -18,6 +18,7 @@
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"
 #include "utils/general_utils.h"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_cpu {
 

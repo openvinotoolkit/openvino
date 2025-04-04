@@ -20,6 +20,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "sequence_generator.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace {
 // Adjust axes of Unsqueeze/Reduce ops after Unsqueeze pulling

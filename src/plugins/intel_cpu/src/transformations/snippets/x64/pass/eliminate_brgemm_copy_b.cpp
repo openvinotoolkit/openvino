@@ -12,6 +12,7 @@
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reorder.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_cpu {
 

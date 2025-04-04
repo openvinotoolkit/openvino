@@ -10,7 +10,6 @@
 #include "openvino/core/axis_set.hpp"
 #include "openvino/core/axis_vector.hpp"
 #include "openvino/core/coordinate_diff.hpp"
-#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"

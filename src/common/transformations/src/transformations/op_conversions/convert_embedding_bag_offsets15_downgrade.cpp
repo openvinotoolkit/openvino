@@ -10,6 +10,7 @@
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3::
     ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3() {

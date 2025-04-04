@@ -16,6 +16,7 @@
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_quantized_legacy.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
     using namespace ov::pass::pattern;

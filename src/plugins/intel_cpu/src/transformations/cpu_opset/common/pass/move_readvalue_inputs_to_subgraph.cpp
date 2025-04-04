@@ -17,6 +17,7 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
     MATCHER_SCOPE(MoveReadValueInputsToSubgraph);

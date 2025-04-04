@@ -18,6 +18,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/slice_scatter.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertSliceScatter::ConvertSliceScatter() {
     MATCHER_SCOPE(ConvertSliceScatter);

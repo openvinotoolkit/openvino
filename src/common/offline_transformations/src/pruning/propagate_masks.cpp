@@ -20,6 +20,7 @@
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

@@ -9,6 +9,7 @@
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::ConvertToSwishCPU::ConvertToSwishCPU() {
     MATCHER_SCOPE(ConvertToSwishCPU);

@@ -8,6 +8,7 @@
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
     auto gconv = ov::pass::pattern::wrap_type<opset8::GroupConvolution>();

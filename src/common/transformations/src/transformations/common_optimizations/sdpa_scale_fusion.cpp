@@ -14,6 +14,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "transformations/utils/gen_pattern.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

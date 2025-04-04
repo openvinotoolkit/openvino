@@ -8,6 +8,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/multiclass_nms.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertMulticlassNms8ToMulticlassNms9::ConvertMulticlassNms8ToMulticlassNms9() {
     MATCHER_SCOPE(ConvertMulticlassNms8ToMulticlassNms9);
