@@ -298,7 +298,7 @@ void ov::Node::set_friendly_name(const string& name) {
 
 ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
     OPENVINO_ASSERT(index < m_inputs.size(), idx_txt, index, out_of_range_txt);
-    return m_inputs[index].get_output().get_node().get();
+    return m_inputs[index].get_output().get_raw_pointer_node();
 }
 
 std::shared_ptr<ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) const {
@@ -586,7 +586,8 @@ ov::Input<ov::Node> ov::Node::input(size_t input_index) {
 }
 
 ov::Output<ov::Node> ov::Node::input_value(size_t input_index) const {
-    return input(input_index).get_source_output();
+    auto& output_descriptor = m_inputs.at(input_index).m_output;
+    return {output_descriptor->get_node(), output_descriptor->get_index()};
 }
 
 ov::Input<const ov::Node> ov::Node::input(size_t input_index) const {
@@ -603,7 +604,7 @@ ov::Output<ov::Node> ov::Node::output(size_t output_index) {
         OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
-    return Output<Node>(this, output_index);
+    return {this, output_index};
 }
 
 ov::Output<const ov::Node> ov::Node::output(size_t output_index) const {
