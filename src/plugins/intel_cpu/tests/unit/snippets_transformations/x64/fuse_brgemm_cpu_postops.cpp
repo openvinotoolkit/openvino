@@ -347,3 +347,59 @@ TEST_F(FuseBrgemmCPUPostopsTests, NegativeBrgemmWithSeveralConsumers) {
     auto relu = std::make_shared<ov::opset1::Relu>(brgemm);
     model = std::make_shared<ov::Model>(ov::NodeVector{scalar_op, relu}, ov::ParameterVector{input1, input2});
 }
+
+TEST_F(FuseBrgemmCPUPostopsTests, FuseScaleShift) {
+    const float scale_val = 2.f;
+    const float shift_val = 3.f;
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_b_shape);
+        auto brgemm = make_brgemm({input1, input2});
+
+        auto scale = std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, scale_val);
+        auto shift = std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, shift_val);
+        auto scale_op = std::make_shared<ov::opset1::Multiply>(brgemm, scale);
+        auto shift_op = std::make_shared<ov::opset1::Add>(scale_op, shift);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{shift_op}, ov::ParameterVector{input1, input2});
+    }
+
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_b_shape);
+        BrgemmCPU::PostopsConfig postops;
+        postops.forced_output_type = ov::element::f32;
+        postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, scale_val, shift_val);
+        auto ref_brgemm = make_brgemm({input1, input2}, postops);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+    }
+}
+
+TEST_F(FuseBrgemmCPUPostopsTests, FuseClip) {
+    const float in_low = 0.f;
+    const float in_high = 6.f;
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_b_shape);
+        auto brgemm = make_brgemm({input1, input2});
+
+        auto max_scalar = std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, in_low);
+        auto min_scalar = std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, in_high);
+        auto max_op = std::make_shared<ov::opset1::Maximum>(brgemm, max_scalar);
+        auto min_op = std::make_shared<ov::opset1::Minimum>(max_op, min_scalar);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{min_op}, ov::ParameterVector{input1, input2});
+    }
+
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_b_shape);
+        BrgemmCPU::PostopsConfig postops;
+        postops.forced_output_type = ov::element::f32;
+        postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_clip, in_low, in_high);
+        auto ref_brgemm = make_brgemm({input1, input2}, postops);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+    }
+}
