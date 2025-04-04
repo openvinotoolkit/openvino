@@ -784,10 +784,12 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
 
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3}); // paged attention helper buffer
     } else {
-        if (params.inputs.size() >= 4 && !params.conf.has_const_attn_mask_val)
-            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3}); // mask
-        if (params.inputs.size() >= 5 && !params.conf.has_const_scale_val)
-            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 4}); // Scale
+        uint32_t attn_mask_idx = 3;
+        uint32_t scale_idx = params.conf.has_const_attn_mask_val ? 3 : 4;
+        if (params.inputs.size() > attn_mask_idx && !params.conf.has_const_attn_mask_val)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx}); // mask
+        if (params.inputs.size() > scale_idx && !params.conf.has_const_scale_val)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, scale_idx}); // Scale
 
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0}); // D
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 1}); // K

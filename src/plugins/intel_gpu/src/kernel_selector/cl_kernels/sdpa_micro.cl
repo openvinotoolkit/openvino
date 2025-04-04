@@ -404,13 +404,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         /* Apply attention mask */
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
-        const num_e = (ugemm_kq_c_type_block0 * ugemm_kq_c_type_block1) / SUBGROUP_SIZE;
-        #pragma unroll
-        for (int i = 0; i < sizeof(S_tile.x) / sizeof(S_tile.x[0]); i++) {
-                #pragma unroll
-                for (int j = 0; j < num_e; ++j)
-                    S_tile.x[i][j] = binary_add(S_tile.x[i][j], masked_scale);
-        }
+#define mask_scale_op(x) ((x) + masked_scale)
+        tile_elementwise(S_tile, mask_scale_op);
 #elif WITH_ATTN_MASK
 #define unscale(x) ((x)*iscale)
         mask_tile_type_float mask_tile_float;
@@ -535,7 +530,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     LSC_LDCC_L1C_L3C);
         }
 #endif
-#if WITH_ATTN_MASK && defined(PREFETCH_MASK) && !defined(STATIC_SCALAR_ATTN_MASK_VALUE)
+#if WITH_ATTN_MASK && defined(PREFETCH_MASK)
         /* Prefetch next mask tile. */
         if (!last) {
             cooperative_prefetch_2d(msk + k0 + ugemm_kq_wg_tile_m + sg_i0_kq + (sg_j0_kq + wg_j0) * q,

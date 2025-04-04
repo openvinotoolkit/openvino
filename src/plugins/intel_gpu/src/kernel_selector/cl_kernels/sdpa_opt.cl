@@ -743,7 +743,11 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
                                              ATTN_SCALE_BUFFER_ARG
                                              PA_BUFFERS_ARGS
                                              ) {
+#ifdef STATIC_SCALAR_ATTN_MASK_VALUE
+    MASK_VECTOR_TYPE mask_vec = STATIC_SCALAR_ATTN_MASK_VALUE;
+#else
     MASK_VECTOR_TYPE mask_vec = INPUT0_VAL_ZERO;
+#endif
 #if !IS_CAUSAL && HAS_ATTN_MASK_INPUT
     const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx, source_seq_idx);
     if (target_seq_idx >= (uint)TARGET_SEQ_LEN) {
