@@ -411,6 +411,10 @@ def main():
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
+            for port in model.inputs:
+                if not port.get_names():
+                    port.set_names({port.node.get_friendly_name()})
+
             app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.scale_values, args.mean_values, model.inputs)
 
             # use batch size according to provided layout and shapes
