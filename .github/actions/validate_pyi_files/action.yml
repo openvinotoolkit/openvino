@@ -16,6 +16,7 @@ runs:
     - name: Verify .pyi files (Linux and macOS)
       shell: bash
       if: runner.os != 'Windows'
+      run: |
         ${{ env.OPENVINO_REPO }}/src/bindings/python/scripts/generate_pyapi_stubs.sh \
           "${{ env.ACTION_PATH }}/generated_pyi_files"
         python3 ${{ env.ACTION_PATH }}/compare_pyi_files.py \
