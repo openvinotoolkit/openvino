@@ -931,28 +931,10 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         return format::bfyx;
     }
 
+    // Use planar format for dynamic convolution with small input channel(IC <= 3)
     if (node.is_dynamic() && use_onednn_impls && onednn_valid_post_ops &&
-        output_layout.get_partial_shape().size() == 4 && !i8_u8_input && !node.has_padded_dependency() &&
-        input_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].is_static()) {
-        bool correct_data_type = ((input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32) &&
-                                  (weights_layout.data_type == input_layout.data_type));
-        const int32_t feature_block_size = 16;
-        auto input_pshape = input_layout.get_partial_shape();
-        auto output_phshape = output_layout.get_partial_shape();
-        bool correct_in_out_feature = (input_pshape[1].get_length() >= feature_block_size && output_phshape[1].get_length() >= feature_block_size);
-        int32_t in_features_per_group = input_pshape[1].get_length() / prim->groups;
-        int32_t out_features_per_group = output_phshape[1].get_length() / prim->groups;
-        bool depthwise = prim->groups == static_cast<uint32_t>(input_pshape[1].get_length());
-        bool grouped = ((feature_block_size % out_features_per_group == 0) &&
-                        (feature_block_size % in_features_per_group == 0) &&
-                        (feature_block_size / out_features_per_group > 1) &&
-                        (feature_block_size / in_features_per_group > 1) &&
-                        (out_features_per_group != 1) &&
-                        (in_features_per_group != 1)) ||
-                       ((out_features_per_group % feature_block_size == 0 || feature_block_size % out_features_per_group == 0) &&
-                        (in_features_per_group % feature_block_size == 0));
-        if (correct_data_type && !correct_in_out_feature && !depthwise && !grouped)
-            return format::bfyx;
+        input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 3) {
+        return format::get_default_format(input_layout.get_partial_shape().size());
     }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
