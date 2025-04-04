@@ -34,10 +34,10 @@ BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c,
-                     const PostopsConfig& post_ops)
+                     PostopsConfig post_ops)
     : Brgemm(),
       m_type(type),
-      m_post_ops_config(post_ops),
+      m_post_ops_config(std::move(post_ops)),
       m_main_inputs_count(compute_main_inputs_count(type)) {
     set_arguments(inputs);
     set_output_size(1);
@@ -139,19 +139,18 @@ bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
 }
 
 ov::element::Type BrgemmCPU::get_output_type() const {
-    return m_post_ops_config.forced_output_type != ov::element::undefined ? m_post_ops_config.forced_output_type
-                                                                          : Brgemm::get_output_type();
+    return m_post_ops_config.forced_output_type.value_or(Brgemm::get_output_type());
 }
 
 ov::OutputVector BrgemmCPU::get_postop_inputs() const {
     const auto& input_values = this->input_values();
-    return ov::OutputVector(input_values.begin() + m_main_inputs_count, input_values.end());
+    return {input_values.begin() + m_main_inputs_count, input_values.end()};
 }
 
 BrgemmCPU::PostopsConfig::PostopsConfig()
     : post_ops({}),
-      binary_postops_offset({std::nullopt}),
-      forced_output_type(ov::element::undefined) {}
+      binary_postops_offset(std::nullopt),
+      forced_output_type(std::nullopt) {}
 
 bool BrgemmCPU::PostopsConfig::visit_attributes(AttributeVisitor& visitor) {
     auto postops_hash = dnnl::impl::primitive_hashing::get_post_op_hash(0, post_ops);
@@ -159,7 +158,9 @@ bool BrgemmCPU::PostopsConfig::visit_attributes(AttributeVisitor& visitor) {
     if (binary_postops_offset) {
         visitor.on_attribute("binary_postops_offset", binary_postops_offset.value());
     }
-    visitor.on_attribute("forced_output_type", forced_output_type);
+    if (forced_output_type) {
+        visitor.on_attribute("forced_output_type", forced_output_type.value());
+    }
     return true;
 }
 }  // namespace ov::intel_cpu
