@@ -187,7 +187,7 @@ PostOps getPostOps(const std::vector<NodePtr>& fused, ov::element::Type_t sumDat
     };
 
     auto makeSumPostOp = [&](const std::shared_ptr<node::Eltwise>& eltwise) {
-        OPENVINO_ASSERT(sumDataType != ov::element::dynamic, "Sum data type is not defined");
+        OPENVINO_ASSERT(sumDataType != ov::element::dynamic, "Sum data type is not defined ", eltwise->getName());
         return std::make_shared<SumPostOp>(1.0, 0, sumDataType);
     };
 
