@@ -62,7 +62,7 @@ Tensor::NDims normalize_dims(const DataTensor& qkv) {
 
 Tensor::Dim get_num_heads(const sdpa_params& params, const DataTensor& qkv, const std::vector<int64_t>& order) {
     if (params.conf.is_paged_attention)
-        return normalize_dims(qkv)[1].v / params.conf.head_size;
+        return normalize_dims(qkv)[1].v / params.conf.k_head_size;
 
     return normalize_dims(qkv)[order[1]];
 }
@@ -254,7 +254,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     const auto& V = params.inputs[2];
 
     auto& out = params.outputs[0];
-    const auto head_size = params.conf.head_size;
+    const auto head_size = params.conf.k_head_size;
     const auto d_max = get_d_max(head_size);
     const Tensor::Dim n_keys = get_seq_length(params, K, params.input1_order);
     const Tensor::Dim n_queries = get_seq_length(params, Q, params.input0_order);
@@ -327,7 +327,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     if (params.conf.is_kv_compressed) {
         problem_kq.aqGroupM = 1;
-        problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : params.conf.head_size;
+        problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : params.conf.k_head_size;
     }
 
     opts_kq.scaleA = params.conf.is_kv_compressed && !kq_common_scales;
@@ -391,7 +391,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     }
 
     if (params.conf.is_kv_compressed) {
-        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : micro::rnd_up_pow2(params.conf.head_size);
+        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : micro::rnd_up_pow2(params.conf.k_head_size);
         problem_vs.aqGroupK = 1;
     }
 
@@ -473,7 +473,7 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (Q_num_heads_dim.is_dynamic || K_num_heads_dim.is_dynamic || V_num_heads_dim.is_dynamic || K_num_heads_dim.v != V_num_heads_dim.v)
         return false;
 
-    if (params.conf.head_size > 256)
+    if (params.conf.k_head_size > 256)
         return false;
 
     // Do not use sdpa_micro kernel with a scalar-value mask
@@ -504,11 +504,12 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     const auto& K = prim_params.inputs[1];
     const auto& V = prim_params.inputs[2];
 
-    const auto head_size = prim_params.conf.head_size;
+    const auto head_size = prim_params.conf.k_head_size;
+    const auto v_head_size = prim_params.conf.k_head_size;
 
     auto ldq = head_size * Q.ElementSize();
     auto ldk = head_size * K.ElementSize();
-    auto ldv = head_size * V.ElementSize();
+    auto ldv = v_head_size * V.ElementSize();
     auto lda = head_size * prim_params.outputs[0].ElementSize();
 
     const auto d_max = get_d_max(head_size);
@@ -524,7 +525,7 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size(prim_params.engineInfo.arch)));
     jit.AddConstant(MakeJitConstant("INVERT_SCALE", false));
     jit.AddConstant(MakeJitConstant("SCALE_DATA_T", "half"));
-    jit.AddConstant(MakeJitConstant("HEAD_SIZE", head_size));
+    jit.AddConstant(MakeJitConstant("K_HEAD_SIZE", head_size));
     jit.AddConstant(MakeJitConstant("WITH_CAUSAL_MASK", params.conf.is_causal));
 
     jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", data_inputs > 3));
@@ -572,8 +573,8 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
         int vs_scale_mask = (static_cast<int>(params.conf.is_kv_compressed) << 1) | static_cast<int>(vs_common_scales);
         jit.AddConstant(MakeJitConstant("KEY_SCALES", kq_scale_mask));
         jit.AddConstant(MakeJitConstant("VAL_SCALES", vs_scale_mask));
-        jit.AddConstant(MakeJitConstant("KEY_GROUP_SIZE", params.conf.head_size));
-        jit.AddConstant(MakeJitConstant("VAL_GROUP_SIZE", params.conf.head_size));
+        jit.AddConstant(MakeJitConstant("KEY_GROUP_SIZE", params.conf.k_head_size));
+        jit.AddConstant(MakeJitConstant("VAL_GROUP_SIZE", params.conf.v_head_size));
 
         if (params.conf.use_asymmetric_quantization) {
             int kq_zp_mask = (static_cast<int>(params.conf.use_asymmetric_quantization) << 1) | static_cast<int>(kq_common_zp);
@@ -785,7 +786,7 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
     const auto n_queries = get_seq_length(params, Q, params.input0_order);
     const auto n_keys = get_seq_length(params, K, params.input1_order);
 
-    auto head_size = params.conf.head_size;
+    auto head_size = params.conf.k_head_size;
 
     ScalarDescriptor s_d;
     s_d.t = ScalarDescriptor::Types::INT32;
@@ -861,7 +862,7 @@ void SDPAKernelMicro::GetUpdateDispatchDataFunc(KernelData& kd) const {
         const auto n_queries = get_seq_length(prim_params, Q, prim_params.input0_order);
         const auto n_keys = get_seq_length(prim_params, K, prim_params.input1_order);
 
-        auto head_size = prim_params.conf.head_size;
+        auto head_size = prim_params.conf.k_head_size;
 
         ScalarDescriptor s_d;
         s_d.t = ScalarDescriptor::Types::INT32;
