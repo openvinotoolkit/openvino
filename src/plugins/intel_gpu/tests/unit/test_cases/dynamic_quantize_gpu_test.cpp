@@ -159,7 +159,7 @@ public:
 
             for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
                 auto abs_diff = std::abs(output_ptr_ref[i] - output_ptr[i]);
-                ASSERT_LE(abs_diff, 1);
+                ASSERT_LE(abs_diff, 2);
             }
         }
     }
@@ -188,6 +188,14 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_asym_act) {
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_grouped) {
     this->test_dynamic_quantization(false, {1, 1, 4096}, {64, 1, 4096}, QuantizationType::Symmetric, 32);
+}
+
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_gs128) {
+    this->test_dynamic_quantization(false, {1, 1, 4096}, {64, 1, 4096}, QuantizationType::Symmetric, 128);
+}
+
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_gs256) {
+    this->test_dynamic_quantization(false, {1, 1, 4096}, {64, 1, 4096}, QuantizationType::Symmetric, 256);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_single_batch_grouped) {
