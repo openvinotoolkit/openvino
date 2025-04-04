@@ -169,7 +169,7 @@ protected:
         ASSERT_EQ(fused_node_found, 1);
     }
 
-    virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
 
         auto itTargetShape = targetInputStaticShapes.begin();
