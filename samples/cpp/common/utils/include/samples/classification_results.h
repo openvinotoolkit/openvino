@@ -68,9 +68,9 @@ private:
             const size_t offset = i * (input.get_size() / batchSize);
             OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
                 const T* batchData = input.data<T>();
-            OPENVINO_SUPPRESS_DEPRECATED_END  // keep until 2026.0 release
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
-                batchData += offset;
+            batchData += offset;
 
             std::iota(std::begin(indexes), std::end(indexes), 0);
             std::partial_sort(std::begin(indexes),
