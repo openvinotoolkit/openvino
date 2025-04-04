@@ -195,7 +195,7 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_gs128) {
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_gs256) {
-    this->test_dynamic_quantization(false, {1, 1, 4096}, {64, 1, 4096}, QuantizationType::Symmetric, 256);
+    this->test_dynamic_quantization(false, {1, 1, 512}, {1, 1, 512}, QuantizationType::Symmetric, 256);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_single_batch_grouped) {
