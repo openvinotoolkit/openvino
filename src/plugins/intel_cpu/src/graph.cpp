@@ -973,8 +973,7 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
     };
 
     for (auto& edge : graphEdges) {
-        const auto clusterIdx = addToCluster(edge);
-        MAYBE_UNUSED(clusterIdx);
+        [[maybe_unused]] const auto clusterIdx = addToCluster(edge);
         DEBUG_LOG("Added edge: ", *edge, " to cluster: ", clusterIdx);
     }
 

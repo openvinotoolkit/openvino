@@ -294,7 +294,3 @@ bool getEnvBool(const char* name);
 #    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
 #endif  // CPU_DEBUG_CAPS
-
-// To avoid "unused variable" warnings `when debug caps
-// need more information than non-debug caps version
-#define CPU_DEBUG_CAPS_MAYBE_UNUSED(x) (void)x

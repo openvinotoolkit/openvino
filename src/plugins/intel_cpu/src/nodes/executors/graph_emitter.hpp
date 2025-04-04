@@ -100,14 +100,13 @@ public:
 
         GraphEmitter<Attrs> graphEmitter(config.descs, config.attrs, config.postOps, memory, context, name);
 
-        const auto& graphExecutor =
+        [[maybe_unused]] const auto& graphExecutor =
             graphEmitter.createGraph(fallbackConfig.descs, fallbackConfig.attrs, fallbackConfig.postOps, context)
                 .ensureAttrsMatch()
                 .ensureSrcDescsMatch()
                 .ensureDstDescsMatch()
                 .ensurePostOpsMatch()
                 .emit();
-        (void)graphExecutor;
 
         OPENVINO_THROW("Fallback logic is not implemented yet");  // return graphExecutor;
     }

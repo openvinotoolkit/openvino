@@ -31,20 +31,16 @@ struct bypass {
 
 template <ov::element::Type_t type>
 struct just {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
-        // ignore everything
-        (void)types;
-        (void)idx;
+    ov::element::Type operator()([[maybe_unused]] const std::vector<ov::element::Type>& types,
+                                 [[maybe_unused]] size_t idx) const {
         return type;
     }
 };
 
 template <>
 struct just<TypeMaskAlias::fxx> {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
-        // ignore everything
-        (void)types;
-        (void)idx;
+    ov::element::Type operator()([[maybe_unused]] const std::vector<ov::element::Type>& types,
+                                 [[maybe_unused]] size_t idx) const {
         return defaultFloatPrecision();
     }
 };

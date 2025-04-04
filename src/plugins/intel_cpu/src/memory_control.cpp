@@ -161,8 +161,7 @@ public:
     using BlockType = MemoryBlockWithReuse;
 
 public:
-    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
-        (void)syncInds;
+    void insert(const MemoryRegion& reg, [[maybe_unused]] const std::vector<size_t>& syncInds) override {
         auto block = make_unique<BlockType>();
         CPU_DEBUG_CAP_ENABLE(m_blocks.emplace_back(*block);)
         m_solution.insert({reg.id, makeDnnlMemoryBlock(std::move(block))});
@@ -192,8 +191,7 @@ private:
 
 class MemoryManagerStatic : public IMemoryManager {
 public:
-    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
-        (void)syncInds;
+    void insert(const MemoryRegion& reg, [[maybe_unused]] const std::vector<size_t>& syncInds) override {
         OPENVINO_ASSERT(reg.size >= 0, getClassName(), ": got undefined block size");
         m_boxes.emplace_back(MemorySolver::Box{reg.start, reg.finish, reg.size, reg.id});
         reset_flag = true;
