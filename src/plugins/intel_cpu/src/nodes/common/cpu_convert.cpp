@@ -81,7 +81,7 @@ class jit_convert_array : public jit_kernel {
 
         size >>= vlen_log2;
 
-        foreach (0, size, [&, this](const Xbyak::Reg64& idx) {
+        foreach (0, size, [&, this]([[maybe_unused]] const Xbyak::Reg64& idx) {
             _convert_vec(*this, src, dst);
             src += _src_size * vlen;
             dst += _dst_size * vlen;
@@ -1104,7 +1104,7 @@ struct isSupported {
     }
 };
 
-bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc) {
+bool is_supported_convert([[maybe_unused]] ov::element::Type srcPrc, [[maybe_unused]] ov::element::Type dstPrc) {
     isSupportedContext ctx;
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);

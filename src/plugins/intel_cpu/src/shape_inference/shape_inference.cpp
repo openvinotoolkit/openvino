@@ -151,7 +151,7 @@ public:
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
                                                   const ov::ITensorAccessor&) override {
-        NODE_VALIDATION_CHECK(m_node.get(), input_shapes.size() > 0, "Incorrect number of input shapes");
+        NODE_VALIDATION_CHECK(m_node.get(), !input_shapes.empty(), "Incorrect number of input shapes");
         return {std::vector<StaticShape>{input_shapes[0]}};
     }
 
