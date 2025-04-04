@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
 
 import pytest
 import timm
@@ -70,13 +71,22 @@ class TestTimmConvertModel(TestTorchConvertModel):
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
 
-    @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
-                                      "poolformerv2_s12.sail_in1k",
-                                      "vit_base_patch8_224.augreg_in21k",
-                                      "beit_base_patch16_224.in22k_ft_in22k",
-                                      "sequencer2d_l.in1k",
-                                      "gcresnext26ts.ch_in1k",
-                                      "volo_d2_224.sail_in1k"])
+    def get_supported_precommit_models():
+        models = [
+            "mobilevitv2_050.cvnets_in1k",
+            "poolformerv2_s12.sail_in1k",
+            "sequencer2d_l.in1k",
+        ]
+        if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            models.extend([
+                "beit_base_patch16_224.in22k_ft_in22k",
+                "gcresnext26ts.ch_in1k",
+                "vit_base_patch8_224.augreg_in21k",
+                "volo_d2_224.sail_in1k",
+            ])
+        return models
+
+    @pytest.mark.parametrize("name", get_supported_precommit_models())
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
         self.mode = "trace"
