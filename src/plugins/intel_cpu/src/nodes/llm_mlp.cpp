@@ -592,8 +592,7 @@ void LLMMLP::createPrimitive() {
     }
 }
 
-void LLMMLP::execute(const dnnl::stream& strm) {
-    MAYBE_UNUSED(strm);
+void LLMMLP::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute();
 }
 
