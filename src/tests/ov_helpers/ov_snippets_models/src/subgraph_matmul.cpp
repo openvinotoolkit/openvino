@@ -381,6 +381,6 @@ std::shared_ptr<ov::Model> MatMulEltwiseChainCascadeFunction::initOriginal() con
     auto eltwise_chain_2 = build_eltwise_chain(matmul2);
     return std::make_shared<ov::Model>(NodeVector{eltwise_chain_2}, params);
 }
-
 }  // namespace snippets
+}  // namespace test
 }  // namespace ov
