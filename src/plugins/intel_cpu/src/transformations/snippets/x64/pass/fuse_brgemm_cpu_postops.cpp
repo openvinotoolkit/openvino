@@ -78,8 +78,8 @@ pass::FuseConvert::FuseConvert() {
 
         auto postops_config = brgemm->get_postops_config();
         postops_config.forced_output_type = convert->get_output_element_type(0);
-        std::cout << "[ INFO ] FuseConvert fused convert with out precision: " << convert->get_output_element_type(0)
-                  << std::endl;
+        std::cout << "[ INFO ] FuseBrgemmCPUPostops::FuseConvert fused convert with out precision: "
+                  << convert->get_output_element_type(0) << std::endl;
         auto new_brgemm =
             clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
         new_brgemm->set_friendly_name(convert->get_friendly_name());
@@ -144,7 +144,8 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
                             alpha,
                             " Beta = ",
                             beta);
-            std::cout << "[ INFO ] FuseScalarEltwise fused node " << post_op->get_type_name() << std::endl;
+            std::cout << "[ INFO ] FuseBrgemmCPUPostops::FuseScalarEltwise fused node " << post_op->get_type_name()
+                      << std::endl;
         };
 
         if (pattern_map.count(m_scale)) {
@@ -236,7 +237,8 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
                 "Failed to append binary eltwise ",
                 post_op,
                 " to brgemm postops.");
-            std::cout << "[ INFO ] FuseBinaryEltwise fused node " << post_op->get_type_name() << std::endl;
+            std::cout << "[ INFO ] FuseBrgemmCPUPostops::FuseBinaryEltwise fused node " << post_op->get_type_name()
+                      << std::endl;
         };
 
         if (pattern_map.count(m_mul)) {
@@ -313,7 +315,8 @@ pass::FuseScaleShift::FuseScaleShift() {
             ", Beta = ",
             beta);
 
-        std::cout << "[ INFO ] FuseScaleShift fused scale-shift with alpha = " << alpha << " and beta = " << beta << std::endl;
+        std::cout << "[ INFO ] FuseBrgemmCPUPostops::FuseScaleShift fused scale-shift with alpha = " << alpha
+                  << " and beta = " << beta << std::endl;
 
         auto new_brgemm =
             clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
@@ -353,7 +356,8 @@ pass::FuseClip::FuseClip() {
             postops_config.post_ops.append_eltwise(1.f, alg_kind_t::dnnl_eltwise_clip, clip_min, clip_max) == dnnl_success,
             "Failed to append clip eltwise to brgemm postops. in_low = ", clip_min, ", in_high = ", clip_max);
 
-        std::cout << "[ INFO ] FuseClip fused clip with in_low = " << clip_min << " and in_high = " << clip_max << std::endl;
+        std::cout << "[ INFO ] FuseBrgemmCPUPostops::FuseClip fused clip with in_low = " << clip_min
+                  << " and in_high = " << clip_max << std::endl;
 
         auto new_brgemm =
             clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
