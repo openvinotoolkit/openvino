@@ -5,6 +5,7 @@
 #include "concatenation_inst.h"
 #include "impls/onednn/utils.hpp"
 #include "registry/implementation_manager.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 
 #include <memory>
 namespace cldnn {
@@ -57,6 +58,8 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         std::vector<format::type> all_dep_types;
 
         bool any_dep_is_onednn = false;
+        bool all_deps_are_opt = true;
+        bool all_deps_is_reshape = true;
         for (const auto& dep : node.get_dependencies()) {
             const auto& in_layout = dep.first->get_output_layout(false, dep.second);
 
@@ -73,10 +76,19 @@ struct ConcatenationImplementationManager : public ImplementationManager {
 
             if (dep.first->get_preferred_impl_type() == impl_types::onednn)
                 any_dep_is_onednn = true;
+
+            if (!dep.first->can_be_optimized())
+                all_deps_are_opt = false;
+
+            if (!dep.first->is_type<reshape>())
+                all_deps_is_reshape = false;
         }
 
         if (std::adjacent_find(all_dep_types.begin(), all_dep_types.end(), std::not_equal_to<>() ) != all_dep_types.end())
             return false;
+
+        if (all_deps_are_opt && all_deps_is_reshape)
+            return true;
 
         if (!any_dep_is_onednn && format::is_simple_data_format(out_layout.format))
             return false;
