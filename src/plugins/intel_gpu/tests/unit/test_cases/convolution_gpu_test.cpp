@@ -4647,6 +4647,12 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activations_per_channel_dynamic) {
     auto& engine = get_test_engine();
 
+    if (engine.get_device_info().supports_immad) {
+        // Temporarily disable test case for XMX platforms due to sporadic failures
+        // Ticket: CVS-156160
+        GTEST_SKIP();
+    }
+
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 2, 5, 4} });
     auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 3, 2, 3, 3 } });
     auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
