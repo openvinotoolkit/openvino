@@ -4,6 +4,7 @@
 #pragma once
 
 #include "convolution_shape_inference_util.hpp"
+#include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/convolution.hpp"
 #include "utils.hpp"
 

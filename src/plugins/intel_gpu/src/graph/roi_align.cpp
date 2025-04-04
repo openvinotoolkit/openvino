@@ -9,6 +9,7 @@
 #include "openvino/core/enum_names.hpp"
 #include "roi_align_shape_inference.hpp"
 #include "roi_align_rotated_shape_inference.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(roi_align)

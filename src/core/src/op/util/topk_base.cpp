@@ -8,6 +8,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "topk_shape_inference.hpp"
 
