@@ -15,7 +15,6 @@
 # -cppcoreguidelines-pro-bounds-pointer-arithmetic
 # -google-readability-todo. No big reason to enforce
 # -modernize-use-trailing-return-type. Just stylistic preference
-# -misc-const-correctness. No big reason to enforce
 # -misc-no-recursion. No big reason to enforce
 # -readability-identifier-length. A lot of code use short names for readability, i.e. 'B' for batch
 # -readability-uppercase-literal-suffix. 
