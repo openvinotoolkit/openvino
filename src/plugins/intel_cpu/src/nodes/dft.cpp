@@ -173,7 +173,7 @@ void gatherToBufferND(float* buffer,
                       const std::vector<size_t>& dimIndexes,
                       const std::vector<size_t>& shape,
                       const std::vector<size_t>& strides) {
-    size_t numberOfComplex = shape[axis];
+    const size_t numberOfComplex = shape[axis];
     size_t offset = calculateOffsetFromStrides(dimIndexes, strides);
 
     for (size_t bufferIndex = 0; bufferIndex < 2 * numberOfComplex; bufferIndex += 2) {
@@ -189,7 +189,7 @@ void applyBufferND(const float* buffer,
                    const std::vector<size_t>& dimIndexes,
                    const std::vector<size_t>& shape,
                    const std::vector<size_t>& strides) {
-    size_t numberOfComplex = shape[axis];
+    const size_t numberOfComplex = shape[axis];
     size_t offset = calculateOffsetFromStrides(dimIndexes, strides);
 
     for (size_t bufferIndex = 0; bufferIndex < 2 * numberOfComplex; bufferIndex += 2) {
@@ -218,7 +218,7 @@ void copyDataToOutputWithSignalSize(const float* input,
         }
     }
     if (lastChangedDim == 0) {
-        size_t outputBytesSize = std::min(totalOutput, totalInput) * sizeof(float);
+        const size_t outputBytesSize = std::min(totalOutput, totalInput) * sizeof(float);
         cpu_memcpy(output, input, outputBytesSize);
         return;
     }
@@ -237,8 +237,8 @@ void copyDataToOutputWithSignalSize(const float* input,
     const size_t blockSizeBytes = blockSize * sizeof(float);
     std::vector<size_t> iterationCounter(iterationRange.size(), 0);
     do {
-        size_t offsetInput = calculateOffsetFromStrides(iterationCounter, inputStrides);
-        size_t offsetOutput = calculateOffsetFromStrides(iterationCounter, outputStrides);
+        const size_t offsetInput = calculateOffsetFromStrides(iterationCounter, inputStrides);
+        const size_t offsetOutput = calculateOffsetFromStrides(iterationCounter, outputStrides);
         cpu_memcpy(output + offsetOutput, input + offsetInput, blockSizeBytes);
     } while (copyStep(iterationCounter, iterationRange));
 }
@@ -251,8 +251,8 @@ void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
     const auto outputDataEdge = getChildEdgeAt(0);
 
-    const auto src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
-    auto dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
+    const auto* const src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
+    auto* dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
 
     const auto inputRank = inputDataEdge->getMemory().getShape().getRank();
 
@@ -260,8 +260,8 @@ void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& outputStrides = outputDataEdge->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     size_t nComplexMaxFFT = 0;
-    for (size_t axis : axes) {
-        size_t nComplex = outputShape[axis];
+    for (const size_t axis : axes) {
+        const size_t nComplex = outputShape[axis];
         // FFT uses different twiddle factors
         if (!IsPowerOfTwo(nComplex)) {
             if (twiddlesMapDFT.find(nComplex) == twiddlesMapDFT.end() || lastInverse != inverse) {
@@ -288,7 +288,7 @@ void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     // 1d case
     if (inputRank == 2) {
-        size_t nComplex = outputShape[0];
+        const size_t nComplex = outputShape[0];
         if (IsPowerOfTwo(nComplex)) {
             std::vector<float> outputData(nComplex * 2);
             const float* resultBufPtr;
@@ -367,8 +367,8 @@ void DFT::fft(float* inBuffer,
               bool inverse,
               bool parallelize,
               const float** resultBuf) const {
-    static int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
-    static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
+    static const int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
+    static const int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
     size_t nComplex = dataLength / 2;
 
     std::function<void(const size_t, const size_t, const size_t)> blockIteration;
@@ -391,8 +391,8 @@ void DFT::fft(float* inBuffer,
             float* curOutBufferPtr = outBuffer + block * nextIterationBlockSize;
 
             for (size_t block = 0; block < numBlocks; ++block) {
-                float twiddleReal = twiddlesFFT[(numBlocks + block - 1) * 2];
-                float twiddleImag = twiddlesFFT[(numBlocks + block) * 2 - 1];
+                const float twiddleReal = twiddlesFFT[(numBlocks + block - 1) * 2];
+                const float twiddleImag = twiddlesFFT[(numBlocks + block) * 2 - 1];
 
                 for (size_t pair = 0; pair < nextIterationBlockSize; pair += 2) {
                     const float evenReal = curInpBufferPtr[pair];
@@ -468,12 +468,13 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
             float sumReal = 0.0f;
             float sumImag = 0.0f;
             for (size_t n = 0; n < nComplex; ++n) {
-                auto complexRef = &twiddles[2 * (k * nComplex + n)];
-                float complexReal = *complexRef;
-                float complexImag = *(complexRef + 1);
+                const auto* complexRef = &twiddles[2 * (k * nComplex + n)];
+                const float complexReal = *complexRef;
+                const float complexImag = *(complexRef + 1);
 
-                float complexProdReal = getRealFromComplexProd(data[2 * n], data[2 * n + 1], complexReal, complexImag);
-                float complexProdImag =
+                const float complexProdReal =
+                    getRealFromComplexProd(data[2 * n], data[2 * n + 1], complexReal, complexImag);
+                const float complexProdImag =
                     getImaginaryFromComplexProd(data[2 * n], data[2 * n + 1], complexReal, complexImag);
 
                 sumReal += complexProdReal;
@@ -498,7 +499,7 @@ std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) cons
     const float inverseMultiplier = inverse ? 1 : -1;
     parallel_for(n_complex, [&](const size_t k) {
         for (size_t n = 0; n < n_complex; ++n) {
-            float phase = 2.0f * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
+            const float phase = 2.0f * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
             auto complexReal = std::cos(phase);
             auto complexImag = std::sin(phase) * inverseMultiplier;
             twiddles[2 * (k * n_complex + n)] = complexReal;
@@ -526,14 +527,14 @@ void DFT::updateTwiddlesFFT(size_t n_complex, bool inverse) {
         numBlocks *= 2;
 
         for (size_t blockNum = 0; blockNum < numBlocks; blockNum++) {
-            size_t copyIndex = twiddlesFFT.size() - blockNum - numBlocks;
+            const size_t copyIndex = twiddlesFFT.size() - blockNum - numBlocks;
 
             twiddlesFFT.push_back(twiddlesFFT[copyIndex]);
             twiddlesFFT.push_back(twiddlesFFT[copyIndex + 1]);
 
             blockNum++;
 
-            float angle = PI * blockNum / numBlocks;
+            const float angle = PI * blockNum / numBlocks;
             auto complexReal = std::cos(angle);
             auto complexImag = std::sin(angle) * inverseMultiplier;
 
@@ -554,8 +555,8 @@ void DFT::prepareParams() {
     axes = getAxes();
     const auto outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
 
-    for (size_t axis : axes) {
-        size_t nComplex = outputShape[axis];
+    for (const size_t axis : axes) {
+        const size_t nComplex = outputShape[axis];
         if (!IsPowerOfTwo(nComplex)) {
             hasDFT = true;
         } else {

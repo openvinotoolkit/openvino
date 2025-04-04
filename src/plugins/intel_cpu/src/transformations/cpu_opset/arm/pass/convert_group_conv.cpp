@@ -12,7 +12,7 @@
 ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
     auto gconv = ov::pass::pattern::wrap_type<opset8::GroupConvolution>();
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         enum Inputs { Data, Weights };
         auto gconv = ov::as_type_ptr<opset8::GroupConvolution>(m.get_match_root());
         if (!gconv) {
@@ -23,7 +23,7 @@ ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
         const auto& output_shape = gconv->get_output_partial_shape(0);
         const auto& data_shape = input0.get_partial_shape();
         // Weights layout GOIYX
-        int64_t groups = gconv->get_input_shape(Inputs::Weights)[0];
+        const int64_t groups = gconv->get_input_shape(Inputs::Weights)[0];
 
         if (data_shape[channel_axis].is_dynamic() || output_shape[channel_axis].is_dynamic()) {
             return false;

@@ -43,7 +43,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                                               {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
     auto result = q_proj;
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -64,15 +64,15 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             return false;
         }
 
-        bool is_quantized_int8 = pattern_map.count(q_proj_weight_const_i8);
+        const bool is_quantized_int8 = pattern_map.count(q_proj_weight_const_i8);
 
         OutputVector args = {src};
         OutputVector deq_scales;
         OutputVector outputs;
         size_t hidden_size = 0;
         std::vector<int> proj_size;
-        for (auto& child : children) {
-            auto mm = ov::as_type<opset1::MatMul>(child.get_node());
+        for (const auto& child : children) {
+            auto* mm = ov::as_type<opset1::MatMul>(child.get_node());
             if (!mm) {
                 // maybe a ShapeOf
                 continue;
@@ -205,7 +205,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
 
     auto result = qkv_split->output(0);
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -232,7 +232,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
             return false;
         }
 
-        bool is_quantized_int8 = pattern_map.count(qkv_proj_weight_const_i8);
+        const bool is_quantized_int8 = pattern_map.count(qkv_proj_weight_const_i8);
 
         std::shared_ptr<opset1::Constant> qkv_proj_weight_node;
         if (is_quantized_int8) {

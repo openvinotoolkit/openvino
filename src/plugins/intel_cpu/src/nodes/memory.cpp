@@ -191,7 +191,7 @@ void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
     // Mimic the parent node memory desc to avoid extra reorder
     auto parentEdge = getParentEdgeAt(0);
     auto parent = parentEdge->getParent();
-    auto parentPd = parent->getSelectedPrimitiveDescriptor();
+    auto* parentPd = parent->getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(parentPd,
                     parent->getTypeStr(),
                     " ",
@@ -201,7 +201,7 @@ void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
     const auto& parentConfig = parentPd->getConfig();
     auto mem_desc = parentConfig.outConfs[parentEdge->getInputNum()].getMemDesc();
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
@@ -269,7 +269,7 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
         return;
     }
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
@@ -352,7 +352,7 @@ void MemoryOutputStub::resolveInPlaceEdges(Edge::LOOK look) {
         return;
     }
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
@@ -510,7 +510,7 @@ bool MemoryInputBase::isExecutable() const {
 void MemoryStatesRegister::registerInput(MemoryInputBase* node) {
     OPENVINO_ASSERT(node, "Unexpected null MemoryInput pointer");
     // in case of output already registered
-    auto sibling = getMemoryOutputByName(node->getId());
+    auto* sibling = getMemoryOutputByName(node->getId());
     if (sibling != nullptr) {
         node->registerOutputNode(sibling);
     }
@@ -519,7 +519,7 @@ void MemoryStatesRegister::registerInput(MemoryInputBase* node) {
 
 void MemoryStatesRegister::registerOutput(MemoryOutputBase* node) {
     OPENVINO_ASSERT(node, "Unexpected null MemoryOutput pointer");
-    auto sibling = getMemoryInputByName(node->getId());
+    auto* sibling = getMemoryInputByName(node->getId());
     if (sibling != nullptr) {
         node->registerInputNode(sibling);
     }
@@ -651,7 +651,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     }
 
     auto child = childEdge->getChild();
-    auto childPd = child->getSelectedPrimitiveDescriptor();
+    auto* childPd = child->getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(childPd,
                     child->getTypeStr(),
                     " ",
@@ -661,7 +661,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     const auto& childConfig = childPd->getConfig();
     auto mem_desc = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc();
 
-    auto selectedPd = getSelectedPrimitiveDescriptor();
+    auto* selectedPd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selectedPd,
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
@@ -794,9 +794,9 @@ void MemoryInput::runDynamic([[maybe_unused]] dnnl::stream strm) {
 
             // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child
             // edges, attached to the output ports has to be updated after an inference of the inner graph finished
-            auto& childEdges = getChildEdges();
+            const auto& childEdges = getChildEdges();
             for (size_t j = 1; j < childEdges.size(); j++) {
-                auto& childEdge = childEdges[j];
+                const auto& childEdge = childEdges[j];
                 auto childEdgePtr = childEdge.lock();
                 assert(childEdgePtr);
                 assert(0 == childEdgePtr->getInputNum());
@@ -867,7 +867,7 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
         return;
     }
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
                     "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 

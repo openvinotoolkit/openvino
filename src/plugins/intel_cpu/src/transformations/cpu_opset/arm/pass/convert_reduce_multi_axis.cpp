@@ -39,7 +39,7 @@ ov::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert_red
         ov::NodeVector new_ops;
         std::shared_ptr<ov::Node> node = input0.get_node_shared_ptr();
         auto output = input0;
-        bool keepDims = reduce->get_keep_dims();
+        const bool keepDims = reduce->get_keep_dims();
         // axes should be sorted in descending order if keepDims is false to be keep axis within data shape
         if (!keepDims) {
             sort(axes.begin(), axes.end(), std::greater<int64_t>());

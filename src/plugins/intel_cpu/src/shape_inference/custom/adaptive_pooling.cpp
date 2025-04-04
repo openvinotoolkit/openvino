@@ -23,7 +23,7 @@ Result AdaptivePoolingShapeInfer::infer(const std::vector<std::reference_wrapper
     VectorDims outputDims(inputRank);
     outputDims[0] = inputDims[0];
     outputDims[1] = inputDims[1];
-    auto newSpatialDimsPtr = data_dependency.at(1)->getDataAs<int32_t>();
+    auto* newSpatialDimsPtr = data_dependency.at(1)->getDataAs<int32_t>();
     for (size_t i = 0; i < spatialDimsSize; i++) {
         outputDims[i + 2] = newSpatialDimsPtr[i];
     }
@@ -33,7 +33,7 @@ Result AdaptivePoolingShapeInfer::infer(const std::vector<std::reference_wrapper
 }
 
 ShapeInferPtr AdaptivePoolingShapeInferFactory::makeShapeInfer() const {
-    size_t outputs_count = m_op->get_output_size();
+    const size_t outputs_count = m_op->get_output_size();
     return std::make_shared<AdaptivePoolingShapeInfer>(outputs_count);
 }
 

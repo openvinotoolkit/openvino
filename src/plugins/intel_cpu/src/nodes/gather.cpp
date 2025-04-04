@@ -118,7 +118,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         }
     }
 
-    if (auto indices = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_INDICES))) {
+    if (auto* indices = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_INDICES))) {
         constIndices = indices->cast_vector<int>();
     }
 }
@@ -546,8 +546,8 @@ void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
             int beforeAxisDiff[16];
             if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) {
                 permIdxMask[0] = idxElPerVec - specIndicesSize;
-                int div = idxElPerVec / specIndicesSize;
-                int remainder = idxElPerVec % specIndicesSize;
+                const int div = idxElPerVec / specIndicesSize;
+                const int remainder = idxElPerVec % specIndicesSize;
                 for (uint64_t i = 1; i < idxElPerVec; i++) {
                     permIdxMask[i] = permIdxMask[i - 1] + 1;
                     if (static_cast<uint64_t>(permIdxMask[i]) == idxElPerVec) {
@@ -618,7 +618,7 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.specIdxDiff.resize(idxElPerVec);
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
-        int secondStart = start + idxElPerVec;
+        const int secondStart = start + idxElPerVec;
         for (uint64_t i = 0; i < idxElPerVec; i++) {
             p.afterAxIdxInBytes[i] = (start + i) % afterAxisSize;
             p.specIdxDiff[i] =
@@ -676,10 +676,10 @@ void Gather::execCompressed4Bit() {
         const size_t idx = ii;
         const size_t c2 = dstAfterBatchSize * b + afterAxisSize * j;
         if (idx < static_cast<size_t>(axisDim)) {
-            size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
+            const size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                size_t srcIdx = c1 + axisAndAfterAxisSize * i;
-                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+                const size_t srcIdx = c1 + axisAndAfterAxisSize * i;
+                const size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
 
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
@@ -690,9 +690,9 @@ void Gather::execCompressed4Bit() {
                 // ((isAxisInputConst && axis == 0) && (cond1 || cond2)) take >99% probability
                 bool processed = false;
                 if (isAxisInputConst && axis == 0) {
-                    bool cond1 = have_zp && zp_group_size == scale_group_size;
-                    bool cond2 = (!have_zp) || have_scalar_zp;
-                    bool cond3 = have_scalar_scale && cond2;
+                    const bool cond1 = have_zp && zp_group_size == scale_group_size;
+                    const bool cond2 = (!have_zp) || have_scalar_zp;
+                    const bool cond3 = have_scalar_scale && cond2;
                     if (cond3) {
                         processed = true;
                         for (; p < srcIdx + afterAxisSize; p++) {
@@ -727,7 +727,7 @@ void Gather::execCompressed4Bit() {
             }
         } else {
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+                const size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
                 for (size_t p = 0; p < afterAxisSize; p++) {
                     dstData[dstIdx] = 0;
                 }
@@ -761,10 +761,10 @@ void Gather::execCompressed8Bit() {
         const size_t idx = ii;
         const size_t c2 = dstAfterBatchSize * b + afterAxisSize * j;
         if (idx < static_cast<size_t>(axisDim)) {
-            size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
+            const size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                size_t srcIdx = c1 + axisAndAfterAxisSize * i;
-                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+                const size_t srcIdx = c1 + axisAndAfterAxisSize * i;
+                const size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
 
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
@@ -775,9 +775,9 @@ void Gather::execCompressed8Bit() {
                 // ((isAxisInputConst && axis == 0) && (cond1 || cond2)) take >99% probability
                 bool processed = false;
                 if (isAxisInputConst && axis == 0) {
-                    bool cond1 = have_zp && zp_group_size == scale_group_size;
-                    bool cond2 = (!have_zp) || have_scalar_zp;
-                    bool cond3 = have_scalar_scale && cond2;
+                    const bool cond1 = have_zp && zp_group_size == scale_group_size;
+                    const bool cond2 = (!have_zp) || have_scalar_zp;
+                    const bool cond3 = have_scalar_scale && cond2;
                     if (cond3) {
                         processed = true;
                         for (; p < srcIdx + afterAxisSize; p++) {
@@ -811,7 +811,7 @@ void Gather::execCompressed8Bit() {
             }
         } else {
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+                const size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
                 for (size_t p = 0; p < afterAxisSize; p++) {
                     dstData[dstIdx] = 0;
                 }
@@ -916,10 +916,10 @@ void Gather::execReference() {
         const size_t idx = ii;
         const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytesOut * j;
         if (idx < static_cast<size_t>(axisDim)) {
-            size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
+            const size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
-                size_t dstIdx = c2 + specIdxAndAfterAxSizeBOut * i;
+                const size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
+                const size_t dstIdx = c2 + specIdxAndAfterAxSizeBOut * i;
 
                 if (dataPrecision == outPrecision) {
                     cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
@@ -977,21 +977,21 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
         return;
     }
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
     constexpr size_t outputPort = 0;
 
-    auto& config = selected_pd->getConfig();
-    size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
+    const auto& config = selected_pd->getConfig();
+    const size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
     const auto baseDim = inputShapes.front().getDims()[axis];
     CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM, "can not use inPlace memory with splitting on dynamic dimention");
     auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
     const auto index = constIndices.front();
     const ptrdiff_t offset = index < 0 ? baseDim + index : index;
     const auto& childEdges = getChildEdgesAtPort(outputPort);
-    for (auto& childEdge : childEdges) {
+    for (const auto& childEdge : childEdges) {
         CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");
 
         auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseDim, offset);

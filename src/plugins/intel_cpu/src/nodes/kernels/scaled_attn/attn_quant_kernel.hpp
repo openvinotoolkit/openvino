@@ -128,7 +128,7 @@ void attn_dequant_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, f
     }
 #endif
     auto extract_half_byte = [&](uint8_t val, bool high_half) -> uint8_t {
-        uint8_t shift = high_half ? 0 : 4;
+        const uint8_t shift = high_half ? 0 : 4;
         return static_cast<uint8_t>((val >> shift) & 0x000F);
     };
     for (; i < n; ++i) {

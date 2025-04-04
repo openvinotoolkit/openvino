@@ -93,7 +93,7 @@ inline int axisCast(const std::size_t axis,
     // WHDCN (reverted NCDHW) (0, 1, 2, 3, 4) into CWHDN (reverted NDHWC) (3, 0, 1, 2, 4)
     static const std::array<size_t, 5> ncdhwToNdhwc = {3, 0, 1, 2, 4};
 
-    size_t revertedAxis = shapeSize - axis - 1;
+    const size_t revertedAxis = shapeSize - axis - 1;
     switch (axisCastMode) {
     case NO_LAYOUT_CONVERSION:
         return revertedAxis;

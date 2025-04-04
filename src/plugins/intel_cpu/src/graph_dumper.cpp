@@ -127,8 +127,8 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 
         for (size_t i = 0; i < pr_edges.size(); i++) {
             auto edge = node->getParentEdgeAt(i);
-            int pr_port = edge->getInputNum();
-            int ch_port = edge->getOutputNum();
+            const int pr_port = edge->getInputNum();
+            const int ch_port = edge->getOutputNum();
             auto pr_node = edge->getParent();
 
             OPENVINO_ASSERT(node2layer.count(pr_node) == 1);
@@ -168,7 +168,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
         auto meta_data = extract_node_metadata(node);
         std::shared_ptr<ov::Node> return_node;
         if (is_input) {
-            auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
+            const auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
             auto param = std::make_shared<ov::op::v0::Parameter>(desc.getPrecision(), desc.getShape().toPartialShape());
             return_node = param;
             paramsMap[input_index] = param;
@@ -182,7 +182,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
                 node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
-                auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
+                const auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
                 return_node->set_output_type(port, desc.getPrecision(), desc.getShape().toPartialShape());
             }
         }
@@ -201,7 +201,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 
     ov::NodeVector nodes;
     nodes.reserve(graph.graphNodes.size());
-    for (auto& node : graph.graphNodes) {  // important: graph.graphNodes are in topological order
+    for (const auto& node : graph.graphNodes) {  // important: graph.graphNodes are in topological order
         nodes.emplace_back(create_ngraph_node(node));
         node2layer[node] = nodes.back();
     }
@@ -233,7 +233,7 @@ void serialize(const Graph& graph) {
         serializeToCout(graph);
     } else if (!path.compare(path.size() - 4, 4, ".xml")) {
         static int g_idx = 0;
-        std::string xmlPath = std::string(path, 0, path.size() - 4) + "_" + std::to_string(g_idx++) + ".xml";
+        const std::string xmlPath = std::string(path, 0, path.size() - 4) + "_" + std::to_string(g_idx++) + ".xml";
         serializeToXML(graph, xmlPath);
     } else {
         OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", path);
@@ -253,14 +253,14 @@ void serializeToXML(const Graph& graph, const std::string& path) {
 void serializeToCout(const Graph& graph) {
     for (const auto& node : graph.GetNodes()) {
         std::cout << "name: " << node->getName() << " [ ";
-        auto nodeDesc = node->getSelectedPrimitiveDescriptor();
+        auto* nodeDesc = node->getSelectedPrimitiveDescriptor();
         if (nodeDesc) {
-            auto& inConfs = nodeDesc->getConfig().inConfs;
+            const auto& inConfs = nodeDesc->getConfig().inConfs;
             if (!inConfs.empty()) {
                 std::cout << "in: " << inConfs.front().getMemDesc()->getPrecision().get_type_name()
                           << "/l=" << inConfs.front().getMemDesc()->serializeFormat() << "; ";
             }
-            auto& outConfs = nodeDesc->getConfig().outConfs;
+            const auto& outConfs = nodeDesc->getConfig().outConfs;
             if (!outConfs.empty()) {
                 std::cout << "out: " << outConfs.front().getMemDesc()->getPrecision().get_type_name()
                           << "/l=" << outConfs.front().getMemDesc()->serializeFormat();
@@ -279,8 +279,8 @@ void summary_perf(const Graph& graph) {
     std::map<NodePtr, double> perf_by_node;
     double total_avg = 0;
     uint64_t total = 0;
-    for (auto& node : graph.GetNodes()) {  // important: graph.graphNodes are in topological order
-        double avg = node->PerfCounter().avg();
+    for (const auto& node : graph.GetNodes()) {  // important: graph.graphNodes are in topological order
+        const double avg = node->PerfCounter().avg();
         auto type = node->getTypeStr() + "_" + node->getPrimitiveDescriptorType();
 
         total += node->PerfCounter().count() * avg;
@@ -380,7 +380,7 @@ void average_counters(const Graph& graph) {
     }
 
     static int graphIndex = 0;
-    std::string fileName = path + "_" + std::to_string(graphIndex++) + ".csv";
+    const std::string fileName = path + "_" + std::to_string(graphIndex++) + ".csv";
 
     std::ofstream file;
     file.open(fileName);
@@ -408,7 +408,7 @@ void average_counters(const Graph& graph) {
         return avg;
     };
 
-    for (auto& node : graph.GetNodes()) {
+    for (const auto& node : graph.GetNodes()) {
         if (node->isConstant()) {
             continue;
         }

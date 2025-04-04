@@ -24,7 +24,7 @@ EmbeddingBag::EmbeddingBag(const std::shared_ptr<ov::Node>& op,
       PER_SAMPLE_WEIGHTS_IDX(perSampleWeightsIdx),
       DEFAULT_INDEX_IDX(defaultIndexIdx),
       _layerName(op->get_friendly_name()) {
-    std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
+    const std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
     if (op->get_input_size() < requiredInputNum || op->get_output_size() != 1) {
         OPENVINO_THROW(logPrefix, "has incorrect number of input or output edges!");
     }
@@ -50,7 +50,7 @@ void EmbeddingBag::processData(const T* srcData,
                                const T* weightsData,
                                const VectorDims& inDataDims,
                                const MemoryPtr& outMemory) {
-    std::string msgPrefix = std::string("Node EmbeddingBag with name '") + _layerName + "' ";
+    const std::string msgPrefix = std::string("Node EmbeddingBag with name '") + _layerName + "' ";
 
     initFromInputs();
 
@@ -70,7 +70,7 @@ void EmbeddingBag::processData(const T* srcData,
         bool withWeights = _withWeights;
 
         for (size_t obi = start; obi < end; obi++) {
-            size_t dstIndex = obi * _embDepth;
+            const size_t dstIndex = obi * _embDepth;
             getIndices(obi, indices, indicesSize, weightsIdx, withWeights);
 
             if (indices != nullptr) {
@@ -80,7 +80,7 @@ void EmbeddingBag::processData(const T* srcData,
                 if (static_cast<size_t>(indices[inIdx]) >= inDataDims[0]) {
                     OPENVINO_THROW(msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]));
                 }
-                size_t srcIndex = indices[inIdx] * _embDepth;
+                const size_t srcIndex = indices[inIdx] * _embDepth;
 
                 if (withWeights) {
                     for (size_t i = 0lu; i < _embDepth; i++) {
@@ -98,7 +98,7 @@ void EmbeddingBag::processData(const T* srcData,
                         OPENVINO_THROW(msgPrefix +
                                        "' has invalid embedding bag index: " + std::to_string(indices[inIdx]));
                     }
-                    size_t srcIndex = indices[inIdx] * _embDepth;
+                    const size_t srcIndex = indices[inIdx] * _embDepth;
 
                     if (withWeights) {
                         for (size_t i = 0lu; i < _embDepth; i++) {

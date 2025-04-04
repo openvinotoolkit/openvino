@@ -201,7 +201,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
                                                         nullptr);  //  tensor_array<f32[?,1,?,..8192]>
     auto result = index_Gather;
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
@@ -244,7 +244,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
             }
         }
 
-        ov::OutputVector inputs{
+        const ov::OutputVector inputs{
             pattern_map.find(attention_mask)->second,
             pattern_map.find(batch_size)->second,
             pattern_map.find(cache_positions)->second,
