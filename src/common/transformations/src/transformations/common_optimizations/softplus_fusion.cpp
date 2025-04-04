@@ -15,6 +15,7 @@
 #include "openvino/op/log.hpp"
 #include "openvino/op/softplus.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::SoftPlusFusion::SoftPlusFusion() {
     MATCHER_SCOPE(SoftPlusFusion);

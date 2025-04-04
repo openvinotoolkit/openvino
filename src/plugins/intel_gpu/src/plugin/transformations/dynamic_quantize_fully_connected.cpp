@@ -13,6 +13,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
 

@@ -26,6 +26,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/subtract_fusion.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::FuseFilteringBoxesBySize::FuseFilteringBoxesBySize() {
     ADD_MATCHER_FOR_THIS(SubtractFusion);

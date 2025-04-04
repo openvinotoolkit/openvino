@@ -49,6 +49,7 @@
 #include "openvino/util/log.hpp"
 #include "openvino/util/util.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace std;
 using namespace ov;

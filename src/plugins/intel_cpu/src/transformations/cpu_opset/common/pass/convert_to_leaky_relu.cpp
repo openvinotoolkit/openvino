@@ -9,6 +9,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::ConvertToLeakyRelu::ConvertToLeakyRelu() {
     MATCHER_SCOPE(ConvertToLeakyRelu);

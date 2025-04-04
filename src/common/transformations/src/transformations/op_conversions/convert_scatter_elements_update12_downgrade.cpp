@@ -9,6 +9,7 @@
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3::
     ConvertScatterElementsUpdate12ToScatterElementsUpdate3() {

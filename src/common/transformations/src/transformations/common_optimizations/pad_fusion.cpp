@@ -17,6 +17,7 @@
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov;
 

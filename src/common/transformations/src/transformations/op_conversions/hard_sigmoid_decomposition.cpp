@@ -15,6 +15,7 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::HardSigmoidDecomposition::HardSigmoidDecomposition() {
     MATCHER_SCOPE(HardSigmoidDecomposition);

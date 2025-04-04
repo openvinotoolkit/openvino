@@ -23,6 +23,7 @@
 #include "openvino/op/space_to_batch.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace std;
 using namespace ov::element;

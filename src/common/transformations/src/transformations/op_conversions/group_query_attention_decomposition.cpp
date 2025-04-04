@@ -26,6 +26,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
     MATCHER_SCOPE(GroupQeuryAttentionDecomposition);

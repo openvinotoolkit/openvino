@@ -9,6 +9,7 @@
 
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

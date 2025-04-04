@@ -12,6 +12,7 @@
 #include "openvino/op/mvn.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
     MATCHER_SCOPE(ConvertMVN1ToMVN6);

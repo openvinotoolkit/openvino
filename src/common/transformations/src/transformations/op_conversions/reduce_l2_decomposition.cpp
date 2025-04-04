@@ -16,6 +16,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
     MATCHER_SCOPE(ReduceL2Decomposition);

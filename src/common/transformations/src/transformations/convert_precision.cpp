@@ -23,6 +23,7 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/rt_info/original_precision_attribute.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov;
 

@@ -17,6 +17,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 #define CREATE_REDUCE(input, reduce_const, keep_dims)                                          \
     if (ov::is_type<ov::op::v1::ReduceSum>(reduce_orig))                                       \

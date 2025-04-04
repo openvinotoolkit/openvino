@@ -88,6 +88,7 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::low_precision::LowPrecision::LowPrecision(
     const std::vector<PrecisionsRestriction>& precisionRestrictions,

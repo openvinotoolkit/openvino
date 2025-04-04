@@ -11,6 +11,7 @@
 #include "openvino/op/gelu.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::Gelu7Downgrade::Gelu7Downgrade() {
     MATCHER_SCOPE(Gelu7Downgrade);

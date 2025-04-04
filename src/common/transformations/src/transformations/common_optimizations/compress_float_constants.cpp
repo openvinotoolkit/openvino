@@ -22,6 +22,7 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace {
 template <ov::element::Type_t PREC_FROM>

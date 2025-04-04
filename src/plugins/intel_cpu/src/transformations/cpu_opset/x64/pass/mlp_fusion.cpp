@@ -21,6 +21,7 @@
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov::gen_pattern;
 

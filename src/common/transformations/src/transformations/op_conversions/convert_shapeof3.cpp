@@ -12,6 +12,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertShapeOf3::ConvertShapeOf3() {
     MATCHER_SCOPE(ConvertShapeOf3);

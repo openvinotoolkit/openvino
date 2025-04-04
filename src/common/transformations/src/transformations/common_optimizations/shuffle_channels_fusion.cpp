@@ -15,6 +15,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace {
 bool check_shapes(const ov::PartialShape& pshape_input,

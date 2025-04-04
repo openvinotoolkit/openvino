@@ -17,6 +17,7 @@
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
     MATCHER_SCOPE(ConvertScatterElementsToScatter);

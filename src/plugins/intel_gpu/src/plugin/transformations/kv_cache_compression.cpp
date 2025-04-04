@@ -31,6 +31,7 @@
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
 

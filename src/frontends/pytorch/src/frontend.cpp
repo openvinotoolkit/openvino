@@ -45,6 +45,7 @@
 #include "transforms/tuple_unpack_replacer.hpp"
 #include "transforms/u4_block_repack.hpp"
 #include "translate_session.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace frontend {

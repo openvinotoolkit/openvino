@@ -13,6 +13,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
     MATCHER_SCOPE(MulAddToFMA);

@@ -13,6 +13,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
+#include "openvino/core/graph_util.hpp"
 
 /*
  * Description: SDPA fuse transpose and reshape.

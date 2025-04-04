@@ -13,6 +13,7 @@
 #include "simplify_fakequantize.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 // TODO: draw pattern
 ov::intel_cpu::MHAFloatFusion::MHAFloatFusion() {

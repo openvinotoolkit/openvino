@@ -9,6 +9,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace std;
 using namespace ov;
