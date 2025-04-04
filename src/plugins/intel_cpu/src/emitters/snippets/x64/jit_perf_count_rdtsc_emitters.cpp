@@ -25,8 +25,8 @@ size_t jit_perf_count_rdtsc_start_emitter::get_inputs_num() const {
     return 0;
 }
 
-void jit_perf_count_rdtsc_start_emitter::emit_impl(const std::vector<size_t>& in_idxs,
-                                                   const std::vector<size_t>& out_idxs) const {
+void jit_perf_count_rdtsc_start_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in_idxs,
+                                                   [[maybe_unused]] const std::vector<size_t>& out_idxs) const {
     h->push(h->rax);
     h->push(h->rdx);
 
@@ -57,8 +57,8 @@ size_t jit_perf_count_rdtsc_end_emitter::get_inputs_num() const {
     return 0;
 }
 
-void jit_perf_count_rdtsc_end_emitter::emit_impl(const std::vector<size_t>& in_idxs,
-                                                 const std::vector<size_t>& out_idxs) const {
+void jit_perf_count_rdtsc_end_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in_idxs,
+                                                 [[maybe_unused]] const std::vector<size_t>& out_idxs) const {
     h->push(h->rax);
     h->push(h->rdx);
 

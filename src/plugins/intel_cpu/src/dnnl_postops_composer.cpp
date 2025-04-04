@@ -110,7 +110,9 @@ static dnnl::algorithm convertToOneDnn(const ActivationPostOp::Type type) {
     return dnnl::algorithm::undef;
 }
 
-bool DnnlPostOpsComposer::appendAttrPostOps(const ActivationPostOp& postOp, bool isLastPostOp, bool allowBinary) {
+bool DnnlPostOpsComposer::appendAttrPostOps(const ActivationPostOp& postOp,
+                                            bool isLastPostOp,
+                                            [[maybe_unused]] bool allowBinary) {
     if (postOp.type() == ActivationPostOp::Type::linear) {
         appendLinear({postOp.alpha()}, {postOp.beta()}, isLastPostOp);
     } else {

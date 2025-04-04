@@ -57,7 +57,7 @@ void ExperimentalDetectronPriorGridGenerator::initSupportedPrimitiveDescriptors(
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronPriorGridGenerator::execute(const dnnl::stream& strm) {
+void ExperimentalDetectronPriorGridGenerator::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[0];
     assert(getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[1] == 4);
 

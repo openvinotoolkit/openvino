@@ -123,7 +123,8 @@ void jit_kernel_emitter::validate_arguments(const std::vector<size_t>& in, const
                               data_ptr_regs_idx.size());
 }
 
-void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
+                                   [[maybe_unused]] const std::vector<size_t>& out) const {
     h->preamble();
 
     std::set<snippets::Reg> available_gpr;

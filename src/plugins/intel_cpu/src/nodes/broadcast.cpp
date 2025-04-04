@@ -207,7 +207,7 @@ void Broadcast::execute(const dnnl::stream& strm) {
     }
 }
 
-void Broadcast::plainExecute(const dnnl::stream& strm) {
+void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
     VectorDims srcDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getStaticDims();
     const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto& dataSrcRank = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getShape().getRank();

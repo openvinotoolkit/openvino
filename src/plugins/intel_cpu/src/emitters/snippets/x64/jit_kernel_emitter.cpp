@@ -71,7 +71,8 @@ void jit_kernel_emitter::validate_arguments(const std::vector<size_t>& in, const
                               data_ptr_regs_idx.size());
 }
 
-void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
+                                   [[maybe_unused]] const std::vector<size_t>& out) const {
     h->preamble();
 
     std::set<snippets::Reg> available_gpr;
@@ -233,7 +234,7 @@ jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit
 
 void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak::Reg64>& arg_regs,
                                                     const std::vector<Xbyak::Reg64>& data_ptr_regs,
-                                                    const std::vector<Xbyak::Reg64>& aux_gprs) const {
+                                                    [[maybe_unused]] const std::vector<Xbyak::Reg64>& aux_gprs) const {
     OV_CPU_JIT_EMITTER_ASSERT(arg_regs.size() == 1, "Invalid arg regs size");
     Xbyak::Reg64 reg_runtime_params = arg_regs[0];
 

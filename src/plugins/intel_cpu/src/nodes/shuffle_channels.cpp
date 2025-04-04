@@ -290,7 +290,7 @@ void ShuffleChannels::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void ShuffleChannels::execute(const dnnl::stream& strm) {
+void ShuffleChannels::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }

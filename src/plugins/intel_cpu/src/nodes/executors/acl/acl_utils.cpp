@@ -19,7 +19,7 @@ void configureThreadSafe(const std::function<void(void)>& config) {
 arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm,
                                                         float alpha = 0.0,
                                                         float beta = 0.0,
-                                                        float gamma = 0.0) {
+                                                        [[maybe_unused]] float gamma = 0.0) {
     switch (algorithm) {
     case Algorithm::EltwiseRelu:
         if (alpha == 0) {

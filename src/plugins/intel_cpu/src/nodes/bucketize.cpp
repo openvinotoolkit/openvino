@@ -83,7 +83,7 @@ inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
            (static_cast<uint32_t>(ov::element::Type_t(precision4)) << 24);
 }
 
-void Bucketize::execute(const dnnl::stream& strm) {
+void Bucketize::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto precision_mask = getElementsMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {

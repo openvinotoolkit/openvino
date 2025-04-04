@@ -49,7 +49,7 @@ static void dumpStatistics(std::ostream& os,
 }
 
 static void dumpStatisticsCSV(std::ofstream& os,
-                              const std::string& network_name,
+                              [[maybe_unused]] const std::string& network_name,
                               std::deque<CompiledModel::GraphGuard>& graphs,
                               const SocketsWeights& weights_cache) {
     for (auto&& graph : graphs) {

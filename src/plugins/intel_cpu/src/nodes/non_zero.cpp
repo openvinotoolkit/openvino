@@ -121,7 +121,7 @@ void NonZero::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NonZero::execute(const dnnl::stream& strm) {
+void NonZero::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     NonZeroContext ctx = {*this};
     OV_SWITCH(intel_cpu,

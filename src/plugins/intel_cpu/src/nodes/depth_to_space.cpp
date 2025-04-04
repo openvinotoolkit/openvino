@@ -316,7 +316,7 @@ void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const 
     permuteKernel->execute(srcData, dstData, MB);
 }
 
-void DepthToSpace::execute(const dnnl::stream& strm) {
+void DepthToSpace::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }

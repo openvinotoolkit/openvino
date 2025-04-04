@@ -405,7 +405,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     return get_ro_property(name, options);
 }
 
-ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const ov::AnyMap& options) const {
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
     };

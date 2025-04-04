@@ -70,9 +70,9 @@ static const TypeMapping dnnlFCTypeMapping {
     // integer precision outputs are not supported for float precision inputs
     {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            pt(bypass(), bypass(), use<0>(), use<0>())},
     // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any | _any},                  pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32, _half_float, _any, _any},                  pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_bf16, _f16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f16, _bf16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     // int8 inner_product does not support f16 output and bias
     {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _dynamic, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(),  bypass())},
@@ -114,9 +114,9 @@ static const TypeMapping dnnlConvolutionTypeMapping {
     // integer precision outputs are not supported for float precision inputs
     {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8}, pt(bypass(), bypass(), use<0>(), use<0>())},
     // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any | _any},       pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any | _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_f16, _bf16, _any, _any | _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32, _half_float, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_bf16, _f16, _any, _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f16, _bf16, _any, _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     {{_u8 | _i8, _i8, _any, _any},                 pt(bypass(), bypass(), use<3>(), bypass())},
     // @todo should we fallback to _fxx instead of _f32 (currenly legacy logic is replicated)
@@ -130,9 +130,9 @@ static const TypeMapping dnnlMatMulTypeMapping {
     // integer precision outputs are not supported for float precision inputs
     {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            pt(bypass(), bypass(), use<0>(), use<0>())},
     // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any | _any},                  pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32, _half_float, _any, _any},                  pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_bf16, _f16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f16, _bf16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     {{_u8 | _i8, _i8, _u8|_i8|_i32|_bf16|_f16|_f32|_dynamic, _u8|_i8|_i32|_bf16|_f16|_f32}, pt(bypass(), bypass(), bypass(),  bypass())},
     {{_u8 | _i8, _i8, _any, _any},                            pt(bypass(), bypass(), just<f32>(), just<f32>())},
@@ -245,7 +245,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return MlasGemmExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
+            []([[maybe_unused]] const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 // @todo Implement proper handling for the cases when fallback is not expected
                 // throwing exception is not an option, since requiresFallback is used in two contexts:
                 // 1) getting proper memory descriptors configuration
@@ -253,7 +253,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return {};
             },
             // acceptsShapes
-            [](const MemoryArgs& memory) -> bool {
+            []([[maybe_unused]] const MemoryArgs& memory) -> bool {
                 // @todo create syntactic sugar (functor) for shape agnostic lambda
                 return true;
             },
@@ -488,7 +488,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::MatMul,
             ShapeTolerance::Dependant,
             // supports
-            [](const FCConfig& config) -> bool {
+            []([[maybe_unused]] const FCConfig& config) -> bool {
                 // enable only with debug caps and env variable defined for now
                 CPU_DEBUG_CAP_ENABLE(
                     if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
@@ -505,7 +505,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               dnnlFCMappingNotation);
             },
             // acceptsShapes
-            [](const MemoryArgs& memory) -> bool {
+            []([[maybe_unused]] const MemoryArgs& memory) -> bool {
                 return true;
             },
             // create
@@ -516,7 +516,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 struct MatMulInstantiator {
                     std::shared_ptr<DnnlMatMulPrimitive> operator()(
                         const MemoryArgs& memory,
-                        const FCAttrs& attrs,
+                        [[maybe_unused]] const FCAttrs& attrs,
                         const ExecutorContext::CPtr& context,
                         const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
                         MatMulAttrs matMulAttrs{false,
@@ -545,7 +545,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::FullyConnected,
             ShapeTolerance::Dependant,
             // supports
-            [](const FCConfig& config) -> bool {
+            []([[maybe_unused]] const FCConfig& config) -> bool {
                 return true;
             },
             // requiresFallback
@@ -556,7 +556,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               dnnlConvolutionMappingNotation);
             },
             // acceptsShapes
-            [](const MemoryArgs& memory) -> bool {
+            []([[maybe_unused]] const MemoryArgs& memory) -> bool {
                 return true;
             },
             // create
