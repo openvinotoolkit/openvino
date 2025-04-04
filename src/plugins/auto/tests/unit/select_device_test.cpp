@@ -205,12 +205,15 @@ public:
         ON_CALL(*plugin, select_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                                   const std::string& netPrecision,
-                                  unsigned int priority) {
-                return plugin->Plugin::select_device(metaDevices, netPrecision, priority);
+                                  unsigned int priority,
+                                  const double utilization_threshold) {
+                return plugin->Plugin::select_device(metaDevices, netPrecision, priority, utilization_threshold);
             });
         ON_CALL(*plugin, get_valid_device)
-            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
-                return plugin->Plugin::get_valid_device(metaDevices, netPrecision);
+            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
+                                  const std::string& netPrecision,
+                                  const double utilization_threshold) {
+                return plugin->Plugin::get_valid_device(metaDevices, netPrecision, utilization_threshold);
             });
     }
 };
@@ -225,7 +228,7 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     bool reverse;
     std::tie(netPrecision, devices, expect, throwExcept, enabledevice_priority, reverse) = this->GetParam();
 
-    EXPECT_CALL(*plugin, select_device(_, _, _)).Times(1);
+    EXPECT_CALL(*plugin, select_device(_, _, _, _)).Times(1);
     if (devices.size() >= 1) {
         EXPECT_CALL(*core, get_property(_, _, _)).Times(AtLeast(static_cast<int>(devices.size()) - 1));
     } else {
@@ -233,9 +236,9 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     }
 
     if (throwExcept) {
-        ASSERT_THROW(plugin->select_device(devices, netPrecision, 0), ov::Exception);
+        ASSERT_THROW(plugin->select_device(devices, netPrecision, 0, -1.0), ov::Exception);
     } else {
-        auto result = plugin->select_device(devices, netPrecision, 0);
+        auto result = plugin->select_device(devices, netPrecision, 0, -1.0);
         compare(result, expect);
     }
 }

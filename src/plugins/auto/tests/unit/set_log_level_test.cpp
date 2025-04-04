@@ -38,11 +38,13 @@ public:
         // DeviceInformation devInfo;
         ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
         ON_CALL(*plugin, get_valid_device)
-            .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            .WillByDefault([](const std::vector<DeviceInformation>& metaDevices,
+                              const std::string& netPrecision,
+                              const double utilization_threshold) {
                 std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
                 return devices;
             });
-        ON_CALL(*plugin, select_device(_, _, _)).WillByDefault(Return(metaDevices[1]));
+        ON_CALL(*plugin, select_device(_, _, _, _)).WillByDefault(Return(metaDevices[1]));
     }
 
     void TearDown() override {
