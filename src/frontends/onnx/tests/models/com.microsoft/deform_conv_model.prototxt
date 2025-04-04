@@ -1,0 +1,77 @@
+ir_version: 7
+opset_import {
+  version: 19
+}
+producer_name: "onnx-example"
+graph {
+  node {
+    input: "data"
+    input: "offsets"
+    input: "weights"
+    output: "output"
+    op_type: "DeformConv"
+    domain: "com.microsoft"
+    attribute {
+      name: "groups"
+      type: INT
+      i: 1
+    }
+  }
+  name: "DeformConvGraph"
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: FLOAT
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 3 }
+          dim { dim_value: 224 }
+          dim { dim_value: 224 }
+        }
+      }
+    }
+  }
+  input {
+    name: "offsets"
+    type {
+      tensor_type {
+        elem_type: FLOAT
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 18 }
+          dim { dim_value: 224 }
+          dim { dim_value: 224 }
+        }
+      }
+    }
+  }
+  input {
+    name: "weights"
+    type {
+      tensor_type {
+        elem_type: FLOAT
+        shape {
+          dim { dim_value: 64 }
+          dim { dim_value: 3 }
+          dim { dim_value: 3 }
+          dim { dim_value: 3 }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: FLOAT
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 64 }
+          dim { dim_value: 224 }
+          dim { dim_value: 224 }
+        }
+      }
+    }
+  }
+}
