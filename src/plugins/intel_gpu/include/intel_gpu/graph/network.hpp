@@ -23,6 +23,7 @@
 #include <memory>
 #include <list>
 #include <set>
+#include <any>
 
 namespace cldnn {
 
@@ -209,6 +210,31 @@ public:
     int64_t get_current_iteration_num() { return iteration; }
 #endif
 
+    template <typename T>
+    void set_scratch(const std::string& key, const T& meta) {
+        _scratch_store[key] = meta;
+    }
+
+    template <typename T>
+    bool has_scratch(const std::string& key) const {
+        auto it = _scratch_store.find(key);
+        return it != _scratch_store.end();
+    }
+
+    template <typename T>
+    const T& get_scratch(const std::string& key) const {
+        const auto it = _scratch_store.find(key);
+        OPENVINO_ASSERT(it != _scratch_store.end());
+        return *std::any_cast<T>(&it->second);
+    }
+
+    template <typename T>
+    T& get_scratch(const std::string& key) {
+        auto it = _scratch_store.find(key);
+        OPENVINO_ASSERT(it != _scratch_store.end());
+        return *std::any_cast<T>(&it->second);
+    }
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<primitive_inst*>>;
     uint32_t net_id = 0;
@@ -257,6 +283,9 @@ private:
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
     void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type, const primitive* p);
     void dump_memory_pool(std::string dump_path, int64_t curr_iter);
+
+    using scratch_store = std::unordered_map<std::string, std::any>;
+    scratch_store _scratch_store;
 
 #ifdef GPU_DEBUG_CONFIG
     mutable int64_t iteration = 0;

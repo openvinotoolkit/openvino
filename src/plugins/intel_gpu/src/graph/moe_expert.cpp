@@ -39,6 +39,23 @@ bool moe_expert_inst::get_pred_from_memory(memory::ptr mem, stream& stream, size
     return false;
 }
 
+void moe_expert_inst::get_expert_mask_from_memory(memory::ptr mem, stream& stream, expert_mask_scratch& expert_mask) {
+    const auto& shape = mem->get_layout().get_shape();
+    expert_mask.pred_flag.resize(shape[0], 0);
+    auto num_per_expert = shape[1] * shape[2];
+    mem_lock<int32_t, mem_lock_type::read> lock_data{mem, stream};
+    auto p = lock_data.data();
+    for (size_t expert_no = 0; expert_no < shape[0]; expert_no++) {
+        auto offset = expert_no * num_per_expert;
+        for (size_t i = 0; i < num_per_expert; i++) {
+            if (p[i + offset]) {
+                expert_mask.pred_flag[expert_no] = 1;
+                break;
+            }
+        }
+    }
+}
+
 template<typename ShapeType>
 std::vector<layout> moe_expert_inst::calc_output_layouts(moe_expert_node const& /* node */, kernel_impl_params const& impl_param) {
     if (impl_param.memory_deps.empty()) {

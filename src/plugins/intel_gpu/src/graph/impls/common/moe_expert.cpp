@@ -35,23 +35,34 @@ struct moe_expert_impl : typed_primitive_impl<moe_expert> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, moe_expert_inst& instance) override {
-        // Wait for moe_expert statement event only, and pass all other events to sub-network directly
-        auto dep_event = instance.pred_inst()->get_impl_params()->out_event;
-        if (dep_event)
-            dep_event->wait();
-
+        network::ptr executed_net = instance.get_net();
+        auto expert_no = instance.get_config().expert_no;
         auto& stream = instance.get_network().get_stream();
+        bool can_skip_subgraph;
+        if (expert_no == 0) {
+            // Wait for moe_expert statement event only, and pass all other events to sub-network directly
+            auto dep_event = instance.pred_inst()->get_impl_params()->out_event;
+            if (dep_event)
+                dep_event->wait();
+            expert_mask_scratch expert_mask;
+            moe_expert_inst::get_expert_mask_from_memory(instance.pred_memory_ptr(), stream, expert_mask);
+            OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
+            can_skip_subgraph = !expert_mask.pred_flag[0];
+            executed_net->set_scratch<expert_mask_scratch>(expert_mask_scratch_key, expert_mask);
+        } else {
+            OPENVINO_ASSERT(executed_net->has_scratch<expert_mask_scratch>(expert_mask_scratch_key));
+            const auto& expert_mask = executed_net->get_scratch<expert_mask_scratch>(expert_mask_scratch_key);
+            OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
+            can_skip_subgraph = !expert_mask.pred_flag[expert_no];
+        }
+
         auto& prog_node = instance.get_node();
         set_node_params(prog_node);
 
-        auto pred = moe_expert_inst::get_pred_from_memory(instance.pred_memory_ptr(), stream, instance.get_config().expert_no);
-        network::ptr executed_net = instance.get_net();
         auto branch = instance.get_branch();
-        bool can_skip_subgraph = !pred;
         if (!can_skip_subgraph)
             executed_net->set_shape_predictor(instance.get_network().get_shape_predictor());
 
-        GPU_DEBUG_LOG << "predicate: " << (pred ? "True" : "False") << std::endl;
         GPU_DEBUG_LOG << "can_skip_subgraph: " << (can_skip_subgraph ? "True" : "False") << std::endl;
 
         std::vector<event::ptr> output_events;

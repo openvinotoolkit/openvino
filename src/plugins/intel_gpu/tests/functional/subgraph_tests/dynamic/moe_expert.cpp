@@ -62,9 +62,9 @@ public:
         std::shared_ptr<Node> select_Gather_2;
         // expected pattern is `opset8::Gather`
         if (expected_pattern)
-            select_Gather_2 = makeOP<opset8::Gather>({expert_mask, 2, 0}, {{"batch_dims", 0}});   //  tensor_array<i64[8,?]> __module.model.model.layers.0.mlp/aten::select/Gather_2(__module.model.model.layers.0.mlp/aten::permute/Transpose, 298, 160)
+            select_Gather_2 = makeOP<opset8::Gather>({expert_mask, 0, 0}, {{"batch_dims", 0}});   //  tensor_array<i64[8,?]> __module.model.model.layers.0.mlp/aten::select/Gather_2(__module.model.model.layers.0.mlp/aten::permute/Transpose, 298, 160)
         else
-            select_Gather_2 = makeOP<opset7::Gather>({expert_mask, 2, 0}, {{"batch_dims", 0}});
+            select_Gather_2 = makeOP<opset7::Gather>({expert_mask, 0, 0}, {{"batch_dims", 0}});
         // x = torch.where(expert_mask[expert_idx]), x shape: [2, nonzero], dim0: topk, dim1: batch
         auto ListUnpack_NonZero_2 = makeOP<opset3::NonZero>({select_Gather_2}, {{"output_type", "i64"}});   //  tensor_array<i64[2,?]> __module.model.model.layers.0.mlp/prim::ListUnpack/NonZero_2(__module.model.model.layers.0.mlp/aten::select/Gather_2)
         // topk, batch = torch.where(expert_mask[expert_idx])
@@ -157,7 +157,7 @@ public:
     void generate(float idx, bool is_then) {
         inputs.clear();
         size_t batch = 1;
-        size_t seq_length = 1;
+        size_t seq_length = 21;
         size_t bs = batch * seq_length;
         auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == element::f32) {
