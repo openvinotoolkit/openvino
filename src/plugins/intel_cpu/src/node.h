@@ -183,7 +183,7 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        PerfCounters(std::string const& name)
+        PerfCounters(const std::string& name)
             : execute(openvino::itt::handle(name)),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
