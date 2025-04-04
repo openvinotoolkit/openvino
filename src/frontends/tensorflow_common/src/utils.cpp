@@ -44,6 +44,8 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/string_tensor_pack.hpp"
+#include "openvino/op/string_tensor_unpack.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -645,6 +647,15 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_polar_to_rectangul
 
     return std::make_pair(real_part, imag_part);
 };
+
+OutputVector pre_translate_string_tensor_input(const ov::Output<ov::Node>& input) {
+    auto input_node = input.get_node_shared_ptr();
+
+    if (const auto& string_tensor_pack = ov::as_type_ptr<v15::StringTensorPack>(input_node)) {
+        return string_tensor_pack->input_values();
+    }
+    return std::make_shared<v15::StringTensorUnpack>(input)->outputs();
+}
 
 }  // namespace tensorflow
 }  // namespace frontend
