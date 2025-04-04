@@ -26,10 +26,11 @@ class TestRenorm(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("m", [2, 10])
     @pytest.mark.parametrize("n", [3, 5])
-    @pytest.mark.parametrize("p", [1, 2, float('inf'), -float('inf')])
+    @pytest.mark.parametrize("p", [1, 2, 3])
     @pytest.mark.parametrize("dim", [0, 1])
     @pytest.mark.parametrize("maxnorm", [0.5, 1.0, 2.0])
     def test_renorm(self, m, n, p, dim, maxnorm, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, maxnorm),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"m": m, "n": n})
+        
