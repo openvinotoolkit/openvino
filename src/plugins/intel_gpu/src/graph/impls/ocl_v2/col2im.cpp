@@ -26,7 +26,7 @@ static std::vector<size_t> get_origin_size(const kernel_impl_params& params) {
 
     std::vector<size_t> orig_size(spatial_dims);
     for (size_t d = 0; d < spatial_dims; ++d) {
-        orig_size[d] *= ((output_size[d] + pads_begin[d] + pads_end[d] - (dilation[d] * (kernel_size[d] - 1)) - 1) / stride[d]) + 1;
+        orig_size[d] = ((output_size[d] + pads_begin[d] + pads_end[d] - (dilation[d] * (kernel_size[d] - 1)) - 1) / stride[d]) + 1;
     }
 
     return orig_size;
@@ -39,11 +39,8 @@ bool check_ool2im_contain_batch(const kernel_impl_params& params) {
     // Check input size L which is the total number of blocks : product from d=1 to 2 of origin size
     if (input_layout.spatial(1) == 1 &&
         input_layout.spatial(1) != static_cast<tensor::value_type>(orig_size[0] * orig_size[1])) {
-        std::cout << "  -- In check_ool2im_contain_batch, is_batched : false" << std::endl;
         return false;
     }
-
-    std::cout << "  -- In check_ool2im_contain_batch, is_batched : true" << std::endl;
 
     return true;
 }
@@ -58,7 +55,6 @@ protected:
         const auto& desc = params.typed_desc<col2im>();
 
         auto input_layout = params.get_input_layout();
-        std::cout << ">> In get_jit_constants, input_layout : " << input_layout << std::endl;
 
         auto orig_size = get_origin_size(params);
 
@@ -71,7 +67,9 @@ protected:
         const size_t kernel_product = (size_t)(desc->kernel_shape[0] * desc->kernel_shape[1]);
         const size_t num_channels = std::max(num_elements_for_block / kernel_product, (size_t)1);
 
-        std::cout << "  -- num_elements_for_block : " << num_elements_for_block << ", kernel_product : " << kernel_product << std::endl;
+        GPU_DEBUG_TRACE << "  Col2im Batched " << (is_batched ? "true " : "false ") << " num_elements_for_block : "
+                        << num_elements_for_block << ", num_channels : " << num_channels << ", num_blocks : "
+                        << num_blocks << " to " << desc->kernel_shape[0] << ", " << desc->kernel_shape[1] << std::endl;
 
         jit.add({
             make_jit_constant("ORIG_HEIGHT", orig_size[0]),
@@ -123,8 +121,6 @@ protected:
             const size_t num_elements_for_block = is_batched ? input_layout.feature() : input_layout.batch();
             const size_t kernel_product = (size_t)(desc->kernel_shape[0] * desc->kernel_shape[1]);
             const size_t num_channels = std::max(num_elements_for_block / kernel_product, (size_t)1);
-
-            std::cout << ">> In get_dispatch_data_func, num_channels : " << num_channels << ", batches : " << batches << std::endl;
 
             wgs.global = {num_channels, 1, batches};
             wgs.local = {1, 1, 1};
