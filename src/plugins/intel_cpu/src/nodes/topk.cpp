@@ -2473,7 +2473,7 @@ void TopK::topk_ref_process(const float* src_data,
                             float* dst_data,
                             int32_t* dst_idx,
                             const VectorDims& in_dims,
-                            std::function<float(float, float)> compare) const {
+                            std::function<bool(float, float)> compare) const {
     int after_num = count(in_dims, axis + 1, in_dims.size());
 
     parallel_for2d(before_num, after_num, [&](int i0, int i1) {
