@@ -101,7 +101,7 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
         auto bf_size = get_input_bf_size(params);
         dispatchData.gws = {bf_size.first, bf_size.second / params.group_sizes.back(), 1};
         dispatchData.lws = {1, 1, 1};
-    } else if (params.group_sizes.back() == 256) {
+    } else if (params.group_sizes.back() == 256) { // FIXME: this configuration is split into 3 places
         auto vec_size = get_match_vector_size(params);
         auto bf_size = get_input_bf_size(params);
         size_t total_block_num = bf_size.second / (simd * vec_size);

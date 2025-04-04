@@ -95,8 +95,8 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const uint input_offset = INPUT0_GET_INDEX (bf, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
     const uint output_offset = OUTPUT_GET_INDEX(bf, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
 #else
-    const uint input_offset = INPUT0_GET_INDEX (bf, 0, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);
-    const uint output_offset = OUTPUT_GET_INDEX(bf, 0, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);
+    const uint input_offset = INPUT0_GET_INDEX (0, bf, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);  // XXX: it assumes packed input
+    const uint output_offset = OUTPUT_GET_INDEX(0, bf, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);
 #endif
 
     const uint block_size = SIMD * VEC_SIZE;
@@ -188,9 +188,9 @@ KERNEL(dynamic_quantize_gpu_opt)(
         output_zp[OUTPUT1_GET_INDEX(bf, f_grp, 0, 0)] = convert_uchar_rte(zp);
 #endif
 #else
-        output_scale[OUTPUT1_GET_INDEX(bf, 0, f_grp, 0)] = 1.0h / scale;
+        output_scale[OUTPUT1_GET_INDEX(0, bf, f_grp, 0)] = 1.0h / scale;
 #if ASYMMETRIC_QUANTIZATION
-        output_zp[OUTPUT1_GET_INDEX(bf, 0, f_grp, 0)] = convert_uchar_rte(zp);
+        output_zp[OUTPUT1_GET_INDEX(0, bf, f_grp, 0)] = convert_uchar_rte(zp);
 #endif
 #endif
     }
