@@ -47,6 +47,7 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
     for relative_path in generated_files:
         generated_file: str = os.path.join(generated_dir, relative_path)
         committed_file: str = os.path.join(committed_dir, relative_path)
+        print(f"[Debug] Comparing: {generated_file} with {committed_file}")
         if not filecmp.cmp(generated_file, committed_file, shallow=False):
             print(f"Error: Stub files differ: {relative_path}")
             sys.exit(1)
