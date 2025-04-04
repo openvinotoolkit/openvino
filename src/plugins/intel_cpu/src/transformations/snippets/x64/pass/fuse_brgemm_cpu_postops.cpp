@@ -387,11 +387,13 @@ bool pass::FuseBrgemmCPUPostops::run_on_model(const std::shared_ptr<ov::Model>& 
     for (const auto& param : m_external_params) {
         m_brgemm_external_params_idces.insert(m->get_parameter_index(param));
     }
-    std::cout << " [ INFO ] FuseBrgemmCPUPostops m_brgemm_external_params_idces = { ";
-    for (const auto& idx : m_brgemm_external_params_idces) {
-        std::cout << idx << " ";
+    if (!m_brgemm_external_params_idces.empty()) {
+        std::cout << " [ INFO ] FuseBrgemmCPUPostops m_brgemm_external_params_idces = { ";
+        for (const auto& idx : m_brgemm_external_params_idces) {
+            std::cout << idx << " ";
+        }
+        std::cout << "}" << std::endl;
     }
-    std::cout << "}" << std::endl;
     return res;
 }
 
