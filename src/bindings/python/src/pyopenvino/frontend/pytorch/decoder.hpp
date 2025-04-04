@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 
 #include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/frontend/node_context.hpp"
 
 namespace py = pybind11;
 
@@ -136,6 +137,14 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
 
     ov::frontend::pytorch::DecoderRTInfo get_rt_info() const override {
         PYBIND11_OVERRIDE_PURE(ov::frontend::pytorch::DecoderRTInfo, TorchDecoder, get_rt_info);
+    }
+
+    bool has_converter() const override {
+        PYBIND11_OVERRIDE_PURE(bool, TorchDecoder, has_converter);
+    }
+
+    ov::OutputVector convert(const ov::frontend::NodeContext* context) const override {
+        PYBIND11_OVERRIDE_PURE(ov::OutputVector, TorchDecoder, convert, context);
     }
 };
 
