@@ -403,3 +403,103 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseClip) {
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
     }
 }
+
+TEST_F(FuseBrgemmCPUPostopsTests, FuseMultipleTransformations) {
+    const float in_low = 0.f;
+    const float in_high = 6.f;
+    const float scalar_mul = 2.f;
+    const ov::PartialShape brgemm_input_shape{1, 1, 128, 128};
+
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_input_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_input_shape);
+        ov::ParameterVector parameters{input1, input2};
+
+        auto build_sequence = [&](const std::shared_ptr<ov::Node>& input_node) {
+            auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(input_node, ov::element::f32);
+
+            auto binary_mul_param =
+                std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 1, 128});
+            parameters.push_back(binary_mul_param);
+            auto binary_mul = std::make_shared<ov::opset1::Multiply>(convert, binary_mul_param);
+
+            auto binary_add_param = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{128});
+            parameters.push_back(binary_add_param);
+            auto binary_add_input = std::make_shared<ov::snippets::op::RankNormalization>(binary_add_param, 3, 0);
+            auto binary_add = std::make_shared<ov::opset1::Add>(binary_mul, binary_add_input);
+
+            auto scalar_max_node =
+                std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, in_low);
+            auto max_op = std::make_shared<ov::opset1::Maximum>(binary_add, scalar_max_node);
+
+            auto scalar_min_node =
+                std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, in_high);
+            auto min_op = std::make_shared<ov::opset1::Minimum>(max_op, scalar_min_node);
+
+            auto scalar_mul_node =
+                std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, scalar_mul);
+            auto mul_op = std::make_shared<ov::opset1::Multiply>(min_op, scalar_mul_node);
+            return std::make_shared<ov::snippets::op::ConvertSaturation>(mul_op, ov::element::u8);
+        };
+        // Create the test model
+
+        auto brgemm1 = make_brgemm({input1, input2});
+        auto sequence1 = build_sequence(brgemm1);
+        auto input3 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_input_shape);
+        parameters.push_back(input3);
+        auto brgemm2 = make_brgemm({sequence1, input3});
+        auto sequence2 = build_sequence(brgemm2);
+        auto input4 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_input_shape);
+        parameters.push_back(input4);
+        auto brgemm3 = make_brgemm({sequence2, input4});
+        auto final_convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm3, ov::element::f32);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{final_convert}, parameters);
+    }
+
+    {
+        DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape{1, 128});
+        auto create_postops = [&](size_t binary_postops_offset = 0) {
+            BrgemmCPU::PostopsConfig postops;
+            postops.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_mul, memory_desc.getDnnlDesc().get());
+            postops.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_add, memory_desc.getDnnlDesc().get());
+            postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_clip, in_low, in_high);
+            postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, scalar_mul, 0.0f);
+            postops.binary_postops_offset = binary_postops_offset;
+            postops.forced_output_type = ov::element::u8;
+            return postops;
+        };
+        // Create the reference model
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_input_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_input_shape);
+        auto binary_mul_param1 =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 1, 128});
+        auto binary_add_param1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{128});
+        auto binary_add_input1 = std::make_shared<ov::snippets::op::RankNormalization>(binary_add_param1, 3, 0);
+        auto brgemm1 = make_brgemm({input1, input2, binary_mul_param1, binary_add_input1}, create_postops(0));
+
+        auto input3 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_input_shape);
+        auto binary_mul_param2 =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 1, 128});
+        auto binary_add_param2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{128});
+        auto binary_add_input2 = std::make_shared<ov::snippets::op::RankNormalization>(binary_add_param2, 3, 0);
+        auto brgemm2 = make_brgemm({brgemm1, input3, binary_mul_param2, binary_add_input2}, create_postops(2));
+
+        auto input4 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_input_shape);
+        BrgemmCPU::PostopsConfig postops;
+        postops.forced_output_type = ov::element::f32;
+        auto brgemm3 = make_brgemm({brgemm2, input4}, postops);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{brgemm3},
+                                                ov::ParameterVector{input1,
+                                                                    input2,
+                                                                    binary_mul_param1,
+                                                                    binary_add_param1,
+                                                                    input3,
+                                                                    binary_mul_param2,
+                                                                    binary_add_param2,
+                                                                    input4});
+        // Binary postops' inputs became external parameters
+        expected_external_params_idces = {2, 3, 5, 6};
+    }
+}
