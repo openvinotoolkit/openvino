@@ -481,28 +481,27 @@ void Input::cloneBlobIfRequired() {
         // in that case we make a copy to avoid overflow
         if (m_constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
             if (m_constOp->get_element_type() == element::string) {
-                memory =
-                    std::make_shared<StringMemory>(getEngine(), memDesc, m_constOp->get_data_ptr<element::string>());
+                memory = std::make_shared<StringMemory>(memDesc, m_constOp->get_data_ptr<element::string>());
             } else {
-                memory = std::make_shared<Memory>(getEngine(), memDesc, m_constOp->get_data_ptr());
+                memory = std::make_shared<Memory>(memDesc, m_constOp->get_data_ptr());
             }
         } else {
             if (m_constOp->get_element_type() == element::string) {
-                memory = std::make_shared<StringMemory>(getEngine(), memDesc);
+                memory = std::make_shared<StringMemory>(memDesc);
                 auto src = m_constOp->get_data_ptr<StringMemory::OvString>();
                 auto dst = memory->getDataAs<StringMemory::OvString>();
                 std::copy(src, src + size, dst);
             } else {
-                memory = std::make_shared<Memory>(getEngine(), memDesc);
+                memory = std::make_shared<Memory>(memDesc);
                 memcpy(memory->getData(), m_constOp->get_data_ptr(), m_constOp->get_byte_size());
             }
         }
 
         MemoryPtr ptr;
         if (memDesc.getPrecision() == element::string) {
-            ptr = std::make_shared<StringMemory>(getEngine(), memDesc);
+            ptr = std::make_shared<StringMemory>(memDesc);
         } else {
-            ptr = std::make_shared<StaticMemory>(getEngine(), memDesc);
+            ptr = std::make_shared<StaticMemory>(memDesc);
         }
         ptr->load(*memory.get(), has_subnormals, has_bf16_overflows);
 
@@ -539,7 +538,7 @@ void Input::cloneBlobIfRequired() {
         // original weights are stored.
         (!weightCache || context->getNumNumaNodes() == 1 || context->getCPUStreamExecutor()->get_streams_num() == 1);
 
-    memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(getEngine(), memDesc, m_constOp->get_data_ptr())
+    memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(memDesc, m_constOp->get_data_ptr())
                                     : std::const_pointer_cast<const IMemory>(
                                           weightCache ? *weightCache->findOrCreate(blobKey(), cloneBlob) : cloneBlob());
 }

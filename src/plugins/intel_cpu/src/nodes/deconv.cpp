@@ -307,13 +307,10 @@ void Deconvolution::createDnnlCompatibleWeights() {
         order.push_back(i);
     }
 
-    auto desc = CpuBlockedMemoryDesc(DnnlExtensionUtils::DataTypeToElementType(blob->getDataType()),
-                                     Shape(dnnlCompatibleWeiDims),
-                                     blockedDims,
-                                     order);
+    auto desc = CpuBlockedMemoryDesc(blob->getPrecision(), Shape(dnnlCompatibleWeiDims), blockedDims, order);
     // Create the memory with the edge memory block. In the case of the weight memory changes when inference,
     // dnnlCompatibleWeights memory would be updated automatically via update inform mechanism.
-    dnnlCompatibleWeights = std::make_shared<Memory>(getEngine(), desc, blob->getMemoryBlock());
+    dnnlCompatibleWeights = std::make_shared<Memory>(desc, blob->getMemoryBlock());
 }
 
 bool Deconvolution::canBeExecutedInInt8() const {
@@ -666,16 +663,8 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
     // Weight dims in Group deconv:     [Group, Deconv_OC, Deconv_IC, KH, KW], perchannel weight scale is applied on
     // GROUP and Deconv_OC,
     //                                   weiScaleMaskPerChannel = ( 1 << 0 | 1 << 1) = 0x03
-    DnnlPostOpsComposerLegacy dnnlpoc(getEngine(),
-                                      attr,
-                                      ops,
-                                      postOpsArgs,
-                                      dims,
-                                      1,
-                                      isInt8,
-                                      withGroups ? 3 : 1 << 0,
-                                      getDQScales(),
-                                      withBiases);
+    DnnlPostOpsComposerLegacy
+        dnnlpoc(attr, ops, postOpsArgs, dims, 1, isInt8, withGroups ? 3 : 1 << 0, getDQScales(), withBiases);
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -736,7 +725,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
                 outSpDimsVecShape = {outSpDims.size()};
                 inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
                 CpuBlockedMemoryDesc desc(ov::element::i32, Shape(outSpDimsVecShape));
-                auto mem = std::make_shared<Memory>(getEngine(), desc, outSpDims.data());
+                auto mem = std::make_shared<Memory>(desc, outSpDims.data());
                 inputValues[i] = mem;
                 break;
             }
@@ -767,6 +756,15 @@ void Deconvolution::execute(const dnnl::stream& strm) {
 
     if (!execPtr) {
         THROW_CPU_NODE_ERR("executor is not compiled");
+    }
+
+    primArgs[DNNL_ARG_SRC].set_data_handle(getSrcDataAtPort(0));
+    primArgs[DNNL_ARG_DST].set_data_handle(getDstDataAtPort(0));
+    if (!weightIsConst) {
+        primArgs[DNNL_ARG_WEIGHTS].set_data_handle(dnnlCompatibleWeights->getData());
+    }
+    if (withBiases) {
+        primArgs[DNNL_ARG_BIAS].set_data_handle(getSrcDataAtPort(biasPort));
     }
 
     execPtr->exec(primArgs, strm);
@@ -1085,8 +1083,8 @@ void Deconvolution::prepareParams() {
         OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
     }
 
-    primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
-    primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
+    primArgs[DNNL_ARG_SRC] = DnnlExtensionUtils::createMemoryPrimitive(srcMemPtr, getEngine());
+    primArgs[DNNL_ARG_DST] = DnnlExtensionUtils::createMemoryPrimitive(dstMemPtr, getEngine());
     if (weightIsConst) {
         // const weight preparation/reordering needs to be done once at next execution
         // when the input weight data is guaranteed to be ready (considering possible const-folding
@@ -1094,21 +1092,22 @@ void Deconvolution::prepareParams() {
         auto it = primArgs.find(DNNL_ARG_WEIGHTS);
         if (it == primArgs.end() || !prevExecPtr ||
             !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
-            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc(), wghDesc)->getPrimitive();
+            auto wghMem = prepareWeightMemory(execPtr->getWeightDesc(), wghDesc);
+            primArgs[DNNL_ARG_WEIGHTS] = DnnlExtensionUtils::createMemoryPrimitive(wghMem, getEngine());
         }
     } else {
         // non-const weight will be reordered by executor on every exec
-        primArgs[DNNL_ARG_WEIGHTS] = dnnlCompatibleWeights->getPrimitive();
+        primArgs[DNNL_ARG_WEIGHTS] = DnnlExtensionUtils::createMemoryPrimitive(dnnlCompatibleWeights, getEngine());
     }
 
     if (withBiases) {
-        primArgs[DNNL_ARG_BIAS] = biasMemPtr->getPrimitive();
+        primArgs[DNNL_ARG_BIAS] = DnnlExtensionUtils::createMemoryPrimitive(biasMemPtr, getEngine());
     }
 
-    Node::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
+    Node::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs, getEngine());
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
-    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = DnnlExtensionUtils::createMemoryPrimitive(scratchpadMem, getEngine());
 #ifdef CPU_DEBUG_CAPS
     auto pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
@@ -1193,8 +1192,7 @@ ov::element::Type Deconvolution::getRuntimePrecision() const {
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(
-                DnnlExtensionUtils::DataTypeToElementType((parentEdge->getMemoryPtr()->getDataType())));
+            inputPrecisions.emplace_back(parentEdge->getMemoryPtr()->getPrecision());
         }
     }
 

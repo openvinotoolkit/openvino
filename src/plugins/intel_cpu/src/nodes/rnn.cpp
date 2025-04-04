@@ -887,7 +887,7 @@ void RNN::fillWeights() {
         std::make_shared<DnnlBlockedMemoryDesc>(Shape(dims_w), targetWeightDataType, getWeightsFormatTagByDims(dims_w));
 
     auto create_w = [&]() {
-        MemoryPtr w_data_mem = std::make_shared<Memory>(getEngine(), w_data_desc);
+        MemoryPtr w_data_mem = std::make_shared<Memory>(w_data_desc);
         auto w_ptr = reinterpret_cast<DataType*>(w_data_mem->getData());
         if (w_ptr == nullptr) {
             THROW_CPU_NODE_ERR("has unallocated internal blob.");
@@ -925,7 +925,7 @@ void RNN::fillWeights() {
         std::make_shared<DnnlBlockedMemoryDesc>(Shape(dims_s), targetWeightDataType, getWeightsFormatTagByDims(dims_s));
 
     auto create_r = [&]() {
-        MemoryPtr w_state_mem = std::make_shared<Memory>(getEngine(), w_state_desc);
+        MemoryPtr w_state_mem = std::make_shared<Memory>(w_state_desc);
         auto r_ptr = reinterpret_cast<DataType*>(w_state_mem->getData());
         if (r_ptr == nullptr) {
             THROW_CPU_NODE_ERR("has unallocated internal blob.");
@@ -995,7 +995,7 @@ void RNN::fillBiases() {
         std::make_shared<DnnlBlockedMemoryDesc>(Shape(dims_b), dnnl_type, getWeightsFormatTagByDims(dims_b));
 
     auto create = [&]() {
-        MemoryPtr w_bias_data_mem = std::make_shared<Memory>(getEngine(), w_bias_data_desc);
+        MemoryPtr w_bias_data_mem = std::make_shared<Memory>(w_bias_data_desc);
         auto b_ptr = reinterpret_cast<DataType*>(w_bias_data_mem->getData());
         if (b_ptr == nullptr) {
             THROW_CPU_NODE_ERR("has unallocated internal blob.");
@@ -1004,16 +1004,12 @@ void RNN::fillBiases() {
         std::vector<DataType> ie_b_vec;
         DataType* ie_b_ptr = nullptr;
 
-        if (dnnl_type != b_const_blob->getDataType()) {
+        if (ET != b_const_blob->getPrecision()) {
             const size_t ie_b_vec_size = getInputShapeAtPort(bIdx).getElementsCount();
             ie_b_vec.resize(ie_b_vec_size);
             ie_b_ptr = ie_b_vec.data();
 
-            cpu_convert(b_const_blob->getData(),
-                        ie_b_ptr,
-                        DnnlExtensionUtils::DataTypeToElementType(b_const_blob->getDataType()),
-                        ET,
-                        ie_b_vec_size);
+            cpu_convert(b_const_blob->getData(), ie_b_ptr, b_const_blob->getPrecision(), ET, ie_b_vec_size);
         } else {
             ie_b_ptr = reinterpret_cast<DataType*>(b_const_blob->getData());
         }
@@ -1044,8 +1040,8 @@ void RNN::prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) {
     }
 
     auto create = [&]() {
-        Memory memory{getEngine(), m_initial_weights[idx]->getDescPtr(), m_initial_weights[idx]->getData()};
-        MemoryPtr res_ptr = std::make_shared<Memory>(getEngine(), new_desc);
+        Memory memory{m_initial_weights[idx]->getDescPtr(), m_initial_weights[idx]->getData()};
+        MemoryPtr res_ptr = std::make_shared<Memory>(new_desc);
         node::Reorder::reorderData(memory, *res_ptr, context->getParamsCache());
         return res_ptr;
     };
@@ -1389,23 +1385,24 @@ void RNN::prepareParams() {
     if (!primArgs.count(DNNL_ARG_WEIGHTS_LAYER) || !prevExecPtr ||
         !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
         prepareMemory(execPtr->getWeightDesc(), 0);
-        primArgs[DNNL_ARG_WEIGHTS_LAYER] = internalBlobMemory[0]->getPrimitive();
+        primArgs[DNNL_ARG_WEIGHTS_LAYER] =
+            DnnlExtensionUtils::createMemoryPrimitive(internalBlobMemory[0], getEngine());
     }
 
     if (!primArgs.count(DNNL_ARG_WEIGHTS_ITER) || !prevExecPtr ||
         !execPtr->getWeightIterDesc()->isCompatible(*(prevExecPtr->getWeightIterDesc()))) {
         prepareMemory(execPtr->getWeightIterDesc(), 1);
-        primArgs[DNNL_ARG_WEIGHTS_ITER] = internalBlobMemory[1]->getPrimitive();
+        primArgs[DNNL_ARG_WEIGHTS_ITER] = DnnlExtensionUtils::createMemoryPrimitive(internalBlobMemory[1], getEngine());
     }
 
     if (!primArgs.count(DNNL_ARG_BIAS) || !prevExecPtr ||
         !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
         prepareMemory(execPtr->getBiasDesc(), 2);
-        primArgs[DNNL_ARG_BIAS] = internalBlobMemory[2]->getPrimitive();
+        primArgs[DNNL_ARG_BIAS] = DnnlExtensionUtils::createMemoryPrimitive(internalBlobMemory[2], getEngine());
     }
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
-    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = DnnlExtensionUtils::createMemoryPrimitive(scratchpadMem, getEngine());
 }
 
 std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
@@ -1428,28 +1425,30 @@ void RNN::execute(const dnnl::stream& strm) {
 
     auto args = primArgs;
 
-    args[DNNL_ARG_SRC_LAYER] = src_data_mem->getPrimitive();
-    args[DNNL_ARG_DST_LAYER] = dst_data_mem->getPrimitive();
+    args[DNNL_ARG_SRC_LAYER] = DnnlExtensionUtils::createMemoryPrimitive(src_data_mem, getEngine());
+    args[DNNL_ARG_DST_LAYER] = DnnlExtensionUtils::createMemoryPrimitive(dst_data_mem, getEngine());
 
     int state_i_tags[]{DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
     int state_o_tags[]{DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
     for (size_t s = 0; s < S; s++) {
-        args[state_i_tags[s]] = getSrcMemoryAtPort(s + 1)->getPrimitive();
+        args[state_i_tags[s]] = DnnlExtensionUtils::createMemoryPrimitive(getSrcMemoryAtPort(s + 1), getEngine());
     }
     if (is_augru) {
         const auto atten_port = is_cell ? 5 : 6;
-        args[DNNL_ARG_AUGRU_ATTENTION] = getSrcMemoryAtPort(atten_port)->getPrimitive();
+        args[DNNL_ARG_AUGRU_ATTENTION] =
+            DnnlExtensionUtils::createMemoryPrimitive(getSrcMemoryAtPort(atten_port), getEngine());
     }
 
     if (is_cell) {
         for (size_t s = 0; s < S; s++) {
-            args[state_o_tags[s]] = getDstMemoryAtPort(s)->getPrimitive();
+            args[state_o_tags[s]] = DnnlExtensionUtils::createMemoryPrimitive(getDstMemoryAtPort(s), getEngine());
         }
     } else {
         size_t n_ports_with_init_states = outputShapes.size() - 1;  // first is a sequence data
         for (size_t s = 0; s < std::min(S, n_ports_with_init_states); s++) {
             if (s < outputShapes.size()) {
-                args[state_o_tags[s]] = getDstMemoryAtPort(s + 1)->getPrimitive();
+                args[state_o_tags[s]] =
+                    DnnlExtensionUtils::createMemoryPrimitive(getDstMemoryAtPort(s + 1), getEngine());
             }
         }
     }
