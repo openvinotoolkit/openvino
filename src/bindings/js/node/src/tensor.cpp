@@ -44,8 +44,12 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
+<<<<<<< HEAD
                         InstanceMethod("isContinuous", &TensorWrap::is_continuous),
                         InstanceMethod("setShape", &TensorWrap::set_shape)});
+=======
+                        InstanceMethod("isContinuous", &TensorWrap::is_continuous),                        
+>>>>>>> master
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
