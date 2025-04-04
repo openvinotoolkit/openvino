@@ -1108,14 +1108,14 @@ void Transformations::MainSnippets() {
     // Runtime caching should be enabled in case of dynamic Subgraphs in CPU Plugin: to reduce overheads of
     // ShapeInference and CodeGeneration If runtime cache capacity is zero, it means that rtCache won't be used and we
     // shouldn't tokenize dynamic Subgraphs - it will lead to performance degradations
-    const bool is_dynamic_mha_token_enabled = config.rtCacheCapacity != 0;
 #if defined(OPENVINO_ARCH_ARM64)
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform
     // register, 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
     size_t data_ptr_gpr_count = 23;
     // ARM doesn't even support MHA yet
-    is_dynamic_mha_token_enabled = false;
+    const bool is_dynamic_mha_token_enabled = false;
 #else
+    const bool is_dynamic_mha_token_enabled = config.rtCacheCapacity != 0;
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
     const size_t data_ptr_gpr_count = 11;

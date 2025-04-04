@@ -3101,8 +3101,8 @@ void Interpolate::InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPa
     const float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
     const float fy = dataScales[dimSize - 2];
     const float fx = dataScales[dimSize - 1];
-    size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    const size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    const size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     auxTable.resize(OD + OH + OW);
     const bool isDDownsample = (fz < 1) ? true : false;
@@ -3225,8 +3225,8 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& 
     const float fz = (spatialDimSize > 2) ? dataScales[dimSize - 3] : 1.f;
     const float fy = (spatialDimSize > 1) ? dataScales[dimSize - 2] : 1.f;
     const float fx = dataScales[dimSize - 1];
-    int ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    int OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    const int ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    const int OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, nullptr);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, nullptr);
@@ -3341,8 +3341,8 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
     const float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
     const float fy = dataScales[dimSize - 2];
     const float fx = dataScales[dimSize - 1];
-    size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    const size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    const size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     if (!(IW == OW && IH == OH && ID == OD)) {
         const float ax = antialias ? fx : 1.0f;
@@ -3434,8 +3434,8 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
     const int dimSize = dataRank;
     const float fy = dataScales[dimSize - 2];
     const float fx = dataScales[dimSize - 1];
-    int IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    int OH = dstDim5d[3], OW = dstDim5d[4];
+    const int IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    const int OH = dstDim5d[3], OW = dstDim5d[4];
 
     // idxNum for index, CUBIC_GRID_LEN for weight
     const int idxNum = 1;
@@ -3526,8 +3526,8 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
     const int dimSize = dataRank;
     const float fy = dataScales[dimSize - 2];
     const float fx = dataScales[dimSize - 1];
-    int IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    int OH = dstDim5d[3], OW = dstDim5d[4];
+    const int IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    const int OH = dstDim5d[3], OW = dstDim5d[4];
 
     struct filterArgs {
         float (*weightGen)(float m);
@@ -4202,8 +4202,8 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
 }
 
 void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) {
-    size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    const size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    const size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     if (!interpolateKernel) {
         OPENVINO_THROW("Can't execute, kernel for Interpolate node is not compiled");
@@ -4251,8 +4251,8 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* 
 void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
                                                uint8_t* out_ptr_,
                                                [[maybe_unused]] const void* post_ops_data_) {
-    size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    const size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    const size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     switch (mode) {
     case InterpolateMode::nearest: {

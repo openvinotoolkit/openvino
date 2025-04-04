@@ -1022,8 +1022,8 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                     pSampledCoordsVector[sampledCoordIndex + 2] = h_off_low + w_off_high;
                     pSampledCoordsVector[sampledCoordIndex + 3] = h_off_low + w_off_low;
 
-                    float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
-                          w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
+                    const float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
+                                w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
 
                     pInterpWeightsVector[sampledCoordIndex] = w11;
                     pInterpWeightsVector[sampledCoordIndex + 1] = w12;

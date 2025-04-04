@@ -69,8 +69,8 @@ void ov::intel_cpu::InterpolateExecutor::buildTblNN(const VectorDims& srcDimPad5
     const float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
     const float fy = dataScales[dimSize - 2];
     const float fx = dataScales[dimSize - 1];
-    size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    const size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    const size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     indexTable.resize(OD + OH + OW);
     const bool isDDownsample = (fz < 1) ? true : false;
@@ -193,8 +193,8 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
     const float fz = (spatialDimSize > 2) ? dataScales[dimSize - 3] : 1.f;
     const float fy = (spatialDimSize > 1) ? dataScales[dimSize - 2] : 1.f;
     const float fx = dataScales[dimSize - 1];
-    int ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    int OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    const int ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    const int OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, nullptr);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, nullptr);
@@ -309,8 +309,8 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const VectorDims& srcDim
     const float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
     const float fy = dataScales[dimSize - 2];
     const float fx = dataScales[dimSize - 1];
-    size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    const size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    const size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     if (!(IW == OW && IH == OH && ID == OD)) {
         const float ax = antialias ? fx : 1.0f;
@@ -402,8 +402,8 @@ void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const VectorDims& srcDimP
     const int dimSize = dataRank;
     const float fy = dataScales[dimSize - 2];
     const float fx = dataScales[dimSize - 1];
-    int IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    int OH = dstDim5d[3], OW = dstDim5d[4];
+    const int IH = srcDimPad5d[3], IW = srcDimPad5d[4];
+    const int OH = dstDim5d[3], OW = dstDim5d[4];
 
     // idxNum for index, CUBIC_GRID_LEN for weight
     const int idxNum = 1;

@@ -43,7 +43,7 @@ static bool can_compile_rvv100() {
 
     bool status = false;
     if (sigsetjmp(jmpbuf, 1) == 0) {
-        const RVVGenerator gen;
+        RVVGenerator gen;
         gen.ready();
         const auto caller = gen.getCode<uint32_t (*)()>();
         status = static_cast<bool>(caller());

@@ -1806,7 +1806,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
         graph.CreateEdge(peerNode, mergedConv, peer_port, childPort);
 
         const std::vector<EdgeWeakPtr> edges_to_reconnect = lastNode->getChildEdges();
-        for (auto& edge_w : edges_to_reconnect) {
+        for (const auto& edge_w : edges_to_reconnect) {
             auto edge = edge_w.lock();
             auto child = edge->getChild();
             const int idxParent = edge->getInputNum();
