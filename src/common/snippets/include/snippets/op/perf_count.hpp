@@ -138,7 +138,11 @@ public:
                  std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
                  const std::string& params = "");
     PerfCountEnd();
-    ~PerfCountEnd();
+    // ~PerfCountEnd();
+    ~PerfCountEnd() {
+        output_perf_count();
+    }
+    void output_perf_count();
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
