@@ -257,7 +257,6 @@ void fill_output_blobs(const float* proposals,
                        uint8_t* roi_num,
                        const int num_proposals,
                        const size_t num_rois,
-                       const int post_nms_topn,
                        ov::element::Type roi_num_type) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
@@ -339,7 +338,7 @@ void GenerateProposals::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void GenerateProposals::execute(const dnnl::stream& strm) {
+void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 3) {
             THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
@@ -480,7 +479,6 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
                               p_roi_num,
                               pre_nms_topn,
                               num_rois,
-                              post_nms_topn_,
                               roi_num_type);
             p_deltas_item += deltas_dims_size;
             p_scores_item += score_dims_size;

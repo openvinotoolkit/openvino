@@ -100,7 +100,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(const dnnl::stream& strm,
+    void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -183,7 +183,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(const dnnl::stream& strm,
+    void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -233,7 +233,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(const dnnl::stream& strm,
+    void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -322,7 +322,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(const dnnl::stream& strm,
+    void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);   // [batch, length, head_cnt*head_size * 3]

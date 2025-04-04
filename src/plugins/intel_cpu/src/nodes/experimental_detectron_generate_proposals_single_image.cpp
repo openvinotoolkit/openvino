@@ -333,7 +333,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stream& strm) {
+void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
             THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
