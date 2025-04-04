@@ -220,7 +220,7 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
     if (!dataSrcRank) {
         srcDims = VectorDims(1, 1);
     }
-    if (!srcStrides.size()) {
+    if (srcStrides.empty()) {
         srcStrides = VectorDims(1, 1);
     }
 

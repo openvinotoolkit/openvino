@@ -285,7 +285,7 @@ bool RDFT::needShapeInfer() const {
 }
 
 bool RDFT::needPrepareParams() const {
-    return axesChanged() || signalSizesChanged() || twiddles.size() == 0;
+    return axesChanged() || signalSizesChanged() || twiddles.empty();
 }
 
 static void adjustInputSize(VectorDims& inputShape,
