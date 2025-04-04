@@ -119,8 +119,9 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
 
     // These predicates are used to skip the transformation in cases where a more optimized transformation is available
     auto not_scale_shift_pattern = [](const Output<Node>& output) {
-        if (!consumers_count(1)(output))
+        if (!consumers_count(1)(output)) {
             return true;
+        }
         const auto& consumer = output.get_target_inputs().begin()->get_node();
         if (ov::is_type<ov::op::v1::Add>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
                                                        is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
@@ -129,8 +130,9 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
         return true;
     };
     auto not_clip_pattern = [](const Output<Node>& output) {
-        if (!consumers_count(1)(output))
+        if (!consumers_count(1)(output)) {
             return true;
+        }
         const auto& consumer = output.get_target_inputs().begin()->get_node();
         if (ov::is_type<ov::op::v1::Minimum>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
                                                            is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
@@ -258,7 +260,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         auto brgemm_inputs = brgemm->input_values();
         auto input_descs = brgemm->get_input_port_descriptors();
         brgemm_inputs.push_back(pattern_map.count(m_rank_norm) ? pattern_map.at(m_rank_norm) : parameter_out);
-        input_descs.push_back(ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0});
+        input_descs.emplace_back(0, 0);
 
         auto new_brgemm = clone_with_new_params(brgemm, postops_config, brgemm_inputs, input_descs);
         new_brgemm->set_friendly_name(post_op->get_friendly_name());
@@ -301,8 +303,8 @@ pass::FuseScaleShift::FuseScaleShift() {
         const auto shift = pattern_map.at(m_shift).get_node_shared_ptr();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
 
-        const float alpha = ov::as_type_ptr<Scalar>(pattern_map.at(m_alpha).get_node_shared_ptr())->get_value<float>();
-        const float beta = ov::as_type_ptr<Scalar>(pattern_map.at(m_beta).get_node_shared_ptr())->get_value<float>();
+        const auto alpha = ov::as_type_ptr<Scalar>(pattern_map.at(m_alpha).get_node_shared_ptr())->get_value<float>();
+        const auto beta = ov::as_type_ptr<Scalar>(pattern_map.at(m_beta).get_node_shared_ptr())->get_value<float>();
 
         auto postops_config = brgemm->get_postops_config();
         postops_config.forced_output_type = shift->get_output_element_type(0);
@@ -342,9 +344,9 @@ pass::FuseClip::FuseClip() {
         const auto min_op = pattern_map.at(m_min).get_node_shared_ptr();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
 
-        const float clip_min =
+        const auto clip_min =
             ov::as_type_ptr<Scalar>(pattern_map.at(m_in_low).get_node_shared_ptr())->get_value<float>();
-        const float clip_max =
+        const auto clip_max =
             ov::as_type_ptr<Scalar>(pattern_map.at(m_in_high).get_node_shared_ptr())->get_value<float>();
 
         auto postops_config = brgemm->get_postops_config();
