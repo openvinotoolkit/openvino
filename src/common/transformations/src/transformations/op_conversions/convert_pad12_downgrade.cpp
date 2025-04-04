@@ -9,6 +9,7 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertPad12ToPad1::ConvertPad12ToPad1() {
     MATCHER_SCOPE(ConvertPad12ToPad1);

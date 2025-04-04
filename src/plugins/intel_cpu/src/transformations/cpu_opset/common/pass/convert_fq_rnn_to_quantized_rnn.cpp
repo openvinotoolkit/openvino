@@ -16,6 +16,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
     MATCHER_SCOPE(ConvertFqRnnToQuantizedRnn);

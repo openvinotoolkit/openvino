@@ -12,6 +12,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar() {
     MATCHER_SCOPE(ConvertU4WeightsZeroPointToScalar);

@@ -13,6 +13,7 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 #include "utils/general_utils.h"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_cpu::tpp::pass {
 

@@ -8,6 +8,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/roi_align.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertROIAlign9To3::ConvertROIAlign9To3() {
     MATCHER_SCOPE(ConvertROIAlign9To3);

@@ -22,6 +22,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace {
 enum class ReduceType { NONE, MAX, MIN };

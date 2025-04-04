@@ -4,6 +4,8 @@
 
 #include "bound_evaluate.hpp"
 
+#include <stack>
+
 #include "compare.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"

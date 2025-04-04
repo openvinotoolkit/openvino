@@ -15,6 +15,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     MATCHER_SCOPE(FullyConnectedBiasFusion);

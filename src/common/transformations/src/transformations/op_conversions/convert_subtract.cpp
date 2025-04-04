@@ -13,6 +13,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov;
 

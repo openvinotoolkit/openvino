@@ -10,6 +10,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace std;
 using namespace ov;

@@ -9,6 +9,7 @@
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3::ConvertScatterNDUpdate15ToScatterNDUpdate3() {
     MATCHER_SCOPE(ConvertScatterNDUpdate15ToScatterNDUpdate3);

@@ -9,6 +9,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace frontend {

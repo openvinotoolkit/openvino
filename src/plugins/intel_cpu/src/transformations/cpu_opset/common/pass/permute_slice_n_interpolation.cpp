@@ -11,6 +11,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils/general_utils.h"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 

@@ -5,6 +5,7 @@
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_cpu {
 

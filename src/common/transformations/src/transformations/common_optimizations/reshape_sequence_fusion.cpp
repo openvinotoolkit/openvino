@@ -15,6 +15,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace {
 bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {

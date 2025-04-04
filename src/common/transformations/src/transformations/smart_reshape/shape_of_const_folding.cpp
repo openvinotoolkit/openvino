@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ShapeOfConstFolding::ShapeOfConstFolding() {
     MATCHER_SCOPE(ShapeOfConstFolding);

@@ -29,6 +29,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace {
 ov::Output<ov::Node> get_current_iter(ov::ParameterVector& body_params,

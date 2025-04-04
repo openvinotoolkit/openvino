@@ -16,6 +16,7 @@
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "utils/general_utils.h"
+#include "openvino/core/graph_util.hpp"
 
 namespace {
 

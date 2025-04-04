@@ -27,6 +27,7 @@
 #include "transformations/defs.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
+#include "openvino/core/graph_util.hpp"
 using namespace ov::gen_pattern;
 
 namespace ov::intel_cpu {

@@ -8,6 +8,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/prior_box.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
     MATCHER_SCOPE(ConvertPriorBox8To0);

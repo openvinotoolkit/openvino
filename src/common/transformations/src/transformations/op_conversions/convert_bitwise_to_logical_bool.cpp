@@ -16,6 +16,7 @@
 #include "openvino/op/logical_xor.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertBitwiseAndToLogicalAnd::ConvertBitwiseAndToLogicalAnd() {
     MATCHER_SCOPE(ConvertBitwiseAndToLogicalAnd);

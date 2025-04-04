@@ -16,6 +16,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertGELU::ConvertGELU() {
     MATCHER_SCOPE(ConvertGELU);

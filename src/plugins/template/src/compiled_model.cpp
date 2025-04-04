@@ -15,6 +15,7 @@
 #include "plugin.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/pass/serialize.hpp"
 
 // ! [compiled_model:ctor]
 ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,

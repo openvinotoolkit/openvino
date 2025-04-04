@@ -11,6 +11,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 static bool use_broadcast(const std::shared_ptr<ov::op::v0::Concat>& concat) {
     const auto& output = concat->output(0);

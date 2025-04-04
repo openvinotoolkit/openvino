@@ -9,6 +9,7 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertTopK11ToTopK3::ConvertTopK11ToTopK3() {
     MATCHER_SCOPE(ConvertTopK11ToTopK3);

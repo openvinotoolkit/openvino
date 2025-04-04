@@ -12,6 +12,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
+#include "openvino/core/graph_util.hpp"
 
 template <typename T>
 static std::string vec_to_str(const std::vector<T> m) {

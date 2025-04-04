@@ -33,6 +33,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace std;
 using namespace ov::pass;

@@ -9,6 +9,7 @@
 #include "openvino/op/detection_output.hpp"
 #include "openvino/op/util/detection_output_base.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace std;
 using namespace ov;

@@ -11,6 +11,7 @@
 #include "openvino/op/non_zero.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::pass::NonZeroHorizontalFusion::NonZeroHorizontalFusion() {
     MATCHER_SCOPE(NonZeroHorizontalFusion);

@@ -21,6 +21,7 @@
 #include "openvino/reference/convert.hpp"
 #include "openvino/reference/fake_quantize.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 static bool has_dequantization_subgraph(const std::shared_ptr<ov::Node>& fq,
                                         std::shared_ptr<ov::Node>& convert_to_low_precision,
