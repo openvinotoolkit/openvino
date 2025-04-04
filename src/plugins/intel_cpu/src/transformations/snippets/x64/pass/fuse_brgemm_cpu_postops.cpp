@@ -83,13 +83,6 @@ bool pass::FuseBrgemmCPUPostops::run_on_model(const std::shared_ptr<ov::Model>& 
     for (const auto& param : m_external_params) {
         m_brgemm_external_params_idces.insert(m->get_parameter_index(param));
     }
-    if (!m_brgemm_external_params_idces.empty()) {
-        std::cout << " [ INFO ] FuseBrgemmCPUPostops m_brgemm_external_params_idces = { ";
-        for (const auto& idx : m_brgemm_external_params_idces) {
-            std::cout << idx << " ";
-        }
-        std::cout << "}" << std::endl;
-    }
     return res;
 }
 
@@ -109,8 +102,6 @@ pass::FuseConvert::FuseConvert() {
 
         auto postops_config = brgemm->get_postops_config();
         postops_config.forced_output_type = convert->get_output_element_type(0);
-        std::cout << "[ INFO ] FuseBrgemmCPUPostops::FuseConvert fused convert with out precision: "
-                  << convert->get_output_element_type(0) << std::endl;
         auto new_brgemm =
             clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
         new_brgemm->set_friendly_name(convert->get_friendly_name());
@@ -175,8 +166,6 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
                             alpha,
                             " Beta = ",
                             beta);
-            std::cout << "[ INFO ] FuseBrgemmCPUPostops::FuseScalarEltwise fused node " << post_op->get_type_name()
-                      << std::endl;
         };
 
         if (pattern_map.count(m_scale)) {
@@ -244,10 +233,6 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         postops_config.forced_output_type = post_op->get_output_element_type(0);
         if (!postops_config.binary_postops_offset) {
             postops_config.binary_postops_offset = m_fused_postops_count;
-            std::cout << "[ INFO ] binary_postops_offset is set to " << m_fused_postops_count << std::endl;
-        } else {
-            std::cout << "[ INFO ] binary postops is already set to " << postops_config.binary_postops_offset.value()
-                      << std::endl;
         }
 
         auto append_binary = [&postops_config, &post_op, &memory_desc](alg_kind_t alg_kind) {
@@ -256,8 +241,6 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
                 "Failed to append binary eltwise ",
                 post_op,
                 " to brgemm postops.");
-            std::cout << "[ INFO ] FuseBrgemmCPUPostops::FuseBinaryEltwise fused node " << post_op->get_type_name()
-                      << std::endl;
         };
 
         if (pattern_map.count(m_mul)) {
@@ -331,9 +314,6 @@ pass::FuseScaleShift::FuseScaleShift() {
             ", Beta = ",
             beta);
 
-        std::cout << "[ INFO ] FuseBrgemmCPUPostops::FuseScaleShift fused scale-shift with alpha = " << alpha
-                  << " and beta = " << beta << std::endl;
-
         auto new_brgemm =
             clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
         new_brgemm->set_friendly_name(shift->get_friendly_name());
@@ -377,9 +357,6 @@ pass::FuseClip::FuseClip() {
             clip_min,
             ", in_high = ",
             clip_max);
-
-        std::cout << "[ INFO ] FuseBrgemmCPUPostops::FuseClip fused clip with in_low = " << clip_min
-                  << " and in_high = " << clip_max << std::endl;
 
         auto new_brgemm =
             clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
