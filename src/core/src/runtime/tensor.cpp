@@ -109,10 +109,15 @@ void* Tensor::data(const element::Type& element_type) {
     OV_TENSOR_STATEMENT(return _impl->data(element_type));
 }
 
+#ifdef IN_OV_COMPONENT
 const void* Tensor::data(const element::Type& element_type) const {
-    using const_data = const void* (ITensor::*)(const element::Type&) const;
-    OV_TENSOR_STATEMENT(return std::invoke<const_data>(&ITensor::data, _impl, element_type););
+    OV_TENSOR_STATEMENT(return std::as_const(*this)._impl->data(element_type););
 }
+#else
+void* Tensor::data(const element::Type& element_type) const {
+    OV_TENSOR_STATEMENT(return std::as_const(*this)._impl->data(element_type););
+}
+#endif
 
 bool Tensor::operator!() const noexcept {
     return !_impl;

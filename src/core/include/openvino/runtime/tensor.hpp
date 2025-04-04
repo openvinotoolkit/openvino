@@ -225,7 +225,12 @@ public:
      * @return A host pointer to tensor memory
      * @{
      */
+#ifdef IN_OV_COMPONENT
     const void* data(const element::Type& type = {}) const;
+#else
+    OPENVINO_DEPRECATED("This function will return const void* in 2026.0. Check if used correctly")
+    void* data(const element::Type& type = {}) const;
+#endif
     void* data(const element::Type& type = {});
     /// @}
 
@@ -236,14 +241,26 @@ public:
      * @{
      */
     template <typename T, typename datatype = std::decay_t<T>>
+#ifdef IN_OV_COMPONENT
     const T* data() const {
         return static_cast<const T*>(data(element::from<datatype>()));
     }
+#else
+    OPENVINO_DEPRECATED("This function will return const T* in 2026.0. Check if used correctly")
+    T* data() const {
+        OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
+            return static_cast<T*>(data(element::from<datatype>()));
+        OPENVINO_SUPPRESS_DEPRECATED_END  // keep until 2026.0 release
+    }
+#endif
 
     template <typename T, typename datatype = std::decay_t<T>>
     T* data() {
         if constexpr (std::is_const_v<T>) {
-            return static_cast<const Tensor*>(this)->data<T>();
+            OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
+                return std::as_const(*this)
+                    .data<T>();
+            OPENVINO_SUPPRESS_DEPRECATED_END  // keep until 2026.0 release
         } else {
             return static_cast<T*>(data(element::from<datatype>()));
         }

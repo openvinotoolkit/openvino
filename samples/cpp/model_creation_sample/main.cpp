@@ -77,10 +77,13 @@ ov::Tensor read_weights(const std::string& filepath) {
  */
 std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
     const ov::Tensor weights = read_weights(path_to_weights);
-    const std::uint8_t* data = weights.data<std::uint8_t>();
+    OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
+        const std::uint8_t* data = weights.data<std::uint8_t>();
+    OPENVINO_SUPPRESS_DEPRECATED_END  // keep until 2026.0 release
 
-    // -------input------
-    std::vector<ptrdiff_t> padBegin{0, 0};
+        // -------input------
+        std::vector<ptrdiff_t>
+            padBegin{0, 0};
     std::vector<ptrdiff_t> padEnd{0, 0};
 
     auto paramNode = std::make_shared<ov::opset13::Parameter>(ov::element::Type_t::f32, ov::Shape({64, 1, 28, 28}));
