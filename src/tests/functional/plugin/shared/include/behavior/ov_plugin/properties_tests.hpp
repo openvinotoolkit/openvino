@@ -95,13 +95,6 @@ protected:
 public:
     void SetUp() override {
         std::tie(target_device, deviceID) = GetParam();
-        ov::Core ie = ov::test::utils::create_core();
-        auto deviceIDs = ie.get_property(target_device, ov::available_devices);
-        if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-            if (target_device == "GPU" && deviceID == "1") {
-                GTEST_SKIP() << "Skip this test, because gpu with number 1 not available and test check properties of GPU.1";
-            }
-        }
         APIBaseTest::SetUp();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
     }
@@ -113,38 +106,14 @@ using OVClassCompileModelReturnDefaultHintTest = OVClassSetDevicePriorityConfigP
 using OVClassCompileModelDoNotReturnDefaultHintTest = OVClassSetDevicePriorityConfigPropsTest;
 using OVClassCompileModelAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigPropsTest;
 using OVGetConfigTest = OVClassBaseTestP;
-
-class OVSpecificDeviceSetConfigTest : public OVClassBaseTestP {
-public:
-    void SetUp() override {
-        target_device = GetParam();
-        ov::Core ie = ov::test::utils::create_core();
-        std::string clear_target_device, deviceID;
-        auto pos = target_device.find('.');
-        if (pos != std::string::npos) {
-            clear_target_device = target_device.substr(0, pos);
-            deviceID =  target_device.substr(pos + 1,  target_device.size());
-        }
-        // sw plugins are not requested to support `ov::available_devices`, `ov::device::id` and `ov::num_streams` property
-        auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
-        if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-            if (target_device == "GPU.1") {
-                GTEST_SKIP() << "Skip this test, because gpu with number 1 not available and test check properties of GPU.1";
-            }
-        }
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        APIBaseTest::SetUp();
-        OVClassNetworkTest::SetUp();
-    }
-};
-
-using OVSpecificDeviceGetConfigTest = OVSpecificDeviceSetConfigTest;
+using OVSpecificDeviceSetConfigTest = OVClassBaseTestP;
+using OVSpecificDeviceGetConfigTest = OVClassBaseTestP;
 using OVGetAvailableDevicesPropsTest = OVClassBaseTestP;
 using OVGetMetricPropsTest = OVClassBaseTestP;
 using OVGetMetricPropsOptionalTest = OVClassBaseTestP;
 using OVSetEnableHyperThreadingHintConfigTest = OVClassBaseTestP;
 
-using OVSpecificDeviceTestSetConfig = OVSpecificDeviceSetConfigTest;
+using OVSpecificDeviceTestSetConfig = OVClassBaseTestP;
 
 class OVBasicPropertiesTestsP : public OVPluginTestBase,
                                public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
