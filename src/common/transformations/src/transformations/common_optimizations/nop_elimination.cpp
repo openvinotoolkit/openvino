@@ -584,6 +584,8 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 if (end_constant_node == nullptr)
                     return false;
                 auto end_values = end_constant_node->cast_vector<int64_t>();
+                if (end_values[concat_axis] == std::numeric_limits<int64_t>::max())
+                    end_values[concat_axis] = concat->get_shape()[concat_axis];
 
                 slice_out_index_in_concat.push_back(
                     std::make_tuple(strided_slice_node, begin_values[concat_axis], end_values[concat_axis] - 1));
@@ -619,18 +621,20 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
             if (!matched)
                 mismatch_slices.push_back(std::make_tuple(slice_node, slice_begin, slice_end));
         }
+        if (mismatch_slices.empty())
+            return true;
 
         int64_t new_start_value{std::numeric_limits<int64_t>::max()};
         int64_t new_end_value{0};
         for (const auto& [slice_node, slice_begin, slice_end] : mismatch_slices) {
             for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
-                if ((concat_input_begin <= slice_begin) && (concat_input_end > slice_begin)) {
+                if ((concat_input_begin <= slice_begin) && (concat_input_end >= slice_begin)) {
                     if (concat_input_begin < new_start_value)
                         new_start_value = concat_input_begin;
                     if (concat_input_end > new_end_value)
                         new_end_value = concat_input_end;
                 }
-                if ((concat_input_begin < slice_end) && (concat_input_end >= slice_end)) {
+                if ((concat_input_begin <= slice_end) && (concat_input_end >= slice_end)) {
                     if (concat_input_begin < new_start_value)
                         new_start_value = concat_input_begin;
                     if (concat_input_end > new_end_value)
@@ -653,6 +657,8 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 new_concat_in_nodes.push_back(concat_input_node);
             }
         }
+        if (new_concat_in_nodes.size() == concat_inputs.size())
+            return false;
 
         auto new_concat_node = concat->clone_with_new_inputs(ov::as_output_vector(new_concat_in_nodes));
         replace_output_update_name(concat, new_concat_node);
