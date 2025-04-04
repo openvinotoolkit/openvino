@@ -7,7 +7,7 @@
 #include <regex>
 #include <string_view>
 
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
@@ -518,6 +518,75 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(ze_graph_handle_t graphHandle
     meta.numStreams = 1;
     meta.bindRelatedDescriptors();
     return meta;
+}
+
+std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
+    // Early exit if api is not supported
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
+        return {};
+    }
+    // 1. ask driver for size of compiler supported options list
+    _logger.debug("pfnCompilerGetSupportedOptions - obtain string size");
+    size_t str_size = 0;
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(_zeroInitStruct->getDevice(),
+                                                                                     ZE_NPU_COMPILER_OPTIONS,
+                                                                                     &str_size,
+                                                                                     nullptr);
+    if (result == ZE_RESULT_SUCCESS) {
+        if (str_size > 0) {
+            _logger.debug("pfnCompilerGetSupportedOptions - obtain list");
+            // 2. allocate buffer for it
+            std::vector<char> sup_options_chr(str_size);
+            // 3. ask driver to populate char list
+            auto result =
+                _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(_zeroInitStruct->getDevice(),
+                                                                                   ZE_NPU_COMPILER_OPTIONS,
+                                                                                   &str_size,
+                                                                                   sup_options_chr.data());
+            if (result == ZE_RESULT_SUCCESS) {
+                // convert received buff to string
+                std::string supported_options_list_str(sup_options_chr.data());
+                // cleanup
+                return supported_options_list_str;
+            } else if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
+                // cleanup
+                return {};
+            } else {
+                // cleanup
+                THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions",
+                                                result,
+                                                _zeroInitStruct->getGraphDdiTable())
+            }
+        }
+    } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE)) {
+        return {};
+    } else {
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions", result, _zeroInitStruct->getGraphDdiTable())
+    }
+
+    _logger.debug("pfnCompilerGetSupportedOptions - list size 0 - skipping!");
+    return {};
+}
+
+bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
+    // Early exit if api is not supported
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
+        return false;
+    }
+    const char* optname_ch = optname.c_str();
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
+                                                                                   ZE_NPU_COMPILER_OPTIONS,
+                                                                                   optname_ch,
+                                                                                   nullptr);
+    if (result == ZE_RESULT_SUCCESS) {
+        return true;
+    } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE) ||
+               (result == ZE_RESULT_ERROR_UNKNOWN)) {
+        return false;
+    } else {
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerIsOptionSupported", result, _zeroInitStruct->getGraphDdiTable());
+    }
+    return false;
 }
 
 }  // namespace intel_npu
