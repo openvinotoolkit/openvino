@@ -46,7 +46,6 @@ protected:
 
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
-
         {
             auto weights = instance.weights_memory();
             auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
@@ -79,15 +78,16 @@ protected:
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, true);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
             }
+            bool is_dyn_quan_input = instance.get_input_layout(0).data_type == data_types::i8 || instance.get_input_layout(0).data_type == data_types::u8;
 
-            if (prim->activation_scale.is_valid()) {
+            if (is_dyn_quan_input && prim->activation_scale.is_valid()) {
                 auto activation_scale_idx = idx++;
                 auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_scale_mem->get_layout(), dnnl::memory::format_tag::ab, true);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0, act_scale_mem->get_onednn_memory(desc)});
             }
 
-            if (prim->activation_zero_point.is_valid()) {
+            if (is_dyn_quan_input && prim->activation_zero_point.is_valid()) {
                 auto activation_zp_idx = idx++;
                 auto act_zp_mem = instance.dep_memory_ptr(activation_zp_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab, true);
@@ -250,7 +250,8 @@ public:
             }
         }
 
-        if (dynamic_quantized_activation) {
+        bool is_dyn_quan_input = impl_params->get_input_layout(0).data_type == data_types::i8 || impl_params->get_input_layout(0).data_type == data_types::u8;
+        if (is_dyn_quan_input && dynamic_quantized_activation) {
             auto src_scale_idx = ++idx;
             auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
             auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
@@ -290,7 +291,11 @@ public:
         // There may be a performance difference between InnerProduct and MatMul primitives in oneDNN,
         // so use MatMul only for weights compression and IP for all other cases.
         if (prim->compressed_weights) {
-            attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+            bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
+
+            if (!is_dyn_quan_input)
+                attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+
             auto weights_layout = impl_params.get_input_layout(1);
             is_four_bit_weight = weights_layout.data_type == data_types::u4 || weights_layout.data_type == data_types::i4;
             if (!prim->decompression_scale.empty()) {
@@ -325,7 +330,7 @@ public:
                 }
             }
 
-            if (prim->dynamic_quantized_activation) {
+            if (is_dyn_quan_input && prim->dynamic_quantized_activation) {
                 auto src_scale_idx = ++idx;
                 auto& partial_shape = impl_params.input_layouts[0].get_partial_shape();
                 auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();

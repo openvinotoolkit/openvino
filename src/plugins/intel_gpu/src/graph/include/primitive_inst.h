@@ -365,7 +365,7 @@ protected:
     // it should be added to this set
     std::vector<std::pair<primitive_inst*, int32_t>> _deps;
 
-    // List of depandant shape_of primitives for shape_of subgraphs
+    // List of dependant shape_of primitives for shape_of subgraphs
     std::vector<primitive_inst*> dependant_shape_of_insts;
 
     std::vector<primitive_inst*> _users;
