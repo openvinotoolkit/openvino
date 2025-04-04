@@ -228,7 +228,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             std::cout << "[ INFO ] binary_postops_offset is set to " << m_fused_postops_count << std::endl;
         } else {
             std::cout << "[ INFO ] binary postops is already set to " << postops_config.binary_postops_offset.value()
-                  << std::endl;
+                      << std::endl;
         }
 
         auto append_binary = [&postops_config, &post_op, &memory_desc](alg_kind_t alg_kind) {
@@ -254,8 +254,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         }
 
         const auto postop_input_node = ov::as_type_ptr<ov::op::v0::Parameter>(parameter_out.get_node_shared_ptr());
-        OPENVINO_ASSERT(postop_input_node != nullptr,
-                        "postop_input_node is nullptr. It should be a Parameter node");
+        OPENVINO_ASSERT(postop_input_node != nullptr, "postop_input_node is nullptr. It should be a Parameter node");
         m_external_params.insert(postop_input_node);
 
         auto brgemm_inputs = brgemm->input_values();
@@ -346,15 +345,21 @@ pass::FuseClip::FuseClip() {
         const auto min_op = pattern_map.at(m_min).get_node_shared_ptr();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
 
-        const float clip_min = ov::as_type_ptr<Scalar>(pattern_map.at(m_in_low).get_node_shared_ptr())->get_value<float>();
-        const float clip_max = ov::as_type_ptr<Scalar>(pattern_map.at(m_in_high).get_node_shared_ptr())->get_value<float>();
+        const float clip_min =
+            ov::as_type_ptr<Scalar>(pattern_map.at(m_in_low).get_node_shared_ptr())->get_value<float>();
+        const float clip_max =
+            ov::as_type_ptr<Scalar>(pattern_map.at(m_in_high).get_node_shared_ptr())->get_value<float>();
 
         auto postops_config = brgemm->get_postops_config();
         postops_config.forced_output_type = min_op->get_output_element_type(0);
 
         OPENVINO_ASSERT(
-            postops_config.post_ops.append_eltwise(1.f, alg_kind_t::dnnl_eltwise_clip, clip_min, clip_max) == dnnl_success,
-            "Failed to append clip eltwise to brgemm postops. in_low = ", clip_min, ", in_high = ", clip_max);
+            postops_config.post_ops.append_eltwise(1.f, alg_kind_t::dnnl_eltwise_clip, clip_min, clip_max) ==
+                dnnl_success,
+            "Failed to append clip eltwise to brgemm postops. in_low = ",
+            clip_min,
+            ", in_high = ",
+            clip_max);
 
         std::cout << "[ INFO ] FuseBrgemmCPUPostops::FuseClip fused clip with in_low = " << clip_min
                   << " and in_high = " << clip_max << std::endl;
