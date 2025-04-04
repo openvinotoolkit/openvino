@@ -73,7 +73,8 @@ jobs:
             .github/actions/setup_python/action.yml
             .github/actions/install_ov_wheels/action.yml
             .github/actions/validate_pyi_files/action.yml
-            src/bindings/python
+            src/bindings/python/scripts/generate_pyapi_stubs.sh
+            src/bindings/python/**/*.pyi
           sparse-checkout-cone-mode: false
           path: 'action_root'
 
