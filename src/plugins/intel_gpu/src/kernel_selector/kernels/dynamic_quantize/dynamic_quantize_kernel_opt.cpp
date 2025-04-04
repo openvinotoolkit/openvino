@@ -65,17 +65,31 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     auto vec_size = get_match_vector_size(params);
     auto bf_size = get_input_bf_size(params);
     auto total_block_num = bf_size.second / (simd * vec_size);
-    size_t aligned_block_num = (total_block_num > 32) ? Align(total_block_num, 32) : total_block_num;
-    size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
 
-    jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
-    jit.AddConstant(MakeJitConstant("SIMD", simd));
-    jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num));
-    jit.AddConstant(MakeJitConstant("ALIGNED_BLOCK_NUM", aligned_block_num));
-    jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
-    jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
-    jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
-    jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
+    // std::cout << __FILE__ << ":" << __LINE__ << "  group size " << params.group_sizes.back() << std::endl;
+    if (params.group_sizes.back() == 256) {
+        size_t aligned_block_num = total_block_num;
+        size_t block_num = total_block_num;
+        jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
+        jit.AddConstant(MakeJitConstant("SIMD", simd));
+        jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num));
+        jit.AddConstant(MakeJitConstant("ALIGNED_BLOCK_NUM", aligned_block_num));
+        jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
+        jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
+        jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
+        jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
+    } else {
+        size_t aligned_block_num = (total_block_num > 32) ? Align(total_block_num, 32) : total_block_num;
+        size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
+        jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
+        jit.AddConstant(MakeJitConstant("SIMD", simd));
+        jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num));
+        jit.AddConstant(MakeJitConstant("ALIGNED_BLOCK_NUM", aligned_block_num));
+        jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
+        jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
+        jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
+        jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
+    }
 
     return jit;
 }
@@ -83,20 +97,30 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
 CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_params& params) const {
     CommonDispatchData dispatchData;
 
-    if (params.group_sizes.back() <= 256) {
+    if (params.group_sizes.back() <= 128) {
         auto bf_size = get_input_bf_size(params);
         dispatchData.gws = {bf_size.first, bf_size.second / params.group_sizes.back(), 1};
         dispatchData.lws = {1, 1, 1};
+    } else if (params.group_sizes.back() == 256) {
+        auto vec_size = get_match_vector_size(params);
+        auto bf_size = get_input_bf_size(params);
+        size_t total_block_num = bf_size.second / (simd * vec_size);
+        size_t batch = bf_size.first;
+
+        dispatchData.gws = {simd, total_block_num, batch};
+        dispatchData.lws = {simd, params.group_sizes.back() / (simd * vec_size), 1};
     } else {
         auto vec_size = get_match_vector_size(params);
         auto bf_size = get_input_bf_size(params);
         size_t total_block_num = bf_size.second / (simd * vec_size);
-        size_t batch = get_input_bf_size(params).first;
+        size_t batch = bf_size.first;
         size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
 
         dispatchData.gws = {simd, block_num, batch};
         dispatchData.lws = {simd, block_num, 1};
     }
+    // std::cout << "gws " << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", " << dispatchData.gws[2] << "   "
+    // << "lws " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2] << "   " << std::endl;
     return dispatchData;
 }
 

@@ -16,7 +16,7 @@
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
 
-#if QUANTIZE_GROUP_SIZE <= 256
+#if QUANTIZE_GROUP_SIZE <= 128
 
 #if ASYMMETRIC_QUANTIZATION
 #error "UNIMPLMENTED: asymmetric quantization when group size is small"
@@ -72,7 +72,131 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
 }
 
-#else // !(QUANTIZE_GROUP_SIZE <= 128)
+#elif (QUANTIZE_GROUP_SIZE == 256)
+
+
+
+REQD_SUB_GROUP_SIZE(SIMD)
+KERNEL(dynamic_quantize_gpu_opt)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output,
+    __global OUTPUT1_TYPE* output_scale
+#if ASYMMETRIC_QUANTIZATION
+    , __global OUTPUT2_TYPE* output_zp
+#endif
+    )
+{
+    const uint bf = (uint)get_global_id(2); // FIXME: change name to b, not bf
+    const uint f_grp = get_group_id(1);
+    const uint sglid = get_sub_group_local_id();
+    const uint local_id = (uint)get_local_id(1);
+#if OUTPUT_DIMS == 2
+    const uint input_offset = INPUT0_GET_INDEX (bf, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
+    const uint output_offset = OUTPUT_GET_INDEX(bf, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
+#else
+    const uint input_offset = INPUT0_GET_INDEX (bf, 0, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);
+    const uint output_offset = OUTPUT_GET_INDEX(bf, 0, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);
+#endif
+
+    const uint block_size = SIMD * VEC_SIZE;
+#if OUTPUT_DIMS == 2
+    const uint b_offset = bf * INPUT0_BATCH_PITCH;
+#else
+    const uint b_offset = bf * INPUT0_FEATURE_PITCH;
+#endif
+    const uint offset = b_offset + VEC_SIZE * sglid;
+
+    const uint iteration = ALIGNED_BLOCK_NUM / BLOCK_NUM;
+
+    __local half local_mem_max[QUANTIZE_GROUP_SIZE / block_size];
+    __local half local_mem_min[QUANTIZE_GROUP_SIZE / block_size];
+
+    // if (get_global_id(0) == 0 && get_group_id(1) == 0 && get_global_id(1) == 0)
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) val[iteration];
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) abs_val;
+    half grp_max = 0.001h;
+    half grp_min = 0.001h;
+    half max_value = 0.0h;
+    half min_value = 0.0h;
+
+    unroll_for(int i = 0; i < iteration; ++i) {
+        val[i] = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + ((local_id * iteration + i) * block_size)));
+
+
+
+#if ASYMMETRIC_QUANTIZATION
+        unroll_for (int j = 0; j < VEC_SIZE; j++) {
+            max_value = fmax(max_value, val[i][j]);
+            min_value = fmin(min_value, val[i][j]);
+        }
+        grp_max = fmax(grp_max, max_value);
+        grp_min = fmin(grp_min, min_value);
+#else
+        abs_val = fabs(val[i]);
+
+        unroll_for (int j = 0; j < VEC_SIZE; j++)
+            max_value = fmax(max_value, abs_val[j]);
+
+        grp_max = fmax(grp_max, max_value);
+#endif
+    }
+
+    max_value = sub_group_reduce_max(grp_max);
+#if ASYMMETRIC_QUANTIZATION
+    min_value = sub_group_reduce_min(grp_min);
+#endif
+
+    if (sglid == 0) {
+        local_mem_max[local_id] = max_value;
+#if ASYMMETRIC_QUANTIZATION
+        local_mem_min[local_id] = min_value;
+#endif
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    for (int j = 0; j < QUANTIZE_GROUP_SIZE / block_size; j++) {
+        max_value = fmax(max_value, local_mem_max[j]);
+#if ASYMMETRIC_QUANTIZATION
+        min_value = fmin(min_value, local_mem_min[j]);
+#endif
+    }
+
+#if ASYMMETRIC_QUANTIZATION
+    OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
+    OUTPUT2_TYPE zp = (OUTPUT2_TYPE)(-min_value * scale);
+#else
+    OUTPUT1_TYPE scale = 127.0h / max_value;
+#endif
+
+    unroll_for(int i = 0; i < iteration; ++i) {
+        val[i] *= scale;
+#if ASYMMETRIC_QUANTIZATION
+        val[i] += zp;
+        VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val[i]), 0, output + output_offset + ((local_id * iteration + i) * block_size));
+#else
+        VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val[i]), 0, output + output_offset + ((local_id * iteration + i) * block_size));
+#endif
+    }
+
+    if (sglid == 0 && local_id == 0) {
+
+#if OUTPUT_DIMS == 2
+        output_scale[OUTPUT1_GET_INDEX(bf, f_grp, 0, 0)] = 1.0h / scale;
+#if ASYMMETRIC_QUANTIZATION
+        output_zp[OUTPUT1_GET_INDEX(bf, f_grp, 0, 0)] = convert_uchar_rte(zp);
+#endif
+#else
+        output_scale[OUTPUT1_GET_INDEX(bf, 0, f_grp, 0)] = 1.0h / scale;
+#if ASYMMETRIC_QUANTIZATION
+        output_zp[OUTPUT1_GET_INDEX(bf, 0, f_grp, 0)] = convert_uchar_rte(zp);
+#endif
+#endif
+    }
+}
+
+#else  // PER_TOKEN quantization
 
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(dynamic_quantize_gpu_opt)(
@@ -180,4 +304,5 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
     }
 }
+
 #endif  // QUANTIZE_GROUP_SIZE <= 128
