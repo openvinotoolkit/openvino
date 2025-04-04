@@ -110,6 +110,8 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
         auto value_cache_precision = format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
         key_cache->set_element_type(key_cache_precision);
         value_cache->set_element_type(value_cache_precision);
+        key_cache->validate_and_infer_types();
+        value_cache->validate_and_infer_types();
         if (!pa_op->get_rt_info().count("num_k_heads") || !pa_op->get_rt_info().count("k_head_size") ||
             !pa_op->get_rt_info().count("num_v_heads") || !pa_op->get_rt_info().count("num_v_heads")) {
             OPENVINO_DEBUG("PagedAttn ",
