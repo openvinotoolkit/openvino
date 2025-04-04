@@ -36,9 +36,9 @@ void OPENVINO_API set_name(ov::Node& node, const std::string& name, size_t outpu
  * @param input_index - input port index to get the source
  * @return true if sources share same node and output index otherwise false
  */
-bool input_sources_are_equal(const std::shared_ptr<Node>& lhs,
-                             const std::shared_ptr<Node>& rhs,
-                             const size_t& input_index);
+OPENVINO_API bool input_sources_are_equal(const std::shared_ptr<ov::Node>& lhs,
+                                          const std::shared_ptr<ov::Node>& rhs,
+                                          const size_t& input_index);
 
 }  // namespace op::util
 }  // namespace ov

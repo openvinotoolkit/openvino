@@ -118,9 +118,9 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     friend class Model;
 
 protected:
-    friend bool op::util::input_sources_are_equal(const std::shared_ptr<Node>& lhs,
-                                                  const std::shared_ptr<Node>& rhs,
-                                                  const size_t& input_index);
+    friend OPENVINO_API bool op::util::input_sources_are_equal(const std::shared_ptr<ov::Node>&,
+                                                               const std::shared_ptr<ov::Node>&,
+                                                               const size_t&);
     descriptor::Input& get_input_descriptor(size_t position);
     descriptor::Output& get_output_descriptor(size_t position);
 
