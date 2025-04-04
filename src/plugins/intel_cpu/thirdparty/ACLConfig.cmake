@@ -234,7 +234,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
         list(APPEND ARM_COMPUTE_OPTIONS
             compiler_prefix="${ANDROID_TOOLCHAIN_ROOT}/bin/")
 
-        set(extra_flags "${extra_flags} --target=${ANDROID_LLVM_TRIPLE}")
+        set(extra_cc_flags "--target=${ANDROID_LLVM_TRIPLE}")
         set(extra_flags "${extra_flags} --gcc-toolchain=${ANDROID_TOOLCHAIN_ROOT}")
         set(extra_flags "${extra_flags} --sysroot=${CMAKE_SYSROOT}")
 
@@ -337,6 +337,9 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endif()
     if(extra_cxx_flags)
         list(APPEND ARM_COMPUTE_OPTIONS extra_cxx_flags=${extra_cxx_flags})
+    endif()
+    if(extra_cc_flags)
+        list(APPEND ARM_COMPUTE_OPTIONS extra_cc_flags=${extra_cc_flags})
     endif()
 
     if(NOT CMAKE_VERBOSE_MAKEFILE)
