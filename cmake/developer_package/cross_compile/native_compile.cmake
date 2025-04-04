@@ -3,6 +3,8 @@
 #
 
 include(ExternalProject)
+include(ProcessorCount)
+ProcessorCount(PROCESSOR_COUNT)
 
 #
 # ov_native_compile_external_project(
@@ -124,7 +126,7 @@ function(ov_native_compile_external_project)
             "${NATIVE_CMAKE_COMMAND}"
                 --build "${CMAKE_CURRENT_BINARY_DIR}/build"
                 --config Release
-                --parallel
+                --parallel ${PROCESSOR_COUNT}
                 -- ${ARG_NATIVE_TARGETS}
         # Test Step Options:
         TEST_EXCLUDE_FROM_MAIN ON
