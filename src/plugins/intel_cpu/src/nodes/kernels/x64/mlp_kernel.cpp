@@ -503,7 +503,7 @@ void MKernel::run(int M,  // actual M
     auto strideB = repacked_B.Bpair_rows * repacked_B.Bpair_size;
     auto num_blkN = repacked_B.Bpair_cols;
 
-    args.do_accumulation = do_accumulation;
+    args.do_accumulation = static_cast<int64_t>(do_accumulation);
     args.k_tiles = repacked_B.Bpair_rows;
     args.strideA = strideA;
     args.strideC = strideC;
