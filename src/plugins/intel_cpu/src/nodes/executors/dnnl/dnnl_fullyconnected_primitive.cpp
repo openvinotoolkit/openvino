@@ -459,48 +459,24 @@ static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc)
 
 DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
                                  const dnnl::engine& engine,
-                                 const std::vector<impl_desc_type>& implPriorities) {
-    // : m_stream(dnnl::stream(engine)),
-    // : m_primDesc(createPrimitiveDesc(
-    //       key.src->getDnnlDesc(),
-    //       key.wei->getDnnlDesc(),
-    //       key.bias->getDnnlDesc(),
-    //       key.dst->getDnnlDesc(),
-    //       key.attr,
-    //       engine,
-    //       implPriorities,
-    //       key.sparseWeights,
-    //       useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision(), key.modelType))),
-    //   m_implType(implTypeFromPrimDesc(m_primDesc)),
-    //   m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
-    //   m_weiDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.weights_desc())),
-    //   m_dstDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.dst_desc())),
-    //   m_scratchPadDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.scratchpad_desc())),
-    //   m_prim(primitive(m_primDesc)) {
-    m_stream = dnnl::threadpool_interop::make_stream(engine, get_thread_pool());
-#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-    dnnl::impl::threadpool_utils::activate_threadpool(get_thread_pool());
-#endif
-    m_primDesc = createPrimitiveDesc(
-        key.src->getDnnlDesc(),
-        key.wei->getDnnlDesc(),
-        key.bias->getDnnlDesc(),
-        key.dst->getDnnlDesc(),
-        key.attr,
-        engine,
-        implPriorities,
-        key.sparseWeights,
-        useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision(), key.modelType));
-    m_implType = implTypeFromPrimDesc(m_primDesc);
-    m_srcDesc = DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc());
-    m_weiDesc = DnnlExtensionUtils::makeDescriptor(m_primDesc.weights_desc());
-    m_dstDesc = DnnlExtensionUtils::makeDescriptor(m_primDesc.dst_desc());
-    m_scratchPadDesc = DnnlExtensionUtils::makeDescriptor(m_primDesc.scratchpad_desc());
-    m_prim = primitive(m_primDesc);
-#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-    dnnl::impl::threadpool_utils::deactivate_threadpool();
-#endif
-}
+                                 const std::vector<impl_desc_type>& implPriorities)
+    : m_stream(dnnl::threadpool_interop::make_stream(engine, get_thread_pool())),
+      m_primDesc(createPrimitiveDesc(
+          key.src->getDnnlDesc(),
+          key.wei->getDnnlDesc(),
+          key.bias->getDnnlDesc(),
+          key.dst->getDnnlDesc(),
+          key.attr,
+          engine,
+          implPriorities,
+          key.sparseWeights,
+          useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision(), key.modelType))),
+      m_implType(implTypeFromPrimDesc(m_primDesc)),
+      m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
+      m_weiDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.weights_desc())),
+      m_dstDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.dst_desc())),
+      m_scratchPadDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.scratchpad_desc())),
+      m_prim(primitive(m_primDesc)) {}
 
 void DnnlFCPrimitive::execute(const dnnl_primitive_args& primArgs) const {
     m_prim.execute(m_stream, primArgs);

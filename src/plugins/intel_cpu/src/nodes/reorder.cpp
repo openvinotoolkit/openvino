@@ -545,6 +545,7 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
             // dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
             dnnl::stream loc_stream = dnnl::threadpool_interop::make_stream(engine, get_thread_pool());
+            dnnl::impl::threadpool_utils::activate_threadpool(get_thread_pool());
 #else
             dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
 #endif

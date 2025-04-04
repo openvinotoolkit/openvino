@@ -375,6 +375,9 @@ void Graph::Activate() {
 
 void Graph::Configure(bool optimize) {
     OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+    dnnl::impl::threadpool_utils::activate_threadpool(get_thread_pool());
+#endif
 
     GraphOptimizer optimizer;
 
@@ -409,6 +412,9 @@ void Graph::Configure(bool optimize) {
     SortTopologically();
 
     status = Status::Initialized;
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+    dnnl::impl::threadpool_utils::deactivate_threadpool();
+#endif
 }
 
 void Graph::InitNodes() {
@@ -530,7 +536,13 @@ void Graph::CreatePrimitivesAndExecConstants() const {
         {
             OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
             DEBUG_LOG(*node);
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+            dnnl::impl::threadpool_utils::activate_threadpool(get_thread_pool());
+#endif
             node->createPrimitive();
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+    dnnl::impl::threadpool_utils::deactivate_threadpool();
+#endif
         }
 
         if (!node->isConstant() || !node->isExecutable()) {
