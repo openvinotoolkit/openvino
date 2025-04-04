@@ -305,49 +305,6 @@ INSTANTIATE_TEST_SUITE_P(FuseBrgemmCPUPostopsTests,
                                             ::testing::ValuesIn(postop_input_shapes)),
                          FuseBinaryEltwiseTests::getTestCaseName);
 
-TEST_F(FuseBrgemmCPUPostopsTests, NegativeUnsupportedConvertDstType) {
-    model = FuseConvertTests::get_model({ov::element::bf16, ov::element::bf16}, ov::element::bf16);
-}
-
-TEST_F(FuseBrgemmCPUPostopsTests, NegativeBinaryUnsupportedPrecision) {
-    model = FuseBinaryEltwiseTests::get_model({ov::element::f32, ov::element::f32},
-                                              ov::opset1::Add::get_type_info_static(),
-                                              {1, 1, 1, 128});
-}
-
-TEST_F(FuseBrgemmCPUPostopsTests, NegativeBinaryUnsupportedShape) {
-    model = FuseBinaryEltwiseTests::get_model({ov::element::bf16, ov::element::bf16},
-                                              ov::opset1::Add::get_type_info_static(),
-                                              {-1, -1, 1, 128});
-}
-
-TEST_F(FuseBrgemmCPUPostopsTests, NegativeBinarySharedPostopInput) {
-    auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::bf16, brgemm_a_shape);
-    auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::bf16, brgemm_b_shape);
-    auto shared_postop_input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{128});
-
-    std::shared_ptr<ov::Node> brgemm_1 = make_brgemm({input1, input2});
-    std::shared_ptr<ov::Node> brgemm_2 = make_brgemm({input1, input2});
-
-    auto binary_op_1 = make_eltwise(brgemm_1, shared_postop_input, ov::opset1::Multiply::get_type_info_static());
-    auto binary_op_2 = make_eltwise(brgemm_2, shared_postop_input, ov::opset1::Multiply::get_type_info_static());
-    model = std::make_shared<ov::Model>(ov::NodeVector{binary_op_1, binary_op_2},
-                                        ov::ParameterVector{input1, input2, shared_postop_input});
-}
-
-TEST_F(FuseBrgemmCPUPostopsTests, NegativeBrgemmWithSeveralConsumers) {
-    auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_a_shape);
-    auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_b_shape);
-    std::shared_ptr<ov::Node> brgemm = make_brgemm({input1, input2});
-
-    auto scalar = std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, 2.f);
-    auto scalar_op = make_eltwise(brgemm, scalar, ov::opset1::Multiply::get_type_info_static());
-
-    // Additional consumer prevents postops fusion
-    auto relu = std::make_shared<ov::opset1::Relu>(brgemm);
-    model = std::make_shared<ov::Model>(ov::NodeVector{scalar_op, relu}, ov::ParameterVector{input1, input2});
-}
-
 TEST_F(FuseBrgemmCPUPostopsTests, FuseScaleShift) {
     const float scale_val = 2.f;
     const float shift_val = 3.f;
@@ -502,4 +459,47 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseMultipleTransformations) {
         // Binary postops' inputs became external parameters
         expected_external_params_idces = {2, 3, 5, 6};
     }
+}
+
+TEST_F(FuseBrgemmCPUPostopsTests, NegativeUnsupportedConvertDstType) {
+    model = FuseConvertTests::get_model({ov::element::bf16, ov::element::bf16}, ov::element::bf16);
+}
+
+TEST_F(FuseBrgemmCPUPostopsTests, NegativeBinaryUnsupportedPrecision) {
+    model = FuseBinaryEltwiseTests::get_model({ov::element::f32, ov::element::f32},
+                                              ov::opset1::Add::get_type_info_static(),
+                                              {1, 1, 1, 128});
+}
+
+TEST_F(FuseBrgemmCPUPostopsTests, NegativeBinaryUnsupportedShape) {
+    model = FuseBinaryEltwiseTests::get_model({ov::element::bf16, ov::element::bf16},
+                                              ov::opset1::Add::get_type_info_static(),
+                                              {-1, -1, 1, 128});
+}
+
+TEST_F(FuseBrgemmCPUPostopsTests, NegativeBinarySharedPostopInput) {
+    auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::bf16, brgemm_a_shape);
+    auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::bf16, brgemm_b_shape);
+    auto shared_postop_input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{128});
+
+    std::shared_ptr<ov::Node> brgemm_1 = make_brgemm({input1, input2});
+    std::shared_ptr<ov::Node> brgemm_2 = make_brgemm({input1, input2});
+
+    auto binary_op_1 = make_eltwise(brgemm_1, shared_postop_input, ov::opset1::Multiply::get_type_info_static());
+    auto binary_op_2 = make_eltwise(brgemm_2, shared_postop_input, ov::opset1::Multiply::get_type_info_static());
+    model = std::make_shared<ov::Model>(ov::NodeVector{binary_op_1, binary_op_2},
+                                        ov::ParameterVector{input1, input2, shared_postop_input});
+}
+
+TEST_F(FuseBrgemmCPUPostopsTests, NegativeBrgemmWithSeveralConsumers) {
+    auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_a_shape);
+    auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, brgemm_b_shape);
+    std::shared_ptr<ov::Node> brgemm = make_brgemm({input1, input2});
+
+    auto scalar = std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, 2.f);
+    auto scalar_op = make_eltwise(brgemm, scalar, ov::opset1::Multiply::get_type_info_static());
+
+    // Additional consumer prevents postops fusion
+    auto relu = std::make_shared<ov::opset1::Relu>(brgemm);
+    model = std::make_shared<ov::Model>(ov::NodeVector{scalar_op, relu}, ov::ParameterVector{input1, input2});
 }
