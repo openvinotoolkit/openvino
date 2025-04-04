@@ -877,19 +877,27 @@ std::vector<std::string> filter_files_by_extensions(const std::vector<std::strin
 std::string parameter_name_to_tensor_name(const std::string& name,
                                           const std::vector<ov::Output<const ov::Node>>& inputs_info,
                                           const std::vector<ov::Output<const ov::Node>>& outputs_info) {
-    const auto input_info =
-        std::find_if(inputs_info.begin(), inputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
-            return (port.get_names().count(name) > 0) || (name == port.get_node()->get_friendly_name());
-        });
-    if (input_info != inputs_info.end()) {
-        return input_info->get_any_name();
+    // Looking for a tensor name match
+    for (const auto& port : inputs_info) {
+        if (port.get_names().count(name) > 0) {
+            return port.get_any_name();
+        }
     }
-    const auto output_info =
-        std::find_if(outputs_info.begin(), outputs_info.end(), [name](const ov::Output<const ov::Node>& port) {
-            return (port.get_names().count(name) > 0) || (name == port.get_node()->get_friendly_name());
-        });
-    if (output_info != outputs_info.end()) {
-        return output_info->get_any_name();
+    for (const auto& port : outputs_info) {
+        if (port.get_names().count(name) > 0) {
+            return port.get_any_name();
+        }
+    }
+    // Looking for a node name match
+    for (const auto& port : inputs_info) {
+        if (!port.get_names().empty() && name == port.get_node()->get_friendly_name()) {
+            return port.get_any_name();
+        }
+    }
+    for (const auto& port : outputs_info) {
+        if (!port.get_names().empty() && name == port.get_node()->get_input_node_ptr(0)->get_friendly_name()) {
+            return port.get_any_name();
+        }
     }
     throw std::runtime_error("Provided I/O name \"" + name +
                              "\" is not found neither in tensor names nor in nodes names.");
