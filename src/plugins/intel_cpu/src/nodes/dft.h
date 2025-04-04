@@ -19,9 +19,10 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool created() const override;
-
     void prepareParams() override;
+    bool needShapeInfer() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -52,7 +53,6 @@ private:
     std::unordered_map<size_t, std::vector<float>> twiddlesMapDFT;
 
     std::vector<int32_t> axes;
-    std::vector<size_t> inputShape;
     const size_t DATA_INDEX = 0;
     const size_t AXES_INDEX = 1;
     const size_t SIGNAL_SIZE_INDEX = 2;
