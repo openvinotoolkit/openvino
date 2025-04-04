@@ -398,7 +398,7 @@ public:
         return mergedWith;
     }
 
-    const std::vector<NodePtr>& getFusedWith() {
+    const std::vector<NodePtr>& getFusedWith() const {
         return fusedWith;
     }
 

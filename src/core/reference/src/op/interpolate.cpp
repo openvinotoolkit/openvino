@@ -9,64 +9,80 @@
 namespace ov {
 namespace reference {
 
-std::function<int64_t(float, bool)> get_func(Nearest_mode mode) {
-    switch (mode) {
-    case Nearest_mode::ROUND_PREFER_CEIL:
-        return [](float x_original, bool) {
-            return static_cast<int64_t>(std::round(x_original));
-        };
-    case Nearest_mode::FLOOR:
-        return [](float x_original, bool) {
-            return static_cast<int64_t>(std::floor(x_original));
-        };
-    case Nearest_mode::CEIL:
-        return [](float x_original, bool) {
-            return static_cast<int64_t>(std::ceil(x_original));
-        };
-    case Nearest_mode::SIMPLE:
-        return [](float x_original, bool is_downsample) {
-            if (is_downsample) {
-                return static_cast<int64_t>(std::ceil(x_original));
-            } else {
-                return static_cast<int64_t>(x_original);
-            }
-        };
-    default:
-        return [](float x_original, bool) {
-            if (x_original == static_cast<int64_t>(x_original) + 0.5f) {
-                return static_cast<int64_t>(std::floor(x_original));
-            }
-            return static_cast<int64_t>(std::round(x_original));
-        };
+static int64_t round_prefer_ceil(float x_original, bool) {
+    return static_cast<int64_t>(std::round(x_original));
+}
+
+static int64_t floor_func(float x_original, bool) {
+    return static_cast<int64_t>(std::floor(x_original));
+}
+
+static int64_t ceil_func(float x_original, bool) {
+    return static_cast<int64_t>(std::ceil(x_original));
+}
+
+static int64_t simple_func(float x_original, bool is_downsample) {
+    if (is_downsample) {
+        return static_cast<int64_t>(std::ceil(x_original));
+    } else {
+        return static_cast<int64_t>(x_original);
     }
 }
 
-std::function<float(float, float, float, float)> get_func(Transform_mode mode) {
+static int64_t default_nearest(float x_original, bool) {
+    if (x_original == static_cast<int64_t>(x_original) + 0.5f) {
+        return static_cast<int64_t>(std::floor(x_original));
+    }
+    return static_cast<int64_t>(std::round(x_original));
+}
+
+NearestFuncPtr get_func(Nearest_mode mode) {
+    switch (mode) {
+    case Nearest_mode::ROUND_PREFER_CEIL:
+        return round_prefer_ceil;
+    case Nearest_mode::FLOOR:
+        return floor_func;
+    case Nearest_mode::CEIL:
+        return ceil_func;
+    case Nearest_mode::SIMPLE:
+        return simple_func;
+    default:
+        return default_nearest;
+    }
+}
+
+static float pytorch_half_pixel(float x_resized, float x_scale, float length_resized, float) {
+    return length_resized > 1 ? (x_resized + 0.5f) / x_scale - 0.5f : 0.0f;
+}
+
+static float asymmetric(float x_resized, float x_scale, float, float) {
+    return x_resized / x_scale;
+}
+
+static float tf_half_pixel_for_nn(float x_resized, float x_scale, float, float) {
+    return (x_resized + 0.5f) / x_scale;
+}
+
+static float align_corners(float x_resized, float, float length_resized, float length_original) {
+    return length_resized == 1 ? 0 : x_resized * (length_original - 1) / (length_resized - 1);
+}
+
+static float default_source_coord(float x_resized, float x_scale, float, float) {
+    return ((x_resized + 0.5f) / x_scale) - 0.5f;
+}
+
+TransformFuncPtr get_func(Transform_mode mode) {
     switch (mode) {
     case Transform_mode::PYTORCH_HALF_PIXEL:
-        return [](float x_resized, float x_scale, float length_resized, float) {
-            return length_resized > 1 ? (x_resized + 0.5f) / x_scale - 0.5f : 0.0f;
-        };
-        break;
+        return pytorch_half_pixel;
     case Transform_mode::ASYMMETRIC:
-        return [](float x_resized, float x_scale, float, float) {
-            return x_resized / x_scale;
-        };
-        break;
+        return asymmetric;
     case Transform_mode::TF_HALF_PIXEL_FOR_NN:
-        return [](float x_resized, float x_scale, float, float) {
-            return (x_resized + 0.5f) / x_scale;
-        };
-        break;
+        return tf_half_pixel_for_nn;
     case Transform_mode::ALIGN_CORNERS:
-        return [](float x_resized, float, float length_resized, float length_original) {
-            return length_resized == 1 ? 0 : x_resized * (length_original - 1) / (length_resized - 1);
-        };
-        break;
+        return align_corners;
     default:
-        return [](float x_resized, float x_scale, float, float) {
-            return ((x_resized + 0.5f) / x_scale) - 0.5f;
-        };
+        return default_source_coord;
     }
 }
 
