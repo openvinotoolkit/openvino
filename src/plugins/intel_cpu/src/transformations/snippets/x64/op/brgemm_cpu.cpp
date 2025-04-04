@@ -4,7 +4,7 @@
 
 #include "brgemm_cpu.hpp"
 
-#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "common/primitive_hashing_utils.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -154,8 +154,8 @@ BrgemmCPU::PostopsConfig::PostopsConfig()
       forced_output_type(ov::element::undefined) {}
 
 bool BrgemmCPU::PostopsConfig::visit_attributes(AttributeVisitor& visitor) {
-    auto postops_len = post_ops.len();
-    visitor.on_attribute("postops_len", postops_len);
+    auto postops_hash = dnnl::impl::primitive_hashing::get_post_op_hash(0, post_ops);
+    visitor.on_attribute("postops_hash", postops_hash);
     if (binary_postops_offset) {
         visitor.on_attribute("binary_postops_offset", binary_postops_offset.value());
     }
