@@ -38,11 +38,11 @@ RUN apt-get update && \
         # For Java API
         default-jdk \
         # Compiler \
-        clang-15 \
+        clang-18 \
         # Static analyzer
         clang-tidy-18 \
         # clang-tidy uses clang-format as a dependency
-        clang-format-15 \
+        clang-format-18 \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -53,8 +53,8 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Set clang as a default compiler
-RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang-15 100 && \
-    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-15 100
+RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang-18 100 && \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-18 100
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
