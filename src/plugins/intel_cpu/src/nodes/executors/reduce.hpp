@@ -42,7 +42,7 @@ using ReduceExecutorCPtr = std::shared_ptr<const ReduceExecutor>;
 
 class ReduceExecutorBuilder {
 public:
-    ~ReduceExecutorBuilder() = default;
+    virtual ~ReduceExecutorBuilder() = default;
     [[nodiscard]] virtual bool isSupported(const ReduceAttrs& reduceAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;

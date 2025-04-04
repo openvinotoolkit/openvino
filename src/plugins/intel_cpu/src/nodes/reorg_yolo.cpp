@@ -57,7 +57,7 @@ void ReorgYolo::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void ReorgYolo::execute(const dnnl::stream& strm) {
+void ReorgYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* src_data = getSrcDataAtPortAs<const float>(0);
     auto* dst_data = getDstDataAtPortAs<float>(0);
 
@@ -65,7 +65,7 @@ void ReorgYolo::execute(const dnnl::stream& strm) {
     int IW = (inDims.size() > 3) ? inDims[3] : 1;
     int IH = (inDims.size() > 2) ? inDims[2] : 1;
     int IC = (inDims.size() > 1) ? inDims[1] : 1;
-    int B = (inDims.size() > 0) ? inDims[0] : 1;
+    int B = (!inDims.empty()) ? inDims[0] : 1;
 
     int ic_off = IC / (stride * stride);
     int ih_off = IH * stride;

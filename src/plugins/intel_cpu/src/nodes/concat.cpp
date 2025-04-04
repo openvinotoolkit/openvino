@@ -84,7 +84,7 @@ void Concat::getSupportedDescriptors() {
                 break;
             }
         }
-        if (incorrectDims || firstParentDims.size() == 0) {
+        if (incorrectDims || firstParentDims.empty()) {
             THROW_CPU_NODE_ERR("has incorrect input dimensions");
         }
     }

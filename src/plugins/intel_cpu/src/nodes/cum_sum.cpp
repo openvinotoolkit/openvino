@@ -102,7 +102,7 @@ void CumSum::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, dataPrecision}}, impl_desc_type::ref_any);
 }
 
-void CumSum::execute(const dnnl::stream& strm) {
+void CumSum::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (inputShapes.size() == numOfInputs) {
         axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
     }

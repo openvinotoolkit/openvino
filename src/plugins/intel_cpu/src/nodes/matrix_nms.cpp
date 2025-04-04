@@ -92,7 +92,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     m_postThreshold = attrs.post_threshold;
     m_normalized = attrs.normalized;
     if (m_decayFunction == MatrixNmsDecayFunction::LINEAR) {
-        m_decay_fn = [](float iou, float max_iou, float sigma) -> float {
+        m_decay_fn = [](float iou, float max_iou, [[maybe_unused]] float sigma) -> float {
             return (1. - iou) / (1. - max_iou + 1e-10f);
         };
     } else {
@@ -326,7 +326,7 @@ void MatrixNms::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void MatrixNms::execute(const dnnl::stream& strm) {
+void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
     const auto* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 

@@ -1577,7 +1577,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
 
     auto& graphNodes = graph.GetNodes();
 
-    auto isFusingSupported = [&](const NodePtr& conv, const NodePtr& child) {
+    auto isFusingSupported = [&]([[maybe_unused]] const NodePtr& conv, const NodePtr& child) {
         return child->getType() == Type::Eltwise && DnnlExtensionUtils::isUnarySupportedAsPostOp(child->getAlgorithm());
     };
 
@@ -1771,8 +1771,8 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
 
         lastNode->fuseInto(mergedConv);
 
-        if (mergedConv->fusedWith.size() > 0 && (mergedConv->fusedWith[0]->getType() == Type::Convolution ||
-                                                 mergedConv->fusedWith[0]->getType() == Type::BinaryConvolution)) {
+        if (!mergedConv->fusedWith.empty() && (mergedConv->fusedWith[0]->getType() == Type::Convolution ||
+                                               mergedConv->fusedWith[0]->getType() == Type::BinaryConvolution)) {
             // Merged with DW_conv. Shape may change
             mergedConv->inputShapes.push_back(mergedConv->fusedWith[0]->getOutputShapeAtPort(0));
         } else {

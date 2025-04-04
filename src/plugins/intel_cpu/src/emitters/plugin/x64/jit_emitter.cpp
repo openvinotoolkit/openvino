@@ -58,7 +58,8 @@ size_t jit_emitter::aux_gprs_count() const {
     return entry_map_.empty() ? 0 : 1;
 }
 
-std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {};
 }
 
@@ -180,7 +181,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         h->push(Reg64(preserved_gpr_idx));
     }
 
-    if (preserved_vec_idxs.size()) {
+    if (!preserved_vec_idxs.empty()) {
         h->sub(h->rsp, preserved_vec_idxs.size() * get_vec_length());
     }
 
@@ -200,7 +201,7 @@ void jit_emitter::emitter_postamble() const {
         pop_vec(preserved_vec_idxs[i], h->ptr[h->rsp + i * get_vec_length()]);
     }
 
-    if (preserved_vec_idxs.size()) {
+    if (!preserved_vec_idxs.empty()) {
         h->add(h->rsp, preserved_vec_idxs.size() * get_vec_length());
     }
 

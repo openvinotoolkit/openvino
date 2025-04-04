@@ -240,7 +240,7 @@ void MultiClassNms::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void MultiClassNms::execute(const dnnl::stream& strm) {
+void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
     const auto* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
@@ -511,7 +511,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                 }
             }
             fb.reserve(sorted_boxes.size());
-            if (sorted_boxes.size() > 0) {
+            if (!sorted_boxes.empty()) {
                 auto adaptive_threshold = m_iouThreshold;
                 int max_out_box =
                     (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
@@ -571,7 +571,7 @@ const float* MultiClassNms::slice_class(const int batch_idx,
                                         const VectorDims& dataStrides,
                                         const bool is_boxes,
                                         const int* roisnum,
-                                        const VectorDims& roisnumStrides,
+                                        [[maybe_unused]] const VectorDims& roisnumStrides,
                                         const bool shared) {
     if (shared) {
         if (is_boxes) {
@@ -626,7 +626,7 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
             }
 
             int io_selection_size = 0;
-            if (sorted_boxes.size() > 0) {
+            if (!sorted_boxes.empty()) {
                 parallel_sort(sorted_boxes.begin(),
                               sorted_boxes.end(),
                               [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
