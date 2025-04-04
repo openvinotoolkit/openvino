@@ -17,7 +17,7 @@ using namespace ::tests;
 static void test_col2im_output(bool is_caching_test) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 12, 9, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 12, 1, 9 } });
 
     set_values(input, {
         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -35,7 +35,7 @@ static void test_col2im_output(bool is_caching_test) {
 
     topology topology;
     topology.add(cldnn::input_layout("input", input->get_layout()));
-    topology.add(cldnn::reorder("reorder_input", input_info("input"), cldnn::layout(data_types::f16, format::byxf, { 1, 12, 9, 1 })));
+    topology.add(cldnn::reorder("reorder_input", input_info("input"), cldnn::layout(data_types::f16, format::byxf, { 1, 12, 1, 9 })));
     topology.add(cldnn::col2im("col2im", input_info("reorder_input"), {1, 1}, {1, 1}, {0, 0}, {0, 0}, output_size, kernel_size));
     topology.add(cldnn::activation("activate", input_info("col2im"), cldnn::activation_func::relu_negative_slope, {0.25f, 0.f}));
     topology.add(cldnn::reorder("convert:output", input_info("activate"), format::any, data_types::f32, {}, reorder_mean_mode::subtract, padding(), true));
