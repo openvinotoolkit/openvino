@@ -32,6 +32,7 @@
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
@@ -111,6 +112,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertTruncation>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertSaturation>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertTruncation>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::GemmCPU>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::BrgemmCPU>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::BrgemmCopyB>>())
     // clang-format on

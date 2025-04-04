@@ -10,7 +10,7 @@
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/x64/utils.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;

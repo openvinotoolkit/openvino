@@ -8,6 +8,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/custom/subgraph.hpp"
+#include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
@@ -32,11 +33,12 @@
 #else
 #    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "executors/x64/subgraph.hpp"
-#    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#    include "transformations/snippets/x64/pass/brgemm_to_gemm_cpu.hpp"
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #    include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
+#    include "transformations/snippets/x64/pass/lowered/build_brgemm.hpp"
 #    include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #    include "transformations/snippets/x64/pass/lowered/init_repacked_constant_inputs.hpp"
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
@@ -514,9 +516,9 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,
-                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+                                           ov::intel_cpu::pass::BrgemmToGemmCPU);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                           ov::intel_cpu::pass::BrgemmToGemmCPU,
                                            ov::intel_cpu::pass::EliminateBrgemmCopyB,
                                            getConstantInputIndexes(),
                                            cpu_config->repacked_input_config,
@@ -526,7 +528,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
-                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                           ov::intel_cpu::pass::BrgemmToGemmCPU,
                                            ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
     // Note: There could be several ConvertConstantsToScalars instances in the pipeline
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::tpp::pass::ScalarToScalarTPP);
@@ -575,15 +577,14 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
 #else
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_ARM64
-
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::snippets::lowered::pass::MarkLoops,
-                                           ov::intel_cpu::pass::BrgemmCPUBlocking);
+                                           ov::intel_cpu::pass::GemmCPUBlocking);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto& debug_config = subgraph_attrs->snippet->get_debug_config();
     if (debug_config.perf_count_mode != snippets::DebugCapsConfig::PerfCountMode::Disabled) {
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                               ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                               ov::intel_cpu::pass::GemmCPUBlocking,
                                                ov::snippets::lowered::pass::InsertPerfCountVerbose,
                                                getName());
     }
@@ -606,7 +607,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
-                                           ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                           ov::intel_cpu::pass::GemmCPUBlocking,
                                            ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::intel_cpu::pass::FuseLoadStoreConvert,
@@ -618,6 +619,9 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
                                           ov::snippets::lowered::pass::InsertLoops,
                                           ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
 #endif
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                           ov::intel_cpu::pass::GemmCPUBlocking,
+                                           ov::intel_cpu::pass::BuildBrgemm);
 
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_ARM64

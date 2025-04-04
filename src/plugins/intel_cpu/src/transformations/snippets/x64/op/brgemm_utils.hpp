@@ -77,9 +77,9 @@ ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K,
                                                            bool is_transposed);
 
 /**
- * @brief Retrieves the expression pointer for the brgemm_copy_b expression corresponding to the given BrgemmCPU
+ * @brief Retrieves the expression pointer for the brgemm_copy_b expression corresponding to the given GemmCPU
  * expression.
- * @param brgemm_expr The expression pointer for the BrgemmCPU operation.
+ * @param brgemm_expr The expression pointer for the GemmCPU operation.
  * @return The expression pointer for the BrgemmCopyB operation.
  */
 snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::ExpressionPtr& brgemm_expr);

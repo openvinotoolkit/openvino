@@ -14,6 +14,8 @@
 #    include "jit_snippets_emitters.hpp"
 #    include "kernel_executors/brgemm.hpp"
 #    include "kernel_executors/brgemm_amx.hpp"
+#    include "kernel_executors/brgemm_amx_batched.hpp"
+#    include "kernel_executors/brgemm_batched.hpp"
 
 #    ifndef _WIN32
 #        include <cxxabi.h>
@@ -88,6 +90,13 @@ std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter) {
     }
     if (const auto& amx = std::dynamic_pointer_cast<x64::BrgemmAMXKernelExecutor>(emitter->m_kernel_executor)) {
         ss << amx->to_string();
+    }
+    if (const auto& batched = std::dynamic_pointer_cast<BrgemmBatchedKernelExecutor>(emitter->m_kernel_executor)) {
+        ss << batched->to_string();
+    }
+    if (const auto& amx_batched =
+            std::dynamic_pointer_cast<BrgemmAMXBatchedKernelExecutor>(emitter->m_kernel_executor)) {
+        ss << amx_batched->to_string();
     }
     ss << " m_memory_offset:" << vector_to_string(emitter->m_memory_offsets)
        << " m_buffer_ids:" << vector_to_string(emitter->m_buffer_ids);
