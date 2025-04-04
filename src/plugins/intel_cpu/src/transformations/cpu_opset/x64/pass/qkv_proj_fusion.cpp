@@ -64,7 +64,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             return false;
         }
 
-        bool is_quantized_int8 = pattern_map.count(q_proj_weight_const_i8) != 0u;
+        bool is_quantized_int8 = pattern_map.find(q_proj_weight_const_i8) != pattern_map.end();
 
         OutputVector args = {src};
         OutputVector deq_scales;
@@ -232,7 +232,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
             return false;
         }
 
-        bool is_quantized_int8 = pattern_map.count(qkv_proj_weight_const_i8) != 0u;
+        bool is_quantized_int8 = pattern_map.find(qkv_proj_weight_const_i8) != pattern_map.end();
 
         std::shared_ptr<opset1::Constant> qkv_proj_weight_node;
         if (is_quantized_int8) {

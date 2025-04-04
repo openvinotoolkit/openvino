@@ -2459,12 +2459,12 @@ void TopK::calc_dims_size(const VectorDims& layout_dims) {
 
 void TopK::topk_ref(const float* in_ptr, float* out_ptr, int32_t* dst_idx) {
     if (mode_max) {
-        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> float {
-            return static_cast<float>(x > y);
+        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> bool {
+            return x > y;
         });
     } else {
-        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> float {
-            return static_cast<float>(x < y);
+        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> bool {
+            return x < y;
         });
     }
 }
@@ -2500,7 +2500,7 @@ void TopK::topk_ref_process(const float* src_data,
         }
         for (int i2 = 0; i2 < top_k - 1; i2++) {
             for (int i3 = top_k - 1; i3 > i2; i3--) {
-                if (compare(max_values[i3], max_values[i3 - 1]) != 0.0f) {
+                if (compare(max_values[i3], max_values[i3 - 1])) {
                     swap_func(i3, i3 - 1);
                 }
             }
@@ -2509,7 +2509,7 @@ void TopK::topk_ref_process(const float* src_data,
             max_values[top_k] = src_data[s_index];
             max_indexes[top_k] = i2;
             for (int i3 = top_k; i3 > 0; i3--) {
-                if (compare(max_values[i3], max_values[i3 - 1]) != 0.0f) {
+                if (compare(max_values[i3], max_values[i3 - 1])) {
                     swap_func(i3, i3 - 1);
                 } else {
                     break;

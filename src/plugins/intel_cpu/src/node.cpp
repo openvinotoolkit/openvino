@@ -108,13 +108,8 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     }
 
     const auto& rtInfo = op->get_rt_info();
-    if (rtInfo.count("originalLayersNames") != 0u) {
-        originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
-    }
-
-    if (rtInfo.count("parallelDomain") != 0u) {
-        parallelDomain = getRTInfoValue(rtInfo, "parallelDomain");
-    }
+    originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
+    parallelDomain = getRTInfoValue(rtInfo, "parallelDomain");
 
     if (originalLayers.empty()) {
         addOriginalLayer(name);
@@ -1218,11 +1213,11 @@ void Node::toNumaNodeImpl(int numaNodeID) {
     }
 
     // mbind constant prim args to numa nodes
-    if (primArgs.count(DNNL_ARG_WEIGHTS) != 0u) {
-        mbind_move(primArgs[DNNL_ARG_WEIGHTS], numaNodeID);
+    if (auto it = primArgs.find(DNNL_ARG_WEIGHTS); it != primArgs.end()) {
+        mbind_move(it->second, numaNodeID);
     }
-    if (primArgs.count(DNNL_ARG_BIAS) != 0u) {
-        mbind_move(primArgs[DNNL_ARG_BIAS], numaNodeID);
+    if (auto it = primArgs.find(DNNL_ARG_BIAS); it != primArgs.end()) {
+        mbind_move(it->second, numaNodeID);
     }
 
     curNumaNode = numaNodeID;
