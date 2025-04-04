@@ -346,7 +346,9 @@ std::vector<std::vector<int>> get_streams_info_table(
                 n_streams = input_infer_requests > 0 ? std::min(n_streams, input_infer_requests) : n_streams;
                 n_threads_per_stream = -1;
             } else {
-                auto model_threads = model_prefer_threads > n_threads ? n_threads / 2 : model_prefer_threads;
+                auto model_threads = n_threads == 1                     ? 1
+                                     : model_prefer_threads > n_threads ? n_threads / 2
+                                                                        : model_prefer_threads;
                 n_streams = ((n_threads + model_threads - 1) / model_threads);
                 if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
                     n_streams = input_infer_requests;
