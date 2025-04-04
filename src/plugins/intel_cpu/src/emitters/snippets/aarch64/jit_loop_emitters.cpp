@@ -41,13 +41,14 @@ void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in, c
 
 void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
                                             const std::vector<size_t>& out,
-                                            const std::vector<size_t>& pool_vec_idxs,
-                                            const std::vector<size_t>& pool_gpr_idxs) const {
+                                            [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
+                                            [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
-void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
+                                       const std::vector<size_t>& out) const {
     auto reg_work_amount = XReg(out[0]);
     if (!evaluate_once) {
         h->mov(reg_work_amount, work_amount);
@@ -125,13 +126,14 @@ void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, con
 
 void jit_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
                                           const std::vector<size_t>& out,
-                                          const std::vector<size_t>& pool_vec_idxs,
-                                          const std::vector<size_t>& pool_gpr_idxs) const {
+                                          [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
+                                          [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
-void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
+                                     [[maybe_unused]] const std::vector<size_t>& out) const {
     std::vector<size_t> data_ptr_reg_idxs;
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
