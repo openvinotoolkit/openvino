@@ -95,21 +95,23 @@ size_t postOpsNumbers(const Config& config) {
 
 template <typename Attrs>
 struct RequiredNoFallback {
-    std::optional<executor::Config<Attrs>> operator()(const executor::Config<Attrs>&) const {
+    std::optional<executor::Config<Attrs>> operator()([[maybe_unused]] const executor::Config<Attrs>& attrs) const {
         return {};
     }
 };
 
 template <typename Attrs>
 struct SupportsAnyConfig {
-    bool operator()(const executor::Config<Attrs>&) const {
+    bool operator()([[maybe_unused]] const executor::Config<Attrs>& attrs) const {
         return true;
     }
 };
 
 template <typename Attrs>
 struct AcceptsAnyShape {
-    bool operator()(const Attrs&, const PostOps&, const MemoryArgs&) const {
+    bool operator()([[maybe_unused]] const Attrs& attrs,
+                    [[maybe_unused]] const PostOps& postOps,
+                    [[maybe_unused]] const MemoryArgs& memory) const {
         return true;
     }
 };

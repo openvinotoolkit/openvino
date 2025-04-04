@@ -24,7 +24,10 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
                                    bool isGrouped) {
     OPENVINO_ASSERT(data_shape.size() >= 3, "At least 3D data shape is expected");
     OPENVINO_ASSERT(filters_shape.size() >= 3, "At least 3D filters shape is expected");
-    OPENVINO_ASSERT(data_shape[1] == filters_shape[1], "Input and filter channels must match");
+    const auto G = isGrouped ? filters_shape[0] : 1;
+    const auto data_shape_IC = data_shape[1] / G;
+    const auto filter_shape_IC = isGrouped ? filters_shape[2] : filters_shape[1];
+    OPENVINO_ASSERT(data_shape_IC == filter_shape_IC, "Input and filter channels must match");
 
     const auto data_rank = data_shape.size();
     constexpr int spatial_offset = 2;
@@ -34,9 +37,9 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
     VectorDims output_shape;
     output_shape.reserve(spatial_offset + num_spatial);
     // {N, C_OUT, ...}
-    auto N = data_shape[0];
+    const auto N = data_shape[0];
     output_shape.emplace_back(N);
-    auto CO = isGrouped ? filters_shape[0] * filters_shape[1] : filters_shape[0];
+    const auto CO = isGrouped ? filters_shape[0] * filters_shape[1] : filters_shape[0];
     output_shape.emplace_back(CO);
 
     const auto spatial_num = strides.size();

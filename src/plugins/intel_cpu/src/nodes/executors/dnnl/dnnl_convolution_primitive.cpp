@@ -258,7 +258,6 @@ static std::tuple<primitive_desc, size_t> selectPrimitiveDescWithMultipleAttribu
     const std::vector<ptrdiff_t>& paddingL,
     const std::vector<ptrdiff_t>& paddingR,
     const std::vector<dnnl::primitive_attr>& attrs,
-    bool fcSemantic,
     const std::vector<impl_desc_type>& implPriorities) {
     auto createPrimitiveDescriptor = [&](const dnnl::primitive_attr& attr) {
         return createConvolutionDescriptor(inputDesc,
@@ -618,9 +617,7 @@ VectorDims static makeInputDummyShape(const Shape& inputShape,
 }
 
 static std::tuple<MemoryDescPtr, MemoryDescPtr> createDummySrcDstDescs(const ConvAttrs& attrs,
-                                                                       const PostOps& postOps,
-                                                                       const MemoryArgs& memory,
-                                                                       const ExecutorContext::CPtr& context) {
+                                                                       const MemoryArgs& memory) {
     const auto& srcShape = memory.at(ARG_SRC)->getShape();
     const auto& weiShape = memory.at(ARG_WEI)->getShape();
     const auto& strides = attrs.stride;
@@ -682,7 +679,7 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
                     "dnnl convolution weights caching for dynamic shapes is not implemented");
 
     auto [srcDesc, dstDesc] = undefinedInputShapes
-                                  ? createDummySrcDstDescs(attrs, postOps, memory, context)
+                                  ? createDummySrcDstDescs(attrs, memory)
                                   : std::tuple{memory.at(ARG_SRC)->getDescPtr(), memory.at(ARG_DST)->getDescPtr()};
 
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
@@ -721,7 +718,6 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
                                                                              paddingL,
                                                                              paddingR,
                                                                              dnnlAttrVariants,
-                                                                             attrs.fcSemantic,
                                                                              context->getImplPriorities());
 
     // with all the current hacks it is not guaranteed that a primitive descriptor will be created

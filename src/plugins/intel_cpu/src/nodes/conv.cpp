@@ -699,7 +699,7 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputS
     Node::redefineOutputMemory(newOutputShapes);
 }
 
-void Convolution::execute(const dnnl::stream& strm) {
+void Convolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& executor = withSumBroadcast ? fallbackExecutor : m_executor;
     assert(executor);
     executor->execute(m_memory);

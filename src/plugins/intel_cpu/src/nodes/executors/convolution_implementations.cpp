@@ -36,9 +36,9 @@ static const TypeMapping dnnlConvTypeMapping {
     // integer precision outputs are not supported for float precision inputs
     {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            pt(bypass(), bypass(), use<0>(), use<0>())},
     // compresses float weights which do not match input data precision
-    {{_f32, _half_float | _i8, _any, _any | _any},            pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32, _half_float | _i8, _any, _any},            pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_bf16, _f16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f16, _bf16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     {{_u8 | _i8, _i8, _quant | _hw_float | _i32 | _dynamic, _quant | _hw_float | _i32 | _dynamic}, pt(bypass(), bypass(), bypass(),  bypass())},
     // @todo should we fallback to FPXX instead of _f32?
