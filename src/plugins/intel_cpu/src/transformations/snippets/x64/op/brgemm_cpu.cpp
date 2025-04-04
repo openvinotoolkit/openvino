@@ -134,6 +134,7 @@ size_t BrgemmCPU::get_offset_scratch() const {
 bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
     Brgemm::visit_attributes(visitor);
     visitor.on_attribute("type", m_type);
+    m_post_ops_config.visit_attributes(visitor);
     return true;
 }
 
@@ -145,5 +146,20 @@ ov::element::Type BrgemmCPU::get_output_type() const {
 ov::OutputVector BrgemmCPU::get_postop_inputs() const {
     const auto& input_values = this->input_values();
     return ov::OutputVector(input_values.begin() + m_main_inputs_count, input_values.end());
+}
+
+BrgemmCPU::PostopsConfig::PostopsConfig()
+    : post_ops({}),
+      binary_postops_offset({std::nullopt}),
+      forced_output_type(ov::element::undefined) {}
+
+bool BrgemmCPU::PostopsConfig::visit_attributes(AttributeVisitor& visitor) {
+    auto postops_len = post_ops.len();
+    visitor.on_attribute("postops_len", postops_len);
+    if (binary_postops_offset) {
+        visitor.on_attribute("binary_postops_offset", binary_postops_offset.value());
+    }
+    visitor.on_attribute("forced_output_type", forced_output_type);
+    return true;
 }
 }  // namespace ov::intel_cpu

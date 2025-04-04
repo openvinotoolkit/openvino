@@ -30,10 +30,8 @@ public:
         std::optional<size_t> binary_postops_offset = std::nullopt;
         ov::element::Type forced_output_type = ov::element::undefined;
 
-        PostopsConfig()
-            : post_ops({}),
-              binary_postops_offset({std::nullopt}),
-              forced_output_type(ov::element::undefined) {}
+        PostopsConfig();
+        bool visit_attributes(AttributeVisitor& visitor);
     };
     BrgemmCPU(const ov::OutputVector& inputs,
               BRGEMM_TYPE type,
