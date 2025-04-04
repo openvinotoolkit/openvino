@@ -1,4 +1,3 @@
-// -*- coding: utf-8 -*-
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
@@ -186,9 +185,36 @@ describe('ov.Model tests', () => {
 
     it('should not accept any arguments', () => {
       assert.throws(
-        () => model.clone('Unexpected argument').then(),
-        /'clone' method called with incorrect parameters./,
+          () => model.clone('Unexpected argument').then(),
+          /'clone' method called with incorrect parameters./,
       );
     });
   });
-});
+
+  describe('Node.js Model.getOps()', () => {
+    it('should return array of Node operations', () => {
+      const result = model.getOps();
+
+      assert(Array.isArray(result), 'getOps should return an array');
+      assert(result.length > 0, 'getOps should return a non-empty array');
+      result.forEach(op => {
+        assert.strictEqual(typeof op.getName, 'function', 'each item should have getName method');
+      });
+    });
+
+    it('should return the expected operation', () => {
+      const result = model.getOps();
+
+      const modelOperators = result.map(op => op.getName().split('_')[0]);
+      const expectedOpsCount = 14;
+      const expectedOps = [
+        "Subtract",
+        "Transpose",
+      ];
+
+      assert.strictEqual(modelOperators.length, expectedOpsCount, `Expected ${expectedOpsCount} operations in the model`);
+      expectedOps.forEach(op => {
+        assert(modelOperators.includes(op), `Expected operation ${op} to be in the model`);
+      });
+    });
+  });
