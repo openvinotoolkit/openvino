@@ -7,7 +7,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/common_util.hpp"
 #include "read_ir.hpp"
@@ -36,16 +36,16 @@ protected:
 TEST_F(TensorNameSerializationTest, SerializeFunctionWithTensorNames) {
     std::shared_ptr<ov::Model> model;
     {
-        auto parameter = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 3, 10, 10});
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 3, 10, 10});
         parameter->set_friendly_name("parameter");
         parameter->get_output_tensor(0).set_names({"input"});
-        auto relu_prev = std::make_shared<ov::opset8::Relu>(parameter);
+        auto relu_prev = std::make_shared<ov::op::v0::Relu>(parameter);
         relu_prev->set_friendly_name("relu_prev");
         relu_prev->get_output_tensor(0).set_names({"relu_prev_t", "identity_prev_t"});
-        auto relu = std::make_shared<ov::opset8::Relu>(relu_prev);
+        auto relu = std::make_shared<ov::op::v0::Relu>(relu_prev);
         relu->set_friendly_name("relu");
         relu->get_output_tensor(0).set_names({"relu,t", "identity"});
-        const ov::ResultVector results{std::make_shared<ov::opset8::Result>(relu)};
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
         results[0]->set_friendly_name("out");
         ov::ParameterVector params{parameter};
         model = std::make_shared<ov::Model>(results, params, "TensorNames");
