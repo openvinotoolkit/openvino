@@ -28,7 +28,7 @@ public:
     struct PostopsConfig {
         dnnl_post_ops post_ops = {};
         std::optional<size_t> binary_postops_offset = std::nullopt;
-        ov::element::Type forced_output_type = ov::element::undefined;
+        std::optional<ov::element::Type> forced_output_type = std::nullopt;
 
         PostopsConfig();
         bool visit_attributes(AttributeVisitor& visitor);
@@ -40,7 +40,7 @@ public:
               const std::vector<size_t>& layout_a = {},
               const std::vector<size_t>& layout_b = {},
               const std::vector<size_t>& layout_c = {},
-              const PostopsConfig& post_ops = PostopsConfig{});
+              PostopsConfig post_ops = PostopsConfig{});
     BrgemmCPU() = default;
 
     void validate_and_infer_types() override;
