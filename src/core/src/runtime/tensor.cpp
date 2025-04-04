@@ -110,7 +110,7 @@ void* Tensor::data(const element::Type& element_type) {
 }
 
 void* Tensor::data(const element::Type& element_type) const {
-    OV_TENSOR_STATEMENT(return std::as_const(*this)._impl->data(element_type););
+    OV_TENSOR_STATEMENT(return const_cast<void*>(std::as_const(*_impl).data(element_type)););
 }
 
 bool Tensor::operator!() const noexcept {
