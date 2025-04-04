@@ -44,12 +44,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
-<<<<<<< HEAD
                         InstanceMethod("isContinuous", &TensorWrap::is_continuous),
                         InstanceMethod("setShape", &TensorWrap::set_shape)});
-=======
-                        InstanceMethod("isContinuous", &TensorWrap::is_continuous),                        
->>>>>>> master
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -225,6 +221,11 @@ Napi::Value TensorWrap::set_shape(const Napi::CallbackInfo& info) {
 
     if (new_size > current_capacity) {
         Napi::Error::New(env, "Shape mismatch: the new shape must not exceed the tensor capacity.").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+
+    if (new_size != current_capacity) {
+        Napi::Error::New(env, "Shape mismatch: the new shape must have the same number of elements as the original shape.").ThrowAsJavaScriptException();
         return env.Undefined();
     }
 
