@@ -20,30 +20,30 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
-    curl \
-    git \
-    ca-certificates \
-    gpg-agent \
-    tzdata \
-    libtbb2 \
-    # parallel gzip
-    pigz \
-    # Pythons
-    python3.8-dev \
-    python3.8-venv \
-    python3.8-distutils \
-    python3.11-dev \
-    python3.11-venv \
-    python3.11-distutils \
-    # For Java API
-    default-jdk \
-    # Compiler \
-    clang-18 \
-    # Static analyzer
-    clang-tidy-18 \
-    # clang-tidy uses clang-format as a dependency
-    clang-format-18 \
-    && \
+        curl \
+        git \
+        ca-certificates \
+        gpg-agent \
+        tzdata \
+        libtbb2 \
+        # parallel gzip
+        pigz \
+        # Pythons
+        python3.8-dev \
+        python3.8-venv \
+        python3.8-distutils \
+        python3.11-dev \
+        python3.11-venv \
+        python3.11-distutils \
+        # For Java API
+        default-jdk \
+        # Compiler \
+        clang-18 \
+        # Static analyzer
+        clang-tidy-18 \
+        # clang-tidy uses clang-format as a dependency
+        clang-format-18 \
+        && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
