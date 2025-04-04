@@ -100,12 +100,21 @@ protected:
 
     kernel_arguments_data get_arguments(const scaled_dot_product_attention_inst& instance, size_t stage) const override {
         kernel_arguments_data args;
+        const auto desc = instance.get_node().as<scaled_dot_product_attention>().get_primitive();
 
         auto inputs_num = instance.inputs_memory_count();
         if (instance.has_indirect_inputs() && stage == default_sdpa)
             inputs_num--;
 
+        const size_t attn_mask_idx = 3;
+        const size_t scale_idx = 4;
         for (size_t i = 0; i < inputs_num; i++) {
+            if (i == attn_mask_idx && desc->attn_mask_val.has_value()) {
+                continue;
+            }
+            if (i == scale_idx && desc->scale_val.has_value()) {
+                continue;
+            }
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
 
@@ -261,6 +270,20 @@ protected:
 
         config.is_causal = desc->is_causal;
 
+        if (desc->scale_val.has_value()) {
+            config.has_const_scale_val = true;
+            config.scale_val = desc->scale_val.value();
+        } else {
+            config.has_const_scale_val = false;
+        }
+
+        if (desc->attn_mask_val.has_value()) {
+            config.has_const_attn_mask_val = true;
+            config.attn_mask_val = desc->attn_mask_val.value();
+        } else {
+            config.has_const_attn_mask_val = false;
+        }
+
         if (desc->is_kv_compressed) {
             const auto& group_sizes = desc->quantization_attributes.group_sizes;
             const auto non_compressed_dims = std::count(group_sizes.begin(), group_sizes.end(), 1);
@@ -284,6 +307,13 @@ public:
         auto data_inputs_num = impl_param.input_layouts.size();
         if (has_indirect_inputs(impl_param))
             data_inputs_num--;
+
+        if (desc->scale_val.has_value()) {
+            data_inputs_num--;
+        }
+        if (desc->attn_mask_val.has_value()) {
+            data_inputs_num--;
+        }
 
         auto has_zp_input_buffers = desc->get_compression_zp_inputs_num() > 0;
         if (desc->is_kv_compressed) {
