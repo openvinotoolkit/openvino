@@ -145,6 +145,7 @@ private:
             {".pbtxt", {"tf", "tensorflow"}},
             {".tflite", {"tflite", "tensorflow_lite"}},
             {".pdmodel", {"paddle", "paddle"}},
+            {".json", {"paddle", "paddle"}},
             // {".ts", {"pytorch", "pytorch"}},
         };
 
