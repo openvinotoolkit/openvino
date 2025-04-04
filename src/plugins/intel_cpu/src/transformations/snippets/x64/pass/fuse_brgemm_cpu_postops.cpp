@@ -20,6 +20,8 @@
 
 namespace ov::intel_cpu {
 
+using namespace dnnl::impl;
+using namespace snippets::op;
 using namespace snippets::lowered;
 using namespace ov::pass::pattern;
 using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
@@ -54,15 +56,19 @@ auto common_brgemm_predicate = [](const Output<Node>& output) {
     return has_static_rank()(output) && consumers_count(1)(output);
 };
 
+auto common_scalar_predicate = [](const Output<Node>& output) {
+    return type_matches(ov::element::f32)(output);
+};
+
 }  // namespace
 
 pass::FuseConvert::FuseConvert() {
     MATCHER_SCOPE(FuseConvert);
 
     auto m_brgemm = wrap_type<BrgemmCPU>(common_brgemm_predicate);
-    auto m_convert = wrap_type<ov::snippets::op::ConvertSaturation>(
-        {m_brgemm},
-        type_matches_any({ov::element::f32, ov::element::i8, ov::element::u8}));
+    auto m_convert =
+        wrap_type<ConvertSaturation>({m_brgemm},
+                                     type_matches_any({ov::element::f32, ov::element::i8, ov::element::u8}));
 
     auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseConvert")
@@ -89,11 +95,33 @@ pass::FuseConvert::FuseConvert() {
 pass::FuseScalarEltwise::FuseScalarEltwise() {
     MATCHER_SCOPE(FuseScalarEltwise);
 
+    // These predicates are used to skip the transformation in cases where a more optimized transformation is available
+    auto not_scale_shift_pattern = [](const Output<Node>& output) {
+        if (!consumers_count(1)(output))
+            return true;
+        const auto& consumer = output.get_target_inputs().begin()->get_node();
+        if (ov::is_type<ov::op::v1::Add>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
+                                                       is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
+            return false;
+        }
+        return true;
+    };
+    auto not_clip_pattern = [](const Output<Node>& output) {
+        if (!consumers_count(1)(output))
+            return true;
+        const auto& consumer = output.get_target_inputs().begin()->get_node();
+        if (ov::is_type<ov::op::v1::Minimum>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
+                                                           is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
+            return false;
+        }
+        return true;
+    };
+
     auto m_brgemm = wrap_type<BrgemmCPU>(common_brgemm_predicate);
-    auto m_scalar = wrap_type<ov::snippets::op::Scalar>(type_matches(ov::element::f32));
-    auto m_scale = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_scalar});
+    auto m_scalar = wrap_type<Scalar>(common_scalar_predicate);
+    auto m_scale = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_scalar}, not_scale_shift_pattern);
     auto m_shift = wrap_type<ov::op::v1::Add>({m_brgemm, m_scalar});
-    auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_scalar});
+    auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_scalar}, not_clip_pattern);
     auto m_min = wrap_type<ov::op::v1::Minimum>({m_brgemm, m_scalar});
     auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_scale, m_shift, m_max, m_min});
 
@@ -102,13 +130,12 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto post_op = pattern_map.at(m_postop).get_node_shared_ptr();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
-        const auto scalar = ov::as_type_ptr<ov::snippets::op::Scalar>(pattern_map.at(m_scalar).get_node_shared_ptr());
+        const auto scalar = ov::as_type_ptr<Scalar>(pattern_map.at(m_scalar).get_node_shared_ptr());
         const auto scalar_value = scalar->get_value<float>();
 
         auto postops_config = brgemm->get_postops_config();
         postops_config.forced_output_type = post_op->get_output_element_type(0);
 
-        using namespace dnnl::impl;
         auto append_eltwise = [&postops_config, &post_op](alg_kind_t alg_kind, float alpha, float beta) {
             OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f, alg_kind, alpha, beta) == dnnl_success,
                             "Failed to append scalar eltwise ",
@@ -165,7 +192,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_postop_input = wrap_type<ov::op::v0::Parameter>(binary_input_predicate);
-    auto m_rank_norm = optional<ov::snippets::op::RankNormalization>(m_postop_input);
+    auto m_rank_norm = optional<RankNormalization>(m_postop_input);
     auto m_mul = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_rank_norm});
     auto m_add = wrap_type<ov::op::v1::Add>({m_brgemm, m_rank_norm});
     auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_rank_norm});
@@ -203,7 +230,6 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
                   << std::endl;
         }
 
-        using namespace dnnl::impl;
         auto append_binary = [&postops_config, &post_op, &memory_desc](alg_kind_t alg_kind) {
             OPENVINO_ASSERT(
                 postops_config.post_ops.append_binary(alg_kind, memory_desc.getDnnlDesc().get()) == dnnl_success,
@@ -258,15 +284,110 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
     register_matcher(m, callback);
 }
 
+pass::FuseScaleShift::FuseScaleShift() {
+    MATCHER_SCOPE(FuseScaleShift);
+
+    auto m_brgemm = wrap_type<BrgemmCPU>(common_brgemm_predicate);
+    auto m_alpha = wrap_type<Scalar>(common_scalar_predicate);
+    auto m_scale = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_alpha}, consumers_count(1));
+    auto m_beta = wrap_type<Scalar>(common_scalar_predicate);
+    auto m_shift = wrap_type<ov::op::v1::Add>({m_scale, m_beta});
+
+    auto callback = [=](Matcher& m) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScaleShift")
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto scale = pattern_map.at(m_scale).get_node_shared_ptr();
+        const auto shift = pattern_map.at(m_shift).get_node_shared_ptr();
+        const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
+
+        const float alpha = ov::as_type_ptr<Scalar>(pattern_map.at(m_alpha).get_node_shared_ptr())->get_value<float>();
+        const float beta = ov::as_type_ptr<Scalar>(pattern_map.at(m_beta).get_node_shared_ptr())->get_value<float>();
+
+        auto postops_config = brgemm->get_postops_config();
+        postops_config.forced_output_type = shift->get_output_element_type(0);
+
+        OPENVINO_ASSERT(
+            postops_config.post_ops.append_eltwise(1.f, alg_kind_t::dnnl_eltwise_linear, alpha, beta) == dnnl_success,
+            "Failed to append scale-shift eltwise to brgemm postops. Alpha = ",
+            alpha,
+            ", Beta = ",
+            beta);
+
+        std::cout << "[ INFO ] FuseScaleShift fused scale-shift with alpha = " << alpha << " and beta = " << beta << std::endl;
+
+        auto new_brgemm =
+            clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
+        new_brgemm->set_friendly_name(shift->get_friendly_name());
+        ov::copy_runtime_info({brgemm, scale, shift}, new_brgemm);
+        ov::replace_node(shift, new_brgemm);
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(m_shift, matcher_name);
+    register_matcher(m, callback);
+}
+
+pass::FuseClip::FuseClip() {
+    MATCHER_SCOPE(FuseClip);
+
+    auto m_brgemm = wrap_type<BrgemmCPU>(common_brgemm_predicate);
+    auto m_in_low = wrap_type<Scalar>(common_scalar_predicate);
+    auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_in_low}, consumers_count(1));
+    auto m_in_high = wrap_type<Scalar>(common_scalar_predicate);
+    auto m_min = wrap_type<ov::op::v1::Minimum>({m_max, m_in_high});
+
+    auto callback = [=](Matcher& m) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseClip")
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto max_op = pattern_map.at(m_max).get_node_shared_ptr();
+        const auto min_op = pattern_map.at(m_min).get_node_shared_ptr();
+        const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
+
+        const float clip_min = ov::as_type_ptr<Scalar>(pattern_map.at(m_in_low).get_node_shared_ptr())->get_value<float>();
+        const float clip_max = ov::as_type_ptr<Scalar>(pattern_map.at(m_in_high).get_node_shared_ptr())->get_value<float>();
+
+        auto postops_config = brgemm->get_postops_config();
+        postops_config.forced_output_type = min_op->get_output_element_type(0);
+
+        OPENVINO_ASSERT(
+            postops_config.post_ops.append_eltwise(1.f, alg_kind_t::dnnl_eltwise_clip, clip_min, clip_max) == dnnl_success,
+            "Failed to append clip eltwise to brgemm postops. in_low = ", clip_min, ", in_high = ", clip_max);
+
+        std::cout << "[ INFO ] FuseClip fused clip with in_low = " << clip_min << " and in_high = " << clip_max << std::endl;
+
+        auto new_brgemm =
+            clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
+        new_brgemm->set_friendly_name(min_op->get_friendly_name());
+        ov::copy_runtime_info({brgemm, max_op, min_op}, new_brgemm);
+        ov::replace_node(min_op, new_brgemm);
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(m_min, matcher_name);
+    register_matcher(m, callback);
+}
+
+pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops(std::set<size_t>& brgemm_external_params_idces)
+    : m_brgemm_external_params_idces(brgemm_external_params_idces) {
+    add_matcher<FuseScaleShift>();
+    add_matcher<FuseClip>();
+    add_matcher<FuseConvert>();
+    add_matcher<FuseScalarEltwise>();
+    add_matcher<FuseBinaryEltwise>(m_external_params);
+}
+
 bool pass::FuseBrgemmCPUPostops::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(FuseBrgemmCPUPostops);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseBrgemmCPUPostops")
     const auto res = GraphRewrite::run_on_model(m);
     for (const auto& param : m_external_params) {
-        std::cout << " [ INFO ] FuseBrgemmCPUPostops::run_on_model: adding param with index "
-                  << m->get_parameter_index(param) << std::endl;
         m_brgemm_external_params_idces.insert(m->get_parameter_index(param));
     }
+    std::cout << " [ INFO ] FuseBrgemmCPUPostops m_brgemm_external_params_idces = { ";
+    for (const auto& idx : m_brgemm_external_params_idces) {
+        std::cout << idx << " ";
+    }
+    std::cout << "}" << std::endl;
     return res;
 }
 
