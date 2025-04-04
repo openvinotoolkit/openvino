@@ -83,7 +83,12 @@ protected:
                                                                  in_data);
             } else {
                 // Fill the slice input2~input5 with specified data.
-                tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i], inputValues[i - 2]};
+                auto inputValue = inputValues[i - 2];
+                if (!inputValue) {
+                    tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i]};
+                } else {
+                    tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i], inputValue};
+                }
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -228,7 +233,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Static_2D,
                          SliceScatterLayerCPUTest,
                          ::testing::Combine(::testing::Values(static_shapes_to_test_representation({{32, 16}})),
                                             ::testing::ValuesIn(paramsPlain2D),
-                                            ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                            ::testing::ValuesIn(inputLayerTypes),
                                             ::testing::ValuesIn(inputPrecisions),
                                             ::testing::Values(emptyCPUSpec)),
                          SliceScatterLayerCPUTest::getTestCaseName);
@@ -319,7 +324,7 @@ INSTANTIATE_TEST_SUITE_P(
     SliceScatterLayerCPUTest,
     ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic4D)),
                        ::testing::ValuesIn(testCasesCommon4D),
-                       ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                       ::testing::ValuesIn(inputLayerTypes),
                        ::testing::ValuesIn(inputPrecisions),
                        ::testing::ValuesIn(CPUParamsCommon4D)),
     SliceScatterLayerCPUTest::getTestCaseName);
@@ -407,7 +412,7 @@ INSTANTIATE_TEST_SUITE_P(
     SliceScatterLayerCPUTest,
     ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic5D)),
                        ::testing::ValuesIn(testCasesCommon5D),
-                       ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                       ::testing::ValuesIn(inputLayerTypes),
                        ::testing::ValuesIn(inputPrecisions),
                        ::testing::ValuesIn(CPUParamsCommon5D)),
     SliceScatterLayerCPUTest::getTestCaseName);
@@ -441,7 +446,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Full_Slice_5D,
                          SliceScatterLayerCPUTest,
                          ::testing::Combine(::testing::ValuesIn(inputShapesFullSlice5D),
                                             ::testing::ValuesIn(testCasesFullSlice5D),
-                                            ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                            ::testing::ValuesIn(inputLayerTypes),
                                             ::testing::ValuesIn(inputPrecisions),
                                             ::testing::ValuesIn(CPUParamsCommon5D)),
                          SliceScatterLayerCPUTest::getTestCaseName);
