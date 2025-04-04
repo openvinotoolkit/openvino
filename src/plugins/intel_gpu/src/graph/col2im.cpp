@@ -32,6 +32,8 @@ layout col2im_inst::calc_output_layout(col2im_node const& node, kernel_impl_para
     auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 
+    std::cout << ">> In calc_output_layout, input_layout : " << input_layout << std::endl;
+
     bool is_batched = true;
     auto num_blocks_l = input_layout.spatial(1);
     if (num_blocks_l == 1 && !validate_num_blocks(impl_param, input_layout.spatial(1)))
@@ -65,6 +67,8 @@ std::vector<layout> col2im_inst::calc_output_layouts(col2im_node const& node, ke
     auto input_layout = impl_param.get_input_layout(0);
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
     auto output_format = input_layout.format;
+
+    std::cout << ">> In calc_output_layouts using shape_infer, input_layout : " << input_layout << std::endl;
 
     ov::op::v15::Col2Im op;
     op.set_strides(desc->stride);
@@ -119,8 +123,5 @@ std::string col2im_inst::to_string(col2im_node const& node) {
 
     return primitive_description.str();
 }
-
-col2im_inst::typed_primitive_inst(network& network, col2im_node const& node)
-    : parent(network, node) {}
 
 }  // namespace cldnn
