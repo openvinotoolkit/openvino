@@ -347,15 +347,8 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape&
     // shape, we just change ranged min value to 1 to meet this case. For example: Output shape = {1, 160, {128, 256},
     // {128, 256}} Sum input shape = {1, 160, 1, 1} Update sum shape to {1, 160, {1, 256}, {1, 256}}
     const auto& shape = outputDesc->getShape();
-    auto blockedOutputDesc = outputDesc->as<BlockedMemoryDesc>();
     if (shape.getRank() != sumShape.getRank()) {
-        return std::make_shared<CpuBlockedMemoryDesc>(outputDesc->getPrecision(),
-                                                      shape,
-                                                      blockedOutputDesc->getBlockDims(),
-                                                      blockedOutputDesc->getOrder(),
-                                                      blockedOutputDesc->getOffsetPadding(),
-                                                      blockedOutputDesc->getOffsetPaddingToData(),
-                                                      blockedOutputDesc->getStrides());
+        return outputDesc;
     }
 
     const auto& sumDims = sumShape.getDims();
@@ -367,6 +360,8 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape&
             minDims[i] = 1;
         }
     }
+
+    auto blockedOutputDesc = outputDesc->as<BlockedMemoryDesc>();
 
     return std::make_shared<CpuBlockedMemoryDesc>(outputDesc->getPrecision(),
                                                   Shape(minDims, maxDims),

@@ -559,7 +559,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     OV_OP_SHAPE_INFER_MASK_REG(opset1::BinaryConvolution, ShapeInferPaddingTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(opset1::Broadcast, ShapeInferTA, util::bit::mask(1, 2)),
     OV_OP_SHAPE_INFER_MASK_REG(opset1::Concat, ShapeInferTA, util::bit::mask()),
-    OV_OP_SHAPE_INFER_MASK_REG(opset1::Convolution, ShapeInferPaddingTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(opset1::ConvolutionBackpropData, ShapeInferPaddingTA, util::bit::mask(2)),
     OV_OP_SHAPE_INFER_MASK_REG(opset1::CTCGreedyDecoder, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(opset1::DeformableConvolution, ShapeInferPaddingTA, util::bit::mask()),
