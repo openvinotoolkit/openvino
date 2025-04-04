@@ -5,11 +5,14 @@
 #include <cmath>
 #include <memory>
 
-#include "openvino/opsets/opset1.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace pass {
@@ -19,12 +22,12 @@ FakeQuantizeDequantization::FakeQuantizeDequantization() {}
 
 FakeQuantizeDequantization::FakeQuantizeDequantization(
     const Output<Node>& data,
-    const std::shared_ptr<opset1::Convert>& convert,
-    const std::shared_ptr<opset1::Subtract>& subtract,
-    const std::shared_ptr<ov::opset1::Convert>& subtractConvert,
-    const std::shared_ptr<ov::opset1::Constant>& subtractConstant,
-    const std::shared_ptr<opset1::Multiply>& multiply,
-    const std::shared_ptr<ov::opset1::Constant>& multiplyConstant) :
+    const std::shared_ptr<op::v0::Convert>& convert,
+    const std::shared_ptr<op::v1::Subtract>& subtract,
+    const std::shared_ptr<ov::op::v0::Convert>& subtractConvert,
+    const std::shared_ptr<ov::op::v0::Constant>& subtractConstant,
+    const std::shared_ptr<op::v1::Multiply>& multiply,
+    const std::shared_ptr<ov::op::v0::Constant>& multiplyConstant) :
     data(data),
     convert(convert),
     subtract(subtract),
@@ -54,9 +57,9 @@ bool FakeQuantizeDequantization::multiplyHasZeroOrDenormal() const {
         return false;
     }
 
-    std::shared_ptr<opset1::Constant> multiplyConstant = ov::as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(1));
+    std::shared_ptr<op::v0::Constant> multiplyConstant = ov::as_type_ptr<op::v0::Constant>(multiply->get_input_node_shared_ptr(1));
     if (multiplyConstant == nullptr) {
-        multiplyConstant = ov::as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(0));
+        multiplyConstant = ov::as_type_ptr<op::v0::Constant>(multiply->get_input_node_shared_ptr(0));
     }
     if (multiplyConstant == nullptr) {
         return false;
@@ -88,13 +91,13 @@ bool FakeQuantizeDequantization::isLowPrecision() const {
 
 ov::element::Type FakeQuantizeDequantization::getPrecision() const {
     if (multiply != nullptr) {
-        return is_type<ov::opset1::Constant>(multiply->get_input_node_ptr(0)) ?
+        return is_type<ov::op::v0::Constant>(multiply->get_input_node_ptr(0)) ?
             multiply->get_input_element_type(1) :
             multiply->get_input_element_type(0);
     }
 
     if (subtract != nullptr) {
-        return is_type<ov::opset1::Constant>(subtract->get_input_node_ptr(0)) ?
+        return is_type<ov::op::v0::Constant>(subtract->get_input_node_ptr(0)) ?
             subtract->get_input_element_type(1) :
             subtract->get_input_element_type(0);
     }
@@ -123,8 +126,8 @@ bool FakeQuantizeDequantization::isPerTensor() const {
 }
 
 bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ov::Node>& elementwise) {
-    std::shared_ptr<ov::opset1::Convert> convert;
-    std::shared_ptr<ov::opset1::Constant> constant;
+    std::shared_ptr<ov::op::v0::Convert> convert;
+    std::shared_ptr<ov::op::v0::Constant> constant;
     const int branchIndex = FakeQuantizeDequantization::fillDequantizationParams(elementwise, convert, constant);
     if (branchIndex == -1) {
         return true;
@@ -149,8 +152,8 @@ bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ov::Node>& ele
 
 // check if elementwise operation inside dequantization subgraph satisfy per-tensor/per-OC broadcast requirement
 bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ov::Node>& dequantizationElementwise) const {
-    std::shared_ptr<ov::opset1::Convert> convert;
-    std::shared_ptr<ov::opset1::Constant> constant;
+    std::shared_ptr<ov::op::v0::Convert> convert;
+    std::shared_ptr<ov::op::v0::Constant> constant;
     FakeQuantizeDequantization::fillDequantizationParams(dequantizationElementwise, convert, constant);
 
     if (constant == nullptr) {
@@ -241,21 +244,21 @@ std::shared_ptr<Node> FakeQuantizeDequantization::copyWithNewInput(const std::sh
 
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ov::Node>& elementwise,
-    std::shared_ptr<ov::opset1::Convert>& convert,
-    std::shared_ptr<ov::opset1::Constant>& constant) {
+    std::shared_ptr<ov::op::v0::Convert>& convert,
+    std::shared_ptr<ov::op::v0::Constant>& constant) {
     auto fill = [](
         const std::shared_ptr<ov::Node>& elementwise,
         const size_t branchIndex,
-        std::shared_ptr<ov::opset1::Convert>& convert,
-        std::shared_ptr<ov::opset1::Constant>& constant) {
-        convert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(branchIndex));
+        std::shared_ptr<ov::op::v0::Convert>& convert,
+        std::shared_ptr<ov::op::v0::Constant>& constant) {
+        convert = ov::as_type_ptr<op::v0::Convert>(elementwise->get_input_node_shared_ptr(branchIndex));
         if (convert != nullptr) {
             constant = convert->get_destination_type().is_real() ?
-                ov::as_type_ptr<opset1::Constant>(convert->get_input_node_shared_ptr(0)) :
+                ov::as_type_ptr<op::v0::Constant>(convert->get_input_node_shared_ptr(0)) :
                 nullptr;
         } else {
             constant = elementwise->get_input_element_type(branchIndex).is_real() ?
-                ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(branchIndex)) :
+                ov::as_type_ptr<op::v0::Constant>(elementwise->get_input_node_shared_ptr(branchIndex)) :
                 nullptr;
         }
     };
@@ -275,9 +278,9 @@ int FakeQuantizeDequantization::fillDequantizationParams(
 
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ov::Node>& elementwise,
-    std::shared_ptr<ov::opset1::Constant>& constant) {
+    std::shared_ptr<ov::op::v0::Constant>& constant) {
     constant = elementwise->get_input_element_type(1ul).is_real() ?
-        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1ul)) :
+        ov::as_type_ptr<op::v0::Constant>(elementwise->get_input_node_shared_ptr(1ul)) :
         nullptr;
 
     if (constant != nullptr) {
@@ -285,7 +288,7 @@ int FakeQuantizeDequantization::fillDequantizationParams(
     }
 
     constant = elementwise->get_input_element_type(0ul).is_real() ?
-        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(0ul)) :
+        ov::as_type_ptr<op::v0::Constant>(elementwise->get_input_node_shared_ptr(0ul)) :
         nullptr;
 
     if (constant != nullptr) {

@@ -8,11 +8,16 @@
 #include <queue>
 #include <vector>
 
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace ov;
 
@@ -20,20 +25,20 @@ namespace pull_reshape_through_dequantization {
 namespace {
 
 std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& elementwise) {
-    const auto reshapeValues = ov::as_type_ptr<opset1::Constant>(reshape->get_input_node_shared_ptr(1));
+    const auto reshapeValues = ov::as_type_ptr<op::v0::Constant>(reshape->get_input_node_shared_ptr(1));
     OPENVINO_ASSERT(reshapeValues != nullptr, "Reshape constant was not found");
 
-    auto elementwiseValuesConvert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(1));
+    auto elementwiseValuesConvert = ov::as_type_ptr<op::v0::Convert>(elementwise->get_input_node_shared_ptr(1));
     auto elementwiseValues = elementwiseValuesConvert == nullptr ?
-        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1)) :
-        ov::as_type_ptr<opset1::Constant>(elementwiseValuesConvert->get_input_node_shared_ptr(0));
+        ov::as_type_ptr<op::v0::Constant>(elementwise->get_input_node_shared_ptr(1)) :
+        ov::as_type_ptr<op::v0::Constant>(elementwiseValuesConvert->get_input_node_shared_ptr(0));
     assert(elementwiseValues != nullptr);
 
     const auto newElementwiseValues = [&]() -> std::shared_ptr<Node> {
         // Firstly is checked whether the result constant shape can be set without any calculations
         const auto& elementwiseValuesShape = elementwiseValues->get_shape();
         if (ov::shape_size(elementwiseValuesShape) == 1) {
-            return std::make_shared<opset1::Constant>(*elementwiseValues, Shape{});
+            return std::make_shared<op::v0::Constant>(*elementwiseValues, Shape{});
         }
 
         const auto& targetShape = reshape->get_output_shape(0);
@@ -61,16 +66,16 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
             return nullptr;
         }
 
-        const auto newReshapeValues = std::make_shared<opset1::Constant>(
+        const auto newReshapeValues = std::make_shared<op::v0::Constant>(
             reshapeValues->get_output_element_type(0),
             Shape{ newReshapeValuesVector.size() },
             newReshapeValuesVector);
 
-        const auto newElementwiseValues = ov::pass::low_precision::fold_reshape<opset1::Reshape>(
+        const auto newElementwiseValues = ov::pass::low_precision::fold_reshape<op::v1::Reshape>(
             elementwiseValues,
             newReshapeValues,
-            ov::as_type_ptr<opset1::Reshape>(reshape)->get_special_zero());
-        assert(ov::is_type<opset1::Constant>(newElementwiseValues));
+            ov::as_type_ptr<op::v1::Reshape>(reshape)->get_special_zero());
+        assert(ov::is_type<op::v0::Constant>(newElementwiseValues));
         return newElementwiseValues;
     }();
 
@@ -83,7 +88,7 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
         newReshape,
         elementwiseValuesConvert == nullptr ?
             newElementwiseValues :
-            std::make_shared<opset1::Convert>(newElementwiseValues, elementwiseValuesConvert->get_destination_type()) });
+            std::make_shared<op::v0::Convert>(newElementwiseValues, elementwiseValuesConvert->get_destination_type()) });
 
     replace_node(reshape, newElementwise);
     ov::copy_runtime_info({ elementwise, reshape }, { newReshape, newElementwise });
@@ -112,41 +117,41 @@ void fuseConstant(const std::shared_ptr<Node>& reshape, const std::shared_ptr<No
 
 ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDequantization(
     const std::vector<ov::element::Type>& inputPrecisions) {
-    const auto weights = ov::pass::pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches_any(inputPrecisions));
-    const auto convert = ov::pass::pattern::wrap_type<ov::opset1::Convert>({ weights });
+    const auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches_any(inputPrecisions));
+    const auto convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({ weights });
 
     MATCHER_SCOPE(PullReshapeThroughDequantization);
     const auto subtractValues = std::make_shared<pass::pattern::op::Or>(OutputVector{
-        ov::pass::pattern::wrap_type<ov::opset1::Constant>(),
-        ov::pass::pattern::wrap_type<ov::opset1::Convert>({ov::pass::pattern::wrap_type<ov::opset1::Constant>()})
+        ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({ov::pass::pattern::wrap_type<ov::op::v0::Constant>()})
     });
-    const auto subtract = ov::pass::pattern::wrap_type<ov::opset1::Subtract>({ convert, subtractValues });
+    const auto subtract = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({ convert, subtractValues });
 
     const auto subtractOrConvert = std::make_shared<pass::pattern::op::Or>(OutputVector{ convert, subtract });
 
-    const auto multiplyConstant = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto multiply = ov::pass::pattern::wrap_type<ov::opset1::Multiply>({ subtractOrConvert, multiplyConstant });
+    const auto multiplyConstant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto multiply = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({ subtractOrConvert, multiplyConstant });
 
-    const auto reshapeConstant = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    auto reshapeWrapper = ov::pass::pattern::wrap_type<opset1::Reshape>({ multiply, reshapeConstant });
+    const auto reshapeConstant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto reshapeWrapper = ov::pass::pattern::wrap_type<op::v1::Reshape>({ multiply, reshapeConstant });
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         auto reshape = opsMap.at(reshapeWrapper).get_node_shared_ptr();
 
         auto child = reshape->get_output_target_inputs(0).begin()->get_node();
-        if (ov::is_type<opset1::GroupConvolution>(child)) {
+        if (ov::is_type<op::v1::GroupConvolution>(child)) {
             return false;
         }
 
         do {
             const auto parent = reshape->get_input_node_shared_ptr(0);
-            if (ov::is_type<opset1::Multiply>(parent) || ov::is_type<opset1::Subtract>(parent)) {
+            if (ov::is_type<op::v1::Multiply>(parent) || ov::is_type<op::v1::Subtract>(parent)) {
                 reshape = pull_reshape_through_dequantization::moveThroughElementwise(reshape, parent);
-            } else if (ov::is_type<opset1::Convert>(parent)) {
+            } else if (ov::is_type<op::v0::Convert>(parent)) {
                 reshape = pull_reshape_through_dequantization::moveThroughConvert(reshape, parent);
-            } else if (ov::is_type<opset1::Constant>(parent)) {
-                pull_reshape_through_dequantization::fuseConstant(reshape, ov::as_type_ptr<opset1::Constant>(parent));
+            } else if (ov::is_type<op::v0::Constant>(parent)) {
+                pull_reshape_through_dequantization::fuseConstant(reshape, ov::as_type_ptr<op::v0::Constant>(parent));
                 reshape = nullptr;
             } else {
                 THROW_IE_LPT_EXCEPTION(*parent) << "unexepcted operation type";

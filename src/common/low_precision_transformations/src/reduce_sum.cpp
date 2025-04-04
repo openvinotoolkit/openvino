@@ -9,6 +9,9 @@
 
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 namespace ov {
 namespace pass {
@@ -16,7 +19,7 @@ namespace low_precision {
 
 ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceBaseTransformation(params) {
     MATCHER_SCOPE(ReduceSumTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::ReduceSum>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::op::v1::ReduceSum>({ pattern::wrap_type<ov::op::v1::Multiply>(), pattern::wrap_type<ov::op::v0::Constant>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -31,7 +34,7 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
 }
 
 bool ReduceSumTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
-    const auto reduceSum = ov::as_type_ptr<ov::opset1::ReduceSum>(reduce);
+    const auto reduceSum = ov::as_type_ptr<ov::op::v1::ReduceSum>(reduce);
     if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(reduceSum)) {
         return false;
     }
@@ -57,7 +60,7 @@ void ReduceSumTransformation::changeDequantizationValues(
     ReduceBaseTransformation::changeDequantizationValues(reduce, dequantization);
 
     if (dequantization.subtract) {
-        const auto reduceSum = ov::as_type_ptr<ov::opset1::ReduceSum>(reduce);
+        const auto reduceSum = ov::as_type_ptr<ov::op::v1::ReduceSum>(reduce);
         const auto reductionAxes = reduceSum->get_reduction_axes();
         const auto inputShape = reduceSum->get_input_partial_shape(0);
 
@@ -68,11 +71,11 @@ void ReduceSumTransformation::changeDequantizationValues(
         }
 
         // (a1 - s) + (a2 - s) + ... + (an - s) = (a1 + a2 + ... + an) - n * s
-        const auto reductionSizeConstant = ov::opset1::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
+        const auto reductionSizeConstant = ov::op::v0::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
         OPENVINO_ASSERT(deqPrecision == dequantization.subtract->get_input_element_type(0),
                         "dequantization precision ", deqPrecision,
                         " differs from zero point 0 input ", dequantization.subtract->get_input_element_type(0));
-        const auto result = fold<ov::opset1::Multiply>(
+        const auto result = fold<ov::op::v1::Multiply>(
             foldConvert(dequantization.subtractConstant, deqPrecision),
             reductionSizeConstant);
 
@@ -82,7 +85,7 @@ void ReduceSumTransformation::changeDequantizationValues(
                 dequantization.subtractConstant,
             result);
 
-        dequantization.subtractConstant = ov::as_type_ptr<ov::opset1::Constant>(result);
+        dequantization.subtractConstant = ov::as_type_ptr<ov::op::v0::Constant>(result);
         dequantization.subtractConvert = nullptr;
     }
 }

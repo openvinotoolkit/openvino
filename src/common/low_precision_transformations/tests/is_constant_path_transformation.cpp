@@ -11,6 +11,12 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -59,7 +65,7 @@ TEST(LPT, isConstantPathTwoInputsTransformation) {
     const auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 16, 16 });
     const auto dq1 = makeDequantization(input1, DequantizationOperations{ ov::element::f32, {128.f}, {0.1f} });
     const auto dq2 = makeDequantization(input2, DequantizationOperations{ ov::element::f32, {128.f}, {0.1f} });
-    const auto matmul = std::make_shared<ov::opset1::MatMul>(dq1, dq2);
+    const auto matmul = std::make_shared<ov::op::v0::MatMul>(dq1, dq2);
 
     const bool result = ov::pass::low_precision::NetworkHelper::isConstantPath(matmul);
 
@@ -71,7 +77,7 @@ TEST(LPT, isConstantPathTwoConsantsTransformation) {
     const auto constant2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 3, 1, 1, 1 }, { 1.f });
     const auto dq1 = makeDequantization(constant1, DequantizationOperations{ ov::element::f32, {128.f}, {0.1f} });
     const auto dq2 = makeDequantization(constant2, DequantizationOperations{ ov::element::f32, {128.f}, {0.1f} });
-    const auto eltwise = std::make_shared<ov::opset1::Add>(dq1, dq2);
+    const auto eltwise = std::make_shared<ov::op::v1::Add>(dq1, dq2);
 
     const bool result = ov::pass::low_precision::NetworkHelper::isConstantPath(eltwise);
 
@@ -83,7 +89,7 @@ TEST(LPT, isConstantPathMatMulParentFQTransformation) {
     const auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 16, 16 });
     const auto dq1 = makeDequantization(input1, DequantizationOperations{ ov::element::f32, {128.f}, {0.1f} });
     const auto dq2 = makeDequantization(input2, DequantizationOperations{ ov::element::f32, {128.f}, {0.1f} });
-    const auto matmul = std::make_shared<ov::opset1::MatMul>(dq1, dq2);
+    const auto matmul = std::make_shared<ov::op::v0::MatMul>(dq1, dq2);
     const auto fqAfterMatMul = makeFakeQuantize(matmul, ov::element::f32,
         FakeQuantizeOnWeights{ 255ul, {}, {0.f}, {254.f}, {-1.27f}, {1.27f} });
 
@@ -97,7 +103,7 @@ TEST(LPT, isConstantPathMatMulParentDqTransformation) {
     const auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 16, 16 });
     const auto dq1 = makeDequantization(input1, DequantizationOperations{ ov::element::f32, {128.f}, {0.1f} });
     const auto dq2 = makeDequantization(input2, DequantizationOperations{ ov::element::f32, {128.f}, {0.1f} });
-    const auto matmul = std::make_shared<ov::opset1::MatMul>(dq1, dq2);
+    const auto matmul = std::make_shared<ov::op::v0::MatMul>(dq1, dq2);
     const auto dqAfterMatMul = makeDequantization(matmul, DequantizationOperations{ {}, {}, {0.1f} });
 
     const bool result = ov::pass::low_precision::NetworkHelper::isConstantPath(dqAfterMatMul);
@@ -108,7 +114,7 @@ TEST(LPT, isConstantPathMatMulParentDqTransformation) {
 TEST(LPT, isConstantPathConvParentDqTransformation) {
     const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 72, 16 });
     const auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 6, 3, 1, 1 }, { 1.f });
-    const auto conv = std::make_shared<ov::opset1::Convolution>(
+    const auto conv = std::make_shared<ov::op::v1::Convolution>(
         input,
         weights,
         ov::Strides{ 1, 1 },
@@ -125,7 +131,7 @@ TEST(LPT, isConstantPathConvParentDqTransformation) {
 TEST(LPT, isConstantPathGroupConvParentDqTransformation) {
     const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 16, 16 });
     const auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 1, 6, 3, 1, 1 }, { 1.f });
-    const auto groupConv = std::make_shared<ov::opset1::GroupConvolution>(
+    const auto groupConv = std::make_shared<ov::op::v1::GroupConvolution>(
         input,
         weights,
         ov::Strides{ 1, 1 },

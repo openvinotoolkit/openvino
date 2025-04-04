@@ -11,6 +11,7 @@
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/max_pool.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/fuse_fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"

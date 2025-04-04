@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include "transformations/utils/utils.hpp"
-#include "simple_low_precision_transformer.hpp"
-#include "low_precision/normalize_l2.hpp"
+#include <memory>
+#include <sstream>
+#include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-
-#include "ov_lpt_models/normalize_l2.hpp"
+#include "layer_transformation.hpp"
+#include "low_precision/normalize_l2.hpp"
+#include "openvino/op/normalize_l2.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/normalize_l2.hpp"
+#include "simple_low_precision_transformer.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 using namespace testing;

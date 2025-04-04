@@ -12,13 +12,15 @@
 
 #include "itt.hpp"
 #include "openvino/util/log.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -43,8 +45,8 @@ std::shared_ptr<ov::op::v0::Constant> createNewScalesConst(const ov::op::v0::Con
 MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(MVNTransformation);
     auto matcher = std::make_shared<pass::pattern::op::Or>(OutputVector{
-        pattern::wrap_type<ov::op::v0::MVN>({ pattern::wrap_type<ov::opset1::Multiply>() }),
-        pattern::wrap_type<ov::opset6::MVN>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() })
+        pattern::wrap_type<ov::op::v0::MVN>({ pattern::wrap_type<ov::op::v1::Multiply>() }),
+        pattern::wrap_type<ov::op::v6::MVN>({ pattern::wrap_type<ov::op::v1::Multiply>(), pattern::wrap_type<ov::op::v0::Constant>() })
     });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -71,7 +73,7 @@ bool MVNTransformation::canBeTransformed(const std::shared_ptr<Node>& operation)
 
     std::shared_ptr<Node> mvn = ov::as_type_ptr<op::v0::MVN>(operation);
     if (!mvn) {
-        mvn = ov::as_type_ptr<opset6::MVN>(operation);
+        mvn = ov::as_type_ptr<op::v6::MVN>(operation);
         if (!mvn) {
             return false;
         }
@@ -83,7 +85,7 @@ bool MVNTransformation::canBeTransformed(const std::shared_ptr<Node>& operation)
     } else {
         // MVN-6 allows negative values in reduction axes: [-r, r-1]
         // given static rank of input data of MVN node, we can recover the exact axis number
-        auto axis_set = ov::as_type_ptr<ov::opset1::Constant>(mvn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
+        auto axis_set = ov::as_type_ptr<ov::op::v0::Constant>(mvn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
 
         Dimension::value_type ndims = 0;
         if (std::any_of(axis_set.begin(), axis_set.end(), [](int64_t v) { return v < 0; })) {
@@ -128,7 +130,7 @@ bool MVNTransformation::transform(ov::pass::pattern::Matcher &m) {
     if (ov::is_type<op::v0::MVN>(mvn)) {
         normalizeVariance = ov::as_type_ptr<op::v0::MVN>(mvn)->get_normalize_variance();
     } else {
-        normalizeVariance = ov::as_type_ptr<opset6::MVN>(mvn)->get_normalize_variance();
+        normalizeVariance = ov::as_type_ptr<op::v6::MVN>(mvn)->get_normalize_variance();
     }
 
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn, defaultPrecisions);
@@ -160,8 +162,8 @@ bool MVNTransformation::transform(ov::pass::pattern::Matcher &m) {
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMVN, deqPrecision);
     NetworkHelper::copyInfo(mvn, newMVN);
 
-    auto newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-        ov::opset1::Multiply(newMVN, newScalesConst),
+    auto newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
+        ov::op::v1::Multiply(newMVN, newScalesConst),
         mvn->get_output_element_type(0));
     ov::copy_runtime_info({ mvn, newMultiply }, newMultiply);
 

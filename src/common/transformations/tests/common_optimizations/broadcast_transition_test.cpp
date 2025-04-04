@@ -11,7 +11,16 @@
 
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -36,11 +45,11 @@ std::shared_ptr<ov::Node> getEltwise(
     const ov::op::AutoBroadcastType& eltwise_bcast_type = ov::op::AutoBroadcastType::NUMPY) {
     switch (eltwise_type) {
     case ov::test::utils::EltwiseTypes::ADD:
-        return std::make_shared<ov::opset10::Add>(in1, in2, eltwise_bcast_type);
+        return std::make_shared<ov::op::v1::Add>(in1, in2, eltwise_bcast_type);
     case ov::test::utils::EltwiseTypes::MULTIPLY:
-        return std::make_shared<ov::opset10::Multiply>(in1, in2, eltwise_bcast_type);
+        return std::make_shared<ov::op::v1::Multiply>(in1, in2, eltwise_bcast_type);
     case ov::test::utils::EltwiseTypes::SUBTRACT:
-        return std::make_shared<ov::opset10::Subtract>(in1, in2, eltwise_bcast_type);
+        return std::make_shared<ov::op::v1::Subtract>(in1, in2, eltwise_bcast_type);
     default:
         OPENVINO_THROW("Unexpected eltwise type");
     }
@@ -55,15 +64,15 @@ std::shared_ptr<ov::Model> getOriginal(
     const ov::test::utils::EltwiseTypes& eltwise_type,
     const size_t idx,
     const ov::op::AutoBroadcastType& eltwise_bcast_type = ov::op::AutoBroadcastType::NUMPY) {
-    const auto input = std::make_shared<ov::opset10::Parameter>(precision, input_shape);
-    const auto data_constant = ov::opset10::Constant::create(precision, {}, {1.f});
-    const auto target_shape_node = ov::opset10::Constant::create(ov::element::i32, {target_shape.size()}, target_shape);
+    const auto input = std::make_shared<ov::op::v0::Parameter>(precision, input_shape);
+    const auto data_constant = ov::op::v0::Constant::create(precision, {}, {1.f});
+    const auto target_shape_node = ov::op::v0::Constant::create(ov::element::i32, {target_shape.size()}, target_shape);
 
     std::shared_ptr<ov::Node> bcast;
     switch (bcast_version) {
     case BroadcastVersion::V1: {
         OPENVINO_ASSERT(bcast_mode != ov::op::BroadcastType::BIDIRECTIONAL,
-                        "opset1::Broadcast can't be created with BIDIRECTIONAL mode.");
+                        "op::v1::Broadcast can't be created with BIDIRECTIONAL mode.");
         static const std::map<ov::op::BroadcastType, ov::op::AutoBroadcastType> bcast_mode_to_autobcast_type{
             {ov::op::BroadcastType::EXPLICIT, ov::op::AutoBroadcastType::EXPLICIT},
             {ov::op::BroadcastType::NONE, ov::op::AutoBroadcastType::NONE},
@@ -93,8 +102,8 @@ std::shared_ptr<ov::Model> getReference(const ov::element::Type& precision,
                                         const ov::Shape& original_target_shape,
                                         const ov::test::utils::EltwiseTypes& eltwise_type,
                                         const size_t idx) {
-    const auto input = std::make_shared<ov::opset10::Parameter>(precision, input_shape);
-    const auto data_constant = ov::opset10::Constant::create(precision, {}, {1.f});
+    const auto input = std::make_shared<ov::op::v0::Parameter>(precision, input_shape);
+    const auto data_constant = ov::op::v0::Constant::create(precision, {}, {1.f});
 
     const auto fst_in = idx == 0 ? data_constant->output(0) : input->output(0);
     const auto sec_in = idx == 1 ? data_constant->output(0) : input->output(0);
@@ -114,8 +123,8 @@ std::shared_ptr<ov::Model> getReference(const ov::element::Type& precision,
         return new_shape;
     }();
 
-    const auto target_shape_node = ov::opset10::Constant::create(ov::element::i32, {target_shape.size()}, target_shape);
-    const auto bcast = std::make_shared<ov::opset10::Broadcast>(operation, target_shape_node);
+    const auto target_shape_node = ov::op::v0::Constant::create(ov::element::i32, {target_shape.size()}, target_shape);
+    const auto bcast = std::make_shared<ov::op::v3::Broadcast>(operation, target_shape_node);
     return std::make_shared<ov::Model>(bcast, ov::ParameterVector{input});
 }
 
@@ -220,25 +229,25 @@ TEST_F(TransformationTestsF, BroadcastTransitionTests_Dynamic_U32TargetShapePrec
     const auto data_precision = ov::element::f32;
     const auto shape_precision = ov::element::u32;
     {
-        const auto input = std::make_shared<ov::opset10::Parameter>(data_precision, ov::PartialShape::dynamic(4));
-        const auto target_shape = std::make_shared<ov::opset10::Parameter>(shape_precision, ov::PartialShape{4});
+        const auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape::dynamic(4));
+        const auto target_shape = std::make_shared<ov::op::v0::Parameter>(shape_precision, ov::PartialShape{4});
 
-        const auto data_constant = ov::opset10::Constant::create(data_precision, {}, {1.f});
-        const auto bcast = std::make_shared<ov::opset10::Broadcast>(data_constant, target_shape);
+        const auto data_constant = ov::op::v0::Constant::create(data_precision, {}, {1.f});
+        const auto bcast = std::make_shared<ov::op::v3::Broadcast>(data_constant, target_shape);
         const auto operation = getEltwise(input, bcast, ov::test::utils::EltwiseTypes::ADD);
         model = std::make_shared<ov::Model>(operation, ov::ParameterVector{input, target_shape});
     }
     manager.register_pass<ov::pass::BroadcastTransition>();
     {
-        const auto input = std::make_shared<ov::opset10::Parameter>(data_precision, ov::PartialShape::dynamic(4));
-        const auto target_shape = std::make_shared<ov::opset10::Parameter>(shape_precision, ov::PartialShape{4});
+        const auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape::dynamic(4));
+        const auto target_shape = std::make_shared<ov::op::v0::Parameter>(shape_precision, ov::PartialShape{4});
 
-        const auto data_constant = ov::opset10::Constant::create(data_precision, {}, {1.f});
+        const auto data_constant = ov::op::v0::Constant::create(data_precision, {}, {1.f});
         const auto operation = getEltwise(input, data_constant, ov::test::utils::EltwiseTypes::ADD);
-        const auto shapeof = std::make_shared<ov::opset10::ShapeOf>(operation);
-        const auto convert = std::make_shared<ov::opset10::Convert>(shapeof, shape_precision);
-        const auto max = std::make_shared<ov::opset10::Maximum>(convert, target_shape);
-        const auto bcast = std::make_shared<ov::opset10::Broadcast>(operation, max);
+        const auto shapeof = std::make_shared<ov::op::v3::ShapeOf>(operation);
+        const auto convert = std::make_shared<ov::op::v0::Convert>(shapeof, shape_precision);
+        const auto max = std::make_shared<ov::op::v1::Maximum>(convert, target_shape);
+        const auto bcast = std::make_shared<ov::op::v3::Broadcast>(operation, max);
         model_ref = std::make_shared<ov::Model>(bcast, ov::ParameterVector{input, target_shape});
     }
 }
@@ -247,24 +256,24 @@ TEST_F(TransformationTestsF, BroadcastTransitionTests_Dynamic_EqualRanks) {
     const auto data_precision = ov::element::f32;
     const auto shape_precision = ov::element::i32;
     {
-        const auto input = std::make_shared<ov::opset10::Parameter>(data_precision, ov::PartialShape::dynamic(4));
-        const auto target_shape = std::make_shared<ov::opset10::Parameter>(shape_precision, ov::PartialShape{4});
+        const auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape::dynamic(4));
+        const auto target_shape = std::make_shared<ov::op::v0::Parameter>(shape_precision, ov::PartialShape{4});
 
-        const auto data_constant = ov::opset10::Constant::create(data_precision, {}, {1.f});
-        const auto bcast = std::make_shared<ov::opset10::Broadcast>(data_constant, target_shape);
+        const auto data_constant = ov::op::v0::Constant::create(data_precision, {}, {1.f});
+        const auto bcast = std::make_shared<ov::op::v3::Broadcast>(data_constant, target_shape);
         const auto operation = getEltwise(input, bcast, ov::test::utils::EltwiseTypes::ADD);
         model = std::make_shared<ov::Model>(operation, ov::ParameterVector{input, target_shape});
     }
     manager.register_pass<ov::pass::BroadcastTransition>();
     {
-        const auto input = std::make_shared<ov::opset10::Parameter>(data_precision, ov::PartialShape::dynamic(4));
-        const auto target_shape = std::make_shared<ov::opset10::Parameter>(shape_precision, ov::PartialShape{4});
+        const auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape::dynamic(4));
+        const auto target_shape = std::make_shared<ov::op::v0::Parameter>(shape_precision, ov::PartialShape{4});
 
-        const auto data_constant = ov::opset10::Constant::create(data_precision, {}, {1.f});
+        const auto data_constant = ov::op::v0::Constant::create(data_precision, {}, {1.f});
         const auto operation = getEltwise(input, data_constant, ov::test::utils::EltwiseTypes::ADD);
-        const auto shapeof = std::make_shared<ov::opset10::ShapeOf>(operation, shape_precision);
-        const auto max = std::make_shared<ov::opset10::Maximum>(shapeof, target_shape);
-        const auto bcast = std::make_shared<ov::opset10::Broadcast>(operation, max);
+        const auto shapeof = std::make_shared<ov::op::v3::ShapeOf>(operation, shape_precision);
+        const auto max = std::make_shared<ov::op::v1::Maximum>(shapeof, target_shape);
+        const auto bcast = std::make_shared<ov::op::v3::Broadcast>(operation, max);
         model_ref = std::make_shared<ov::Model>(bcast, ov::ParameterVector{input, target_shape});
     }
 }
@@ -273,26 +282,26 @@ TEST_F(TransformationTestsF, BroadcastTransitionTests_Dynamic_DataRankLessThanTa
     const auto data_precision = ov::element::f32;
     const auto shape_precision = ov::element::i32;
     {
-        const auto input = std::make_shared<ov::opset10::Parameter>(data_precision, ov::PartialShape::dynamic(2));
-        const auto target_shape = std::make_shared<ov::opset10::Parameter>(shape_precision, ov::PartialShape{4});
+        const auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape::dynamic(2));
+        const auto target_shape = std::make_shared<ov::op::v0::Parameter>(shape_precision, ov::PartialShape{4});
 
-        const auto data_constant = ov::opset10::Constant::create(data_precision, {}, {1.f});
-        const auto bcast = std::make_shared<ov::opset10::Broadcast>(data_constant, target_shape);
+        const auto data_constant = ov::op::v0::Constant::create(data_precision, {}, {1.f});
+        const auto bcast = std::make_shared<ov::op::v3::Broadcast>(data_constant, target_shape);
         const auto operation = getEltwise(input, bcast, ov::test::utils::EltwiseTypes::ADD);
         model = std::make_shared<ov::Model>(operation, ov::ParameterVector{input, target_shape});
     }
     manager.register_pass<ov::pass::BroadcastTransition>();
     {
-        const auto input = std::make_shared<ov::opset10::Parameter>(data_precision, ov::PartialShape::dynamic(2));
-        const auto target_shape = std::make_shared<ov::opset10::Parameter>(shape_precision, ov::PartialShape{4});
+        const auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape::dynamic(2));
+        const auto target_shape = std::make_shared<ov::op::v0::Parameter>(shape_precision, ov::PartialShape{4});
 
-        const auto data_constant = ov::opset10::Constant::create(data_precision, {}, {1.f});
+        const auto data_constant = ov::op::v0::Constant::create(data_precision, {}, {1.f});
         const auto operation = getEltwise(input, data_constant, ov::test::utils::EltwiseTypes::ADD);
-        const auto shapeof = std::make_shared<ov::opset10::ShapeOf>(operation, shape_precision);
-        const auto constant = ov::opset10::Constant::create(shape_precision, {2}, {1});
-        const auto concat = std::make_shared<ov::opset10::Concat>(ov::OutputVector{constant, shapeof}, 0);
-        const auto max = std::make_shared<ov::opset10::Maximum>(concat, target_shape);
-        const auto bcast = std::make_shared<ov::opset10::Broadcast>(operation, max);
+        const auto shapeof = std::make_shared<ov::op::v3::ShapeOf>(operation, shape_precision);
+        const auto constant = ov::op::v0::Constant::create(shape_precision, {2}, {1});
+        const auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{constant, shapeof}, 0);
+        const auto max = std::make_shared<ov::op::v1::Maximum>(concat, target_shape);
+        const auto bcast = std::make_shared<ov::op::v3::Broadcast>(operation, max);
         model_ref = std::make_shared<ov::Model>(bcast, ov::ParameterVector{input, target_shape});
     }
 }
@@ -301,26 +310,26 @@ TEST_F(TransformationTestsF, BroadcastTransitionTests_Dynamic_DataRankGreaterTha
     const auto data_precision = ov::element::f32;
     const auto shape_precision = ov::element::i32;
     {
-        const auto input = std::make_shared<ov::opset10::Parameter>(data_precision, ov::PartialShape::dynamic(4));
-        const auto target_shape = std::make_shared<ov::opset10::Parameter>(shape_precision, ov::PartialShape{2});
+        const auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape::dynamic(4));
+        const auto target_shape = std::make_shared<ov::op::v0::Parameter>(shape_precision, ov::PartialShape{2});
 
-        const auto data_constant = ov::opset10::Constant::create(data_precision, {}, {1.f});
-        const auto bcast = std::make_shared<ov::opset10::Broadcast>(data_constant, target_shape);
+        const auto data_constant = ov::op::v0::Constant::create(data_precision, {}, {1.f});
+        const auto bcast = std::make_shared<ov::op::v3::Broadcast>(data_constant, target_shape);
         const auto operation = getEltwise(input, bcast, ov::test::utils::EltwiseTypes::ADD);
         model = std::make_shared<ov::Model>(operation, ov::ParameterVector{input, target_shape});
     }
     manager.register_pass<ov::pass::BroadcastTransition>();
     {
-        const auto input = std::make_shared<ov::opset10::Parameter>(data_precision, ov::PartialShape::dynamic(4));
-        const auto target_shape = std::make_shared<ov::opset10::Parameter>(shape_precision, ov::PartialShape{2});
+        const auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape::dynamic(4));
+        const auto target_shape = std::make_shared<ov::op::v0::Parameter>(shape_precision, ov::PartialShape{2});
 
-        const auto data_constant = ov::opset10::Constant::create(data_precision, {}, {1.f});
+        const auto data_constant = ov::op::v0::Constant::create(data_precision, {}, {1.f});
         const auto operation = getEltwise(input, data_constant, ov::test::utils::EltwiseTypes::ADD);
-        const auto shapeof = std::make_shared<ov::opset10::ShapeOf>(operation, shape_precision);
-        const auto constant = ov::opset10::Constant::create(shape_precision, {2}, {1});
-        const auto concat = std::make_shared<ov::opset10::Concat>(ov::OutputVector{constant, target_shape}, 0);
-        const auto max = std::make_shared<ov::opset10::Maximum>(shapeof, concat);
-        const auto bcast = std::make_shared<ov::opset10::Broadcast>(operation, max);
+        const auto shapeof = std::make_shared<ov::op::v3::ShapeOf>(operation, shape_precision);
+        const auto constant = ov::op::v0::Constant::create(shape_precision, {2}, {1});
+        const auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{constant, target_shape}, 0);
+        const auto max = std::make_shared<ov::op::v1::Maximum>(shapeof, concat);
+        const auto bcast = std::make_shared<ov::op::v3::Broadcast>(operation, max);
         model_ref = std::make_shared<ov::Model>(bcast, ov::ParameterVector{input, target_shape});
     }
 }
@@ -350,38 +359,38 @@ TEST_F(TransformationTestsF, BroadcastTransitionTests_Negative_PDPDEltwiseBcast)
 }
 
 TEST_F(TransformationTestsF, BroadcastTransitionTests_Negative_PDPDBcastType) {
-    const auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 16, 16});
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 16, 16});
 
-    const auto data_constant = ov::opset10::Constant::create(ov::element::f32, {1, 1, 1}, {1.f});
-    const auto target_shape_node = ov::opset10::Constant::create(ov::element::i32, {3}, {1, 16, 16});
+    const auto data_constant = ov::op::v0::Constant::create(ov::element::f32, {1, 1, 1}, {1.f});
+    const auto target_shape_node = ov::op::v0::Constant::create(ov::element::i32, {3}, {1, 16, 16});
     const ov::op::BroadcastModeSpec pdpd_spec(ov::op::BroadcastType::PDPD);
-    const auto bcast = std::make_shared<ov::opset10::Broadcast>(data_constant, target_shape_node, pdpd_spec);
-    const auto add = std::make_shared<ov::opset10::Add>(input, bcast);
+    const auto bcast = std::make_shared<ov::op::v3::Broadcast>(data_constant, target_shape_node, pdpd_spec);
+    const auto add = std::make_shared<ov::op::v1::Add>(input, bcast);
 
     model = std::make_shared<ov::Model>(add, ov::ParameterVector{input});
     manager.register_pass<ov::pass::BroadcastTransition>();
 }
 
 TEST_F(TransformationTestsF, BroadcastTransitionTests_Negative_WithAxesMapping) {
-    const auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 16, 16});
-    const auto data_constant = ov::opset10::Constant::create(ov::element::f32, {16, 16}, {1.f});
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 16, 16});
+    const auto data_constant = ov::op::v0::Constant::create(ov::element::f32, {16, 16}, {1.f});
 
-    const auto target_shape_node = ov::opset10::Constant::create(ov::element::i32, {3}, {1, 16, 16});
-    const auto axes_node = ov::opset10::Constant::create(ov::element::i32, {2}, {1, 2});
-    const auto bcast = std::make_shared<ov::opset10::Broadcast>(data_constant, target_shape_node, axes_node);
-    const auto add = std::make_shared<ov::opset10::Add>(input, bcast);
+    const auto target_shape_node = ov::op::v0::Constant::create(ov::element::i32, {3}, {1, 16, 16});
+    const auto axes_node = ov::op::v0::Constant::create(ov::element::i32, {2}, {1, 2});
+    const auto bcast = std::make_shared<ov::op::v3::Broadcast>(data_constant, target_shape_node, axes_node);
+    const auto add = std::make_shared<ov::op::v1::Add>(input, bcast);
 
     model = std::make_shared<ov::Model>(add, ov::ParameterVector{input});
     manager.register_pass<ov::pass::BroadcastTransition>();
 }
 
 TEST_F(TransformationTestsF, BroadcastTransitionTests_Negative_DynamicRank) {
-    const auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-    const auto data_constant = ov::opset10::Constant::create(ov::element::f32, {}, {1.f});
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    const auto data_constant = ov::op::v0::Constant::create(ov::element::f32, {}, {1.f});
 
-    const auto target_shape_input = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::PartialShape{-1});
-    const auto bcast = std::make_shared<ov::opset10::Broadcast>(data_constant, target_shape_input);
-    const auto add = std::make_shared<ov::opset10::Add>(input, bcast);
+    const auto target_shape_input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    const auto bcast = std::make_shared<ov::op::v3::Broadcast>(data_constant, target_shape_input);
+    const auto add = std::make_shared<ov::op::v1::Add>(input, bcast);
 
     model = std::make_shared<ov::Model>(add, ov::ParameterVector{input, target_shape_input});
     manager.register_pass<ov::pass::BroadcastTransition>();

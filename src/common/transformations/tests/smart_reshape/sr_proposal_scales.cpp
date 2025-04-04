@@ -6,19 +6,22 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/proposal.hpp"
+#include "openvino/op/reshape.hpp"
 
 using namespace ov;
 
 TEST(SmartReshapeTests, Proposal1Scales) {
     std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input_0 = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 24, 75, 128});
-        auto input_1 = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 48, 75, 128});
-        auto input_2 = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3});
+        auto input_0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 24, 75, 128});
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 48, 75, 128});
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
         auto reshape =
-            std::make_shared<opset5::Reshape>(input_2, opset5::Constant::create(element::i64, {1}, {3}), true);
+            std::make_shared<op::v1::Reshape>(input_2, op::v0::Constant::create(element::i64, {1}, {3}), true);
         op::v0::Proposal::Attributes attrs;
         attrs.base_size = 256;
         attrs.box_coordinate_scale = 10.0;
@@ -34,7 +37,7 @@ TEST(SmartReshapeTests, Proposal1Scales) {
         attrs.pre_nms_topn = 2147483647;
         attrs.ratio = {0.5, 1.0, 2.0};
         attrs.scale = {0.25, 0.5, 1.0, 2.0};
-        auto proposal = std::make_shared<opset1::Proposal>(input_0, input_1, reshape, attrs);
+        auto proposal = std::make_shared<op::v0::Proposal>(input_0, input_1, reshape, attrs);
         f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 
@@ -46,12 +49,12 @@ TEST(SmartReshapeTests, Proposal1Scales) {
 TEST(SmartReshapeTests, Proposal1Scales_WithConvert) {
     std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input_0 = std::make_shared<opset5::Parameter>(element::f16, Shape{1, 24, 75, 128});
-        auto input_1 = std::make_shared<opset5::Parameter>(element::f16, Shape{1, 48, 75, 128});
-        auto input_2 = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3});
-        auto input_2_convert = std::make_shared<opset5::Convert>(input_2, element::f16);
+        auto input_0 = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 24, 75, 128});
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 48, 75, 128});
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+        auto input_2_convert = std::make_shared<op::v0::Convert>(input_2, element::f16);
         auto reshape =
-            std::make_shared<opset5::Reshape>(input_2_convert, opset5::Constant::create(element::i64, {1}, {3}), true);
+            std::make_shared<op::v1::Reshape>(input_2_convert, op::v0::Constant::create(element::i64, {1}, {3}), true);
         op::v0::Proposal::Attributes attrs;
         attrs.base_size = 256;
         attrs.box_coordinate_scale = 10.0;
@@ -67,7 +70,7 @@ TEST(SmartReshapeTests, Proposal1Scales_WithConvert) {
         attrs.pre_nms_topn = 2147483647;
         attrs.ratio = {0.5, 1.0, 2.0};
         attrs.scale = {0.25, 0.5, 1.0, 2.0};
-        auto proposal = std::make_shared<opset1::Proposal>(input_0, input_1, reshape, attrs);
+        auto proposal = std::make_shared<op::v0::Proposal>(input_0, input_1, reshape, attrs);
         f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 
@@ -79,11 +82,11 @@ TEST(SmartReshapeTests, Proposal1Scales_WithConvert) {
 TEST(SmartReshapeTests, Proposal4Scales) {
     std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input_0 = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 24, 75, 128});
-        auto input_1 = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 48, 75, 128});
-        auto input_2 = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4});
+        auto input_0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 24, 75, 128});
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 48, 75, 128});
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4});
         auto reshape =
-            std::make_shared<opset5::Reshape>(input_2, opset5::Constant::create(element::i64, {1}, {-1}), true);
+            std::make_shared<op::v1::Reshape>(input_2, op::v0::Constant::create(element::i64, {1}, {-1}), true);
         op::v0::Proposal::Attributes attrs;
         attrs.base_size = 256;
         attrs.box_coordinate_scale = 10.0;
@@ -99,7 +102,7 @@ TEST(SmartReshapeTests, Proposal4Scales) {
         attrs.pre_nms_topn = 2147483647;
         attrs.ratio = {0.5, 1.0, 2.0};
         attrs.scale = {0.25, 0.5, 1.0, 2.0};
-        auto proposal = std::make_shared<opset5::Proposal>(input_0, input_1, reshape, attrs);
+        auto proposal = std::make_shared<op::v4::Proposal>(input_0, input_1, reshape, attrs);
         f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 
@@ -111,12 +114,12 @@ TEST(SmartReshapeTests, Proposal4Scales) {
 TEST(SmartReshapeTests, Proposal4Scales_WithConvert) {
     std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input_0 = std::make_shared<opset5::Parameter>(element::f16, Shape{1, 24, 75, 128});
-        auto input_1 = std::make_shared<opset5::Parameter>(element::f16, Shape{1, 48, 75, 128});
-        auto input_2 = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4});
-        auto input_2_convert = std::make_shared<opset5::Convert>(input_2, element::f16);
+        auto input_0 = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 24, 75, 128});
+        auto input_1 = std::make_shared<op::v0::Parameter>(element::f16, Shape{1, 48, 75, 128});
+        auto input_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4});
+        auto input_2_convert = std::make_shared<op::v0::Convert>(input_2, element::f16);
         auto reshape =
-            std::make_shared<opset5::Reshape>(input_2_convert, opset5::Constant::create(element::i64, {1}, {-1}), true);
+            std::make_shared<op::v1::Reshape>(input_2_convert, op::v0::Constant::create(element::i64, {1}, {-1}), true);
         op::v0::Proposal::Attributes attrs;
         attrs.base_size = 256;
         attrs.box_coordinate_scale = 10.0;
@@ -132,7 +135,7 @@ TEST(SmartReshapeTests, Proposal4Scales_WithConvert) {
         attrs.pre_nms_topn = 2147483647;
         attrs.ratio = {0.5, 1.0, 2.0};
         attrs.scale = {0.25, 0.5, 1.0, 2.0};
-        auto proposal = std::make_shared<opset5::Proposal>(input_0, input_1, reshape, attrs);
+        auto proposal = std::make_shared<op::v4::Proposal>(input_0, input_1, reshape, attrs);
         f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 

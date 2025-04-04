@@ -6,12 +6,14 @@
 
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/op/util/assign_base.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "itt.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace pass {
@@ -20,7 +22,7 @@ namespace low_precision {
 AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::shared_ptr<ov::Model> model, const Params& params) :
     LayerTransformation(params), model(model) {
     MATCHER_SCOPE(AssignAndReadValueTransformation);
-    auto assign_m = pattern::wrap_type<opset3::Assign, opset6::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
+    auto assign_m = pattern::wrap_type<op::v3::Assign, op::v6::Assign>({ pattern::wrap_type<ov::op::v1::Multiply>() });
 
     ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto assign = m.get_match_root();
@@ -76,15 +78,15 @@ bool AssignAndReadValueTransformation::transform(ov::pass::pattern::Matcher& m) 
     if (nextLayers.size() > 1) {
         return true;
     }
-    const auto fakeQuantize = as_type_ptr<ov::opset1::FakeQuantize>(nextLayers.begin()->get_node()->shared_from_this());
+    const auto fakeQuantize = as_type_ptr<ov::op::v0::FakeQuantize>(nextLayers.begin()->get_node()->shared_from_this());
 
     if (fakeQuantize == nullptr) {
         return true;
     }
     auto fakeQuantizeInputs = fakeQuantize->input_values();
 
-    const auto inputLow = as_type_ptr<ov::opset1::Constant>(fakeQuantizeInputs[1].get_node_shared_ptr());
-    const auto inputHigh = as_type_ptr<ov::opset1::Constant>(fakeQuantizeInputs[2].get_node_shared_ptr());
+    const auto inputLow = as_type_ptr<ov::op::v0::Constant>(fakeQuantizeInputs[1].get_node_shared_ptr());
+    const auto inputHigh = as_type_ptr<ov::op::v0::Constant>(fakeQuantizeInputs[2].get_node_shared_ptr());
 
     if (inputLow == nullptr || inputHigh == nullptr) {
         return true;

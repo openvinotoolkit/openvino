@@ -6,25 +6,26 @@
 
 #include <memory>
 
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov::pass::low_precision;
 
 BroadcastTransformation::BroadcastTransformation(const Params& params) : TransparentBaseTransformation(params) {
     MATCHER_SCOPE(BroadcastTransformation);
-    auto broadcast1 = pattern::wrap_type<ov::opset1::Broadcast>({
-        pattern::wrap_type<ov::opset1::Multiply>(),
+    auto broadcast1 = pattern::wrap_type<ov::op::v1::Broadcast>({
+        pattern::wrap_type<ov::op::v1::Multiply>(),
         ov::pass::pattern::any_input(),
         ov::pass::pattern::any_input() });
 
-    auto broadcast3 = pattern::wrap_type<ov::opset3::Broadcast>({
-        pattern::wrap_type<ov::opset1::Multiply>(),
+    auto broadcast3 = pattern::wrap_type<ov::op::v3::Broadcast>({
+        pattern::wrap_type<ov::op::v1::Multiply>(),
         ov::pass::pattern::any_input(),
         ov::pass::pattern::any_input() });
 
@@ -61,13 +62,13 @@ bool BroadcastTransformation::canBeTransformed(const std::shared_ptr<ov::Node>& 
         return false;
     }
 
-    const auto targetShapeConstant = ov::as_type_ptr<ov::opset1::Constant>(layer->get_input_node_shared_ptr(1));
+    const auto targetShapeConstant = ov::as_type_ptr<ov::op::v0::Constant>(layer->get_input_node_shared_ptr(1));
     const auto& targetShape = targetShapeConstant->cast_vector<int64_t>();
     if (targetShape[dequantization.channelDimIndex] != inputShape[dequantization.channelDimIndex].get_length()) {
         return false;
     }
 
-    const auto axesMappingConstant = ov::as_type_ptr<ov::opset1::Constant>(layer->get_input_node_shared_ptr(2));
+    const auto axesMappingConstant = ov::as_type_ptr<ov::op::v0::Constant>(layer->get_input_node_shared_ptr(2));
     const auto& axesMapping = axesMappingConstant->cast_vector<int64_t>();
     if (static_cast<size_t>(axesMapping[dequantization.channelDimIndex]) != dequantization.channelDimIndex) {
         return false;

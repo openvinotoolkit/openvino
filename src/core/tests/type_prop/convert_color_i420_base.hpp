@@ -9,7 +9,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/op.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace ov;
 using namespace testing;
