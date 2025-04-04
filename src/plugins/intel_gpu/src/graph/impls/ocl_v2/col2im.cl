@@ -12,7 +12,6 @@ KERNEL(col2im)(const __global INPUT0_TYPE* input,
     const uint channel_idx = get_global_id(0);
 
     const int channel_offset = batch * NUM_CHANNELS + channel_idx;
-    printf("(%.3f)", (float)input[channel_offset]);
 
     for (int idx = 0; idx < KERNEL_PRODUCT; ++idx) {
         const int width_offset = idx % KERNEL_SIZE_1;

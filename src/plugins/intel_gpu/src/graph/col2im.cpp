@@ -27,38 +27,8 @@ bool col2im_inst::validate_num_blocks(kernel_impl_params const& impl_param, size
 }
 
 layout col2im_inst::calc_output_layout(col2im_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<col2im>();
-
-    auto input_layout = impl_param.get_input_layout();
-    auto input_format = input_layout.format;
-
-    std::cout << ">> In calc_output_layout, input_layout : " << input_layout << std::endl;
-
-    bool is_batched = true;
-    auto num_blocks_l = input_layout.spatial(1);
-    if (num_blocks_l == 1 && !validate_num_blocks(impl_param, input_layout.spatial(1)))
-        is_batched = false;
-
-    auto out_tensor = input_layout.get_tensor();
-    auto num_elements = is_batched ? input_layout.feature() : input_layout.batch();
-
-    const size_t batch = is_batched ? input_layout.batch() : 1;
-    const size_t feature = std::max(num_elements / (desc->kernel_shape[0] * desc->kernel_shape[1]), (size_t)1);
-    const size_t y = desc->output_shape[1];
-    const size_t x = desc->output_shape[0];
-
-    if (format::spatial_num(input_layout.format) == 3) {
-        const size_t z = 1;
-        out_tensor = tensor(TensorValue(batch), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z));
-    } else {
-        out_tensor = tensor(TensorValue(batch), TensorValue(feature), TensorValue(x), TensorValue(y));
-    }
-
-    if (impl_param.has_fused_primitives()) {
-        input_layout.data_type = impl_param.get_output_element_type();
-    }
-
-    return layout{input_layout.data_type, input_format, out_tensor};
+    auto output = calc_output_layouts<ov::PartialShape>(node, impl_param);
+    return output[0];
 }
 
 template<typename ShapeType>
@@ -68,7 +38,23 @@ std::vector<layout> col2im_inst::calc_output_layouts(col2im_node const& node, ke
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
     auto output_format = input_layout.format;
 
-    std::cout << ">> In calc_output_layouts using shape_infer, input_layout : " << input_layout << std::endl;
+    auto reshaped_input = input_layout;
+    if (input_layout.get_rank() >= 4) {
+        bool is_batched = true;
+        auto num_blocks_l = input_layout.spatial(1);
+        if (num_blocks_l == 1 && !validate_num_blocks(impl_param, input_layout.spatial(1))) {
+            is_batched = false;
+            num_blocks_l = input_layout.feature();
+        }
+
+        const auto batch = is_batched ? input_layout.batch() : 1;
+        const auto num_elements = is_batched ? input_layout.feature() : input_layout.batch();
+
+        if (is_batched)
+            reshaped_input.set_partial_shape({batch, num_elements, num_blocks_l});
+        else
+            reshaped_input.set_partial_shape({num_elements, num_blocks_l});
+    }
 
     ov::op::v15::Col2Im op;
     op.set_strides(desc->stride);
@@ -89,7 +75,7 @@ std::vector<layout> col2im_inst::calc_output_layouts(col2im_node const& node, ke
     const_data.emplace(2, kernel_tensor);
 
     std::vector<ShapeType> input_shapes = {
-        input_layout.get<ShapeType>(),
+        reshaped_input.get<ShapeType>(),
         output_tensor.get_shape(),
         kernel_tensor.get_shape(),
     };
