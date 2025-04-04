@@ -833,50 +833,25 @@ Node::AttrPtr Deconvolution::initPrimitiveAttr() {
 }
 
 const std::vector<impl_desc_type>& Deconvolution::getDefaultImplPriority() {
-    static const std::vector<impl_desc_type> priorities{
+    static const std::vector<impl_desc_type> priorities {
         impl_desc_type::unknown,
-        // Undef impl type is used to express use-cases there real type is unkown during compilation
-        // Undef has higher priority than defined types in order to force primitive selection logic to make decision
-        // based on other properties
-        impl_desc_type::undef,
-        impl_desc_type::brgconv_avx512_amx_1x1,
-        impl_desc_type::brgconv_avx512_amx,
-        impl_desc_type::jit_avx512_amx_dw,
-        impl_desc_type::jit_avx512_amx_1x1,
-        impl_desc_type::jit_avx512_amx,
-        impl_desc_type::brgconv_avx512_1x1,
-        impl_desc_type::brgconv_avx512,
-        impl_desc_type::jit_avx512_dw,
-        impl_desc_type::jit_avx512_1x1,
-        impl_desc_type::jit_avx512,
-        impl_desc_type::brgconv_avx2_1x1,
-        impl_desc_type::brgconv_avx2,
-        impl_desc_type::jit_uni_dw,
-        impl_desc_type::jit_uni_1x1,
-        impl_desc_type::jit_uni,
-        impl_desc_type::jit_avx2_dw,
-        impl_desc_type::jit_avx2_1x1,
-        impl_desc_type::jit_avx2,
-        impl_desc_type::jit_avx_dw,
-        impl_desc_type::jit_avx_1x1,
-        impl_desc_type::jit_avx,
-        impl_desc_type::jit_sse42_dw,
-        impl_desc_type::jit_sse42_1x1,
-        impl_desc_type::jit_sse42,
+            // Undef impl type is used to express use-cases there real type is unkown during compilation
+            // Undef has higher priority than defined types in order to force primitive selection logic to make decision
+            // based on other properties
+            impl_desc_type::undef, impl_desc_type::brgconv_avx512_amx_1x1, impl_desc_type::brgconv_avx512_amx,
+            impl_desc_type::jit_avx512_amx_dw, impl_desc_type::jit_avx512_amx_1x1, impl_desc_type::jit_avx512_amx,
+            impl_desc_type::brgconv_avx512_1x1, impl_desc_type::brgconv_avx512, impl_desc_type::jit_avx512_dw,
+            impl_desc_type::jit_avx512_1x1, impl_desc_type::jit_avx512, impl_desc_type::brgconv_avx2_1x1,
+            impl_desc_type::brgconv_avx2, impl_desc_type::jit_uni_dw, impl_desc_type::jit_uni_1x1,
+            impl_desc_type::jit_uni, impl_desc_type::jit_avx2_dw, impl_desc_type::jit_avx2_1x1,
+            impl_desc_type::jit_avx2, impl_desc_type::jit_avx_dw, impl_desc_type::jit_avx_1x1, impl_desc_type::jit_avx,
+            impl_desc_type::jit_sse42_dw, impl_desc_type::jit_sse42_1x1, impl_desc_type::jit_sse42,
 #if defined(OPENVINO_ARCH_ARM64)
-        impl_desc_type::jit_asimd,
+            impl_desc_type::jit_asimd,
 #endif
-        impl_desc_type::gemm_any,
-        impl_desc_type::gemm_blas,
-        impl_desc_type::gemm_avx512,
-        impl_desc_type::gemm_avx2,
-        impl_desc_type::gemm_avx,
-        impl_desc_type::gemm_sse42,
-        impl_desc_type::gemm_acl,
-        impl_desc_type::acl,
-        impl_desc_type::jit_gemm,
-        impl_desc_type::ref_any,
-        impl_desc_type::ref,
+            impl_desc_type::gemm_any, impl_desc_type::gemm_blas, impl_desc_type::gemm_avx512, impl_desc_type::gemm_avx2,
+            impl_desc_type::gemm_avx, impl_desc_type::gemm_sse42, impl_desc_type::gemm_acl, impl_desc_type::acl,
+            impl_desc_type::jit_gemm, impl_desc_type::ref_any, impl_desc_type::ref,
     };
 
     if (!asymmetricPaddingAnd1x1) {

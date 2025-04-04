@@ -24,6 +24,7 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
                                    bool isGrouped) {
     OPENVINO_ASSERT(data_shape.size() >= 3, "At least 3D data shape is expected");
     OPENVINO_ASSERT(filters_shape.size() >= 3, "At least 3D filters shape is expected");
+    OPENVINO_ASSERT(data_shape[1] == filters_shape[1], "Input and filter channels must match");
 
     const auto data_rank = data_shape.size();
     constexpr int spatial_offset = 2;
