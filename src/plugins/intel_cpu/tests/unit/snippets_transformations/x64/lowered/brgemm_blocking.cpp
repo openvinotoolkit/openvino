@@ -408,7 +408,7 @@ TEST_F(BrgemmTPPBlockingTest, TPPFloating) {
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto brgemm = linear_ir->push_node<tpp::op::BrgemmTPP>(data_a.second, data_b.second, {}, {},
+        auto brgemm = linear_ir->push_node<tpp::op::BrgemmTPP>(data_a.second, data_b.second, 0, 0, 0,
                                                                layout_a, layout_b, layout_c);
         init_expr_descriptors(*brgemm.first, {}, {layout_a, layout_b, layout_c});
         auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
@@ -416,7 +416,7 @@ TEST_F(BrgemmTPPBlockingTest, TPPFloating) {
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto brgemm = linear_ir_ref->push_node<tpp::op::BrgemmTPP>(data_a.second, data_b.second, {}, {},
+        auto brgemm = linear_ir_ref->push_node<tpp::op::BrgemmTPP>(data_a.second, data_b.second, 0, 0, 0,
                                                                    layout_a, layout_b, layout_c);
         const auto& brgemm_expr = *brgemm.first;
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}}, {layout_a, layout_b, layout_c});
