@@ -120,8 +120,8 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
         // equation is in implicit mode so recover output subscript
         output_subscript = "";
         for (size_t ind = 0; ind < input_subscripts.size(); ++ind) {
-            auto const& input_subscript = input_subscripts[ind];
-            for (auto const& label : extract_labels(input_subscript)) {
+            const auto& input_subscript = input_subscripts[ind];
+            for (const auto& label : extract_labels(input_subscript)) {
                 if (label != ellipsis && (is_label_elsewhere(input_subscripts, label, {ind}) == false)) {
                     output_subscript += label;
                 }

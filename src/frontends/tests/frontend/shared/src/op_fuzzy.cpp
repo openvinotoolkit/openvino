@@ -42,7 +42,7 @@ inline void addInputOutput(const cnpy::NpyArray& npy_array, ov::test::TestCase& 
         test_case.add_expected_output(npy_array.shape, data);
 }
 
-static bool ends_with(std::string const& value, std::string const& ending) {
+static bool ends_with(const std::string& value, const std::string& ending) {
     if (ending.size() > value.size())
         return false;
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());

@@ -65,7 +65,7 @@ public:
              const std::unordered_set<std::string>& expected,
              float query_model_ratio = 1.0f) {
         auto supported = ov::get_supported_nodes(m_function, transform, is_node_supported, query_model_ratio);
-        auto const is_in_expected = [&expected](const std::string& x) {
+        const auto is_in_expected = [&expected](const std::string& x) {
             return expected.find(x) != expected.end();
         };
         bool is_equal =

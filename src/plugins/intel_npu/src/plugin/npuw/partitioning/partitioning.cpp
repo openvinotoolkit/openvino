@@ -34,7 +34,7 @@ inline bool operator==(const std::reference_wrapper<Subgraph>& lhs, const std::r
 
 template <typename T2>
 struct std::hash<std::pair<ov::npuw::Subgraph::Ref, T2>> {
-    std::size_t operator()(std::pair<ov::npuw::Subgraph::Ref, T2> const& p) const noexcept {
+    std::size_t operator()(const std::pair<ov::npuw::Subgraph::Ref, T2>& p) const noexcept {
         ov::npuw::Subgraph& sg = p.first.get();
         std::size_t h1 = std::hash<void*>{}(&sg);
         std::size_t h2 = std::hash<T2>{}(p.second);

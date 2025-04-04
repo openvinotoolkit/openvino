@@ -150,7 +150,7 @@ bool contains(const R& container, const V& value) {
  * @return result of multiplication
  */
 template <typename T, typename A>
-T product(std::vector<T, A> const& vec) {
+T product(const std::vector<T, A>& vec) {
     return vec.empty() ? T{0} : std::accumulate(vec.begin(), vec.end(), T{1}, std::multiplies<T>());
 }
 

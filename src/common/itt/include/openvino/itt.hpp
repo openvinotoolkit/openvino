@@ -41,8 +41,8 @@ typedef struct handle_ {
  * @cond
  */
 namespace internal {
-domain_t domain(char const* name);
-handle_t handle(char const* name);
+domain_t domain(const char* name);
+handle_t handle(const char* name);
 void taskBegin(domain_t d, handle_t t);
 void taskEnd(domain_t d);
 void threadName(const char* name);
@@ -65,7 +65,7 @@ inline void threadName(const std::string& name) {
     internal::threadName(name.c_str());
 }
 
-inline handle_t handle(char const* name) {
+inline handle_t handle(const char* name) {
     return internal::handle(name);
 }
 
@@ -81,7 +81,7 @@ inline handle_t handle(const std::string& name) {
  * @param name [in] The annotation name
  */
 template <typename Tag>
-handle_t handle(char const* name) {
+handle_t handle(const char* name) {
     static auto h = internal::handle(name);
     return h;
 }
