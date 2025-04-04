@@ -46,7 +46,7 @@ const std::vector<size_t> NCDHW_TO_NDHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 4, 
  * before copying.
  * @details This is meant as a replacement for the legacy "ie_memcpy" function coming from the OpenVINO API.
  */
-void checkedMemcpy(void* destination, size_t destinationSize, void const* source, size_t numberOfBytes) {
+void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes) {
     if (numberOfBytes == 0) {
         return;
     }

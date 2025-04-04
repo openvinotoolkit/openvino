@@ -183,7 +183,7 @@ struct jit_has_subnormals : public jit_has_special_value_base {
     const int length = isa == sse41 ? 4 : 8;
 
     void generate() override final {
-        size_t const vlen = length;
+        const size_t vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
         auto zero = rmm4;
@@ -257,7 +257,7 @@ struct jit_has_bf16_overflows : public jit_has_special_value_base {
     const int length = isa == sse41 ? 4 : 8;
 
     void generate() override final {
-        size_t const vlen = length;
+        const size_t vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
         auto zero = rmm4;
