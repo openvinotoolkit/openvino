@@ -11,6 +11,7 @@
 #include <vector>
 
 std::vector<std::string> disabledTestPatterns();
+bool isGPU1Present();
 
 namespace ov {
 namespace test {

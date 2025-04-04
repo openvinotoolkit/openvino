@@ -674,17 +674,14 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
 
 // GetConfig / SetConfig for specific device
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice0Test, OVSpecificDeviceSetConfigTest, ::testing::Values("GPU.0"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice0Test, OVSpecificDeviceSetConfigTest, ::testing::Values("GPU.0", "GPU.1"),
+    [](const testing::TestParamInfo<OVSpecificDeviceSetConfigTest::ParamType>& info) {return info.param;});
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice1Test, OVSpecificDeviceSetConfigTest, ::testing::Values("GPU.1"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice0Test, OVSpecificDeviceGetConfigTest, ::testing::Values("GPU.0", "GPU.1"),
+    [](const testing::TestParamInfo<OVSpecificDeviceSetConfigTest::ParamType>& info) {return info.param;});
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice0Test, OVSpecificDeviceGetConfigTest, ::testing::Values("GPU.0"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice1Test, OVSpecificDeviceGetConfigTest, ::testing::Values("GPU.1"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice0Test, OVSpecificDeviceTestSetConfig, ::testing::Values("GPU.0"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice1Test, OVSpecificDeviceTestSetConfig, ::testing::Values("GPU.1"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice0Test, OVSpecificDeviceTestSetConfig, ::testing::Values("GPU.0", "GPU.1"),
+    [](const testing::TestParamInfo<OVSpecificDeviceSetConfigTest::ParamType>& info) {return info.param;});
 
 // Set default device ID
 
@@ -699,5 +696,4 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassSetDefaultDeviceIDPropTest,
 INSTANTIATE_TEST_SUITE_P(nightly_OVPropertiesDefaultSupportedTests,
                          OVPropertiesDefaultSupportedTests,
                          ::testing::Values("GPU"));
-
 }  // namespace
