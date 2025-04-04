@@ -38,7 +38,7 @@ Config::Config() {
  */
 void Config::applyDebugCapsProperties() {
     // always enable perf counters for verbose, performance summary and average counters
-    if (!debugCaps.verbose.empty() || !debugCaps.summaryPerf.empty() || !debugCaps.averageCountersPath.empty()) {
+    if (!debugCaps.verbose.empty() || debugCaps.summaryPerf || !debugCaps.averageCountersPath.empty()) {
         collectPerfCounters = true;
     }
 }

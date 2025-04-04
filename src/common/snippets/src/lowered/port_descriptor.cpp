@@ -34,9 +34,7 @@ PortDescriptor::PortDescriptor() : PortDescriptor(VectorDims(), {}, {}) {} // to
 void PortDescriptor::validate_arguments() {
     OPENVINO_ASSERT(m_tensor_shape, "Tensor Shape is nullptr");
     if (!m_tensor_shape->empty() && m_layout.empty()) {
-        m_layout.resize(m_tensor_shape->size());
-        // NCHW layout by default
-        std::iota(m_layout.begin(), m_layout.end(), 0);
+        m_layout = utils::get_planar_layout(m_tensor_shape->size());
     }
     OPENVINO_ASSERT(m_subtensor_shape.size() <= m_tensor_shape->size(),
                     "Snippets tensor descriptor: Subtensor shape must be less than or equal to tensor shape");
