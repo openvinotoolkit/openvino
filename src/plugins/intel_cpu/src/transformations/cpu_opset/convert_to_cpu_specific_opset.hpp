@@ -42,11 +42,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(),
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(),
         [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
-            return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc,
-                                                                                       IC,
-                                                                                       OC,
-                                                                                       G,
-                                                                                       config.inferencePrecision);
+            return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc, IC, OC, G, config);
         });
 
     CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
