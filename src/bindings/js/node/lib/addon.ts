@@ -415,6 +415,8 @@ interface Tensor {
    * It gets the tensor shape.
    */
   getShape(): number[];
+
+  setShape(shape: number[]): void;
   /**
    * It gets the tensor size as a total number of elements.
    */
