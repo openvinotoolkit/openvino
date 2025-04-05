@@ -80,7 +80,7 @@ private:
     MemoryCPtr packedWeights;
     size_t M, N, K;
     size_t mr, nr, kr, sr;
-    size_t BLOCK_SIZE = 8;
+    static constexpr size_t BLOCK_SIZE = 8;
     int curNumaNode = -1;
     bool useDynamicQuant = false;
 };
