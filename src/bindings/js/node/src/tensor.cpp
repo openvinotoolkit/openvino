@@ -36,15 +36,36 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     }
 }
 
+Napi::Value TensorWrap::set_shape(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    // Validate arguments
+    if (info.Length() != 1 || !info[0].IsArray()) {
+        reportError(env, "setShape(shape: number[]) expects exactly one array argument.");
+        return env.Undefined();
+    }
+
+    try {
+        // Convert JS array to ov::Shape (std::vector<size_t>)
+        auto shape = js_to_cpp<ov::Shape>(info, 0);
+        _tensor.set_shape(shape);  // OpenVINO method
+    } catch (std::exception& e) {
+        reportError(env, e.what());
+    }
+
+    return env.Undefined();
+}
+
 Napi::Function TensorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
-                       "TensorWrap",
-                       {InstanceAccessor<&TensorWrap::get_data, &TensorWrap::set_data>("data"),
-                        InstanceMethod("getData", &TensorWrap::get_data),
-                        InstanceMethod("getShape", &TensorWrap::get_shape),
-                        InstanceMethod("getElementType", &TensorWrap::get_element_type),
-                        InstanceMethod("getSize", &TensorWrap::get_size),
-                        InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
+                   "TensorWrap",
+                   {InstanceAccessor<&TensorWrap::get_data, &TensorWrap::set_data>("data"),
+                    InstanceMethod("getData", &TensorWrap::get_data),
+                    InstanceMethod("getShape", &TensorWrap::get_shape),
+                    InstanceMethod("setShape", &TensorWrap::set_shape),
+                    InstanceMethod("getElementType", &TensorWrap::get_element_type),
+                    InstanceMethod("getSize", &TensorWrap::get_size),
+                    InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
