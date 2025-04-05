@@ -27,6 +27,7 @@
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpp/maybe_unused.hpp"
 #include "utils/debug_capabilities.h"
 
 #if defined(OV_CPU_WITH_KLEIDIAI)
@@ -69,9 +70,9 @@ static const TypeMapping dnnlFCTypeMapping {
     // integer precision outputs are not supported for float precision inputs
     {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            pt(bypass(), bypass(), use<0>(), use<0>())},
     // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any},                  pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_f16, _bf16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32, _half_float, _any, _any | _any},                  pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_bf16, _f16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     // int8 inner_product does not support f16 output and bias
     {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _dynamic, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(),  bypass())},
@@ -113,9 +114,9 @@ static const TypeMapping dnnlConvolutionTypeMapping {
     // integer precision outputs are not supported for float precision inputs
     {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8}, pt(bypass(), bypass(), use<0>(), use<0>())},
     // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_f16, _bf16, _any, _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32, _half_float, _any, _any | _any},       pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_bf16, _f16, _any, _any | _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f16, _bf16, _any, _any | _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     {{_u8 | _i8, _i8, _any, _any},                 pt(bypass(), bypass(), use<3>(), bypass())},
     // @todo should we fallback to _fxx instead of _f32 (currenly legacy logic is replicated)
@@ -129,9 +130,9 @@ static const TypeMapping dnnlMatMulTypeMapping {
     // integer precision outputs are not supported for float precision inputs
     {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            pt(bypass(), bypass(), use<0>(), use<0>())},
     // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any},                  pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_f16, _bf16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32, _half_float, _any, _any | _any},                  pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_bf16, _f16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     {{_u8 | _i8, _i8, _u8|_i8|_i32|_bf16|_f16|_f32|_dynamic, _u8|_i8|_i32|_bf16|_f16|_f32}, pt(bypass(), bypass(), bypass(),  bypass())},
     {{_u8 | _i8, _i8, _any, _any},                            pt(bypass(), bypass(), just<f32>(), just<f32>())},
@@ -143,16 +144,83 @@ static const TypeMapping dnnlMatMulTypeMapping {
 };
 // clang-format on
 
-[[maybe_unused]] static inline bool noWeightsDecompression(const FCConfig& config) {
+static bool fullyMatchConfiguration(const MemoryDescArgs& currentDescriptors,
+                                    const InOutTypes& typeConfig,
+                                    const LayoutConfig& layoutConfig,
+                                    const MappingNotation& notation) {
+    for (size_t i = 0; i < typeConfig.size(); i++) {
+        const auto& type = typeConfig[i];
+        const auto& desc = currentDescriptors.at(notation[i]);
+
+        if (desc->empty()) {
+            continue;
+        }
+
+        if (desc->getPrecision() != type) {
+            return false;  // type mismatch
+        }
+
+        if (!desc->hasLayoutType(layoutConfig[i])) {
+            return false;  // layout mismatch
+        }
+    }
+
+    return true;
+}
+
+static MemoryDescArgs createOptimalDescriptors(const MemoryDescArgs& currentDescriptors,
+                                               const InOutTypes& typeConfig,
+                                               const LayoutConfig& layoutConfig,
+                                               const MappingNotation& notation) {
+    MemoryDescArgs descs = currentDescriptors;
+
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    for (size_t i = 0; i < typeConfig.size(); i++) {
+        const auto& desc = currentDescriptors.at(notation[i]);
+        const auto& descType = desc->getPrecision();
+        const auto& type = typeConfig[i];
+        const auto& layout = layoutConfig[i];
+
+        if (desc->empty()) {
+            continue;
+        }
+
+        if (descType == type && desc->hasLayoutType(layout)) {
+            continue;
+        }
+
+        descs[notation[i]] = creatorsMap.at(layout)->createSharedDesc(type, desc->getShape());
+    }
+
+    return descs;
+}
+
+template <typename Attrs>
+std::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Config<Attrs>& config,
+                                                              const TypeMapping& typeMapping,
+                                                              const LayoutConfig& layoutConfig,
+                                                              const MappingNotation& notation) {
+    const auto typeConfig = getTypeConfiguration(config.descs, typeMapping, notation);
+
+    if (fullyMatchConfiguration(config.descs, typeConfig, layoutConfig, notation)) {
+        return {};
+    }
+
+    const auto optimalDescriptors = createOptimalDescriptors(config.descs, typeConfig, layoutConfig, notation);
+
+    return std::optional<executor::Config<Attrs>>(FCConfig{optimalDescriptors, config.attrs, config.postOps});
+}
+
+OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noWeightsDecompression(const FCConfig& config) {
     return !DnnlFCPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config), config.attrs.modelType);
 }
 
-[[maybe_unused]] static inline bool noSparseDecompression(const FCConfig& config) {
+OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noSparseDecompression(const FCConfig& config) {
     return !(config.attrs.sparseWeights);
 }
 
-[[maybe_unused]] static inline bool noPostOps(const FCConfig& config) {
-    return config.attrs.postOps.empty();
+OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noPostOps(const FCConfig& config) {
+    return config.postOps.empty();
 }
 
 struct RequiresFallbackDefault {
@@ -185,10 +253,26 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
 
                 return MlasGemmExecutor::supports(config);
             },
-            RequiredNoFallback<FCAttrs>{},
-            AcceptsAnyShape<FCAttrs>{},
-            CreateDefault<MlasGemmExecutor, FCAttrs>{}
-            )
+            // requiresFallback
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
+                // @todo Implement proper handling for the cases when fallback is not expected
+                // throwing exception is not an option, since requiresFallback is used in two contexts:
+                // 1) getting proper memory descriptors configuration
+                // 2) actual fallback to subgraph
+                return {};
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                // @todo create syntactic sugar (functor) for shape agnostic lambda
+                return true;
+            },
+            // create
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr& context) {
+                return std::make_shared<MlasGemmExecutor>(attrs, postOps, memory, context);
+            })
         OV_CPU_INSTANCE_X64(
             "convolution_1x1_dnnl",
             ExecutorType::Dnnl,
@@ -289,6 +373,63 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     context,
                     false);
             })
+        OV_CPU_INSTANCE_DNNL(
+            "matmul_dnnl",
+            ExecutorType::Dnnl,
+            OperationType::MatMul,
+            ShapeTolerance::Dependant,
+            // supports
+            [](const FCConfig& config) -> bool {
+                // enable only with debug caps and env variable defined for now
+                CPU_DEBUG_CAP_ENABLE(
+                    if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
+                        VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                        return true;
+                    })
+                return false;
+            },
+            // requiresFallback
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
+                return requiresFallbackCommon(config,
+                                                dnnlMatMulTypeMapping,
+                                                dnnlFCLayoutConfig,
+                                                dnnlFCMappingNotation);
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                return true;
+            },
+            // create
+            [](const FCAttrs& attrs,
+                const PostOps& postOps,
+                const MemoryArgs& memory,
+                const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
+                struct MatMulInstantiator {
+                    std::shared_ptr<DnnlMatMulPrimitive> operator()(
+                        const MemoryArgs& memory,
+                        const FCAttrs& attrs,
+                        const ExecutorContext::CPtr& context,
+                        const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
+                        MatMulAttrs matMulAttrs{false,
+                                                false};
+                        auto primitive =
+                            DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>{}(
+                            memory,
+                            matMulAttrs,
+                            context,
+                            shareAgnosticData);
+                        return primitive;
+                    }
+                };
+
+                return std::make_shared<
+                    DnnlFCExecutor<DnnlMatMulPrimitive, FCAttrs, DnnlShapeAgnosticData, MatMulInstantiator>>(
+                    attrs,
+                    postOps,
+                    memory,
+                    context,
+                    false);
+            })
         OV_CPU_INSTANCE_ACL(
             "fullyconnected_acl",
             ExecutorType::Acl,
@@ -307,9 +448,19 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               aclFCLayoutConfig,
                                               aclFullyConnectedMappingNotation);
             },
-            AcceptsAnyShape<FCAttrs>{},
-            CreateDefault<ACLFullyConnectedExecutor, FCAttrs>{}
-            )
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                // @todo create syntactic sugar (functor) for shape agnostic lambda
+                return true;
+            },
+            // create
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr& context) {
+                std::cout << "gemm acl execute" << std::endl;
+                return std::make_shared<ACLFullyConnectedExecutor>(attrs, postOps, memory, context);
+            })
         OV_CPU_INSTANCE_ACL(
             "fullyconnected_acl_lowp",
             ExecutorType::Acl,
@@ -347,12 +498,11 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCConfig& config) -> bool {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(everyone_is(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(one_of(weiType(config), f32, i8), UNSUPPORTED_WEI_PRECISIONS);
                 if (config.attrs.withBias) {
                     VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
                 }
-                VERIFY(srcRank(config) == 2U, UNSUPPORTED_SRC_RANK);
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                 return MatMulKleidiAIExecutor::supports(config);
             },
@@ -379,63 +529,14 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             CreateDefault<ShlFCExecutor, FCAttrs>{}
             )
         OV_CPU_INSTANCE_DNNL(
-            "matmul_dnnl",
-            ExecutorType::Dnnl,
-            OperationType::MatMul,
-            ShapeTolerance::Dependant,
-            // supports
-            []([[maybe_unused]] const FCConfig& config) -> bool {
-                // enable only with debug caps and env variable defined for now
-                CPU_DEBUG_CAP_ENABLE(
-                    if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
-                        VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                        return true;
-                    })
-                return false;
-            },
-            // requiresFallback
-            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
-                return requiresFallbackCommon(config,
-                                              dnnlMatMulTypeMapping,
-                                              dnnlFCLayoutConfig,
-                                              dnnlFCMappingNotation);
-            },
-            AcceptsAnyShape<FCAttrs>{},
-            // create
-            [](const FCAttrs& attrs,
-               const MemoryArgs& memory,
-               const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                struct MatMulInstantiator {
-                    std::shared_ptr<DnnlMatMulPrimitive> operator()(
-                        const MemoryArgs& memory,
-                        [[maybe_unused]] const FCAttrs& attrs,
-                        const ExecutorContext::CPtr& context,
-                        const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
-                        MatMulAttrs matMulAttrs{false,
-                                                false};
-                        auto primitive =
-                            DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>{}(
-                            memory,
-                            matMulAttrs,
-                            context,
-                            shareAgnosticData);
-                        return primitive;
-                    }
-                };
-
-                return std::make_shared<
-                    DnnlExecutor<DnnlMatMulPrimitive, FCAttrs, DnnlShapeAgnosticData, MatMulInstantiator>>(
-                    attrs,
-                    memory,
-                    context,
-                    false);
-            })
-        OV_CPU_INSTANCE_DNNL(
             "fullyconnected_dnnl",
             ExecutorType::Dnnl,
             OperationType::FullyConnected,
             ShapeTolerance::Dependant,
-            SupportsAnyConfig<FCAttrs>{},
+            // supports
+            [](const FCConfig& config) -> bool {
+                return true;
+            },
             // requiresFallback
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return requiresFallbackCommon(config,
@@ -443,7 +544,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               dnnlFCLayoutConfig,
                                               dnnlConvolutionMappingNotation);
             },
-            AcceptsAnyShape<FCAttrs>{},
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                return true;
+            },
             // create
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,

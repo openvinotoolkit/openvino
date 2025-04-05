@@ -55,9 +55,11 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes(bool 
         supportedDataTypes.insert(supportedDataTypes.end(), {Type_t::f8e4m3, Type_t::f8e5m2});
     }
     return supportedDataTypes;
-#else
-    return {};
+#elif defined(OV_CPU_WITH_KLEIDIAI)
+    return {Type_t::i8};
 #endif
+
+    return {};
 }
 
 ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes() {
@@ -73,9 +75,11 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
     // @todo enable for bf16 as well
     // after EnforceInferencePrecision is replaced with ConvertPrecision
     return {Type_t::f32};
-#else
-    return {};
+#elif defined(OV_CPU_WITH_KLEIDIAI)
+    return {Type_t::f32};
 #endif
+
+    return {};
 }
 
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
@@ -113,47 +117,61 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
                                                     size_t IC,
                                                     size_t OC,
                                                     size_t G,
-                                                    ov::element::Type inferencePrecision) noexcept {
-#if defined(OPENVINO_ARCH_X86_64)
+                                                    const Config& config) noexcept {
     try {
         std::string errorMessage;
         if (!isSupportedOperation(op, errorMessage)) {
             return false;
         }
-
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-            return false;
-        }
-
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-            inferencePrecision == ov::element::bf16) {
-            // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
-            // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
-            // used since fallback one doesn't support weights decompression feature.
-            size_t simdWidth = 16;
-            size_t vnniFactor = 2;
-            size_t maxSize = 512;
-            auto amxRow = vnniFactor * simdWidth;
-
-            if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0)) {
-                return false;
-            }
-        }
-
-        if (IC % G != 0 || IC / G < 4 || OC == 1) {
-            return false;
-        }
-
-        return true;
     } catch (...) {
         return false;
     }
-    return true;
-#else
+
     bool useMatmulPrim = false;
     CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-    return useMatmulPrim;
+    if (useMatmulPrim)
+        return true;
+
+#if defined(OPENVINO_ARCH_X86_64)
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        return false;
+    }
+
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
+        config.inferencePrecision == ov::element::bf16) {
+        // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
+        // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
+        // used since fallback one doesn't support weights decompression feature.
+        size_t simdWidth = 16;
+        size_t vnniFactor = 2;
+        size_t maxSize = 512;
+        auto amxRow = vnniFactor * simdWidth;
+
+        if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0)) {
+            return false;
+        }
+    }
+
+    if (IC % G != 0 || IC / G < 4 || OC == 1) {
+        return false;
+    }
+
+    return true;
+#elif defined(OV_CPU_WITH_KLEIDIAI)
+    if (config.fcDynamicQuantizationGroupSize != UINT64_MAX)
+        return false;
+
+    if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC)
+        return false;
+
+    if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
+        op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::undefined)
+        return false;
+
+    return true;
 #endif
+
+    return false;
 }
 
 void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr& context) {
@@ -362,7 +380,7 @@ void FullyConnected::execTensorParallelSync() {
     }
 }
 
-void FullyConnected::execute([[maybe_unused]] const dnnl::stream& strm) {
+void FullyConnected::execute(const dnnl::stream& strm) {
     initTensorParallelSync();
 
     executor->execute(memory);
