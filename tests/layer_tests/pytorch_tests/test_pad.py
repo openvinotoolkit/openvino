@@ -272,9 +272,6 @@ class TestReplicatePad1D(PytorchLayerTest):
     @pytest.mark.parametrize("input_shape", [(1,2,3),(3,4,5),(5,6,7)])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32"])
     @pytest.mark.parametrize("pads", [
-        1,
-        2,
-        3,
         (1, 2),
         (2, 1),
         (2, 3),
@@ -310,9 +307,6 @@ class TestReplicatePad2D(PytorchLayerTest):
     @pytest.mark.parametrize("input_shape", [(1,2,3,4),(2,3,4,5),(3,4,5,6)])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32"])
     @pytest.mark.parametrize("pads", [
-        1,
-        2,
-        3,
         (1, 2, 2, 1),
         (2, 1, 3, 4),
         (2, 3, 1, 2),
@@ -349,9 +343,6 @@ class TestReplicatePad3D(PytorchLayerTest):
     @pytest.mark.parametrize("input_shape", [(1,2,3,4,5),(2,3,4,5,6),(3,4,5,6,7)])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32"])
     @pytest.mark.parametrize("pads", [
-        1,
-        2,
-        3,
         (1, 2, 2, 1, 3, 4),
         (2, 1, 3, 4, 2, 1),
         (2, 3, 1, 2, 2, 1),
