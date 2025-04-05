@@ -90,3 +90,78 @@ class TestQuantizedConv2D(PytorchLayerTest):
                                scale=scale, zero_point=zero_point),
             ie_device, precision, ir_version, trace_model=True, freeze_model=False, quantized_ops=True, quant_size=scale
         )
+class TestQuantizedConv1D(PytorchLayerTest):
+    rng = np.random.default_rng(seed=123)
+
+    def _prepare_input(self):
+        # Shape: (N, C, L)
+        return (np.round(self.rng.random([2, 3, 50], dtype=np.float32), 4),)
+
+    def create_model(self, weights_shape, stride, pad, dilation, groups, bias, relu, scale, zero_point):
+        class quantized_conv1d(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                if not relu:
+                    conv_cls = torch.ao.nn.quantized.Conv1d
+                else:
+                    conv_cls = torch.ao.nn.intrinsic.quantized.ConvReLU1d
+
+                self.conv = conv_cls(
+                    in_channels=weights_shape[1] * groups,
+                    out_channels=weights_shape[0],
+                    kernel_size=weights_shape[2],
+                    stride=stride,
+                    padding=pad,
+                    dilation=dilation,
+                    groups=groups,
+                    bias=bias,
+                )
+
+                # Bias is a tensor, not a callable!
+                if bias:
+                    torch.nn.init.normal_(self.conv.bias())
+
+                # Assign quantization parameters
+                self.conv.scale = float(scale)
+                self.conv.zero_point = int(zero_point)
+
+            def forward(self, x):
+                x_quantized = torch.quantize_per_tensor(x, scale=1.0, zero_point=0, dtype=torch.quint8)
+                y = self.conv(x_quantized)
+                return torch.dequantize(y)
+
+        ref_net = None
+        op_name = "quantized::conv1d_relu" if relu else "quantized::conv1d.new"
+
+        return quantized_conv1d(), ref_net, op_name
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {"weights_shape": [1, 3, 3], "stride": 1, "pad": 0, "dilation": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "stride": 1, "pad": 0, "dilation": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "stride": 2, "pad": 0, "dilation": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "stride": 1, "pad": 1, "dilation": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "stride": 1, "pad": 0, "dilation": 2, "groups": 1},
+            {"weights_shape": [3, 1, 3], "stride": 1, "pad": 0, "dilation": 1, "groups": 3},
+        ]
+    )
+    @pytest.mark.parametrize("bias", [True, False])
+    @pytest.mark.parametrize("relu", [True, False])
+    @pytest.mark.parametrize("scale", [1.0, 0.3, 1.3])
+    @pytest.mark.parametrize("zero_point", [0, 1])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.xfail(
+        condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+        reason='Ticket - 122715'
+    )
+    def test_quantized_conv1d(self, params, bias, relu, scale, zero_point, ie_device, precision, ir_version):
+        self._test(
+            *self.create_model(**params, bias=bias, relu=relu,
+                               scale=scale, zero_point=zero_point),
+            ie_device, precision, ir_version,
+            trace_model=True, freeze_model=False,
+            quantized_ops=True, quant_size=scale
+        )
+      
