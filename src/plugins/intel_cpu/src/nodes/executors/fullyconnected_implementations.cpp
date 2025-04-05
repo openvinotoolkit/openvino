@@ -458,7 +458,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                const PostOps& postOps,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) {
-                std::cout << "gemm acl execute" << std::endl;
                 return std::make_shared<ACLFullyConnectedExecutor>(attrs, postOps, memory, context);
             })
         OV_CPU_INSTANCE_ACL(

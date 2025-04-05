@@ -179,7 +179,6 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
 }
 
 void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
-    size_t BLOCK_SIZE = 8;
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto dstMem = memory.at(ARG_DST);
@@ -197,11 +196,9 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
 
     size_t n_blocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-    // Create packed LHS and RHS
     if (!useDynamicQuant) {
-        std::cout << "kleidi f32 execute" << std::endl;
         float* rhs_packed = static_cast<float*>(rhsPackedMem->getData());
-
+        
         parallel_for(n_blocks, [&](size_t n_block) {
             size_t n_start = (n_block * BLOCK_SIZE);
             size_t n_end = std::min(n_start + BLOCK_SIZE, N);
@@ -211,19 +208,19 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
             const float* rhs_ptr = (rhs_packed + rhs_packed_offset / sizeof(float));
             float* dst_ptr = (dst + dst_offset / (sizeof(float)));
             ukernel_f32.run_matmul(M,
-                                   n_block_size,
-                                   K,
-                                   lhs,
-                                   lhs_stride,
-                                   rhs_ptr,
-                                   dst_ptr,
-                                   dst_stride_row,
-                                   dst_stride_col,
-                                   FLOAT_MIN,
-                                   FLOAT_MAX);
-        });
-    } else {
-        std::cout << "kleidi int8 execute" << std::endl;
+                n_block_size,
+                K,
+                lhs,
+                lhs_stride,
+                rhs_ptr,
+                dst_ptr,
+                dst_stride_row,
+                dst_stride_col,
+                FLOAT_MIN,
+                FLOAT_MAX);
+            });
+        } else {
+        // Create packed LHS and RHS
         int8_t* lhs_packed_qa8dx = static_cast<int8_t*>(lhsPackedMem->getData());
         int8_t* rhs_packed_qs8cx = static_cast<int8_t*>(rhsPackedMem->getData());
 
