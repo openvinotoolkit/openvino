@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef WIN32
-#define ENABLE_LINUX_PERF
+//#define ENABLE_LINUX_PERF
 #endif
 
 #ifdef ENABLE_LINUX_PERF

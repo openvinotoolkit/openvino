@@ -459,7 +459,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           store_original_precision_as_rt_attribute);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
-        manager.register_pass<ov::pass::FuseMoeExpert>();
+        manager.register_pass<ov::pass::FuseMoeExpert2>();
 
         ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
         kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();

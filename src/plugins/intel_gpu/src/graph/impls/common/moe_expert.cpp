@@ -35,33 +35,31 @@ struct moe_expert_impl : typed_primitive_impl<moe_expert> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, moe_expert_inst& instance) override {
-        network::ptr executed_net = instance.get_net();
         auto expert_no = instance.get_config().expert_no;
-        auto& stream = instance.get_network().get_stream();
-        bool can_skip_subgraph;
-        if (expert_no == 0) {
+        auto& cur_net = instance.get_network();
+        auto& stream = cur_net.get_stream();
+        if (!cur_net.has_scratch<expert_mask_scratch>(expert_mask_scratch_key)) {
+            cur_net.set_scratch<expert_mask_scratch>(expert_mask_scratch_key, {});
+        }
+        expert_mask_scratch& expert_mask = cur_net.get_scratch<expert_mask_scratch>(expert_mask_scratch_key);
+        if (expert_mask.execed_count++ % instance.get_config().expert_num == 0) {
             // Wait for moe_expert statement event only, and pass all other events to sub-network directly
             auto dep_event = instance.pred_inst()->get_impl_params()->out_event;
             if (dep_event)
                 dep_event->wait();
-            expert_mask_scratch expert_mask;
             moe_expert_inst::get_expert_mask_from_memory(instance.pred_memory_ptr(), stream, expert_mask);
-            OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
-            can_skip_subgraph = !expert_mask.pred_flag[0];
-            executed_net->set_scratch<expert_mask_scratch>(expert_mask_scratch_key, expert_mask);
-        } else {
-            OPENVINO_ASSERT(executed_net->has_scratch<expert_mask_scratch>(expert_mask_scratch_key));
-            const auto& expert_mask = executed_net->get_scratch<expert_mask_scratch>(expert_mask_scratch_key);
-            OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
-            can_skip_subgraph = !expert_mask.pred_flag[expert_no];
         }
+
+        OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
+        auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
 
         auto& prog_node = instance.get_node();
         set_node_params(prog_node);
 
+        network::ptr executed_net = instance.get_net();
         auto branch = instance.get_branch();
         if (!can_skip_subgraph)
-            executed_net->set_shape_predictor(instance.get_network().get_shape_predictor());
+            executed_net->set_shape_predictor(cur_net.get_shape_predictor());
 
         GPU_DEBUG_LOG << "can_skip_subgraph: " << (can_skip_subgraph ? "True" : "False") << std::endl;
 
@@ -76,8 +74,17 @@ struct moe_expert_impl : typed_primitive_impl<moe_expert> {
 
             return stream.group_events(output_events);
         } else {
+            auto key = expert_mask_mem_scratch_key + std::to_string(expert_no);
+            if (!cur_net.has_scratch<expert_mask_mem_scratch>(key)) {
+                cur_net.set_scratch<expert_mask_mem_scratch>(key, {});
+            }
+            auto& expert_mask_mem = cur_net.get_scratch<expert_mask_mem_scratch>(key);
+            instance.copy_expert_mask_to_gpu(stream, expert_mask, expert_no, expert_mask_mem);
+
             // Set input memory of inner network before its execution
             for (size_t mem_idx = 0; mem_idx < instance.inputs_memory_count(); mem_idx++) {
+                if (mem_idx == 1)
+                    continue;
                 const primitive_id& input_external_id = instance.dependencies().at(mem_idx).first->id();
                 auto iter = branch.input_map.find(input_external_id);
                 if (iter != branch.input_map.end()) {
@@ -90,7 +97,7 @@ struct moe_expert_impl : typed_primitive_impl<moe_expert> {
                                       << layout.to_short_string() << std::endl;
                         // Preallocation logic may allocate more memory than actually produced on current iteration, so
                         // we need to adjust input buffers layout
-                        mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
+                        mem_ptr = cur_net.get_engine().reinterpret_buffer(*mem_ptr, layout);
                     } else if (layout.count() == 0) {
                         // Use dummy memory for empty tensor
                         mem_ptr = std::make_shared<simple_attached_memory>(layout, nullptr);
@@ -104,8 +111,9 @@ struct moe_expert_impl : typed_primitive_impl<moe_expert> {
                                   << "allocation_type=" << mem_ptr->get_allocation_type() << std::endl;
                 }
             }
+            executed_net->set_input_data(branch.input_map.at("__magic_0__"), expert_mask_mem.batch);
+            executed_net->set_input_data(branch.input_map.at("__magic_1__"), expert_mask_mem.topk);
         }
-
         auto sub_net_results = executed_net->execute(events);
         // Update output layout of impl_param in moe_expert_inst
         instance.update_output_layout();

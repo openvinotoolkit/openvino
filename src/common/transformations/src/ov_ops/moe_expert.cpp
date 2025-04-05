@@ -12,8 +12,15 @@ namespace internal {
 
 MOEExpert::MOEExpert(const OutputVector& args, const Config& cfg, const std::shared_ptr<ov::Model>& body) : SubGraphOp(args), m_config(cfg) {
     SubGraphOp::set_function(body);
-    for (size_t i = 0; i < body->get_parameters().size(); ++i)
-        m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(i, i));
+    if (cfg.has_non_zero) {
+        for (size_t i = 0; i < body->get_parameters().size(); ++i)
+            m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(i, i));
+    } else {
+        m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(0, 0));
+        m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(2, 1));
+        m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(3, 2));
+    }
+
     for (size_t i = 0; i < body->get_output_size(); ++i)
         m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
     constructor_validate_and_infer_types();
@@ -39,7 +46,9 @@ void MOEExpert::validate_and_infer_types() {
     OPENVINO_ASSERT(get_output_size() == 1, "MOEExpert must have 1 output whereas it has ", get_output_size());
     const auto& body = get_function();
     OPENVINO_ASSERT(body, "MOEExpert must have initialized body");
-    validate_and_infer_type_body(body, m_input_descriptions[0]);
+    // with non zero can infer subgraph
+    if (m_config.has_non_zero)
+        validate_and_infer_type_body(body, m_input_descriptions[0]);
 
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
@@ -52,6 +61,7 @@ bool MOEExpert::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("expert_num", m_config.expert_num);
     visitor.on_attribute("hidden_size", m_config.hidden_size);
     visitor.on_attribute("expert_no", m_config.expert_no);
+    visitor.on_attribute("has_non_zero", m_config.has_non_zero);
     visitor.finish_structure();
 
     visitor.on_attribute("body", m_bodies[0]);

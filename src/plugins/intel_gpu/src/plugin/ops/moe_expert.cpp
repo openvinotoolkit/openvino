@@ -33,11 +33,13 @@ static cldnn::moe_expert::branch gen_branch(ProgramBuilder& p, const std::shared
     auto& input_map = branch.input_map;
     auto external_inputs = p.GetInputInfo(op);
     auto internal_inputs = internal_body->get_parameters();
-    for (size_t i = 0; i < external_inputs.size(); i++) {
-       const auto& external_id = external_inputs.at(i).pid;
-       const auto& internal_id = layer_type_name_ID(internal_inputs.at(i));
-       input_map.insert({external_id, internal_id});
-    }
+
+    input_map.insert({external_inputs.at(0).pid, layer_type_name_ID(internal_inputs.at(0))});
+    input_map.insert({external_inputs.at(2).pid, layer_type_name_ID(internal_inputs.at(1))});
+    input_map.insert({external_inputs.at(3).pid, layer_type_name_ID(internal_inputs.at(2))});
+    // fake map
+    input_map.insert({"__magic_0__", layer_type_name_ID(internal_inputs.at(3))});
+    input_map.insert({"__magic_1__", layer_type_name_ID(internal_inputs.at(4))});
 
     GPU_DEBUG_LOG << op->get_friendly_name() << " branch_info[" << internal_body->get_friendly_name() << "] : " << branch << std::endl;
     return branch;

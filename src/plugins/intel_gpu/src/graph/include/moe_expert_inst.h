@@ -16,8 +16,19 @@ namespace details {}
 
 struct expert_mask_scratch {
     std::vector<int8_t> pred_flag;
+    // shape: [expert_num, batch_no]
+    std::vector<std::vector<int>> batch;
+    // shape: [expert_num, topk_no]
+    std::vector<std::vector<int>> topk;
+    size_t execed_count = 0;
+};
+struct expert_mask_mem_scratch {
+    memory::ptr batch;
+    memory::ptr topk;
+    size_t max_size = 0;
 };
 static constexpr const char* expert_mask_scratch_key = "expert_mask_scratch";
+static constexpr const char* expert_mask_mem_scratch_key = "expert_mask_scratch_mem";
 
 template <>
 struct typed_program_node<moe_expert> : public typed_program_node_base<moe_expert> {
@@ -68,6 +79,10 @@ public:
     const MOEExpert::Config& get_config() const {
         return node->get_primitive()->_config;
     }
+    void copy_expert_mask_to_gpu(stream& stream,
+                                 const expert_mask_scratch& expert_mask,
+                                 size_t expert_no,
+                                 expert_mask_mem_scratch& expert_mask_mem);
 
     void update_output_layout();
     void postprocess_output_memory(network::ptr executed_net, cldnn::moe_expert::branch& branch);

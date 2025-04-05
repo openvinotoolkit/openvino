@@ -22,7 +22,7 @@ struct moe_expert : public primitive_base<moe_expert> {
     /// @brief branch has compiled program, input_map and output_map
     ///
     struct branch {
-        std::map<primitive_id, primitive_id> input_map;
+        std::unordered_map<primitive_id, primitive_id> input_map;
         std::map<size_t, primitive_id> output_map;
         program::ptr inner_program;
 
