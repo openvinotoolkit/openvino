@@ -5,7 +5,7 @@ openvino.properties.hint submodule that simulates ov::hint
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
-__all__ = ['ExecutionMode', 'ModelDistributionPolicy', 'PerformanceMode', 'Priority', 'SchedulingCoreType', 'activations_scale_factor', 'allow_auto_batching', 'dynamic_quantization_group_size', 'enable_cpu_pinning', 'enable_hyper_threading', 'execution_mode', 'inference_precision', 'kv_cache_precision', 'model', 'model_distribution_policy', 'model_priority', 'num_requests', 'performance_mode', 'scheduling_core_type']
+__all__ = ['ExecutionMode', 'ModelDistributionPolicy', 'PerformanceMode', 'Priority', 'SchedulingCoreType', 'activations_scale_factor', 'allow_auto_batching', 'compiled_blob', 'dynamic_quantization_group_size', 'enable_cpu_pinning', 'enable_hyper_threading', 'execution_mode', 'inference_precision', 'kv_cache_precision', 'model', 'model_distribution_policy', 'model_priority', 'num_requests', 'performance_mode', 'scheduling_core_type']
 class ExecutionMode:
     """
     Members:
@@ -254,6 +254,12 @@ def allow_auto_batching() -> str:
     ...
 @typing.overload
 def allow_auto_batching(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
+@typing.overload
+def compiled_blob() -> str:
+    ...
+@typing.overload
+def compiled_blob(arg0: openvino._pyopenvino.Tensor) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def dynamic_quantization_group_size() -> str:

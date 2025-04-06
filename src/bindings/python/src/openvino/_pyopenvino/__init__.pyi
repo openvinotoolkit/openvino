@@ -4591,18 +4591,18 @@ class Tensor:
     @typing.overload
     def __init__(self, image: typing.Any) -> None:
         """
-                        Constructs Tensor from a Pillow Image.
+                    Constructs Tensor from a Pillow Image.
         
-                        :param image: Pillow Image to create the tensor from.
-                        :type image: PIL.Image.Image
-                        :Example:
-                        .. code-block:: python
+                    :param image: Pillow Image to create the tensor from.
+                    :type image: PIL.Image.Image
+                    :Example:
+                    .. code-block:: python
         
-                            from PIL import Image
-                            import openvino as ov
+                        from PIL import Image
+                        import openvino as ov
         
-                            img = Image.open("example.jpg")
-                            tensor = ov.Tensor(img)
+                        img = Image.open("example.jpg")
+                        tensor = ov.Tensor(img)
         """
     def __repr__(self) -> str:
         ...
