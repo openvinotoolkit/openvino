@@ -98,8 +98,18 @@ else
     exit 1
 fi
 
-# Find all changed .pyi files
-changed_files=$(git diff --name-only | grep '\.pyi$')
+# Output path argument is given in CI environment
+if [ -z "$1" ]; then
+    
+else
+    # Find all changed .pyi files
+    if [ -n "${GITHUB_WORKSPACE}" ]; then
+        changed_files=$(find "action_root/src/bindings/python" -type f -name '*.pyi')
+    else
+        changed_files=$(git diff --name-only | grep '\.pyi$')
+    fi
+fi
+
 # Process each changed .pyi file
 for file in $changed_files; do
     sed -i 's/<function _get_node_factory at 0x[0-9a-fA-F]\+>/<function _get_node_factory at memory_address>/' "$file"
@@ -140,3 +150,4 @@ for file in $changed_files; do
     mv "$file.sorted" "$file"
     sed -i '1i # type: ignore' "$file"
 done
+
