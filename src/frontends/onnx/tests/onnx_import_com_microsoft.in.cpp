@@ -2144,3 +2144,52 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved)
     test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_value);
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_global_avg_pool) {
+    const auto model = convert_model("com.microsoft/qlinear_global_avg_pool.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_X = {5, 6, 7, 8 - 5, -6, -7, -8};
+
+    const std::vector<float> x_scale{0.05f};
+    const std::vector<int8_t> x_zero_point{1};
+
+    const std::vector<float> y_scale{0.1f};
+    const std::vector<int8_t> y_zero_point{2};
+
+    const std::vector<int8_t> expected_output = {4, -1};
+
+    test_case.add_input<int8_t>(Shape{1, 2, 2, 2}, data_X);
+
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+    test_case.add_expected_output<int8_t>(Shape{1, 2, 1, 1}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_global_avg_pool_with_channels_last) {
+    const auto model = convert_model("com.microsoft/qlinear_global_avg_pool_with_channels_last.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<uint8_t> data_X = {11, 10, 21, 20, 31, 30, 41, 40};
+    const std::vector<float> x_scale{0.05f};
+    const std::vector<uint8_t> x_zero_point{1};
+
+    const std::vector<float> y_scale{0.1f};
+    const std::vector<uint8_t> y_zero_point{2};
+
+    const std::vector<uint8_t> expected_output = {14, 14};
+
+    test_case.add_input<uint8_t>(Shape{1, 2, 2, 2}, data_X);
+
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<uint8_t>(Shape{1}, x_zero_point);
+
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<uint8_t>(Shape{1}, y_zero_point);
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 1, 2}, expected_output);
+    test_case.run();
+}
