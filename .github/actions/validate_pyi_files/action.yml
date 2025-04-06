@@ -3,24 +3,22 @@ description: 'Generates .pyi files and compares them to the committed files'
 runs:
   using: 'composite'
   steps:
-    - name: List checked-out files
-      run: find action_root
     - name: Verify .pyi files (Windows)
       shell: pwsh
       if: runner.os == 'Windows'
       run: |
-        ${{ env.OPENVINO_REPO }}\src\bindings\python\scripts\generate_pyapi_stubs.bat `
+        ${{ github.workspace }}\src\bindings\python\scripts\generate_pyapi_stubs.bat `
           "${{ runner.temp }}\generated_pyi_files"
         python ${{ runner.temp }}\compare_pyi_files.py `
           "${{ runner.temp }}\generated_pyi_files" `
-          "${{ env.OPENVINO_REPO }}\src\bindings\python"
+          "${{ github.workspace }}\src\bindings\python"
 
     - name: Verify .pyi files (Linux and macOS)
       shell: bash
       if: runner.os != 'Windows'
       run: |
-        ${{ env.OPENVINO_REPO }}/src/bindings/python/scripts/generate_pyapi_stubs.sh \
+        ${{ github.workspace }}/src/bindings/python/scripts/generate_pyapi_stubs.sh \
           "${{ runner.temp }}/generated_pyi_files"
         python3 ${{ runner.temp }}/compare_pyi_files.py \
           "${{ runner.temp }}/generated_pyi_files" \
-          "${{ env.OPENVINO_REPO }}/src/bindings/python"
+          "${{ github.workspace }}/src/bindings/python"
