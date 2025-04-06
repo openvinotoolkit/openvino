@@ -100,14 +100,9 @@ fi
 
 # Output path argument is given in CI environment
 if [ -z "$1" ]; then
-    
+    changed_files=$(find "action_root/src/bindings/python" -type f -name '*.pyi')
 else
-    # Find all changed .pyi files
-    if [ -n "${GITHUB_WORKSPACE}" ]; then
-        changed_files=$(find "action_root/src/bindings/python" -type f -name '*.pyi')
-    else
-        changed_files=$(git diff --name-only | grep '\.pyi$')
-    fi
+    changed_files=$(git diff --name-only | grep '\.pyi$')
 fi
 
 # Process each changed .pyi file
