@@ -3,16 +3,17 @@ description: 'Generates .pyi files and compares them to the committed files'
 runs:
   using: 'composite'
   steps:
-    - name: List checked-out files
-      shell: bash
-      run: find action_root
-
     - name: Verify .pyi files
       shell: bash
       if: runner.os != 'Windows'
       run: |
         action_root/src/bindings/python/scripts/generate_pyapi_stubs.sh \
           "${{ runner.temp }}/generated_pyi_files"
+        echo "Listing generated .pyi files:"
+        ls -R "${{ runner.temp }}/generated_pyi_files"
+        echo "Listing source .pyi files:"
+        ls -R "action_root/src/bindings/python"
+        ls -R "action_root/src/bindings/python"
         python3 action_root/.github/actions/validate_pyi_files/compare_pyi_files.py \
-          "${{ runner.temp }}/generated_pyi_files/src" \
+          "${{ runner.temp }}/generated_pyi_files" \
           "action_root/src/bindings/python"
