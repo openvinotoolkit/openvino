@@ -67,7 +67,7 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     auto total_block_num = bf_size.second / (simd * vec_size);
 
     // std::cout << __FILE__ << ":" << __LINE__ << "  group size " << params.group_sizes.back() << std::endl;
-    if (params.group_sizes.back() == 256) {
+    if (params.group_sizes.back() == 256 || params.group_sizes.back() == 128) {
         size_t aligned_block_num = total_block_num;
         size_t block_num = total_block_num;
         jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
@@ -97,11 +97,11 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
 CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_params& params) const {
     CommonDispatchData dispatchData;
 
-    if (params.group_sizes.back() <= 128) {
+    if (params.group_sizes.back() <= 64) {
         auto bf_size = get_input_bf_size(params);
         dispatchData.gws = {bf_size.first, bf_size.second / params.group_sizes.back(), 1};
         dispatchData.lws = {1, 1, 1};
-    } else if (params.group_sizes.back() == 256) { // FIXME: this configuration is split into 3 places
+    } else if (params.group_sizes.back() == 256 || params.group_sizes.back() == 128) { // FIXME: this configuration is split into 3 places
         auto vec_size = get_match_vector_size(params);
         auto bf_size = get_input_bf_size(params);
         size_t total_block_num = bf_size.second / (simd * vec_size);
