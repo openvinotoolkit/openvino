@@ -30,12 +30,13 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
     # Assert that the number of .pyi files matches
     if len(generated_files) != len(committed_files):
         print(f"Error: Number of .pyi files does not match. "
-              f"Generated: {len(generated_files)}, Committed: {len(committed_files)}")
+              f"Generated (reference): {len(generated_files)}, Committed: {len(committed_files)}")
         sys.exit(1)
 
     # Assert that each file has a pair
     if generated_files != committed_files:
-        print(f"Error: A .pyi file is missing from the PR: {generated_files - committed_files}")
+        print(f"Error: One or more .pyi files are missing from the PR: {generated_files - committed_files}")
+        print(f"Error: DEBUGOne or more extra .pyi files are present in the PR: {committed_files - generated_files}")
         sys.exit(1)
 
     # Assert that the files are identical
