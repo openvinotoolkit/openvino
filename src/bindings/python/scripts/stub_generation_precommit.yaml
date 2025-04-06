@@ -16,7 +16,7 @@ repos:
           fi;
 
           git add ./*.pyi'
-        files: .*src/bindings/python/.*
+        files: .*src/bindings/python/.*|.*tools/ovc.*
         pass_filenames: false
         verbose: true
         stages: [pre-commit]
