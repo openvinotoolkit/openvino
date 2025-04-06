@@ -12,6 +12,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
@@ -31,11 +32,9 @@ ov::OutputVector qlinear_activation(const ov::frontend::onnx::Node& node, const 
     const auto inputs = node.get_ov_inputs();
     auto input_tensor = inputs[0];
     auto input_scale = inputs[1];
-    auto input_zero_point =
-        (inputs[2].get_shape().empty()) ? v0::Constant::create(input_tensor.get_element_type(), {}, {0}) : inputs[2];
+    auto input_zero_point = inputs[2];
     auto output_scale = inputs[3];
-    auto output_zero_point =
-        (inputs.size() > 4) ? inputs[4] : v0::Constant::create(input_tensor.get_element_type(), {}, {0});
+    auto output_zero_point = inputs[4];
 
     CHECK_VALID_NODE(node,
                      (input_tensor.get_element_type() == element::i8 || input_tensor.get_element_type() == element::u8),
@@ -102,10 +101,41 @@ ov::OutputVector qlinear_avg_pool(const ov::frontend::onnx::Node& node) {
     });
 }
 
+ov::OutputVector qlinear_global_avg_pool(const ov::frontend::onnx::Node& node) {
+    return qlinear_activation(node, [&](const std::shared_ptr<ov::Node>& input_dequantized) {
+        const auto input_shape = input_dequantized->get_shape();
+        const size_t input_rank = input_shape.size();
+
+        // If input is 2D (N, C), return as is (no pooling needed)
+        if (input_rank == 2) {
+            return input_dequantized;
+        }
+
+        bool channels_last = node.get_attribute_value<int64_t>("channels_last", 0) != 0;
+
+        std::vector<int64_t> reduce_axes;
+        for (size_t i = 0; i < input_rank; ++i) {
+            if ((channels_last && i != 0 && i != input_rank - 1) ||  // keep N and C (last dim)
+                (!channels_last && i >= 2)) {                        // keep N and C (first two dims)
+                reduce_axes.push_back(i);
+            }
+        }
+
+        auto axes_const = v0::Constant::create(ov::element::i64, {reduce_axes.size()}, reduce_axes);
+        return std::static_pointer_cast<ov::Node>(
+            std::make_shared<v1::ReduceMean>(input_dequantized, axes_const, true));
+    });
+}
+
 bool register_multiple_operators(void) {
     ONNX_OP_M("QLinearSigmoid", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_sigmoid, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearLeakyRelu", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_leaky_relu, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearAveragePool", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_avg_pool, MICROSOFT_DOMAIN);
+    ONNX_OP_M("QLinearGlobalAveragePool",
+              OPSET_SINCE(1),
+              com_microsoft::opset_1::qlinear_global_avg_pool,
+              MICROSOFT_DOMAIN);
+
     return true;
 }
 
