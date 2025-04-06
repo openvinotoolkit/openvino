@@ -136,7 +136,7 @@ void OneHot::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void OneHot::execute(const dnnl::stream& strm) {
+void OneHot::execute([[maybe_unused]] const dnnl::stream& strm) {
     std::size_t prefix_size = 1;
     auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 
