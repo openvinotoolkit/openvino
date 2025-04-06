@@ -58,6 +58,17 @@ OPENVINO_C_API(ov_status_e)
 ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape);
 
 /**
+ * @brief Constructs a new tensor using a string array.
+ * @ingroup ov_tensor_c_api
+ * @param string_array An array of strings
+ * @param array_size The size of the string array
+ * @param tensor A point to ov_tensor_t
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_tensor_create_from_string_array(const char** string_array, size_t array_size, ov_tensor_t** tensor);
+
+/**
  * @brief Get shape for tensor.
  * @ingroup ov_tensor_c_api
  * @param shape Tensor shape

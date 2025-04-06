@@ -31,6 +31,14 @@ TEST(ov_tensor, ov_tensor_create_from_host_ptr) {
     ov_shape_free(&shape);
 }
 
+TEST(ov_tensor, ov_tensor_create_from_string_array) {
+    const char* string_array[] = {"test", "me"};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create_from_string_array(string_array, 2, &tensor));
+    EXPECT_NE(nullptr, tensor);
+    ov_tensor_free(tensor);
+}
+
 static size_t product(const std::vector<size_t>& dims) {
     if (dims.empty())
         return 0;
