@@ -16,12 +16,13 @@
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
 
-#if QUANTIZE_GROUP_SIZE <= 64
+#if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS
 
 #if ASYMMETRIC_QUANTIZATION
 #error "UNIMPLMENTED: asymmetric quantization when group size is small"
 #endif
 
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(dynamic_quantize_gpu_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -72,9 +73,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
 }
 
-#elif (QUANTIZE_GROUP_SIZE == 256 || QUANTIZE_GROUP_SIZE == 128)
-
-
+#elif DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_LARGE_GS
 
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(dynamic_quantize_gpu_opt)(
@@ -122,8 +121,6 @@ KERNEL(dynamic_quantize_gpu_opt)(
 
     unroll_for(int i = 0; i < iteration; ++i) {
         val[i] = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + ((local_id * iteration + i) * block_size)));
-
-
 
 #if ASYMMETRIC_QUANTIZATION
         unroll_for (int j = 0; j < VEC_SIZE; j++) {
@@ -196,7 +193,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 }
 
-#else  // PER_TOKEN quantization
+#elif DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_PER_TOKEN
 
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(dynamic_quantize_gpu_opt)(
@@ -305,4 +302,6 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 }
 
-#endif  // QUANTIZE_GROUP_SIZE <= 128
+#else   // DYNAMIC_QUANTIZAION_IMPL_MODE
+#error Unimplemented IMPL_MODE
+#endif  // DYNAMIC_QUANTIZAION_IMPL_MODE
