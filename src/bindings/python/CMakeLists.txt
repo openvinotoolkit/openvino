@@ -415,7 +415,7 @@ if(OpenVINODeveloperPackage_FOUND)
 endif()
 
 # only for developers, skip on CI
-if(NOT DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT DEFINED CI_BUILD_NUMBER)
+if(NOT DEFINED ENV{CI_BUILD_DEV_TAG})
 
     # check pybind11-stubgen package
     execute_process(COMMAND ${Python3_EXECUTABLE} -m pip show pybind11-stubgen
