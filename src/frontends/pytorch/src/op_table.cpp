@@ -207,7 +207,6 @@ OP_CONVERTER(translate_quantized_add);
 OP_CONVERTER(translate_quantized_add_relu);
 OP_CONVERTER(translate_quantized_hardswish);
 OP_CONVERTER(translate_quantized_mul);
-OP_CONVERTER(translate_quantized_relu6);
 OP_CONVERTER(translate_range_length);
 OP_CONVERTER(translate_rad2deg);
 OP_CONVERTER(translate_rand);
@@ -787,7 +786,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"quantized::hardswish", op::translate_quantized_hardswish},
         {"quantized::linear", op::translate_quantized_linear},
         {"quantized::mul", op::translate_quantized_mul},
-        {"quantized::relu6", op::translate_quantized_relu6},
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
