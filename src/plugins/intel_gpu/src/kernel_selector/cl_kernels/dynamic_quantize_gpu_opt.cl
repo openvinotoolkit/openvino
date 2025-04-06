@@ -16,7 +16,9 @@
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
 
+// ***********************************************
 #if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS
+// ***********************************************
 
 #if ASYMMETRIC_QUANTIZATION
 #error "UNIMPLMENTED: asymmetric quantization when group size is small"
@@ -73,7 +75,9 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
 }
 
+// ***********************************************
 #elif DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_LARGE_GS
+// ***********************************************
 
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(dynamic_quantize_gpu_opt)(
@@ -86,58 +90,53 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
     )
 {
-    const uint bf = (uint)get_global_id(2); // FIXME: change name to b, not bf
+    const uint b = (uint)get_global_id(2);
     const uint f_grp = get_group_id(1);
     const uint sglid = get_sub_group_local_id();
     const uint local_id = (uint)get_local_id(1);
 #if OUTPUT_DIMS == 2
-    const uint input_offset = INPUT0_GET_INDEX (bf, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
-    const uint output_offset = OUTPUT_GET_INDEX(bf, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
+    const uint input_offset = INPUT0_GET_INDEX (b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
+    const uint output_offset = OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
 #else
-    const uint input_offset = INPUT0_GET_INDEX (0, bf, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);  // XXX: it assumes packed input
-    const uint output_offset = OUTPUT_GET_INDEX(0, bf, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);
+    const uint input_offset = INPUT0_GET_INDEX (0, b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);
+    const uint output_offset = OUTPUT_GET_INDEX(0, b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0);
 #endif
 
     const uint block_size = SIMD * VEC_SIZE;
 #if OUTPUT_DIMS == 2
-    const uint b_offset = bf * INPUT0_BATCH_PITCH;
+    const uint b_offset = b * INPUT0_BATCH_PITCH;
 #else
-    const uint b_offset = bf * INPUT0_FEATURE_PITCH;
+    const uint b_offset = b * INPUT0_FEATURE_PITCH;
 #endif
     const uint offset = b_offset + VEC_SIZE * sglid;
-
-    const uint iteration = ALIGNED_BLOCK_NUM / BLOCK_NUM;
 
     __local half local_mem_max[QUANTIZE_GROUP_SIZE / block_size];
     __local half local_mem_min[QUANTIZE_GROUP_SIZE / block_size];
 
-    // if (get_global_id(0) == 0 && get_group_id(1) == 0 && get_global_id(1) == 0)
-    MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) val[iteration];
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) val;
     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) abs_val;
     half grp_max = 0.001h;
     half grp_min = 0.001h;
     half max_value = 0.0h;
     half min_value = 0.0h;
 
-    unroll_for(int i = 0; i < iteration; ++i) {
-        val[i] = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + ((local_id * iteration + i) * block_size)));
+    val = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + (local_id * block_size)));
 
 #if ASYMMETRIC_QUANTIZATION
-        unroll_for (int j = 0; j < VEC_SIZE; j++) {
-            max_value = fmax(max_value, val[i][j]);
-            min_value = fmin(min_value, val[i][j]);
-        }
-        grp_max = fmax(grp_max, max_value);
-        grp_min = fmin(grp_min, min_value);
-#else
-        abs_val = fabs(val[i]);
-
-        unroll_for (int j = 0; j < VEC_SIZE; j++)
-            max_value = fmax(max_value, abs_val[j]);
-
-        grp_max = fmax(grp_max, max_value);
-#endif
+    unroll_for (int j = 0; j < VEC_SIZE; j++) {
+        max_value = fmax(max_value, val[j]);
+        min_value = fmin(min_value, val[j]);
     }
+    grp_max = fmax(grp_max, max_value);
+    grp_min = fmin(grp_min, min_value);
+#else
+    abs_val = fabs(val);
+
+    unroll_for (int j = 0; j < VEC_SIZE; j++)
+        max_value = fmax(max_value, abs_val[j]);
+
+    grp_max = fmax(grp_max, max_value);
+#endif
 
     max_value = sub_group_reduce_max(grp_max);
 #if ASYMMETRIC_QUANTIZATION
@@ -167,33 +166,31 @@ KERNEL(dynamic_quantize_gpu_opt)(
     OUTPUT1_TYPE scale = 127.0h / max_value;
 #endif
 
-    unroll_for(int i = 0; i < iteration; ++i) {
-        val[i] *= scale;
+    val *= scale;
 #if ASYMMETRIC_QUANTIZATION
-        val[i] += zp;
-        VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val[i]), 0, output + output_offset + ((local_id * iteration + i) * block_size));
+    val += zp;
+    VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
 #else
-        VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val[i]), 0, output + output_offset + ((local_id * iteration + i) * block_size));
+    VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
 #endif
-    }
 
     if (sglid == 0 && local_id == 0) {
-
 #if OUTPUT_DIMS == 2
-        output_scale[OUTPUT1_GET_INDEX(bf, f_grp, 0, 0)] = 1.0h / scale;
-#if ASYMMETRIC_QUANTIZATION
-        output_zp[OUTPUT1_GET_INDEX(bf, f_grp, 0, 0)] = convert_uchar_rte(zp);
-#endif
+        const int output_idx = OUTPUT1_GET_INDEX(b, f_grp, 0, 0);
 #else
-        output_scale[OUTPUT1_GET_INDEX(0, bf, f_grp, 0)] = 1.0h / scale;
-#if ASYMMETRIC_QUANTIZATION
-        output_zp[OUTPUT1_GET_INDEX(0, bf, f_grp, 0)] = convert_uchar_rte(zp);
+        const int output_idx = OUTPUT1_GET_INDEX(0, b, f_grp, 0);
 #endif
+
+        output_scale[output_idx] = 1.0h / scale;
+#if ASYMMETRIC_QUANTIZATION
+        output_zp[output_idx] = convert_uchar_rte(zp);
 #endif
     }
 }
 
+// ***********************************************
 #elif DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_PER_TOKEN
+// ***********************************************
 
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(dynamic_quantize_gpu_opt)(
