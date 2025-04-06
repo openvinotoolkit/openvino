@@ -21,17 +21,9 @@ struct Col2Im : public ImplementationManager {
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
 
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
-        static constexpr std::array supported_types = {
-            data_types::f16,
-            data_types::f32,
-            data_types::u8,
-            data_types::i8
-        };
+        static constexpr std::array supported_types = {data_types::f16, data_types::f32, data_types::u8, data_types::i8};
 
-        static constexpr std::array supported_fmts = {
-            format::bfyx,
-            format::bfzyx
-            };
+        static constexpr std::array supported_fmts = {format::bfyx, format::bfzyx};
 
         if (node.has_fused_primitives()) {
             return false;

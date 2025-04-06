@@ -4,8 +4,8 @@
 
 #include "col2im.hpp"
 
-#include "common_utils/dispatch_utils.hpp"
 #include "col2im_inst.h"
+#include "common_utils/dispatch_utils.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
@@ -36,9 +36,9 @@ bool check_ool2im_contain_batch(const kernel_impl_params& params) {
     auto input_layout = params.get_input_layout();
     auto orig_size = get_origin_size(params);
 
-    // Check input size L which is the total number of blocks : product from d=1 to 2 of origin size
-    if (input_layout.spatial(1) == 1 &&
-        input_layout.spatial(1) != static_cast<tensor::value_type>(orig_size[0] * orig_size[1])) {
+    // Check input size L which is the total number of blocks : product from d=1
+    // to 2 of origin size
+    if (input_layout.spatial(1) == 1 && input_layout.spatial(1) != static_cast<tensor::value_type>(orig_size[0] * orig_size[1])) {
         return false;
     }
 
@@ -67,19 +67,17 @@ protected:
         const size_t kernel_product = (size_t)(desc->kernel_shape[0] * desc->kernel_shape[1]);
         const size_t num_channels = std::max(num_elements_for_block / kernel_product, (size_t)1);
 
-        GPU_DEBUG_TRACE << "  Col2im Batched " << (is_batched ? "true " : "false ") << " num_elements_for_block : "
-                        << num_elements_for_block << ", num_channels : " << num_channels << ", num_blocks : "
-                        << num_blocks << " to " << desc->kernel_shape[0] << ", " << desc->kernel_shape[1] << std::endl;
+        GPU_DEBUG_TRACE << "  Col2im Batched " << (is_batched ? "true " : "false ") << " num_elements_for_block : " << num_elements_for_block
+                        << ", num_channels : " << num_channels << ", num_blocks : " << num_blocks << " to " << desc->kernel_shape[0] << ", "
+                        << desc->kernel_shape[1] << std::endl;
 
         jit.add({
             make_jit_constant("ORIG_HEIGHT", orig_size[0]),
             make_jit_constant("ORIG_WIDTH", orig_size[1]),
-
             make_jit_constant("NUM_ELEMENTS_FOR_BLOCK", num_elements_for_block),
             make_jit_constant("KERNEL_PRODUCT", kernel_product),
             make_jit_constant("NUM_CHANNELS", num_channels),
             make_jit_constant("NUM_BLOCKS", num_blocks),
-
             make_jit_constant("OUT_SIZE_0", desc->output_shape[0]),
             make_jit_constant("OUT_SIZE_1", desc->output_shape[1]),
             make_jit_constant("KERNEL_SIZE_0", desc->kernel_shape[0]),
@@ -91,9 +89,8 @@ protected:
             make_jit_constant("PAD_BEGIN_0", desc->padding_begin[0]),
             make_jit_constant("PAD_BEGIN_1", desc->padding_begin[1]),
             make_jit_constant("PAD_END_0", desc->padding_end[0]),
-            make_jit_constant("PAD_END_1", desc->padding_end[1])
+            make_jit_constant("PAD_END_1", desc->padding_end[1]),
         });
-
         return jit;
     }
 
