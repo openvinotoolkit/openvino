@@ -3,6 +3,8 @@ description: 'Generates .pyi files and compares them to the committed files'
 runs:
   using: 'composite'
   steps:
+    - name: List checked-out files
+      run: find action_root
     - name: Verify .pyi files (Windows)
       shell: pwsh
       if: runner.os == 'Windows'
