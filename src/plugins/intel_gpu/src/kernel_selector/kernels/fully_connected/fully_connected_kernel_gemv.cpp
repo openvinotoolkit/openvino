@@ -130,7 +130,16 @@ FullyConnected_GEMV::DispatchData FullyConnected_GEMV::SetDefault(const fully_co
 }
 
 KernelsPriority FullyConnected_GEMV::GetKernelsPriority(const Params& params) const {
-    return params.is_shape_agnostic ? FORCE_PRIORITY_9 : FORCE_PRIORITY_2;
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
+
+    auto priority = FORCE_PRIORITY_9;
+    if (!params.is_shape_agnostic) {
+        auto output_size = get_output_aligned_bf_size(fc_params, false);
+        if (output_size.first == 1 && output_size.second % 16 == 0) {
+            priority = FORCE_PRIORITY_2;
+        }
+    }
+    return priority;
 }
 
 JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& params,
