@@ -98,11 +98,11 @@ else
     exit 1
 fi
 
-# Output path argument is given in CI environment
+# Output path argument is given in CI environment, otherwise it's developer environment
 if [ -z "$1" ]; then
-    changed_files=$(find "action_root/src/bindings/python" -type f -name '*.pyi')
-else
     changed_files=$(git diff --name-only | grep '\.pyi$')
+else
+    changed_files=$(find "action_root/src/bindings/python" -type f -name '*.pyi')
 fi
 
 # Process each changed .pyi file
