@@ -35,12 +35,7 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
 
     # Assert that each file has a pair
     if generated_files != committed_files:
-        missing_in_generated = committed_files - generated_files
-        missing_in_committed = generated_files - committed_files
-        if missing_in_generated:
-            print(f"Error: Stub file missing in generated directory: {missing_in_generated}")
-        if missing_in_committed:
-            print(f"Error: Stub file missing in committed directory: {missing_in_committed}")
+        print(f"Error: A .pyi file is missing from the PR: {generated_files - committed_files}")
         sys.exit(1)
 
     # Assert that the files are identical
