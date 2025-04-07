@@ -70,81 +70,69 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 ENV PATH="$SCCACHE_HOME:$PATH"
 
-RUN curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
+# Build Pythons
+# Python 3.9
+RUN wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz
 
-ENV PATH="/root/.pyenv/bin:$PATH"
+RUN tar -xf Python-3.9.21.tar.xz && \
+    cd Python-3.9.21 && \
+    ./configure --enable-optimizations && \
+    make -j 8 && \
+    make altinstall && \
+    cd .. && rm -rf Python-3.9.21.tar.xz Python-3.9.21
 
-RUN eval "$(pyenv init -)"
+# Python 3.10
+RUN wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz
 
-RUN eval "$(pyenv virtualenv-init -)"
+RUN tar -xf Python-3.10.16.tar.xz && \
+    cd Python-3.10.16 && \
+    ./configure --enable-optimizations && \
+    make -j 8 && \
+    make altinstall && \
+    cd .. && rm -rf Python-3.10.16.tar.xz Python-3.10.16
 
-RUN pyenv install 3.10
+# Python 3.11
+RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
 
-RUN pyenv global 3.10
+RUN tar -xf Python-3.11.9.tar.xz && \
+    cd Python-3.11.9 && \
+    ./configure --enable-optimizations && \
+    make -j 8 && \
+    make altinstall && \
+    cd .. && rm -rf Python-3.11.9.tar.xz Python-3.11.9
 
-## Build Pythons
-## Python 3.9
-#RUN wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz
-#
-#RUN tar -xf Python-3.9.21.tar.xz && \
-#    cd Python-3.9.21 && \
-#    ./configure --enable-optimizations && \
-#    make -j 8 && \
-#    make altinstall && \
-#    cd .. && rm -rf Python-3.9.21.tar.xz Python-3.9.21
-#
-## Python 3.10
-#RUN wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz
-#
-#RUN tar -xf Python-3.10.16.tar.xz && \
-#    cd Python-3.10.16 && \
-#    ./configure --enable-optimizations && \
-#    make -j 8 && \
-#    make altinstall && \
-#    cd .. && rm -rf Python-3.10.16.tar.xz Python-3.10.16
-#
-## Python 3.11
-#RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
-#
-#RUN tar -xf Python-3.11.9.tar.xz && \
-#    cd Python-3.11.9 && \
-#    ./configure --enable-optimizations && \
-#    make -j 8 && \
-#    make altinstall && \
-#    cd .. && rm -rf Python-3.11.9.tar.xz Python-3.11.9
-#
-## Python 3.12
-#RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
-#
-#RUN tar -xf Python-3.12.9.tar.xz && \
-#    cd Python-3.12.9 && \
-#    ./configure --enable-optimizations && \
-#    make -j 8 && \
-#    make altinstall && \
-#    cd .. && rm -rf Python-3.12.9.tar.xz Python-3.12.9
-#
-## Python 3.13
-#RUN wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz
-#
-#RUN tar -xf Python-3.13.2.tar.xz && \
-#    cd Python-3.13.2 && \
-#    ./configure --enable-optimizations && \
-#    make -j 8 && \
-#    make altinstall && \
-#    cd .. && rm -rf Python-3.13.2.tar.xz Python-3.13.2
+# Python 3.12
+RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
+
+RUN tar -xf Python-3.12.9.tar.xz && \
+    cd Python-3.12.9 && \
+    ./configure --enable-optimizations && \
+    make -j 8 && \
+    make altinstall && \
+    cd .. && rm -rf Python-3.12.9.tar.xz Python-3.12.9
+
+# Python 3.13
+RUN wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz
+
+RUN tar -xf Python-3.13.2.tar.xz && \
+    cd Python-3.13.2 && \
+    ./configure --enable-optimizations && \
+    make -j 8 && \
+    make altinstall && \
+    cd .. && rm -rf Python-3.13.2.tar.xz Python-3.13.2
 
 # Setup pip
-#ENV PIP_VERSION="24.0"
-#RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
-#    python3.9 -m pip install --upgrade pip==${PIP_VERSION} && \
-#    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
-#    python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
-#    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
-#    python3.13 -m pip install --upgrade pip==${PIP_VERSION}
-#
-## Use Python 3.11 as default
-## Using venv here because other methods to switch the default Python break both system and wheels build
-#RUN python3.11 -m venv venv
-#ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
-#
-#ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+ENV PIP_VERSION="24.0"
+RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.9 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.13 -m pip install --upgrade pip==${PIP_VERSION}
+
+# Use Python 3.11 as default
+# Using venv here because other methods to switch the default Python break both system and wheels build
+RUN python3.11 -m venv venv
+ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+
+ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
