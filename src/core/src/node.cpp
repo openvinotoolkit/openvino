@@ -586,8 +586,7 @@ ov::Input<ov::Node> ov::Node::input(size_t input_index) {
 }
 
 ov::Output<ov::Node> ov::Node::input_value(size_t input_index) const {
-    auto& output_descriptor = m_inputs.at(input_index).m_output;
-    return {output_descriptor->get_node(), output_descriptor->get_index()};
+    return input(input_index).get_source_output();
 }
 
 ov::Input<const ov::Node> ov::Node::input(size_t input_index) const {
@@ -812,4 +811,15 @@ bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
 }
 
 AttributeAdapter<ov::NodeVector>::~AttributeAdapter() = default;
+
+namespace op::util {
+bool input_sources_are_equal(const std::shared_ptr<ov::Node>& lhs,
+                             const std::shared_ptr<ov::Node>& rhs,
+                             const size_t input_index) {
+    const auto& lhs_source = lhs->get_input_descriptor(input_index).get_output();
+    const auto& rhs_source = rhs->get_input_descriptor(input_index).get_output();
+    return lhs_source.get_raw_pointer_node() == rhs_source.get_raw_pointer_node() &&
+           lhs_source.get_index() == rhs_source.get_index();
+}
+}  // namespace op::util
 }  // namespace ov

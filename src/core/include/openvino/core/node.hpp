@@ -52,7 +52,9 @@ namespace util {
  * @return true if sources share same node and output index otherwise false
  */
 OPENVINO_API
-bool input_sources_are_equal(const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>&, const size_t);
+bool input_sources_are_equal(const std::shared_ptr<ov::Node>& lhs,
+                             const std::shared_ptr<ov::Node>& rhs,
+                             const size_t input_index);
 }  // namespace util
 }  // namespace op
 namespace pass {

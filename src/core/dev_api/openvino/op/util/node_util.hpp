@@ -28,6 +28,5 @@ namespace op::util {
  * @param output_port - output port to rename
  */
 void OPENVINO_API set_name(ov::Node& node, const std::string& name, size_t output_port = 0);
-
 }  // namespace op::util
 }  // namespace ov
