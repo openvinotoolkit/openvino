@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -193,7 +193,7 @@ protected:
     }
 
     StatesPolicy states_policy = StatesPolicy::UNDEFINED;
-    ov::element::Type states_precision = ov::element::undefined;
+    ov::element::Type states_precision = ov::element::dynamic;
 };
 
 class LoraPatternMatmulCPUTest : public LoraPatternBaseCPUTest {

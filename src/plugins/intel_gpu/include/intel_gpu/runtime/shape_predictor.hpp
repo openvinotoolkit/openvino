@@ -14,23 +14,20 @@ class engine;
 
 struct ShapePredictor {
 public:
-    using Ptr = std::shared_ptr<ShapePredictor>;
-    ShapePredictor(const engine* engine, float buffers_preallocation_ratio)
-        : _engine(engine)
-        , _buffers_preallocation_ratio(buffers_preallocation_ratio) {
-        static_assert(_max_deque_size >= 2, "[GPU] Deque is supposed to contain at least 2 elements for prediction");
-    }
+    struct Settings {
+        // Iterations mode preallocation
+        size_t next_iters_preallocation_count = 10;
+        size_t max_per_iter_size = 16 * 1024;
+        size_t max_per_dim_diff = 2;
 
-    ShapePredictor(const engine* engine,
-                   size_t next_iters_preallocation_count,
-                   size_t max_per_iter_size,
-                   size_t max_per_dim_diff,
-                   float buffers_preallocation_ratio)
+        // Percentage mode preallocation
+        float buffers_preallocation_ratio = 1.1f;
+    };
+
+    using Ptr = std::shared_ptr<ShapePredictor>;
+    ShapePredictor(const engine* engine, const Settings& settings)
         : _engine(engine)
-        , _next_iters_preallocation_count(next_iters_preallocation_count)
-        , _max_per_iter_size(max_per_iter_size)
-        , _max_per_dim_diff(max_per_dim_diff)
-        , _buffers_preallocation_ratio(buffers_preallocation_ratio) {
+        , _settings(settings) {
         static_assert(_max_deque_size >= 2, "[GPU] Deque is supposed to contain at least 2 elements for prediction");
     }
 
@@ -73,19 +70,11 @@ private:
     std::map<std::string, std::deque<ov::Shape>> _shapes_info;
     const engine* _engine;
 
-    // Iterations mode preallocation
-    const size_t _next_iters_preallocation_count = 10;
-    const size_t _max_per_iter_size = 16 * 1024; // 16KB => maximum preallocation size is 16KB * 10iters = 160KB
-    const size_t _max_per_dim_diff = 2;
-
-    // Percentage mode preallocation
-    const float _buffers_preallocation_ratio = 1.0f;
+    const Settings _settings;
 };
 
 }  // namespace cldnn
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 using ShapePredictor = cldnn::ShapePredictor;
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

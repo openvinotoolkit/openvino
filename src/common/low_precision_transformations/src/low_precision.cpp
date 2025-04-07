@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,7 @@ void make_matcher_type_relaxed(ov::pass::GraphRewrite* transformation) {
     auto p_node = std::make_shared<pass::pattern::op::Label>(element::f32, Shape{}, is_op_type);
 
     ov::graph_rewrite_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto l_node = std::dynamic_pointer_cast<BaseOp>(m.get_match_root());
+        auto l_node = ov::as_type_ptr<BaseOp>(m.get_match_root());
         if (!l_node) {
             THROW_TRANSFORMATION_EXCEPTION << "unexpected operation type for type relaxed conversion";
         }

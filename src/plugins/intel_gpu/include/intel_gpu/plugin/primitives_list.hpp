@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -267,11 +267,16 @@ REGISTER_FACTORY(v13, ScaledDotProductAttention);
 REGISTER_FACTORY(v13, BitwiseAnd);
 REGISTER_FACTORY(v13, BitwiseOr);
 REGISTER_FACTORY(v13, BitwiseXor);
+REGISTER_FACTORY(v13, FakeConvert);
+
 
 // ------------------------------ Supported v15 ops ----------------------------- //
 REGISTER_FACTORY(v15, ROIAlignRotated);
 REGISTER_FACTORY(v15, BitwiseRightShift);
 REGISTER_FACTORY(v15, BitwiseLeftShift);
+REGISTER_FACTORY(v15, SearchSorted);
+REGISTER_FACTORY(v15, STFT);
+REGISTER_FACTORY(v15, Col2Im);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
@@ -287,7 +292,7 @@ REGISTER_FACTORY(internal, KVCacheCompressed);
 REGISTER_FACTORY(internal, ReadValue);
 REGISTER_FACTORY(internal, ReadValues);
 REGISTER_FACTORY(internal, Gemm);
-REGISTER_FACTORY(internal, SwiGLU);
+REGISTER_FACTORY(internal, GLU);
 REGISTER_FACTORY(internal, IndirectGemm);
 REGISTER_FACTORY(internal, Convolution);
 REGISTER_FACTORY(internal, Placeholder);

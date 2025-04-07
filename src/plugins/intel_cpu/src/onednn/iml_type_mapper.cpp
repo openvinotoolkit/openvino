@@ -1,22 +1,27 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "iml_type_mapper.h"
+
 #include <algorithm>
 #include <string>
 #include <vector>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 impl_desc_type parse_impl_name(std::string impl_desc_name) {
     impl_desc_type res = impl_desc_type::unknown;
 
-#define REPLACE_WORD(_wrd, _sub) { auto pos = impl_desc_name.find(#_wrd); \
-    if (pos != std::string::npos) impl_desc_name.replace(pos, std::string(#_wrd).length(), #_sub); }
+#define REPLACE_WORD(_wrd, _sub)                                             \
+    {                                                                        \
+        auto pos = impl_desc_name.find(#_wrd);                               \
+        if (pos != std::string::npos)                                        \
+            impl_desc_name.replace(pos, std::string(#_wrd).length(), #_sub); \
+    }
     // Replace the ONEDNN pd name with OV definition.
     REPLACE_WORD(brg_conv, brgconv);
+    REPLACE_WORD(brdgmm, brgconv);
     REPLACE_WORD(avx10_1_512, avx512);
     REPLACE_WORD(brg_matmul, brgemm);
 
@@ -24,17 +29,20 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
 
 #undef REPLACE_WORD
 
-#define SEARCH_WORD(_wrd) if (impl_desc_name.find(#_wrd) != std::string::npos) \
-    res = static_cast<impl_desc_type>(res | impl_desc_type::_wrd);
-#define SEARCH_WORD_2(_wrd, _key) if (impl_desc_name.find(#_wrd) != std::string::npos) \
-    res = static_cast<impl_desc_type>(res | impl_desc_type::_key);
+#define SEARCH_WORD(_wrd)                                \
+    if (impl_desc_name.find(#_wrd) != std::string::npos) \
+        res = static_cast<impl_desc_type>(res | impl_desc_type::_wrd);
+#define SEARCH_WORD_2(_wrd, _key)                        \
+    if (impl_desc_name.find(#_wrd) != std::string::npos) \
+        res = static_cast<impl_desc_type>(res | impl_desc_type::_key);
 
     SEARCH_WORD(ref);
     SEARCH_WORD(jit);
     SEARCH_WORD(brgconv);
     SEARCH_WORD(brgemm);
-    if ((res & impl_desc_type::brgemm) != impl_desc_type::brgemm)
+    if ((res & impl_desc_type::brgemm) != impl_desc_type::brgemm) {
         SEARCH_WORD(gemm);
+    }
     SEARCH_WORD(blas);
     SEARCH_WORD(mlas);
     SEARCH_WORD(sse42);
@@ -49,16 +57,19 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(reorder);
     SEARCH_WORD(sparse);
     SEARCH_WORD(acl);
+    SEARCH_WORD(kleidiai);
     SEARCH_WORD(shl);
     SEARCH_WORD(asimd);
+    SEARCH_WORD(gv);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
-        (res & impl_desc_type::avx512) != impl_desc_type::avx512)
+        (res & impl_desc_type::avx512) != impl_desc_type::avx512) {
         SEARCH_WORD(avx);
-    if ((res & impl_desc_type::sse42) != impl_desc_type::sse42 &&
-        (res & impl_desc_type::avx) != impl_desc_type::avx &&
+    }
+    if ((res & impl_desc_type::sse42) != impl_desc_type::sse42 && (res & impl_desc_type::avx) != impl_desc_type::avx &&
         (res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
-        (res & impl_desc_type::avx512) != impl_desc_type::avx512)
+        (res & impl_desc_type::avx512) != impl_desc_type::avx512) {
         SEARCH_WORD(uni);
+    }
 
     SEARCH_WORD_2(nchw, ref);
     SEARCH_WORD_2(ncdhw, ref);
@@ -67,15 +78,18 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
 #undef SEARCH_WORD_2
 #undef SEARCH_WORD
     // Deconv case would set both jit and any in onednn, only set the jit bit.
-    if ((res & jit) && (res & any))
-        res = static_cast<impl_desc_type> (res & ~any);
+    if ((res & jit) && (res & any)) {
+        res = static_cast<impl_desc_type>(res & ~any);
+    }
     return res;
 }
 
 const char* impl_type_to_string(impl_desc_type type) {
-#define CASE(_type) do {                    \
-    if (type == _type) return #_type;       \
-} while (0)
+#define CASE(_type)          \
+    do {                     \
+        if (type == (_type)) \
+            return #_type;   \
+    } while (0)
     CASE(unknown);
     CASE(undef);
     CASE(ref);
@@ -119,6 +133,8 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(brgconv_sse42_1x1);
     CASE(brgconv_uni_1x1);
     CASE(brgconv_avx512_amx_1x1);
+    CASE(brgconv_avx512_dw);
+    CASE(brgconv_avx2_dw);
     CASE(brgemm_avx512);
     CASE(brgemm_avx2);
     CASE(brgemm_avx);
@@ -138,6 +154,10 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_sve512);
     CASE(shl);
     CASE(gemm_shl);
+    CASE(gv);
+    CASE(jit_gv);
+    CASE(kleidiai);
+    CASE(gemm_kleidiai);
 
 #undef CASE
     return "unknown";
@@ -147,5 +167,4 @@ bool contains(const std::vector<impl_desc_type>& priorities, const impl_desc_typ
     return std::find(priorities.begin(), priorities.end(), impl_type_str) != priorities.end();
 }
 
-}  // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

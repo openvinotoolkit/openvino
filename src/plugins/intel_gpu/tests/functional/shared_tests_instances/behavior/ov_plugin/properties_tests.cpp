@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,7 @@ const std::vector<ov::AnyMap> gpu_compileModel_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
      ov::hint::num_requests(10),
      ov::hint::enable_cpu_pinning(true),
+     ov::hint::enable_cpu_reservation(false),
      ov::enable_profiling(true)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_gpuCompileModelBehaviorTests,
@@ -310,7 +311,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetEnableProfilingNoThrow) {
 
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetInferencePrecisionNoThrow) {
     ov::Core ie;
-    auto value = ov::element::undefined;
+    auto value = ov::element::dynamic;
     const auto expected_default_precision = ov::element::f16;
 
     OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));
@@ -490,10 +491,7 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_DEFAULT, GetMetricAndPrintNoTh
 
     ASSERT_FALSE(p.empty());
     std::cout << "Memory Statistics: " << std::endl;
-    for (auto&& kv : p) {
-        ASSERT_NE(kv.second, 0);
-        std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
-    }
+    ASSERT_TRUE(std::any_of(p.begin(), p.end(), [](const auto& p){return !p.second;}));
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::memory_statistics);
 }
@@ -514,9 +512,7 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS, GetMetricAn
     OV_ASSERT_NO_THROW(t1 = ie.get_property(target_device, ov::intel_gpu::memory_statistics));
 
     ASSERT_FALSE(t1.empty());
-    for (auto&& kv : t1) {
-        ASSERT_NE(kv.second, 0);
-    }
+    ASSERT_TRUE(std::any_of(t1.begin(), t1.end(), [](const auto& p){return !p.second;}));
 
     auto exec_net2 = ie.compile_model(simpleNetwork, target_device);
 
@@ -524,7 +520,6 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS, GetMetricAn
 
     ASSERT_FALSE(t2.empty());
     for (auto&& kv : t2) {
-        ASSERT_NE(kv.second, 0);
         auto iter = t1.find(kv.first);
         if (iter != t1.end()) {
             ASSERT_EQ(kv.second, t1[kv.first] * 2);
@@ -545,7 +540,10 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
     std::map<std::string, uint64_t> t1;
 
     OV_ASSERT_NO_THROW(t1 = ie.get_property(target_device, ov::intel_gpu::memory_statistics));
-    ASSERT_TRUE(t1.empty());
+    ASSERT_FALSE(t1.empty());
+    for (const auto& kv : t1) {
+        ASSERT_EQ(kv.second, 0);
+    }
 
     {
         auto exec_net1 = ie.compile_model(simpleNetwork, target_device);
@@ -554,9 +552,7 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
         OV_ASSERT_NO_THROW(t2 = ie.get_property(target_device, ov::intel_gpu::memory_statistics));
 
         ASSERT_FALSE(t2.empty());
-        for (auto&& kv : t2) {
-            ASSERT_NE(kv.second, 0);
-        }
+        ASSERT_TRUE(std::any_of(t2.begin(), t2.end(), [](const auto& p){return !p.second;}));
         {
             auto exec_net2 = ie.compile_model(actualNetwork, target_device);
 
@@ -564,16 +560,13 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
             OV_ASSERT_NO_THROW(t3 = ie.get_property(target_device, ov::intel_gpu::memory_statistics));
 
             ASSERT_FALSE(t3.empty());
-            for (auto&& kv : t3) {
-                ASSERT_NE(kv.second, 0);
-            }
+            ASSERT_TRUE(std::any_of(t3.begin(), t3.end(), [](const auto& p){return !p.second;}));
         }
         std::map<std::string, uint64_t> t4;
         OV_ASSERT_NO_THROW(t4 = ie.get_property(target_device, ov::intel_gpu::memory_statistics));
 
         ASSERT_FALSE(t4.empty());
         for (auto&& kv : t4) {
-            ASSERT_NE(kv.second, 0);
             if (kv.first.find("_cur") != std::string::npos) {
                 auto iter = t2.find(kv.first);
                 if (iter != t2.end()) {
@@ -587,9 +580,7 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
 
     ASSERT_FALSE(t5.empty());
     for (auto&& kv : t5) {
-        if (kv.first.find("_cur") != std::string::npos) {
-            ASSERT_EQ(kv.second, 0);
-        }
+        ASSERT_EQ(kv.second, 0);
     }
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::memory_statistics);
@@ -619,9 +610,7 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPri
     OV_ASSERT_NO_THROW(t1 = ie.get_property(target_device, ov::intel_gpu::memory_statistics));
 
     ASSERT_FALSE(t1.empty());
-    for (auto&& kv : t1) {
-        ASSERT_NE(kv.second, 0);
-    }
+    ASSERT_TRUE(std::any_of(t1.begin(), t1.end(), [](const auto& p){return !p.second;}));
 
     for (auto& thread : threads) {
         thread = std::thread([&]() {
@@ -640,7 +629,6 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPri
 
     ASSERT_FALSE(t2.empty());
     for (auto&& kv : t2) {
-        ASSERT_NE(kv.second, 0);
         auto iter = t1.find(kv.first);
         if (iter != t1.end()) {
             ASSERT_EQ(kv.second, t1[kv.first] * 3);

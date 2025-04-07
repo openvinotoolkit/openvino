@@ -18,6 +18,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/cos.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -173,6 +174,121 @@ TEST_F(TransformationTestsF, IncreasePositionIdsMatmulWithoutUnsqueeze) {
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_convert, sin_convert}, ov::op::internal::RoPE::Config());
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input });
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, IncreasePositionIdsReshapeAfterMatmul) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ -1, -1 });
+        auto input_convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::i32);
+        auto input_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(input_convert, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}));
+        auto input_convert_fp = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f16);
+        auto rotary_embd_const = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 64, 1});
+        auto reshape_dims = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{3});
+
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input_convert_fp, rotary_embd_const);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(matmul, reshape_dims, true);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{reshape, reshape}, 2);
+
+        auto cos = std::make_shared<ov::op::v0::Cos>(concat);
+        auto sin = std::make_shared<ov::op::v0::Sin>(concat);
+
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin}, ov::op::internal::RoPE::Config());
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input, reshape_dims });
+        manager.register_pass<IncreasePositionIdsPrecision>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ -1, -1 });
+        auto input_convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::i32);
+        auto input_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(input_convert, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}));
+        auto rotary_embd_const = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 64, 1});
+        auto reshape_dims = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{3});
+
+        auto input_convert_f32 = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f32);
+        auto rotary_embd_const_convert_f32 = std::make_shared<ov::op::v0::Convert>(rotary_embd_const, ov::element::f32);
+
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input_convert_f32, rotary_embd_const_convert_f32);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(matmul, reshape_dims, true);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{reshape, reshape}, 2);
+
+        auto cos = std::make_shared<ov::op::v0::Cos>(concat);
+        auto sin = std::make_shared<ov::op::v0::Sin>(concat);
+
+        auto cos_convert = std::make_shared<ov::op::v0::Convert>(cos, ov::element::f16);
+        auto sin_convert = std::make_shared<ov::op::v0::Convert>(sin, ov::element::f16);
+
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_convert, sin_convert}, ov::op::internal::RoPE::Config());
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input, reshape_dims });
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, IncreasePositionIdsLongRoPE) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ -1 });
+        auto input_convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::i32);
+        auto input_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(input_convert, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{-1, 1, 1}));
+        auto input_convert_fp = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f16);
+        auto rotary_embd = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 48, 1});
+
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(rotary_embd, input_convert_fp);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(matmul, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 1, 48}), true);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{reshape, reshape}, 2);
+
+        auto cos = std::make_shared<ov::op::v0::Cos>(concat);
+        auto sin = std::make_shared<ov::op::v0::Sin>(concat);
+
+        auto const_scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 1 }, { 1.19043 });
+        auto const_scale = std::make_shared<ov::op::v1::Multiply>(cos, const_scale_const);
+        auto sin_scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 1 }, { 1.19043 });
+        auto sin_scale = std::make_shared<ov::op::v1::Multiply>(sin, sin_scale_const);
+
+        auto cos_unsqueeze = std::make_shared<ov::op::v1::Reshape>(const_scale, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{-1, 1, 1, 96}), true);
+        auto sin_unsqueeze = std::make_shared<ov::op::v1::Reshape>(sin_scale, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{-1, 1, 1, 96}), true);
+
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_unsqueeze, sin_unsqueeze}, ov::op::internal::RoPE::Config());
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input, rotary_embd });
+        manager.register_pass<IncreasePositionIdsPrecision>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ -1 });
+        auto input_convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::i32);
+        auto input_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(input_convert, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{-1, 1, 1}));
+        auto input_convert_fp = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f16);
+        auto rotary_embd = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 48, 1});
+
+        auto input_convert_f32 = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f32);
+        auto rotary_embd_convert_f32 = std::make_shared<ov::op::v0::Convert>(rotary_embd, ov::element::f32);
+
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(rotary_embd_convert_f32, input_convert_f32);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(matmul, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 1, 48}), true);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{reshape, reshape}, 2);
+
+        auto cos = std::make_shared<ov::op::v0::Cos>(concat);
+        auto sin = std::make_shared<ov::op::v0::Sin>(concat);
+
+        auto cos_convert = std::make_shared<ov::op::v0::Convert>(cos, ov::element::f16);
+        auto sin_convert = std::make_shared<ov::op::v0::Convert>(sin, ov::element::f16);
+
+        auto const_scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 1 }, { 1.19043 });
+        auto const_scale = std::make_shared<ov::op::v1::Multiply>(cos_convert, const_scale_const);
+        auto sin_scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1, 1, 1 }, { 1.19043 });
+        auto sin_scale = std::make_shared<ov::op::v1::Multiply>(sin_convert, sin_scale_const);
+
+        auto cos_unsqueeze = std::make_shared<ov::op::v1::Reshape>(const_scale, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{-1, 1, 1, 96}), true);
+        auto sin_unsqueeze = std::make_shared<ov::op::v1::Reshape>(sin_scale, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{-1, 1, 1, 96}), true);
+
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_unsqueeze, sin_unsqueeze}, ov::op::internal::RoPE::Config());
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ rope }, ov::ParameterVector{ input, rope_input, rotary_embd });
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }

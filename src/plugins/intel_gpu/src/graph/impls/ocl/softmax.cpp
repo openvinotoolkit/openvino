@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::softmax_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<softmax_impl>(*this);
+        return make_deep_copy<softmax_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {

@@ -37,7 +37,7 @@ CPU
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * macOS 12.6 and above, 64-bit and ARM64
       * CentOS 7
-      * Red Hat Enterprise Linux 9.3-9.4, 64-bit
+      * Red Hat Enterprise Linux (RHEL) 8 and 9, 64-bit
       * openSUSE Tumbleweed, 64-bit and ARM64
       * Ubuntu 20.04 ARM64
 
@@ -65,7 +65,7 @@ GPU
       * Ubuntu 22.04 long-term support (LTS), 64-bit
       * Ubuntu 20.04 long-term support (LTS), 64-bit
       * CentOS 7
-      * Red Hat Enterprise Linux 9.3-9.4, 64-bit
+      * Red Hat Enterprise Linux (RHEL) 8 and 9, 64-bit
 
    .. tab-item:: Additional considerations
 
@@ -93,11 +93,10 @@ Intel® Neural Processing Unit
 
    .. tab-item:: Additional considerations
 
-      * These Accelerators require :doc:`drivers <../../get-started/configurations/configurations-intel-npu>`
+      * These Accelerators require :doc:`drivers <../../get-started/install-openvino/configurations/configurations-intel-npu>`
         that are not included in the Intel® Distribution of OpenVINO™ toolkit package.
       * Users can access the NPU plugin through the OpenVINO archives on
         the :doc:`download page <../../get-started/install-openvino>`.
-
 
 
 Operating systems and developer environment
@@ -135,9 +134,9 @@ Operating systems and developer environment
 
       Build environment components:
 
-      * `Microsoft Visual Studio 2019 or later <http://visualstudio.microsoft.com/downloads/>`__
+      * `Microsoft Visual Studio 2019 or later <https://visualstudio.microsoft.com/downloads/>`__
       * `CMake <https://cmake.org/download/>`__ 3.16 or higher
-      * `Python <http://www.python.org/downloads/>`__ 3.9-3.12
+      * `Python <https://www.python.org/downloads/>`__ 3.9-3.12
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
 
@@ -149,7 +148,7 @@ Operating systems and developer environment
 
       * `Xcode <https://developer.apple.com/xcode/>`__ 10.3
       * `CMake <https://cmake.org/download/>`__ 3.13 or higher
-      * `Python <http://www.python.org/downloads/>`__ 3.9-3.12
+      * `Python <https://www.python.org/downloads/>`__ 3.9-3.12
 
    .. tab-item:: DL framework versions:
 
@@ -224,7 +223,7 @@ to learn more about the release types.
                          gcc -v
 
          .. tab-item:: macOS
-            :name: archive-win-sysreq
+            :name: archive-mac-sysreq
 
             * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
             * `Python 3.9 - 3.12 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.9 - 3.12). Install and add to path.

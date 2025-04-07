@@ -3,18 +3,21 @@ name: Rerun Workflow with Known Errors
 on:
   workflow_run:
     workflows:
-      - Linux (Ubuntu 20.04, Python 3.9)
-      - Linux (Ubuntu 22.04, Python 3.11)
-      - Linux (Ubuntu 24.04, Python 3.12)
-      - Debian 10 ARM
-      - Android ARM64 with vcpkg
-      - Android x64
-      - Linux ARM64 (Ubuntu 20.04, Python 3.11)
-      - Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
-      - Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
-      - Windows (VS 2019, Python 3.11, Release)
-      - Windows (VS 2019, Python 3.11, Debug)
-      - Windows Conditional Compilation (VS 2022, Python 3.11)
+      - "Linux (Ubuntu 20.04, Python 3.9)"
+      - "Linux (Ubuntu 22.04, Python 3.11)"
+      - "Linux (Ubuntu 24.04, Python 3.12)"
+      - "Debian 10 ARM"
+      - "Android ARM64 with vcpkg"
+      - "Android x64"
+      - "Linux ARM64 (Ubuntu 20.04, Python 3.11)"
+      - "Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)"
+      - "Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)"
+      - "Linux (Ubuntu 22.04, Python 3.11, Intel DPC\\+\\+ Compiler)"
+      - "Fedora 29 (RHEL 8.4), Python 3.9"
+      - "Windows (VS 2022, Python 3.11, Release)"
+      - "Windows (VS 2022, Python 3.11, Debug)"
+      - "Windows Conditional Compilation (VS 2022, Python 3.11)"
+      - "Manylinux 2014"
     types:
       - completed
   pull_request:
@@ -29,7 +32,7 @@ jobs:
     name: Rerun Workflow
     # Run only for the failed workflows in openvinotoolkit org
     if: ${{ github.event.workflow_run.conclusion == 'failure' && github.repository_owner == 'openvinotoolkit' }}
-    runs-on: aks-linux-2-cores-8gb
+    runs-on: aks-linux-small
     permissions:
       actions: write
       contents: read
@@ -38,6 +41,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
 
@@ -69,10 +73,11 @@ jobs:
   rerunner_tests:
     name: Rerunner Tests
     if: ${{ github.event_name == 'pull_request' && github.repository_owner == 'openvinotoolkit' }}
-    runs-on: aks-linux-2-cores-8gb
+    runs-on: aks-linux-small
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
           lfs: true
@@ -94,9 +99,9 @@ jobs:
         working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
         run: |
           export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH
-          
+
           # Need to get a run id with successful status for log analyzing
           # cannot lock a run id as logs get deleted after some time
           run_id=$(python3 -c "from github import Github, Auth; import os; github=Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN'))); repo = github.get_repo('${GITHUB_REPOSITORY}'); run_id = repo.get_workflow_runs(status='success')[0].id; print(run_id)")
-          
+
           python3 rerunner.py --repository-name ${GITHUB_REPOSITORY} --run-id $run_id --dry-run

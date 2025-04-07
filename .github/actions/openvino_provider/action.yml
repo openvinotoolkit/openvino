@@ -141,7 +141,7 @@ runs:
       run: |
         artifacts_path=${{ steps.openvino_commit_download.outputs.artifacts_path }}
         cd $artifacts_path
-        version=$(yq eval '.components.dldt.custom_params.wheel_product_version' manifest.yml)
+        version=$(yq eval '.components.openvino.custom_params.wheel_product_version // .components.dldt.custom_params.wheel_product_version' manifest.yml)
         wheel_path=${{ inputs.install_dir && '$artifacts_path/wheels' || './wheels' }}
         default_find_links_cmd="--find-links=$wheel_path"
         find_links_cmd=$([[ -n "$PIP_FIND_LINKS" ]] && echo "" || echo "$default_find_links_cmd")
@@ -177,7 +177,7 @@ runs:
         else
           ov_package_url=$(curl -s ${{ inputs.nightly_package_source }} | jq -r '.${{ inputs.platform }}_${{ inputs.arch }}')
         fi
-        cd ${{ inputs.install_dir || env.GITHUB_WORKSPACE }}
+        cd ${{ inputs.install_dir || github.workspace }}
         package_basename=$(basename $ov_package_url)
         wget $ov_package_url --progress=bar:force:noscroll -O $package_basename
         package_folder=${package_basename%.*}
@@ -196,7 +196,7 @@ runs:
       uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
       with:
         name: ${{ steps.openvino_s3_download.outputs.ov_artifact_name }}
-        path: ${{ steps.openvino_s3_download.outputs.ov_package_path }}
+        path: ${{ github.workspace }}/${{ steps.openvino_s3_download.outputs.ov_package_path }}
         if-no-files-found: 'error'
 
     - name: Get wheel

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,10 +29,10 @@ TEST_F(ExperimentalDetectronPriorGridGeneratorV6StaticShapeInferenceTest, defaul
     op = make_op();
     op->set_attrs({true, 0, 0, 5.0f, 5.0f});
 
-    input_shapes = ShapeVector{{3, 4}, {1, 5, 7, 2}, {1, 5, 50, 50}};
+    input_shapes = StaticShapeVector{{3, 4}, {1, 5, 7, 2}, {1, 5, 50, 50}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
-    EXPECT_EQ(output_shapes, ShapeVector({{42, 4}}));
+    EXPECT_EQ(output_shapes, StaticShapeVector({{42, 4}}));
 }
 
 TEST_F(ExperimentalDetectronPriorGridGeneratorV6StaticShapeInferenceTest, inputs_dynamic_rank) {
@@ -41,7 +41,7 @@ TEST_F(ExperimentalDetectronPriorGridGeneratorV6StaticShapeInferenceTest, inputs
     const auto im_data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     op = make_op(priors, feat_map, im_data, make_attrs(false));
 
-    input_shapes = ShapeVector{{10, 4}, {1, 2, 4, 5}, {1, 2, 100, 100}};
+    input_shapes = StaticShapeVector{{10, 4}, {1, 2, 4, 5}, {1, 2, 100, 100}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -54,7 +54,7 @@ TEST_F(ExperimentalDetectronPriorGridGeneratorV6StaticShapeInferenceTest, inputs
     const auto im_data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
     op = make_op(priors, feat_map, im_data, make_attrs(true));
 
-    input_shapes = ShapeVector{{10, 4}, {1, 2, 4, 5}, {1, 2, 100, 100}};
+    input_shapes = StaticShapeVector{{10, 4}, {1, 2, 4, 5}, {1, 2, 100, 100}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -67,7 +67,7 @@ TEST_F(ExperimentalDetectronPriorGridGeneratorV6StaticShapeInferenceTest, feat_m
     const auto im_data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     op = make_op(priors, feat_map, im_data, make_attrs(true));
 
-    input_shapes = ShapeVector{{10, 4}, {1, 2, 4, 5, 1}, {1, 2, 100, 100}};
+    input_shapes = StaticShapeVector{{10, 4}, {1, 2, 4, 5, 1}, {1, 2, 100, 100}};
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("Feature_map rank must be equal to 4"));
@@ -79,7 +79,7 @@ TEST_F(ExperimentalDetectronPriorGridGeneratorV6StaticShapeInferenceTest, priors
     const auto im_data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
     op = make_op(priors, feat_map, im_data, make_attrs(true));
 
-    input_shapes = ShapeVector{{10, 5}, {1, 2, 4, 5}, {1, 2, 100, 100}};
+    input_shapes = StaticShapeVector{{10, 5}, {1, 2, 4, 5}, {1, 2, 100, 100}};
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("The last dimension of the 'priors' input must be equal to 4"));

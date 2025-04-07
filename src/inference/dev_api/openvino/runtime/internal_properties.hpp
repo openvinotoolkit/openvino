@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
@@ -82,6 +83,12 @@ static constexpr Property<bool, PropertyMutability::RO> compiled_model_runtime_p
  * @ingroup ov_dev_api_plugin_api
  */
 static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUERY_MODEL_RATIO"};
+
+/**
+ * @brief Allow execution of low precision transformations in plugin's pipelines
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformations{"LP_TRANSFORMS_MODE"};
 
 }  // namespace internal
 }  // namespace ov

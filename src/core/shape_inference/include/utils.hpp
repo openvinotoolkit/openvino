@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
 #include <iterator>
+#include <optional>
 #include <type_traits>
 
 #include "element_visitor.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "ov_optional.hpp"
 #include "shape_infer_type_utils.hpp"
 #include "tensor_data_accessor.hpp"
 
@@ -204,10 +204,10 @@ template <class TShape,
           class TRes = std::vector<TData>,
           class UnaryOperation = ov::util::Cast<TData>,
           typename std::enable_if<!std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
-ov::optional<TRes> get_input_const_data_as(const ov::Node* op,
-                                           size_t idx,
-                                           const ITensorAccessor& tensor_accessor,
-                                           UnaryOperation&& func = ov::util::Cast<TData>()) {
+std::optional<TRes> get_input_const_data_as(const ov::Node* op,
+                                            size_t idx,
+                                            const ITensorAccessor& tensor_accessor,
+                                            UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (auto t = tensor_accessor(idx)) {
         return {get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))};
     } else {
@@ -245,10 +245,10 @@ template <class TShape,
           class TRes = std::vector<TData>,
           class UnaryOperation = ov::util::Cast<TData>,
           typename std::enable_if<std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
-ov::optional<TRes> get_input_const_data_as(const ov::Node* op,
-                                           size_t idx,
-                                           const ITensorAccessor& tensor_accessor,
-                                           UnaryOperation&& func = ov::util::Cast<TData>()) {
+std::optional<TRes> get_input_const_data_as(const ov::Node* op,
+                                            size_t idx,
+                                            const ITensorAccessor& tensor_accessor,
+                                            UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (auto t = tensor_accessor(idx)) {
         return {get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))};
     } else if (const auto& constant =
@@ -285,11 +285,11 @@ template <class TShape,
           class TDimValue = typename TShape::value_type::value_type,
           class UnaryOperation = ov::util::InTypeRange<TDimValue>,
           typename std::enable_if<!std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
-ov::optional<TShape> get_input_const_data_as_shape(const ov::Node* op,
-                                                   size_t port,
-                                                   const ITensorAccessor& tensor_accessor,
-                                                   UnaryOperation&& func = ov::util::InTypeRange<TDimValue>()) {
-    auto shape = ov::optional<TShape>();
+std::optional<TShape> get_input_const_data_as_shape(const ov::Node* op,
+                                                    size_t port,
+                                                    const ITensorAccessor& tensor_accessor,
+                                                    UnaryOperation&& func = ov::util::InTypeRange<TDimValue>()) {
+    auto shape = std::optional<TShape>();
     if (auto s = get_input_const_data_as<TShape, TDimValue, TShape>(op,
                                                                     port,
                                                                     tensor_accessor,
@@ -303,11 +303,11 @@ template <class TShape,
           class TDimValue = typename TShape::value_type::value_type,
           class UnaryOperation = ov::util::InTypeRange<TDimValue>,
           typename std::enable_if<std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
-ov::optional<TShape> get_input_const_data_as_shape(const ov::Node* op,
-                                                   size_t port,
-                                                   const ITensorAccessor& tensor_accessor,
-                                                   UnaryOperation&& func = ov::util::InTypeRange<TDimValue>()) {
-    auto shape = ov::optional<TShape>();
+std::optional<TShape> get_input_const_data_as_shape(const ov::Node* op,
+                                                    size_t port,
+                                                    const ITensorAccessor& tensor_accessor,
+                                                    UnaryOperation&& func = ov::util::InTypeRange<TDimValue>()) {
+    auto shape = std::optional<TShape>();
     if (auto t = tensor_accessor(port)) {
         shape.emplace(get_tensor_data_as<TDimValue>(t, std::forward<UnaryOperation>(func)));
     } else if (port < op->get_input_size()) {
@@ -331,7 +331,7 @@ inline element::Type get_input_const_element_type(const ov::Node* const op, size
     } else if (const auto& constant = ov::util::get_constant_from_source(op->input_value(port))) {
         return constant->get_element_type();
     } else {
-        return element::undefined;
+        return element::dynamic;
     }
 }
 
@@ -349,7 +349,7 @@ inline element::Type get_input_const_element_type(const ov::Node* const op, size
  * \return Return optional vector of bounds as pair lower, upper when evaluated successful.
  */
 template <class TShape, class TData, class TResult = std::vector<std::pair<TData, TData>>>
-ov::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const ITensorAccessor& ta) {
+std::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const ITensorAccessor& ta) {
     const auto make_bound = [](element::Type_t et) {
         return [et](TData lb, TData ub) -> typename TResult::value_type {
             return {element::get_value_or_limit_of(et, lb), element::get_value_or_limit_of(et, ub)};
@@ -357,7 +357,7 @@ ov::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const IT
     };
 
     constexpr auto cast = ov::util::Cast<TData>();
-    ov::optional<TResult> out;
+    std::optional<TResult> out;
 
     if (const auto t = ta(port)) {
         const auto& et = t.get_element_type();

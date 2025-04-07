@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -121,11 +121,11 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
 
 private:
     int _zero_point_mask;
-    dnnl::memory::data_type _wzp_data_type;
+    dnnl::memory::data_type _wzp_data_type = dnnl::memory::data_type::undef;
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<convolution_onednn>(*this);
+        return std::make_unique<convolution_onednn>(*this);
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(convolution_inst& instance) const override {
@@ -157,7 +157,6 @@ protected:
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: "
                 << " " << a_zp->get_layout().to_short_string() << std::endl;
         }
@@ -167,7 +166,6 @@ protected:
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: "
                 << " " << w_zp->get_layout().to_short_string() << std::endl;
         }
@@ -358,7 +356,7 @@ public:
 
         auto prim_desc = get_convolution_primitive_descriptor(impl_params, *attr);
 
-        auto conv_onednn_impl = cldnn::make_unique<convolution_onednn>(engine, config, attr, *prim_desc,
+        auto conv_onednn_impl = std::make_unique<convolution_onednn>(engine, config, attr, *prim_desc,
                                                 get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
 
         conv_onednn_impl->set_zero_point_mask(zero_point_mask);

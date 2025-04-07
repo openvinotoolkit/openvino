@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2704,7 +2704,7 @@ public:
 
         // Compare results
         {
-            cldnn::mem_lock<OutputT> ptr(out_mem, get_test_stream());
+            cldnn::mem_lock<OutputT, mem_lock_type::read> ptr(out_mem, get_test_stream());
 
             auto b = static_cast<size_t>(out_mem->get_layout().batch());
             auto of = static_cast<size_t>(out_mem->get_layout().feature());

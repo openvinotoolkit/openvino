@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ namespace pass {
  */
 class OPENVINO_API LowLatency2 : public ModelPass {
 public:
-    OPENVINO_RTTI("LowLatency2");
+    OPENVINO_MODEL_PASS_RTTI("LowLatency2");
 
     explicit LowLatency2(bool use_const_initializer = true) : m_use_const_initializer(use_const_initializer) {}
 

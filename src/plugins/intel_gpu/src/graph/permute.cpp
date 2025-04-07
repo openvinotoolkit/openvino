@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "permute_inst.h"
@@ -146,7 +146,7 @@ void permute_inst::update_output_memory() {
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
     if (static_cast<bool>(_outputs[0]) &&
-        _node->get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
+        _node->get_program().get_config().get_enable_memory_pool()) {
         _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
     }
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};

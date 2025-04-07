@@ -70,10 +70,10 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
     auto jit = MakeBaseParamsJitConstants(params);
 
     if (params.conf.broadcast_axis != -1) {
-        jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", params.conf.group_size));
+        jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", params.conf.kv_group_size));
         jit.AddConstant(MakeJitConstant("DO_BROADCAST_KEY_VALUE", GetBroadcastInputStr(params.inputs[0].GetDims().size(),
                                                                                        params.conf.broadcast_axis,
-                                                                                       params.conf.group_size)));
+                                                                                       params.conf.kv_group_size)));
     } else {
         jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", 1));
     }
@@ -107,7 +107,7 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
     };
 
     auto use_index_calc_func = [&](const std::vector<int64_t> order, bool is_query = false) {
-        if (!params.input0_order.empty() && !is_default_order(params.input0_order))
+        if (!order.empty() && !is_default_order(order))
             return true;
 
         if (params.conf.broadcast_axis != -1)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/swiglu.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/crop.hpp>
 
@@ -73,7 +74,7 @@ public:
     }
 
     layout get_scale_layout(fully_connected_test_params& p, size_t group_size = 1) {
-        if (p.weights_type == data_types::u8 || p.weights_type == data_types::i8) {
+        if (p.weights_type == data_types::u8 || p.weights_type == data_types::i8 || p.weights_type == data_types::u4 || p.weights_type == data_types::i4) {
             auto scale_shape = p.out_shape.size() == 3 ? ov::PartialShape{p.out_shape[2]} : ov::PartialShape{p.out_shape[1]};
             return layout{ scale_shape, p.default_type, p.default_format };
         } else {
@@ -95,7 +96,7 @@ public:
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p), -1, 1);
 
-        auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
+        auto impl_forcing = cfg_fused.get_force_implementations();
         auto forcing_format = p.input_format;
         for (auto& forcing : impl_forcing)
             if (forcing.first == "fc_prim")
@@ -161,13 +162,13 @@ public:
 #define CASE_FC_FP32_1 { 1, 3 }, { 1, 4 }, { 4, 3 }, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP32_2 { 2, 3 }, { 2, 4 }, { 4, 3 }, data_types::f32, format::yxfb, data_types::f32, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP32_3 { 2, 32 }, { 2, 16 }, { 16, 32 }, data_types::f32, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3D_1 { 5, 3, 3 }, { 5, 3, 5 }, { 5, 3, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3D_2 { 2, 1, 1 }, { 2, 1, 32 }, { 32, 1, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3D_3 { 2, 32, 32 }, { 2, 32, 16 }, { 16, 32, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define CASE_FC_FP32_3D_1 { 5, 3, 3 }, { 5, 3, 5 }, { 5, 3, 1 }, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_FP32_3D_2 { 2, 1, 1 }, { 2, 1, 32 }, { 32, 1, 1 }, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_FP32_3D_3 { 2, 32, 32 }, { 2, 32, 16 }, { 16, 32, 1 }, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
 
-#define DYN_CASE_FC_FP32_3D_1 { 5, 3, 3 }, { 5, 3, 5 }, { 5, 3 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-#define DYN_CASE_FC_FP32_3D_2 { 2, 1, 1 }, { 2, 1, 32 }, { 32, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-#define DYN_CASE_FC_FP32_3D_3 { 2, 32, 32 }, { 2, 32, 16 }, { 16, 32 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP32_3D_1 { 5, 3, 3 }, { 5, 3, 5 }, { 5, 3 }, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP32_3D_2 { 2, 1, 1 }, { 2, 1, 32 }, { 32, 1 }, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP32_3D_3 { 2, 32, 32 }, { 2, 32, 16 }, { 16, 32 }, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
 
 #define CASE_FC_U8S8_1 { 1, 3 }, { 1, 4 }, { 4, 3 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_2 { 2, 3 }, { 2, 4 }, { 4, 3 }, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
@@ -199,6 +200,13 @@ public:
 
 #define CASE_FC_FP16_INT4_COMP_1 { 1, 128 }, { 1, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 #define CASE_FC_FP16_INT4_COMP_2 { 2, 128 }, { 2, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
+
+#define CASE_FC_FP16_INT8_COMP_1 { 1, 128 }, { 1, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP16_3D_INT8_COMP_1 { 2, 32, 4 }, { 2, 32, 16 }, { 16, 4, 1 }, data_types::f16, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
+
+#define CASE_FC_FP16_INT4_SWIGLU_1 { 1, 64 }, { 1, 64 }, { 64, 64 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP16_INT4_SWIGLU_2 { 1, 64}, { 1, 128 }, { 128, 64 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP16_INT4_SWIGLU_3 { 1, 312 }, { 1, 128 }, { 128, 312 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- FC cases --------------------------------------------------- */
@@ -638,6 +646,51 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_unfused_dynamic, ::te
     fully_connected_test_params{ CASE_FC_FP16_4, 2, 3 }
 }));
 
+class fc_compressed_int8_bias_eltwise_quantize_u8_onednn : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_compressed_int8_bias_eltwise_quantize_u8_onednn, basic) {
+    auto p = GetParam();
+    auto test_input_layout = get_input_layout(p);
+
+    auto supports_immad = engine.get_device_info().supports_immad;
+    auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
+    fc_prim.decompression_zero_point_scalar = 8.0f;
+
+    // onednn FC supports scalar ZP for int4 compressed weight.
+    auto dcomp_zp_layout = layout{ {1, 1, 1, 1}, data_types::u8, format::bfyx };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("scale", get_mem(get_scale_layout(p, 128))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("dcomp_zp", get_mem(dcomp_zp_layout, 8.0f)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
+        data("in_lo", get_mem(get_per_channel_layout(p), -2, -2)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 2, 2)),
+        data("out_lo", get_mem(get_single_element_layout(p), 0)),
+        data("out_hi", get_mem(get_single_element_layout(p), 255)),
+        fc_prim,
+        eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
+        eltwise("eltwise", { input_info("bias_add"), input_info("eltwise_data") }, eltwise_mode::sum),
+        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
+    );
+
+    bool is_dynamic = false;
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+    cfg_not_fused.set_property(ov::hint::dynamic_quantization_group_size(0));
+    tolerance = 1.0f;
+    execute(p, false, is_dynamic);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_int8_bias_eltwise_quantize_u8_onednn, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_INT8_COMP_1, 2, 5 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_INT8_COMP_1, 2, 5 },
+}));
+
 class fc_compressed_int8_bias_dynamic_onednn : public FullyConnectedFusingTestOneDNN {};
 TEST_P(fc_compressed_int8_bias_dynamic_onednn, basic) {
     auto p = GetParam();
@@ -903,6 +956,58 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add_ocl_dynamic, ::testing
     fully_connected_test_params{ DYN_CASE_FC_FP16_3D_2, 2, 3 },
 }));
 
+class fc_fp16_swiglu_ocl_dynamic : public FullyConnectedFusingTest {
+public:
+    void run_test() {
+        auto p = GetParam();
+        auto test_input_layout = get_input_layout(p);
+        auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()),
+                                           test_input_layout.data_type,
+                                           test_input_layout.format};
+        int64_t swiglu_length = p.weights_shape[0].get_length()/2;
+        auto fc_prim = fully_connected("fc_prim",
+                                       input_info("input"),
+                                       "weights",
+                                       "",
+                                       "scale",
+                                       "",
+                                       data_types::f16,
+                                       get_output_dim_size(p),
+                                       get_input_weights_rank(p));
+        fc_prim.decompression_zero_point_scalar = 8.0f;
+        create_topologies(input_layout("input", dynamic_input_layout),
+                          data("weights", get_mem(get_weights_layout(p))),
+                          data("scale", get_mem(get_scale_layout(p, 64), 0.1)),
+                          fc_prim,
+                          swiglu("swiglu",
+                                 input_info("fc_prim"),
+                                 -1,
+                                 swiglu_length,
+                                 ov::op::internal::GLU::GluType::Swish,
+                                 0,
+                                 tensor()),
+                          reorder("reorder_bfyx", input_info("swiglu"), p.default_format, data_types::f32));
+
+        tolerance = 1.0f;
+        execute(p, true);
+    }
+};
+
+TEST_P(fc_fp16_swiglu_ocl_dynamic, basic) {
+    if (engine.get_device_info().supports_immad)
+        return;
+
+    if (engine.get_device_info().execution_units_count < 128)
+        return;
+    run_test();
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_swiglu_ocl_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_3, 2, 3 },
+}));
+
 class fc_imad_int8_eltwise_add_ocl_dynamic : public FullyConnectedFusingTest {
 public:
     void run_test() {
@@ -950,13 +1055,13 @@ public:
     void run_test() {
         auto p = GetParam();
         auto test_input_layout = get_input_layout(p);
-        auto in_layout = layout{ ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()), 
-                                 test_input_layout.data_type, 
+        auto in_layout = layout{ ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()),
+                                 test_input_layout.data_type,
                                  test_input_layout.format };
         auto data_layout = layout{ p.out_shape, p.default_type, p.default_format };
         auto weight = layout{ { 29, 512 }, data_types::f16, format::bfyx };
         auto bias = layout{ { 1, 1, 1, 29 }, data_types::f16, format::bfyx };
-        
+
         create_topologies(
             input_layout("input", in_layout),
             data("weights", get_mem(get_weights_layout(p))),

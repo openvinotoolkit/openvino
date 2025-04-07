@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/cum_sum.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateCumSumOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::CumSum>& op) {
     validate_inputs_count(op, {1, 2});
@@ -22,7 +21,7 @@ static void CreateCumSumOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
 
     int64_t axis = 0;
     if (op->get_input_size() == 2) {
-        auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         axis = axes_constant->cast_vector<int64_t>()[0];
     }
@@ -39,5 +38,4 @@ static void CreateCumSumOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
 
 REGISTER_FACTORY_IMPL(v0, CumSum);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -1,23 +1,22 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "plugin_graph.hpp"
 
-#include "intel_npu/config/common.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 
 namespace intel_npu {
 
-PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeGraphExt,
+PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          const ov::SoPtr<ICompiler>& compiler,
                          const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                          ze_graph_handle_t graphHandle,
                          NetworkMetadata metadata,
-                         std::vector<uint8_t> blob,
+                         std::unique_ptr<BlobContainer> blobPtr,
                          const Config& config)
-    : IGraph(graphHandle, std::move(metadata), std::optional<std::vector<uint8_t>>(std::move(blob))),
+    : IGraph(graphHandle, std::move(metadata), config, std::move(blobPtr)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _compiler(compiler),
@@ -30,30 +29,36 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeG
     initialize(config);
 }
 
-void PluginGraph::export_blob(std::ostream& stream) const {
-    stream.write(reinterpret_cast<const char*>(_blob.data()), _blob.size());
+size_t PluginGraph::export_blob(std::ostream& stream) const {
+    stream.write(reinterpret_cast<const char*>(_blobPtr->get_ptr()), _blobPtr->size());
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
-        return;
+        return 0;
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
         std::uint32_t result = 1171117u;
-        for (const uint8_t* it = _blob.data(); it != _blob.data() + _blob.size(); ++it) {
+        for (const uint8_t* it = reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr());
+             it != reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()) + _blobPtr->size();
+             ++it) {
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
         std::stringstream str;
-        str << "Blob size: " << _blob.size() << ", hash: " << std::hex << result;
+        str << "Blob size: " << _blobPtr->size() << ", hash: " << std::hex << result;
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
+    return _blobPtr->size();
 }
 
 std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData,
                                                                      const Config& config) const {
-    return _compiler->process_profiling_output(profData, _blob, config);
+    std::vector<uint8_t> blob(_blobPtr->size());
+    blob.assign(reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()),
+                reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()) + _blobPtr->size());
+    return _compiler->process_profiling_output(profData, blob, config);
 }
 
 void PluginGraph::set_argument_value(uint32_t argi, const void* argv) const {
@@ -93,11 +98,9 @@ void PluginGraph::initialize(const Config& config) {
     _input_descriptors.shrink_to_fit();
     _output_descriptors.shrink_to_fit();
 
-    ze_device_properties_t deviceProperties = {};
-    deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
-    auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
+    _command_queue_group_ordinal =
+        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
+                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
     bool turbo = false;
     if (config.has<TURBO>()) {
@@ -106,25 +109,44 @@ void PluginGraph::initialize(const Config& config) {
 
     _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                     zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                    groupOrdinal,
+                                                    _command_queue_group_ordinal,
                                                     turbo);
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
     }
 
-    _zeGraphExt->initializeGraph(_handle, config);
+    _zeGraphExt->initializeGraph(_handle, _command_queue_group_ordinal);
+
+    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
+        _batch_size = get_batch_size(_metadata);
+    }
+
+    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
+
+        _last_submitted_event.resize(number_of_command_lists);
+    }
 
     _logger.debug("Graph initialize finish");
 }
 
 PluginGraph::~PluginGraph() {
+    // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_handle != nullptr) {
         auto result = _zeGraphExt->destroyGraph(_handle);
 
         if (ZE_RESULT_SUCCESS == result) {
             _handle = nullptr;
         }
+    }
+
+    if (_last_submitted_event.size()) {
+        _last_submitted_event.clear();
+    }
+
+    if (_command_queue != nullptr) {
+        _command_queue.reset();
     }
 }
 

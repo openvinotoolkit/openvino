@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,7 @@ using Convolution = ov::intel_gpu::op::Convolution;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 
 static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::Convolution>& op) {
@@ -133,7 +132,7 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     auto pads_end = op->get_pads_end();
     auto output_padding = op->get_output_padding();
 
-    if (!op->is_dynamic()) {
+    if (!op->is_dynamic() && !p.use_new_shape_infer()) {
         // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
         strides.resize(std::max<size_t>(2, strides.size()), 1);
         dilations.resize(std::max<size_t>(2, strides.size()), 1);
@@ -163,7 +162,7 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
                                                output_padding,
                                                weights_have_group_dim);
         if (op->get_input_size() == 3) {
-            auto output_shape_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto output_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (output_shape_constant) {
                 auto output_shape = output_shape_constant->cast_vector<int64_t>();
                 ov::Shape shape(output_shape.begin(), output_shape.end());
@@ -253,7 +252,7 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
                                                output_padding,
                                                weights_have_group_dim);
         if (op->get_input_size() == 3) {
-            auto output_shape_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto output_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (output_shape_constant) {
                 auto output_shape = output_shape_constant->cast_vector<int64_t>();
                 ov::Shape shape(output_shape.begin(), output_shape.end());
@@ -339,5 +338,4 @@ REGISTER_FACTORY_IMPL(v1, GroupConvolutionBackpropData);
 REGISTER_FACTORY_IMPL(v1, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v8, DeformableConvolution);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

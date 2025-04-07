@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ TYPED_TEST_P(AvgPoolCommonStaticShapeInferenceTest, default_ctor) {
     this->op->set_rounding_type(op::RoundingType::FLOOR);
     this->op->set_auto_pad(op::PadType::VALID);
 
-    this->input_shapes = ShapeVector{{1, 3, 10, 12}};
+    this->input_shapes = StaticShapeVector{{1, 3, 10, 12}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -49,7 +49,7 @@ TYPED_TEST_P(AvgPoolCommonStaticShapeInferenceTest, no_auto_pad_round_floor) {
 
     this->op = this->make_op(data, strides, pads_begin, pads_end, kernel_shape, false, rounding_mode, pad_type);
 
-    this->input_shapes = ShapeVector{{1, 3, 10, 12}};
+    this->input_shapes = StaticShapeVector{{1, 3, 10, 12}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -72,7 +72,7 @@ TYPED_TEST_P(AvgPoolCommonStaticShapeInferenceTest, auto_padding_same_lower_roun
 
     this->op = this->make_op(data, strides, pads_begin, pads_end, kernel_shape, false, rounding_mode, pad_type);
 
-    this->input_shapes = ShapeVector{{1, 3, 10, 12, 20}};
+    this->input_shapes = StaticShapeVector{{1, 3, 10, 12, 20}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -95,7 +95,7 @@ TYPED_TEST_P(AvgPoolCommonStaticShapeInferenceTest, auto_padding_same_upper_roun
 
     this->op = this->make_op(data, strides, pads_begin, pads_end, kernel_shape, true, rounding_mode, pad_type);
 
-    this->input_shapes = ShapeVector{{1, 3, 10, 12, 20}};
+    this->input_shapes = StaticShapeVector{{1, 3, 10, 12, 20}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -118,7 +118,7 @@ TYPED_TEST_P(AvgPoolCommonStaticShapeInferenceTest, auto_padding_same_upper_roun
 
     this->op = this->make_op(data, strides, pads_begin, pads_end, kernel_shape, true, rounding_mode, pad_type);
 
-    this->input_shapes = ShapeVector{{32, 32, 2, 2, 4}};
+    this->input_shapes = StaticShapeVector{{32, 32, 2, 2, 4}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -153,7 +153,7 @@ TEST_F(AvgPoolV14StaticShapeInferenceTest, explicit_padding_ceil_torch) {
 
     this->op = this->make_op(data, strides, pads_begin, pads_end, kernel_shape, true, rounding_mode, pad_type);
 
-    this->input_shapes = ShapeVector{{1, 3, 9, 9}};
+    this->input_shapes = StaticShapeVector{{1, 3, 9, 9}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -174,7 +174,7 @@ TEST_F(AvgPoolV14StaticShapeInferenceTest, explicit_padding_ceil_torch_no_stride
 
     this->op = this->make_op(data, strides, pads_begin, pads_end, kernel_shape, false, rounding_mode, pad_type);
 
-    this->input_shapes = ShapeVector{{1, 3, 9, 9}};
+    this->input_shapes = StaticShapeVector{{1, 3, 9, 9}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -195,7 +195,7 @@ TEST_F(AvgPoolV14StaticShapeInferenceTest, auto_padding_ceil_torch) {
 
     this->op = this->make_op(data, strides, pads_begin, pads_end, kernel_shape, false, rounding_mode, pad_type);
 
-    this->input_shapes = ShapeVector{{1, 3, 9, 9}};
+    this->input_shapes = StaticShapeVector{{1, 3, 9, 9}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());

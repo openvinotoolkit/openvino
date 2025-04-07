@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/work_with_devices.hpp"
 
 #include "common/utils.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 
 namespace {
 
 const std::vector<ov::AnyMap> configs = {
-    {{ov::log::level(ov::log::Level::DEBUG)}},
+    {{ov::log::level(ov::log::Level::ERR)}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,

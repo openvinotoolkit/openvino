@@ -1,9 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "kernels_cache.hpp"
+#include <regex>
 
+#include "impls/cm/utils/kernels_db.hpp"
+#include "impls/ocl_v2/utils/kernels_db.hpp"
+#include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/util/pp.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
@@ -111,7 +115,7 @@ namespace cldnn {
 std::mutex kernels_cache::_mutex;
 
 std::string kernels_cache::get_cache_path() const {
-    auto path = _config.get_property(ov::cache_dir);
+    auto path = _config.get_cache_dir();
     if (path.empty()) {
         return {};
     }
@@ -123,20 +127,12 @@ std::string kernels_cache::get_cache_path() const {
 }
 
 bool kernels_cache::is_cache_enabled() const {
-    if (!_config.get_property(ov::intel_gpu::allow_new_shape_infer) &&
-        (_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SPEED)) {
+    if (!_config.get_allow_new_shape_infer() &&
+        (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SPEED)) {
         return false;
     }
 
-    return !_config.get_property(ov::cache_dir).empty();
-}
-
-size_t kernels_cache::get_max_kernels_per_batch() const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->max_kernels_per_batch >= 1) {
-        return static_cast<size_t>(debug_config->max_kernels_per_batch);
-    }
-    return _config.get_property(ov::intel_gpu::max_kernels_per_batch);
+    return !_config.get_cache_dir().empty();
 }
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
@@ -153,8 +149,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             std::string entry_point = kernel_string->entry_point;
             std::string options = kernel_string->options;
             bool batch_compilation = kernel_string->batch_compilation;
+            bool is_cm = kernel_string->language == kernel_language::CM;
 
-            if (batch_compilation) {
+            // Order matters for cm options
+            if (batch_compilation && !is_cm) {
                 options = reorder_options(options);
             }
 
@@ -167,6 +165,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             if (dump_custom_program) {
                 key += " __DUMP_CUSTOM_PROGRAM__";  // Adding label to key so it would be separated from other programs
             }
+            key += " __LANG__" + std::to_string(static_cast<size_t>(kernel_string->language));
 
             auto& bucket_id = std::get<0>(program_buckets[key]);
             auto& current_bucket = std::get<1>(program_buckets[key]);
@@ -174,7 +173,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 const auto& batch_id = 0;
                 // increase bucket id if and only if new bucket comes
                 bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers, kernel_string->language));
             }
 
             // This is a temporary walk-around to avoid severe performance drop.
@@ -201,11 +200,11 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             // Create new kernels batch when the limit is reached
             // and current kernel's entry_point is duplicated in this kernels batch
-            if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()
+            if (current_bucket.back().kernels_counter >= _config.get_max_kernels_per_batch()
                 || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()
                 || need_separate_batch(entry_point)) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers, kernel_string->language));
             }
 
             auto& current_batch = current_bucket.back();
@@ -235,6 +234,54 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         auto options = c.first;
         auto& batches = std::get<1>(c.second);
         for (auto& b : batches) {
+            auto find_and_remove_includes = [](const std::string& code, std::vector<std::string>& required_headers) {
+                std::regex include_regex(R"(#include\s+\"([^\"]+)\")");
+                std::string processed_kernel;
+                std::sregex_iterator it(code.begin(), code.end(), include_regex);
+                std::sregex_iterator end;
+
+                size_t last_pos = 0;
+                for (; it != end; ++it) {
+                    auto header_name = (*it)[1].str();
+                    header_name = header_name.substr(header_name.find_last_of("/") + 1);
+                    header_name = header_name.substr(0, header_name.find_last_of("."));
+                    required_headers.push_back(header_name);
+                    processed_kernel += code.substr(last_pos, it->position() - last_pos);
+                    last_pos = it->position() + it->length();
+                }
+                processed_kernel += code.substr(last_pos);
+                return processed_kernel;
+            };
+
+            auto process_batch_includes = [find_and_remove_includes](kernels_cache::batch_program& prog) {
+                std::list<std::string> sources_to_process(prog.source.begin(), prog.source.end());
+
+                prog.source.clear();
+                std::list<std::string> all_headers;
+                while (!sources_to_process.empty()) {
+                    std::vector<std::string> new_headers;
+                    auto source = sources_to_process.front();
+                    sources_to_process.pop_front();
+                    prog.source.insert(prog.source.begin(), find_and_remove_includes(source, new_headers));
+                    for (auto& header : new_headers) {
+                        if (std::find(all_headers.begin(), all_headers.end(), header) == all_headers.end()) {
+                            all_headers.push_front(header);
+                            std::string_view header_code = prog.language == kernel_language::OCLC_V2
+                                ? ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header)
+                                : ov::intel_gpu::cm::SourcesDB::get_kernel_header(header);
+                            sources_to_process.push_back(std::string(header_code) + "\n");
+                        }
+                    }
+                }
+
+                if (prog.language == kernel_language::CM) {
+                    prog.source.insert(prog.source.begin(), "#include <cm/cm.h>\n#include <cm/cmtl.h>\n");
+                }
+            };
+
+            if (b.language == kernel_language::OCLC_V2 || b.language == kernel_language::CM)
+                process_batch_includes(b);
+
             std::string full_code = options + " " + _device->get_info().driver_version;
             full_code += _device->get_info().dev_name;
             for (auto& ss : b.source)
@@ -242,16 +289,12 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             b.hash_value = std::hash<std::string>()(full_code);
 
-            std::string dump_sources_dir = "";
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
-                dump_sources_dir = debug_config->dump_sources;
-            }
+            std::string dump_sources_dir = GPU_DEBUG_VALUE_OR(_config.get_dump_sources_path(), "");
 
             // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
             // Should be used with the IGC_ShaderDump option
             if (!dump_sources_dir.empty()) {
-                std::string current_dump_file_name = dump_sources_dir;
+                std::string current_dump_file_name = std::move(dump_sources_dir);
                 if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
                     current_dump_file_name += '/';
 
@@ -300,18 +343,16 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     auto& cl_build_device = dynamic_cast<const ocl::ocl_device&>(*_device);
 
     bool dump_sources = batch.dump_custom_program;
-    std::string dump_sources_dir = "";
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
+    std::string dump_sources_dir = GPU_DEBUG_VALUE_OR(_config.get_dump_sources_path(), "");
+    GPU_DEBUG_IF(!dump_sources_dir.empty()) {
         dump_sources = true;
-        dump_sources_dir = debug_config->dump_sources;
     }
 
     std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
 
     std::string current_dump_file_name = "";
     if (dump_sources) {
-        current_dump_file_name = dump_sources_dir;
+        current_dump_file_name = std::move(dump_sources_dir);
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
@@ -379,10 +420,10 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             if (is_cache_enabled()) {
                 // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
                 // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
-                // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
+                // Bucket size can be changed by max_kernels_per_batch config option, but forcing it to 1 will lead to much longer
                 // compile time.
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(program));
+                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(std::move(program)));
             }
         } else {
             cl::Program program(cl_build_device.get_context(), {cl_build_device.get_device()}, precompiled_kernels);
@@ -602,7 +643,7 @@ std::string kernels_cache::get_cached_kernel_id(kernel::ptr kernel) const {
     auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
     const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
     auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-    cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+    cl::vector<unsigned char> program_binaries = getProgramBinaries(std::move(program));
 
     auto iter = _cached_binaries.find(program_binaries);
     OPENVINO_ASSERT(iter != _cached_binaries.end(), "[GPU] Not found cached kernel binaries");
@@ -627,7 +668,7 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
     for (auto& kernel : kernels) {
         auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
         auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-        cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+        cl::vector<unsigned char> program_binaries = getProgramBinaries(std::move(program));
 
         std::lock_guard<std::mutex> lock(_mutex);
         auto iter = _cached_binaries.find(program_binaries);
@@ -644,24 +685,55 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
 
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
     ob << _cached_binaries.size();
+
+    auto is_zebin = [](const std::vector<unsigned char>& bin) {
+        constexpr uint32_t ELF_MAGIC = 0x464C457F;
+
+        if (bin.size() < sizeof(uint32_t)) {
+            return false;
+        }
+        auto magic = reinterpret_cast<const uint32_t*>(bin.data())[0];
+        return magic == ELF_MAGIC;
+    };
+
     for (auto& cached_binary : _cached_binaries) {
+        auto is_zebin_binary = is_zebin(cached_binary.first);
+
         ob << cached_binary.second;
         ob << cached_binary.first;
+        ob << is_zebin_binary;
+        if (!is_zebin_binary) {
+            auto driver_version = downcast<ocl::ocl_device>(*_device).get_info().driver_version;
+            ob << driver_version;
+        }
     }
 }
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
     std::unordered_map<uint32_t, std::vector<unsigned char>> precompiled_kernels;
 
+    const auto& build_device = downcast<ocl::ocl_device>(*_device);
+
     size_t num_cached_binaries;
     ib >> num_cached_binaries;
     for (size_t i = 0; i < num_cached_binaries; ++i) {
+        bool is_zebin_binary = true;
+
         uint32_t id;
         ib >> id;
         ib >> precompiled_kernels[id];
-    }
+        ib >> is_zebin_binary;
+        if (!is_zebin_binary) {
+            // Legacy patchtoken path
+            std::string driver_version, current_driver_version;
+            ib >> driver_version;
+            current_driver_version = build_device.get_info().driver_version;
 
-    const auto& build_device = downcast<ocl::ocl_device>(*_device);
+            if (driver_version != current_driver_version) {
+                OPENVINO_THROW("Driver version mismatch in cached patchtoken kernels");
+            }
+        }
+    }
 
     try {
         std::lock_guard<std::mutex> lock(_mutex);

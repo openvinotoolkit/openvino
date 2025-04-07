@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
@@ -124,9 +126,16 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
     auto transpose_before_pattern =
         ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({input_2_pattern, const_transpose_before_pattern});
 
+    auto const_optional_broadcast_before_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto optional_broadcast_before_pattern = ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>(
+        {transpose_before_pattern, const_optional_broadcast_before_pattern});
+
+    auto transpose_or_transpose_broadcast = std::make_shared<ov::pass::pattern::op::Or>(
+        OutputVector{transpose_before_pattern, optional_broadcast_before_pattern});
+
     auto const_reshape_before_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reshape_before_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({transpose_before_pattern, const_reshape_before_pattern});
+    auto reshape_before_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
+        {transpose_or_transpose_broadcast, const_reshape_before_pattern});
 
     auto matmul_pattern = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({input_1_pattern, reshape_before_pattern});
 
@@ -181,8 +190,37 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
         // transposes
         if (!check_transposes(transpose_before_order, transpose_after_order, transposed_b))
             return false;
+        auto matmul_2_input = input_2;
+        // for einsum decomposition, check if broadcast exist and if so, reorder target shape based on transpose
+        if (pattern_value_map.count(optional_broadcast_before_pattern)) {
+            auto broadcast_before = ov::as_type_ptr<ov::op::v3::Broadcast>(
+                pattern_value_map.at(optional_broadcast_before_pattern).get_node_shared_ptr());
+            if (!broadcast_before) {
+                return false;
+            }
+            auto broadcast_before_constant =
+                ov::as_type_ptr<ov::op::v0::Constant>(broadcast_before->get_input_node_shared_ptr(1));
+            if (!broadcast_before_constant) {
+                return false;
+            }
+            auto broadcast_shape_after_transpose = broadcast_before_constant->cast_vector<int64_t>();
+            if (broadcast_shape_after_transpose.size() != transpose_before_order.size()) {
+                return false;
+            }
+            std::vector<int64_t> broadcast_shape_no_transpose;
+            broadcast_shape_no_transpose.reserve(broadcast_shape_after_transpose.size());
+            for (auto idx : transpose_before_order) {
+                broadcast_shape_no_transpose.push_back(broadcast_shape_after_transpose[idx]);
+            }
+            auto broadcast_shape_no_transpose_constant =
+                ov::op::v0::Constant::create(element::i64,
+                                             broadcast_before_constant->get_shape(),
+                                             broadcast_shape_no_transpose);
+            matmul_2_input = broadcast_before->clone_with_new_inputs({input_2, broadcast_shape_no_transpose_constant});
+            copy_runtime_info(broadcast_before, matmul_2_input.get_node_shared_ptr());
+        }
 
-        const auto new_matmul = std::make_shared<ov::op::v0::MatMul>(input_1, input_2, transposed_a, false);
+        const auto new_matmul = std::make_shared<ov::op::v0::MatMul>(input_1, matmul_2_input, transposed_a, false);
         new_matmul->set_friendly_name(transpose_after->get_friendly_name());
         copy_runtime_info({transpose_before, reshape_before, matmul, reshape_after, transpose_after}, new_matmul);
         replace_node(transpose_after, new_matmul);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,10 @@
 #include <random>
 #include <string>
 
-#include "openvino/core/parallel.hpp"
 #include "node.h"
+#include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Multinomial : public Node {
 public:
@@ -21,24 +19,25 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
 
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void prepareParams() override;
 
     void createPrimitive() override;
 
-    bool isExecutable() const override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
-    bool canBeInPlace() const override {
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
 protected:
-    bool needShapeInfer() const override;
+    [[nodiscard]] bool needShapeInfer() const override;
 
 private:
     /// Multinomial params
@@ -75,6 +74,4 @@ private:
     void execute_convert_type();
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

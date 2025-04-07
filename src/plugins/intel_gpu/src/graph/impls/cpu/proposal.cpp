@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "proposal_inst.h"
 #include "intel_gpu/runtime/engine.hpp"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include <algorithm>
@@ -193,7 +194,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::proposal_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<proposal_impl>(*this);
+        return std::make_unique<proposal_impl>(*this);
     }
 
     template <typename dtype>
@@ -391,9 +392,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
-            for (auto e : events) {
-                e->wait();
-            }
+            stream.wait_for_events(events);
         }
 
         im_info_t im_info;
@@ -432,16 +431,11 @@ struct proposal_impl : typed_primitive_impl<proposal> {
                 execute<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info);
             }
         }
-
         if (pass_through_events) {
-            if (events.size() > 1) {
-                return stream.group_events(events);
-            } else if (events.size() == 1) {
-                return events[0];
-            }
+            return stream.group_events(events);
         }
 
-        return stream.create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
@@ -459,7 +453,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             OPENVINO_ASSERT(one_of(count, {3, 4, 6}), arg.id(), "image_info must have either 3, 4 or 6 items");
         }
 
-        return make_unique<proposal_impl>(arg);
+        return std::make_unique<proposal_impl>(arg);
     }
 };
 

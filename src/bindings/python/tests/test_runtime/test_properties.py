@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -13,11 +13,12 @@ import openvino.properties.intel_cpu as intel_cpu
 import openvino.properties.intel_auto as intel_auto
 import openvino.properties.intel_gpu as intel_gpu
 import openvino.properties.intel_gpu.hint as intel_gpu_hint
+import openvino.properties.intel_npu as intel_npu
 import openvino.properties.device as device
 import openvino.properties.log as log
 import openvino.properties.streams as streams
 from openvino import Core, Type, OVAny
-from openvino.runtime import properties
+from openvino import properties
 
 
 ###
@@ -45,15 +46,6 @@ def test_properties_rw_base():
 @pytest.mark.parametrize(
     ("ov_enum", "expected_values"),
     [
-        (
-            props.Affinity,
-            (
-                (props.Affinity.NONE, "Affinity.NONE", -1),
-                (props.Affinity.CORE, "Affinity.CORE", 0),
-                (props.Affinity.NUMA, "Affinity.NUMA", 1),
-                (props.Affinity.HYBRID_AWARE, "Affinity.HYBRID_AWARE", 2),
-            ),
-        ),
         (
             props.CacheMode,
             (
@@ -199,6 +191,10 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
         (intel_gpu.execution_units_count, "GPU_EXECUTION_UNITS_COUNT"),
         (intel_gpu.memory_statistics, "GPU_MEMORY_STATISTICS"),
+        (intel_npu.device_alloc_mem_size, "NPU_DEVICE_ALLOC_MEM_SIZE"),
+        (intel_npu.device_total_mem_size, "NPU_DEVICE_TOTAL_MEM_SIZE"),
+        (intel_npu.driver_version, "NPU_DRIVER_VERSION"),
+        (intel_npu.compiler_version, "NPU_COMPILER_VERSION"),
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):
@@ -259,11 +255,6 @@ def test_properties_ro(ov_property_ro, expected_value):
             "COMPILATION_NUM_THREADS",
             ((44, 44),),
         ),
-        (
-            props.affinity,
-            "AFFINITY",
-            ((props.Affinity.NONE, props.Affinity.NONE),),
-        ),
         (props.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True), (False, False))),
         (props.enable_mmap, "ENABLE_MMAP", ((True, True), (False, False))),
         (
@@ -271,6 +262,18 @@ def test_properties_ro(ov_property_ro, expected_value):
             "WEIGHTS_PATH",
             (("./model.bin", "./model.bin"),),
         ),
+        (
+            props.key_cache_group_size,
+            "KEY_CACHE_GROUP_SIZE",
+            ((64, 64),),
+        ),
+        (
+            props.value_cache_group_size,
+            "VALUE_CACHE_GROUP_SIZE",
+            ((64, 64),),
+        ),
+        (props.key_cache_precision, "KEY_CACHE_PRECISION", ((Type.f32, Type.f32),)),
+        (props.value_cache_precision, "VALUE_CACHE_PRECISION", ((Type.f32, Type.f32),)),
         (hints.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (
             hints.model_priority,
@@ -419,6 +422,41 @@ def test_properties_ro(ov_property_ro, expected_value):
             "AVAILABLE_DEVICE_MEM_SIZE",
             ((128, 128),),
         ),
+        (
+            intel_npu.compilation_mode_params,
+            "NPU_COMPILATION_MODE_PARAMS",
+            (("dummy-op-replacement=true", "dummy-op-replacement=true"),),
+        ),
+        (
+            intel_npu.turbo,
+            "NPU_TURBO",
+            ((True, True),),
+        ),
+        (
+            intel_npu.tiles,
+            "NPU_TILES",
+            ((128, 128),),
+        ),
+        (
+            intel_npu.max_tiles,
+            "NPU_MAX_TILES",
+            ((128, 128),),
+        ),
+        (
+            intel_npu.bypass_umd_caching,
+            "NPU_BYPASS_UMD_CACHING",
+            ((True, True),),
+        ),
+        (
+            intel_npu.defer_weights_load,
+            "NPU_DEFER_WEIGHTS_LOAD",
+            ((True, True),),
+        ),
+        (
+            intel_npu.compiler_dynamic_quantization,
+            "NPU_COMPILER_DYNAMIC_QUANTIZATION",
+            ((True, True),),
+        ),
     ],
 )
 def test_properties_rw(ov_property_rw, expected_value, test_values):
@@ -436,6 +474,15 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
 ###
 # Special cases
 ###
+def test_compiled_blob_property():
+    assert hints.compiled_blob == "COMPILED_BLOB"
+    compiled_blob = hints.compiled_blob(ov.Tensor(Type.u8, [2, 5]))
+
+    assert compiled_blob[0] == "COMPILED_BLOB"
+    assert compiled_blob[1].value.element_type == Type.u8
+    assert compiled_blob[1].value.shape == [2, 5]
+
+
 def test_properties_device_priorities():
     assert device.priorities == "MULTI_DEVICE_PRIORITIES"
     assert device.priorities("CPU,GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
@@ -539,7 +586,6 @@ def test_single_property_setting(device):
                 props.enable_profiling(True),
                 props.cache_dir("./"),
                 props.inference_num_threads(9),
-                props.affinity(props.Affinity.NONE),
                 hints.inference_precision(Type.f32),
                 hints.performance_mode(hints.PerformanceMode.LATENCY),
                 hints.enable_cpu_pinning(True),
@@ -554,7 +600,6 @@ def test_single_property_setting(device):
             props.enable_profiling: True,
             props.cache_dir: "./",
             props.inference_num_threads: 9,
-            props.affinity: props.Affinity.NONE,
             hints.inference_precision: Type.f32,
             hints.performance_mode: hints.PerformanceMode.LATENCY,
             hints.enable_cpu_pinning: True,
@@ -568,7 +613,6 @@ def test_single_property_setting(device):
             props.enable_profiling: True,
             "CACHE_DIR": "./",
             props.inference_num_threads: 9,
-            props.affinity: "NONE",
             "INFERENCE_PRECISION_HINT": Type.f32,
             hints.performance_mode: hints.PerformanceMode.LATENCY,
             hints.scheduling_core_type: hints.SchedulingCoreType.PCORE_ONLY,
@@ -589,7 +633,6 @@ def test_core_cpu_properties(properties_to_set):
     assert core.get_property("CPU", props.enable_profiling) is True
     assert core.get_property("CPU", props.cache_dir) == "./"
     assert core.get_property("CPU", props.inference_num_threads) == 9
-    assert core.get_property("CPU", props.affinity) == props.Affinity.NONE
     assert core.get_property("CPU", streams.num) == 5
 
     # RO properties

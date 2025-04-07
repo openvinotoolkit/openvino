@@ -1,22 +1,21 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "driver_graph.hpp"
 
-#include "intel_npu/config/common.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 
 namespace intel_npu {
 
-DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeGraphExt,
+DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                          ze_graph_handle_t graphHandle,
                          NetworkMetadata metadata,
                          const Config& config,
-                         std::optional<std::vector<uint8_t>> blob)
-    : IGraph(graphHandle, std::move(metadata), std::move(blob)),
+                         std::unique_ptr<BlobContainer> blobPtr)
+    : IGraph(graphHandle, std::move(metadata), config, std::move(blobPtr)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _logger("DriverGraph", config.get<LOG_LEVEL>()) {
@@ -32,9 +31,9 @@ DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeG
     initialize(config);
 }
 
-void DriverGraph::export_blob(std::ostream& stream) const {
+size_t DriverGraph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
-    size_t blobSize = -1;
+    size_t blobSize;
     std::vector<uint8_t> blob;
 
     if (_blobIsReleased) {
@@ -47,7 +46,7 @@ void DriverGraph::export_blob(std::ostream& stream) const {
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
-        return;
+        return 0;
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -61,6 +60,7 @@ void DriverGraph::export_blob(std::ostream& stream) const {
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
+    return blobSize;
 }
 
 std::vector<ov::ProfilingInfo> DriverGraph::process_profiling_output(const std::vector<uint8_t>& profData,
@@ -98,11 +98,9 @@ void DriverGraph::initialize(const Config& config) {
     _input_descriptors.shrink_to_fit();
     _output_descriptors.shrink_to_fit();
 
-    ze_device_properties_t deviceProperties = {};
-    deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
-    auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
+    _command_queue_group_ordinal =
+        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
+                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
     bool turbo = false;
     if (config.has<TURBO>()) {
@@ -111,14 +109,14 @@ void DriverGraph::initialize(const Config& config) {
 
     _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                     zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                    groupOrdinal,
+                                                    _command_queue_group_ordinal,
                                                     turbo);
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
     }
 
-    _zeGraphExt->initializeGraph(_handle, config);
+    _zeGraphExt->initializeGraph(_handle, _command_queue_group_ordinal);
 
     _logger.debug("Graph initialize finish");
 
@@ -126,10 +124,20 @@ void DriverGraph::initialize(const Config& config) {
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
+
+    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
+        _batch_size = get_batch_size(_metadata);
+    }
+
+    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
+
+        _last_submitted_event.resize(number_of_command_lists);
+    }
 }
 
 bool DriverGraph::release_blob(const Config& config) {
-    if (_blob.empty() || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
+    if (_blobPtr == nullptr || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
         config.get<PERF_COUNT>()) {
         return false;
     }
@@ -142,8 +150,9 @@ bool DriverGraph::release_blob(const Config& config) {
         return false;
     }
 
-    _blob.clear();
-    _blob.shrink_to_fit();
+    if (!_blobPtr->release_from_memory()) {
+        return false;
+    }
 
     _logger.debug("Blob is released");
 
@@ -151,12 +160,21 @@ bool DriverGraph::release_blob(const Config& config) {
 };
 
 DriverGraph::~DriverGraph() {
+    // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_handle != nullptr) {
         auto result = _zeGraphExt->destroyGraph(_handle);
 
         if (ZE_RESULT_SUCCESS == result) {
             _handle = nullptr;
         }
+    }
+
+    if (!_last_submitted_event.empty()) {
+        _last_submitted_event.clear();
+    }
+
+    if (_command_queue != nullptr) {
+        _command_queue.reset();
     }
 }
 

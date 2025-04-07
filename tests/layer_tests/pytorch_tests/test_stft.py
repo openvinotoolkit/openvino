@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -24,16 +24,17 @@ class TestSTFT(PytorchLayerTest):
 
         return (signal, window.astype(out_dtype))
 
-    def create_model(self, n_fft, hop_length, win_length):
+    def create_model(self, n_fft, hop_length, win_length, normalized):
         import torch
 
         class aten_stft(torch.nn.Module):
 
-            def __init__(self, n_fft, hop_length, win_length):
+            def __init__(self, n_fft, hop_length, win_length, normalized):
                 super(aten_stft, self).__init__()
                 self.n_fft = n_fft
                 self.hop_length = hop_length
                 self.win_length = win_length
+                self.normalized = normalized
 
             def forward(self, x, window):
                 return torch.stft(
@@ -44,14 +45,14 @@ class TestSTFT(PytorchLayerTest):
                     window=window,
                     center=False,
                     pad_mode="reflect",
-                    normalized=False,
+                    normalized=self.normalized,
                     onesided=True,
                     return_complex=False,
                 )
 
         ref_net = None
 
-        return aten_stft(n_fft, hop_length, win_length), ref_net, "aten::stft"
+        return aten_stft(n_fft, hop_length, win_length, normalized), ref_net, "aten::stft"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -64,10 +65,11 @@ class TestSTFT(PytorchLayerTest):
         [24, 32, 20],
         [128, 128, 128],
     ])
-    def test_stft(self, n_fft, hop_length, window_size, signal_shape, ie_device, precision, ir_version, trace_model):
+    @pytest.mark.parametrize(("normalized"), [True, False])
+    def test_stft(self, n_fft, hop_length, window_size, signal_shape, normalized, ie_device, precision, ir_version, trace_model):
         if ie_device == "GPU":
             pytest.xfail(reason="STFT op is not supported on GPU yet")
-        self._test(*self.create_model(n_fft, hop_length, window_size), ie_device, precision,
+        self._test(*self.create_model(n_fft, hop_length, window_size, normalized), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={"win_length": window_size, "signal_shape": signal_shape}, trace_model=trace_model)
 
 
@@ -96,7 +98,7 @@ class TestSTFTAttrs(PytorchLayerTest):
                 self.return_complex = return_complex
 
             def forward(self, x):
-                return torch.stft(
+                stft = torch.stft(
                     x,
                     self.n_fft,
                     hop_length=self.hop_length,
@@ -108,6 +110,10 @@ class TestSTFTAttrs(PytorchLayerTest):
                     onesided=self.onesided,
                     return_complex=self.return_complex,
                 )
+                if self.return_complex:
+                    return torch.view_as_real(stft)
+                else:
+                    return stft
 
         ref_net = None
 
@@ -125,10 +131,10 @@ class TestSTFTAttrs(PytorchLayerTest):
         [16, None, 16, False, "reflect", False, True, False],  # hop_length None
         [16, None, None, False, "reflect", False, True, False],  # hop & win length None
         [16, 4, None, False, "reflect", False, True, False],  # win_length None
-        # Unsupported cases:
         [16, 4, 16, False, "reflect", True, True, False],  # normalized True
+        [16, 4, 16, False, "reflect", False, True, True],  # return_complex True
+        # Unsupported cases:
         [16, 4, 16, False, "reflect", False, False, False],  # onesided False
-        [16, 4, 16, False, "reflect", False, True, True],  # reutrn_complex True
     ])
     def test_stft_not_supported_attrs(self, n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex, ie_device, precision, ir_version, trace_model):
         if ie_device == "GPU":
@@ -138,17 +144,9 @@ class TestSTFTAttrs(PytorchLayerTest):
             pytest.xfail(
                 reason="torch stft uses list() for `center` subgrpah before aten::stft, that leads to error: No conversion rule found for operations: aten::list")
 
-        if normalized is True:
-            pytest.xfail(
-                reason="aten::stft conversion is currently supported with normalized=False only")
-
         if onesided is False:
             pytest.xfail(
                 reason="aten::stft conversion is currently supported with onesided=True only")
-
-        if return_complex is True:
-            pytest.xfail(
-                reason="aten::stft conversion is currently supported with return_complex=False only")
 
         self._test(*self.create_model_with_attrs(n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={}, trace_model=trace_model)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,10 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
+
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
+#    include <malloc.h>
+#endif
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                                    const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -47,8 +51,11 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                 }
             }
         }
-
-        std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::shared_ptr<ov::descriptor::Tensor>> tensor_map;
+        std::unordered_map<std::shared_ptr<descriptor::Tensor>,
+                           std::shared_ptr<descriptor::Tensor>,
+                           descriptor::TensorExtension::Hasher,
+                           descriptor::TensorExtension::Equal>
+            tensor_map;
         for (const auto& param : model->get_parameters()) {
             const auto& param_name = param->get_friendly_name();
             auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
@@ -57,7 +64,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                 OPENVINO_ASSERT(leaf_names.find(param_name) == leaf_names.end() ||
                                     param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
-                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                                " Please use OVC to generate new IR version, it should allow to avoid the issue");
                 leaf_names.insert(param_name);
                 param->output(0).get_tensor().add_names({param_name});
                 new_param->output(0).get_tensor().add_names({param_name});
@@ -89,12 +96,12 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                 OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
                                     result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
-                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                                " Please use OVC to generate new IR version, it should allow to avoid the issue");
                 leaf_names.insert(res_name);
                 result->output(0).get_tensor().add_names({res_name});
                 new_result->output(0).get_tensor().add_names({res_name});
             }
-            auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
+            auto r = ov::as_type_ptr<ov::op::v0::Result>(new_result);
             r->set_layout(result->get_layout());
             new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
             auto old_tensor = result->output(0).get_tensor_ptr();
@@ -150,4 +157,13 @@ void ov::ICompiledModel::set_model_shared_object(ov::Model& model, const std::sh
 
 void ov::ICompiledModel::release_memory() {
     // nothing to do
+}
+
+ov::ICompiledModel::~ICompiledModel() {
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
+    // Linux memory margent doesn't return system memory immediate after release.
+    // It depends on memory chunk size and allocation history.
+    // Try return memory from a process to system now to reduce memory usage and not wait to the end of the process.
+    malloc_trim(0);
+#endif
 }

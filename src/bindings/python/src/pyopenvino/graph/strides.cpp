@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,10 +16,17 @@
 
 namespace py = pybind11;
 
+template <typename T>
+bool compare_strides(const ov::Strides& a, const T& b) {
+    return a.size() == b.size() &&
+           std::equal(a.begin(), a.end(), b.begin(), [](const size_t& elem_a, const py::handle& elem_b) {
+               return elem_a == elem_b.cast<size_t>();
+           });
+}
+
 void regclass_graph_Strides(py::module m) {
     py::class_<ov::Strides, std::shared_ptr<ov::Strides>> strides(m, "Strides");
-    strides.doc() = "openvino.runtime.Strides wraps ov::Strides";
-    strides.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axis_strides"));
+    strides.doc() = "openvino.Strides wraps ov::Strides";
     strides.def(py::init<const std::vector<size_t>&>(), py::arg("axis_strides"));
     strides.def(py::init<const ov::Strides&>(), py::arg("axis_strides"));
 
@@ -47,6 +54,27 @@ void regclass_graph_Strides(py::module m) {
     strides.def("__len__", [](const ov::Strides& self) {
         return self.size();
     });
+
+    strides.def(
+        "__eq__",
+        [](const ov::Strides& a, const ov::Strides& b) {
+            return a == b;
+        },
+        py::is_operator());
+
+    strides.def(
+        "__eq__",
+        [](const ov::Strides& a, const py::tuple& b) {
+            return compare_strides<py::tuple>(a, b);
+        },
+        py::is_operator());
+
+    strides.def(
+        "__eq__",
+        [](const ov::Strides& a, const py::list& b) {
+            return compare_strides<py::list>(a, b);
+        },
+        py::is_operator());
 
     strides.def(
         "__iter__",

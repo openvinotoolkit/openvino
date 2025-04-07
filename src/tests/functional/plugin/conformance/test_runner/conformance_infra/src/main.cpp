@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
     }
 
     ov::test::utils::is_print_rel_influence_coef = true;
-    ov::test::utils::disable_tests_skipping = true;
+    ov::test::utils::disable_tests_skipping = false;
     ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
     ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
     ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);

@@ -63,18 +63,7 @@ In general, most throughput-oriented inference applications should:
 
 * Use the Async API with callbacks, to avoid any dependency on the completion order of the requests and possible device starvation, as explained in the :doc:`common-optimizations section <general-optimizations>`.
 
-Multi-Device Execution
-######################
-
-OpenVINO offers the automatic, scalable :doc:`multi-device inference mode <../../../documentation/legacy-features/multi-device>`, which is a simple *application-transparent* way to improve throughput. There is no need to re-architecture existing applications for any explicit multi-device support: no explicit network loading to each device, no separate per-device queues, no additional logic to balance inference requests between devices, etc. For the application using it, multi-device is like any other device, as it manages all processes internally.
-Just like with other throughput-oriented scenarios, there are several major pre-requisites for optimal multi-device performance:
-
-* Using the :ref:`Asynchronous API <async_api>` and :doc:`callbacks <../integrate-openvino-with-your-application/inference-request>` in particular.
-* Providing the multi-device (and hence the underlying devices) with enough data to crunch. As the inference requests are naturally independent data pieces, the multi-device performs load-balancing at the "requests" (outermost) level to minimize the scheduling overhead.
-
-Keep in mind that the resulting performance is usually a fraction of the "ideal" (plain sum) value, when the devices compete for certain resources such as the memory-bandwidth, which is shared between CPU and iGPU.
-
 .. note::
 
-   While the legacy approach of optimizing the parameters of each device separately works, the :doc:`Automatic Device Selection <../inference-devices-and-modes/auto-device-selection>` allow configuring all devices (that are part of the specific multi-device configuration) at once.
+   The :doc:`Automatic Device Selection <../inference-devices-and-modes/auto-device-selection>` allows configuration of all devices at once.
 

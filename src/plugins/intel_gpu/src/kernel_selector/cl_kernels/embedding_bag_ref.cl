@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,10 @@ KERNEL(embedding_bag_ref)(
         const __global INPUT1_TYPE* indices,
         const __global INPUT2_TYPE* segment_ids,
 #ifdef INPUT3_TYPE
-        const __global INPUT3_TYPE* weights,
+        const __global INPUT3_TYPE* segments_sum,
+#endif
+#ifdef INPUT4_TYPE
+        const __global INPUT4_TYPE* weights,
 #endif
         __global OUTPUT_TYPE* output)
 {
@@ -114,7 +117,7 @@ KERNEL(embedding_bag_ref)(
             uint index = indices[INPUT1_OFFSET + i];
             uint emb_index = INPUT0_GET_INDEX(index, emb_dim1, emb_dim2, emb_dim3);
             OUTPUT_TYPE val = emb_table[emb_index];
-#ifdef INPUT3_TYPE
+#ifdef INPUT4_TYPE
             {
                 uint weight_index = INPUT3_OFFSET + i;
                 val *= weights[weight_index];

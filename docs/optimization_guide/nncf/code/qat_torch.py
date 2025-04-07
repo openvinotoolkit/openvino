@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #! [quantize]
 model = TorchModel() # instance of torch.nn.Module
-model = nncf.quantize(model, ...)
+quantized_model = nncf.quantize(model, ...)
 #! [quantize]
 
 #! [tune_model]
-... # fine-tuning preparations, e.g. dataset, loss, optimizer setup, etc.
+... # fine-tuning preparations, e.g. dataset, loss, optimization setup, etc.
 
 # tune quantized model for 5 epochs as the baseline
 for epoch in range(0, 5):

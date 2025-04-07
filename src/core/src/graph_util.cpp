@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"

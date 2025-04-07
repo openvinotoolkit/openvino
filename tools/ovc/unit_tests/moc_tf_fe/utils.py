@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 
 import numpy as np
 
-from openvino.runtime import Core
+from openvino import Core
 from openvino.tools.ovc.convert import convert_model
 
 

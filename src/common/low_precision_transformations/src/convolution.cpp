@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -62,10 +62,10 @@ size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ov::Nod
     return channels.get_length();
 }
 
-bool ConvolutionTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool ConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
-    if (!canConvolutionBeTransformed(context, convolution, defaultPrecisions)) {
+    if (!canConvolutionBeTransformed(convolution, defaultPrecisions)) {
         const auto weightInput = convolution->get_input_node_shared_ptr(1);
         const auto reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(weightInput);
         FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
@@ -97,7 +97,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
     auto newFQ = std::get<1>(res_tuple);
     auto dequantize = std::get<2>(res_tuple);
     if (newFQ != nullptr && dequantize != nullptr)
-        updateOutput(context, dequantize, newFQ);
+        updateOutput(dequantize, newFQ);
 
     if (updatePrecisions && !fqOnWeightsWasDecomposed) {
         return false;
@@ -338,7 +338,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
 
     const auto finalDequantization = NetworkHelper::optimizeMultipliesAfter(newMultiplyAfter);
     ov::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
-    updateOutput(context, finalDequantization, convolution);
+    updateOutput(finalDequantization, convolution);
 
     const auto onActiviation = convolution->get_input_node_shared_ptr(0);
     if (ov::is_type<ov::opset1::Subtract>(onActiviation)) {

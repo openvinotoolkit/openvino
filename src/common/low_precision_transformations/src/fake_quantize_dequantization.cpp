@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,9 +32,6 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     subtractConstant(subtractConstant),
     multiply(multiply),
     multiplyConstant(multiplyConstant) {
-    // for most node with layout NC, NCHW, NCDWH, index of channel dimension is 1
-    channelDimIndex = 1ul;
-
     const auto rank = data.get_partial_shape().rank();
     if (rank.is_static()) {
         std::string data_src_type = data.get_node()->get_type_name();

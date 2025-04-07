@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,6 +108,7 @@
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
+#include "transformations/op_conversions/group_query_attention_decomposition.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
@@ -156,6 +157,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_DISABLED_PASS(manager, ConvertInterpolate1ToInterpolate4)
 
     auto decomp = manager.register_pass<GraphRewrite>();
+    ADD_MATCHER(decomp, GroupQueryAttentionDecomposition)
     ADD_MATCHER(decomp, ScaledDotProductAttentionDecomposition)
     ADD_MATCHER(decomp, Gelu7Downgrade)
     ADD_MATCHER(decomp, BidirectionalSequenceDecomposition)

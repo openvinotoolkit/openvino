@@ -4,7 +4,7 @@
 
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
-    #include "transformations/tpp/x64/pass/lowered/brgemm_tpp_blocking.hpp"
+    #include "transformations/tpp/common/pass/lowered/brgemm_tpp_blocking.hpp"
 #endif
 
 #include "lir_test_utils.hpp"
@@ -13,7 +13,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/tpp/x64/op/brgemm.hpp"
+#include "transformations/tpp/common/op/brgemm.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 
 namespace ov {
@@ -24,6 +24,7 @@ using namespace ov::snippets::lowered;
 using namespace ov::snippets::lowered::pass;
 using namespace ov::snippets;
 using BRGEMM_TYPE = intel_cpu::brgemm_utils::BRGEMM_TYPE;
+using PortType = LoopPort::Type;
 
 namespace {
 enum class BACKEND_TYPE{CPU, TPP};
@@ -56,28 +57,28 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
     if (k_block) {
         const auto loop_info =
             std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(k, k_blk,
-                std::vector<LoopPort>{LoopPort(brgemm_expr->get_input_port(0)),
-                                      LoopPort(brgemm_expr->get_input_port(1), true, 1)},
-                std::vector<LoopPort>{LoopPort(brgemm_expr->get_output_port(0), false)},
+                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(0), 0),
+                                      LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(1), 1)},
+                std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_output_port(0))},
                 get_k_loop_handlers(k, k_block, backend));
         linear_ir->get_loop_manager()->add_loop_info(loop_info);
     }
     if (n_block) {
         linear_ir->get_loop_manager()->add_loop_info(
             std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(n, n_blk,
-                std::vector<LoopPort>{LoopPort(brgemm_expr->get_input_port(0), false),
-                                      LoopPort(brgemm_expr->get_input_port(1))},
-                std::vector<LoopPort>{LoopPort(brgemm_expr->get_output_port(0))},
+                std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_input_port(0)),
+                                      LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(1))},
+                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0))},
                 BrgemmBlockingBase::get_default_blocking_loop_handlers(n, n_block)));
     }
     if (m_block) {
-        std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true, 1)};
+        std::vector<LoopPort> entries{LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(0), 1)};
         for (size_t i = 1; i < brgemm_expr->get_input_count(); ++i)
-            entries.emplace_back(brgemm_expr->get_input_port(i), false, 1);
+            entries.push_back(LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_input_port(i)));
         linear_ir->get_loop_manager()->add_loop_info(
             std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk,
                 entries,
-                std::vector<LoopPort>{LoopPort(brgemm_expr->get_output_port(0), true, 1)},
+                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 1)},
                 BrgemmBlockingBase::get_default_blocking_loop_handlers(m, m_block)));
     }
 }
@@ -192,6 +193,42 @@ TEST_F(BrgemmCPUBlockingTest, BlockingIsNotNeeded) {
     }
 }
 
+TEST_F(BrgemmCPUBlockingTest, WithTransposeB) {
+    const ov::Dimension::value_type m = 384;
+    const ov::Dimension::value_type k = 1024;
+    const ov::Dimension::value_type n = 384;
+    const ov::PartialShape input_shape_a{1, 16, m, k};
+    const ov::PartialShape input_shape_b{1, 16, n, k};
+    const auto precision_a = ov::element::f32;
+    const auto precision_b = ov::element::f32;
+    const std::vector<size_t> layout_input{0, 1, 3, 2};
+
+    {
+        auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision_a, input_shape_a);
+        auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision_b, input_shape_b);
+        auto copy_b = linear_ir->push_node<BrgemmCopyB>(data_b.second, precision_a, BRGEMM_TYPE::REPACKING_ONLY, 0, 0, 0, layout_input);
+        init_expr_descriptors(*copy_b.first);
+
+        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, copy_b.second, BRGEMM_TYPE::REPACKING_ONLY);
+        init_expr_descriptors(*brgemm.first);
+        auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
+    }
+    {
+        auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision_a, input_shape_a);
+        auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision_b, input_shape_b);
+        auto copy_b = linear_ir_ref->push_node<BrgemmCopyB>(data_b.second, precision_a, BRGEMM_TYPE::REPACKING_ONLY, 0, 0, 0, layout_input);
+        const auto copy_b_expr = *copy_b.first;
+        init_expr_descriptors(copy_b_expr, {{full_dim, full_dim}, {full_dim, full_dim}});
+
+        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, copy_b.second, BRGEMM_TYPE::REPACKING_ONLY);
+        const auto& brgemm_expr = *brgemm.first;
+        init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}});
+        create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, m, m_blk, k, k_blk, n, n_blk);
+        brgemm_expr->set_loop_ids({2, 1, 0});
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
+    }
+}
+
 TEST_F(BrgemmCPUBlockingTest, WithDataRepacking) {
     // Skipped because K,N blocking is disabled until heuristic is updated (ticket: 156014)
     GTEST_SKIP();
@@ -269,8 +306,8 @@ TEST_F(BrgemmCPUBlockingTest, WithCompensations) {
             loop_info->replace_with_new_ports(in_ports[1], {in_ports[1], new_port});
         };
         const auto& compens_port = brgemm_expr->get_input_port(2);
-        update_loop_info(1, {compens_port, true, 0});
-        update_loop_info(0, {compens_port, false, 1});
+        update_loop_info(1, LoopPort::create<PortType::Incremented>(compens_port, 0));
+        update_loop_info(0, LoopPort::create<PortType::NotIncremented>(compens_port, 1));
 
         brgemm_expr->set_loop_ids({2, 1, 0});
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
@@ -314,9 +351,9 @@ TEST_F(BrgemmCPUBlockingTest, AMX) {
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, get_default_subtensor(), {m_blk, n_blk}});
         create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, m, 0, k, k_blk, n, n_blk);
 
-        std::vector<LoopPort> entries {LoopPort(brgemm_expr->get_input_port(0), true, 1),
-                                       LoopPort(brgemm_expr->get_input_port(1), false, 1)};
-        std::vector<LoopPort> exits {LoopPort(brgemm_expr->get_output_port(0), true, 1)};
+        std::vector<LoopPort> entries {LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(0), 1),
+                                       LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_input_port(1))};
+        std::vector<LoopPort> exits {LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 1)};
         auto handlers = BrgemmBlockingBase::get_default_blocking_loop_handlers(m, m_blk);
         linear_ir_ref->get_loop_manager()->
             add_loop_info(std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk, entries, exits, handlers));

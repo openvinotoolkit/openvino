@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
@@ -63,7 +63,8 @@ class CommonMOConvertTest:
         core = Core()
 
         test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
-        ref_params.update({"model_name": 'model_ref', "output_dir": temp_dir})
+        ref_output_path = Path(temp_dir, 'model_ref.xml').absolute().as_posix()
+        ref_params.update({"output_model": ref_output_path})
 
         self.generate_ir_python_api(**test_params)
 

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "register.hpp"
 #include "activation_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/power.hpp"
 #include "openvino/op/tanh.hpp"
@@ -60,7 +61,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::activation_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<activation_impl>(*this);
+        return std::make_unique<activation_impl>(*this);
     }
 
     activation_impl() : parent("activation_cpu_impl") {}
@@ -143,9 +144,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
         const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
-            for (auto e : events) {
-                e->wait();
-            }
+            stream.wait_for_events(events);
         }
 
         if (!op) {
@@ -276,14 +275,10 @@ struct activation_impl : public typed_primitive_impl<activation> {
         }
 
         if (pass_through_events) {
-            if (events.size() > 1) {
-                return stream.group_events(events);
-            } else if (events.size() == 1) {
-                return events[0];
-            }
+            return stream.group_events(events);
         }
 
-        return stream.create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
@@ -292,7 +287,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const activation_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<activation_impl>();
+        return std::make_unique<activation_impl>();
     }
 };
 

@@ -33,16 +33,17 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       BUILD_DIR: ${{ github.workspace }}/build
+      CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
     steps:
       - name: Download OpenVINO artifacts (tarballs) 
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[package|tests]*
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
       - name: Download OpenVINO artifacts (wheels) 
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: openvino_[wheels]*
           path: ${{ env.INSTALL_WHEELS_DIR }}
@@ -54,6 +55,7 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "BUILD_DIR=$GITHUB_WORKSPACE/build" >> "$GITHUB_ENV"
+          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
       
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -65,13 +67,13 @@ jobs:
             pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Fetch setup_python action
-        # Python is already installed on Ubuntu within Dockerfile
-        if: runner.os != 'Linux'
+      - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
@@ -83,16 +85,14 @@ jobs:
           version: '3.11'
           should-setup-pip-paths: 'false'
 
-      - name: Configure Developer Command Prompt for Microsoft Visual C++ (2022)
+      - name: Configure Developer Command Prompt for Microsoft Visual C++
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
-          toolset: 14.40
+          toolset: 14.42 # v2022
 
       - name: Build cpp samples
         run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       - name: Build cpp samples - Clang
         if: runner.os == 'Linux'
@@ -100,18 +100,21 @@ jobs:
           apt-get update && apt-get install -y clang
           $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples_clang
         env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
           CC: clang
           CXX: clang++
 
       - name: Build c samples
         run: $INSTALL_DIR/samples/c/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/c_samples
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       #
       # Tests
       #
+
+      - name: Install OpenVINO Python wheels
+        uses: ./openvino/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino'
 
       - name: Samples tests
         if: fromJSON(inputs.affected-components).samples.test
@@ -122,7 +125,7 @@ jobs:
           export SHARE=$INSTALL_TEST_DIR/smoke_tests/samples_smoke_tests_data
 
           # Install Python benchmark_app by installing openvino-*.whl
-          python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt $INSTALL_WHEELS_DIR/openvino-*.whl
+          python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt
           export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh

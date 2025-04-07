@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <pybind11/pybind11.h>
@@ -20,6 +20,7 @@
 #include "pyopenvino/graph/node_input.hpp"
 #include "pyopenvino/graph/node_output.hpp"
 #include <pyopenvino/graph/op.hpp>
+#include <pyopenvino/graph/op_extension.hpp>
 #if defined(ENABLE_OV_ONNX_FRONTEND)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
@@ -97,22 +98,13 @@ PYBIND11_MODULE(_pyopenvino, m) {
                     "OpenVINO Runtime and Python libraries point to same release.");
 
     m.def("get_version", &get_version);
-    m.def("get_batch", &ov::get_batch);
-    m.def("set_batch", &ov::set_batch);
-    m.def(
-        "set_batch",
-        [](const std::shared_ptr<ov::Model>& model, int64_t value) {
-            ov::set_batch(model, ov::Dimension(value));
-        },
-        py::arg("model"),
-        py::arg("batch_size") = -1);
-
     m.def(
         "serialize",
-        [](std::shared_ptr<ov::Model>& model,
+        [](py::object& ie_api_model,
            const py::object& xml_path,
            const py::object& bin_path,
            const std::string& version) {
+            const auto model = Common::utils::convert_to_model(ie_api_model);
             ov::serialize(model,
                           Common::utils::convert_path_to_string(xml_path),
                           Common::utils::convert_path_to_string(bin_path),
@@ -130,7 +122,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
             when it is not related to debugging.
 
             :param model: model which will be converted to IR representation
-            :type model: openvino.runtime.Model
+            :type model: openvino.Model
             :param xml_path: path where .xml file will be saved
             :type xml_path: Union[str, bytes, pathlib.Path]
             :param bin_path: path where .bin file will be saved (optional),
@@ -173,15 +165,9 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     m.def(
         "save_model",
-        [](std::shared_ptr<ov::Model>& model,
-           const py::object& xml_path,
-           bool compress_to_fp16) {
-           if (model == nullptr) {
-               throw py::attribute_error("'model' argument is required and cannot be None.");
-           }
-            ov::save_model(model,
-                          Common::utils::convert_path_to_string(xml_path),
-                          compress_to_fp16);
+        [](py::object& ie_api_model, const py::object& xml_path, bool compress_to_fp16) {
+            const auto model = Common::utils::convert_to_model(ie_api_model);
+            ov::save_model(model, Common::utils::convert_path_to_string(xml_path), compress_to_fp16);
         },
         py::arg("model"),
         py::arg("output_model"),
@@ -189,11 +175,11 @@ PYBIND11_MODULE(_pyopenvino, m) {
         R"(
             Save model into IR files (xml and bin). Floating point weights are compressed to FP16 by default.
             This method saves a model to IR applying all necessary transformations that usually applied
-            in model conversion flow provided by mo tool. Paricularly, floatting point weights are
+            in model conversion flow provided by OVC tool. Paricularly, floatting point weights are
             compressed to FP16, debug information in model nodes are cleaned up, etc.
 
             :param model: model which will be converted to IR representation
-            :type model: openvino.runtime.Model
+            :type model: openvino.Model
             :param output_model: path to output model file
             :type output_model: Union[str, bytes, pathlib.Path]
             :param compress_to_fp16: whether to compress floating point weights to FP16 (default: True). The parameter is ignored for pre-optimized models.
@@ -218,27 +204,33 @@ PYBIND11_MODULE(_pyopenvino, m) {
                     You might want to use this function if you are developing a dynamically-loaded library which should clean up all
                     resources after itself when the library is unloaded.
                 )");
-
+    regclass_Extension(m);
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
-    regclass_graph_Symbol(m);     // Symbol must be registered before Dimension
-    regclass_graph_Dimension(m);  // Dimension must be registered before PartialShape
+    regclass_graph_Symbol(m);               // Symbol must be registered before Dimension
+    regclass_graph_Dimension(m);            // Dimension must be registered before PartialShape
     regclass_graph_Layout(m);
     regclass_graph_Shape(m);
     regclass_graph_PartialShape(m);
-    regclass_graph_Node(m);
-    regclass_graph_Op(m);
-    regclass_graph_Input(m);
-    regclass_graph_NodeFactory(m);
+    regclass_graph_OpExtension(m);
     regclass_graph_Strides(m);
     regclass_graph_CoordinateDiff(m);
     regclass_graph_AxisSet(m);
     regclass_graph_AxisVector(m);
     regclass_graph_Coordinate(m);
-    regclass_graph_descriptor_Tensor(m);
     regclass_graph_DiscreteTypeInfo(m);
     regclass_graph_AttributeVisitor(m);
+    regclass_graph_Output<ov::Node>(m, std::string(""));
+    regclass_Tensor(m);
+    regclass_graph_descriptor_Tensor(m);
+    regclass_graph_Input(m);
+    regclass_graph_Node(m);
+    regclass_graph_NodeFactory(m);
+    regclass_graph_Output<const ov::Node>(m, std::string("Const"));
+    regmodule_graph_util(m);
+    regclass_graph_Op(m);
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
+    regmodule_graph_op_util(m_op);
     regclass_graph_op_Assign(m_op);
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_PagedAttentionExtension(m_op);
@@ -252,32 +244,48 @@ PYBIND11_MODULE(_pyopenvino, m) {
 #if defined(ENABLE_OV_ONNX_FRONTEND)
     regmodule_graph_onnx_import(m);
 #endif
-    regmodule_graph_op_util(m_op);
     regmodule_experimental(m);
     py::module m_preprocess =
-        m.def_submodule("preprocess", "Package openvino.runtime.preprocess that wraps ov::preprocess");
+        m.def_submodule("preprocess", "Package openvino.preprocess that wraps ov::preprocess");
     regclass_graph_PrePostProcessor(m_preprocess);
-    regclass_graph_Model(m);
-    regmodule_graph_passes(m);
-    regmodule_graph_util(m);
-    regmodule_graph_layout_helpers(m);
     regclass_graph_Any(m);
-    regclass_graph_Output<ov::Node>(m, std::string(""));
-    regclass_graph_Output<const ov::Node>(m, std::string("Const"));
-
-    regclass_Core(m);
-    regclass_Tensor(m);
+    regclass_graph_Model(m);
+    m.def("get_batch", &ov::get_batch);
+    m.def(
+        "get_batch",
+        [](const py::object& ie_api_model) {
+            const auto model = Common::utils::convert_to_model(ie_api_model);
+            return ov::get_batch(model);
+        },
+        py::arg("model"));
+    m.def(
+        "set_batch",
+        [](const py::object& ie_api_model, ov::Dimension value) {
+            auto model = Common::utils::convert_to_model(ie_api_model);
+            ov::set_batch(model, value);
+        },
+        py::arg("model"),
+        py::arg("dimension"));
+    m.def(
+        "set_batch",
+        [](const py::object& ie_api_model, int64_t value) {
+            auto model = Common::utils::convert_to_model(ie_api_model);
+            ov::set_batch(model, ov::Dimension(value));
+        },
+        py::arg("model"),
+        py::arg("batch_size") = -1);
+    regmodule_graph_passes(m);
+    regmodule_graph_layout_helpers(m);
 
     regclass_CompiledModel(m);
-    regclass_InferRequest(m);
-    regclass_VariableState(m);
     regclass_Version(m);
-    regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
-    regclass_Extension(m);
-
-    regclass_RemoteContext(m);
+    regclass_VariableState(m);
     regclass_RemoteTensor(m);
+    regclass_InferRequest(m);
+    regclass_RemoteContext(m);
+    regclass_Core(m);
+    regclass_AsyncInferQueue(m);
     regclass_VAContext(m);
     regclass_VASurfaceTensor(m);
 
@@ -286,14 +294,14 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     // frontend
     regclass_frontend_Place(m);
+    regclass_frontend_InputModel(m);
     regclass_frontend_InitializationFailureFrontEnd(m);
     regclass_frontend_GeneralFailureFrontEnd(m);
     regclass_frontend_OpConversionFailureFrontEnd(m);
     regclass_frontend_OpValidationFailureFrontEnd(m);
     regclass_frontend_NotImplementedFailureFrontEnd(m);
-    regclass_frontend_FrontEndManager(m);
     regclass_frontend_FrontEnd(m);
-    regclass_frontend_InputModel(m);
+    regclass_frontend_FrontEndManager(m);
     regclass_frontend_NodeContext(m);
     regclass_frontend_IDecoder(m);
 

@@ -1,9 +1,9 @@
 {
   "name": "openvino-node",
-  "version": "2024.4.0",
+  "version": "2025.0.0",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "repository": {
-    "url": "https://github.com/openvinotoolkit/openvino.git",
+    "url": "git+https://github.com/openvinotoolkit/openvino.git",
     "type": "git"
   },
   "license": "Apache-2.0",
@@ -18,12 +18,12 @@
     "build": "npm run tsc",
     "prepare": "npm run build",
     "lint": "eslint .",
-    "test_setup": "node ./tests/unit/setup.js",
+    "test_setup": "node ./tests/setup.js",
     "test": "npm run test_setup && node --test ./tests/unit/*.test.js",
     "test:e2e": "mocha ./tests/e2e/electron-app.test.js",
     "tsc": "tsc",
     "postinstall": "npm run install_runtime",
-    "download_runtime": "node ./scripts/download_runtime.js",
+    "download_runtime": "node ./scripts/download-runtime.js",
     "install_runtime": "npm run download_runtime -- --ignore-if-exists"
   },
   "devDependencies": {
@@ -50,6 +50,17 @@
     "host": "https://storage.openvinotoolkit.org"
   },
   "keywords": [
-    "OpenVINO"
+    "OpenVINO",
+    "openvino",
+    "openvino-node",
+    "openvino npm",
+    "openvino binding",
+    "openvino node.js",
+    "openvino library",
+    "intel openvino",
+    "openvino toolkit",
+    "openvino API",
+    "openvino SDK",
+    "openvino integration"
   ]
 }

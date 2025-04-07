@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*Inference.*)",
-            // TODO: Issue 114262
-            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.Inference/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*eltwise_op_type=Pow.*model_type=i64.*)",
             // TODO: Issue: 68712
@@ -58,8 +56,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_MemoryTestV3.*)",
             // Issue: 90539
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
-            // Issue: 119648
-            R"(.*smoke_LPT/InterpolateTransformation.*)",
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // Issue: 111437
             R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.Inference.*)",
@@ -87,10 +83,10 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_LPT/ConcatWithNeighborsGraphTransformation.CompareWithRefImpl/f16_\[1,3,16,16\]_GPU_f32.*)",
             R"(.*smoke_LPT/ConcatWithIntermediateTransformation.CompareWithRefImpl/f16_\[1,3,16,16\]_GPU_f32.*)",
             R"(.*smoke_LPT/ConcatWithSplitTransformation.CompareWithRefImpl/f16_\[1,6,10,10\]_GPU_f32level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 2.55 \}_precision=_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 1.275 \}_precision=.*)",
-            R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f32_\[1,32,16,16\]_.*_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=__0_\[\]_\{  \}_\{  \}___f32_\{\}__\{ 4 \}_f32_\[\]_1_1_undefined.*)",
+            R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f32_\[1,32,16,16\]_.*_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=__0_\[\]_\{  \}_\{  \}___f32_\{\}__\{ 4 \}_f32_\[\]_1_1_dynamic.*)",
             R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f16_\[1,(8|32),16,16\]_.*_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=__255_\[1,1,1,1\]_\{ 0 \}_\{ 25.4 \}_\{\}.*)",
-            R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f16_\[1,(8|32),16,16\]_.*_input_low.*0.*input_high=.*255.*_output_low=.*0.*_output_high.*25.5.*_precision=__0_\[\]_\{  \}_\{  \}___f32_\{\}__\{ 4 \}_f32_\[\]_1_1_undefined.*)",
-            R"(.*smoke_LPT_3D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/(f32|f16)_\[1,32,16,16\]_GPU_f32_\[16\]_level=256_shape=\[1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=__0_\[\]_\{  \}_\{  \}___f32_\{\}__\{ 4 \}_f32_\[\]_1_1_undefined.*)",
+            R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f16_\[1,(8|32),16,16\]_.*_input_low.*0.*input_high=.*255.*_output_low=.*0.*_output_high.*25.5.*_precision=__0_\[\]_\{  \}_\{  \}___f32_\{\}__\{ 4 \}_f32_\[\]_1_1_dynamic.*)",
+            R"(.*smoke_LPT_3D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/(f32|f16)_\[1,32,16,16\]_GPU_f32_\[16\]_level=256_shape=\[1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=__0_\[\]_\{  \}_\{  \}___f32_\{\}__\{ 4 \}_f32_\[\]_1_1_dynamic.*)",
             R"(.*smoke_LPT/FakeQuantizeAndMaxPoolTransformation.CompareWithRefImpl/f16_\[1,32,72,48\]_GPU_f32.*)",
             R"(.*smoke_LPT/FakeQuantizeAndAvgPoolTransformation.CompareWithRefImpl/f16_\[1,32,72,48\]_GPU_f32.*)",
             R"(.*smoke_LPT/FuseConvertTransformation.CompareWithRefImpl/f32_\[1,4,16,16\]_GPU_f32_.*)",
@@ -160,10 +156,11 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_CTCLoss_Set2/CTCLossLayerTest.Inference/.*_LL=\(6.5.6\)_A=\(2.1.5.3.2.6\)\(3.3.3.3.3.3\)\(6.5.6.5.6.5\)_.*_BI=7_.*_CMR=1_U=1_PF=f16.*)",
             R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference/.*precision=f32.*)",
             R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference/IS=\(\[\]_\)_TS=\(\(1.2.6\)\)_input_precision=f16.*)",
+            R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference/IS=\(\[\]_\)_TS=\(\(1.2.18\)\)_input_precision=f16.*)",
             R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference_cached/IS=\(\[\?.\?.96\]_\)_TS=\(\(1.4.96\)\)_input_precision=f32.*)",
             R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference_cached/IS=\(\[\?.\?.\?\]_\)_TS=\(\(1.2.16\)\)_input_precision=f32.*)",
             R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference_cached/IS=\(\[\]_\)_TS=\(\(1.2.6\)\)_input_precision=(f16|f32).*)",
-            R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference_cached/IS=\(\[\]_\)_TS=\(\(1.2.18\)\)_input_precision=f32.*)",
+            R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference_cached/IS=\(\[\]_\)_TS=\(\(1.2.18\)\)_input_precision=(f16|f32).*)",
             R"(.*smoke_MM_Static_OneDNN/MatMulLayerGPUTest.Inference.*input_type=PARAMETER_netPRC=f16.*)",
             R"(.*smoke_Decomposition_3D/Mvn6LayerTest.Inference/.*TS=\{\(1.32.17\)\}_ModelType=f16_AxType=.*_Ax=\(0.1.2\).*)",
             R"(.*moke_Decomposition_3D/Mvn6LayerTest.Inference.*TS=\{\(1.37.9\)\}_ModelType=f16_AxType=.*_Ax=\(1\).*)",
@@ -201,6 +198,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)",
             // Issue: 142900
             R"(.*smoke_TestsROIAlign_.*ROIAlignV9LayerTest.*)",
+            // Use weight from model not from path hint
+            R"(.*compile_from_weightless_blob.*)",
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value

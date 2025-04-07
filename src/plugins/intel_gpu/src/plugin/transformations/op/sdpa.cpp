@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/reshape.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 SDPA::SDPA(const OutputVector& inputs,
            const bool is_causal,
@@ -88,7 +86,7 @@ void SDPA::validate_and_infer_types() {
                                   m_order_v,
                                   m_order_out);
 
-    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
+    auto output_type = m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);
 }
 
@@ -144,9 +142,12 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
     if (is_broadcastable) {
         size_t max_rank = shape_q_t.size();
         for (size_t i = 0; i < max_rank; ++i) {
-            if (shape_q_t[i].is_static() && shape_k_t[i].is_static() && shape_v_t[i].is_static()) {
+            if (shape_q_t[i].is_static() && shape_k_t[i].is_static()) {
                 auto broadcasted_dim = shape_q_t[i].get_length();
                 shape_k_t[i] = broadcasted_dim;
+            }
+            if (shape_q_t[i].is_static() && shape_v_t[i].is_static()) {
+                auto broadcasted_dim = shape_q_t[i].get_length();
                 shape_v_t[i] = broadcasted_dim;
             }
         }
@@ -158,7 +159,7 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
     }
 
     OPENVINO_ASSERT(op != nullptr, "op should not be nullptr for shape_infer.");
-    auto op_v13 = dynamic_cast<const ov::op::v13::ScaledDotProductAttention*>(op);
+    auto op_v13 = ov::as_type<const ov::op::v13::ScaledDotProductAttention>(op);
     OPENVINO_ASSERT(op_v13 != nullptr, "ov::op::v13::ScaledDotProductAttention*>(op) should not be nullptr.");
     auto out_shapes = ov::op::v13::shape_infer(op_v13, transposed_input_shapes);
 
@@ -169,6 +170,4 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
     }
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

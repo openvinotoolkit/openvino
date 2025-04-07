@@ -24,10 +24,11 @@ protected:
 
 TEST_F(SliceStaticShapeInferenceTest, reverse_steps_start_stop_outside_dimension_default_axes) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    const auto start = op::v0::Constant::create(element::i64, Shape{5}, std::vector<int64_t>{100, 5, -1, INT64_MAX, 5});
+    const auto start =
+        op::v0::Constant::create(element::i64, ov::Shape{5}, std::vector<int64_t>{100, 5, -1, INT64_MAX, 5});
     const auto stop =
-        op::v0::Constant::create(element::i64, Shape{5}, std::vector<int64_t>{-100, INT64_MIN, -6, 5, -10});
-    const auto steps = op::v0::Constant::create(element::i64, Shape{5}, {-1, -2, -1, -1, -2});
+        op::v0::Constant::create(element::i64, ov::Shape{5}, std::vector<int64_t>{-100, INT64_MIN, -6, 5, -10});
+    const auto steps = op::v0::Constant::create(element::i64, ov::Shape{5}, {-1, -2, -1, -1, -2});
 
     const auto op = make_op(data, start, stop, steps);
 
@@ -47,19 +48,19 @@ TEST_F(SliceStaticShapeInferenceTest, reverse_step_on_signle_axis_but_start_stop
     const auto start = std::make_shared<op::v0::Parameter>(et, PartialShape::dynamic());
     const auto stop = std::make_shared<op::v0::Parameter>(et, PartialShape::dynamic());
     const auto steps = std::make_shared<op::v0::Parameter>(et, PartialShape::dynamic());
-    const auto axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+    const auto axes = op::v0::Constant::create(element::i64, ov::Shape{1}, {-1});
 
     auto start_buff = std::vector<int64_t>{100};
     auto stop_buff = std::vector<int64_t>{2};
     auto steps_buff = std::vector<int64_t>{-2};
 
-    const auto start_tensor = ov::Tensor(element::i64, Shape{1}, static_cast<void*>(start_buff.data()));
-    const auto stop_tensor = ov::Tensor(element::i64, Shape{1}, static_cast<void*>(stop_buff.data()));
-    const auto steps_tensor = ov::Tensor(element::i64, Shape{1}, static_cast<void*>(steps_buff.data()));
+    const auto start_tensor = ov::Tensor(element::i64, ov::Shape{1}, static_cast<void*>(start_buff.data()));
+    const auto stop_tensor = ov::Tensor(element::i64, ov::Shape{1}, static_cast<void*>(stop_buff.data()));
+    const auto steps_tensor = ov::Tensor(element::i64, ov::Shape{1}, static_cast<void*>(steps_buff.data()));
 
     const auto op = make_op(data, start, stop, steps, axes);
 
-    input_shapes = ShapeVector{{3, 4, 10}, {1}, {1}, {1}, axes->get_shape()};
+    input_shapes = StaticShapeVector{{3, 4, 10}, {1}, {1}, {1}, axes->get_shape()};
 
     const std::unordered_map<size_t, ov::Tensor>& constant_data = {{1, start_tensor},
                                                                    {2, stop_tensor},
@@ -84,7 +85,7 @@ TEST_F(SliceStaticShapeInferenceTest, forward_step_all_data_in_const_map) {
     auto steps_buff = std::vector<int64_t>{1, 2, 1, 3, 4, 2, 2};
     auto axes_buff = std::vector<int64_t>{0, 1, 2, 3, 4, 5, 6};
 
-    const auto common_shape = Shape{start_buff.size()};
+    const auto common_shape = ov::Shape{start_buff.size()};
 
     const auto start_tensor = ov::Tensor(element::i64, common_shape, static_cast<void*>(start_buff.data()));
     const auto stop_tensor = ov::Tensor(element::i64, common_shape, static_cast<void*>(stop_buff.data()));

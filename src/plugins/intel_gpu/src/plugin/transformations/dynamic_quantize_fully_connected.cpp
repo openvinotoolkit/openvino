@@ -14,30 +14,16 @@
 #include "transformations/utils/utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric)
+    : ov::pass::MatcherPass() {
     using namespace ov::pass::pattern;
-
-    // per-token quantization is supported
-    if (group_size != UINT64_MAX) {
-        GPU_DEBUG_TRACE << "Dynamic quantization is disabled " << group_size << std::endl;
-        return;
-    }
-    auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
-        bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
-        size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
-        for (size_t idx = 0; idx < num_inputs; idx++) {
-            is_dynamic |= output.get_node_shared_ptr()->get_input_partial_shape(idx).is_dynamic();
-        }
-        return is_dynamic;
-    };
+    using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
 
     auto data = any_input();
-    auto fully_connected_compressed3 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input()}, is_dynamic);
-    auto fully_connected_compressed4 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input(), any_input()}, is_dynamic);
+    auto fully_connected_compressed3 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input()});
+    auto fully_connected_compressed4 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input(), any_input()});
     auto fully_connected_compressed = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected_compressed3, fully_connected_compressed4});
 
 
@@ -48,7 +34,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
 
-        auto m_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(m.get_match_root());
+        auto m_fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
         const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
@@ -64,15 +50,23 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
 
         ov::op::internal::DynamicQuantize::Attributes config;
         config.quantization_dt = element::i8;
-        config.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+        config.quantization_type = QuantizationType::Symmetric;
         config.scale_dt = element::f16;
         config.group_sizes = shape_group_size;
 
+        if (asymmetric && group_size == UINT64_MAX) {
+            config.quantization_type = QuantizationType::Asymmetric;
+            config.quantization_dt = element::u8;
+            config.zp_dt = element::u8; // it supports u8 only now
+        }
+
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);
         auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto optional_a_zp = config.quantization_type == QuantizationType::Symmetric ?
+                                std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
 
         auto output_type = m_fc->get_output_type();
-        if (output_type == ov::element::undefined)
+        if (output_type.is_dynamic())
             output_type = m_fc->get_input_element_type(0);
 
         auto new_fc = std::make_shared<op::FullyConnectedCompressed>(dyn_quan->output(0),
@@ -81,6 +75,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                                      m_fc->get_input_node_shared_ptr(3),
                                                                      optional_w_zp,
                                                                      dyn_quan->output(1),
+                                                                     optional_a_zp,
                                                                      output_type);
 
         ov::replace_node(m_fc, new_fc);
@@ -93,5 +88,4 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

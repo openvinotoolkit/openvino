@@ -185,6 +185,14 @@ static constexpr ov::Property<bool> dyn_quant{"NPUW_DQ"};
 
 /**
  * @brief
+ * Type: bool.
+ * Apply the full DQ transformation pipeline in the plugin.
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> dyn_quant_full{"NPUW_DQ_FULL"};
+
+/**
+ * @brief
  * Type: string.
  * Identify and merge parallel MatMuls over dimension(s) specified.
  * When set to YES, applies transformation for all dimensions.
@@ -225,6 +233,14 @@ static constexpr ov::Property<std::size_t> spatial_nway{"NPUW_SPATIAL_NWAY"};
  * Default value: true
  */
 static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
+
+/**
+ * @brief
+ * Type: boolean
+ * Force subgraph interconnect tensors to f16 precision if those are in f32
+ * Default value: false
+ */
+static constexpr ov::Property<bool> f16_interconnect{"NPUW_F16IC"};
 
 /**
  * @brief
@@ -279,6 +295,14 @@ static constexpr ov::Property<bool> parallel_compilation{"NPUW_PARALLEL_COMPILE"
  */
 static constexpr ov::Property<bool> funcall_async{"NPUW_FUNCALL_ASYNC"};
 
+/**
+ * @brief
+ * Type: boolean
+ * Create individual infer requests for partitiongs, even repeating.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> unfold_ireqs{"NPUW_UNFOLD_IREQS"};
+
 namespace accuracy {
 /**
  * @brief
@@ -322,9 +346,10 @@ static constexpr ov::Property<bool> full{"NPUW_DUMP_FULL"};
  * @brief
  * Type: std::string.
  * Dump the specified subgraph(s) in OpenVINO IR form in the current directory.
- * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, "NO" or just empty value to turn option off. Keyword "last" can
- * be used for dumping last subgraph without specifying it by specific index.
+ * Possible values: Comma-separated list of subgraph indices ("last" can be used
+ * for dumping last subgraph without specifying it by specific index), "YES" for
+ * all subgraphs, "MIN" for representative subgraph subset (all non-repeated and
+ * one instance of repeated block), "NO" or just empty value to turn option off.
  * E.g. "0,1" or "0,1,last" or "YES".
  * Default value: empty.
  */
@@ -334,9 +359,10 @@ static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
  * @brief
  * Type: std::string.
  * Dump subgraph on disk if a compilation failure happens.
- * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, "NO" or just empty value to turn option off. Keyword "last" can
- * be used for dumping last subgraph. E.g. "0,1" or "0,1,last" or "YES".
+ * Possible values: Comma-separated list of subgraph indices ("last" can be used
+ * for dumping last subgraph) or "YES" for all subgraphs, "MIN" for representative
+ * subgraph subset, "NO" or just empty value to turn option off. E.g. "0,1" or
+ * "0,1,last" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_FAIL"};
@@ -345,9 +371,9 @@ static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_
  * @brief
  * Type: std::string.
  * Dump input & output tensors for subgraph(s).
- * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, "NO" or just empty value to turn option off. Keyword "last" can
- * be used for last subgraph. E.g. "0,1" or "0,1,last" or "YES".
+ * Possible values: Comma-separated list of subgraph indices ("last" can be used for
+ * last subgraph) or "YES" for all subgraphs, "MIN" for representative subgraph subset,
+ * "NO" or just empty value to turn option off. E.g. "0,1" or "0,1,last" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
@@ -361,6 +387,95 @@ static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
  */
 static constexpr ov::Property<std::string> io_iters{"NPUW_DUMP_IO_ITERS"};
 }  // namespace dump
+
+namespace llm {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass dynamic stateful LLM model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_LLM"};
+
+/**
+ * @brief
+ * FIXME: Should be removed.
+ * Type: uint32_t.
+ * Dimension of the batch in input tensor shape.
+ * Default value: 0.
+ */
+static constexpr ov::Property<uint32_t> batch_dim{"NPUW_LLM_BATCH_DIM"};
+
+/**
+ * @brief
+ * FIXME: Should be removed.
+ * Type: uint32_t.
+ * Dimension of KV-Cache size in input tensor shape.
+ * Default value: 2.
+ */
+static constexpr ov::Property<uint32_t> seq_len_dim{"NPUW_LLM_SEQ_LEN_DIM"};
+
+/**
+ * @brief
+ * Type: uint32_t.
+ * Desirable max prompt length.
+ * Default value: 1024.
+ */
+static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"};
+
+/**
+ * @brief
+ * Type: uint32_t.
+ * Desirable min response length.
+ * Default value: 128.
+ */
+static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_LEN"};
+
+/**
+ * @brief
+ * FIXME: Should be removed.
+ * Type: bool.
+ * Tell NPUW to apply values transpose optimization for the model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENSORS"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Hint for prefill stage. NPUW will use optimal configuration based on the passed preference via hint.
+ * Passing this hint with "NPUW_LLM_PREFILL_CONFIG" will generate a error.
+ * Possible values: "DYNAMIC", "STATIC".
+ * Default value: "STATIC".
+ */
+static constexpr ov::Property<std::string> prefill_hint{"NPUW_LLM_PREFILL_HINT"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation of prefill model.
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> prefill_config{"NPUW_LLM_PREFILL_CONFIG"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Hint for generation stage. NPUW will use optimal configuration based on the passed preference via hint.
+ * Passing this hint with "NPUW_LLM_GENERATE_CONFIG" will generate a error.
+ * Possible values: "FAST_COMPILE", "BEST_PERF".
+ * Default value: "FAST_COMPILE".
+ */
+static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation of generate model.
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
+}  // namespace llm
 
 }  // namespace npuw
 }  // namespace intel_npu

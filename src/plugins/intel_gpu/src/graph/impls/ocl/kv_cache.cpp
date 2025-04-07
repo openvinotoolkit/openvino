@@ -68,7 +68,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::kv_cache_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<kv_cache_impl>(*this);
+        return make_deep_copy<kv_cache_impl, kernel_params_t>(*this);
     }
 
     const size_t concat_stage = 0;
@@ -200,6 +200,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             const auto& bt_layout = instance.get_impl_params()->output_layouts[1];
             auto bt_shape = bt_layout.get_shape();
             std::swap(beam_table_prev, beam_table_new);
+            instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
 
             if (!beam_table_new || beam_table_new->count() < ov::shape_size(bt_shape)) {
                 bt_shape[desc->concat_axis] += instance.get_prealloc_iter_num();
@@ -230,7 +231,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
             if (desc->get_compression_zp_inputs_num() > 0) {
                 // Copy zero points to the new buffer if needed
-                execute_stage(events, instance, res_events, scale_concat_stage, zp_concat_stage);
+                execute_stage(events, instance, res_events, zp_concat_stage, zp_concat_stage);
             }
 
             // Perform dynamic quantization of new token data and append result to the KV-cache
@@ -417,15 +418,19 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         return params;
     }
 
-    static kernel_params_t get_compression_scale_update_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+    static kernel_params_t get_compression_scale_update_kernel_params(const kernel_impl_params& impl_param,
+                                                                      bool is_scale = true,
+                                                                      bool is_shape_agnostic = false) {
         auto params = get_default_params<kernel_selector::concatenation_params>(impl_param, is_shape_agnostic);
 
         const auto concat_axis = 2;
         params.axis = convert_axis(concat_axis, impl_param.get_output_layout().get_rank());
 
-        auto inputs_count = 1;
-        auto comp_scale_past_layout = impl_param.input_layouts[3];
-        auto comp_scale_present_layout = impl_param.output_layouts[2];
+        const auto inputs_count = 1;
+        const auto input_idx = is_scale ? 3 : 4; // scale or zp
+        const auto output_idx = is_scale ? 2 : 3; // scale or zp
+        auto comp_scale_past_layout = impl_param.input_layouts[input_idx];
+        auto comp_scale_present_layout = impl_param.output_layouts[output_idx];
 
         params.inputs.resize(inputs_count);
         params.inputs[0] = convert_data_tensor(comp_scale_past_layout);
@@ -435,10 +440,10 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;
 
         std::map<size_t, size_t> in_tensor_to_offset_map = {
-            {0, in_offsets_map.at(3)}, // compression_scale_past
+            {0, in_offsets_map.at(input_idx)}, // compression_[scale/zp]_past
         };
         std::map<size_t, size_t> out_tensor_to_offset_map = {
-            {0, out_offsets_map.at(2)}, // compression_scale_present
+            {0, out_offsets_map.at(output_idx)}, // compression_[scale/zp]_present
         };
 
         params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
@@ -451,8 +456,11 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         auto concat_kernel_params = get_concat_kernel_params(impl_param, impl_param.is_dynamic());
         auto& concat_kernel_selector = kernel_selector_t::Instance();
         kernels_data.push_back(concat_kernel_selector.get_best_kernel(concat_kernel_params));
-        const bool indirect = impl_param.typed_desc<kv_cache>()->indirect;
-        const bool compressed = impl_param.typed_desc<kv_cache>()->compressed;
+
+        const auto desc = impl_param.typed_desc<kv_cache>();
+        const bool indirect = desc->indirect;
+        const bool compressed = desc->compressed;
+        const bool has_zp_input = desc->get_compression_zp_inputs_num() > 0;
         if (indirect) {
             auto bt_update_kernel_params = get_bt_update_kernel_params(impl_param, false);
             auto& bt_update_kernel_selector = bt_kernel_selector_t::Instance();
@@ -464,11 +472,16 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             auto& dq_kernel_selector = dq_kernel_selector_t::Instance();
             kernels_data.push_back(dq_kernel_selector.get_best_kernel(dq_kernel_params));
 
-            auto concat_scale_zp_kernel_params = get_compression_scale_update_kernel_params(impl_param, impl_param.is_dynamic());
             auto& concat_scale_zp_kernel_selector = kernel_selector_t::Instance();
-            kernels_data.push_back(concat_scale_zp_kernel_selector.get_best_kernel(concat_scale_zp_kernel_params));
+            auto concat_scale_kernel_params = get_compression_scale_update_kernel_params(impl_param, true, impl_param.is_dynamic());
+            kernels_data.push_back(concat_scale_zp_kernel_selector.get_best_kernel(concat_scale_kernel_params));
+
+            if (has_zp_input) {
+                auto concat_zp_kernel_params = get_compression_scale_update_kernel_params(impl_param, false, impl_param.is_dynamic());
+                kernels_data.push_back(concat_scale_zp_kernel_selector.get_best_kernel(concat_zp_kernel_params));
+            }
         }
-        return cldnn::make_unique<kv_cache_impl>(kernels_data);
+        return std::make_unique<kv_cache_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
@@ -494,9 +507,15 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             _kernels_data[concat_stage].kernels[1].skip_execution = true;
 
             // Update dynamic quantization parameters
-            auto comp_scale_kernel_params = get_compression_scale_update_kernel_params(impl_param, impl_param.is_dynamic());
+            auto comp_scale_kernel_params = get_compression_scale_update_kernel_params(impl_param, true, impl_param.is_dynamic());
             (_kernels_data[scale_concat_stage].update_dispatch_data_func)(comp_scale_kernel_params, _kernels_data[scale_concat_stage]);
             _kernels_data[scale_concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(3).count() == 0;
+
+            if (impl_param.typed_desc<kv_cache>()->get_compression_zp_inputs_num() > 0) {
+                auto comp_scale_kernel_params = get_compression_scale_update_kernel_params(impl_param, false, impl_param.is_dynamic());
+                (_kernels_data[zp_concat_stage].update_dispatch_data_func)(comp_scale_kernel_params, _kernels_data[zp_concat_stage]);
+                _kernels_data[zp_concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(4).count() == 0;
+            }
         }
     }
 };

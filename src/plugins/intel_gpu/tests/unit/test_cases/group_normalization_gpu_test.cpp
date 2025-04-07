@@ -2,10 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
+#include "program_wrapper.h"
+#include "pass_manager.h"
+
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/group_normalization.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 #include "openvino/reference/group_normalization.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 
@@ -79,7 +85,7 @@ public:
         network_->set_input_data(bias_primitive_, bias_gpu_mem);
         auto outputs = network_->execute();
         auto output = outputs.at("output").get_memory();
-        cldnn::mem_lock<float> output_gpu_mem(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_gpu_mem(output, get_test_stream());
 
         std::vector<float> reference_output(data_.size());
         ov::reference::group_normalization(data_.data(), scale_.data(), bias_.data(), reference_output.data(),
@@ -156,3 +162,81 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn({padding(), padding({0, 0, 1, 1})})));
 
 } // anonymous namespace
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(group_normalization, input_bfyx_output_fsv16) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{1, 3, 3, 2}, data_types::f32, format::bfyx };
+    auto scale_layout = layout{ ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx };
+    auto bias_layout = layout{ ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx };
+
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto scale_mem = engine.allocate_memory(scale_layout);
+    auto bias_mem = engine.allocate_memory(bias_layout);
+
+    set_values<float>(input_mem,
+               { 0.125, 0.125, 0.875, -0.125, 0.125, 0.750,
+                0.875, -0.375, -0.375, -1.000, -0.625, -1.000,
+                -0.125, -0.750, -0.250, 0.625, -0.500, -0.875 });
+    set_values(scale_mem, { 0.125f });
+    set_values(bias_mem, { 0.75f });
+
+    topology topology_g(
+        input_layout("input", in_layout),
+        input_layout("scale", scale_layout),
+        input_layout("bias", bias_layout),
+        group_normalization("group_normalization", input_info("input"), input_info("scale"), input_info("bias"), static_cast<std::int64_t>(1), 0.0025),
+        permute("output", input_info("group_normalization"), {0, 1, 2, 3})
+    );
+
+    topology topology_t(
+        input_layout("input", in_layout),
+        input_layout("scale", scale_layout),
+        input_layout("bias", bias_layout),
+        reorder("reorder1", input_info("input"), format::b_fs_yx_fsv16, data_types::f32),
+        group_normalization("group_normalization", input_info("reorder1"), input_info("scale"), input_info("bias"), static_cast<std::int64_t>(1), 0.0025),
+        reorder("reorder2", input_info("group_normalization"), format::b_fs_yx_fsv16, data_types::f32),
+        permute("output", input_info("reorder2"), {0, 1, 2, 3})
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc gn_impl = { format::bfyx, "", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"group_normalization", gn_impl}}));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network_g(engine, topology_g, config);
+    network_g.set_input_data("input", input_mem);
+    network_g.set_input_data("scale", scale_mem);
+    network_g.set_input_data("bias", bias_mem);
+
+    auto outputs_g = network_g.execute();
+    auto output_g = outputs_g.at("output").get_memory();
+    cldnn::mem_lock<float> output_mem_g(output_g, get_test_stream());
+
+    // Disable mem reuse to avoid wrong reuse due to not calculating of memory dependencies in the below model creation flow
+    config.set_property(ov::intel_gpu::enable_memory_pool(false));
+    auto program = program::build_program(engine, topology_t, config, false, true);
+    auto& reorder_node = program->get_node("reorder1");
+    std::vector<layout> layouts = {in_layout};
+    reorder_node.set_output_layouts(layouts, false);
+    program_wrapper::build(*program);
+
+    network network_t(program);
+    network_t.set_input_data("input", input_mem);
+    network_t.set_input_data("scale", scale_mem);
+    network_t.set_input_data("bias", bias_mem);
+
+    auto outputs_t = network_t.execute();
+    auto output_t = outputs_g.at("output").get_memory();
+    cldnn::mem_lock<float> output_mem_t(output_t, get_test_stream());
+
+    ASSERT_EQ(output_mem_g.size(), output_mem_t.size());
+    ASSERT_EQ(outputs_g.begin()->first, outputs_t.begin()->first);
+
+    for (std::size_t i = 0; i < output_mem_t.size(); i++) {
+        ASSERT_NEAR(output_mem_t[i], output_mem_g[i], 0.0001);
+    }
+}
+#endif // ENABLE_ONEDNN_FOR_GPU

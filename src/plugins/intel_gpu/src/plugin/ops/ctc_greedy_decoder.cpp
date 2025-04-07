@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,7 @@
 
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, bool ctc_merge_repeated) {
     validate_inputs_count(op, {2, 3});
@@ -46,7 +45,7 @@ static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_
     if (p.use_new_shape_infer()) {
         uint32_t blank_index = UINT32_MAX;
         if (reordered_inputs.size() == 3) {
-            auto blank_index_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto blank_index_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (!blank_index_node) {
                 OPENVINO_THROW("Unsupported blank_index node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
             }
@@ -70,7 +69,7 @@ static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_
     } else {
         uint32_t blank_index = static_cast<uint32_t>(op->get_input_shape(0).back() - 1);
         if (reordered_inputs.size() == 3) {
-            auto blank_index_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto blank_index_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (!blank_index_node) {
                 OPENVINO_THROW("Unsupported blank_index node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
             }
@@ -144,5 +143,4 @@ static void CreateCTCGreedyDecoderSeqLenOp(ProgramBuilder& p, const std::shared_
 REGISTER_FACTORY_IMPL(v0, CTCGreedyDecoder);
 REGISTER_FACTORY_IMPL(v6, CTCGreedyDecoderSeqLen);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

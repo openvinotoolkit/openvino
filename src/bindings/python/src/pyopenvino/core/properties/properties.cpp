@@ -1,9 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pyopenvino/core/properties/properties.hpp"
 
+#include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -13,13 +17,6 @@ namespace py = pybind11;
 void regmodule_properties(py::module m) {
     // Top submodule
     py::module m_properties = m.def_submodule("properties", "openvino.properties submodule");
-
-    // Submodule properties - enums
-    py::enum_<ov::Affinity>(m_properties, "Affinity", py::arithmetic())
-        .value("NONE", ov::Affinity::NONE)
-        .value("CORE", ov::Affinity::CORE)
-        .value("NUMA", ov::Affinity::NUMA)
-        .value("HYBRID_AWARE", ov::Affinity::HYBRID_AWARE);
 
     py::enum_<ov::WorkloadType>(m_properties, "WorkloadType", py::arithmetic())
         .value("DEFAULT", ov::WorkloadType::DEFAULT)
@@ -38,12 +35,13 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::num_streams, "num_streams");
     wrap_property_RW(m_properties, ov::inference_num_threads, "inference_num_threads");
     wrap_property_RW(m_properties, ov::compilation_num_threads, "compilation_num_threads");
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    wrap_property_RW(m_properties, ov::affinity, "affinity");
-    OPENVINO_SUPPRESS_DEPRECATED_END
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
     wrap_property_RW(m_properties, ov::enable_mmap, "enable_mmap");
     wrap_property_RW(m_properties, ov::weights_path, "weights_path");
+    wrap_property_RW(m_properties, ov::key_cache_precision, "key_cache_precision");
+    wrap_property_RW(m_properties, ov::value_cache_precision, "value_cache_precision");
+    wrap_property_RW(m_properties, ov::key_cache_group_size, "key_cache_group_size");
+    wrap_property_RW(m_properties, ov::value_cache_group_size, "value_cache_group_size");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");
@@ -102,6 +100,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::dynamic_quantization_group_size, "dynamic_quantization_group_size");
     wrap_property_RW(m_hint, ov::hint::kv_cache_precision, "kv_cache_precision");
     wrap_property_RW(m_hint, ov::hint::activations_scale_factor, "activations_scale_factor");
+    wrap_property_RW(m_hint, ov::hint::compiled_blob, "compiled_blob");
 
     // Submodule intel_cpu
     py::module m_intel_cpu =
@@ -322,4 +321,22 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_startup_fallback, "enable_startup_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::schedule_policy, "schedule_policy");
+
+    // Submodule npu
+    py::module m_intel_npu =
+        m_properties.def_submodule("intel_npu", "openvino.properties.intel_npu submodule that simulates ov::intel_npu");
+
+    wrap_property_RO(m_intel_npu, ov::intel_npu::device_alloc_mem_size, "device_alloc_mem_size");
+    wrap_property_RO(m_intel_npu, ov::intel_npu::device_total_mem_size, "device_total_mem_size");
+    wrap_property_RO(m_intel_npu, ov::intel_npu::driver_version, "driver_version");
+    wrap_property_RO(m_intel_npu, ov::intel_npu::compiler_version, "compiler_version");
+
+    wrap_property_RW(m_intel_npu, ov::intel_npu::compilation_mode_params, "compilation_mode_params");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::turbo, "turbo");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::tiles, "tiles");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::max_tiles, "max_tiles");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::bypass_umd_caching, "bypass_umd_caching");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::defer_weights_load, "defer_weights_load");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::compiler_dynamic_quantization, "compiler_dynamic_quantization");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::qdq_optimization, "qdq_optimization");
 }

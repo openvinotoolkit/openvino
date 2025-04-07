@@ -3,9 +3,11 @@ _*
 [Bb]uild*/
 cmake-build*
 
-# but ensure we don't skip __init__.py and __main__.py
+# but ensure we don't skip Python files
 !__init__.py
 !__main__.py
+!*.pyi
+
 # and sphinx documentation folders
 !docs/sphinx_setup/_*
 
@@ -60,18 +62,7 @@ coverage
 .npm
 
 # Artifacts
-/tools/mo/*.bin
-/tools/mo/*.xml
-/tools/mo/*.json
-/tools/mo/*.so
-/tools/mo/*.txt
-/tools/mo/*.pb
-/tools/mo/*.pbtxt
-/tools/mo/!CMakeLists.txt
-/tools/mo/*.mapping
-/tools/mo/*.dat
-/tools/mo/*.svg
-/src/plugins/intel_cpu/tools/commit_slider/*.json
-/src/plugins/intel_cpu/tools/commit_slider/slider_cache/*
+/tools/commit_slider/*.json
+/tools/commit_slider/slider_cache/*
 /src/plugins/intel_cpu/thirdparty/ComputeLibrary/build/*
 .github/GITHUB_OUTPUT

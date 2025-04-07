@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,6 +75,8 @@ class OPENVINO_API AttributeAdapter<op::GeluApproximationMode>
     : public EnumAttributeAdapterBase<op::GeluApproximationMode> {
 public:
     AttributeAdapter(op::GeluApproximationMode& value) : EnumAttributeAdapterBase<op::GeluApproximationMode>(value) {}
+
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::GeluApproximationMode>");
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,10 @@
 #include <CL/opencl.hpp>
 #else
 #include <CL/cl2.hpp>
+#endif
+
+#ifndef CL_HPP_PARAM_NAME_CL_INTEL_UNIFIED_SHARED_MEMORY_
+#define OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
 #endif
 
 #include <CL/cl_ext.h>
@@ -45,11 +49,15 @@ typedef cl_va_api_device_set_intel    cl_device_set_intel;
 
 #endif // cl_intel_required_subgroup_size
 
+#ifdef OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
+
 namespace cl {
 namespace detail {
-CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, vector<size_type>)
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, cl::vector<size_type>)
 }  // namespace detail
 }  // namespace cl
+
+#endif // OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
 
 /***************************************************************
 * cl_intel_command_queue_families
@@ -260,11 +268,15 @@ typedef cl_bitfield         cl_device_feature_capabilities_intel;
 
 #endif // cl_intel_device_attribute_query
 
+#ifndef CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_
 #define CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_(F) \
     F(cl_device_info, CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL, cl::vector<cl_queue_family_properties_intel>) \
     \
     F(cl_command_queue_info, CL_QUEUE_FAMILY_INTEL, cl_uint) \
     F(cl_command_queue_info, CL_QUEUE_INDEX_INTEL, cl_uint)
+#endif // CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_
+
+#ifdef OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
 
 namespace cl {
 namespace detail {
@@ -278,6 +290,8 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_FEATURE_CAPABILITIES_INTE
 CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_(CL_HPP_DECLARE_PARAM_TRAITS_)
 }  // namespace detail
 }  // namespace cl
+
+#endif // OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
 
 #include <memory>
 
@@ -914,9 +928,9 @@ private:
 class UsmMemory {
 public:
     explicit UsmMemory(const cl::UsmHelper& usmHelper) : _usmHelper(usmHelper) { }
-    UsmMemory(const cl::UsmHelper& usmHelper, void* usm_ptr)
+    UsmMemory(const cl::UsmHelper& usmHelper, void* usm_ptr, size_t offset = 0)
     : _usmHelper(usmHelper)
-    , _usm_pointer(std::make_shared<UsmHolder>(_usmHelper, usm_ptr, true)) {
+    , _usm_pointer(std::make_shared<UsmHolder>(_usmHelper, reinterpret_cast<uint8_t*>(usm_ptr) + offset, true)) {
         if (!usm_ptr) {
             throw std::runtime_error("[GPU] Can't share null usm pointer");
         }

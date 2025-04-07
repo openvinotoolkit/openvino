@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -261,6 +261,10 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_cmp_test,
          layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::is_os_zyx_isv16_osv16}, false, false},
         {layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::goiyx},
          layout{ov::PartialShape{4, 2, 3, 4, 5}, data_types::f16, format::gioyx}, false, false},
+        {layout{ov::PartialShape{4, 1, 16, 16}, data_types::f16, format::bfyx},
+         layout{ov::PartialShape{4, 1, 16, 16}, data_types::f16, format::byxf}, false, true},
+        {layout{ov::PartialShape{2, 1, 2, 4}, data_types::f16, format::bfyx, padding({0, 0, 1, 0}, {0, 0, 1, 0})},
+         layout{ov::PartialShape{2, 1, 2, 4}, data_types::f16, format::bfyx, padding({0, 1, 0, 0}, {0, 0, 0, 0})}, false, false},
     }));
 
 struct layouts_transform_test_params {

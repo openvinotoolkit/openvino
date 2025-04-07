@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,8 +39,6 @@ private:
     const network& m_network;
     const program* m_program;
     const size_t m_iter;
-
-    const debug_configuration* debug_config = cldnn ::debug_configuration ::get_instance();
 };
 
 class NetworkDebugHelper {
@@ -52,8 +50,6 @@ private:
     void dump_memory_pool(std::string dump_path, int64_t curr_iter) const;
     const network& m_network;
     const size_t m_iter;
-
-    const debug_configuration* debug_config = cldnn ::debug_configuration ::get_instance();
 };
 
 #define NETWORK_DEBUG(net) NetworkDebugHelper __network_debug_helper(net)

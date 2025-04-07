@@ -3,7 +3,7 @@
         {
             "language": "markdown",
             "source": [
-                "# Hello Object Detection\n\nA very basic introduction to using object detection models with OpenVINO™.\n\nThe [horizontal-text-detection-0001](https://docs.openvino.ai/2023.0/omz_models_model_horizontal_text_detection_0001.html) model from [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo/) is used. It detects horizontal text in images and returns a blob of data in the shape of `[100, 5]`. Each detected text box is stored in the `[x_min, y_min, x_max, y_max, conf]` format, where the\n`(x_min, y_min)` are the coordinates of the top left bounding box corner, `(x_max, y_max)` are the coordinates of the bottom right bounding box corner and `conf` is the confidence for the predicted class."
+                "# Hello Object Detection\n\nA very basic introduction to using object detection models with OpenVINO™.\n\nThe [horizontal-text-detection-0001](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/horizontal-text-detection-0001) model from [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo/) is used. It detects horizontal text in images and returns a blob of data in the shape of `[100, 5]`. Each detected text box is stored in the `[x_min, y_min, x_max, y_max, conf]` format, where the\n`(x_min, y_min)` are the coordinates of the top left bounding box corner, `(x_max, y_max)` are the coordinates of the bottom right bounding box corner and `conf` is the confidence for the predicted class."
             ],
             "outputs": []
         },

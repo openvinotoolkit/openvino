@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -218,7 +218,6 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<ov::opse
     if (multiplyConst == nullptr)
         return addAfterMultiply;
 
-    const auto x = multiply->input_value(multiplyInputBranch);
     auto a = as_type_ptr<ov::opset1::Constant>(multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0));
     auto b = as_type_ptr<ov::opset1::Constant>(addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0));
     std::shared_ptr<ov::opset1::Constant> bDivA;
@@ -263,15 +262,15 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<ov::opse
         bDivA = as_type_ptr<ov::opset1::Constant>(foldConvert(bDivA->output(0), a->get_element_type()));
     }
 
-    OutputVector inputs{ {}, {} };
-    inputs[0] = x;
-    inputs[1] = bDivA->output(0);
-
+    const auto& add_input = multiply->input_value(multiplyInputBranch);
+    // Note: precision is copied to a separate variable intentionally,
+    // since TemporaryReplaceOutputType replaces add_input's precision, whereas we need to set the original precision on newAdd's output
+    const auto add_output_precision = add_input.get_element_type();
     std::shared_ptr<ov::opset1::Add> newAdd = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
         std::vector<element::Type>{element::f32, element::f32},
-        std::vector<element::Type>{ x.get_element_type() },
-        ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+        std::vector<element::Type>{ add_output_precision },
+        ov::op::TemporaryReplaceOutputType(add_input, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(bDivA, element::f32).get());
     copyInfo(addAfterMultiply, newAdd);
 
     auto newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
@@ -623,6 +622,7 @@ std::shared_ptr<ov::Node> NetworkHelper::separateInStandaloneBranch(std::shared_
             parent = multiply->output(0);
         }
 
+        OPENVINO_ASSERT(dequantization.multiply != nullptr || dequantization.subtract != nullptr, "incorrect dequantization ops configuration");
         const auto originalParent = dequantization.multiply ?
             dequantization.multiply->shared_from_this() :
             dequantization.subtract->shared_from_this();
@@ -1368,7 +1368,7 @@ std::shared_ptr<ov::opset1::Constant> NetworkHelper::normalizeDequantizationShap
 }
 
 FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuantizeDequantization& dequantization, const element::Type& prc) {
-    const auto precision = prc == element::undefined ? dequantization.getPrecision() : prc;
+    const auto precision = prc.is_dynamic() ? dequantization.getPrecision() : prc;
     const std::shared_ptr<Node> multiplyConstant = dequantization.multiply ?
         dequantization.multiplyConstant->get_element_type() != precision ?
             foldConvert(dequantization.multiplyConstant->output(0), precision) :

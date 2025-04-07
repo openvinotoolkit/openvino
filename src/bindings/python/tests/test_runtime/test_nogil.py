@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import time
@@ -11,7 +11,7 @@ import numpy as np
 import openvino.properties as props
 
 from openvino import Core, Model, AsyncInferQueue, PartialShape, Layout, serialize
-from openvino.runtime import opset13 as ops
+from openvino import opset13 as ops
 from openvino.preprocess import PrePostProcessor
 
 from tests import skip_devtest

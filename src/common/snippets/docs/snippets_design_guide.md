@@ -630,31 +630,33 @@ Let's discuss the target-independent stage first.
 
 The `Preparation` consists of low-level target-independent transformations needed to prepare the `IR` for code generation. 
 There are currently two such transformations:
-1. `AssignRegisters` assigns abstract registers to `Expressions` based on their data dependencies. 
-The easiest way to think about the assignment logic is that a register is assigned to every `PortConnector` to ensure appropriate data propagation. 
-However, every `Expression` needs to know the assigned registers, so they are stored is the `PortDescriptors` (and could be obtained via `get_reg()`). 
-Consequently, all the ports connected to the same `PortConnector` will have the same register in their `PortDescriptors`. 
-`AssignRegisters` also supports register re-utilization, so if all `ExpressionPorts` connected to this `PortConnector` are evaluated, then the corresponding register may be reused by other `PortConnector`. 
-In other words, when all the `Expressions` that required input data in a certain register are evaluated, the register may be reused to hold another `Expression's` output. 
-`AssignRegisters` also supports two types of registers: general-purpose and vector ones. 
+1. `InitRegisters` assigns registers to `Expressions` based on their data dependencies. 
+This register assignment is organized in three steps implemented as separate passes: `InitLiveRanges`, `AssignRegisters` and `InsertRegSpills`.
+    * `InitLiveRanges` assigns an abstract register to every `PortConnector` and determines their live intervals based on data dependencies.
+Note that the assigned registers are stored in `PortDescriptors` and could be obtained via `get_reg()`.
+Similarly, the `get_live_regs()` method returns live registers for the given expression.
+    * `AssignRegisters` uses the information collected by `InitLiveRanges` to map abstract register to the physical ones.
+Physical registers that have non-overlapping live intervals will be reused.
+    * Finally, `InsertRegSpills` inserts `RegSpillBegin` and `RegSpillEnd` operations to spill (and restore) some registers to the stack and update live registers for affected expressions.
+For example, this is needed to reduce ABI call overheads if we need to call a binary inside a loop.
 Different types of registers are managed and assigned independently, and a particular register type required by an `Expression` is provided by the `ov::snippets::Generator` (or a derived generator for target-specific `Ops`).  
-2. `InsertTailLoop` injects tail-processing section after a loop body if needed. 
+2. `InsertSpecificIterations` injects initialization section before a loop body and tail-processing section after a loop body if needed. 
 Note that every loop has two parameters that specify how its body is evaluated: `work_amount` and `increment` The `work_amount` indicates how much of the data needs to be processed, it often equals to the dimension's size the loop is working on. 
 The `increment` defines how many data entries are processed on every loop iteration (it usually equals to vector size for the innermost loops of elementwise subgraph). 
 So if a loop's `work_amount` is not evenly divisible by its `increment`, it means that a tail processing is required. 
-`InsertTailLoop` duplicates the body of such a loop, rescales pointer increments and load/store masks appropriately, and injects these `Ops` immediately after the processed loop.
+`InsertSpecificIterations` duplicates the body of such a loop, rescales pointer increments and load/store masks appropriately, and injects these `Ops` immediately after the processed loop.
 3. `CleanupLoopOffsets` "fuses" the finalization offsets of loop with an outer loop's pointer increments and zeroes the offsets before `Result` operations.
 4. `OptimizeLoopSingleEvaluation` moves all pointer arithmetic to finalization offsets in `LoopEnd`, and marks the loops that will be executed only once.
 This information will be used during code emission to eliminate redundant instructions.
 
-Please see [assign_registers.cpp](../src/lowered/pass/assign_registers.cpp) and [insert_tail_loop.cpp](../src/lowered/pass/insert_tail_loop.cpp) for more info regarding the main passes in the `Preparation` stage. 
+Please see [init_registers.cpp](../src/lowered/pass/init_registers.cpp) and [insert_specific_iterations.cpp](../src/lowered/pass/insert_specific_iterations.cpp) for more info regarding the main passes in the `Preparation` stage.
 When the `Preparation` is finished, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
 
 The `TargetMachine` is a class that provides generator with target-specific information, such as supported instruction sets, vector register size etc. 
 `TargetMachine` also maps the OpenVINO's `DiscreteTypeInfo` (stored in the `Expression`) to the emitter that actually implements the operation. 
 The mapping is done using the `jitters` map defined in [target_machine.hpp](../include/snippets/target_machine.hpp). 
 In order for this mechanism to work, every `Snippets'` code generation backend should create emitter implementations derived from the `Emitter` base class defined in [emitter.hpp](../include/snippets/emitter.hpp). 
-The backend then should create its own target machine class (derived from the common `TargetMachine`) and populate the `jitters` map, see the [cpu_generator.cpp](../../../plugins/intel_cpu/src/emitters/x64/cpu_generator.cpp) for an implementation example.
+The backend then should create its own target machine class (derived from the common `TargetMachine`) and populate the `jitters` map, see the [cpu_generator.cpp](../../../plugins/intel_cpu/src/emitters/snippets/x64/cpu_generator.cpp) for an implementation example.
 
 Note that `init_emitters(...)` only initializes the appropriate emitters, but do not actually emit any code. 
 To perform code emission, a `snippets::op::Kernel` operation is constructed (see [generator.cpp](../src/generator.cpp)), its constructor takes the `IR` with all the initialized emitters as an only input argument. 
@@ -663,7 +665,7 @@ Finally, the `kernel->emit_code({}, {})` command initiates the code emission.
 Note that the `emit_code(...)` is called only for the `KernelEmitter`, and the emitter is responsible for calling the same method for the rest of the expressions in the `IR` This encapsulation is needed because the `KernelEmitter` performs mapping of the assigned abstract registers to physical registers available on a particular platform. 
 Another important function of the `KernelEmitter` is to calculate input/output data offsets based on dimension indices provided in runtime, and to shift corresponding data-handling registers accordingly. 
 Keep in mind however, that the required functionality of the `KernelEmitter` depends on how the rest of the emitters are implemented (particularly for `Load`/`Store` `Ops`). 
-We've discussed above how the emitters for the `intel_cpu` plugin are implemented (see [jit_snippets_emitters.cpp](../../../plugins/intel_cpu/src/emitters/x64/jit_snippets_emitters.cpp) for more details), but a different backend might require a different approach depending on hardware specifics.
+We've discussed above how the emitters for the `intel_cpu` plugin are implemented (see [jit_snippets_emitters.cpp](../../../plugins/intel_cpu/src/emitters/snippets/x64/jit_snippets_emitters.cpp) for more details), but a different backend might require a different approach depending on hardware specifics.
 
 ## See also
 

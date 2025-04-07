@@ -8,6 +8,9 @@
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
 #include "shared_test_classes/single_op/activation.hpp"
+#if defined(OPENVINO_ARCH_RISCV64)
+#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#endif
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;
@@ -182,6 +185,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Elu) ||
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Floor) ||
+        (activation_type == utils::ActivationTypes::Ceiling) ||
+        (activation_type == utils::ActivationTypes::Negative) ||
         (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::IsInf) ||
         (activation_type == utils::ActivationTypes::HardSigmoid) ||
@@ -196,7 +201,12 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Sqrt) ||
         (activation_type == utils::ActivationTypes::Swish) ||
         (activation_type == utils::ActivationTypes::LogicalNot) ||
-        (activation_type == utils::ActivationTypes::Tanh))) {
+        (activation_type == utils::ActivationTypes::Tanh) ||
+        (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
+        (activation_type == utils::ActivationTypes::RoundHalfToEven) ||
+        (activation_type == utils::ActivationTypes::LeakyRelu) ||
+        (activation_type == utils::ActivationTypes::PReLu) ||
+        (activation_type == utils::ActivationTypes::SoftPlus))) {
         return "jit";
     }
 
@@ -206,23 +216,37 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
     }
 #endif
     if ((activation_type == utils::ActivationTypes::Floor) ||
+       (activation_type == utils::ActivationTypes::Ceiling) ||
+       (activation_type == utils::ActivationTypes::Negative) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
-       (activation_type == utils::ActivationTypes::IsFinite)) {
+       (activation_type == utils::ActivationTypes::IsFinite) ||
+       (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
+       (activation_type == utils::ActivationTypes::RoundHalfToEven)) {
         return "ref";
     }
     return "acl";
-#elif defined(OV_CPU_WITH_SHL)
+#endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+        if ((activation_type == utils::ActivationTypes::Clamp) ||
+            (activation_type == utils::ActivationTypes::Exp) ||
+            (activation_type == utils::ActivationTypes::Negative) ||
+            (activation_type == utils::ActivationTypes::LeakyRelu) ||
+            (activation_type == utils::ActivationTypes::Relu) ||
+            (activation_type == utils::ActivationTypes::PReLu) ||
+            (activation_type == utils::ActivationTypes::Sigmoid) )
+            return "jit";
+    }
+#if defined(OV_CPU_WITH_SHL)
     if ((activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::PReLu) ||
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Clamp)) {
         return "shl";
-    } else {
-        return "ref";
     }
-#else
-    return CPUTestsBase::getPrimitiveType();
 #endif
+#endif
+    return CPUTestsBase::getPrimitiveType();
 }
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
@@ -246,15 +270,18 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Clamp,       {{-2.0f, 2.0f}}},
         {Elu,         {{0.1f}}},
         {Floor,       {{}}},
+        {Ceiling,     {{}}},
+        {Negative,    {{}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},
+        {LeakyRelu,   {{-0.01f}}},
         {GeluErf,     {{}}},
         {GeluTanh,    {{}}},
         {SoftSign,    {{}}},
         {SoftPlus,    {{}}},
         {IsFinite,    {{}}},
-        {IsNaN,    {{}}},
+        {IsNaN,       {{}}},
     };
 
     return activationTypes;
@@ -262,21 +289,26 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
 
 const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypesSnippets() {
     static const std::map<utils::ActivationTypes, std::vector<std::vector<float>>> activationTypes {
-        {Abs,         {{}}},
-        {Exp,         {{}}},
-        {Clamp,       {{-2.0f, 2.0f}}},
-        {Elu,         {{0.1f}}},
-        {Floor,       {{}}},
-        {GeluErf,     {{}}},
-        {GeluTanh,    {{}}},
-        {Relu,        {{}}},
-        {HSwish,      {{}}},
+        {Abs,                   {{}}},
+        {Exp,                   {{}}},
+        {Ceiling,               {{}}},
+        {Clamp,                 {{-2.0f, 2.0f}}},
+        {Elu,                   {{0.1f}}},
+        {Floor,                 {{}}},
+        {GeluErf,               {{}}},
+        {GeluTanh,              {{}}},
+        {Relu,                  {{}}},
+        {HSwish,                {{}}},
+        {PReLu,                 {{-0.01f}}},
+        {Sqrt,                  {{}}},
+        {RoundHalfToEven,       {{}}},
+        {RoundHalfAwayFromZero, {{}}},
 #if defined(OPENVINO_ARCH_ARM64)
-        {Mish,        {{}}},
+        {Mish,                  {{}}},
 #endif
-        {Sigmoid,     {{}}},
-        {Swish,       {{0.1f}}},
-        {Tanh,        {{}}},
+        {Sigmoid,               {{}}},
+        {Swish,                 {{0.1f}}},
+        {Tanh,                  {{}}},
     };
 
     return activationTypes;

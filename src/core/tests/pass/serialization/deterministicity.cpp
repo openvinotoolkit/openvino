@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ protected:
 
 TEST_F(SerializationDeterministicityTest, BasicModel) {
     const std::string model =
-        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"}).string());
 
     auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -89,7 +89,7 @@ TEST_F(SerializationDeterministicityTest, BasicModel) {
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
     const std::string model =
-        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"}));
+        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"}).string());
 
     auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -107,10 +107,10 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
 #endif
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
-    const std::string model =
-        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.xml"}));
-    const std::string weights =
-        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.bin"}));
+    const std::string model = ov::test::utils::getModelFromTestModelZoo(
+        ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.xml"}).string());
+    const std::string weights = ov::test::utils::getModelFromTestModelZoo(
+        ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.bin"}).string());
 
     auto expected = ov::test::readModel(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -126,10 +126,10 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
 }
 
 TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
-    const std::string model =
-        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"}));
-    const std::string weights =
-        ov::test::utils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"}));
+    const std::string model = ov::test::utils::getModelFromTestModelZoo(
+        ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"}).string());
+    const std::string weights = ov::test::utils::getModelFromTestModelZoo(
+        ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"}).string());
 
     auto expected = ov::test::readModel(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -142,6 +142,19 @@ TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
 
     ASSERT_TRUE(files_equal(xml_1, xml_2));
     ASSERT_TRUE(files_equal(bin_1, bin_2));
+}
+
+TEST_F(SerializationDeterministicityTest, ModelWithVariable) {
+    const auto model = ov::test::utils::getModelFromTestModelZoo(
+        ov::util::path_join({SERIALIZED_ZOO, "ir/dynamic_variable.xml"}).string());
+
+    auto expected = ov::test::readModel(model, "");
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
+
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::in);
+    std::ifstream xml_2(model, std::ios::in);
+
+    ASSERT_TRUE(files_equal(xml_1, xml_2));
 }
 
 class SerializationDeterministicityInputOutputTest : public testing::TestWithParam<ov::pass::Serialize::Version>,
@@ -294,6 +307,45 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromIrModel) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
     std::ifstream xml_2(m_out_xml_path_2, std::ios::in | std::ios::binary);
     EXPECT_TRUE(files_equal(xml_2, xml_1));
+}
+
+TEST_P(SerializationDeterministicityInputOutputTest, FromOvModelBybPath) {
+    auto irVersion = GetParam();
+
+    std::shared_ptr<ov::Model> modelRef;
+    {
+        auto parameter0 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        parameter0->set_friendly_name("input0");
+        auto result0 = std::make_shared<ov::opset1::Result>(parameter0);
+        result0->set_friendly_name("output0");
+        auto parameter1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        parameter1->set_friendly_name("input1");
+        auto result1 = std::make_shared<ov::opset1::Result>(parameter1);
+        result1->set_friendly_name("output1");
+        modelRef =
+            std::make_shared<ov::Model>(ov::NodeVector{result0, result1}, ov::ParameterVector{parameter0, parameter1});
+    }
+
+    auto& expected1 = modelRef;
+    const auto out_xml_path = std::filesystem::path(m_out_xml_path_1);
+    const auto out_bin_path = std::filesystem::path(m_out_bin_path_1);
+    ov::pass::Serialize(out_xml_path, out_bin_path, irVersion).run_on_model(modelRef);
+    auto expected2 = ov::test::readModel(m_out_xml_path_1, m_out_bin_path_1);
+
+    ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2, irVersion).run_on_model(expected2);
+
+    EXPECT_EQ(input0Name, expected1->input(0).get_node()->get_friendly_name());
+    EXPECT_EQ(input1Name, expected1->input(1).get_node()->get_friendly_name());
+    EXPECT_EQ(output0Name, expected1->output(0).get_node()->get_friendly_name());
+    EXPECT_EQ(output1Name, expected1->output(1).get_node()->get_friendly_name());
+    EXPECT_EQ(input0Name, expected2->input(0).get_node()->get_friendly_name());
+    EXPECT_EQ(input1Name, expected2->input(1).get_node()->get_friendly_name());
+    EXPECT_EQ(output0Name, expected2->output(0).get_node()->get_friendly_name());
+    EXPECT_EQ(output1Name, expected2->output(1).get_node()->get_friendly_name());
+
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::in | std::ios::binary);
+    std::ifstream xml_2(m_out_xml_path_2, std::ios::in | std::ios::binary);
+    EXPECT_TRUE(files_equal(xml_1, xml_2));
 }
 
 INSTANTIATE_TEST_SUITE_P(DeterministicityInputOutput,

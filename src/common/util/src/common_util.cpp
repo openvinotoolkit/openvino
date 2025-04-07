@@ -1,10 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/util/common_util.hpp"
 
 #include <algorithm>
+
+#if defined(_WIN32)
+#    include <windows.h>
+#endif
 
 std::string ov::util::to_lower(const std::string& s) {
     std::string rc = s;
@@ -60,3 +64,12 @@ std::string ov::util::filter_lines_by_prefix(const std::string& str, const std::
     }
     return res.str();
 }
+
+#if defined(_WIN32)
+bool ov::util::may_i_use_dynamic_code() {
+    HANDLE handle = GetCurrentProcess();
+    PROCESS_MITIGATION_DYNAMIC_CODE_POLICY dynamic_code_policy = {0};
+    GetProcessMitigationPolicy(handle, ProcessDynamicCodePolicy, &dynamic_code_policy, sizeof(dynamic_code_policy));
+    return dynamic_code_policy.ProhibitDynamicCode != TRUE;
+}
+#endif

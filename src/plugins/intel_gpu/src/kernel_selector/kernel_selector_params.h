@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -229,9 +229,6 @@ public:
                         uint32_t stride : 1;
                         uint32_t broadcast : 1;
                     } eltwise;
-                    struct lstm_elt_t {
-                        uint32_t cell : 1;
-                    } lstm_elt;
                     struct quantize_t {
                         uint32_t scale_shift_opt : 1;
                     } quantize;
@@ -335,7 +332,6 @@ public:
     void EnableEltwiseStride();
     void EnableEltwiseBroadcast() { key.restrict.val.dedicated.eltwise.broadcast = 1; }
 
-    void EnableLSTMEltCell() { key.restrict.val.dedicated.lstm_elt.cell = 1; }
     void EnableConcatKernelPerInput() { key.restrict.val.dedicated.concat.kernelPerInput = 1; }
     void EnableConcatOneKernel() { key.restrict.val.dedicated.concat.oneKernel = 1; }
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
@@ -385,14 +381,12 @@ struct EngineInfo {
     bool supports_intel_subgroups_short = false;
     bool supports_intel_subgroups_char = false;
     bool supports_intel_required_subgroup_size = false;
-    bool supports_local_block_io = false;
     bool supports_queue_families = false;
     bool supports_image = false;
     bool supports_imad = false;
     bool supports_immad = false;
     bool enable_sub_groups_emulation = false;
     bool bOptHintsSupport = false;
-    bool bLocalBlockIOSupport = false;
     bool supports_microkernels = false;
     uint32_t vendor_id = 0x0;
     dev_type deviceType = dev_type::integrated_gpu;

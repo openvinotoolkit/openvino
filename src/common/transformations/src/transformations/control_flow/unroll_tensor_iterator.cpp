@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
     for (const auto& op : f->get_ops()) {
         ov::op::util::process_subgraph(*this, op);
 
-        auto sub_graph_op = std::dynamic_pointer_cast<op::util::SubGraphOp>(op);
+        auto sub_graph_op = ov::as_type_ptr<op::util::SubGraphOp>(op);
         if (!sub_graph_op || transformation_callback(sub_graph_op)) {
             continue;
         }
@@ -52,8 +52,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
 
         // Port map : inputs and back edges
         for (const auto& desc : sub_graph_op->get_input_descriptions()) {
-            if (const auto& input_desc =
-                    std::dynamic_pointer_cast<ov::op::v0::TensorIterator::SliceInputDescription>(desc)) {
+            if (const auto& input_desc = ov::as_type_ptr<ov::op::v0::TensorIterator::SliceInputDescription>(desc)) {
                 // Connect the sliced input (layer before the input) to the Split layer and connect
                 // the corresponding Split output to the corresponding copy of the body.
                 // If the number of iterations is 1, then the Split is not needed.
@@ -81,7 +80,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     }
                 }
             } else if (const auto& merged_desc =
-                           std::dynamic_pointer_cast<ov::op::v0::TensorIterator::MergedInputDescription>(desc)) {
+                           ov::as_type_ptr<ov::op::v0::TensorIterator::MergedInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = sub_graph_op->input_values()[merged_desc->m_input_index];
                 const auto& param = body_functions[0]->get_parameters()[merged_desc->m_body_parameter_index];
@@ -98,7 +97,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     }
                 }
             } else if (const auto& invariant_desc =
-                           std::dynamic_pointer_cast<ov::op::v0::TensorIterator::InvariantInputDescription>(desc)) {
+                           ov::as_type_ptr<ov::op::v0::TensorIterator::InvariantInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = sub_graph_op->input_values()[invariant_desc->m_input_index];
                 for (int64_t j = 0; j < num_iter; j++) {
@@ -115,8 +114,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
 
         // Port map: outputs
         for (const auto& desc : sub_graph_op->get_output_descriptions()) {
-            if (const auto& concat_desc =
-                    std::dynamic_pointer_cast<ov::op::v0::TensorIterator::ConcatOutputDescription>(desc)) {
+            if (const auto& concat_desc = ov::as_type_ptr<ov::op::v0::TensorIterator::ConcatOutputDescription>(desc)) {
                 if (!concat_desc) {
                     return false;
                 }
@@ -155,7 +153,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     }
                 }
             } else if (const auto& output_desc =
-                           std::dynamic_pointer_cast<ov::op::v0::TensorIterator::BodyOutputDescription>(desc)) {
+                           ov::as_type_ptr<ov::op::v0::TensorIterator::BodyOutputDescription>(desc)) {
                 // Connect outputs of the bodies to the corresponding TI outputs
                 auto iter = output_desc->m_iteration;
                 iter = iter >= 0 ? iter : num_iter - 1;
