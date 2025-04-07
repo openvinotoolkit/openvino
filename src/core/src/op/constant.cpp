@@ -213,7 +213,7 @@ Constant::Constant(const Tensor& tensor)
 }
 
 Constant::Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values)
-    : Constant(false, type, shape) {
+    : Constant(type == element::string, type, shape) {  // Set memset_allocation to true for string type to fix Issue #23611
     const auto this_shape_size = shape_size(m_shape);
     const auto values_size = values.size();
     const auto has_single_value = (values_size == 1);
