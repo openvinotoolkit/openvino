@@ -25,7 +25,7 @@ OutputVector translate_log_softmax_common(const NodeContext& context, bool is_fx
     */
     num_inputs_check(context, 2, 3);
     auto input = context.get_input(0);
-    auto const dim = context.const_input<int64_t>(1);
+    const auto dim = context.const_input<int64_t>(1);
 
     if (!context.input_is_none(2) && !is_fx) {
         const auto elem_type = input.get_element_type();
