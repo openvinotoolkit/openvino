@@ -974,7 +974,6 @@ void network::allocate_primitive_instance(program_node const& node) {
         inst->set_flag(ExecutionFlags::IMPL_CHANGED);
         inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
         inst->set_flag(ExecutionFlags::MEMORY_CHANGED);
-        GPU_DEBUG_COUT << "MEMORY_CHANGED  " << node.id() << std::endl;
     }
 
 
