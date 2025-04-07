@@ -92,21 +92,16 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("MODE_LARGE_GS", static_cast<int>(DynQuanMode::LARGE_GS)));
     jit.AddConstant(MakeJitConstant("MODE_PER_TOKEN", static_cast<int>(DynQuanMode::PER_TOKEN)));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
-    if (mode == DynQuanMode::SMALL_GS) {
-    } else if (mode == DynQuanMode::LARGE_GS) {
-        size_t aligned_block_num = total_block_num;
-        size_t block_num = total_block_num;
-        jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num)); // XXX: remove me
-        jit.AddConstant(MakeJitConstant("ALIGNED_BLOCK_NUM", aligned_block_num));
-        jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
-    } else if (mode == DynQuanMode::PER_TOKEN)  {
+
+    if (mode == DynQuanMode::PER_TOKEN)  {
         size_t aligned_block_num = (total_block_num > 32) ? Align(total_block_num, 32) : total_block_num;
         size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
         jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num));
         jit.AddConstant(MakeJitConstant("ALIGNED_BLOCK_NUM", aligned_block_num));
         jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
-    } else
+    } else {
         OPENVINO_ASSERT(false);
+    }
 
     return jit;
 }
@@ -138,8 +133,9 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
 
         dispatchData.gws = {simd, block_num, batch};
         dispatchData.lws = {simd, block_num, 1};
-    } else
+    } else {
         OPENVINO_ASSERT(false);
+    }
 
     return dispatchData;
 }
