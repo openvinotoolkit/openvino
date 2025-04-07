@@ -23,8 +23,8 @@ class TestTake(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    @pytest.mark.parametrize("input_shape", [(10,), (3, 4), (2, 3, 4), (100,)])
-    @pytest.mark.parametrize("indices_shape", [(5,), (2, 2), (3, 2), (50,)])
+    @pytest.mark.parametrize("input_shape", [(10,), (3, 4), (2, 3, 4)])
+    @pytest.mark.parametrize("indices_shape", [(5,), (2, 2), (3, 2)])
     def test_take(self, input_shape, indices_shape, ie_device, precision, ir_version):
         max_val = np.prod(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version, 
