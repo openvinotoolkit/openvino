@@ -175,6 +175,13 @@ int getChannelAxis(const ov::AxisSet& axes, bool keep_dims) {
     }
     return channelAxis;
 }
+bool isSuitableGatherParent(const std::shared_ptr<const Node>& node) {
+    const bool is_suitable_node = ov::is_type_any_of<ov::op::v7::Gather, ov::op::v8::Gather>(node);
+    // has a single output, connected to a single child
+    const auto out = node->outputs();
+    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    return is_suitable_node && has_only_child;
+}
 bool isSuitableMiscParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type_any_of<ov::op::v0::MVN,
                                                      ov::op::v6::MVN,
@@ -439,6 +446,11 @@ bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node>& no
 bool isSuitableReduceChild(const std::shared_ptr<const Node>& node, const int channelAxis = DEFAULT_AXIS) {
     return isSuitableChildForFusingSimple(node, channelAxis);
 }
+bool isSuitableGatherChild(const std::shared_ptr<const Node>& node) {
+    return ov::is_type<ov::op::v0::Convert>(node) &&
+           one_of(node->get_input_element_type(0), element::f16, element::bf16) &&
+           node->get_output_element_type(0) == ov::element::f32;
+}
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
     return ov::is_type<ov::opset1::MatMul>(node) &&
            !ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(1)) &&
@@ -535,6 +547,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             const auto reduce = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(node);
             channelAxis = getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
             SetNodeFusingType(node, NodeFusingType::FusedWithReduce);
+        } else if (isSuitableGatherParent(node)) {
+            SetNodeFusingType(node, NodeFusingType::FusedWithGather);
+            channelAxis = DEFAULT_AXIS;
         } else if (isSuitableMiscParent(node)) {
             if (const auto reduce = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(node)) {
                 channelAxis = getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
@@ -565,6 +580,11 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
                 if (fusingChainType == NodeFusingType::FusedWithReduce) {
                     if (isSuitableReduceChild(node, channelAxis)) {
                         PropagateIfHasOnlyChild(node, fusingChainType);
+                    }
+                } else if (fusingChainType == NodeFusingType::FusedWithGather) {
+                    if (isSuitableGatherChild(node)) {
+                        // can fuse single real16 to f32 convert
+                        SetNodeFusingType(node, NodeFusingType::FusedTerminator);
                     }
                 } else if (isSuitableChildForFusingSimple(node, channelAxis)) {
                     PropagateIfHasOnlyChild(node, fusingChainType);

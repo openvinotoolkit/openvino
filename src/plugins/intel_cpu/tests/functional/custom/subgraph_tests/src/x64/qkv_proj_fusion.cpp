@@ -116,17 +116,16 @@ TEST_P(QKVProjFusionTest, CompareWithRefs) {
 
 namespace {
 
-// the shape size is divided by a const to reduce test time
-static ov::test::InputShape ishape_llama2_7b{ov::PartialShape{-1, -1, 4096 / 4}, {ov::Shape{1, 8, 4096 / 4}, ov::Shape{5, 7, 4096 / 4}}};
-static ov::test::InputShape ishape_qwen2_7b{ov::test::InputShape{ov::PartialShape{-1, -1, 3584 / 2}, {ov::Shape{1, 8, 3584 / 2}, ov::Shape{5, 7, 3584 / 2}}}};
+static ov::test::InputShape ishape_llama2_7b{ov::PartialShape{-1, -1, 4096}, {ov::Shape{1, 8, 4096}, ov::Shape{5, 7, 4096}}};
+static ov::test::InputShape ishape_qwen2_7b{ov::test::InputShape{ov::PartialShape{-1, -1, 3584}, {ov::Shape{1, 8, 3584}, ov::Shape{5, 7, 3584}}}};
 
 const std::vector<QKVProjFusionParams> qkv_params = {
-    // Llama-7B with reduced size
-    {ishape_llama2_7b,  4096 / 4, 4096 / 4, 4096 / 4, 4096 / 4, false},
-    {ishape_llama2_7b,  4096 / 4, 4096 / 4, 4096 / 4, 4096 / 4, true},
+    // Llama-7B
+    {ishape_llama2_7b,  4096, 4096, 4096, 4096, false},
+    {ishape_llama2_7b,  4096, 4096, 4096, 4096, true},
     // Qwen2-7B: hidden_size_per_head:128, num_attention_heads:28, num_key_value_heads:4
-    {ishape_qwen2_7b, 3584 / 2, 128 * 28 / 2, 128 * 4 / 2, 128 * 4 / 2, false},
-    {ishape_qwen2_7b, 3584 / 2, 128 * 28 / 2, 128 * 4 / 2, 128 * 4 / 2, true},
+    {ishape_qwen2_7b, 3584, 128 * 28, 128 * 4, 128 * 4, false},
+    {ishape_qwen2_7b, 3584, 128 * 28, 128 * 4, 128 * 4, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_QKVProjFusion,
