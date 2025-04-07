@@ -72,6 +72,7 @@ void parse_processor_info_win(const char* base_ptr,
     std::vector<int> cpu_init_line(CPU_MAP_TABLE_SIZE, -1);
 
     constexpr int initial_core_type = -1;
+    constexpr int group_with_1_core = 1;
     constexpr int group_with_2_cores = 2;
     constexpr int group_with_4_cores = 4;
 
@@ -120,6 +121,7 @@ void parse_processor_info_win(const char* base_ptr,
             MaskToList(info->Processor.GroupMask->Mask);
             if (num_package > 0) {
                 _sockets++;
+                l3_set.clear();
                 _proc_type_table.push_back(_proc_type_table[0]);
                 _proc_type_table[0] = proc_init_line;
             }
@@ -182,24 +184,38 @@ void parse_processor_info_win(const char* base_ptr,
         } else if ((info->Relationship == RelationCache) && (info->Cache.Level == 2)) {
             MaskToList(info->Cache.GroupMask.Mask);
 
-            if (l3_set.size() == 0 || l3_set.count(list[0])) {
+            if (list_len == group_with_1_core) {
                 if (_processors <= list[list_len - 1] + base_proc) {
                     group_start = list[0];
                     group_end = list[list_len - 1];
-                    group_type = (group_with_4_cores == list_len) ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
-                } else {
-                    group_type = (group_type == initial_core_type) ? MAIN_CORE_PROC : group_type;
+                    group_id = group;
+                    group_type = MAIN_CORE_PROC;
                 }
-                group_id = group++;
                 for (int m = 0; m < _processors - list[0]; m++) {
                     if (_cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] == initial_core_type) {
-                        _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = group_type;
-                        _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group_id;
-                        _proc_type_table[0][group_type]++;
+                        _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                        _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group++;
+                        _proc_type_table[0][MAIN_CORE_PROC]++;
                     }
                 }
-            } else {
-                if (initial_core_type == _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE]) {
+            } else if (initial_core_type == _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE]) {
+                if (l3_set.size() == 0 || l3_set.count(list[0])) {
+                    if (_processors <= list[list_len - 1] + base_proc) {
+                        group_start = list[0];
+                        group_end = list[list_len - 1];
+                        group_type = (group_with_4_cores == list_len) ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
+                    } else {
+                        group_type = (group_type == initial_core_type) ? MAIN_CORE_PROC : group_type;
+                    }
+                    group_id = group++;
+                    for (int m = 0; m < _processors - list[0]; m++) {
+                        if (_cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] == initial_core_type) {
+                            _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = group_type;
+                            _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group_id;
+                            _proc_type_table[0][group_type]++;
+                        }
+                    }
+                } else {
                     if (_processors <= list[list_len - 1] + base_proc) {
                         group_start = list[0];
                         group_end = list[list_len - 1];
@@ -221,7 +237,6 @@ void parse_processor_info_win(const char* base_ptr,
             }
         } else if ((info->Relationship == RelationCache) && (info->Cache.Level == 3)) {
             MaskToList(info->Cache.GroupMask.Mask);
-            l3_set.clear();
             l3_set.insert(list.begin(), list.end());
         }
     }
