@@ -7,6 +7,7 @@
 import os
 import sys
 import filecmp
+import difflib
 from typing import List, Set
 
 
@@ -47,7 +48,17 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
         committed_file: str = os.path.join(committed_dir, relative_path)
         print(f"[Debug] Comparing: {generated_file} with {committed_file}")
         if not filecmp.cmp(generated_file, committed_file, shallow=False):
-            print(f"Error: Stub files differ: {relative_path}")
+            print(f"Error: Stub file is outdated: {relative_path}")
+            with open(generated_file, 'r') as gen_file, open(committed_file, 'r') as com_file:
+                gen_lines = gen_file.readlines()
+                com_lines = com_file.readlines()
+                diff = difflib.unified_diff(
+                    gen_lines, com_lines,
+                    fromfile=f"Generated: {relative_path}",
+                    tofile=f"Committed: {relative_path}",
+                    lineterm=''
+                )
+                print("".join(diff))
             sys.exit(1)
 
     print("All .pyi files match.")
