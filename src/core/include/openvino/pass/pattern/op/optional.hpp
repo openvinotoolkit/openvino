@@ -83,9 +83,7 @@ void collect_type_info(std::vector<DiscreteTypeInfo>& type_info_vec) {
 }
 
 template <class... NodeTypes, typename TPredicate = std::nullptr_t>
-std::shared_ptr<Node> optional(const OutputVector& inputs,
-                               TPredicate pred = nullptr,
-                               const Attributes& attrs = {}) {
+std::shared_ptr<Node> optional(const OutputVector& inputs, TPredicate pred = nullptr, const Attributes& attrs = {}) {
     std::vector<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
     return std::make_shared<op::Optional>(
@@ -95,10 +93,8 @@ std::shared_ptr<Node> optional(const OutputVector& inputs,
 }
 
 template <class... NodeTypes, typename TPredicate = std::nullptr_t>
-std::shared_ptr<Node> optional(const Output<Node>& input,
-                               TPredicate pred = nullptr,
-                               const Attributes& attrs = {}) {
-    return optional<NodeTypes...>(OutputVector{input}, op::Predicate(pred), attrs);
+std::shared_ptr<Node> optional(const Output<Node>& input, TPredicate pred = nullptr, const Attributes& attrs = {}) {
+    return optional<NodeTypes...>(OutputVector{input}, pred, attrs);
 }
 
 template <class... NodeTypes,
