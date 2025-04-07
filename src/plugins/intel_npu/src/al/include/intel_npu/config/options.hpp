@@ -1301,7 +1301,7 @@ struct QDQ_OPTIMIZATION final : OptionBase<QDQ_OPTIMIZATION, bool> {
     }
 
     static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 5);
+        return ONEAPI_MAKE_VERSION(7, 20);
     }
 };
 
