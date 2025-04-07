@@ -403,7 +403,7 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
             ov::as_type_ptr<ov::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize0).get_node_shared_ptr());
         if (fq0_node) {
             fq0_scale = simplifyToScale(fq0_node);
-            if (!fq0_scale.size()) {
+            if (fq0_scale.empty()) {
                 return false;
             }
         }
@@ -453,7 +453,7 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
             ov::as_type_ptr<ov::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize1).get_node_shared_ptr());
         if (fq1_node) {
             fq1_scale = simplifyToScale(fq1_node);
-            if (!fq1_scale.size()) {
+            if (fq1_scale.empty()) {
                 return false;
             }
         } else {
@@ -472,7 +472,7 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
         if (auto fq_node =
                 ov::as_type_ptr<ov::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize2).get_node_shared_ptr())) {
             fq2_scale = simplifyToScale(fq_node);
-            if (!fq2_scale.size()) {
+            if (fq2_scale.empty()) {
                 return false;
             }
         }
@@ -623,7 +623,7 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
             ov::as_type_ptr<ov::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize0).get_node_shared_ptr());
         if (fq0_node) {
             fq0_scale = simplifyToScale(fq0_node);
-            if (!fq0_scale.size()) {
+            if (fq0_scale.empty()) {
                 return false;
             }
         } else {
@@ -644,7 +644,7 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
             if (auto fq_node = ov::as_type_ptr<ov::opset1::FakeQuantize>(
                     pattern_to_output.at(fakeQuantize1).get_node_shared_ptr())) {
                 fq1_scale = simplifyToScale(fq_node);
-                if (!fq1_scale.size()) {
+                if (fq1_scale.empty()) {
                     return false;
                 }
             }

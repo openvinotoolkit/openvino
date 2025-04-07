@@ -30,15 +30,6 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)
 endif()
 
-if(OV_COMPILER_IS_CLANG)
-    # -Wno-delete-non-abstract-non-virtual-dtor is support > clang 9.0
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
-        ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
-    else()
-        ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
-    endif()
-endif()
-
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # 4267 4244 conversion from 'XXX' to 'YYY', possible loss of data
     ov_add_compiler_flags(/wd4244)
