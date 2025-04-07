@@ -16,7 +16,7 @@
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
 
-#if QUANTIZE_GROUP_SIZE <= 128
+#if QUANTIZE_GROUP_SIZE <= 256
 
 #if ASYMMETRIC_QUANTIZATION
 #error "UNIMPLMENTED: asymmetric quantization when group size is small"

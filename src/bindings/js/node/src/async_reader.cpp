@@ -22,7 +22,7 @@ void ReaderWorker::OnOK() {
     _deferred.Resolve(model);
 }
 
-void ReaderWorker::OnError(Napi::Error const& error) {
+void ReaderWorker::OnError(const Napi::Error& error) {
     _deferred.Reject(error.Value());
 }
 

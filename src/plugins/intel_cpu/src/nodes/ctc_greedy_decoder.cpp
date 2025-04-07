@@ -71,7 +71,7 @@ void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void CTCGreedyDecoder::execute(const dnnl::stream& strm) {
+void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
     const auto* sequenceMask = getSrcDataAtPortAs<const float>(SEQUENCE_LENGTH_INDEX);
     auto* outputSequences = getDstDataAtPortAs<float>(0);

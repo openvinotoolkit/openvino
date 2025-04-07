@@ -5,19 +5,12 @@
 
 #    include "debug_caps_config.hpp"
 
+#    include "openvino/util/env_util.hpp"
+
 namespace ov::intel_cpu {
 
 void SnippetsDebugCapsConfig::readProperties() {
-    auto readEnv = [](const char* envVar) {
-        const char* env = std::getenv(envVar);
-        if (env && *env) {
-            return env;
-        }
-
-        return static_cast<const char*>(nullptr);
-    };
-
-    enable_segfault_detector = readEnv("OV_CPU_SNIPPETS_SEGFAULT_DETECTOR") ? true : false;
+    enable_segfault_detector = ov::util::getenv_bool("OV_CPU_SNIPPETS_SEGFAULT_DETECTOR");
 }
 
 }  // namespace ov::intel_cpu
