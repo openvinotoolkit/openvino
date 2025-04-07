@@ -969,9 +969,14 @@ void network::allocate_primitive_instance(program_node const& node) {
     if (inst->is_dynamic()) {
         _is_dynamic = true;
     }
-    inst->set_flag(ExecutionFlags::IMPL_CHANGED);
-    inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
-    inst->set_flag(ExecutionFlags::MEMORY_CHANGED);
+
+    if (!node.is_type<data>()) {
+        inst->set_flag(ExecutionFlags::IMPL_CHANGED);
+        inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
+        inst->set_flag(ExecutionFlags::MEMORY_CHANGED);
+        GPU_DEBUG_COUT << "MEMORY_CHANGED  " << node.id() << std::endl;
+    }
+
 
     _primitives[node.id()] = inst;
     if (node.is_type<input_layout>()) {
