@@ -103,12 +103,11 @@ if [ -z "$1" ]; then
     changed_files=$(git diff --name-only | grep '\.pyi$')
 else
     changed_files=$(find "$output_dir" -type f -name '*.pyi')
-    echo "Debug: Changed files detected:"
-    echo "$changed_files"
 fi
 
 # Process each changed .pyi file
 for file in $changed_files; do
+    echo "Sanitizing file: $file"
     sed -i 's/<function _get_node_factory at 0x[0-9a-fA-F]\+>/<function _get_node_factory at memory_address>/' "$file"
     sed -i "s/__version__: str = '[^']*'/__version__: str = 'version_string'/" "$file"
     sed -i 's/<function <lambda> at 0x[0-9a-fA-F]\{1,\}>/<function <lambda> at memory_address>/g' "$file"

@@ -44,13 +44,12 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
         print(f"Error: DEBUGOne or more extra .pyi files are present in the PR: {committed_files - generated_files}")
         sys.exit(1)
 
-    # Assert that the files are identical
+    outdated_files = []
     for relative_path in generated_files:
         generated_file: str = os.path.join(generated_dir, relative_path)
         committed_file: str = os.path.join(committed_dir, relative_path)
         print(f"[Debug] Comparing: {generated_file} with {committed_file}")
         if not filecmp.cmp(generated_file, committed_file, shallow=False):
-            print(f"Error: Stub file is outdated: {relative_path}")
             with open(generated_file, 'r') as gen_file, open(committed_file, 'r') as com_file:
                 gen_lines = gen_file.readlines()
                 com_lines = com_file.readlines()
@@ -60,8 +59,15 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
                     tofile=f"Committed: {relative_path}",
                     lineterm=''
                 )
-                print("".join(diff))
-            sys.exit(1)
+                outdated_files.append((relative_path, "".join(diff)))
+
+    # Display all outdated files and their diffs
+    if outdated_files:
+        print("Error: The following stub files are outdated:")
+        for relative_path, diff in outdated_files:
+            print(f"\nOutdated file: {relative_path}")
+            print(diff)
+        sys.exit(1)
 
     print("All .pyi files match.")
     sys.exit(0)
