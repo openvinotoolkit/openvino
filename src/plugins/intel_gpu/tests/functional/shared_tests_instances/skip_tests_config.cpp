@@ -9,7 +9,7 @@
 #include "openvino/core/core.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 
-
+namespace {
 bool isGPU1Present() {
     std::string target_device{"GPU"};
     std::string deviceID{"1"};
@@ -20,6 +20,7 @@ bool isGPU1Present() {
     }
     return true;
 }
+} // namespace
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> returnVal = {
