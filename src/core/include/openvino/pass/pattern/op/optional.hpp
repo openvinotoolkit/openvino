@@ -51,10 +51,10 @@ public:
     /// \param type_infos Optional operation types to exclude them from the matching
     /// in case the following op types do not exist in a pattern to match.
     /// \param patterns The pattern to match a graph.
-    template <typename TPredicate = nullptr_t>
+    template <typename TPredicate = std::nullptr_t>
     Optional(const std::vector<DiscreteTypeInfo>& type_infos,
              const OutputVector& inputs = {},
-             const TPredicate& pred = nullptr)
+             TPredicate pred = nullptr)
         : Pattern(inputs, Predicate(pred)),
           optional_types(type_infos){};
 
@@ -82,9 +82,9 @@ void collect_type_info(std::vector<DiscreteTypeInfo>& type_info_vec) {
     collect_type_info<NodeTypeArgs...>(type_info_vec);
 }
 
-template <class... NodeTypes, typename TPredicate = nullptr_t>
+template <class... NodeTypes, typename TPredicate = std::nullptr_t>
 std::shared_ptr<Node> optional(const OutputVector& inputs,
-                               const TPredicate& pred = nullptr,
+                               TPredicate pred = nullptr,
                                const Attributes& attrs = {}) {
     std::vector<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
@@ -94,9 +94,9 @@ std::shared_ptr<Node> optional(const OutputVector& inputs,
         attrs.empty() ? op::Predicate(pred) : attrs_match(attrs) && op::Predicate(pred));
 }
 
-template <class... NodeTypes, typename TPredicate = nullptr_t>
+template <class... NodeTypes, typename TPredicate = std::nullptr_t>
 std::shared_ptr<Node> optional(const Output<Node>& input,
-                               const TPredicate& pred = nullptr,
+                               TPredicate pred = nullptr,
                                const Attributes& attrs = {}) {
     return optional<NodeTypes...>(OutputVector{input}, op::Predicate(pred), attrs);
 }

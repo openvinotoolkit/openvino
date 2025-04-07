@@ -63,9 +63,9 @@ void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
     collect_wrap_info<Targs...>(info);
 }
 
-template <class... Args, typename TPredicate = nullptr_t>
+template <class... Args, typename TPredicate = std::nullptr_t>
 std::shared_ptr<Node> wrap_type(const OutputVector& inputs = {},
-                                const TPredicate& pred = nullptr,
+                                TPredicate pred = nullptr,
                                 const Attributes& attrs = {}) {
     std::vector<DiscreteTypeInfo> info;
     collect_wrap_info<Args...>(info);
