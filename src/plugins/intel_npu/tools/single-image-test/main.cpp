@@ -97,6 +97,7 @@ DEFINE_string(data_shape, "",
     "In case of one input size: \"[1,3,224,224]\"");
 DEFINE_string(skip_output_layers, "" , "Skip output layers from the network. Currently only applicable for"
         "RRMSE and NRMSE mode. Accept ';' separated list of output layers");
+DEFINE_bool(clamp_u8_outputs, false, "Apply clamping when converting FP to U8");
 
 // for using input image mean and scale
 static constexpr char mean_values_message[] =
@@ -259,6 +260,7 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Mean_values [channel1,channel2,channel3]  " << FLAGS_mean_values << std::endl;
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
     std::cout << "    Skip checking output layers:              " << FLAGS_skip_output_layers << std::endl;
+    std::cout << "    Clamp U8 outputs:                         " << FLAGS_clamp_u8_outputs << std::endl;
     if (FLAGS_run_test) {
         std::cout << "    Reference files directory:                "
                   << (FLAGS_ref_dir.empty() && FLAGS_ref_results.empty() ? "Current directory" : FLAGS_ref_dir)
@@ -2117,6 +2119,9 @@ static int runSingleImageTest() {
 
                 for (size_t i = 0; i < outputInfo.size(); ++i) {
                     ppp.output(i).tensor().set_element_type(prc_out);
+                    if (prc_out == ov::element::u8 && FLAGS_clamp_u8_outputs) {
+                        ppp.output(i).postprocess().clamp(0.0, 255.0);
+                    }
                 }
             }
 

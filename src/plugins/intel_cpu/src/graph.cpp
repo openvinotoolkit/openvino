@@ -368,7 +368,7 @@ void Graph::Activate() {
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
-void Graph::Configure(bool optimize) {
+void Graph::Configure([[maybe_unused]] bool optimize) {
     OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
 
     GraphOptimizer optimizer;
@@ -973,8 +973,7 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
     };
 
     for (auto& edge : graphEdges) {
-        const auto clusterIdx = addToCluster(edge);
-        MAYBE_UNUSED(clusterIdx);
+        [[maybe_unused]] const auto clusterIdx = addToCluster(edge);
         DEBUG_LOG("Added edge: ", *edge, " to cluster: ", clusterIdx);
     }
 

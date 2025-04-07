@@ -40,10 +40,18 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
             ov::is_type<ov::snippets::op::ReduceBase>(node) ? ov::snippets::utils::get_full_dim_value() : 64;
         ov::replace_node_update_name(node, tpp_eltwise);
         for (size_t i = 0; i < node->get_input_size(); i++) {
-            ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(tpp_eltwise->input(i), {M_block, N_block});
+            auto subtensor = snippets::VectorDims{M_block, N_block};
+            if (tpp_eltwise->get_input_partial_shape(i).size() < 2) {
+                subtensor = snippets::VectorDims{N_block};
+            }
+            ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(tpp_eltwise->input(i), subtensor);
         }
 
-        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(tpp_eltwise->output(0), {M_block, N_block});
+        auto subtensor = snippets::VectorDims{M_block, N_block};
+        if (tpp_eltwise->output(0).get_partial_shape().size() < 2) {
+            subtensor = snippets::VectorDims{N_block};
+        }
+        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(tpp_eltwise->output(0), subtensor);
 
         return true;
     };
