@@ -1040,7 +1040,7 @@ void einsum_impl(const ov::TensorVector& inputs, ov::TensorVector& outputs, cons
     fix_inputs_with_0d_ellipsis<T>(int_inputs, input_subscripts, output_subscript);
 
     // contract inputs by Einsum until just one is remained
-    for (auto const& inds_pair : einsum_path) {
+    for (const auto& inds_pair : einsum_path) {
         contract_two_inputs<T>(int_inputs, input_subscripts, output_subscript, inds_pair.first, inds_pair.second);
     }
 

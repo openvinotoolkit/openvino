@@ -122,7 +122,7 @@ struct MHAKernel {
     // present_value [B, H, kv_len, S]
     // attention_mask [B, 1, q_len, kv_len]
     // output_emb    [B, q_len, H*S]
-    void operator()(const dnnl::stream& strm,
+    void operator()([[maybe_unused]] const dnnl::stream& strm,
                     PlainTensor& query,
                     PlainTensor& present_key,
                     PlainTensor& present_value,
@@ -268,7 +268,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         return dnnl_dims;
     }
 
-    void prepare_brgemm_prim(const dnnl::stream& strm,
+    void prepare_brgemm_prim([[maybe_unused]] const dnnl::stream& strm,
                              PlainTensor& query,
                              PlainTensor& present_key,
                              PlainTensor& present_value,
@@ -701,7 +701,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     // attention_mask [B, 1, q_len, kv_len]
     // alibi
     // output_emb    [B, L1, H*S]
-    void operator()(const dnnl::stream& strm,
+    void operator()([[maybe_unused]] const dnnl::stream& strm,
                     PlainTensor& query,
                     PlainTensor& present_key,
                     PlainTensor& present_value,
@@ -1234,14 +1234,21 @@ void ScaledDotProductAttention::createPrimitive() {
     }
     ScaledDotProductAttentionKey key = {rtPrecision};
 
-    auto builder = [&](const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
+    auto builder = [&]([[maybe_unused]] const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
         std::shared_ptr<Executor> executor = nullptr;
 #ifdef OPENVINO_ARCH_X86_64
         if (rtPrecision == ov::element::bf16) {
-            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context,
-                                                                                    m_key_quant_param.groupSize,
-                                                                                    m_value_quant_param.groupSize,
-                                                                                    m_key_quant_param.isByChannel);
+            if (ov::with_cpu_x86_bfloat16()) {
+                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context,
+                                                                                        m_key_quant_param.groupSize,
+                                                                                        m_value_quant_param.groupSize,
+                                                                                        m_key_quant_param.isByChannel);
+            } else {
+                executor = std::make_shared<AttentionExecutor<KT_REF, ov::bfloat16>>(context,
+                                                                                     m_key_quant_param.groupSize,
+                                                                                     m_value_quant_param.groupSize,
+                                                                                     m_key_quant_param.isByChannel);
+            }
         } else if (rtPrecision == ov::element::f16) {
             if (with_cpu_x86_avx512_core_fp16()) {
                 executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::float16>>(context,
@@ -2075,7 +2082,7 @@ const ScaledDotProductAttention::SDPAQuantParam& ScaledDotProductAttention::getV
 ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
     // bf16 should be enabled only when platform supports
-    if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
+    if (rtPrecision == ov::element::bf16 && (ov::with_cpu_x86_bfloat16() || mayiuse(cpu_isa_t::avx2_vnni_2))) {
         rtPrecision = ov::element::bf16;
     } else if (rtPrecision == ov::element::f16 && ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         rtPrecision = ov::element::f16;
