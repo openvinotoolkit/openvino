@@ -165,7 +165,7 @@ def test_out_of_tensor_size_range_npy_multibatch(sample_language, device, cache,
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
-@pytest.mark.parametrize('pv_in_tensor_names', [{'87', 'input.1'}, {'87', 'input.1', 'pixel_values'}, {''}])
+@pytest.mark.parametrize('pv_in_tensor_names', [{'87', 'input.1'}, {'87', 'input.1', 'pixel_values'}, {''}, set()])
 @pytest.mark.parametrize('pv_out_tensor_names', [{''}])
 @pytest.mark.parametrize('am_in_tensor_names', [{'877', 'attention_mask'}])
 @pytest.mark.parametrize('am_out_tensor_names', [{''}])
