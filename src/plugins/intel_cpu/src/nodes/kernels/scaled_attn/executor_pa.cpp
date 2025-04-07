@@ -1504,7 +1504,7 @@ struct MHAHelper {
         _sliding_window = sliding_window;
         _d_scale = d_scale;
 
-        auto prev_score_stride = _weight.stride(2);
+        auto prev_score_stride = _new_score_stride;
         auto want_score_stride = rnd_up(kv_len, _block_size);
         _new_score_stride = std::max(prev_score_stride, want_score_stride);
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
@@ -1647,7 +1647,7 @@ struct MHAHelper {
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
-            auto* c_ptr = _weight.ptr<float>(ithr, 0, 0, 0);
+            auto* c_ptr = _weight.ptr<float>(ithr, h - hq_beg, 0, 0);
             // for each query block, loop through all key block
             // for blocks:
             // 1 0 0 0 ...
@@ -1667,7 +1667,7 @@ struct MHAHelper {
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
-                auto score = _weight.ptr<float>(ithr, 0, m - q_start);
+                auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -1721,7 +1721,7 @@ struct MHAHelper {
             }
 
             // reuse float buffer, need to use float to compute offset
-            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, 0, 0, 0));
+            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h - hq_beg, 0, 0));
             float* fp32_out_ptr =
                 q_is_xf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * SV);
 
