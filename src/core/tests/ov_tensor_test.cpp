@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock-spec-builders.h>
 #include <gmock/gmock.h>
-#include <gtest/gtest-param-test.h>
-#include <gtest/gtest.h>
 
 #include <cstdint>
-#include <openvino/core/shape.hpp>
-#include <openvino/core/strides.hpp>
-#include <openvino/core/type/element_type.hpp>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
@@ -635,6 +632,27 @@ TEST_F(OVTensorTest, cannotSetShapeOnRoiTensor) {
     const ov::Shape newShape({4, 5, 6});
 
     ASSERT_THROW(roi_tensor.set_shape(newShape), ov::Exception);
+}
+
+TEST_F(OVTensorTest, setShapeExpandRoiRank) {
+    ov::Tensor t{ov::element::i32, {16, 16}};
+    std::iota(t.data<int32_t>(), t.data<int32_t>() + t.get_size(), 1);
+    ov::Tensor roi_tensor{t, {0, 0}, {3, 3}};
+
+    EXPECT_NO_THROW(roi_tensor.set_shape({1, 1, 2}));
+    EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1, 1, 2}));
+    EXPECT_NO_THROW(roi_tensor.set_shape({1, 1, 2, 2}));
+    EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1, 1, 2, 2}));
+}
+
+TEST_F(OVTensorTest, setShapeInvalidExpandRoiRank) {
+    ov::Tensor t{ov::element::i32, {16, 16}};
+    std::iota(t.data<int32_t>(), t.data<int32_t>() + t.get_size(), 1);
+    ov::Tensor roi_tensor{t, {0, 0}, {2, 2}};
+
+    OV_EXPECT_THROW(roi_tensor.set_shape({1, 2, 1, 2, 2}), ov::Exception, _);
+    OV_EXPECT_THROW(roi_tensor.set_shape({2, 1, 1}), ov::Exception, _);
+    OV_EXPECT_THROW(roi_tensor.set_shape({2, 1, 1, 1}), ov::Exception, _);
 }
 
 TEST_F(OVTensorTest, cannotSetShapeOnRoiStringTensor) {
