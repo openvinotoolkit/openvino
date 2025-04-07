@@ -1,0 +1,171 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+producer_version: ""
+model_version: 0
+graph {
+  name: "test_qlinear_conv"
+
+  node {
+    input: "X"
+    input: "X_scale"
+    input: "X_zero_point"
+    input: "W"
+    input: "W_scale"
+    input: "W_zero_point"
+    input: "Y_scale"
+    input: "Y_zero_point"
+
+    output: "Y"
+    op_type: "QLinearConv"
+    domain: "com.microsoft"
+    attribute {
+      name: "auto_pad"
+      s: "NOTSET"
+      type: STRING
+    }
+    attribute {
+      name: "group"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "kernel_shape"
+      ints: 3
+      ints: 3
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+    attribute {
+      name: "dilations"
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+  }
+
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 3 }
+          dim { dim_value: 5 }
+          dim { dim_value: 5 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "X_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "X_zero_point"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "W"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim { dim_value: 2 }
+          dim { dim_value: 3 }
+          dim { dim_value: 3 }
+          dim { dim_value: 3 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "W_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "W_zero_point"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "Y_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "Y_zero_point"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+          dim { dim_value: 3 }
+          dim { dim_value: 3 }
+        }
+      }
+    }
+  }
+}
+
+opset_import {
+  version: 1
+}
