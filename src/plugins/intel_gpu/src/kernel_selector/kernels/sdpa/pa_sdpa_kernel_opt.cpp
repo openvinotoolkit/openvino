@@ -342,7 +342,7 @@ CommonDispatchData PagedAttentionSDPAKernelOpt::SetDefault(const pa_sdpa_params&
             size_t partition_size = 0;
             size_t num_of_partitions = 0;
             if (params.stage == PagedAttentionStage::PREFILL) {
-                partition_size = SDPAKernelOpt::get_seq_len_partition_size(params, params.conf.k_head_size, 1);
+                partition_size = SDPAKernelOpt::get_seq_len_partition_size(params, params.conf.v_head_size, 1);
             } else {
                 partition_size = seq_len_partition_size;
             }

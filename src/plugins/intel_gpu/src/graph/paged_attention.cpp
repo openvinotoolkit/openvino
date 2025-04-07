@@ -21,13 +21,16 @@ layout paged_attention_inst::calc_output_layout(const paged_attention_node& /*no
 
 template<typename ShapeType>
 std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_node const& /*node*/, kernel_impl_params const& impl_param) {
-    auto q_layout = impl_param.get_input_layout(0);
-    auto v_layout = impl_param.get_input_layout(2);
+    const auto& q_layout = impl_param.get_input_layout(0);
+    const auto& desc = impl_param.typed_desc<paged_attention>();
     auto data_layout = q_layout;
 
-    if (v_layout.is_static()) {
-        ShapeType v_shape = v_layout.get_shape();
-        data_layout = layout{v_shape, data_layout.data_type, data_layout.format};
+    if (desc->k_head_size != desc->v_head_size) {
+        auto data_shape = { q_layout.get_partial_shape()[0],
+                            ov::Dimension(desc->heads_num),
+                            ov::Dimension(desc->v_head_size) };
+
+        data_layout = data_layout.clone_with_other_shape(data_shape);
     }
 
     data_layout.data_padding = padding();
@@ -38,7 +41,6 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                                       "Expected ", paged_attention::block_size, ", but got ", key_cache_ps[3].get_length());
     std::vector<layout> output_layouts{ data_layout };
 
-    const auto& desc = impl_param.typed_desc<paged_attention>();
     if (desc->has_scores_output()) {
         const auto past_lens_idx = 5;
         const auto output_dt = data_layout.data_type;

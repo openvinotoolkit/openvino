@@ -137,7 +137,6 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
 
     TransposedDimensionAccessHelperJit dims_q(params.inputs[0], params.input0_order);
     const auto num_heads = params.conf.is_paged_attention ? std::to_string(params.conf.heads_num) : dims_q.f();
-//    TransposedDimensionAccessHelperJit dims_v(params.inputs[2], params.input2_order);
     jit.AddConstant(MakeJitConstant("TARGET_SEQ_LEN", dims_q.y()));
     jit.AddConstant(MakeJitConstant("NUM_HEADS", num_heads));
     jit.AddConstant(MakeJitConstant("NUM_KV_HEADS", params.conf.kv_heads_num));

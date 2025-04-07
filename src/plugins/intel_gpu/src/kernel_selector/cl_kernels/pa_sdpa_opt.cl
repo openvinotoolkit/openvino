@@ -542,7 +542,7 @@ KERNEL(pa_sdpa_opt)(
 
             if (sgid >= SUBGROUPS_PER_WG / SG_SCALE_FACTOR) {
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
-                    tmp_reduction_slm_mem[q_idx * K_HEAD_SIZE + head_size_idx] = GET_VECTOR_ELEMENT(acc, q_idx);
+                    tmp_reduction_slm_mem[q_idx * V_HEAD_SIZE + head_size_idx] = GET_VECTOR_ELEMENT(acc, q_idx);
                 }
             }
 
@@ -550,7 +550,7 @@ KERNEL(pa_sdpa_opt)(
 
             if (sgid < SUBGROUPS_PER_WG / SG_SCALE_FACTOR) {
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
-                    GET_VECTOR_ELEMENT(acc, q_idx) += tmp_reduction_slm_mem[q_idx * K_HEAD_SIZE + head_size_idx];
+                    GET_VECTOR_ELEMENT(acc, q_idx) += tmp_reduction_slm_mem[q_idx * V_HEAD_SIZE + head_size_idx];
                 }
             }
         }

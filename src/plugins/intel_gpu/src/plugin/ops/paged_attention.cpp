@@ -35,8 +35,10 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
 
     auto query_ps = op->get_input_partial_shape(0);
     auto key_cache_ps = op->get_input_partial_shape(3);
-    auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[1].get_length();
-    auto v_head_size = has_rt_params ? rt_info.at(v_head_size_id).as<int64_t>() : key_cache_ps[2].get_length();
+    auto value_cache_ps = op->get_input_partial_shape(4);
+
+    auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[2].get_length();
+    auto v_head_size = has_rt_params ? rt_info.at(v_head_size_id).as<int64_t>() : value_cache_ps[3].get_length();
     auto kv_heads_num = has_rt_params ? rt_info.at(num_k_heads_id).as<int64_t>() : key_cache_ps[1].get_length();
 
     // WA: in some cases, the query input may have a bounded dimension

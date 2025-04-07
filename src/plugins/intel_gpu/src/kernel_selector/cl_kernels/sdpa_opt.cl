@@ -116,8 +116,7 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #define OUTPUT_BLOCK_READ(ptr, offset) BLOCK_READN(OUTPUT_TYPE, 1, ptr, offset)
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, 1, ptr, offset, val)
 #define VALUE_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT2_TYPE, 1, ptr, offset)
-#define SUBGROUPS_PER_WG (K_HEAD_SIZE * SG_SCALE_FACTOR / SUBGROUP_SIZE)
-#define SUBGROUPS_V_PER_WG (V_HEAD_SIZE * SG_SCALE_FACTOR / SUBGROUP_SIZE)
+#define SUBGROUPS_PER_WG (V_HEAD_SIZE * SG_SCALE_FACTOR / SUBGROUP_SIZE)
 
 #if IS_KV_COMPRESSED
 #if COMPRESSED_PER_HEAD
@@ -133,7 +132,7 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 /* This version is used for 2nd token */
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
-__attribute__((reqd_work_group_size(1, 1, K_HEAD_SIZE * SG_SCALE_FACTOR)))
+__attribute__((reqd_work_group_size(1, 1, V_HEAD_SIZE * SG_SCALE_FACTOR)))
 KERNEL(sdpa_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* query_input,
@@ -165,7 +164,7 @@ KERNEL(sdpa_opt)(
     const uint lid = get_local_id(2);
 
 #if SG_SCALE_FACTOR == 2
-    const uint head_size_idx = lid % K_HEAD_SIZE;
+    const uint head_size_idx = lid % V_HEAD_SIZE;
 #elif SG_SCALE_FACTOR == 1
     const uint head_size_idx = lid;
 #else
@@ -209,7 +208,7 @@ KERNEL(sdpa_opt)(
 #if HAS_SCALE_INPUT
             const OUTPUT_TYPE scale_val = *scale;
 #else
-            const OUTPUT_TYPE scale_val = OUTPUT_VAL_ONE / sqrt(TO_OUTPUT_TYPE(K_HEAD_SIZE));
+            const OUTPUT_TYPE scale_val = OUTPUT_VAL_ONE / sqrt(TO_OUTPUT_TYPE(V_HEAD_SIZE));
 #endif
             {
                 // Query input loading to SLM
@@ -225,7 +224,7 @@ KERNEL(sdpa_opt)(
                 const uint query_pitch = QUERY_STEP_LOCAL;
 #endif
 #if SG_SCALE_FACTOR == 2
-                if (sgid < K_HEAD_SIZE / SUBGROUP_SIZE) {
+                if (sgid < V_HEAD_SIZE / SUBGROUP_SIZE) {
 #else
                 {
 #endif
@@ -247,7 +246,7 @@ KERNEL(sdpa_opt)(
             // Main Gemm1 calculation loop
             // Each SG performs element-wise multiplications of Q[HEAD_SIZE]xK[HEAD_SIZE] values
             // HEAD_SIZE / SUBGROUPS_PER_WG times in the loop and saves the result to the qk_local SLM buffer
-            for (uint seq_len = sgid; seq_len < partition_seq_len; seq_len += (K_HEAD_SIZE / SUBGROUP_SIZE) * SG_SCALE_FACTOR) {
+            for (uint seq_len = sgid; seq_len < partition_seq_len; seq_len += (V_HEAD_SIZE / SUBGROUP_SIZE) * SG_SCALE_FACTOR) {
 #ifdef BEAM_TABLE_TYPE
                 const uint b_idx = beam_table[FUNC_CALL(get_bt_index_key)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0)];
 #else
@@ -410,7 +409,7 @@ KERNEL(sdpa_opt)(
                 const uint seq_idx_end = 1;
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                     // Iterate over all values QK values in SLM and apply scale and attention mask
-                    for (uint seq_len = sgid * SUBGROUP_SIZE + sglid; seq_len < partition_seq_len; seq_len += (K_HEAD_SIZE * SG_SCALE_FACTOR)) {
+                    for (uint seq_len = sgid * SUBGROUP_SIZE + sglid; seq_len < partition_seq_len; seq_len += (V_HEAD_SIZE * SG_SCALE_FACTOR)) {
                         // Read value from SLM and apply scale
                         qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len];
 
@@ -541,7 +540,7 @@ KERNEL(sdpa_opt)(
 #endif
 
 #if SG_SCALE_FACTOR > 1
-        const uint seq_len_start = (sgid / (K_HEAD_SIZE / SUBGROUP_SIZE)) * (SEQ_LEN_PARTITION_SIZE / SG_SCALE_FACTOR / SUBGROUP_SIZE);
+        const uint seq_len_start = (sgid / (V_HEAD_SIZE / SUBGROUP_SIZE)) * (SEQ_LEN_PARTITION_SIZE / SG_SCALE_FACTOR / SUBGROUP_SIZE);
         const uint seq_len_end = min(seq_len_start + (SEQ_LEN_PARTITION_SIZE / SG_SCALE_FACTOR / SUBGROUP_SIZE), partition_seq_len / SUBGROUP_SIZE);
 #else
         const uint seq_len_start = 0;
@@ -600,7 +599,7 @@ KERNEL(sdpa_opt)(
 
 
 #if SG_SCALE_FACTOR > 1
-        if (sgid >= K_HEAD_SIZE / SUBGROUP_SIZE) {
+        if (sgid >= V_HEAD_SIZE / SUBGROUP_SIZE) {
 #endif
 
         for (uint seq_len = (partition_seq_len / SUBGROUP_SIZE) * SUBGROUP_SIZE; seq_len < partition_seq_len; seq_len++) {
@@ -644,17 +643,17 @@ KERNEL(sdpa_opt)(
         }
 
 #if SG_SCALE_FACTOR > 1
-        } // if (sgid >= K_HEAD_SIZE / SUBGROUP_SIZE)
+        } // if (sgid >= V_HEAD_SIZE / SUBGROUP_SIZE)
 #endif
 
 #if SG_SCALE_FACTOR > 1
         if ((partition_seq_len > (SEQ_LEN_PARTITION_SIZE / SG_SCALE_FACTOR)) || (partition_seq_len % SUBGROUP_SIZE != 0)) {
-            if (sgid >= K_HEAD_SIZE / SUBGROUP_SIZE) {
+            if (sgid >= V_HEAD_SIZE / SUBGROUP_SIZE) {
                 // Reuse query_local SLM to sum-up results between two groups of subgroups
                 query_local[head_size_idx] = acc[0];
             }
             barrier(CLK_LOCAL_MEM_FENCE);
-            if (sgid < K_HEAD_SIZE / SUBGROUP_SIZE) {
+            if (sgid < V_HEAD_SIZE / SUBGROUP_SIZE) {
                 acc[0] += query_local[head_size_idx];
             }
         }
@@ -663,16 +662,16 @@ KERNEL(sdpa_opt)(
         // If the number of partitions is greater than 1, save results to the temporary buffer;
         // otherwise, save results directly to the main output.
 #if SG_SCALE_FACTOR > 1
-        if (sgid < K_HEAD_SIZE / SUBGROUP_SIZE) {
+        if (sgid < V_HEAD_SIZE / SUBGROUP_SIZE) {
 #endif
         if (num_of_partitions > 1) {
             const uint seq_idx_end = 1;
             for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                 // Data layout of tmp_output buf: [batch, heads_num, q_len, partition_idx, head_size]
-                const uint tmp_out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions * K_HEAD_SIZE) +
-                                            b1_idx * (TARGET_SEQ_LEN * num_of_partitions * K_HEAD_SIZE) +
-                                            (target_seq_idx + seq_idx) * (num_of_partitions * K_HEAD_SIZE) +
-                                            partition_idx * (K_HEAD_SIZE) +
+                const uint tmp_out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions * V_HEAD_SIZE) +
+                                            b1_idx * (TARGET_SEQ_LEN * num_of_partitions * V_HEAD_SIZE) +
+                                            (target_seq_idx + seq_idx) * (num_of_partitions * V_HEAD_SIZE) +
+                                            partition_idx * (V_HEAD_SIZE) +
                                             head_size_idx;
                 tmp_out[tmp_out_offset] = acc[seq_idx];
             }
@@ -685,7 +684,7 @@ KERNEL(sdpa_opt)(
             }
         }
 #if SG_SCALE_FACTOR > 1
-        } // if (sgid < K_HEAD_SIZE / SUBGROUP_SIZE) {
+        } // if (sgid < V_HEAD_SIZE / SUBGROUP_SIZE) {
 #endif
     } // Gemm2 calculation end
 }
@@ -884,7 +883,7 @@ KERNEL(sdpa_opt)(
 #else
     #define target_seq_idx ((uint)get_global_id(1) * TARGET_SEQ_LEN_BLOCK_SIZE)
 #endif
-    #define head_size_idx ((uint)get_local_id(2) % K_HEAD_SIZE)
+    #define head_size_idx ((uint)get_local_id(2) % V_HEAD_SIZE)
     #define sglid (uint)get_sub_group_local_id()
     #define sgid (uint)get_sub_group_id()
 
@@ -909,12 +908,14 @@ KERNEL(sdpa_opt)(
 #else
     const uint seq_idx_end = min(TARGET_SEQ_LEN - target_seq_idx, (uint)TARGET_SEQ_LEN_BLOCK_SIZE);
 #endif
+    const uint num_read_blocks = K_HEAD_SIZE == V_HEAD_SIZE ? 1 :  (K_HEAD_SIZE - V_HEAD_SIZE) / TARGET_SEQ_LEN_BLOCK_SIZE + SG_SCALE_FACTOR;
+    for (int read_blk_idx = 0; read_blk_idx < num_read_blocks; read_blk_idx++)
     {
         // Load Q input to SLM and transpose it
 #if IS_PAGED_ATTENTION
         uint query_offset = INPUT0_OFFSET +
                             block_start_pos * (K_HEAD_SIZE * NUM_HEADS + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM) +
-                            num_heads_dim * K_HEAD_SIZE + head_size_idx;
+                            num_heads_dim * K_HEAD_SIZE + head_size_idx + read_blk_idx * TARGET_SEQ_LEN_BLOCK_SIZE;
         const uint query_pitch = (K_HEAD_SIZE * NUM_HEADS + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM);
 #else
 #ifdef INPUT0_DIMS_ORDER
@@ -926,7 +927,7 @@ KERNEL(sdpa_opt)(
         const uint query_pitch = K_HEAD_SIZE;
 #endif
 #endif
-        uint query_local_offset = head_size_idx * TARGET_SEQ_LEN_BLOCK_SIZE;
+        uint query_local_offset = head_size_idx * TARGET_SEQ_LEN_BLOCK_SIZE + read_blk_idx * TARGET_SEQ_LEN_BLOCK_SIZE * TARGET_SEQ_LEN_BLOCK_SIZE;
 
 #if APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
@@ -938,8 +939,9 @@ KERNEL(sdpa_opt)(
         const INPUT0_TYPE scale_val = INPUT0_VAL_ONE;
 #endif
 
+
         if (seq_idx_end != TARGET_SEQ_LEN_BLOCK_SIZE) {
-            if (sgid * SUBGROUP_SIZE < K_HEAD_SIZE) {
+            if (sgid * SUBGROUP_SIZE < V_HEAD_SIZE) {
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                     INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, 1, query_input, query_offset);
 
@@ -1511,6 +1513,7 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
 
             }
 
+
             // protect slm_qk_vals as it is read in w*v stage and write in next round q*k stage.
             barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -1529,7 +1532,7 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
 
     // Combine results from multiple SGs and store to output buffer
 
-    if (sgid >= (SUBGROUPS_V_PER_WG / SG_SCALE_FACTOR)) {
+    if (sgid >= (SUBGROUPS_PER_WG / SG_SCALE_FACTOR)) {
         unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
             slm_qk_vals[seq_idx][(uint)get_local_id(2)] = output_acc[seq_idx];
         }
@@ -1537,10 +1540,10 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    if (sgid < (SUBGROUPS_V_PER_WG / SG_SCALE_FACTOR)) {
+    if (sgid < (SUBGROUPS_PER_WG / SG_SCALE_FACTOR)) {
         unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
             unroll_for (uint i = 1; i < SG_SCALE_FACTOR; i++) {
-                output_acc[seq_idx] += slm_qk_vals[seq_idx][(i * K_HEAD_SIZE) + head_size_idx];
+                output_acc[seq_idx] += slm_qk_vals[seq_idx][(i * V_HEAD_SIZE) + head_size_idx];
             }
         }
 
