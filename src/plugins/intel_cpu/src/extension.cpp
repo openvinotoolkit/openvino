@@ -181,12 +181,10 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::snippets::op::ReduceMax>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::ReduceSum>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::Reshape>>(),
-#ifdef SNIPPETS_DEBUG_CAPS
     // clang-format off
     OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountBegin>>())
     OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountEnd>>())
     OP_EXTENSION_SNIPPETS_DEBUG_CAPS_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::PerfCountRdtscBegin>>())
     OP_EXTENSION_SNIPPETS_DEBUG_CAPS_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::PerfCountRdtscEnd>>())
     // clang-format on
-#endif
 }));
