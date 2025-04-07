@@ -131,7 +131,10 @@ class TestQuantizedConv1D(PytorchLayerTest):
                 return torch.dequantize(y)
 
         ref_net = None
-        op_name = "quantized::conv1d_relu" if relu else "quantized::conv1d.new"
+        if not relu:
+            op_name = "quantized::conv1d"
+        else:
+            op_name = "quantized::conv1d_relu"
 
         return quantized_conv1d(), ref_net, op_name
 
