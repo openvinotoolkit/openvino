@@ -32,8 +32,10 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
     if len(generated_files) != len(committed_files):
         print(f"Error: Number of .pyi files does not match. "
               f"Generated (reference): {len(generated_files)}, Committed: {len(committed_files)}")
-        print(f"Files only in generated (reference): {generated_files - committed_files}")
-        print(f"Files only in committed: {committed_files - generated_files}")
+        if generated_files - committed_files:
+            print(f"Files found only in generated (reference) files: {generated_files - committed_files}")
+        if committed_files - generated_files:
+            print(f"Files found only in committed files: {committed_files - generated_files}")
         sys.exit(1)
 
     # Assert that each file has a pair
