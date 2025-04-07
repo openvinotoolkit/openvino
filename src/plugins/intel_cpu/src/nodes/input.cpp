@@ -123,7 +123,7 @@ protected:
 
     void check_bf16_saturations(const Xbyak::Reg64& src,
                                 const Xbyak::Xmm& bf16_max_mask,
-                                const Xbyak::Xmm& bf16_min_mask) {
+                                [[maybe_unused]] const Xbyak::Xmm& bf16_min_mask) {
         auto a = xmm1;
         auto b = xmm2;
         auto c = xmm3;
@@ -183,7 +183,7 @@ struct jit_has_subnormals : public jit_has_special_value_base {
     const int length = isa == sse41 ? 4 : 8;
 
     void generate() override final {
-        size_t const vlen = length;
+        const size_t vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
         auto zero = rmm4;
@@ -209,7 +209,7 @@ struct jit_has_subnormals : public jit_has_special_value_base {
         mov(r8, reg_sz);
         shr(r8, sh_bits);
 
-        foreach (reg_idx, 1, r8, [&, this](const Xbyak::Reg64& idx) {
+        foreach (reg_idx, 1, r8, [&, this]([[maybe_unused]] const Xbyak::Reg64& idx) {
             check_subnormals(reg_src, exponent_mask, mantissa_mask, zero);
             jnc(has_target_values);
             add(reg_src, sizeof(float) * vlen);
@@ -257,7 +257,7 @@ struct jit_has_bf16_overflows : public jit_has_special_value_base {
     const int length = isa == sse41 ? 4 : 8;
 
     void generate() override final {
-        size_t const vlen = length;
+        const size_t vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
         auto zero = rmm4;
@@ -283,7 +283,7 @@ struct jit_has_bf16_overflows : public jit_has_special_value_base {
         mov(r8, reg_sz);
         shr(r8, sh_bits);
 
-        foreach (reg_idx, 1, r8, [&, this](const Xbyak::Reg64& idx) {
+        foreach (reg_idx, 1, r8, [&, this]([[maybe_unused]] const Xbyak::Reg64& idx) {
             check_bf16_saturations(reg_src, bf16_max_mask, bf16_min_mask);
             jnz(has_target_values, T_NEAR);
             add(reg_src, sizeof(float) * vlen);
