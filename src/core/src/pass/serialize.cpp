@@ -97,7 +97,7 @@ class ConstantWriter {
 public:
     using FilePosition = int64_t;
     using HashValue = size_t;
-    using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, void const*>>;
+    using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, const void*>>;
 
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
         : m_binary_output(bin_data),
@@ -155,7 +155,7 @@ public:
             if (!ptr_is_temporary) {
                 // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the
                 // ostream, we store pointer to the original uncompressed blob.
-                m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
+                m_hash_to_file_positions.insert({hash, {offset, static_cast<const void*>(ptr)}});
             }
             if (m_write_hash_value) {
                 m_binary_output.write(reinterpret_cast<const char*>(&hash), sizeof(uint64_t));

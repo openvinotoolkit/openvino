@@ -80,7 +80,7 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
         const auto& memPtr = data_dependency.at(SQUEEZE_PATTERN);
         const auto data = memPtr->getData();
         const auto& dims = memPtr->getStaticDims();
-        if (dims.size() != 0) {
+        if (!dims.empty()) {
             const size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>());
             std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(memPtr->getDesc().getPrecision(),
                                                                            data,

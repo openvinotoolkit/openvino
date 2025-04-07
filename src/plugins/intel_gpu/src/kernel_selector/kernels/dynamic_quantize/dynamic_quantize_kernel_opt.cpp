@@ -83,7 +83,7 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
 CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_params& params) const {
     CommonDispatchData dispatchData;
 
-    if (params.group_sizes.back() <= 128) {
+    if (params.group_sizes.back() <= 256) {
         auto bf_size = get_input_bf_size(params);
         dispatchData.gws = {bf_size.first, bf_size.second / params.group_sizes.back(), 1};
         dispatchData.lws = {1, 1, 1};
