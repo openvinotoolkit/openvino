@@ -24,7 +24,8 @@ class TestSparseSegmentMean(CommonTFLayerTest):
         all_indices = []
         for row_ind in range(0, self.shape[0]):
             all_indices.append(row_ind)
-        inputs_data['indices:0'] = rng.choice(all_indices, self.indices_shape[0], replace=False).astype(self.indices_type)
+        inputs_data['indices:0'] = rng.choice(all_indices, self.indices_shape[0], replace=False).astype(
+            self.indices_type)
 
         segment_ids = []
         for ind in range(0, self.indices_shape[0]):
@@ -33,8 +34,12 @@ class TestSparseSegmentMean(CommonTFLayerTest):
 
         return inputs_data
 
-    def create_sparse_segment_mean(self, data_type, indices_type, segment_indices_type,
+    def create_sparse_segment_mean(self, op_type, data_type, indices_type, segment_indices_type,
                                    shape, indices_shape, segments_num):
+        op_map = {
+            'SparseSegmentMean': tf.raw_ops.SparseSegmentMean,
+            'SparseSegmentSqrtN': tf.raw_ops.SparseSegmentSqrtN,
+        }
         self.data_type = data_type
         self.indices_type = indices_type
         self.segment_indices_type = segment_indices_type
@@ -46,7 +51,7 @@ class TestSparseSegmentMean(CommonTFLayerTest):
             values = tf.compat.v1.placeholder(data_type, shape, 'values')
             indices = tf.compat.v1.placeholder(indices_type, indices_shape, 'indices')
             segments_ids = tf.compat.v1.placeholder(segment_indices_type, indices_shape, 'segment_indices')
-            tf.raw_ops.SparseSegmentMean(
+            op_map[op_type](
                 data=values,
                 indices=indices,
                 segment_ids=segments_ids)
@@ -55,6 +60,7 @@ class TestSparseSegmentMean(CommonTFLayerTest):
 
         return tf_net, None
 
+    @pytest.mark.parametrize('op_type', ['SparseSegmentMean', 'SparseSegmentSqrtN'])
     @pytest.mark.parametrize('data_type', [np.float16, np.float32, np.float64])
     @pytest.mark.parametrize('indices_type', [np.int32, np.int64])
     @pytest.mark.parametrize('segment_indices_type', [np.int32, np.int64])
@@ -67,16 +73,16 @@ class TestSparseSegmentMean(CommonTFLayerTest):
     ])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_sparse_segment_mean(self, data_type, indices_type, segment_indices_type,
+    def test_sparse_segment_mean(self, op_type, data_type, indices_type, segment_indices_type,
                                  shape, indices_shape, segments_num,
                                  ie_device, precision, ir_version, temp_dir,
                                  use_legacy_frontend):
         kwargs = {}
         if ie_device == 'GPU':
             kwargs = {
-                 'custom_eps': 1e-2,
+                'custom_eps': 1e-2,
             }
-        self._test(*self.create_sparse_segment_mean(data_type, indices_type, segment_indices_type,
+        self._test(*self.create_sparse_segment_mean(op_type, data_type, indices_type, segment_indices_type,
                                                     shape, indices_shape, segments_num),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend, **kwargs)

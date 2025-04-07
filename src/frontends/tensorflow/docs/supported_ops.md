@@ -1134,7 +1134,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | SparseSegmentMeanGrad                                   | NO                            |                               |
 | SparseSegmentMeanGradV2                                 | NO                            |                               |
 | SparseSegmentMeanWithNumSegments                        | NO                            |                               |
-| SparseSegmentSqrtN                                      | NO                            |                               |
+| SparseSegmentSqrtN                                      | YES                           |                               |
 | SparseSegmentSqrtNGrad                                  | NO                            |                               |
 | SparseSegmentSqrtNGradV2                                | NO                            |                               |
 | SparseSegmentSqrtNWithNumSegments                       | NO                            |                               |
