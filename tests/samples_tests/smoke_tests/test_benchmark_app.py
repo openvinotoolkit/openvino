@@ -171,7 +171,7 @@ def test_out_of_tensor_size_range_npy_multibatch(sample_language, device, cache,
 @pytest.mark.parametrize('am_out_tensor_names', [{''}])
 def test_input_tensor_with_multiple_names(sample_language, device, pv_in_tensor_names, pv_out_tensor_names, am_in_tensor_names, am_out_tensor_names, cache, tmp_path):
     '''
-    Tests the ability of finding a proper tensor name by an argument parsed from cmd -shape or -data_shape
+    Tests the ability to resolve the correct tensor name from the -shape cmd argument when a tensor has multiple assigned names.
     '''
     pv_param_shape = [-1, -1, -1, -1]
     pv_data_shape = [1, 3, 224, 224]
@@ -193,7 +193,7 @@ def test_input_tensor_with_multiple_names(sample_language, device, pv_in_tensor_
     data_shape = f'pixel_values{pv_data_shape},attention_mask{am_data_shape}'
     # We intentionally set shape here instead of data_shape to catch an assert from benchmark_app,
     # if one of command line input shapes has not been captured correctly.
-    verify(sample_language, device, shape=data_shape, model=model, inp=None, cache=cache, tmp_path=tmp_path, batch=None)
+    verify(sample_language, device, shape=data_shape, model=model, inp=None, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
@@ -202,7 +202,7 @@ def test_input_tensor_with_multiple_names(sample_language, device, pv_in_tensor_
 ])
 def test_input_output_tensor_name_collision(sample_language, device, in_node_name, in_tensor_names, out_node_name, out_tensor_names, cache, tmp_path):
     '''
-    Tests the order of finding a proper tensor name by an argument parsed from cmd -shape or -data_shape
+    Tests the priority of resolving the correct tensor name from the -iop cmd argument in case of name collisions between input/output tensors and nodes.
     '''
     data_shape = [1, 3, 224, 224]
     param_node = opset.parameter(data_shape, ov.Type.f32, name=in_node_name)
@@ -222,4 +222,4 @@ def test_input_output_tensor_name_collision(sample_language, device, in_node_nam
                 np.random.MT19937(np.random.SeedSequence(0))
             ).uniform(0, 256, data_shape).astype(np.int32)
         )
-    verify(sample_language, device, iop=iop, model=model, inp=inp, cache=cache, tmp_path=tmp_path, batch=None)
+    verify(sample_language, device, iop=iop, model=model, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
