@@ -40,9 +40,7 @@ public:
     ov::device::PCIInfo GetPciInfo(const std::string& specifiedDeviceName) const;
     std::map<ov::element::Type, float> GetGops(const std::string& specifiedDeviceName) const;
     ov::device::Type GetDeviceType(const std::string& specifiedDeviceName) const;
-
-    std::vector<ov::PropertyName> GetCachingProperties() const;
-    std::vector<ov::PropertyName> GetInternalSupportedProperties() const;
+    bool IsCommandQueueExtSupported() const;
 
     ~Metrics() = default;
 
@@ -55,20 +53,6 @@ private:
         ov::device::capability::INT8,
         ov::device::capability::EXPORT_IMPORT,
     };
-    const std::vector<ov::PropertyName> _cachingProperties = {ov::device::architecture.name(),
-                                                              ov::intel_npu::compilation_mode_params.name(),
-                                                              ov::intel_npu::compiler_dynamic_quantization.name(),
-                                                              ov::intel_npu::tiles.name(),
-                                                              ov::intel_npu::dpu_groups.name(),
-                                                              ov::intel_npu::dma_engines.name(),
-                                                              ov::intel_npu::compilation_mode.name(),
-                                                              ov::intel_npu::driver_version.name(),
-                                                              ov::intel_npu::compiler_type.name(),
-                                                              ov::intel_npu::batch_mode.name(),
-                                                              ov::hint::execution_mode.name()};
-
-    const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                        ov::internal::caching_with_mmap.name()};
 
     // Metric to provide a hint for a range for number of async infer requests. (bottom bound, upper bound, step)
     const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{1u, 10u, 1u};
