@@ -268,6 +268,10 @@ void MemoryBlockWithReuse::free() {
     m_useExternalStorage = false;
 }
 
+size_t MemoryBlockWithReuse::size() const {
+    return m_memUpperBound;
+}
+
 void MemoryBlockWithReuse::release(void* ptr) {}
 
 void MemoryBlockWithReuse::destroy(void* ptr) {
@@ -299,7 +303,7 @@ StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* 
     }
 }
 
-void StringMemory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
+void StringMemory::load(const IMemory& src, [[maybe_unused]] bool ftz, [[maybe_unused]] bool bf16saturation) const {
     if (src.getDesc().getPrecision() != element::string) {
         OPENVINO_THROW("[CPU] String memory cannot load a non-string object.");
     }
@@ -435,7 +439,7 @@ void DnnlMemoryBlock::notifyUpdate() {
     }
 }
 
-StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data, bool pads_zeroing)
+StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data, [[maybe_unused]] bool pads_zeroing)
     : m_eng(std::move(eng)),
       m_pMemDesc(std::move(desc)) {
     if (m_pMemDesc->getPrecision() == element::string) {
@@ -497,7 +501,7 @@ const VectorDims& StaticMemory::getStaticDims() const {
     return getShape().getStaticDims();
 }
 
-void StaticMemory::redefineDesc(MemoryDescPtr desc) {
+void StaticMemory::redefineDesc([[maybe_unused]] MemoryDescPtr desc) {
     OPENVINO_THROW("Unexpected: Memory descriptor may not be modified in StaticMemory object");
 }
 
@@ -540,7 +544,7 @@ void* StaticMemory::StaticMemoryBlock::getRawPtr() const noexcept {
     return memBlockImpl.getRawPtr();
 }
 
-void StaticMemory::StaticMemoryBlock::setExtBuff(void* ptr, size_t size) {
+void StaticMemory::StaticMemoryBlock::setExtBuff([[maybe_unused]] void* ptr, [[maybe_unused]] size_t size) {
     OPENVINO_THROW("Unexpected: StaticMemoryBlock may not be modified");
 }
 

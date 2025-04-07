@@ -8,7 +8,7 @@ Model Caching Overview
                  reduce duration of model compilation on application startup.
 
 
-As described in :doc:`Integrate OpenVINO™ with Your Application <../../integrate-openvino-with-your-application>`,
+As described in :doc:`Integrate OpenVINO™ with Your Application <../../../running-inference>`,
 a common workflow consists of the following steps:
 
 1. | **Create a Core object**:
