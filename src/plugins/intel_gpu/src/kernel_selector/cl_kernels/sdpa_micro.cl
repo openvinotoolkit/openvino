@@ -301,10 +301,24 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         float iscale = native_recip(scale);
     #endif
 #else
+#ifdef STATIC_SCALE_VALUE
+    #if INVERT_SCALE
+    float iscale = convert_float(STATIC_SCALE_VALUE);
+    float scale = convert_float(STATIC_SCALE_VALUE_INV);
+    #else
+    float scale = convert_float(STATIC_SCALE_VALUE);
+    float iscale = convert_float(STATIC_SCALE_VALUE_INV);
+    #endif
+#else
     float iscale = sqrt(convert_float(HEAD_SIZE));
     float scale = native_recip(iscale);
 #endif
+#endif
     scale *= 1.442695f; // log2(e)
+
+#ifdef STATIC_SCALAR_ATTN_MASK_VALUE
+    float masked_scale = iscale * STATIC_SCALAR_ATTN_MASK_VALUE;
+#endif
 
 #ifdef PREFETCH_K0
     /* Prefetch first K tile. */
@@ -389,7 +403,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
         /* Apply attention mask */
-#if WITH_ATTN_MASK
+#ifdef STATIC_SCALAR_ATTN_MASK_VALUE
+#define mask_scale_op(x) ((x) + masked_scale)
+        tile_elementwise(S_tile, mask_scale_op);
+#elif WITH_ATTN_MASK
 #define unscale(x) ((x)*iscale)
         mask_tile_type_float mask_tile_float;
         tile_copy(mask_tile, mask_tile_float);
