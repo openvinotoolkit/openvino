@@ -88,52 +88,6 @@ OutputVector translate_quantized_convnd_relu(const NodeContext& context) {
     return {quantize(context, relu->output(0), scale, zero_point, context.get_input(0))};
 }
 
-OutputVector translate_quantized_conv1d(const NodeContext& context) {
-    // "quantized::conv1d.new(Tensor qx, __torch__.torch.classes.quantized.Conv1dPackedParamsBase packed_weight,
-    // float output_scale, int output_zero_point) -> Tensor"
-    num_inputs_check(context, 4, 4);
-
-    auto input = context.get_input(0);
-
-    // (N, C, L) -> (N, C, L, 1)
-    auto unsqueeze_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {3});
-    auto unsqueezed_input = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(input, unsqueeze_axis));
-
-    // Lower as if it's 2D conv with singleton spatial dim
-    auto conv = translate_quantized_convnd_base(context, unsqueezed_input);
-
-    // (N, C, L, 1) -> (N, C, L)
-    auto squeeze_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {3});
-    auto squeezed_output = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(conv, squeeze_axis));
-
-    auto scale = context.get_input(2);
-    auto zero_point = context.get_input(3);
-
-    return {quantize(context, squeezed_output, scale, zero_point, input)};
-}
-
-OutputVector translate_quantized_conv1d_relu(const NodeContext& context) {
-    num_inputs_check(context, 4, 4);
-
-    auto input = context.get_input(0);
-    auto unsqueeze_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {3});
-    auto unsqueezed_input = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(input, unsqueeze_axis));
-
-    NodeContext new_context = context;
-    new_context.m_inputs[0] = unsqueezed_input;
-
-    auto conv = translate_quantized_convnd_base(new_context);
-    auto relu = context.mark_node(std::make_shared<v0::Relu>(conv));
-
-    auto squeeze_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, {3});
-    auto squeezed_output = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(relu, squeeze_axis));
-
-    auto scale = context.get_input(2);
-    auto zero_point = context.get_input(3);
-
-    return {quantize(context, squeezed_output, scale, zero_point, input)};
-}
-
 
 }  // namespace op
 }  // namespace pytorch
