@@ -21,13 +21,19 @@ layout paged_attention_inst::calc_output_layout(const paged_attention_node& /*no
 
 template<typename ShapeType>
 std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_node const& /*node*/, kernel_impl_params const& impl_param) {
-    auto q_layout = impl_param.get_input_layout(0);
-    auto v_layout = impl_param.get_input_layout(2);
+    const auto& q_layout = impl_param.get_input_layout(0);
+    const auto& v_layout = impl_param.get_input_layout(2);
     auto data_layout = q_layout;
 
     if (v_layout.is_static()) {
-        ShapeType v_shape = v_layout.get_shape();
-        data_layout = layout{v_shape, data_layout.data_type, data_layout.format};
+        const auto& key_cache_ps = impl_param.get_input_layout(3).get_partial_shape();
+        const auto& value_cache_ps = impl_param.get_input_layout(4).get_partial_shape();
+        // output layout may similar to value layout if key and value has different head size
+        if (key_cache_ps[2].get_length() != value_cache_ps[3].get_length() ||
+            key_cache_ps[3].get_length() != value_cache_ps[2].get_length()) {
+            ShapeType v_shape = v_layout.get_shape();
+            data_layout = data_layout.clone_with_other_shape(v_shape);
+        }
     }
 
     data_layout.data_padding = padding();

@@ -4,20 +4,21 @@
 
 #include "include/batch_headers/common.cl"
 
-inline void FUNC(quantize_and_save_k)(__global const INPUT0_TYPE* in_data,
+inline void FUNC(quantize_and_save)(__global const INPUT0_TYPE* in_data,
                                     const uint in_data_offset,
                                     __global OUTPUT_TYPE* out_data,
                                     const uint out_data_offset,
                                     const uint out_data_pitch,
                                     const uint comp_offset,
                                     const uint token_pos_in_block,
-                                    const uint sglid) {
-    INPUT0_TYPE input_data[K_HEAD_SIZE / SUBGROUP_SIZE];
+                                    const uint sglid,
+                                    const uint num_groups,
+                                    INPUT0_TYPE* input_data) {
     INPUT0_TYPE grp_max = 0.001;
     INPUT0_TYPE max_value = INPUT0_VAL_MIN;
     INPUT0_TYPE min_value = INPUT0_VAL_MAX;
 
-    unroll_for (uint i = 0; i < K_HEAD_SIZE / SUBGROUP_SIZE; i++) {
+    unroll_for (uint i = 0; i < num_groups; i++) {
         input_data[i] = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + i * SUBGROUP_SIZE);
         max_value = fmax(max_value, input_data[i]);
         min_value = fmin(min_value, input_data[i]);
@@ -35,54 +36,7 @@ inline void FUNC(quantize_and_save_k)(__global const INPUT0_TYPE* in_data,
     INPUT0_TYPE zp = (INPUT1_TYPE)(zp_tmp);
     #undef ACCUMULATOR_TYPE
 
-    unroll_for (uint i = 0; i < K_HEAD_SIZE / SUBGROUP_SIZE; i++) {
-        OUTPUT_TYPE res = convert_char_rte(input_data[i] * scale + zp);
-
-        uint offset = out_data_offset + (i * SUBGROUP_SIZE + sglid) * out_data_pitch;
-        out_data[offset] = res;
-    }
-
-    INPUT0_TYPE* comp_ptr = out_data + comp_offset;
-
-    if (sglid == 0) {
-        comp_ptr[token_pos_in_block] = 1.0 / scale;
-        comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + token_pos_in_block] = zp;
-    }
-}
-
-inline void FUNC(quantize_and_save_v)(__global const INPUT0_TYPE* in_data,
-                                    const uint in_data_offset,
-                                    __global OUTPUT_TYPE* out_data,
-                                    const uint out_data_offset,
-                                    const uint out_data_pitch,
-                                    const uint comp_offset,
-                                    const uint token_pos_in_block,
-                                    const uint sglid) {
-    INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
-    INPUT0_TYPE grp_max = 0.001;
-    INPUT0_TYPE max_value = INPUT0_VAL_MIN;
-    INPUT0_TYPE min_value = INPUT0_VAL_MAX;
-
-    unroll_for (uint i = 0; i < V_HEAD_SIZE / SUBGROUP_SIZE; i++) {
-        input_data[i] = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + i * SUBGROUP_SIZE);
-        max_value = fmax(max_value, input_data[i]);
-        min_value = fmin(min_value, input_data[i]);
-    }
-
-    min_value = sub_group_reduce_min(min_value);
-    max_value = sub_group_reduce_max(max_value);
-
-    // If the range of input data is zero, it is adjusted to the minimum value(0.001).
-    #define ACCUMULATOR_TYPE float
-    ACCUMULATOR_TYPE diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
-    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
-    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
-    INPUT0_TYPE scale = (INPUT1_TYPE)(scale_tmp);
-    INPUT0_TYPE zp = (INPUT1_TYPE)(zp_tmp);
-    #undef ACCUMULATOR_TYPE
-
-
-    unroll_for (uint i = 0; i < V_HEAD_SIZE / SUBGROUP_SIZE; i++) {
+    unroll_for (uint i = 0; i < num_groups; i++) {
         OUTPUT_TYPE res = convert_char_rte(input_data[i] * scale + zp);
 
         uint offset = out_data_offset + (i * SUBGROUP_SIZE + sglid) * out_data_pitch;
@@ -178,11 +132,19 @@ KERNEL(pa_kv_cache_update)(
         }
 
 #else // IS_KV_COMPRESSED
-        // key processing
-        FUNC_CALL(quantize_and_save_k)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE, comp_k_offset, current_token_pos_in_block, sglid);
+        {
+            // key processing
+            INPUT0_TYPE input_data[K_HEAD_SIZE / SUBGROUP_SIZE];
+            FUNC_CALL(quantize_and_save)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE, comp_k_offset,
+                current_token_pos_in_block, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+        }
 
-        // value processing
-        FUNC_CALL(quantize_and_save_v)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset, current_token_pos_in_block, sglid);
+        {
+            // value processing
+            INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
+            FUNC_CALL(quantize_and_save)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset,
+                current_token_pos_in_block, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+        }
 #endif // IS_KV_COMPRESSED
     } else {
         // 1st token
@@ -343,11 +305,19 @@ KERNEL(pa_kv_cache_update)(
             }
 
 #else // IS_KV_COMPRESSED
+            {
                 // key processing
-                FUNC_CALL(quantize_and_save_k)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE, comp_k_offset, token_num, sglid);
+                INPUT0_TYPE input_data[K_HEAD_SIZE / SUBGROUP_SIZE];
+                FUNC_CALL(quantize_and_save)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE,
+                    comp_k_offset, token_num, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+            }
 
+            {
                 // value processing
-                FUNC_CALL(quantize_and_save_v)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset, token_num, sglid);
+                INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
+                FUNC_CALL(quantize_and_save)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
+                    comp_v_offset, token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+            }
 #endif // IS_KV_COMPRESSED
 
                 key_in_offset += (KV_HEADS_NUM * K_HEAD_SIZE + INPUT0_PAD_AFTER_FEATURE_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM);
@@ -379,14 +349,22 @@ KERNEL(pa_kv_cache_update)(
                         uint value_offset = value_out_offset + head_idx_index + sglid + SUBGROUP_SIZE * i;
                         value_cache_data[value_offset] = input_data;
                     }
-               }
+                }
 
 #else // IS_KV_COMPRESSED
-                // key processing
-                FUNC_CALL(quantize_and_save_k)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE, comp_k_offset, token_start_pos + token_num, sglid);
+                {
+                    // key processing
+                    INPUT0_TYPE input_data[K_HEAD_SIZE / SUBGROUP_SIZE];
+                    FUNC_CALL(quantize_and_save)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE,
+                        comp_k_offset, token_start_pos + token_num, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+                }
 
-                // value processing
-                FUNC_CALL(quantize_and_save_v)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset, token_start_pos + token_num, sglid);
+                {
+                    // value processing
+                    INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
+                    FUNC_CALL(quantize_and_save)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
+                        comp_v_offset, token_start_pos + token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+                }
 #endif // IS_KV_COMPRESSED
                 key_in_offset += (KV_HEADS_NUM * K_HEAD_SIZE + INPUT0_PAD_AFTER_FEATURE_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM);
                 value_in_offset += (KV_HEADS_NUM * V_HEAD_SIZE + INPUT1_PAD_AFTER_FEATURE_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM);
