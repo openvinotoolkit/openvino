@@ -88,7 +88,6 @@ OutputVector translate_quantized_convnd_relu(const NodeContext& context) {
     return {quantize(context, relu->output(0), scale, zero_point, context.get_input(0))};
 }
 
-
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
