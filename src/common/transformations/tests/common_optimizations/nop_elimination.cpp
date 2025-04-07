@@ -1630,7 +1630,6 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceAll) {
         manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
     }
     {
-        int64_t axis = 2;
         auto param1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 10, 1});
         auto param2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 10, 1});
 
