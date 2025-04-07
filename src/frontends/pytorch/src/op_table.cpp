@@ -785,6 +785,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"quantized::conv2d_relu", op::translate_quantized_convnd_relu},
         {"quantized::hardswish", op::translate_quantized_hardswish},
         {"quantized::linear", op::translate_quantized_linear},
+        {"quantized::linear_relu", op::translate_quantized_linear_relu},
         {"quantized::mul", op::translate_quantized_mul},
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
