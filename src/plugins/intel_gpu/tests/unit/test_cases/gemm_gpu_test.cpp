@@ -2623,7 +2623,7 @@ public:
         }
         auto outputs = network->execute();
         auto output = outputs.at("reorder_bfyx").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         const float threshold_int8 = 1.f;
         const float threshold_fp16 = 1e-1;
