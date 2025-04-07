@@ -1,8 +1,0 @@
-{
-  "devDependencies": {
-    "jest": "^29.7.0",
-    "node-addon-api": "^8.3.1",
-    "ts-jest": "^29.3.1",
-    "typescript": "^5.8.2"
-  }
-}

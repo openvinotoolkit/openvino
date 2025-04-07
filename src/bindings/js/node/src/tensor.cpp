@@ -193,48 +193,35 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, _tensor.is_continuous());
 }
 
-Napi::Value TensorWrap::set_shape(const Napi::CallbackInfo& info) {
+void TensorWrap::set_shape(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
 
-    if (info.Length() != 1 || !info[0].IsArray()) {
-        Napi::Error::New(env, "setShape() requires an array argument.").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-
-    Napi::Array shape_array = info[0].As<Napi::Array>();
-    if (shape_array.Length() == 0) {
-        Napi::Error::New(env, "Shape array cannot be empty.").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-
-    std::vector<size_t> shape;
-    for (uint32_t i = 0; i < shape_array.Length(); ++i) {
-        if (!shape_array.Get(i).IsNumber()) {
-            Napi::Error::New(env, "Each element in shape array must be a number.").ThrowAsJavaScriptException();
-            return env.Undefined();
-        }
-        shape.push_back(shape_array.Get(i).As<Napi::Number>().Uint32Value());
+    ov::Shape shape;
+    try {
+        shape = js_to_cpp<ov::Shape>(info, 0);
+    } catch (const std::exception& e) {
+        Napi::TypeError::New(env, std::string("Invalid shape parameter: ") + e.what()).ThrowAsJavaScriptException();
+        return;
     }
 
     size_t new_size = ov::shape_size(shape);
     size_t current_capacity = ov::shape_size(_tensor.get_shape());
 
-    if (new_size > current_capacity) {
-        Napi::Error::New(env, "Shape mismatch: the new shape must not exceed the tensor capacity.").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-
     if (new_size != current_capacity) {
-        Napi::Error::New(env, "Shape mismatch: the new shape must have the same number of elements as the original shape.").ThrowAsJavaScriptException();
-        return env.Undefined();
+        if (new_size > current_capacity) {
+            Napi::Error::New(env, "Shape mismatch: the new shape must not exceed the tensor capacity.").ThrowAsJavaScriptException();
+        } else {
+            Napi::Error::New(env, "Shape mismatch: the new shape must have the same number of elements as the original shape.").ThrowAsJavaScriptException();
+        }
+        return;
     }
 
     try {
-        _tensor.set_shape(ov::Shape(shape));
+        _tensor.set_shape(shape);
     } catch (const std::exception& e) {
         Napi::Error::New(env, std::string("Failed to set shape: ") + e.what()).ThrowAsJavaScriptException();
-        return env.Undefined();
+        return;
     }
-
-    return env.Null();
 }
+
+

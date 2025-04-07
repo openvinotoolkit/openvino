@@ -69,7 +69,7 @@ public:
      * @param info The contents of the parameters passed by the JS function.
      * @return `null` if successful, otherwise returns an error.
      */
-    Napi::Value set_shape(const Napi::CallbackInfo& info);
+    void set_shape(const Napi::CallbackInfo& info);
 
 private:
     ov::Tensor _tensor;
