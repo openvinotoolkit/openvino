@@ -135,14 +135,10 @@ class PerfCountEnd : public PerfCountEndBase {
 public:
     OPENVINO_OP("PerfCountEnd", "SnippetsOpset", PerfCountEndBase);
     PerfCountEnd(const Output<Node>& pc_begin,
-                 std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
+                 std::vector<std::shared_ptr<utils::Dumper>> dumper_types = {},
                  const std::string& params = "");
     PerfCountEnd();
-    // ~PerfCountEnd();
-    ~PerfCountEnd() {
-        output_perf_count();
-    }
-    void output_perf_count();
+    ~PerfCountEnd();
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 

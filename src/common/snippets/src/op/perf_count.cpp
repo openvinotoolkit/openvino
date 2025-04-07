@@ -169,12 +169,12 @@ void PerfCountBegin::set_start_time() {
 PerfCountEnd::PerfCountEnd() : PerfCountEndBase() {}
 
 PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
-                           std::vector<std::shared_ptr<utils::Dumper>> dumpers,
+                           std::vector<std::shared_ptr<utils::Dumper>> dumper_types,
                            const std::string& params)
     : PerfCountEndBase({pc_begin}),
       accumulation(0ul),
       iteration(0u),
-      dumpers(std::move(dumpers)) {
+      dumpers(std::move(dumper_types)) {
     constructor_validate_and_infer_types();
     init_pc_begin();
     for (const auto& dumper : dumpers) {
@@ -182,11 +182,11 @@ PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
     }
 }
 
-// PerfCountEnd::~PerfCountEnd() {
-//     for (const auto& dumper : dumpers) {
-//         dumper->update(this);
-//     }
-// }
+PerfCountEnd::~PerfCountEnd() {
+    for (const auto& dumper : dumpers) {
+        dumper->update(this);
+    }
+}
 
 std::shared_ptr<Node> PerfCountEnd::clone_with_new_inputs(const OutputVector& inputs) const {
     return std::make_shared<PerfCountEnd>(inputs.at(0), dumpers);
@@ -202,34 +202,6 @@ void PerfCountEnd::set_accumulated_time() {
 void PerfCountEnd::init_pc_begin() {
     m_pc_begin = ov::as_type_ptr<PerfCountBegin>(get_input_source_output(get_input_size() - 1).get_node_shared_ptr());
     NODE_VALIDATION_CHECK(this, m_pc_begin != nullptr, "PerfCountEnd last input is not connected to PerfCountBegin");
-}
-
-void PerfCountEnd::output_perf_count() {
-    OPENVINO_ASSERT(accumulation.size() == iteration.size(), "accumulation size should be the same as iteration size in perf_count_end node.");
-    auto iterator_iter = iteration.begin();
-    auto iterator_acc = accumulation.begin();
-    int t_num = 0;
-    uint64_t avg_max = 0;
-    std::cout << "Perf count data in perfCountEnd node with name " << get_friendly_name() << " is:"<< std::endl;
-    for (; iterator_iter != iteration.end(); ++iterator_iter, ++iterator_acc) {
-        const auto iter = *iterator_iter;
-        const auto acc = *iterator_acc;
-        uint64_t avg = iter == 0 ? 0 : acc / iter;
-        if (avg > avg_max)
-            avg_max = avg;
-        std::cout << "accumulated time:" << acc << "ns, iteration:" << iter << " avg time:" << avg << "ns"<< " on thread:" << t_num << std::endl;
-        t_num++;
-    }
-
-    // max time of all threads: combine for reduce max
-    auto BinaryFunc = [](const uint64_t& a, const uint64_t& b) {
-        return a >= b ? a : b;
-    };
-    // max accumulation
-    uint64_t acc_max = accumulation.combine(BinaryFunc);
-    std::cout << "max accumulated time:" << acc_max << "ns" << std::endl;
-    // max avg
-    std::cout << "max avg time:" << avg_max << "ns" << std::endl;
 }
 
 } // namespace op
