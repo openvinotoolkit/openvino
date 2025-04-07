@@ -1014,7 +1014,7 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
         auto new_scale_out = matched_out_s;
 
         auto qcvtm_iter = node_to_output.find(qcvtm);
-        if (qcvtm_iter != node_to_output.end()) {
+        if (qcvtm_iter == node_to_output.end()) {
             auto matched_qcvtm = qcvtm_iter->second.get_node_shared_ptr();
             new_scale_out = std::make_shared<ov::op::v0::Convert>(matched_out_s, ov::element::f16);
         }
