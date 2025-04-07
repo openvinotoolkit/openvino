@@ -46,9 +46,6 @@ RUN apt-get update && \
         libxmlsec1-dev \
         liblzma-dev \
         wget \
-        # Compilers
-        gcc-arm-linux-gnueabihf \
-        g++-arm-linux-gnueabihf \
         && \
     rm -rf /var/lib/apt/lists/*
 
