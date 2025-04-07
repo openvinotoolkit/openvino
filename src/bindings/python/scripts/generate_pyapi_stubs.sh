@@ -102,7 +102,9 @@ fi
 if [ -z "$1" ]; then
     changed_files=$(git diff --name-only | grep '\.pyi$')
 else
-    changed_files=$(find "action_root/src/bindings/python" -type f -name '*.pyi')
+    changed_files=$(find "$output_dir" -type f -name '*.pyi')
+    echo "Debug: Changed files detected:"
+    echo "$changed_files"
 fi
 
 # Process each changed .pyi file
