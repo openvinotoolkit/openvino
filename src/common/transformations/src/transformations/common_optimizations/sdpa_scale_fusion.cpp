@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
@@ -14,7 +15,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "transformations/utils/gen_pattern.hpp"
-#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

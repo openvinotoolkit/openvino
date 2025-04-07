@@ -5,6 +5,7 @@
 #include "convert_matmul_to_fc.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/convert.hpp"
@@ -13,7 +14,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     MATCHER_SCOPE(ConvertMatMulToFC);

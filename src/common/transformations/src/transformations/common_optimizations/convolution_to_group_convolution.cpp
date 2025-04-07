@@ -5,6 +5,7 @@
 #include "openvino/op/convolution.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,7 +16,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 static bool compare_convolutions(const ov::op::v1::Convolution* conv1, ov::Node* node) {
     const auto conv2 = ov::as_type<ov::op::v1::Convolution>(node);

@@ -6,10 +6,10 @@
 
 #include "itt.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace ov::symbol::util;
 

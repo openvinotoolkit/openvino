@@ -5,13 +5,13 @@
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace ov::op;
 

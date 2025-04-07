@@ -4,6 +4,7 @@
 
 #include "listconstruct_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -24,7 +25,6 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace frontend {

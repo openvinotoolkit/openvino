@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/power.hpp"
@@ -16,7 +17,6 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
     MATCHER_SCOPE(ReduceL2Decomposition);

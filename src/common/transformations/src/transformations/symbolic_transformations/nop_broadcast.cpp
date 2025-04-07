@@ -7,6 +7,7 @@
 #include "compare.hpp"
 #include "itt.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -14,7 +15,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace std;
 using namespace ov;

@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,7 +16,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     MATCHER_SCOPE(FullyConnectedBiasFusion);

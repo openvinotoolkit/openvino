@@ -19,6 +19,7 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
@@ -27,7 +28,6 @@
 #include "transformations/defs.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
-#include "openvino/core/graph_util.hpp"
 using namespace ov::gen_pattern;
 
 namespace ov::intel_cpu {

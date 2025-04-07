@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
@@ -17,7 +18,6 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/gen_pattern.hpp"
-#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

@@ -3,9 +3,9 @@
 
 #include "mish_decomposition.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset4.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::MishDecomposition::MishDecomposition() {
     auto mish = ov::pass::pattern::wrap_type<opset4::Mish>();

@@ -12,9 +12,9 @@
 #include <transformations/utils/utils.hpp>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace ov::pass::pattern;
 ov::intel_cpu::NgramFusion::NgramFusion() {

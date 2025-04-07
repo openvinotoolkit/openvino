@@ -4,6 +4,7 @@
 
 #include "aten_index_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
 #include "openvino/op/add.hpp"
@@ -26,7 +27,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace frontend {

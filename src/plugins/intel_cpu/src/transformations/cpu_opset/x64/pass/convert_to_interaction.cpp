@@ -11,11 +11,11 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "simplify_fakequantize.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
     MATCHER_SCOPE(ConvertToInteraction);

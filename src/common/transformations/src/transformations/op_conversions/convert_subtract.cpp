@@ -5,6 +5,7 @@
 #include "transformations/op_conversions/convert_subtract.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
@@ -13,7 +14,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace ov;
 

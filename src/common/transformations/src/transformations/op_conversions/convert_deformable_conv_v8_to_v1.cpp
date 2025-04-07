@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/deformable_convolution.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertDeformableConv8To1::ConvertDeformableConv8To1() {
     MATCHER_SCOPE(ConvertDeformableConv8To1);

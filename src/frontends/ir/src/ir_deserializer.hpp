@@ -14,9 +14,9 @@
 #include "openvino/core/op_extension.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "utils.hpp"
-#include "openvino/opsets/opset.hpp"
 
 namespace ov {
 

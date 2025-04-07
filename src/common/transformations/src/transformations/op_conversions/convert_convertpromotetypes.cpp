@@ -5,11 +5,11 @@
 #include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
     MATCHER_SCOPE(ConvertConvertPromoteTypes);

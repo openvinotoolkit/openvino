@@ -5,12 +5,12 @@
 #include "transformations/op_conversions/convert_embedding_bag_packed15_downgrade.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/embeddingbag_packed.hpp"
 #include "openvino/op/embeddingbag_packedsum.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3::ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3() {
     MATCHER_SCOPE(ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3);

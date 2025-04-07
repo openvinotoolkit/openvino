@@ -4,6 +4,7 @@
 
 #include "string_equality_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -14,7 +15,6 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "pt_framework_node.hpp"
-#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace frontend {

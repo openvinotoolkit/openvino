@@ -3,9 +3,9 @@
 
 #include "convert_reduce_no_keep_dims.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "openvino/core/graph_util.hpp"
 
 template <class T>
 ov::matcher_pass_callback ov::intel_cpu::ConvertReduceNoKeepDimsBase::convert_reduce() {

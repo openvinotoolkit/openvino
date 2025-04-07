@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -26,7 +27,6 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/subtract_fusion.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::pass::FuseFilteringBoxesBySize::FuseFilteringBoxesBySize() {
     ADD_MATCHER_FOR_THIS(SubtractFusion);

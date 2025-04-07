@@ -4,13 +4,13 @@
 
 #include "einsum_list_construct.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/einsum.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace ov::pass::pattern;
 

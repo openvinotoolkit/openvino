@@ -5,6 +5,7 @@
 #include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_not.hpp"
@@ -16,7 +17,6 @@
 #include "openvino/op/logical_xor.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::pass::ConvertBitwiseAndToLogicalAnd::ConvertBitwiseAndToLogicalAnd() {
     MATCHER_SCOPE(ConvertBitwiseAndToLogicalAnd);

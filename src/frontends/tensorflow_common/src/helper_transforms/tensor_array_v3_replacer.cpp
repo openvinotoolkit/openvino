@@ -5,13 +5,13 @@
 #include "helper_transforms/tensor_array_v3_replacer.hpp"
 
 #include "helper_ops/tensor_array.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace std;
 using namespace ov;

@@ -5,6 +5,7 @@
 #include "remove_packing_ops.hpp"
 
 #include "helper_ops/packed_sequence.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"
@@ -17,7 +18,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace frontend {

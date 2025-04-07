@@ -4,6 +4,7 @@
 
 #include "min_max_prim_list_construct_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/maximum.hpp"
@@ -17,7 +18,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace frontend {

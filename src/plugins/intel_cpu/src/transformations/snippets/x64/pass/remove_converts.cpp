@@ -4,10 +4,10 @@
 
 #include "remove_converts.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::pass::RemoveConverts::RemoveConverts() {
     using namespace ov::pass::pattern;

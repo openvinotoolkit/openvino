@@ -8,12 +8,12 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
-#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

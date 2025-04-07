@@ -10,12 +10,12 @@
 #include "compare.hpp"
 #include "itt.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 namespace {
 bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {

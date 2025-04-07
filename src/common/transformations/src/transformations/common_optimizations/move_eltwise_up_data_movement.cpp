@@ -9,6 +9,7 @@
 #include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
@@ -17,7 +18,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 namespace {
 bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node,

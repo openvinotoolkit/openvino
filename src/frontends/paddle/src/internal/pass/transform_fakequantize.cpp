@@ -5,10 +5,10 @@
 #include "internal/pass/transform_fakequantize.hpp"
 
 #include "default_opset.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;

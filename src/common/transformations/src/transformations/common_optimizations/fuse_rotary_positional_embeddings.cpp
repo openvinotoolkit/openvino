@@ -8,6 +8,7 @@
 #include <limits>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -20,7 +21,6 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace ov::gen_pattern;
 

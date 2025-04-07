@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/gru_cell.hpp"
@@ -24,7 +25,6 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using ov::op::v0::Constant;
 using ov::op::v0::Result;

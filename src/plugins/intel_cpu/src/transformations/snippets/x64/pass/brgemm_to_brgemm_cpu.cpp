@@ -6,6 +6,7 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_shape.h"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -18,7 +19,6 @@
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"
 #include "utils/general_utils.h"
-#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_cpu {
 

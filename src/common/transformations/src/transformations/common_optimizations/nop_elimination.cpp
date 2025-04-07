@@ -11,6 +11,7 @@
 
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -49,7 +50,6 @@
 #include "openvino/util/log.hpp"
 #include "openvino/util/util.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace std;
 using namespace ov;

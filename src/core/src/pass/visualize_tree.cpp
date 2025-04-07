@@ -8,6 +8,7 @@
 #include <fstream>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -18,7 +19,6 @@
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-#include "openvino/core/graph_util.hpp"
 
 /*
  * As we are visualizing the graph, we will make some tweaks to the generated dot file to make

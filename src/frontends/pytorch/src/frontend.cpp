@@ -6,6 +6,7 @@
 
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/pytorch/extension/conversion.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
@@ -45,7 +46,6 @@
 #include "transforms/tuple_unpack_replacer.hpp"
 #include "transforms/u4_block_repack.hpp"
 #include "translate_session.hpp"
-#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace frontend {

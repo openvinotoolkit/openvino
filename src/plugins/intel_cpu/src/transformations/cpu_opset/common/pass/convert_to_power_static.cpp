@@ -7,6 +7,7 @@
 #include <openvino/opsets/opset6.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset4.hpp"
@@ -16,7 +17,6 @@
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "utils/general_utils.h"
-#include "openvino/core/graph_util.hpp"
 
 namespace {
 

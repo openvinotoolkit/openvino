@@ -6,6 +6,7 @@
 
 #include <snippets/itt.hpp>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -13,7 +14,6 @@
 #include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
     MATCHER_SCOPE(MulAddToFMA);

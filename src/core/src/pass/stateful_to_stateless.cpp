@@ -8,13 +8,13 @@
 #include <string>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace ov::op;
 
