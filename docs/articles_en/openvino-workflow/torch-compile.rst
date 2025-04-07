@@ -360,7 +360,7 @@ Model quantization example:
    def transform_fn(data_item):
        images, _ = data_item
        return images
-
+   calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
    # Model quantization
    quantized_model = nncf.quantize(model, calibration_dataset)
 
