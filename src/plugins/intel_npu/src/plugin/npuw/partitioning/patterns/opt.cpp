@@ -1011,8 +1011,15 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
         auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
         auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
-        auto new_cvt_s = std::make_shared<ov::op::v0::Convert>(matched_out_s, ov::element::f16);
-        auto new_g_s = std::make_shared<ov::op::v8::Gather>(new_cvt_s, matched_out_ids, gather_c);
+        auto new_scale_out = matched_out_s;
+
+        auto qcvtm_iter = node_to_output.find(qcvtm);
+        if (qcvtm_iter != node_to_output.end()) {
+            auto matched_qcvtm = qcvtm_iter->second.get_node_shared_ptr();
+            new_scale_out = std::make_shared<ov::op::v0::Convert>(matched_out_s, ov::element::f16);
+        }
+
+        auto new_g_s = std::make_shared<ov::op::v8::Gather>(new_scale_out, matched_out_ids, gather_c);
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_g_w, new_g_s);
 
         // Handle case with non-f16 scale
@@ -1029,9 +1036,10 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
             return true;  // root was changed
         }
 
+        auto new_out = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
         // Reconnect old gather readers to the new Multiply
         for (auto&& r : matched_out_gather.get_target_inputs()) {
-            r.replace_source_output(new_mul);
+            r.replace_source_output(new_out);
         }
 
         return true;  // root was changed

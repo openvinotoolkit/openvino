@@ -142,7 +142,7 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto fake_convert = opp::optional<ov::op::v13::FakeConvert>({opp::any_input(), opp::any_input(), opp::any_input()});
     auto transpose = opp::optional<ov::op::v1::Transpose>({fake_convert->output(0), opp::any_input()});
     auto reshape = opp::optional<ov::op::v1::Reshape>({transpose->output(0), opp::any_input()});
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({reshape->output(0), qcvtr});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({reshape, qcvtr});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
@@ -219,7 +219,7 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto fake_convert = opp::optional<ov::op::v13::FakeConvert>({opp::any_input(), opp::any_input(), opp::any_input()});
     auto transpose = opp::optional<ov::op::v1::Transpose>({fake_convert->output(0), opp::any_input()});
     auto reshape = opp::optional<ov::op::v1::Reshape>({transpose->output(0), opp::any_input()});
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({reshape->output(0), qcvtm});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({reshape, qcvtm});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
