@@ -506,8 +506,8 @@ void Snapshot::earlyRegroup() {
     if (handle_patterns) {
         // Check the model for all specified patterns
         // Note: it's important to run Fake patterns first so it won't mix with the compute ones
-        rewr.run_on_model(m_model);
         rewr_fake.run_on_model(m_model);
+        rewr.run_on_model(m_model);
     }
 
     LOG_INFO("DONE.");

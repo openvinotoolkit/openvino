@@ -1007,14 +1007,16 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
         auto matched_out_ids = uat::_(node_to_output).at_or_at(cvtids, pids);
         const auto& matched_out_gather = node_to_output.at(gather);
 
+        // Create new gathers on W and S, connect respectively
+        auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
+        auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
+        auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
+        auto new_cvt_s = std::make_shared<ov::op::v0::Convert>(matched_out_s, ov::element::f16);
+        auto new_g_s = std::make_shared<ov::op::v8::Gather>(new_cvt_s, matched_out_ids, gather_c);
+        auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_g_w, new_g_s);
+
         // Handle case with non-f16 scale
         if (matched_out_s.get_element_type() != ov::element::f16) {
-            auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
-            auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
-            auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
-            auto new_cvt_s = std::make_shared<ov::op::v0::Convert>(matched_out_s, ov::element::f16);
-            auto new_g_s = std::make_shared<ov::op::v8::Gather>(new_cvt_s, matched_out_ids, gather_c);
-            auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_g_w, new_g_s);
             auto new_out = std::make_shared<ov::op::v0::Convert>(new_mul, matched_out_s.get_element_type());
 
             NPUW_ASSERT(node_to_output.find(qcvtm) == node_to_output.end());
@@ -1027,26 +1029,9 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
             return true;  // root was changed
         }
 
-        // Create new gathers on W and S, connect respectively
-        auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
-        auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
-        auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
-        auto new_g_s = std::make_shared<ov::op::v8::Gather>(matched_out_s, matched_out_ids, gather_c);
-        auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_g_w, new_g_s);
-        std::shared_ptr<ov::Node> new_out = new_mul;
-        if (matched_out_s.get_element_type() != ov::element::f16) {
-            new_out = std::make_shared<ov::op::v0::Convert>(new_mul, matched_out_s.get_element_type());
-        }
-
-        // Check optional convert
-        if (auto qcvtm_iter = node_to_output.find(qcvtm); qcvtm_iter != node_to_output.end()) {
-            NPUW_ASSERT(matched_out_s.get_element_type() != ov::element::f16);
-            new_out = std::make_shared<ov::op::v0::Convert>(new_mul, qcvtm_iter->second.get_element_type());
-        }
-
         // Reconnect old gather readers to the new Multiply
         for (auto&& r : matched_out_gather.get_target_inputs()) {
-            r.replace_source_output(new_out);
+            r.replace_source_output(new_mul);
         }
 
         return true;  // root was changed
@@ -1305,8 +1290,8 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
-            auto newvocab = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
-            auto new_param = ctx.get().host_gather(newvocab, matched_ids);
+            auto fp16vocab = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
+            auto new_param = ctx.get().host_gather(fp16vocab, matched_ids);
             for (auto&& r : matched_out_mul.get_target_inputs()) {
                 r.replace_source_output(new_param);
             }
@@ -1370,6 +1355,8 @@ DQUnpackDictMatMulCWu::DQUnpackDictMatMulCWu(Context::Ref ctx) {
             auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, ov::element::f32);
 
             matched_result->input(0).replace_source_output(new_out);
+
+            return true;  // root was changed
         }
         return false;  // root has changed (yet)
     };
@@ -1421,9 +1408,11 @@ DQUnpackDictMatMulCWf8::DQUnpackDictMatMulCWf8(Context::Ref ctx) {
             auto new_wi = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
 
             auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, new_wi, false, true);
-            auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, matched_qcoeff->get_element_type());
+            auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, matched_matmul->get_element_type());
 
             matched_result->input(0).replace_source_output(new_out);
+
+            return true;  // root was changed
         }
         return false;  // root has changed (yet)
     };
@@ -1480,6 +1469,8 @@ DQUnpackDictMatMulGQi::DQUnpackDictMatMulGQi(Context::Ref ctx) {
             auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, ov::element::f32);
 
             matched_result->input(0).replace_source_output(new_out);
+
+            return true;  // root was changed
         }
         return false;  // root has changed (yet)
     };

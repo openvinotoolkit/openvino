@@ -123,6 +123,7 @@ void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(scale->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
     NPUW_ASSERT(from_shape[0] == scale_shape[0]);
+    NPUW_ASSERT(scale_shape[1] == 1);
     NPUW_ASSERT(from->get_element_type() == ov::element::f8e4m3 || from->get_element_type() == ov::element::f8e5m2 ||
                 from->get_element_type() == ov::element::f8e8m0);
     NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
@@ -137,17 +138,17 @@ void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
     if (from->get_element_type() == ov::element::f8e4m3) {
         const auto* from_ptr = from->data<ov::float8_e4m3>();
         ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = float(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
+            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
         });
     } else if (from->get_element_type() == ov::element::f8e5m2) {
         const auto* from_ptr = from->data<ov::float8_e5m2>();
         ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = float(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
+            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
         });
     } else {
         const auto* from_ptr = from->data<ov::float8_e8m0>();
         ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = float(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
+            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
         });
     }
 }
