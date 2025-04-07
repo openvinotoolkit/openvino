@@ -250,9 +250,12 @@ protected:
 };
 
 TEST_P(OVBlobCompatibilityNPU, CheckBlobsWithDifferentVersionsAreCompatible) {
-    std::ifstream blobStream(blobName, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobName,
+                             std::ios::binary | std::ios::in);
     if (!blobStream.is_open()) {
-        GTEST_FAIL() << blobName << " could not be opened. Is it located at the path of the executable?";
+        GTEST_FAIL() << blobName
+                     << " could not be opened. Please set environment variable `OV_NPU_TESTS_BLOBS_PATH=(path to "
+                        "precompiled blobs)`";
     }
 
     ov::Core core;
