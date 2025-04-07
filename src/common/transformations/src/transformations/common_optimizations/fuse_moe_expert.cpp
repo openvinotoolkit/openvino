@@ -146,13 +146,15 @@ ov::pass::MoeExpert2If::MoeExpert2If() {
             // shape: [expert_number, topk, batch]
             auto then_nonzero = std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::PartialShape{2, -1});
             // shape: [batch * seq_len, hidden_dim]
-            auto then_final_hidden_states = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, static_cast<int>(hidden_size)});
+            #define GETTYPE(n) pattern_map.at(n).get_element_type()
+
+            auto then_final_hidden_states = std::make_shared<ov::opset1::Parameter>(GETTYPE(final_hidden_states), ov::PartialShape{-1, static_cast<int>(hidden_size)});
             // shape: [1, batch * seq_len, hidden_dim]
-            auto then_hidden_states = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, -1, static_cast<int>(hidden_size)});
+            auto then_hidden_states = std::make_shared<ov::opset1::Parameter>(GETTYPE(hidden_states), ov::PartialShape{1, -1, static_cast<int>(hidden_size)});
             
             auto routing_weights_shapeof_split = makeConst(element::i32, {1}, std::vector<int>{static_cast<int>(topk)}); //std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{1});
             // shape[self.topk * batch, 1]
-            auto then_routing_weights =  std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, 1});
+            auto then_routing_weights =  std::make_shared<ov::opset1::Parameter>(GETTYPE(routing_weights), ov::PartialShape{-1, 1});
 
             // topk, batch = torch.where(expert_mask[expert_idx])
             auto ListUnpack_Split_2 = makeOP<opset1::Split>({then_nonzero, 0}, {{"num_splits", 2}});   //  tensor_array<i64[1,?] i64[1,?]> __module.model.model.layers.0.mlp/prim::ListUnpack/Split_2(__module.model.model.layers.0.mlp/prim::ListUnpack/NonZero_2, Constant_1058360)

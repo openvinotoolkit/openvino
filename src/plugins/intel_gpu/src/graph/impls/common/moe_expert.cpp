@@ -44,9 +44,12 @@ struct moe_expert_impl : typed_primitive_impl<moe_expert> {
         expert_mask_scratch& expert_mask = cur_net.get_scratch<expert_mask_scratch>(expert_mask_scratch_key);
         if (expert_mask.execed_count++ % instance.get_config().expert_num == 0) {
             // Wait for moe_expert statement event only, and pass all other events to sub-network directly
-            auto dep_event = instance.pred_inst()->get_impl_params()->out_event;
-            if (dep_event)
-                dep_event->wait();
+            // auto dep_event = instance.pred_inst()->get_impl_params()->out_event;
+            // if (dep_event)
+            //     dep_event->wait();
+            // TODO: wait dep only
+            for (auto&& event: events)
+                event->wait();
             moe_expert_inst::get_expert_mask_from_memory(instance.pred_memory_ptr(), stream, expert_mask);
         }
 
