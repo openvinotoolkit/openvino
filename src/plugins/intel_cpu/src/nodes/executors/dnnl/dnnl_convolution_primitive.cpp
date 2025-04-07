@@ -142,8 +142,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
     return std::move(first_desc);
 }
 
-static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
-                                               const PostOps& postOps,
+static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
@@ -162,15 +161,14 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
     return dnnlpoc.compose();
 }
 
-DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const FCAttrs& attrs,
+DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData([[maybe_unused]] const FCAttrs& attrs,
                                                                            const PostOps& postOps,
                                                                            const MemoryArgs& memory,
                                                                            const ExecutorContext::CPtr& context,
-                                                                           const bool cacheWeights) {
+                                                                           [[maybe_unused]] const bool cacheWeights) {
     DEBUG_LOG("Creating shape agnostic data");
-    ConvAttrs convAttrs{attrs.withBias};
 
-    const auto postOpData = createPrimitiveAttrs(convAttrs, postOps, memory, context);
+    const auto postOpData = createPrimitiveAttrs(postOps, memory, context);
 
     return std::make_shared<DnnlShapeAgnosticData>(postOpData);
 }
@@ -181,7 +179,7 @@ void DnnlConvolutionPrimitive::execute(const dnnl_primitive_args& primArgs) cons
 
 std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     const MemoryArgs& memory,
-    const ConvAttrs& attrs,
+    [[maybe_unused]] const ConvAttrs& attrs,
     const ExecutorContext::CPtr context,
     const DnnlShapeAgnosticDataPtr& shapeAgnosticData) {
     const auto& srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_SRC)->getDescPtr());
