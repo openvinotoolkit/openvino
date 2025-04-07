@@ -105,7 +105,6 @@ ov_status_e ov_tensor_create_from_string_array(const char** string_array, size_t
 
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
-
 }
 
 ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
