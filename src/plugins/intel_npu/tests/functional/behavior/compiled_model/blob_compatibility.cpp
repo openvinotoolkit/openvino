@@ -24,6 +24,7 @@ enum class E_PLATFORMS {
 };
 
 const std::map<E_PLATFORMS, std::string> PLATFORMS{{E_PLATFORMS::MTL, "MTL"}, {E_PLATFORMS::LNL, "LNL"}};
+const std::map<std::string, E_PLATFORMS> PARSED_PLATFORMS{{"NPU3720", E_PLATFORMS::MTL}, {"NPU4000", E_PLATFORMS::LNL}};
 
 enum class E_OV_VERSIONS {
     OV_2024_6_0,
@@ -40,23 +41,101 @@ enum class E_DRIVERS { DRIVER_1688, DRIVER_3967 };
 const std::map<E_DRIVERS, std::string> DRIVERS{{E_DRIVERS::DRIVER_1688, "driver_1688"},
                                                {E_DRIVERS::DRIVER_3967, "driver_1003967"}};
 
-const std::vector<std::string> models = {DUMMY_MODELS.at(E_DUMMY_MODELS::DUMMY_MODEL),
-                                         DUMMY_MODELS.at(E_DUMMY_MODELS::DUMMY_MODEL_STATEFUL),
-                                         DUMMY_MODELS.at(E_DUMMY_MODELS::DUMMY_MODEL_DYNAMIC_SHAPES)};
+const auto all_models = []() -> std::vector<std::string> {
+    std::vector<std::string> models(DUMMY_MODELS.size());
+    std::transform(DUMMY_MODELS.begin(),
+                   DUMMY_MODELS.end(),
+                   models.begin(),
+                   [](const decltype(DUMMY_MODELS)::value_type& pair) {
+                       return pair.second;
+                   });
+    return models;
+}();
 
-const std::vector<std::string> platforms = {PLATFORMS.at(E_PLATFORMS::MTL), PLATFORMS.at(E_PLATFORMS::LNL)};
+const auto match_platform =
+    PLATFORMS.at(PARSED_PLATFORMS.at(ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM));
 
-const std::vector<std::string> ov_releases = {OV_VERSIONS.at(E_OV_VERSIONS::OV_2024_6_0),
-                                              OV_VERSIONS.at(E_OV_VERSIONS::OV_2025_0_0),
-                                              OV_VERSIONS.at(E_OV_VERSIONS::OV_2025_1_0)};
+const auto mismatched_platforms = []() -> std::vector<std::string> {
+    std::vector<std::string> platforms(PLATFORMS.size());
+    std::transform(PLATFORMS.begin(),
+                   PLATFORMS.end(),
+                   platforms.begin(),
+                   [](const decltype(PLATFORMS)::value_type& pair) {
+                       return pair.second;
+                   });
+    platforms.erase(std::find(platforms.begin(), platforms.end(), match_platform));
+    return platforms;
+}();
 
-const std::vector<std::string> drivers = {DRIVERS.at(E_DRIVERS::DRIVER_1688), DRIVERS.at(E_DRIVERS::DRIVER_3967)};
+const auto all_ov_releases = []() -> std::vector<std::string> {
+    std::vector<std::string> ov_releases(OV_VERSIONS.size());
+    std::transform(OV_VERSIONS.begin(),
+                   OV_VERSIONS.end(),
+                   ov_releases.begin(),
+                   [](const decltype(OV_VERSIONS)::value_type& pair) {
+                       return pair.second;
+                   });
+    return ov_releases;
+}();
+
+const auto all_drivers = []() -> std::vector<std::string> {
+    std::vector<std::string> drivers(DRIVERS.size());
+    std::transform(DRIVERS.begin(), DRIVERS.end(), drivers.begin(), [](const decltype(DRIVERS)::value_type& pair) {
+        return pair.second;
+    });
+    return drivers;
+}();
+
+const auto pv_compatible_models = []() -> std::vector<std::string> {
+    std::vector<std::string> models(all_models.size() - 1);
+    std::copy_if(all_models.begin(), all_models.end(), models.begin(), [](const std::string& model) {
+        return DUMMY_MODELS.at(E_DUMMY_MODELS::DUMMY_MODEL_DYNAMIC_SHAPES) != model;
+    });
+    return models;
+}();
+
+const auto all_drivers_except_pv = []() -> std::vector<std::string> {
+    std::vector<std::string> drivers(all_drivers.size() - 1);
+    std::copy_if(all_drivers.begin(), all_drivers.end(), drivers.begin(), [](const std::string& driver) {
+        return DRIVERS.at(E_DRIVERS::DRIVER_1688) != driver;
+    });
+    return drivers;
+}();
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_NPU,
                          OVBlobCompatibilityNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(models),
-                                            ::testing::ValuesIn(platforms),
-                                            ::testing::ValuesIn(ov_releases),
-                                            ::testing::ValuesIn(drivers)),
+                                            ::testing::ValuesIn(all_models),
+                                            ::testing::Values(match_platform),
+                                            ::testing::ValuesIn(all_ov_releases),
+                                            ::testing::ValuesIn(all_drivers_except_pv)),
                          ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU>);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Behavior_NPU,
+                         OVBlobCompatibilityNPU_PV_Driver_No_Throw,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(pv_compatible_models),
+                                            ::testing::Values(match_platform),
+                                            ::testing::ValuesIn(all_ov_releases),
+                                            ::testing::Values(DRIVERS.at(E_DRIVERS::DRIVER_1688))),
+                         ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU_PV_Driver_No_Throw>);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Behavior_NPU,
+    OVBlobCompatibilityNPU_PV_Driver_Throws,
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                       ::testing::Values(DUMMY_MODELS.at(E_DUMMY_MODELS::DUMMY_MODEL_DYNAMIC_SHAPES)),
+                       ::testing::Values(match_platform),
+                       ::testing::ValuesIn(all_ov_releases),
+                       ::testing::Values(DRIVERS.at(E_DRIVERS::DRIVER_1688))),
+    ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU_PV_Driver_Throws>);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Behavior_NPU,
+    OVBlobCompatibilityNPU_Mismatched_Platforms_Throw,
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                       ::testing::ValuesIn(all_models),
+                       ::testing::ValuesIn(mismatched_platforms),
+                       ::testing::ValuesIn(all_ov_releases),
+                       ::testing::ValuesIn(all_drivers)),
+    ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU_Mismatched_Platforms_Throw>);

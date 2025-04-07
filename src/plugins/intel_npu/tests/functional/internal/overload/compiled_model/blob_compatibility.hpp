@@ -9,6 +9,7 @@
 #include <base/ov_behavior_test_utils.hpp>
 
 #include "common/npu_test_env_cfg.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/version.hpp"
 
 // models generation
@@ -21,20 +22,21 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
 
 namespace {
 
 // intentinally recycled code for models generation if we want to compare with refs
-std::shared_ptr<ov::Node> make_convolution(const ov::Output<ov::Node>& in,
-                                           const ov::element::Type& type,
-                                           const std::vector<size_t>& filter_size,
-                                           const std::vector<size_t>& strides,
-                                           const std::vector<ptrdiff_t>& pads_begin,
-                                           const std::vector<ptrdiff_t>& pads_end,
-                                           const std::vector<size_t>& dilations,
-                                           const ov::op::PadType& auto_pad,
-                                           size_t num_out_channels) {
+[[maybe_unused]] std::shared_ptr<ov::Node> make_convolution(const ov::Output<ov::Node>& in,
+                                                            const ov::element::Type& type,
+                                                            const std::vector<size_t>& filter_size,
+                                                            const std::vector<size_t>& strides,
+                                                            const std::vector<ptrdiff_t>& pads_begin,
+                                                            const std::vector<ptrdiff_t>& pads_end,
+                                                            const std::vector<size_t>& dilations,
+                                                            const ov::op::PadType& auto_pad,
+                                                            size_t num_out_channels) {
     auto shape = in.get_partial_shape();
     ov::Shape filter_weights_shape = {num_out_channels, static_cast<size_t>(shape[1].get_length())};
     filter_weights_shape.insert(filter_weights_shape.end(), filter_size.begin(), filter_size.end());
@@ -112,7 +114,7 @@ std::shared_ptr<ov::Node> make_convolution(const ov::Output<ov::Node>& in,
                                                      auto_pad);
 }
 
-std::shared_ptr<ov::Model> make_conv_pool_relu() {
+[[maybe_unused]] std::shared_ptr<ov::Model> make_conv_pool_relu() {
     ov::Shape input_shape = {1, 1, 32, 32};
     ov::element::Type type = ov::element::f32;
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(type, input_shape)};
@@ -163,7 +165,7 @@ std::shared_ptr<ov::Model> make_conv_pool_relu() {
     return model;
 }
 
-std::shared_ptr<ov::Model> make_read_concat_split_assign() {
+[[maybe_unused]] std::shared_ptr<ov::Model> make_read_concat_split_assign() {
     ov::Shape input_shape = {1, 1, 2, 4};
     ov::element::Type type = ov::element::f32;
     ov::ParameterVector parameter{std::make_shared<ov::op::v0::Parameter>(type, input_shape)};
@@ -195,23 +197,22 @@ std::shared_ptr<ov::Model> make_read_concat_split_assign() {
     return model;
 }
 
+[[maybe_unused]] std::shared_ptr<ov::Model> make_dynamic_softmax() {
+    const ov::ParameterVector params{
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                ov::PartialShape{ov::Dimension(1, 32), ov::Dimension(1, 32), 64})};
+    const auto softMax = std::make_shared<ov::op::v1::Softmax>(params.at(0), 2);
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(softMax)};
+
+    return std::make_shared<ov::Model>(results, params, "dummy_model_dynamic_shapes");
+}
+
 namespace {
 
 const char* const BLOB_PREFIX = "blob_compatibility_";
 const char* const BLOB_SUFFIX = ".blob";
 
 }  // namespace
-
-std::shared_ptr<ov::Model> multi_output_split_dynamic() {
-    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-    const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-    const auto split = std::make_shared<ov::op::v1::Split>(data, axis, 2);
-    auto abs = std::make_shared<ov::op::v0::Abs>(split->output(1));
-
-    auto model = std::make_shared<ov::Model>(abs, ov::ParameterVector{data});
-    model->set_friendly_name("dummy_model_dynamic_shapes");
-    return model;
-}
 
 }  // namespace
 
@@ -249,18 +250,35 @@ protected:
     std::string blobName;
 };
 
-TEST_P(OVBlobCompatibilityNPU, CheckBlobsWithDifferentVersionsAreCompatible) {
-    std::ifstream blobStream(ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobName,
-                             std::ios::binary | std::ios::in);
-    if (!blobStream.is_open()) {
-        GTEST_FAIL() << blobName
-                     << " could not be opened. Please set environment variable `OV_NPU_TESTS_BLOBS_PATH=(path to "
-                        "precompiled blobs)`";
-    }
+using OVBlobCompatibilityNPU_PV_Driver_No_Throw = OVBlobCompatibilityNPU;
+using OVBlobCompatibilityNPU_PV_Driver_Throws = OVBlobCompatibilityNPU;
+using OVBlobCompatibilityNPU_Mismatched_Platforms_Throw = OVBlobCompatibilityNPU;
 
-    ov::Core core;
-    OV_ASSERT_NO_THROW(core.import_model(blobStream, target_device, {ov::intel_npu::disable_version_check(true)}));
+#define DEFAULT_TEST_BODY(THROW_TYPE, ...)                                                                        \
+    std::ifstream blobStream(ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobName, \
+                             std::ios::binary | std::ios::in);                                                    \
+    ov::Core core;                                                                                                \
+    THROW_TYPE(core.import_model(blobStream, target_device, {ov::intel_npu::disable_version_check(true)}),        \
+               ##__VA_ARGS__);
+
+TEST_P(OVBlobCompatibilityNPU, CanImportAllPrecompiledBlobsForAllOVVersionsAndDrivers) {
+    DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
 }
+
+TEST_P(OVBlobCompatibilityNPU_PV_Driver_No_Throw, CanImportExpectedModelsForPVDriverAndAllOVVersions) {
+    DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
+}
+
+TEST_P(OVBlobCompatibilityNPU_PV_Driver_Throws, CanNotImportExpectedModelsForPVDriverAndAnyOVVersion) {
+    DEFAULT_TEST_BODY(ASSERT_THROW, ov::Exception);
+}
+
+TEST_P(OVBlobCompatibilityNPU_Mismatched_Platforms_Throw,
+       CanNotImportMimatchedPlatformsForAnyModelsOVVersionsAndDrivers) {
+    DEFAULT_TEST_BODY(ASSERT_THROW, ov::Exception);
+}
+
+#undef DEFAULT_TEST_BODY
 
 }  // namespace behavior
 
