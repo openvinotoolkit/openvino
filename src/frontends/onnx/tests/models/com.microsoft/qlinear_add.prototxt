@@ -1,0 +1,103 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "A"
+    input: "A_scale"
+    input: "A_zero"
+    input: "B"
+    input: "B_scale"
+    input: "B_zero"
+    input: "C_scale"
+    input: "C_zero"
+    output: "R"
+    name: "test_Qlinear_add"
+    domain: "com.microsoft"
+    op_type: "QLinearAdd"
+  }
+  initializer {
+    data_type: 1
+    float_data: 0.22271085
+    name: "A_scale"
+  }
+initializer {
+    data_type: 2
+    int32_data: 138
+    name: "A_zero"
+  }
+initializer {
+    data_type: 1
+    float_data: 0.36769676
+    name: "B_scale"
+  }
+initializer {
+    data_type: 2
+    int32_data: 137
+    name: "B_zero"
+  }
+ initializer {
+    data_type: 1
+    float_data: 0.5482323
+    name: "C_scale"
+  }
+initializer {
+    data_type: 2
+    int32_data: 112
+    name: "C_zero"
+  }
+
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2          }
+        }
+      }
+    }
+  }
+  
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+
+  output {
+    name: "R"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+
+        }
+      }
+    }
+  }
+}
+opset_import {
+   domain: "com.microsoft"
+  version: 1
+}

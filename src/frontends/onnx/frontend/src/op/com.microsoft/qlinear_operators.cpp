@@ -12,6 +12,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/round.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
@@ -25,14 +26,13 @@ namespace com_microsoft {
 namespace opset_1 {
 
 template <typename ActivationType>
-ov::OutputVector qlinear_activation(const ov::frontend::onnx::Node& node, const ActivationType& activation_fn) {
-    common::default_op_checks(node, 5);
+ov::OutputVector qlinear_operators(const ov::frontend::onnx::Node& node, const ActivationType& operation) {
+    common::default_op_checks(node, 4);
 
     const auto inputs = node.get_ov_inputs();
     auto input_tensor = inputs[0];
     auto input_scale = inputs[1];
-    auto input_zero_point =
-        (inputs[2].get_shape().empty()) ? v0::Constant::create(input_tensor.get_element_type(), {}, {0}) : inputs[2];
+    auto input_zero_point = inputs[2];
     auto output_scale = inputs[3];
     auto output_zero_point =
         (inputs.size() > 4) ? inputs[4] : v0::Constant::create(input_tensor.get_element_type(), {}, {0});
@@ -47,24 +47,26 @@ ov::OutputVector qlinear_activation(const ov::frontend::onnx::Node& node, const 
         std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(input_subtracted, input_scale.get_element_type()),
                                        input_scale);
 
-    auto activation_result = activation_fn(input_dequantized);
+    auto result = operation(input_dequantized);
 
-    auto scaled_result_float = std::make_shared<v1::Divide>(activation_result, output_scale);
-    auto quantized_result =
-        std::make_shared<v1::Add>(std::make_shared<v0::Convert>(scaled_result_float, input_tensor.get_element_type()),
-                                  output_zero_point);
+    auto quantized_result = std::make_shared<v0::Convert>(
+        std::make_shared<v5::Round>(
+            std::make_shared<v1::Add>(std::make_shared<v1::Divide>(result, output_scale),
+                std::make_shared<v0::Convert>(output_zero_point, output_scale.get_element_type())),
+            v5::Round::RoundMode::HALF_TO_EVEN),
+        input_tensor.get_element_type());
 
     return ov::OutputVector{quantized_result};
 }
 
 ov::OutputVector qlinear_sigmoid(const ov::frontend::onnx::Node& node) {
-    return qlinear_activation(node, [](const std::shared_ptr<ov::Node>& input_dequantized) {
+    return qlinear_operators(node, [](const std::shared_ptr<ov::Node>& input_dequantized) {
         return std::make_shared<v0::Sigmoid>(input_dequantized);
     });
 }
 
 ov::OutputVector qlinear_leaky_relu(const ov::frontend::onnx::Node& node) {
-    return qlinear_activation(node, [&](const std::shared_ptr<ov::Node>& input_dequantized) {
+    return qlinear_operators(node, [&](const std::shared_ptr<ov::Node>& input_dequantized) {
         auto alpha =
             v0::Constant::create(input_dequantized->get_element_type(), {}, {node.get_attribute_value<float>("alpha")});
         return std::make_shared<v1::Maximum>(input_dequantized,
@@ -73,7 +75,7 @@ ov::OutputVector qlinear_leaky_relu(const ov::frontend::onnx::Node& node) {
 }
 
 ov::OutputVector qlinear_avg_pool(const ov::frontend::onnx::Node& node) {
-    return qlinear_activation(node, [&](const std::shared_ptr<ov::Node>& input_dequantized) {
+    return qlinear_operators(node, [&](const std::shared_ptr<ov::Node>& input_dequantized) {
         const auto kernel_shape = node.get_attribute_value<std::vector<int64_t>>("kernel_shape");
         auto strides = node.get_attribute_value<std::vector<int64_t>>("strides", std::vector<int64_t>{1});
         auto pads = node.get_attribute_value<std::vector<int64_t>>("pads", std::vector<int64_t>{0});

@@ -11,6 +11,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/round.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
 
@@ -23,19 +24,17 @@ namespace com_microsoft {
 namespace opset_1 {
 
 template <typename BinaryOp>
-ov::OutputVector qlinear_op(const ov::frontend::onnx::Node& node, BinaryOp binary_op) {
+ov::OutputVector qlinear_binary_operators(const ov::frontend::onnx::Node& node, BinaryOp binary_operation) {
     common::default_op_checks(node, 7);
 
     const auto inputs = node.get_ov_inputs();
     auto A = inputs[0];
     auto A_scale = inputs[1];
-    auto A_zero_point =
-        (inputs[2].get_shape().empty()) ? v0::Constant::create(A.get_element_type(), {}, {0}) : inputs[2];
+    auto A_zero_point = inputs[2];
 
     auto B = inputs[3];
     auto B_scale = inputs[4];
-    auto B_zero_point =
-        (inputs[5].get_shape().empty()) ? v0::Constant::create(A.get_element_type(), {}, {0}) : inputs[5];
+    auto B_zero_point = inputs[5];
 
     auto C_scale = inputs[6];
 
@@ -56,23 +55,24 @@ ov::OutputVector qlinear_op(const ov::frontend::onnx::Node& node, BinaryOp binar
         ", B_zero_point: ",
         B_zero_point.get_element_type());
 
-    auto A_minus_zero_point = std::make_shared<v1::Subtract>(A, A_zero_point);
-    auto B_minus_zero_point = std::make_shared<v1::Subtract>(B, B_zero_point);
+    auto A_subtracted = std::make_shared<v1::Subtract>(A, A_zero_point);
+    auto A_dequantized =
+        std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(A_subtracted, A_scale.get_element_type()),
+                                       A_scale);
 
-    auto A_minus_zero_point_float = std::make_shared<v0::Convert>(A_minus_zero_point, A_scale.get_element_type());
-    auto B_minus_zero_point_float = std::make_shared<v0::Convert>(B_minus_zero_point, B_scale.get_element_type());
+    auto B_subtracted = std::make_shared<v1::Subtract>(B, B_zero_point);
+    auto B_dequantized =
+        std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(B_subtracted, B_scale.get_element_type()),
+                                       B_scale);
 
-    auto A_scaled = std::make_shared<v1::Multiply>(A_scale, A_minus_zero_point_float);
-    auto B_scaled = std::make_shared<v1::Multiply>(B_scale, B_minus_zero_point_float);
+    auto result = binary_operation(A_dequantized, B_dequantized);
 
-    auto result_scaled = binary_op(A_scaled, B_scaled);
-
-    auto result_divided = std::make_shared<v1::Divide>(result_scaled, C_scale);
-
-    auto C_zero_point_float = std::make_shared<v0::Convert>(C_zero_point, C_scale.get_element_type());
-
-    auto C_float = std::make_shared<v1::Add>(result_divided, C_zero_point_float);
-    auto C = std::make_shared<v0::Convert>(C_float, A.get_element_type());
+    auto C = std::make_shared<v0::Convert>(
+        std::make_shared<v5::Round>(
+            std::make_shared<v1::Add>(std::make_shared<v1::Divide>(result, C_scale),
+                                      std::make_shared<v0::Convert>(C_zero_point, C_scale.get_element_type())),
+            v5::Round::RoundMode::HALF_TO_EVEN),
+        A.get_element_type());
 
     return ov::OutputVector{C};
 }
@@ -81,7 +81,7 @@ ov::OutputVector qlinear_add(const ov::frontend::onnx::Node& node) {
     // Original documentation:
     // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#commicrosoftqlinearadd
     // C = (A_scale * (A - A_zero_point) + B_scale * (B - B_zero_point))/C_scale + C_zero_point
-    return qlinear_op(node, [](auto a, auto b) {
+    return qlinear_binary_operators(node, [](auto a, auto b) {
         return std::make_shared<v1::Add>(a, b);
     });
 }
@@ -90,7 +90,7 @@ ov::OutputVector qlinear_mul(const ov::frontend::onnx::Node& node) {
     // Original documentation:
     // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#commicrosoftqlinearmul
     // C = (A_scale * (A - A_zero_point) * B_scale * (B - B_zero_point))/C_scale + C_zero_point
-    return qlinear_op(node, [](auto a, auto b) {
+    return qlinear_binary_operators(node, [](auto a, auto b) {
         return std::make_shared<v1::Multiply>(a, b);
     });
 }
