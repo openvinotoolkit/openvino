@@ -536,12 +536,14 @@ void Convolution::getSupportedDescriptors() {
     MemoryDescPtr in_candidate, out_candidate;
     memory::format_tag nspc =
         ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc);
-    memory::format_tag ncsp =
+    [[maybe_unused]] memory::format_tag ncsp =
         ndims == 3 ? memory::format_tag::ncw : (ndims == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw);
-    memory::format_tag nCsp8c = ndims == 3 ? memory::format_tag::nCw8c
-                                           : (ndims == 4 ? memory::format_tag::nChw8c : memory::format_tag::nCdhw8c);
-    memory::format_tag nCsp16c = ndims == 3 ? memory::format_tag::nCw16c
-                                            : (ndims == 4 ? memory::format_tag::nChw16c : memory::format_tag::nCdhw16c);
+    [[maybe_unused]] memory::format_tag nCsp8c =
+        ndims == 3 ? memory::format_tag::nCw8c
+                   : (ndims == 4 ? memory::format_tag::nChw8c : memory::format_tag::nCdhw8c);
+    [[maybe_unused]] memory::format_tag nCsp16c =
+        ndims == 3 ? memory::format_tag::nCw16c
+                   : (ndims == 4 ? memory::format_tag::nChw16c : memory::format_tag::nCdhw16c);
 
     if (canBeExecutedInInt8()) {
         DEBUG_LOG(getName(), "Creating I8 descriptor");
@@ -655,9 +657,6 @@ void Convolution::getSupportedDescriptors() {
         createDescriptor({in_candidate}, {out_candidate});
     }
 #else
-    (void)ncsp;
-    (void)nCsp8c;
-    (void)nCsp16c;
 
     in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
     out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);

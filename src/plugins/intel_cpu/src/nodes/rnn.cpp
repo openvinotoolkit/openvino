@@ -1410,13 +1410,13 @@ void RNN::prepareParams() {
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    (void)prim_desc;
+std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc([[maybe_unused]] const dnnl::primitive_desc& prim_desc,
+                                               size_t idx) const {
     return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    (void)prim_desc;
+std::shared_ptr<MemoryDesc> RNN::getDstMemDesc([[maybe_unused]] const dnnl::primitive_desc& prim_desc,
+                                               size_t idx) const {
     return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 
