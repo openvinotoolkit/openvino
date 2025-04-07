@@ -33,6 +33,14 @@ public:
      * object on node-addon side. */
     void set_compiled_model(const ov::CompiledModel& compiled_model);
 
+    ov::CompiledModel& get_compiled_model() {
+        if (_compiled_model) {
+            return _compiled_model;
+        } else {
+            OPENVINO_THROW("get_compiled_model failed.");
+        }
+    }
+
     /** @return A Javascript InferRequest */
     Napi::Value create_infer_request(const Napi::CallbackInfo& info);
 

@@ -41,7 +41,6 @@ void InferRequestWrap::set_infer_request(const ov::InferRequest& infer_request) 
 }
 
 Napi::Object InferRequestWrap::wrap(Napi::Env env, ov::InferRequest infer_request) {
-    Napi::HandleScope scope(env);
     const auto& prototype = env.GetInstanceData<AddonData>()->infer_request;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to InferRequest prototype.");

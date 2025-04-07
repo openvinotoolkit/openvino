@@ -5,6 +5,7 @@
 #include <napi.h>
 
 #include "node/include/addon.hpp"
+#include "node/include/compiled_model.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/tensor.hpp"
 #include "openvino/openvino.hpp"
@@ -42,6 +43,9 @@ template <>
 const char* get_attr_type<ModelWrap>();
 
 template <>
+const char* get_attr_type<CompiledModelWrap>();
+
+template <>
 const char* get_attr_type<TensorWrap>();
 
 template <typename T>
@@ -66,6 +70,9 @@ bool validate_value<int>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
 bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
+bool validate_value<CompiledModelWrap>(const Napi::Env& env, const Napi::Value& value);
 
 /** @brief Checks if Napi::Value is a Tensor.*/
 template <>

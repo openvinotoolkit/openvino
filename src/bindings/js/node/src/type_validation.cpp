@@ -22,6 +22,7 @@ static const char UNKNOWN_STR[] = "unknown";
 namespace BindingTypename {
 static const char INT[] = "Integer";
 static const char MODEL[] = "Model";
+static const char COMPILED_MODEL[] = "CompiledModel";
 static const char TENSOR[] = "Tensor";
 static const char BUFFER[] = "Buffer";
 }  // namespace BindingTypename
@@ -104,6 +105,10 @@ template <>
 const char* get_attr_type<ModelWrap>() {
     return BindingTypename::MODEL;
 }
+template <>
+const char* get_attr_type<CompiledModelWrap>() {
+    return BindingTypename::COMPILED_MODEL;
+}
 
 template <>
 const char* get_attr_type<TensorWrap>() {
@@ -145,6 +150,13 @@ bool validate_value<int>(const Napi::Env& env, const Napi::Value& value) {
 template <>
 bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value) {
     const auto& prototype = env.GetInstanceData<AddonData>()->model;
+
+    return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
+}
+
+template <>
+bool validate_value<CompiledModelWrap>(const Napi::Env& env, const Napi::Value& value) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
 
     return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
 }
