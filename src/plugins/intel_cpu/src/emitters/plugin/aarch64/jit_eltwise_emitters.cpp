@@ -52,7 +52,8 @@ void jit_abs_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     h->fabs(dst.s, src.s);
 }
 
-std::set<std::vector<element::Type>> jit_abs_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_abs_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -91,7 +92,8 @@ void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     h->uni_fadd(dst.s, src0.s, src1.s);
 }
 
-std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -164,7 +166,7 @@ void jit_clamp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_clamp_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -206,7 +208,7 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -237,7 +239,7 @@ size_t jit_equal_emitter::get_aux_gprs_count() const {
 }
 
 std::set<std::vector<element::Type>> jit_equal_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -299,7 +301,7 @@ size_t jit_not_equal_emitter::get_aux_gprs_count() const {
 }
 
 std::set<std::vector<element::Type>> jit_not_equal_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -413,7 +415,8 @@ void jit_elu_emitter::emit_data() const {
     exp_emitter->emit_data();
 }
 
-std::set<std::vector<element::Type>> jit_elu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_elu_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -553,7 +556,8 @@ void jit_exp_emitter::register_table_entries() {
     push_arg_entry_of("exp_pol5", 0x3c07cfce, true);
 }
 
-std::set<std::vector<element::Type>> jit_exp_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_exp_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -593,7 +597,7 @@ void jit_floor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -644,7 +648,7 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_floor_mod_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -692,7 +696,7 @@ void jit_ceiling_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 // Template method that generates actual instruction sequence for ceiling operation
 // Currently only supports 32-bit floating point (f32)
 std::set<std::vector<element::Type>> jit_ceiling_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -732,7 +736,7 @@ void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_negative_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -868,7 +872,7 @@ void jit_gelu_erf_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_gelu_erf_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -956,7 +960,7 @@ void jit_gelu_tanh_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_gelu_tanh_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1017,7 +1021,7 @@ void jit_greater_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1078,7 +1082,7 @@ void jit_greater_equal_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_greater_equal_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1149,7 +1153,7 @@ void jit_hswish_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_hswish_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1186,7 +1190,7 @@ size_t jit_is_finite_emitter::get_aux_gprs_count() const {
 }
 
 std::set<std::vector<element::Type>> jit_is_finite_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1277,7 +1281,7 @@ size_t jit_is_inf_emitter::get_aux_gprs_count() const {
 }
 
 std::set<std::vector<element::Type>> jit_is_inf_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1366,7 +1370,7 @@ size_t jit_is_nan_emitter::get_aux_gprs_count() const {
 }
 
 std::set<std::vector<element::Type>> jit_is_nan_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1461,7 +1465,8 @@ void jit_less_emitter::register_table_entries() {
     push_arg_entry_of("one", 0x3f800000, true);
 }
 
-std::set<std::vector<element::Type>> jit_less_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_less_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1523,7 +1528,7 @@ void jit_less_equal_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_less_equal_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1584,7 +1589,7 @@ void jit_logical_and_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_logical_and_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1645,7 +1650,7 @@ void jit_logical_or_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_logical_or_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1707,7 +1712,7 @@ void jit_logical_not_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_logical_not_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1768,7 +1773,7 @@ void jit_logical_xor_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_logical_xor_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1810,7 +1815,7 @@ void jit_maximum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_maximum_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1852,7 +1857,7 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -1945,7 +1950,8 @@ void jit_mish_emitter::emit_data() const {
     exp_emitter->emit_data();
 }
 
-std::set<std::vector<element::Type>> jit_mish_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_mish_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -1993,7 +1999,8 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     h->fsub(r.s, dividend.s, aux.s);
 }
 
-std::set<std::vector<element::Type>> jit_mod_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_mod_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -2058,7 +2065,7 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32, element::f32}};
 }
 
@@ -2100,7 +2107,7 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -2154,7 +2161,7 @@ void jit_power_static_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_power_static_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -2339,7 +2346,7 @@ size_t jit_prelu_emitter::get_aux_vecs_count() const {
 }
 
 std::set<std::vector<element::Type>> jit_prelu_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -2409,7 +2416,8 @@ size_t jit_relu_emitter::get_aux_gprs_count() const {
     return (!is_relu()) ? 1 : 0;
 }
 
-std::set<std::vector<element::Type>> jit_relu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_relu_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -2473,7 +2481,7 @@ size_t jit_round_half_away_from_zero_emitter::get_inputs_count() const {
 }
 
 std::set<std::vector<element::Type>> jit_round_half_away_from_zero_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -2515,7 +2523,7 @@ size_t jit_round_half_to_even_emitter::get_inputs_count() const {
 }
 
 std::set<std::vector<element::Type>> jit_round_half_to_even_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -2560,7 +2568,7 @@ size_t jit_select_emitter::get_aux_vecs_count() const {
 }
 
 std::set<std::vector<element::Type>> jit_select_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32, element::f32}};
 }
 
@@ -2686,7 +2694,7 @@ void jit_sigmoid_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_sigmoid_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -2932,7 +2940,7 @@ void jit_soft_sign_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_soft_sign_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -2975,7 +2983,8 @@ void jit_sqrt_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     h->fsqrt(dst.s, src.s);
 }
 
-std::set<std::vector<element::Type>> jit_sqrt_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_sqrt_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -3060,7 +3069,7 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -3144,7 +3153,7 @@ void jit_swish_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_swish_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -3217,7 +3226,8 @@ void jit_tanh_emitter::emit_data() const {
     sigmoid_emitter->emit_data();
 }
 
-std::set<std::vector<element::Type>> jit_tanh_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_tanh_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
