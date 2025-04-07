@@ -257,13 +257,14 @@ OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_org_proc_type_table();
  *     32            8                 16                       8                   -1                 -1
  */
 enum ColumnOfProcessorTypeTable {
-    ALL_PROC = 0,              //!< All processors, regardless of backend cpu
-    MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
-    EFFICIENT_CORE_PROC = 2,   //!< Processor based on Intel Efficient-cores
-    HYPER_THREADING_PROC = 3,  //!< Processor based on logical core of Intel Performance-cores
-    PROC_NUMA_NODE_ID = 4,     //!< Numa node id of processors in this row
-    PROC_SOCKET_ID = 5,        //!< Socket id of processors in this row
-    PROC_TYPE_TABLE_SIZE = 6   //!< Size of processor type table
+    ALL_PROC = 0,                //!< All processors, regardless of backend cpu
+    MAIN_CORE_PROC = 1,          //!< Processor based on physical core of Intel Performance-cores
+    EFFICIENT_CORE_PROC = 2,     //!< Processor based on Intel Efficient-cores
+    LP_EFFICIENT_CORE_PROC = 3,  //!< Processor based on Intel Low Power Efficient-cores
+    HYPER_THREADING_PROC = 4,    //!< Processor based on logical core of Intel Performance-cores
+    PROC_NUMA_NODE_ID = 5,       //!< Numa node id of processors in this row
+    PROC_SOCKET_ID = 6,          //!< Socket id of processors in this row
+    PROC_TYPE_TABLE_SIZE = 7     //!< Size of processor type table
 };
 
 /**
