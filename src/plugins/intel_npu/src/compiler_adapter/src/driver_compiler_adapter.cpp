@@ -79,6 +79,7 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 
 namespace {
 
@@ -246,6 +247,29 @@ bool isInitMetadata(const intel_npu::NetworkMetadata& networkMetadata) {
     return networkMetadata.inputs.at(0).isInitInputWeights;
 }
 
+/**
+ * @brief TODO
+ *
+ * @param model
+ */
+void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
+    size_t constantId = 0;
+    for (auto&& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::Constant>(node)) {
+            ov::RTMap& runtimeInfoMap = node->get_rt_info();
+            const auto& weightlessCacheAttrIt =
+                runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
+                auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
+                const std::string constantIdString = std::to_string(constantId++);
+                model->set_rt_info(weightlessCacheAttr.bin_offset, "ws_bin_offset_" + constantIdString);
+                model->set_rt_info(weightlessCacheAttr.original_size, "ws_original_size_" + constantIdString);
+                model->set_rt_info(weightlessCacheAttr.original_dtype, "ws_original_dtype_" + constantIdString);
+            }
+        }
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -315,6 +339,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
                                                                       const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
+
+    storeWeightlessCacheAttribute(model);
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
 

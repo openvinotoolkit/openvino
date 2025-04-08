@@ -8,6 +8,7 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -16,6 +17,12 @@
 #include "zero_remote_tensor.hpp"
 
 using namespace intel_npu;
+
+namespace {
+
+constexpr char INIT_INPUT_DELIMITER = '_';
+
+}
 
 ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
     : _initStructs(initStructs),
@@ -73,7 +80,7 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
     const std::shared_ptr<const ov::Model>& model,
     const ov::SoPtr<ov::IRemoteContext>& context,
     const Config& config) {
-    std::unordered_map<size_t, std::shared_ptr<ov::ITensor>> constantIdToTensorData;
+    std::map<std::pair<size_t, size_t>, std::shared_ptr<ov::ITensor>> binOffsetToTensorData;
     std::vector<std::vector<std::shared_ptr<ov::ITensor>>> inputTensors;
     std::vector<std::shared_ptr<ov::ITensor>> outputTensors;
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputTensorsMap;
@@ -88,18 +95,24 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
     begin = std::chrono::steady_clock::now();
-    size_t constantIndex = 0;
     for (auto&& node : model->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(node)) {
             continue;
         }
 
+        ov::RTMap& runtimeInfoMap = node->get_rt_info();
+        const auto& weightlessCacheAttrIt = runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        if (weightlessCacheAttrIt == runtimeInfoMap.end()) {
+            continue;
+        }
+
+        auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
         auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
         std::shared_ptr<ov::ITensor> tensor = ov::make_tensor(constantNode->get_element_type(),
                                                               constantNode->get_shape(),
                                                               const_cast<void*>(constantNode->get_data_ptr()),
                                                               constantNode->get_strides());
-        constantIdToTensorData.emplace(constantIndex++, tensor);
+        binOffsetToTensorData.emplace(std::make_pair(weightlessCacheAttr.bin_offset, tensor->get_byte_size()), tensor);
     }
     end = std::chrono::steady_clock::now();
     std::cout << "getting constant IDs " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
@@ -123,34 +136,37 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
         << "[microseconds]" << std::endl;
 
     size_t offset = 0;
-
     for (const IODescriptor& descriptor : initGraph->get_metadata().inputs) {
-        const size_t id = std::stoi(descriptor.nameFromCompiler);
-        auto currentInputBufferLocation = static_cast<unsigned char*>(initInputsTensor->data()) + offset;
+        const size_t delimiterPosition = descriptor.nameFromCompiler.find(INIT_INPUT_DELIMITER);
+        OPENVINO_ASSERT(delimiterPosition > 0, "Invalid name for init inpu ", descriptor.nameFromCompiler);
+        const size_t binOffset = std::stoi(descriptor.nameFromCompiler.substr(0, delimiterPosition));
         const size_t currentInputSize =
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
-        OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
+        const std::pair<size_t, size_t> weightsKey = std::make_pair(binOffset, currentInputSize);
 
-        OPENVINO_ASSERT(constantIdToTensorData.at(id)->get_byte_size() == currentInputSize,
+        OPENVINO_ASSERT(binOffsetToTensorData.count(weightsKey), "Mismatch between weights IDs and parsed inputs");
+
+        OPENVINO_ASSERT(binOffsetToTensorData.at(weightsKey)->get_byte_size() == currentInputSize,
                         "Byte size mismatch for ",
                         descriptor.nameFromCompiler);
-        OPENVINO_ASSERT(constantIdToTensorData.at(id)->get_element_type() == descriptor.precision,
+        OPENVINO_ASSERT(binOffsetToTensorData.at(weightsKey)->get_element_type() == descriptor.precision,
                         "Precision mismatch for ",
                         descriptor.nameFromCompiler);
-        OPENVINO_ASSERT(constantIdToTensorData.at(id)->get_shape() == descriptor.shapeFromCompiler.to_shape(),
+        OPENVINO_ASSERT(binOffsetToTensorData.at(weightsKey)->get_shape() == descriptor.shapeFromCompiler.to_shape(),
                         "Shape mismatch for ",
                         descriptor.nameFromCompiler);
 
+        auto currentInputBufferLocation = static_cast<unsigned char*>(initInputsTensor->data()) + offset;
         begin_memcpy = std::chrono::steady_clock::now();
-        std::memcpy(currentInputBufferLocation, constantIdToTensorData.at(id)->data(), currentInputSize);
+        std::memcpy(currentInputBufferLocation, binOffsetToTensorData.at(weightsKey)->data(), currentInputSize);
         end_memcpy = std::chrono::steady_clock::now();
         memcpy_duration =
             memcpy_duration + std::chrono::duration_cast<std::chrono::microseconds>(end_memcpy - begin_memcpy).count();
 
-        inputTensors.push_back({ov::make_tensor(constantIdToTensorData.at(id)->get_element_type(),
-                                                constantIdToTensorData.at(id)->get_shape(),
+        inputTensors.push_back({ov::make_tensor(binOffsetToTensorData.at(weightsKey)->get_element_type(),
+                                                binOffsetToTensorData.at(weightsKey)->get_shape(),
                                                 currentInputBufferLocation,
-                                                constantIdToTensorData.at(id)->get_strides())});
+                                                binOffsetToTensorData.at(weightsKey)->get_strides())});
         offset += currentInputSize;
     }
     end = std::chrono::steady_clock::now();
