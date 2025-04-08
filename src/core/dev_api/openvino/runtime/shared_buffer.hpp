@@ -16,9 +16,11 @@ public:
         m_allocated_buffer = nullptr;
         m_aligned_buffer = data;
         m_byte_size = size;
+        std::cout << "SharedBuffer constructed: " << std::size_t((void*)(data)) << " " << size << std::endl;
     }
 
     virtual ~SharedBuffer() {
+        std::cout << "SharedBuffer destructed: " << std::size_t((void*)(m_aligned_buffer)) << " " << m_byte_size << std::endl;
         m_aligned_buffer = nullptr;
         m_allocated_buffer = nullptr;
         m_byte_size = 0;

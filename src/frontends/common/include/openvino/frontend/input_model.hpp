@@ -45,7 +45,9 @@ class FRONTEND_API InputModel {
 public:
     using Ptr = std::shared_ptr<InputModel>;
 
-    InputModel() = default;
+    InputModel() {
+        std::cout << "Input model constructor" << std::endl;
+    };
     InputModel(const InputModel&) = delete;
     InputModel(InputModel&&) = delete;
     InputModel& operator=(const InputModel&) = delete;

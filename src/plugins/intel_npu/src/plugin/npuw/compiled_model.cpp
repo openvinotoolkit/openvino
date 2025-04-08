@@ -474,6 +474,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
     };  // compile
 
+    std::cout << "before compile" << std::endl;
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(10000ms);
+
     // Parallel compilation is unstable so is disabled by default.
     const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
     if (par_opt) {
@@ -485,13 +489,17 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
     }
 
+    std::cout << "before bank allocation" << std::endl;
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(10000ms);
+
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
     detach_memory();
 
-    // std::cout << "detached memory" << std::endl;
-    // using namespace std::chrono_literals;
-    // std::this_thread::sleep_for(5000ms);
+    std::cout << "model compiled" << std::endl;
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(10000ms);
 
     // Print stats report when possible
     {
