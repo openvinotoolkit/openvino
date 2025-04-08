@@ -19,21 +19,20 @@ struct InputInfo {
 using InputsInfo = std::map<std::string, InputInfo>;
 
 std::string parameterNameToTensorName(std::string& name, std::vector<ov::Output<ov::Node>>& inputs_info) {
-    auto count_name = std::any_of(inputs_info.begin(), inputs_info.end(), [name](ov::Output<ov::Node>& port) {
-        return port.get_names().count(name) > 0;
-    });
-    if (count_name) {
-        return name;
-    } else {
-        auto inputInfo = std::find_if(inputs_info.begin(), inputs_info.end(), [name](ov::Output<ov::Node>& port) {
-            return name == port.get_node()->get_friendly_name();
-        });
-        if (inputInfo == inputs_info.end()) {
-            throw std::runtime_error("Provided I/O name \"" + name +
-                                     "\" is not found neither in tensor names nor in nodes names.");
+    // Looking for a tensor name match
+    for (const auto& port : inputs_info) {
+        if (port.get_names().count(name) > 0) {
+            return port.get_any_name();
         }
-        return inputInfo->get_any_name();
     }
+    // Looking for a node name match
+    for (const auto& port : inputs_info) {
+        if (!port.get_names().empty() && name == port.get_node()->get_friendly_name()) {
+            return port.get_any_name();
+        }
+    }
+    throw std::runtime_error("Provided I/O name \"" + name +
+                             "\" is not found neither in tensor names nor in nodes names.");
 }
 
 std::map<std::string, std::vector<std::string>> parseInputParameters(std::string& parameter_string,
