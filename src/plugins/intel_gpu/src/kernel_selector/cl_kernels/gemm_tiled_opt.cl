@@ -236,7 +236,7 @@ KERNEL(gemm_tiled_opt)(
 #if TRANSPOSE_INPUT0 != TRANSPOSE_X_LAST
     MAKE_VECTOR_TYPE(INPUT0_TYPE, SIMD_WIDTH) a_tile;
 #endif // TRANSPOSE_INPUT0 != TRANSPOSE_X_LAST
-    float c_tile[TILE_M];
+    C_FLOATN c_tile[TILE_M];
 
     unroll_for (uint i = 0; i < TILE_M; i++) {
         c_tile[i] = (B_FLOATN)(ACCUMULATOR_VAL_ZERO);
