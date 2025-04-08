@@ -25,6 +25,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -92,15 +93,15 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Only consider batch is 1
     const auto seqlens_1d = register_new_node<v1::Reshape>(real_seqlens, one, false);
     const auto past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
-    const auto curr_seqlen_scalar = register_new_node<v1::Reshape>(current_seqlen, one_without_shape, false);
-
-    ov::Output<ov::Node> position_ids =
-        register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-    position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
-    const auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
-    const auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
+    const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
 
     if (do_rotary) {
+        ov::Output<ov::Node> position_ids =
+            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
+        position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
+
+        const auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
+        const auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
         Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
         K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
     }
@@ -112,18 +113,18 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     V = construct_kv_cache(past_value, V);
 
     const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
-    const auto concat_kv_len_scalar = register_new_node<v1::Reshape>(concat_kv_len, one_without_shape, false);
+    const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
 
     ov::Output<ov::Node> present_k;
     ov::Output<ov::Node> present_v;
-    if (!is_static_input) {
-        present_k = K;
-        present_v = V;
-    } else {
+    if (is_static_input) {
         const auto concat_kv_len_const = register_new_node(
             v0::Constant::create(ov::element::i64, ov::Shape{1}, {K.get_partial_shape()[2].get_length()}));
         present_k = register_new_node<v8::Slice>(K, one, concat_kv_len_const, one, two);
         present_v = register_new_node<v8::Slice>(V, one, concat_kv_len_const, one, two);
+    } else {
+        present_k = K;
+        present_v = V;
     }
 
     // Broadcast KV if grouped query attention
