@@ -143,8 +143,9 @@ void regclass_frontend_ProgressReporterExtension(py::module m) {
 
 void regclass_frontend_OpExtension(py::module m) {
     py::module frontend = m.def_submodule("frontend");
-    py::class_<PyFrontendOpExtension, std::shared_ptr<PyFrontendOpExtension>>
-        ext(frontend, "OpExtension", py::dynamic_attr());
+    py::class_<PyFrontendOpExtension, std::shared_ptr<PyFrontendOpExtension>> ext(frontend,
+                                                                                  "OpExtension",
+                                                                                  py::dynamic_attr());
 
     ext.def(py::init([](const std::string& fw_type_name,
                         const std::map<std::string, std::string>& attr_names_map,
@@ -178,28 +179,26 @@ void regclass_frontend_OpExtension(py::module m) {
             py::arg("attr_names_map") = std::map<std::string, std::string>(),
             py::arg("attr_values_map") = std::map<std::string, py::object>());
 
-    ext.def(py::init([](const std::string& fw_type_name,
-                        const std::vector<std::string>& in_names_vec,
-                        const std::vector<std::string>& out_names_vec,
-                        const std::map<std::string, std::string>& attr_names_map,
-                        const std::map<std::string, py::object>& attr_values_map) {
-                std::map<std::string, ov::Any> any_map;
-                for (const auto& it : attr_values_map) {
-                    any_map[it.first] = Common::utils::py_object_to_any(it.second);
-                }
-                auto ptr = std::make_shared<PyFrontendOpExtension>(fw_type_name);
-                ptr->impl = std::make_shared<OpExtension<void>>(fw_type_name,
-                                                           in_names_vec,
-                                                           out_names_vec,
-                                                           attr_names_map,
-                                                           any_map);
-                return ptr;
-            }),
-            py::arg("fw_type_name"),
-            py::arg("in_names_vec"),
-            py::arg("out_names_vec"),
-            py::arg("attr_names_map") = std::map<std::string, std::string>(),
-            py::arg("attr_values_map") = std::map<std::string, py::object>());
+    ext.def(
+        py::init([](const std::string& fw_type_name,
+                    const std::vector<std::string>& in_names_vec,
+                    const std::vector<std::string>& out_names_vec,
+                    const std::map<std::string, std::string>& attr_names_map,
+                    const std::map<std::string, py::object>& attr_values_map) {
+            std::map<std::string, ov::Any> any_map;
+            for (const auto& it : attr_values_map) {
+                any_map[it.first] = Common::utils::py_object_to_any(it.second);
+            }
+            auto ptr = std::make_shared<PyFrontendOpExtension>(fw_type_name);
+            ptr->impl =
+                std::make_shared<OpExtension<void>>(fw_type_name, in_names_vec, out_names_vec, attr_names_map, any_map);
+            return ptr;
+        }),
+        py::arg("fw_type_name"),
+        py::arg("in_names_vec"),
+        py::arg("out_names_vec"),
+        py::arg("attr_names_map") = std::map<std::string, std::string>(),
+        py::arg("attr_values_map") = std::map<std::string, py::object>());
 
     ext.def(py::init([](const std::string& ov_type_name,
                         const std::string& fw_type_name,
@@ -213,11 +212,11 @@ void regclass_frontend_OpExtension(py::module m) {
                 }
                 auto ptr = std::make_shared<PyFrontendOpExtension>(fw_type_name);
                 ptr->impl = std::make_shared<OpExtension<void>>(ov_type_name,
-                                                           fw_type_name,
-                                                           in_names_vec,
-                                                           out_names_vec,
-                                                           attr_names_map,
-                                                           any_map);
+                                                                fw_type_name,
+                                                                in_names_vec,
+                                                                out_names_vec,
+                                                                attr_names_map,
+                                                                any_map);
                 return ptr;
             }),
             py::arg("ov_type_name"),
@@ -226,12 +225,12 @@ void regclass_frontend_OpExtension(py::module m) {
             py::arg("out_names_vec"),
             py::arg("attr_names_map") = std::map<std::string, std::string>(),
             py::arg("attr_values_map") = std::map<std::string, py::object>());
-    
+
     ext.def(py::init([](py::object dtype, const std::string& ov_type_name) {
-            auto ptr = std::make_shared<PyFrontendOpExtension>(ov_type_name);
-            ptr->impl = std::make_shared<OpExtension<PyOp>>(ov_type_name);
-            return ptr;
-        }),
-        py::arg("custom_op"),
-        py::arg("ov_type_name"));
+                auto ptr = std::make_shared<PyFrontendOpExtension>(ov_type_name);
+                ptr->impl = std::make_shared<OpExtension<PyOp>>(ov_type_name);
+                return ptr;
+            }),
+            py::arg("custom_op"),
+            py::arg("ov_type_name"));
 }
