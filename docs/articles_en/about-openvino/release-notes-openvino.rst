@@ -26,23 +26,20 @@ OpenVINO Release Notes
 What's new
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+* More Gen AI coverage and frameworks integrations to minimize code changes
 
-* More GenAI coverage and framework integrations to minimize code changes.
-
-  * New models supported: Phi-4, Mistral-7B-Instruct-v0.3, Jina CLIP v1, Bce Embedding Base v1,
-    Qwen2-VL, Phi-3.5 Vision, SDXL LCM, InternVL2, Stable Diffusion 3.5 Large Turbo,
-    Phi-4 Mini, Phi-4 Multimodal.
+  * New models supported: Phi-4 Mini, Jina CLIP v1, and Bce Embedding Base v1
+  * OpenVINO™ Model Server now supports VLM models
   * OpenVINO GenAI now includes image-to-image and inpainting features for transformer-based
     pipelines, such as Flux.1 and Stable Diffusion 3 models, enhancing their ability to
     generate more realistic content.
-  * Preview: AI Playground now utilizes the OpenVINO Gen AI backend to enable highly
-    optimized inferencing performance on AI PCs.
+  * Preview: `AI Playground <https://game.intel.com/us/stories/introducing-ai-playground/>`__
+    now utilizes the OpenVINO Gen AI backend to enable highly optimized inferencing
+    performance on AI PCs.
 
+* Broader LLM model support and more model compression techniques
 
-* Broader Large Language Model (LLM) support and more model compression techniques.
-
-  * Reduced binary size and lower memory footprint through optimization of the CPU plugin and
-    removal of the GEMM kernel.
+  * Reduced binary size through optimization of the CPU plugin and removal of the GEMM kernel.
   * Optimization of new kernels for the GPU plugin significantly boosts the performance of
     Long Short-Term Memory (LSTM) models, used in many applications, including speech
     recognition, language modeling, and time series forecasting.
@@ -50,18 +47,22 @@ What's new
     of KV Cache by eliminating unimportant tokens. This current Token Eviction implementation
     is beneficial for tasks where a long sequence is generated, such as chatbots and code
     generation.
+  * NPU acceleration for text generation is now enabled in OpenVINO™ Runtime and
+    OpenVINO™ Model Server to support the power-efficient deployment of VLM models on NPUs
+    for AI PC use cases with low concurrency.
 
-* More portability and performance to run AI at the edge, in the cloud, or locally.
+* More portability and performance to run AI at the edge, in the cloud or locally
 
-  * Support for the latest Intel® Core™ processors (Series 2) (formerly codenamed Bartlett
-    Lake), Intel® Core™ 3 Processor N-series and Intel® Processor N-series
-    (formerly codenamed Twin Lake)
+  * Support for the latest Intel® Core™ processors (Series 2, formerly codenamed Bartlett Lake),
+    Intel® Core™ 3 Processor N-series and Intel® Processor N-series
+    (formerly codenamed Twin Lake) on Windows.
   * Additional LLM performance optimizations on Intel® Core™ Ultra 200H series processors
     for improved 2nd token latency.
   * Enhanced performance and efficient resource utilization with the implementation of
-    Paged Attention and Continuous Batching by default in the GPU plugin.
+   Paged Attention and Continuous Batching by default in the GPU plugin.
   * Preview: The new OpenVINO backend for Executorch will enable accelerated inference and
     improved performance on Intel hardware, including CPUs, GPUs, and NPUs.
+
 
 
 OpenVINO™ Runtime
@@ -77,10 +78,6 @@ Common
   help reduce memory consumption in some scenarios, for example, when using LoRa adapters
   in GenAI.
 
-AUTO Inference Mode
------------------------------------------------------------------------------------------------
-
-* TBD
 
 CPU Device Plugin
 -----------------------------------------------------------------------------------------------
@@ -155,10 +152,6 @@ Keras 3 Multi-backend Framework Support
 * Keras 3.9.0 is now supported.
 * Provided more granular test exclusion mechanism for convenient enabling per operation.
 
-ONNX Framework Support
------------------------------------------------------------------------------------------------
-
-* Added 3 new operators from com.microsoft domain.
 
 TensorFlow Lite Framework Support
 -----------------------------------------------------------------------------------------------
@@ -233,8 +226,9 @@ Neural Network Compression Framework
   memory usage.
 * Reduced compression time and peak memory usage of data-free mixed precision weight
   compression.
-* PyTorch version 2.6 is now supported.
-
+* New tracing for PyTorch models based on TorchFunctionMode for ``nncf.quantize`` and
+  ``nncf.compress_weights``, which does not require torch namespace fixes.
+  Disabled by default, it can be enabled by the environment variable ``"NNCF_EXPERIMENTAL_TORCH_TRACING=1”``.
 * Multiple improvements in TorchFX backend to comply with the Torch AO guidelines:
 
   * The constant folding pass is removed from the OpenVINO Quantizer and the  ``quantize_pt2e``
@@ -269,8 +263,8 @@ OpenVINO.GenAI
 * The following has been added:
 
   * Preview support for the Token Eviction mechanism for more efficient KVCache memory
-    management of LLMs during text generation. Disabled by default. See the sample:
-    `(link TBD after merge of https://github.com/openvinotoolkit/openvino.genai/pull/1960) <https://github.com/openvinotoolkit/openvino.genai/pull/1960>`.
+    management of LLMs during text generation. Disabled by default.
+    `See the sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/site/docs/concepts/optimization-techniques/kvcache-eviction-algorithm.md>`.
   * LLMPipeline C bindings and JavaScript bindings.
   * StreamerBase::write(int64_t token) and
     StreamerBase::write(const std::vector<int64_t>& tokens).
@@ -687,9 +681,6 @@ Discontinued in 2025
 Deprecated and to be removed in the future
 --------------------------------------------
 
-* The previous runtime namespace for Python API is designated to be
-  removed with 2026.0. The new namespace structure has been delivered, and migration is
-  possible immediately. Details will be communicated through warnings and via documentation.
 * ``openvino.Type.undefined`` is now deprecated and will be removed with version 2026.0.
   ``openvino.Type.dynamic`` should be used instead.
 * APT & YUM Repositories Restructure:
@@ -714,8 +705,6 @@ Deprecated and to be removed in the future
 * The `openvino` namespace of the OpenVINO Python API has been redesigned, removing the nested
   `openvino.runtime` module. The old namespace is now considered deprecated and will be
   discontinued in 2026.0.
-
-
 
 
 
