@@ -143,7 +143,7 @@ void regclass_frontend_ProgressReporterExtension(py::module m) {
 
 void regclass_frontend_OpExtension(py::module m) {
     py::module frontend = m.def_submodule("frontend");
-    py::class_<ov::frontend::OpExtension<void>, std::shared_ptr<ov::frontend::OpExtension<void>>, ConversionExtension>
+    py::class_<PyFrontendOpExtension, std::shared_ptr<PyFrontendOpExtension>>
         ext(frontend, "OpExtension", py::dynamic_attr());
 
     ext.def(py::init([](const std::string& fw_type_name,
@@ -153,7 +153,9 @@ void regclass_frontend_OpExtension(py::module m) {
                 for (const auto& it : attr_values_map) {
                     any_map[it.first] = Common::utils::py_object_to_any(it.second);
                 }
-                return std::make_shared<OpExtension<void>>(fw_type_name, attr_names_map, any_map);
+                auto ptr = std::make_shared<PyFrontendOpExtension>(fw_type_name);
+                ptr->impl = std::make_shared<OpExtension<void>>(fw_type_name, attr_names_map, any_map);
+                return ptr;
             }),
             py::arg("fw_type_name"),
             py::arg("attr_names_map") = std::map<std::string, std::string>(),
@@ -167,8 +169,9 @@ void regclass_frontend_OpExtension(py::module m) {
                 for (const auto& it : attr_values_map) {
                     any_map[it.first] = Common::utils::py_object_to_any(it.second);
                 }
-
-                return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, attr_names_map, any_map);
+                auto ptr = std::make_shared<PyFrontendOpExtension>(fw_type_name);
+                ptr->impl = std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, attr_names_map, any_map);
+                return ptr;
             }),
             py::arg("ov_type_name"),
             py::arg("fw_type_name"),
@@ -184,11 +187,13 @@ void regclass_frontend_OpExtension(py::module m) {
                 for (const auto& it : attr_values_map) {
                     any_map[it.first] = Common::utils::py_object_to_any(it.second);
                 }
-                return std::make_shared<OpExtension<void>>(fw_type_name,
+                auto ptr = std::make_shared<PyFrontendOpExtension>(fw_type_name);
+                ptr->impl = std::make_shared<OpExtension<void>>(fw_type_name,
                                                            in_names_vec,
                                                            out_names_vec,
                                                            attr_names_map,
                                                            any_map);
+                return ptr;
             }),
             py::arg("fw_type_name"),
             py::arg("in_names_vec"),
@@ -206,13 +211,14 @@ void regclass_frontend_OpExtension(py::module m) {
                 for (const auto& it : attr_values_map) {
                     any_map[it.first] = Common::utils::py_object_to_any(it.second);
                 }
-
-                return std::make_shared<OpExtension<void>>(ov_type_name,
+                auto ptr = std::make_shared<PyFrontendOpExtension>(fw_type_name);
+                ptr->impl = std::make_shared<OpExtension<void>>(ov_type_name,
                                                            fw_type_name,
                                                            in_names_vec,
                                                            out_names_vec,
                                                            attr_names_map,
                                                            any_map);
+                return ptr;
             }),
             py::arg("ov_type_name"),
             py::arg("fw_type_name"),
@@ -220,4 +226,12 @@ void regclass_frontend_OpExtension(py::module m) {
             py::arg("out_names_vec"),
             py::arg("attr_names_map") = std::map<std::string, std::string>(),
             py::arg("attr_values_map") = std::map<std::string, py::object>());
+    
+    ext.def(py::init([](py::object dtype, const std::string& ov_type_name) {
+            auto ptr = std::make_shared<PyFrontendOpExtension>(ov_type_name);
+            ptr->impl = std::make_shared<OpExtension<PyOp>>(ov_type_name);
+            return ptr;
+        }),
+        py::arg("custom_op"),
+        py::arg("ov_type_name"));
 }
