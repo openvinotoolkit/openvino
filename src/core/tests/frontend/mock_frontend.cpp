@@ -5,7 +5,8 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/visibility.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 
 #define MOCK_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 
@@ -184,11 +185,11 @@ public:
     std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
         FRONT_END_GENERAL_CHECK(!m_throw_next, "Test exception");
         auto shape = ov::Shape{1, 2, 300, 300};
-        auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
         std::vector<float> data(ov::shape_size(shape), 1.f);
-        auto constant = ov::opset8::Constant::create(ov::element::f32, shape, data);
-        auto op = std::make_shared<ov::opset8::Add>(param, constant);
-        auto res = std::make_shared<ov::opset8::Result>(op);
+        auto constant = ov::op::v0::Constant::create(ov::element::f32, shape, data);
+        auto op = std::make_shared<ov::op::v1::Add>(param, constant);
+        auto res = std::make_shared<ov::op::v0::Result>(op);
         auto ov_model =
             std::make_shared<ov::Model>(ov::ResultVector({res}), ov::ParameterVector({param}), "mock1_model");
         ov_model->get_rt_info()["mock_test"] = std::string(1024, 't');

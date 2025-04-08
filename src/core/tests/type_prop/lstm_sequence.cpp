@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/lstm_sequence.hpp"
+
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset5.hpp"
 
 using namespace std;
 using namespace ov;
@@ -26,7 +26,7 @@ struct recurrent_sequence_parameters {
 //
 // Create and initialize default input test tensors.
 //
-shared_ptr<opset5::LSTMSequence> lstm_seq_tensor_initialization(const recurrent_sequence_parameters& param) {
+shared_ptr<op::v5::LSTMSequence> lstm_seq_tensor_initialization(const recurrent_sequence_parameters& param) {
     auto batch_size = param.batch_size;
     auto seq_length = param.seq_length;
     auto input_size = param.input_size;
@@ -34,17 +34,17 @@ shared_ptr<opset5::LSTMSequence> lstm_seq_tensor_initialization(const recurrent_
     auto hidden_size = param.hidden_size;
     auto et = param.et;
 
-    const auto X = make_shared<opset5::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
+    const auto X = make_shared<op::v0::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
-        make_shared<opset5::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
+        make_shared<op::v0::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
     const auto initial_cell_state =
-        make_shared<opset5::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<opset5::Parameter>(et, PartialShape{batch_size});
-    const auto W = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 4, input_size});
-    const auto R = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 4, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 4});
+        make_shared<op::v0::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<op::v0::Parameter>(et, PartialShape{batch_size});
+    const auto W = make_shared<op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 4, input_size});
+    const auto R = make_shared<op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 4, hidden_size});
+    const auto B = make_shared<op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 4});
 
-    const auto lstm_sequence = make_shared<opset5::LSTMSequence>();
+    const auto lstm_sequence = make_shared<op::v5::LSTMSequence>();
 
     lstm_sequence->set_argument(0, X);
     lstm_sequence->set_argument(1, initial_hidden_state);
@@ -57,8 +57,8 @@ shared_ptr<opset5::LSTMSequence> lstm_seq_tensor_initialization(const recurrent_
     return lstm_sequence;
 }
 
-shared_ptr<opset5::LSTMSequence> lstm_seq_direction_initialization(const recurrent_sequence_parameters& param,
-                                                                   opset5::LSTMSequence::direction direction) {
+shared_ptr<op::v5::LSTMSequence> lstm_seq_direction_initialization(const recurrent_sequence_parameters& param,
+                                                                   op::v5::LSTMSequence::direction direction) {
     auto batch_size = param.batch_size;
     auto seq_length = param.seq_length;
     auto input_size = param.input_size;
@@ -67,17 +67,17 @@ shared_ptr<opset5::LSTMSequence> lstm_seq_direction_initialization(const recurre
     int64_t hidden_size_num = hidden_size.is_dynamic() ? 0 : hidden_size.get_length();
     auto et = param.et;
 
-    const auto X = make_shared<opset5::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
+    const auto X = make_shared<op::v0::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
-        make_shared<opset5::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
+        make_shared<op::v0::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
     const auto initial_cell_state =
-        make_shared<opset5::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<opset5::Parameter>(et, PartialShape{batch_size});
-    const auto W = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 4, input_size});
-    const auto R = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 4, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 4});
+        make_shared<op::v0::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<op::v0::Parameter>(et, PartialShape{batch_size});
+    const auto W = make_shared<op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 4, input_size});
+    const auto R = make_shared<op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 4, hidden_size});
+    const auto B = make_shared<op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 4});
 
-    auto lstm_sequence = make_shared<opset5::LSTMSequence>(X,
+    auto lstm_sequence = make_shared<op::v5::LSTMSequence>(X,
                                                            initial_hidden_state,
                                                            initial_cell_state,
                                                            sequence_lengths,
@@ -98,19 +98,19 @@ TEST(type_prop, lstm_sequence_forward) {
     const size_t input_size = 4;
     const size_t hidden_size = 128;
 
-    const auto X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
+    const auto X = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
-        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+        make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
     const auto initial_cell_state =
-        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<opset5::Parameter>(element::i32, Shape{batch_size});
-    const auto W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size, input_size});
-    const auto R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
+        make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<op::v0::Parameter>(element::i32, Shape{batch_size});
+    const auto W = make_shared<op::v0::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size, input_size});
+    const auto R = make_shared<op::v0::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size, hidden_size});
+    const auto B = make_shared<op::v0::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
     const auto lstm_direction = op::RecurrentSequenceDirection::FORWARD;
 
-    const auto lstm_sequence = make_shared<opset5::LSTMSequence>(X,
+    const auto lstm_sequence = make_shared<op::v5::LSTMSequence>(X,
                                                                  initial_hidden_state,
                                                                  initial_cell_state,
                                                                  sequence_lengths,
@@ -144,22 +144,22 @@ TEST(type_prop, lstm_sequence_bidirectional) {
     const size_t input_size = 8;
     const size_t hidden_size = 256;
 
-    const auto X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
+    const auto X = make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
-        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+        make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
     const auto initial_cell_state =
-        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<opset5::Parameter>(element::i32, Shape{batch_size});
-    const auto W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size, input_size});
-    const auto R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
+        make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<op::v0::Parameter>(element::i32, Shape{batch_size});
+    const auto W = make_shared<op::v0::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size, input_size});
+    const auto R = make_shared<op::v0::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size, hidden_size});
+    const auto B = make_shared<op::v0::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
-    const auto lstm_direction = opset5::LSTMSequence::direction::BIDIRECTIONAL;
+    const auto lstm_direction = op::v5::LSTMSequence::direction::BIDIRECTIONAL;
     const std::vector<float> activations_alpha = {2.7f, 7.0f, 32.367f};
     const std::vector<float> activations_beta = {0.0f, 5.49f, 6.0f};
     const std::vector<std::string> activations = {"tanh", "sigmoid", "sigmoid"};
 
-    const auto lstm_sequence = make_shared<opset5::LSTMSequence>(X,
+    const auto lstm_sequence = make_shared<op::v5::LSTMSequence>(X,
                                                                  initial_hidden_state,
                                                                  initial_cell_state,
                                                                  sequence_lengths,
@@ -172,7 +172,7 @@ TEST(type_prop, lstm_sequence_bidirectional) {
                                                                  activations_beta,
                                                                  activations);
     EXPECT_EQ(lstm_sequence->get_hidden_size(), hidden_size);
-    EXPECT_EQ(lstm_sequence->get_direction(), opset5::LSTMSequence::direction::BIDIRECTIONAL);
+    EXPECT_EQ(lstm_sequence->get_direction(), op::v5::LSTMSequence::direction::BIDIRECTIONAL);
     EXPECT_EQ(lstm_sequence->get_activations_alpha(), activations_alpha);
     EXPECT_EQ(lstm_sequence->get_activations_beta(), activations_beta);
     EXPECT_EQ(lstm_sequence->get_activations()[0], "tanh");
@@ -315,7 +315,7 @@ TEST(type_prop, lstm_sequence_invalid_input_dimension) {
     param.et = element::f32;
 
     auto lstm_sequence = lstm_seq_tensor_initialization(param);
-    auto invalid_rank0_tensor = make_shared<opset5::Parameter>(param.et, PartialShape{});
+    auto invalid_rank0_tensor = make_shared<op::v0::Parameter>(param.et, PartialShape{});
 
     // Validate invalid rank0 tensor for all inputs: X, initial_hidden_state, initial_cell_state W,
     // R, B
@@ -358,7 +358,7 @@ TEST(type_prop, lstm_sequence_all_inputs_dynamic_rank) {
     param.et = element::f32;
 
     auto op = lstm_seq_tensor_initialization(param);
-    auto dynamic_tensor = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    auto dynamic_tensor = make_shared<op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
         auto op = lstm_seq_tensor_initialization(param);

@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gather_tree.hpp"
+
 #include <gtest/gtest.h>
 
 #include <array>
 #include <utility>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/op/ops.hpp"
 
 using namespace std;
 using namespace ov;
