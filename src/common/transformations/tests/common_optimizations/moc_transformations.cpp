@@ -12,7 +12,6 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/rt_info/disable_constant_folding.hpp"
 
 using namespace testing;
 using namespace ov;
