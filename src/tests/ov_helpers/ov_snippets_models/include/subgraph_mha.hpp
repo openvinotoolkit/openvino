@@ -483,6 +483,10 @@ public:
     explicit MHARankUpgradeToReductionFunction(const std::vector<PartialShape>& inputShapes)
         : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 5, "Got invalid number of input shapes");
+        bool are_static_shapes = std::all_of(input_shapes.cbegin(), input_shapes.cend(), [](const PartialShape& shape) {
+            return shape.is_static();
+        });
+        OPENVINO_ASSERT(are_static_shapes, "Expect static shape, got dynamic shape");
     }
 
 protected:

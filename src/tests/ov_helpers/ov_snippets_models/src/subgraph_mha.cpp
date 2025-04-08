@@ -1161,7 +1161,7 @@ std::shared_ptr<ov::Model> MHARankUpgradeToReductionFunction::initReference() co
     const auto data_2 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[2]);
     const auto data_3 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[3]);
     const auto data_4 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[4]);
-    ov::ParameterVector ngraphParam = {data_0, data_1, data_2, data_3, data_4};
+    ov::ParameterVector parameters = {data_0, data_1, data_2, data_3, data_4};
 
     auto input_reshape = input_shapes[3].to_shape();
     input_reshape.erase(input_reshape.begin());
@@ -1188,7 +1188,7 @@ std::shared_ptr<ov::Model> MHARankUpgradeToReductionFunction::initReference() co
                                                      subgraph_body);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(subgraph)};
-    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+    return std::make_shared<ov::Model>(results, parameters, "mha");
 }
 
 }  // namespace snippets

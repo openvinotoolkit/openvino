@@ -74,28 +74,37 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
     };
     // reshape_1_m insert leading dimension of 1.
     auto rank_upgrade_reshape = [&](const ov::Output<ov::Node>& out) {
+        if (!static_shape_single_consumer(out)) {
+            return false;
+        }
         auto out_shape = out.get_shape();
         if (out_shape.size() < 1 || out_shape[0] != 1) {
             return false;
         }
         out_shape.erase(out_shape.begin());
         const auto& in_shape = out.get_node_shared_ptr()->get_input_shape(0);
-        return out_shape == in_shape && static_shape_single_consumer(out);
+        return out_shape == in_shape;
     };
     // input_2_m has leading dimension of 1.
     auto has_leading_dimension_one = [&](const ov::Output<ov::Node>& out) {
+        if (!static_shape_single_consumer(out)) {
+            return false;
+        }
         const auto& out_shape = out.get_shape();
-        return (out_shape.size() > 0 && out_shape[0] == 1) && static_shape_single_consumer(out);
+        return ((out_shape.size() > 0) && (out_shape[0] == 1));
     };
     // reshape_2_m delete leading dimension of 1.
     auto rank_reduction_reshape = [&](const ov::Output<ov::Node>& out) {
+        if (!static_shape_single_consumer(out)) {
+            return false;
+        }
         auto in_shape = out.get_node_shared_ptr()->get_input_shape(0);
         if (in_shape.size() < 1 || in_shape[0] != 1) {
             return false;
         }
         in_shape.erase(in_shape.begin());
         const auto& out_shape = out.get_shape();
-        return out_shape == in_shape && static_shape_single_consumer(out);
+        return out_shape == in_shape;
     };
 
     auto matmul_m = pattern::wrap_type<opset1::MatMul>(static_shape_single_consumer);
