@@ -113,7 +113,6 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
         bool status = false;
         if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
             pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("num_v_heads")) {
-
             const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
                                                           pa_op->get_rt_info()["k_head_size"].as<size_t>(),
                                                           m_config.keyCacheBlockSize,
