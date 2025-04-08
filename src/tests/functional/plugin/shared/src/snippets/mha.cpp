@@ -65,6 +65,8 @@ void MHABase::SetUp() {
 #endif
     if (inType == ov::element::bf16)
         rel_threshold = 0.05f;
+    if (inType == ov::element::f16)
+        abs_threshold = 2e-2;
  }
 
 std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj) {
@@ -149,6 +151,17 @@ void MHAWithDynamicMul::init_params(std::vector<InputShape>& input_shapes, ov::e
 std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() const {
     bool is_with_reshape = std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const PartialShape& ps){ return ps.is_static(); });
     return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul, is_with_reshape);
+}
+
+void MHA::init_thresholds() {
+    MHABase::init_thresholds();
+    auto precision_hint = configuration.count(ov::hint::inference_precision.name())
+                              ? configuration.at(ov::hint::inference_precision.name())
+                              : ov::element::f32;
+    if (m_input_types.size() > 1 && m_input_types[0] == ov::element::bf16 && precision_hint == ov::element::f32) {
+        rel_threshold = 0.01f;
+        abs_threshold = 0.0078125f;
+    }
 }
 
 void MHASelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {

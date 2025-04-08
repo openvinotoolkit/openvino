@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,7 +149,7 @@ protected:
         ElementType inType;
         InputShape inputShape;
         std::tie(inType, inputShape) = this->GetParam();
-        bool with_bf16 = ov::with_cpu_x86_bfloat16();
+        bool with_bf16 = ov::with_cpu_x86_bfloat16() || with_cpu_x86_avx2_vnni_2();
         if (with_bf16 && (inType == ov::element::bf16 || inType == ov::element::i32)) {
             selectedType = makeSelectedTypeStr("ref_any", ov::element::bf16);
         } else {
@@ -177,6 +177,8 @@ TEST_P(IntertactionCPUTest_FP16, CompareWithRefs) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
     configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+    rel_threshold = 0.01;
+    abs_threshold = 0.0078125;
 
     run();
     CheckNumberOfNodesWithType(compiledModel, "Interaction", 1);

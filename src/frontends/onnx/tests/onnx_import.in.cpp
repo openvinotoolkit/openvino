@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -218,7 +218,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsupported_op) {
     try {
         convert_model("unsupported_op.onnx");
         FAIL() << "Expected ov::Exception";
-    } catch (ov::Exception const& err) {
+    } catch (const ov::Exception& err) {
         std::string what{err.what()};
         EXPECT_NE(what.find("OpenVINO does not support"), std::string::npos);
         EXPECT_NE(what.find("FakeOpName"), std::string::npos);

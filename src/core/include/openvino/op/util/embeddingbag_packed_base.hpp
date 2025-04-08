@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,6 +67,7 @@ class OPENVINO_API AttributeAdapter<op::util::EmbeddingBagPackedBase::Reduction>
 public:
     AttributeAdapter(op::util::EmbeddingBagPackedBase::Reduction& value)
         : EnumAttributeAdapterBase<op::util::EmbeddingBagPackedBase::Reduction>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::util::EmbeddingBagPackedBase::Reduction>");
 };

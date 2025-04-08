@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -203,7 +203,7 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        params.dynamic_quantization_group_size = impl_param.get_program().get_config().get_property(ov::hint::dynamic_quantization_group_size);
+        params.dynamic_quantization_group_size = impl_param.get_program().get_config().get_dynamic_quantization_group_size();
 
         return params;
     }

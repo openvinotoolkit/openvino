@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -115,8 +115,6 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     friend class Output;
 
     friend class Model;
-    // To fix collisions in generated friendly name
-    friend class pass::ResolveNameCollisions;
 
 protected:
     descriptor::Input& get_input_descriptor(size_t position);
@@ -553,6 +551,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Node>> : public VisitorAdapter {
 public:
     AttributeAdapter(std::shared_ptr<ov::Node>& value);
+    ~AttributeAdapter() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
@@ -565,6 +564,7 @@ template <>
 class OPENVINO_API AttributeAdapter<ov::NodeVector> : public VisitorAdapter {
 public:
     AttributeAdapter(ov::NodeVector& ref);
+    ~AttributeAdapter() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

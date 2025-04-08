@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,11 @@
  */
 #pragma once
 
+#include <filesystem>
 #include <type_traits>
 
 #include "openvino/core/coordinate.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -259,4 +261,21 @@ public:
  */
 using TensorVector = std::vector<Tensor>;
 
+/// \brief Read a tensor content from a file. Only raw data is loaded.
+/// \param file_name Path to file to read.
+/// \param element_type Element type, when not specified the it is assumed as element::u8.
+/// \param shape Shape for resulting tensor. If provided shape is static, specified number of elements is read only.
+///              File should contain enough bytes, an exception is raised otherwise.
+///              One of the dimensions can be dynamic. In this case it will be determined automatically based on the
+///              length of the file content and `offset`. Default value is [?].
+/// \param offset_in_bytes Read file starting from specified offset. Default is 0. The remining size of the file should
+/// be compatible with shape.
+/// \param mmap Use mmap that postpones real read from file until data is accessed. If mmap is used, the file
+///             should not be modified until returned tensor is destroyed.
+OPENVINO_API
+Tensor read_tensor_data(const std::filesystem::path& file_name,
+                        const element::Type& element_type = element::u8,
+                        const PartialShape& shape = PartialShape::dynamic(1),
+                        std::size_t offset_in_bytes = 0,
+                        bool mmap = true);
 }  // namespace ov

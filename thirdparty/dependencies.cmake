@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -52,7 +52,7 @@ if(ENABLE_PROFILING_ITT)
     else()
         add_subdirectory(thirdparty/ittapi)
     endif()
-    add_subdirectory(thirdparty/itt_collector EXCLUDE_FROM_ALL)
+    add_subdirectory(thirdparty/itt_collector)
 endif()
 
 if(X86_64 OR X86 OR UNIVERSAL2)
@@ -80,7 +80,7 @@ if(ENABLE_INTEL_NPU)
         endif()
     endif()
 
-    if(NOT libze_loader_FOUND)
+    if(NOT level_zero_FOUND)
         add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
         add_library(LevelZero::LevelZero ALIAS ze_loader)
     endif()
@@ -474,7 +474,6 @@ if(ENABLE_SNAPPY_COMPRESSION)
             set(SNAPPY_BUILD_BENCHMARKS OFF)
             set(SNAPPY_BUILD_TESTS OFF)
             set(INSTALL_GTEST OFF)
-            set(CMAKE_CXX_STANDARD 14)
             if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
                 # '<': signed/unsigned mismatch
                 ov_add_compiler_flags(/wd4018)
@@ -535,25 +534,23 @@ endif()
 # nlohmann json
 #
 
-if(ENABLE_SAMPLES)
-    # Note: NPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
-    find_package(nlohmann_json 3.9.0 QUIET)
-    if(nlohmann_json_FOUND)
-        # conan and vcpkg create imported target nlohmann_json::nlohmann_json
-    else()
-        add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
+# Note: NPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
+find_package(nlohmann_json 3.9.0 QUIET)
+if(nlohmann_json_FOUND)
+    # conan and vcpkg create imported target nlohmann_json::nlohmann_json
+else()
+    add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 
-        # this is required only because of NPU plugin reused this: export & install
-        ov_developer_package_export_targets(TARGET nlohmann_json
-                                            INSTALL_INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/thirdparty/json/nlohmann_json/include")
+    # this is required only because of NPU plugin reused this: export & install
+    ov_developer_package_export_targets(TARGET nlohmann_json
+                                        INSTALL_INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/thirdparty/json/nlohmann_json/include")
 
-        # for nlohmann library versions older than v3.0.0
-        if(NOT TARGET nlohmann_json::nlohmann_json)
-            add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
-            set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
-                INTERFACE_LINK_LIBRARIES nlohmann_json
-                INTERFACE_COMPILE_DEFINITIONS JSON_HEADER)
-        endif()
+    # for nlohmann library versions older than v3.0.0
+    if(NOT TARGET nlohmann_json::nlohmann_json)
+        add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
+        set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
+            INTERFACE_LINK_LIBRARIES nlohmann_json
+            INTERFACE_COMPILE_DEFINITIONS JSON_HEADER)
     endif()
 endif()
 

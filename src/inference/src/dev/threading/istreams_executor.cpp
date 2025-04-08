@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -159,27 +159,32 @@ void IStreamsExecutor::Config::update_executor_config() {
     const auto proc_type_table = get_proc_type_table();
     bool streams_info_available = false;
 
-    if (proc_type_table.empty()) {
-        return;
-    }
-
-    if (_cpu_reservation && !_cpu_pinning) {
-        _cpu_pinning = true;
+    if (proc_type_table.empty() || proc_type_table[0][ALL_PROC] == 0) {
+        if (_cpu_reservation) {
+            OPENVINO_THROW("[ Config ] proc_type_table is empty. No CPU resources available!");
+        } else {
+            return;
+        }
     }
 
     if (!_streams_info_table.empty()) {
         streams_info_available = true;
         std::vector<int> threads_proc_type(HYPER_THREADING_PROC + 1, 0);
+        int threads_all = 0;
         for (size_t i = 0; i < _streams_info_table.size(); i++) {
             if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
-                threads_proc_type[_streams_info_table[i][PROC_TYPE]] +=
+                int num_threads =
                     _streams_info_table[i][THREADS_PER_STREAM] * _streams_info_table[i][NUMBER_OF_STREAMS];
+                threads_proc_type[_streams_info_table[i][PROC_TYPE]] += num_threads;
+                threads_all += num_threads;
             }
+        }
+        if (threads_all == 0) {
+            OPENVINO_THROW("streams_info_table is invalid!");
         }
         for (size_t i = ALL_PROC; i < threads_proc_type.size(); i++) {
             if (threads_proc_type[i] > proc_type_table[0][i]) {
-                streams_info_available = false;
-                break;
+                OPENVINO_THROW("Not enough CPU resources!");
             }
         }
     }
@@ -204,15 +209,19 @@ void IStreamsExecutor::Config::update_executor_config() {
             num_cores = total_num_little_cores;
         }
 
-        _streams = _streams > 0 ? std::min(_streams, num_cores) : _streams;
+        _streams = _streams > 0 ? (_cores_limit == true ? std::min(_streams, num_cores) : _streams) : _streams;
         if (_streams == 0) {
             set_config_zero_stream();
             return;
         }
 
-        _threads_per_stream =
-            _threads_per_stream > 0 ? std::min(num_cores, _streams * _threads_per_stream) / _streams : 0;
+        _threads_per_stream = (_threads_per_stream > 0 && _cores_limit)
+                                  ? std::min(num_cores, _streams * _threads_per_stream) / _streams
+                                  : 0;
+        // _threads_per_stream = 0: not use tbb to create threads
         if (_threads_per_stream == 0) {
+            _cpu_reservation = false;
+            _cpu_pinning = false;
             return;
         }
 
@@ -225,7 +234,7 @@ void IStreamsExecutor::Config::update_executor_config() {
         if (_thread_preferred_core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
             stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
             stream_info[NUMBER_OF_STREAMS] = _streams;
-            _streams_info_table.push_back(stream_info);
+            _streams_info_table.push_back(std::move(stream_info));
         } else {
             int start = proc_type_table.size() > 1 ? 1 : 0;
             std::vector<int> core_types;
@@ -265,7 +274,7 @@ void IStreamsExecutor::Config::update_executor_config() {
         }
     }
 
-    if (_cpu_pinning) {
+    if (_cpu_pinning || _cpu_reservation) {
         reserve_available_cpus(_streams_info_table, _stream_processor_ids, _cpu_reservation ? CPU_USED : NOT_USED);
     }
 
@@ -315,6 +324,17 @@ void IStreamsExecutor::Config::update_executor_config() {
 #endif
 }
 
+void IStreamsExecutor::Config::update_executor_config(bool lock) {
+    if (lock) {
+        {
+            std::lock_guard<std::mutex> lock{_streams_executor_mutex};
+            update_executor_config();
+        }
+    } else {
+        update_executor_config();
+    }
+}
+
 void IStreamsExecutor::Config::set_config_zero_stream() {
     std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
     int core_type = MAIN_CORE_PROC;
@@ -329,6 +349,7 @@ void IStreamsExecutor::Config::set_config_zero_stream() {
         socket_id = std::max(0, proc_type_table[0][PROC_SOCKET_ID]);
     }
     _streams_info_table.push_back({1, core_type, 1, numa_id, socket_id});
+    _cpu_reservation = false;
     _cpu_pinning = false;
 }
 

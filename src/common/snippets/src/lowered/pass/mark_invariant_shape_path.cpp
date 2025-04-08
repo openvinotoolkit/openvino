@@ -28,20 +28,18 @@ static bool is_shape_broadcastable_op(const ExpressionPtr& expr) {
 
 static bool is_not_affecting_op(const ExpressionPtr& expr) {
     const auto& node = expr->get_node();
-    return ov::is_type<ov::snippets::op::HorizonMax>(node) ||
-           ov::is_type<ov::snippets::op::HorizonSum>(node) ||
-           ov::is_type<ov::snippets::op::ReduceMax>(node) ||
-           ov::is_type<ov::snippets::op::ReduceSum>(node) ||
-           ov::is_type<ov::snippets::op::VectorBuffer>(node) ||
-           ov::is_type<ov::snippets::op::BroadcastMove>(node) ||
-           ov::is_type<ov::snippets::op::Scalar>(node);
+    return ov::is_type_any_of<ov::snippets::op::HorizonMax,
+                              ov::snippets::op::HorizonSum,
+                              ov::snippets::op::ReduceMax,
+                              ov::snippets::op::ReduceSum,
+                              ov::snippets::op::VectorBuffer,
+                              ov::snippets::op::BroadcastMove,
+                              ov::snippets::op::Scalar>(node);
 }
 
 static bool is_affecting_op(const ExpressionPtr& expr) {
     const auto& node = expr->get_node();
-    return ov::is_type<ov::snippets::op::Brgemm>(node) ||
-           ov::is_type<ov::snippets::op::Reshape>(node) ||
-           ov::is_type<ov::snippets::op::LoadReshape>(node);
+    return ov::is_type_any_of<ov::snippets::op::Brgemm, ov::snippets::op::Reshape, ov::snippets::op::LoadReorder>(node);
 }
 }  // namespace
 

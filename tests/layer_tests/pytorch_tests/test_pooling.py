@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -201,6 +201,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_max_pool2d(self, input_shape, params, ceil_mode, dilation, dtype, ie_device, precision, ir_version, is_dynamic_shapes):
@@ -218,6 +219,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_max_pool3d(self, input_shape, params, ceil_mode, dilation, ie_device, precision, ir_version, is_dynamic_shapes):
@@ -232,6 +234,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_max_pool1d_indices(self, input_shape, params, ceil_mode, dilation, ie_device, precision, ir_version, is_dynamic_shapes):
@@ -246,6 +249,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
@@ -264,6 +268,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')

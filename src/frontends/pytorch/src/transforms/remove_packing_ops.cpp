@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,7 +116,7 @@ RemovePackingOps::RemovePackingOps() {
         if (!pack_node)
             return false;
         if (as_type_ptr<v1::Transpose>(pack_node))
-            pack_node = std::dynamic_pointer_cast<PackPadded>(pack_node->input_value(0).get_node_shared_ptr());
+            pack_node = ov::as_type_ptr<PackPadded>(pack_node->input_value(0).get_node_shared_ptr());
         if (!pack_node)
             return false;
 

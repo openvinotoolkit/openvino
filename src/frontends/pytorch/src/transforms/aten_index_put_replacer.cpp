@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,7 +142,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                 auto input_shape = rg.make<v3::ShapeOf>(input, element::i32);
                 auto input_rank = rg.make<v3::ShapeOf>(input_shape, element::i32);
                 auto one_const = v0::Constant::create(element::i32, Shape{1}, {1});
-                auto nonzero = rg.make<v3::NonZero>(index, element::i32);
+                auto nonzero = rg.make<v3::NonZero>(index);
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                 index = rg.make<v1::Transpose>(nonzero, input_order);
                 auto result = rg.make<v3::ScatterNDUpdate>(input, index, values);

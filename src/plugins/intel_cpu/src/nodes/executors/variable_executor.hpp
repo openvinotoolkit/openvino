@@ -1,16 +1,17 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <utility>
 
 #include "executor.hpp"
 #include "executor_config.hpp"
 #include "executor_implementation.hpp"
 #include "nodes/executors/graph_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * A stateful (variable) executor
@@ -25,11 +26,11 @@ public:
     VariableExecutor(const MemoryArgs& memory,
                      const Attrs& attrs,
                      const PostOps& postOps,
-                     const ExecutorContext::CPtr context,
+                     ExecutorContext::CPtr context,
                      std::vector<ExecutorImplementationRef> suitableImplementations)
         : m_attrs(attrs),
           m_postOps(postOps),
-          m_context(context),
+          m_context(std::move(context)),
           m_suitableImplementations(std::move(suitableImplementations)),
           m_implementationRequiresFallback(
               cacheFallbackStatus(m_suitableImplementations,
@@ -60,7 +61,7 @@ public:
         m_executors[m_implId]->execute(memory);
     }
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return m_executors[m_implId]->implType();
     }
 
@@ -79,13 +80,13 @@ private:
                        suitableImplementations.end(),
                        implementationRequiresFallback.begin(),
                        [&config](const ExecutorImplementationRef& impl) {
-                           return impl.get().requiresFallback(config);
+                           return impl.get().requiresFallback(config).has_value();
                        });
 
         return implementationRequiresFallback;
     }
 
-    size_t select(const MemoryArgs& memory, const size_t startIdx) const {
+    [[nodiscard]] size_t select(const MemoryArgs& memory, const size_t startIdx) const {
         OPENVINO_ASSERT(startIdx < m_suitableImplementations.size(),
                         "Failed to find an implementation since start indx: ",
                         startIdx,
@@ -136,5 +137,4 @@ private:
     size_t m_implId;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

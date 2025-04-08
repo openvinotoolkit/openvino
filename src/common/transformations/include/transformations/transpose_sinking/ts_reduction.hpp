@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API TSReductionBackward;
  */
 class ov::pass::transpose_sinking::TSReductionForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSReductionForward", "0");
+    OPENVINO_RTTI("ov::pass::TSReductionForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSReductionForward();
 };
 
@@ -37,6 +37,6 @@ public:
  */
 class ov::pass::transpose_sinking::TSReductionBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSReductionBackward", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSReductionBackward");
     TSReductionBackward();
 };

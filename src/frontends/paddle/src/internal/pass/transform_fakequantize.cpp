@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,20 +71,20 @@ ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
 
         // check round mode
         // Fallback to the PDPD FE if the round_mode is HALF_AWAY_FROM_ZERO.
-        const auto& round_node_cast = std::dynamic_pointer_cast<Round>(opsMap.at(round_label).get_node_shared_ptr());
+        const auto& round_node_cast = ov::as_type_ptr<Round>(opsMap.at(round_label).get_node_shared_ptr());
         if (!round_node_cast || round_node_cast->get_mode() != Round::RoundMode::HALF_TO_EVEN) {
             return false;
         }
 
         // check quantize_linear zero_point
-        auto zp_node_cast = std::dynamic_pointer_cast<Constant>(opsMap.at(dq_zp_label).get_node_shared_ptr());
+        auto zp_node_cast = ov::as_type_ptr<Constant>(opsMap.at(dq_zp_label).get_node_shared_ptr());
         float zp;
         if (!zp_node_cast || !ov::op::util::get_single_value(zp_node_cast, zp)) {
             return false;
         }
 
         // prepare levels
-        const auto& clamp_node_cast = std::dynamic_pointer_cast<Clamp>(opsMap.at(q_clamp_label).get_node_shared_ptr());
+        const auto& clamp_node_cast = ov::as_type_ptr<Clamp>(opsMap.at(q_clamp_label).get_node_shared_ptr());
         if (!clamp_node_cast) {
             return false;
         }
@@ -93,7 +93,7 @@ ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
         const auto levels = high_range - low_range + 1;
 
         // get the scale
-        const auto& scale_node_cast = std::dynamic_pointer_cast<Constant>(
+        const auto& scale_node_cast = ov::as_type_ptr<Constant>(
             opsMap.at(q_real_scale_label).get_node_shared_ptr()->get_input_node_shared_ptr(0));
         float scale;
         if (!scale_node_cast || !ov::op::util::get_single_value(scale_node_cast, scale)) {

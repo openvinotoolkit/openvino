@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ AtenCatToConcat::AtenCatToConcat() {
         }
 
         std::shared_ptr<Node> input_node = cat->get_input_node_shared_ptr(0);
-        if (auto loop = std::dynamic_pointer_cast<v5::Loop>(input_node)) {
+        if (auto loop = ov::as_type_ptr<v5::Loop>(input_node)) {
             // case when concatenation is done inside the Loop
             auto body = loop->get_function();
             auto output_index = cat->input(0).get_source_output().get_index();
@@ -84,7 +84,7 @@ AtenCatToConcat::AtenCatToConcat() {
                     "<aten/quantized>::cat unsupported case: aten::append wasn't found inside prim::Loop body.");
                 return false;
             }
-            auto param = std::dynamic_pointer_cast<v0::Parameter>(append->get_input_node_shared_ptr(0));
+            auto param = ov::as_type_ptr<v0::Parameter>(append->get_input_node_shared_ptr(0));
             if (!param) {
                 add_exception_to_fw_node(
                     cat,

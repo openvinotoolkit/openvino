@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #define GET_INDICES_INDEX(idx_order) INPUT1_GET_INDEX(idx_order)
 #define GET_UPDATES_INDEX(idx_order) INPUT2_GET_INDEX(idx_order)
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
+#define GET_INPUT_INDEX(idx_order) INPUT0_GET_INDEX(idx_order)
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
     #define IDX_ORDER idx_b,idx_f,idx_y,idx_x
@@ -63,7 +64,8 @@
     }
 #endif
 
-KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
+KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG 
+                   const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
                    const __global INPUT2_TYPE* updates,
                    __global OUTPUT_TYPE* output
@@ -76,7 +78,6 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
     const uint dim0 = get_global_id(0);
     const uint dim1 = get_global_id(1);
     const uint dim2 = get_global_id(2);
-
 #ifndef IS_SECOND_ITER // First kernel
     #if OUTPUT_DIMS == 4
         const uint x = dim0;
@@ -97,16 +98,15 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
         const uint f = dim2 % OUTPUT_FEATURE_NUM;
         const uint b = dim2 / OUTPUT_FEATURE_NUM;
     #endif
-
+    const uint input_idx = GET_INPUT_INDEX(ORDER);
     const uint output_idx = GET_OUTPUT_INDEX(ORDER);
-    INPUT0_TYPE val = data[output_idx];
+    INPUT0_TYPE val = data[input_idx];
     #if HAS_FUSED_OPS
         FUSED_OPS_FIRST_KERNEL;
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_FIRST_KERNEL);
     #else
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
-
 #else // Second kernel
     #if OUTPUT_DIMS == 4
         const uint idx_x = dim0;

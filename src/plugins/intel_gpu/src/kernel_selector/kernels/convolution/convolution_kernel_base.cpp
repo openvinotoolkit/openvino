@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -170,8 +170,8 @@ void ConvolutionKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
 }

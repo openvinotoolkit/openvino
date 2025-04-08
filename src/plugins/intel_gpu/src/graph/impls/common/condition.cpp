@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "condition_inst.h"
 #include "data_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include <algorithm>
@@ -19,7 +19,7 @@ struct condition_impl : typed_primitive_impl<condition> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::condition_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<condition_impl>(*this);
+        return std::make_unique<condition_impl>(*this);
     }
 
     condition_impl() : parent() {}
@@ -98,6 +98,7 @@ struct condition_impl : typed_primitive_impl<condition> {
                 GPU_DEBUG_LOG << "    set output layout : " << output_layout.to_short_string() << std::endl;
                 instance.set_output_layout(output_layout, out_idx);
                 instance.set_output_memory(output_mem_ptr, out_idx);
+                instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
             }
             return stream.group_events(output_events);
         } else {
@@ -146,7 +147,7 @@ struct condition_impl : typed_primitive_impl<condition> {
     }
 
     static std::unique_ptr<primitive_impl> create(const condition_node& arg, const kernel_impl_params&) {
-        return make_unique<condition_impl>(arg);
+        return std::make_unique<condition_impl>(arg);
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}

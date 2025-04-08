@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,14 +6,13 @@
 
 #include <nodes/common/cpu_memcpy.h>
 
+#include <utils/bfloat16.hpp>
+
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset3.hpp"
-#include <utils/bfloat16.hpp>
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
 static constexpr int elementsStride = blockSize / sizeof(int);
@@ -30,44 +29,45 @@ bool NonZero::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
-    if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "NonZero layer with name '" + getName() + "' ";
-    } else {
+    if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     if (op->get_output_element_type(0) != ov::element::i32) {
-        OPENVINO_THROW(errorPrefix, "doesn't support demanded output precision");
+        THROW_CPU_NODE_ERR("doesn't support demanded output precision");
     }
 }
 
 void NonZero::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1)
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
-    if (!getChildEdges().size())
-        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
+    if (getParentEdges().size() != 1) {
+        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
+    }
+    if (getChildEdges().empty()) {
+        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
+    }
 }
 
 void NonZero::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
-
-    const auto &inPrc = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(inPrc, ov::element::f32, ov::element::f16,
-                       ov::element::bf16, ov::element::f32, ov::element::i32,
-                       ov::element::u32, ov::element::i8,  ov::element::u8)) {
-        OPENVINO_THROW("Can't create primitive descriptor for NonZero layer with name: ",
-                       getName(),
-                       " doesn't support ",
-                       inPrc.get_type_name(),
-                       " precision on 0 port");
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp}},
-                         {{LayoutType::ncsp, ov::element::i32}},
-                         impl_desc_type::ref);
+    const auto& inPrc = getOriginalInputPrecisionAtPort(0);
+    if (!one_of(inPrc,
+                ov::element::f32,
+                ov::element::f16,
+                ov::element::bf16,
+                ov::element::f32,
+                ov::element::i32,
+                ov::element::u32,
+                ov::element::i8,
+                ov::element::u8)) {
+        THROW_CPU_NODE_ERR("doesn't support ", inPrc.get_type_name(), " precision on 0 port");
+    }
+
+    addSupportedPrimDesc({{LayoutType::ncsp}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);
 }
 
 template <typename T>
@@ -85,8 +85,9 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     }
     default: {
         threadsCount = parallel_get_max_threads();
-        if (inSize < static_cast<size_t>(blockSize * threadsCount))
+        if (inSize < static_cast<size_t>(blockSize) * threadsCount) {
             threadsCount = 1;
+        }
 
         counts.resize(threadsCount);
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
@@ -106,24 +107,27 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
 }
 namespace {
 struct NonZeroContext {
-    NonZero &node;
+    NonZero& node;
 };
-}
-template<typename T>
+}  // namespace
+template <typename T>
 struct NonZero::NonZeroExecute {
-    void operator()(NonZeroContext & ctx) {
+    void operator()(NonZeroContext& ctx) {
         ctx.node.executeSpecified<T>();
     }
 };
 
-void NonZero::executeDynamicImpl(dnnl::stream strm) {
+void NonZero::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NonZero::execute(dnnl::stream strm) {
+void NonZero::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
-    NonZeroContext ctx = {*this };
-    OV_SWITCH(intel_cpu, NonZeroExecute, ctx, inputPrec,
+    NonZeroContext ctx = {*this};
+    OV_SWITCH(intel_cpu,
+              NonZeroExecute,
+              ctx,
+              inputPrec,
               OV_CASE(ov::element::f32, float),
               OV_CASE(ov::element::bf16, bfloat16_t),
               OV_CASE(ov::element::f16, float16),
@@ -135,7 +139,7 @@ void NonZero::execute(dnnl::stream strm) {
 template <typename T>
 void NonZero::executeSpecified() {
     const T zero = 0;
-    const T *src = getSrcDataAtPortAs<T>(0);
+    const T* src = getSrcDataAtPortAs<T>(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
     Shape inShape = getParentEdgeAt(0)->getMemory().getShape();
     size_t inRank = inShape.getRank();
@@ -152,9 +156,10 @@ void NonZero::executeSpecified() {
         VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
-    int* dst = dstMemPtr->getDataAs<int>();
-    if (totalNonZeroCount == 0)
+    auto* dst = dstMemPtr->getDataAs<int>();
+    if (totalNonZeroCount == 0) {
         return;
+    }
 
     std::vector<int> srcDims(inRank);
     std::transform(inShape.getDims().begin(), inShape.getDims().end(), srcDims.begin(), [](size_t x) {
@@ -166,9 +171,9 @@ void NonZero::executeSpecified() {
         dst[0] = 0;
         break;
     case 1: {
-        //if nonZeroCounts.size() > 1, then the 2nd round scan could run in parallel.
-        parallel_nt(threadsCount, [&](int ithr, int nthr){
-            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, 0);
+        // if nonZeroCounts.size() > 1, then the 2nd round scan could run in parallel.
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
+            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, size_t{0});
             for_1d(ithr, nthr, inShape.getElementsCount(), [&](size_t i) {
                 if (src[i] != zero) {
                     dst[outputIndex] = i;
@@ -180,7 +185,7 @@ void NonZero::executeSpecified() {
     }
     case 2: {
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
-#define ELEMENTS_COUNT  64
+#define ELEMENTS_COUNT 64
             constexpr auto elementsCount = elementsStride * 2;  // elementsStride * inRank
             static_assert(elementsCount == ELEMENTS_COUNT, "Recalculate ELEMENTS_COUNT!");
 
@@ -226,28 +231,29 @@ void NonZero::executeSpecified() {
 #undef ELEMENTS_COUNT
 
             size_t& outputIndex = destIndices[ithr];
-            for_3d(ithr,
-                   nthr,
-                   srcDims[0],
-                   srcDims[1],
-                   srcDims[2],
-                   [&](size_t, size_t inputIndex, int i0, int i1, int i2) {
-                       if (src[inputIndex] != zero) {
-                            cache[counter] = i0;
-                            cache[counter + elementsStride] = i1;
-                            cache[counter + elementsStride * 2] = i2;
-                            counter++;
+            for_3d(
+                ithr,
+                nthr,
+                srcDims[0],
+                srcDims[1],
+                srcDims[2],
+                [&](size_t, size_t inputIndex, int i0, int i1, int i2) {
+                    if (src[inputIndex] != zero) {
+                        cache[counter] = i0;
+                        cache[counter + elementsStride] = i1;
+                        cache[counter + elementsStride * 2] = i2;
+                        counter++;
 
-                            if (counter >= elementsStride) {
-                                cpu_memcpy(&dst[outputIndex], cache, blockSize);
-                                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
-                                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], blockSize);
+                        if (counter >= elementsStride) {
+                            cpu_memcpy(&dst[outputIndex], cache, blockSize);
+                            cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
+                            cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], blockSize);
 
-                                outputIndex += elementsStride;
-                                counter = 0;
-                            }
-                       }
-                   });
+                            outputIndex += elementsStride;
+                            counter = 0;
+                        }
+                    }
+                });
 
             if (counter != 0) {
                 const auto remainingBlockSize = counter * sizeof(int);
@@ -326,34 +332,35 @@ void NonZero::executeSpecified() {
 #undef ELEMENTS_COUNT
 
             size_t& outputIndex = destIndices[ithr];
-            for_5d(ithr,
-                   nthr,
-                   srcDims[0],
-                   srcDims[1],
-                   srcDims[2],
-                   srcDims[3],
-                   srcDims[4],
-                   [&](size_t, size_t inputIndex, int i0, int i1, int i2, int i3, int i4) {
-                        if (src[inputIndex] != zero) {
-                            cache[counter] = i0;
-                            cache[counter + elementsStride] = i1;
-                            cache[counter + elementsStride * 2] = i2;
-                            cache[counter + elementsStride * 3] = i3;
-                            cache[counter + elementsStride * 4] = i4;
-                            counter++;
+            for_5d(
+                ithr,
+                nthr,
+                srcDims[0],
+                srcDims[1],
+                srcDims[2],
+                srcDims[3],
+                srcDims[4],
+                [&](size_t, size_t inputIndex, int i0, int i1, int i2, int i3, int i4) {
+                    if (src[inputIndex] != zero) {
+                        cache[counter] = i0;
+                        cache[counter + elementsStride] = i1;
+                        cache[counter + elementsStride * 2] = i2;
+                        cache[counter + elementsStride * 3] = i3;
+                        cache[counter + elementsStride * 4] = i4;
+                        counter++;
 
-                            if (counter >= elementsStride) {
-                                cpu_memcpy(&dst[outputIndex], cache, blockSize);
-                                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
-                                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], blockSize);
-                                cpu_memcpy(&dst[outputIndex + x3totalNonZeroCount], &cache[elementsStride * 3], blockSize);
-                                cpu_memcpy(&dst[outputIndex + x4totalNonZeroCount], &cache[elementsStride * 4], blockSize);
+                        if (counter >= elementsStride) {
+                            cpu_memcpy(&dst[outputIndex], cache, blockSize);
+                            cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
+                            cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], blockSize);
+                            cpu_memcpy(&dst[outputIndex + x3totalNonZeroCount], &cache[elementsStride * 3], blockSize);
+                            cpu_memcpy(&dst[outputIndex + x4totalNonZeroCount], &cache[elementsStride * 4], blockSize);
 
-                                outputIndex += elementsStride;
-                                counter = 0;
-                            }
+                            outputIndex += elementsStride;
+                            counter = 0;
                         }
-                   });
+                    }
+                });
 
             if (counter != 0) {
                 const auto remainingBlockSize = counter * sizeof(int);
@@ -395,6 +402,4 @@ bool NonZero::created() const {
     return getType() == Type::NonZero;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu::node

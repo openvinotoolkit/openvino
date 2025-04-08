@@ -46,7 +46,7 @@ namespace pass {
 
 class OptimizeDomain : public snippets::lowered::pass::Pass {
 public:
-    OPENVINO_RTTI("OptimizeDomain", "Pass")
+    OPENVINO_RTTI("OptimizeDomain", "", Pass)
     explicit OptimizeDomain(size_t& tile_rank);
     bool run(LinearIR& linear_ir) override;
 

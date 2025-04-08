@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2024 Intel Corporation
+ Copyright (C) 2018-2025 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -12,6 +12,7 @@
 """
 import json
 import os
+import platform
 import numpy as np
 import pathlib
 import pytest
@@ -61,6 +62,12 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
         '-d', device
     )
     assert 'FPS' in output
+
+    # No Windows support due to the lack of the ‘psutil’ module in the CI infrastructure
+    # No Macos support due to no /proc/self/status file
+    if platform.system() == "Linux":
+        assert 'Compile model ram used' in output
+
     if tmp_path:
         assert (tmp_path / 'exec_graph.xml').exists()
         with (tmp_path / 'conf.json').open(encoding='utf-8') as file:
@@ -69,9 +76,8 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
             assert 'CPU' in config_json
             assert not nstreams or config_json['CPU']['NUM_STREAMS'] == nstreams
             assert (not pin
-                or pin == 'YES' and config_json['CPU']['AFFINITY'] == 'CORE'
-                or pin == 'NO' and config_json['CPU']['AFFINITY'] == 'NONE'
-                or pin == config_json['CPU']['AFFINITY'])
+                or pin == 'YES' and config_json['CPU']['ENABLE_CPU_PINNING'] == 'YES'
+                or pin == 'NO' and config_json['CPU']['ENABLE_CPU_PINNING'] == 'NO')
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
@@ -96,7 +102,7 @@ def test_max_irate(sample_language, device, max_irate, cache, tmp_path):
 
 @pytest.mark.skipif('CPU' not in get_devices(), reason='affinity is a CPU property')
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
-@pytest.mark.parametrize('pin', ['YES', 'NO', 'NUMA', 'HYBRID_AWARE'])
+@pytest.mark.parametrize('pin', ['YES', 'NO'])
 def test_pin(sample_language, pin, cache, tmp_path):
     verify(sample_language, 'CPU', pin=pin, nstreams='2', cache=cache, tmp_path=tmp_path)
 

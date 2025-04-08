@@ -3,6 +3,7 @@
 //
 
 #include "mlp_kernel.hpp"
+
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "mlp_utils.hpp"
 #include "openvino/core/parallel.hpp"
@@ -14,15 +15,21 @@ using namespace dnnl::impl::cpu::x64;
 using TileConfig = ov::Extensions::Cpu::TileConfig;
 using TileConfiger = ov::Extensions::Cpu::TileConfiger;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void MKernel::generate_2x2() {
-    Xbyak::Reg64 reg_A_addr = abi_param2;
-    Xbyak::Reg64 reg_A_stride = abi_param3;
-    Xbyak::Reg64 reg_B_addr = abi_param4;
-    Xbyak::Reg64 reg_C_addr = abi_param5;
-    Xbyak::Reg64 reg_C_stride = abi_param6;
+    auto reg_A_addr = abi_param2;
+    auto reg_A_stride = abi_param3;
+    auto reg_B_addr = abi_param4;
+#ifdef _WIN32
+    auto reg_C_addr = rdi;
+    auto reg_C_stride = rsi;
+    push(rdi);
+    push(rsi);
+#else
+    auto reg_C_addr = abi_param5;
+    auto reg_C_stride = abi_param6;
+#endif
 
     Xbyak::Reg64 reg_ktiles = rax;
     Xbyak::Reg64 reg_B_stride = r10;
@@ -139,6 +146,10 @@ void MKernel::generate_2x2() {
     tilestored(ptr[reg_C_addr + reg_C_stride + 64], tmmC11);
 
     pop(reg_prefetch);
+#ifdef _WIN32
+    pop(rsi);
+    pop(rdi);
+#endif
     ret();
 }
 
@@ -156,25 +167,32 @@ void MKernel::tile_config_M(TileConfig& tile_cfg, int M) {
         }
     }
     tile_cfg.reset(1,
-                    0,
-                    {
-                        {rows0, 64},  // C00:0
-                        {rows0, 64},  // C01:1
-                        {rows1, 64},  // C10:2
-                        {rows1, 64},  // C11:3
-                        {rows0, 64},  // A0:4
-                        {rows1, 64},  // A1:5
-                        {16, 64},     // B0:6
-                        {16, 64},     // B1:7
-                    });
+                   0,
+                   {
+                       {rows0, 64},  // C00:0
+                       {rows0, 64},  // C01:1
+                       {rows1, 64},  // C10:2
+                       {rows1, 64},  // C11:3
+                       {rows0, 64},  // A0:4
+                       {rows1, 64},  // A1:5
+                       {16, 64},     // B0:6
+                       {16, 64},     // B1:7
+                   });
 }
 
 void MKernel::generate_1x2() {
-    Xbyak::Reg64 reg_A_addr = abi_param2;
-    Xbyak::Reg64 reg_A_stride = abi_param3;
-    Xbyak::Reg64 reg_B_addr = abi_param4;
-    Xbyak::Reg64 reg_C_addr = abi_param5;
-    Xbyak::Reg64 reg_C_stride = abi_param6;
+    auto reg_A_addr = abi_param2;
+    auto reg_A_stride = abi_param3;
+    auto reg_B_addr = abi_param4;
+#ifdef _WIN32
+    auto reg_C_addr = rdi;
+    auto reg_C_stride = rsi;
+    push(rdi);
+    push(rsi);
+#else
+    auto reg_C_addr = abi_param5;
+    auto reg_C_stride = abi_param6;
+#endif
 
     Xbyak::Reg64 reg_ktiles = rax;
     Xbyak::Reg64 reg_B_stride = r10;
@@ -200,7 +218,8 @@ void MKernel::generate_1x2() {
         mov(reg_ktiles, ptr[abi_param1 + offsetof(call_args, k_tiles)]);
 
         mov(reg_tmp, ptr[abi_param1 + offsetof(call_args, do_accumulation)]);
-        // new: bit0: 0-skip load from mem, 1-load from mem; bit1: 0-skip tilezero, 1-tilezero; bit2: 0-skip store, 1-store
+        // new: bit0: 0-skip load from mem, 1-load from mem; bit1: 0-skip tilezero, 1-tilezero; bit2: 0-skip store,
+        // 1-store
         mov(abi_param1, reg_tmp);
         and_(reg_tmp, 1);
         jz(skip_load);
@@ -252,7 +271,10 @@ void MKernel::generate_1x2() {
         tilestored(ptr[reg_C_addr + reg_C_stride + 64], tmmC01);
     }
     L(skip_store);
-
+#ifdef _WIN32
+    pop(rsi);
+    pop(rdi);
+#endif
     ret();
 }
 
@@ -265,7 +287,7 @@ public:
 
     void generate() override {
         Xbyak::Label loop_begin;
-        Xbyak::Reg64 src = abi_param1;
+        auto src = abi_param1;
         for (int i = 0; i < 16; i++) {
             vcvtph2ps(zmm0, ptr[src]);
             vcvtph2ps(zmm1, ptr[src + 32]);
@@ -279,14 +301,15 @@ public:
 };
 
 template <typename Tdst>
-static typename std::enable_if<std::is_same<ov::bfloat16, Tdst>::value || std::is_same<ov::float16, Tdst>::value>::type
+static std::enable_if_t<std::is_same_v<ov::bfloat16, Tdst> || std::is_same_v<ov::float16, Tdst>>
 repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     static FP16ToBF16Kernel fp16_to_bf16;
     if (N == 16 && K == 32) {
         // SIMD optimized version
         ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(Tdst));
-        if (std::is_same<ov::bfloat16, Tdst>::value)
+        if (std::is_same_v<ov::bfloat16, Tdst>) {
             fp16_to_bf16(dst);
+        }
         return;
     }
 
@@ -341,14 +364,14 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
     }
 }
 
-template<typename Tdst>
+template <typename Tdst>
 void MKernel::BMatrix::setup(Tdst* ext_buff, ov::float16* p_weight, int weight_stride_in_bytes, int N, int K) {
     OPENVINO_ASSERT((N % 32) == 0);
     OPENVINO_ASSERT((K % 32) == 0);
 
     this->ptr = reinterpret_cast<uint8_t*>(ext_buff);
-    this->Bpair_rows = K/32;
-    this->Bpair_cols = N/32;
+    this->Bpair_rows = K / 32;
+    this->Bpair_cols = N / 32;
 
     const int k_step = 32;
     auto N_stride = weight_stride_in_bytes / sizeof(Tdst);
@@ -376,8 +399,8 @@ void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stri
     OPENVINO_ASSERT((K % 64) == 0);
 
     this->ptr = reinterpret_cast<uint8_t*>(ext_buff);
-    this->Bpair_rows = K/64;
-    this->Bpair_cols = N/32;
+    this->Bpair_rows = K / 64;
+    this->Bpair_cols = N / 32;
 
     const int k_step = 64;
     auto N_stride = weight_stride_in_bytes / sizeof(int8_t);
@@ -398,7 +421,7 @@ void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stri
 }
 
 // interleaving two weights into one in unit of 16-column
-template<typename Tdst>
+template <typename Tdst>
 void MKernel::BMatrix::setup(Tdst* ext_buff,
                              ov::float16* p_weight_B0,
                              ov::float16* p_weight_B1,
@@ -501,24 +524,24 @@ void MKernel::run(int M,  // actual M
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) {
-    assert(BM <= M);
+    assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0}, end{0};
         splitter(BM, nthr, ithr, start, end);
         ov::Extensions::Cpu::XARCH::llm_mlp_quantize_bf16_i8(psrc + start * src_stride,
-                                                            src_stride,
-                                                            data + start * K,
-                                                            K,
-                                                            end - start,
-                                                            K,
-                                                            scale + start,
-                                                            zp + start,
-                                                            asym);
+                                                             src_stride,
+                                                             data + start * K,
+                                                             K,
+                                                             end - start,
+                                                             K,
+                                                             scale + start,
+                                                             zp + start,
+                                                             asym);
     });
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) {
-    assert(BM <= M);
+    assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0}, end{0};
         splitter(BM, nthr, ithr, start, end);
@@ -537,10 +560,10 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride
 void GateUpCombine::generate() {
     Xbyak::Label loop_begin;
 
-    Xbyak::Reg64 src = abi_param1;
-    Xbyak::Reg64 dst = abi_param2;
-    Xbyak::Reg64 prefetch_dst = abi_param3;
-    Xbyak::Reg64 BN = abi_param4;
+    auto src = abi_param1;
+    auto dst = abi_param2;
+    auto prefetch_dst = abi_param3;
+    auto BN = abi_param4;
 
     Xbyak::Reg64 loop_i = rax;
     const auto zmm_gate = zmm5;
@@ -548,12 +571,13 @@ void GateUpCombine::generate() {
     const auto zmm_up = zmm0;
     const auto ymm_dst = ymm5;
 
-    auto injector = std::make_shared<jit_uni_eltwise_injector_f32<dnnl::impl::cpu::x64::avx512_core>>(
+    auto injector = std::make_shared<jit_uni_eltwise_injector<dnnl::impl::cpu::x64::avx512_core>>(
         this,
         m_act_alg,
         1.f,
         1.0f,
         1.f,
+        data_type::f32,
         true,                               // save_state, true due to additional r15 is used.
         Xbyak::Reg64(Xbyak::Operand::R10),  // p_table
         Xbyak::Opmask(1),                   // k_mask
@@ -596,11 +620,18 @@ void GateUpCombine::generate() {
 
 void ReduceAdd2bh::generate() {
     if (m_do_reduce2) {
-        Xbyak::Reg64 src0 = abi_param1;
-        Xbyak::Reg64 src1 = abi_param2;
-        Xbyak::Reg64 dst = abi_param3;
-        Xbyak::Reg64 prefetch_dst = abi_param4;
-        Xbyak::Reg64 BN = abi_param5;
+        auto src0 = rdx;
+        auto src1 = r8;
+        auto dst = r9;
+        auto prefetch_dst = r10;
+        auto BN = r11;
+
+        mov(src0, ptr[abi_param1 + offsetof(CallArgs, src0)]);
+        mov(src1, ptr[abi_param1 + offsetof(CallArgs, src1)]);
+        mov(dst, ptr[abi_param1 + offsetof(CallArgs, dst)]);
+        mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
+        mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
+
         Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;
@@ -620,7 +651,7 @@ void ReduceAdd2bh::generate() {
                 vcvtps2ph(ptr[dst + loop_i * 2], zmm0, 0x4);
                 vcvtps2ph(ptr[dst + loop_i * 2 + 32], zmm2, 0x4);
                 prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
-           } else {
+            } else {
                 vcvtne2ps2bf16(zmm4, zmm2, zmm0);
                 prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
                 vmovups(ptr[dst + loop_i * 2], zmm4);
@@ -632,10 +663,16 @@ void ReduceAdd2bh::generate() {
 
         ret();
     } else {
-        Xbyak::Reg64 src0 = abi_param1;
-        Xbyak::Reg64 dst = abi_param2;
-        Xbyak::Reg64 prefetch_dst = abi_param3;
-        Xbyak::Reg64 BN = abi_param4;
+        auto src0 = rdx;
+        auto dst = r9;
+        auto prefetch_dst = r10;
+        auto BN = r11;
+
+        mov(src0, ptr[abi_param1 + offsetof(CallArgs, src0)]);
+        mov(dst, ptr[abi_param1 + offsetof(CallArgs, dst)]);
+        mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
+        mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
+
         Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;
@@ -665,5 +702,4 @@ void ReduceAdd2bh::generate() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

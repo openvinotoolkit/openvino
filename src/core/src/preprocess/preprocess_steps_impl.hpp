@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -157,6 +157,7 @@ struct InternalPreprocessAction {
 class PreStepsList {
 public:
     void add_scale_impl(const std::vector<float>& values);
+    void add_clamp(double min_value, double max_value);
     void add_mean_impl(const std::vector<float>& values);
     void add_pad_impl(const std::vector<int>& pads_begin,
                       const std::vector<int>& pads_end,
@@ -220,6 +221,7 @@ struct InternalPostprocessAction {
 /// \brief PostProcessStepsImpl - internal data structure
 class PostStepsList {
 public:
+    void add_clamp(double min_value, double max_value);
     void add_convert_impl(const element::Type& type);
     void add_convert_layout_impl(const Layout& layout);
     void add_convert_layout_impl(const std::vector<uint64_t>& dims);

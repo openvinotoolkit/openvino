@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,6 +188,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_no_zero_point) {
     test_case.add_input(std::vector<float>{2.0f, 1.0f});              // scale
 
     test_case.add_expected_output<float>(std::vector<float>{38, 210, 42, 10});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_21_no_zero_point) {
+    auto model = convert_model("dequantize_linear_21_no_zero_point.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_expected_output<float>(
+        {6, 3},
+        std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15, 0, 0});
     test_case.run();
 }
 
@@ -417,7 +428,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
     auto test_case = ov::test::TestCase(model, s_device);
 
 	test_case.add_input_from_file<uint8_t>(
-		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/x.bin" }));
+		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/x.bin" }).string());
     test_case.add_input(std::vector<float>{0.00369204697199166f});  // x_scale
     test_case.add_input(std::vector<uint8_t>{132});                 // x_zero_point
     test_case.add_input(std::vector<uint8_t>{0});                   // w
@@ -427,7 +438,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
     test_case.add_input(std::vector<uint8_t>{123});                 // y_zero_point
 
 	test_case.add_expected_output_from_file<uint8_t>({ 1, 1, 7, 7 },
-		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/y.bin" }));
+		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/y.bin" }).string());
     test_case.run();
 }
 

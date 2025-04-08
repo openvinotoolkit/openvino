@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
     auto static_rank_gt_1 = [](const ov::Output<ov::Node>& output) {
@@ -36,7 +35,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
         if (!matmul || transformation_callback(matmul)) {
             return false;
         }
@@ -50,7 +49,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         auto input_b = fc_input_b.get_node_shared_ptr();
         for (auto& user : input_b->get_users()) {
             if (user != matmul && ov::is_type<ov::op::v0::MatMul>(user) && ov::is_type<ov::op::v0::Convert>(input_b)) {
-                auto other_matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(user);
+                auto other_matmul = ov::as_type_ptr<ov::op::v0::MatMul>(user);
                 // Transpose for input_b generates invalid input for other sibling matmul
                 if (input_b == other_matmul->get_input_node_shared_ptr(0) || fc_input_b == fc_input_a ||
                     (input_b == other_matmul->get_input_node_shared_ptr(1) && matmul->get_transpose_b() != other_matmul->get_transpose_b())) {
@@ -62,12 +61,12 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         // fc_input_a and fc_input_b - are the final inputs that will be set to FullyConnected.
         // So in case of adding new operations that takes matmul inputs we need keep update fc_input_a and fc_input_b.
         bool is_convert = false;
-        if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
+        if (auto convert_node = ov::as_type_ptr<ov::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
             is_convert = true;
             fc_input_b = convert_node->get_input_node_shared_ptr(0);
         }
 
-        auto transpose_node = std::dynamic_pointer_cast<ov::op::v1::Transpose>(fc_input_b.get_node_shared_ptr());
+        auto transpose_node = ov::as_type_ptr<ov::op::v1::Transpose>(fc_input_b.get_node_shared_ptr());
         if (transpose_node) {
             fc_input_b = transpose_node->get_input_node_shared_ptr(0);
         }
@@ -159,7 +158,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         bool can_reuse_transpose = false;
         if (!matmul->get_transpose_b()) {
             if (transpose_node && transpose_node->get_input_size() == 2) {
-                auto order_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
+                auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
                 if (order_constant) {
                     std::vector<size_t> order = order_constant->cast_vector<size_t>();
 
@@ -209,5 +208,4 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

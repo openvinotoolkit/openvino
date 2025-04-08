@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ template <typename T>
 class SharedBuffer : public ov::AlignedBuffer {
 public:
     SharedBuffer(char* data, size_t size, const T& shared_object) : _shared_object(shared_object) {
-        m_allocated_buffer = data;
+        m_allocated_buffer = nullptr;
         m_aligned_buffer = data;
         m_byte_size = size;
     }

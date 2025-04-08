@@ -5,7 +5,7 @@
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "broadcast_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/broadcast.hpp"
 
@@ -25,7 +25,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::broadcast_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<broadcast_impl>(*this);
+        return std::make_unique<broadcast_impl>(*this);
     }
 
     broadcast_impl() : parent("broadcast_cpu_impl") {}
@@ -99,7 +99,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read_write> output_lock(output_mem_ptr, stream);
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
@@ -121,7 +121,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const broadcast_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<broadcast_impl>();
+        return std::make_unique<broadcast_impl>();
     }
 };
 

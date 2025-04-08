@@ -20,7 +20,7 @@ Use the **openvino-node** package:
 const { addon: ov } = require('openvino-node');
 ```
 
-Refer to the complete description of the `addon` API in the [documentation](https://docs.openvino.ai/2024/api/nodejs_api/addon.html).
+Refer to the complete description of the `addon` API in the [documentation](https://docs.openvino.ai/2025/api/nodejs_api/addon.html).
 
 See the [samples](https://github.com/openvinotoolkit/openvino/blob/master/samples/js/node/README.md) for more details on how to use it.
 
@@ -38,7 +38,7 @@ To use the package in development of Electron applications on Windows, make sure
 
 ## Documentation & Samples
 
-- [OpenVINO™ Node.js API](https://docs.openvino.ai/2024/api/nodejs_api/nodejs_api.html)
+- [OpenVINO™ Node.js API](https://docs.openvino.ai/2025/api/nodejs_api/nodejs_api.html)
 - [OpenVINO™ Node.js Bindings Examples of Usage](https://github.com/openvinotoolkit/openvino/blob/master/samples/js/node/README.md)
 
 ## Live Sample
@@ -65,4 +65,4 @@ Contributions are always welcome! Read the [Contribution Guide](https://github.c
 
 [License](https://github.com/openvinotoolkit/openvino/blob/master/LICENSE)
 
-Copyright © 2018-2024 Intel Corporation
+Copyright © 2018-2025 Intel Corporation

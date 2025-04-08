@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 set -e
@@ -219,7 +219,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] 
         pkgs_gpu+=("ocl-icd.$arch")
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm")
     elif [ "$os" == "rhel8" ] ; then
-        pkgs_gpu+=("http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.12-1.el8.$arch.rpm")
+        pkgs_gpu+=("http://vault.centos.org/centos/8-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.12-1.el8.$arch.rpm")
         pkgs_python+=(python38 python38-pip)
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm")
     elif [ "$os" == "rhel9.1" ] || [ "$os" == "rhel9.2" ] || [ "$os" == "rhel9.3" ] || [ "$os" == "rhel9.4" ] ; then
@@ -302,9 +302,9 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"
     [ -n "$keepcache" ] && iopt="$iopt --setopt=keepcache=1"
-    [ -n "$extra" ] && [ ${#extra_repos[@]} -ne 0 ] && yum localinstall "$iopt" --nogpgcheck "${extra_repos[@]}"
+    [ -n "$extra" ] && [ ${#extra_repos[@]} -ne 0 ] && yum localinstall ${iopt:+$iopt} --nogpgcheck "${extra_repos[@]}"
 
-    yum install "$iopt" "${pkgs[@]}"
+    yum install ${iopt:+$iopt} "${pkgs[@]}"
 
 elif [ "$os" == "opensuse-leap15.3" ] ; then
 

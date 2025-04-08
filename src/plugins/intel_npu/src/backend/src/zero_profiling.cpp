@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include <ze_graph_profiling_ext.h>
 
-#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -46,10 +46,12 @@ ProfilingPool::~ProfilingPool() {
     }
 }
 
-void ProfilingQuery::create(const ze_graph_profiling_pool_handle_t& profiling_pool) {
+void ProfilingQuery::create(const std::shared_ptr<ProfilingPool>& profiling_pool) {
+    _profiling_pool =
+        profiling_pool;  // store profiling pool to make sure it is keeped alive until profiling query is destroyed
     THROW_ON_FAIL_FOR_LEVELZERO(
         "pfnProfilingQueryCreate",
-        _init_structs->getProfilingDdiTable().pfnProfilingQueryCreate(profiling_pool, _index, &_handle));
+        _init_structs->getProfilingDdiTable().pfnProfilingQueryCreate(_profiling_pool->_handle, _index, &_handle));
 }
 
 LayerStatistics ProfilingQuery::getLayerStatistics() const {
@@ -146,7 +148,7 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
             info.exec_type = "INFER_REQ";
             info.node_type = "INFER_REQ";
 
-            npuPerfCounts.push_back(info);
+            npuPerfCounts.push_back(std::move(info));
         }
     }
 
@@ -163,21 +165,21 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
         "AVG",
         "AVG",
         "AVG"};
-    npuPerfCounts.push_back(info_avg);
+    npuPerfCounts.push_back(std::move(info_avg));
     ov::ProfilingInfo info_min = {ov::ProfilingInfo::Status::EXECUTED,
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_min_cc)),
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_min_cc)),
                                   "MIN",
                                   "MIN",
                                   "MIN"};
-    npuPerfCounts.push_back(info_min);
+    npuPerfCounts.push_back(std::move(info_min));
     ov::ProfilingInfo info_max = {ov::ProfilingInfo::Status::EXECUTED,
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_max_cc)),
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_max_cc)),
                                   "MAX",
                                   "MAX",
                                   "MAX"};
-    npuPerfCounts.push_back(info_max);
+    npuPerfCounts.push_back(std::move(info_max));
     return npuPerfCounts;
 }
 

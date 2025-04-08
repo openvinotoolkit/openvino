@@ -10,6 +10,7 @@ jobs:
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
 
       - name: Install dependencies
         run: python3 -m pip install -r ./.github/github_org_control/requirements.txt

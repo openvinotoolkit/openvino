@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,11 @@
 
 namespace ov {
 namespace frontend {
-namespace tensorflow {
 
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
 class FRONTEND_API GraphIterator : ::ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("Variant::GraphIterator");
+    OPENVINO_RTTI("Variant::GraphIterator", "0", RuntimeAttribute);
 
     using Ptr = std::shared_ptr<GraphIterator>;
 
@@ -34,9 +33,6 @@ public:
     /// \brief Return a pointer to a decoder of the current node
     virtual std::shared_ptr<DecoderBase> get_decoder() const = 0;
 
-    /// \brief Destructor
-    virtual ~GraphIterator() = default;
-
     /// \brief Checks if the main model graph contains a function of the requested name in the library
     /// Returns GraphIterator to this function and nullptr, if it does not exist
     virtual std::shared_ptr<GraphIterator> get_body_graph_iterator(const std::string& func_name) const = 0;
@@ -48,16 +44,11 @@ public:
     virtual std::vector<std::string> get_output_names() const = 0;
 
     /// \brief Returns a map from internal tensor name to (user-defined) external name for inputs
-    virtual std::map<std::string, std::string> get_input_names_map() const {
-        return {};
-    }
+    virtual std::map<std::string, std::string> get_input_names_map() const;
 
     /// \brief Returns a map from internal tensor name to (user-defined) external name for outputs
-    virtual std::map<std::string, std::string> get_output_names_map() const {
-        return {};
-    }
+    virtual std::map<std::string, std::string> get_output_names_map() const;
 };
 
-}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

@@ -12,14 +12,13 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 OptimizeSubsequentReshapes::OptimizeSubsequentReshapes() {
     using namespace ov::pass::pattern;
     using ov::pass::pattern::op::Or;
 
-    auto dynamic_batch_only = [](Output<Node> output) {
+    auto single_dynamic_dim = [](Output<Node> output) {
         const auto& shape = output.get_partial_shape();
 
         if (shape.rank().is_dynamic())
@@ -28,23 +27,23 @@ OptimizeSubsequentReshapes::OptimizeSubsequentReshapes() {
         if (shape.size() <= 1)
             return false;
 
-        if (shape[0].is_static())
-            return false;
+        auto dynamic_dims = 0;
+        for (size_t i = 0; i < shape.size(); i++)
+            dynamic_dims += shape[i].is_dynamic() ? 1 : 0;
 
-        for (size_t i = 1; i < shape.size(); i++)
-            if (shape[i].is_dynamic())
-                return false;
+        if (dynamic_dims != 1)
+            return false;
 
         return true;
     };
 
-    auto first_reshape_data = any_input(dynamic_batch_only);
+    auto first_reshape_data = any_input(single_dynamic_dim);
     auto first_reshape_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto first_reshape = wrap_type<ov::op::v1::Reshape>({ first_reshape_data, first_reshape_pattern },
-                                                        ov::pass::pattern::all_of({ dynamic_batch_only, ov::pass::pattern::consumers_count(1) }));
+                                                        single_dynamic_dim && ov::pass::pattern::consumers_count(1));
 
     auto second_reshape_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto second_reshape = wrap_type<ov::op::v1::Reshape>({ first_reshape, second_reshape_pattern }, dynamic_batch_only);
+    auto second_reshape = wrap_type<ov::op::v1::Reshape>({ first_reshape, second_reshape_pattern }, single_dynamic_dim);
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -75,14 +74,14 @@ OptimizeSubsequentReshapes::OptimizeSubsequentReshapes() {
         std::vector<int32_t> new_pattern;
         for (auto& dim : second_reshape_ps) {
             if (dim.is_dynamic()) {
-                new_pattern.push_back(0);
+                new_pattern.push_back(-1);
             } else {
                 new_pattern.push_back(dim.get_length());
             }
         }
 
         auto new_pattern_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{new_pattern.size()}, new_pattern);
-        auto new_reshape = std::make_shared<ov::op::v1::Reshape>(first_reshape_node->input(0).get_source_output(), new_pattern_const, true);
+        auto new_reshape = std::make_shared<ov::op::v1::Reshape>(first_reshape_node->input(0).get_source_output(), new_pattern_const, false);
         new_reshape->set_friendly_name(second_reshape_node->get_friendly_name());
 
         ov::replace_node(second_reshape_node, new_reshape);
@@ -95,5 +94,4 @@ OptimizeSubsequentReshapes::OptimizeSubsequentReshapes() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

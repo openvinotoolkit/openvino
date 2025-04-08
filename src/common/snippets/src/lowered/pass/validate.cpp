@@ -97,8 +97,13 @@ void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
 void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
     OPENVINO_ASSERT(loop_end, "LoopEnd validation expects LoopEnd op");
-    OPENVINO_ASSERT(loop_end->get_loop_begin() != nullptr,
+    const auto& loop_begin = loop_end->get_loop_begin();
+    OPENVINO_ASSERT(loop_begin != nullptr,
                     "LoopEnd must be connected to the LoopBegin");
+    const auto num_inputs = expr->get_input_count();
+    OPENVINO_ASSERT(num_inputs >= 1, "LoopEnd expression must have at least 1 input");
+    OPENVINO_ASSERT(expr->get_input_port_connector(num_inputs - 1)->get_source().get_expr()->get_node() == loop_begin,
+                    "LoopEnd expression must have LoopBegin attached to the last connector");
 
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
@@ -117,7 +122,7 @@ void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     const auto& final_offsets = loop_end->get_finalization_offsets();
     auto validate_loop_ports = [&](const std::vector<UnifiedLoopInfo::LoopPortInfo>& loop_port_infos, size_t shift = 0) {
         for (size_t i = 0; i < loop_port_infos.size(); ++i) {
-            OPENVINO_ASSERT(is_incremented[i + shift] == loop_port_infos[i].port.is_incremented &&
+            OPENVINO_ASSERT(is_incremented[i + shift] == loop_port_infos[i].port.is_incremented() &&
                             ptr_increments[i + shift] == loop_port_infos[i].desc.ptr_increment &&
                             final_offsets[i + shift] == loop_port_infos[i].desc.finalization_offset,
                             "Incompatible data ptr shifts in LoopEnd and the corresponding LoopInfo");
@@ -148,6 +153,14 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
         if (found != m_validation_map.cend()) {
             (found->second)(expr, linear_ir);
         }
+        bool bypass_output_size_check =
+#ifdef SNIPPETS_DEBUG_CAPS
+            ov::is_type_any_of<snippets::op::PerfCountBegin, snippets::op::PerfCountEnd>(node) ||
+#endif  // SNIPPETS_DEBUG_CAPS
+            ov::is_type_any_of<op::LoopEnd, ov::op::v0::Result>(node);
+
+        OPENVINO_ASSERT(expr->get_output_count() == node->get_output_size() || bypass_output_size_check,
+                        "Incorrect count of output port descriptors!");
         expr->validate();
         // Loop expr doesn't have shapes and layouts
         if (!ov::is_type<op::LoopBase>(node))

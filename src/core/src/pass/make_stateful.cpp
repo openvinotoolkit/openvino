@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,7 +70,7 @@ std::tuple<ov::pass::MakeStateful::ParamResPairs, std::vector<std::string>> find
                         " are already involved in the transformation.");
         uniq_res.insert(unused_res);
 
-        if (auto casted = std::dynamic_pointer_cast<ov::op::v0::Result>(unused_res->shared_from_this()))
+        if (auto casted = ov::as_type_ptr<ov::op::v0::Result>(unused_res->shared_from_this()))
             pairs_to_replace.emplace_back(*param, casted);
         variable_names.push_back(param_name + res_name);
     }

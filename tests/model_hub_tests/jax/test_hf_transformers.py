@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import openvino as ov
@@ -6,7 +6,7 @@ import os
 import pytest
 import requests
 from PIL import Image
-from models_hub_common.constants import hf_hub_cache_dir
+from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir, get_models_list, retry
 from transformers import (
     AutoProcessor,
@@ -42,8 +42,9 @@ class TestTransformersModel(TestJaxConvertModel):
         return model
 
     def teardown_method(self):
-        # remove all downloaded files from cache
-        cleanup_dir(hf_hub_cache_dir)
+        if clean_hf_cache_dir:
+            # remove all downloaded files from cache
+            cleanup_dir(hf_cache_dir)
         super().teardown_method()
 
     def infer_ov_model(self, ov_model, inputs, ie_device):

@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
+
+#include <sstream>
+#include <string>
+
 #include "cpu_shape.h"
 
-#include <string>
-#include <sstream>
-
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::string dim2str(Dim dim) {
     return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
@@ -91,6 +91,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Erf", Type::Eltwise},
         {"SoftPlus", Type::Eltwise},
         {"SoftSign", Type::Eltwise},
+        {"SegmentMax", Type::SegmentMax},
         {"Select", Type::Eltwise},
         {"Log", Type::Eltwise},
         {"BitwiseAnd", Type::Eltwise},
@@ -143,6 +144,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Loop", Type::TensorIterator},
         {"ReadValue", Type::MemoryInput},  // for construction from name ctor, arbitrary name is used
         {"Assign", Type::MemoryOutput},    // for construction from layer ctor
+        {"ReadValueWithSubgraph", Type::MemoryInput},
         {"Convert", Type::Convert},
         {"NV12toRGB", Type::ColorConvert},
         {"NV12toBGR", Type::ColorConvert},
@@ -185,6 +187,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"IDFT", Type::DFT},
         {"RDFT", Type::RDFT},
         {"IRDFT", Type::RDFT},
+        {"ISTFT", Type::ISTFT},
         {"STFT", Type::STFT},
         {"Abs", Type::Math},
         {"Acos", Type::Math},
@@ -195,12 +198,12 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Atanh", Type::Math},
         {"Ceil", Type::Math},
         {"Ceiling", Type::Eltwise},
+        {"Negative", Type::Eltwise},
         {"Cos", Type::Math},
         {"Cosh", Type::Math},
         {"Floor", Type::Eltwise},
         {"HardSigmoid", Type::Math},
         {"If", Type::If},
-        {"Neg", Type::Math},
         {"Reciprocal", Type::Math},
         {"Selu", Type::Math},
         {"Sign", Type::Math},
@@ -260,8 +263,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"QKVProjection", Type::QKVProjection},
         {"RMS", Type::RMS},
         {"SearchSorted", Type::SearchSorted},
-        {"LoraSubgraph", Type::LoRA}
-    };
+        {"LoraSubgraph", Type::LoRA}};
     return type_to_name_tbl;
 }
 
@@ -270,9 +272,8 @@ Type TypeFromName(const std::string& type) {
     auto itType = type_to_name_tbl.find(type);
     if (type_to_name_tbl.end() != itType) {
         return itType->second;
-    } else {
-        return Type::Unknown;
     }
+    return Type::Unknown;
 }
 
 std::string NameFromType(const Type type) {
@@ -348,6 +349,7 @@ std::string NameFromType(const Type type) {
         CASE(DFT);
         CASE(RDFT);
         CASE(STFT);
+        CASE(ISTFT);
         CASE(Math);
         CASE(CTCLoss);
         CASE(Bucketize);
@@ -393,6 +395,7 @@ std::string NameFromType(const Type type) {
         CASE(QKVProjection);
         CASE(RMS);
         CASE(SearchSorted);
+        CASE(SegmentMax);
         CASE(LoRA);
         CASE(Unknown);
     }
@@ -424,6 +427,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseFloor);
         CASE(EltwiseCeiling);
         CASE(EltwiseFloorMod);
+        CASE(EltwiseNegative);
         CASE(EltwiseMod);
         CASE(EltwiseMaximum);
         CASE(EltwiseMinimum);
@@ -528,5 +532,4 @@ std::string algToString(const Algorithm alg) {
     return "Undefined";
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

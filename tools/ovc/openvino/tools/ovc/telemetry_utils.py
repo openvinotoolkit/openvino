@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import numbers
 import os
-from openvino.runtime import get_version as get_rt_version  # pylint: disable=no-name-in-module,import-error
+from openvino import get_version as get_rt_version  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.cli_parser import get_params_with_paths_list
 from openvino.tools.ovc.telemetry_params import telemetry_params
 from openvino.tools.ovc.utils import check_values_equal
@@ -28,6 +28,13 @@ def is_torch_compile():
     import traceback
     for line in traceback.format_stack():
         if os.path.join("torch", "_dynamo", "backends", "registry.py") in line:
+            return True
+    return False
+
+def is_keras3():
+    import traceback
+    for line in traceback.format_stack():
+        if os.path.join("keras", "src", "backend", "openvino") in line:
             return True
     return False
 
@@ -95,7 +102,7 @@ def send_conversion_result(conversion_result: str, need_shutdown=False):
 
 def arg_to_str(arg):
     # This method converts to string only known types, otherwise returns string with name of the type
-    from openvino.runtime import PartialShape, Shape, Type, Layout  # pylint: disable=no-name-in-module,import-error
+    from openvino import PartialShape, Shape, Type, Layout  # pylint: disable=no-name-in-module,import-error
     if isinstance(arg, (PartialShape, Shape, Type, Layout)):
         return str(arg)
     if isinstance(arg, (str, numbers.Number, bool)):

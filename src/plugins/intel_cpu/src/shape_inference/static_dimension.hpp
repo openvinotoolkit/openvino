@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,14 +6,13 @@
 
 #include <cstddef>
 #include <limits>
-#include <stdexcept>
 #include <ostream>
+#include <stdexcept>
 
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /// \brief Class representing a dimension, which must be static,
 ///        in a shape or shape-like object.
@@ -35,7 +34,7 @@ public:
     /// \brief Construct a zero dimension
     StaticDimension() = default;
 
-    StaticDimension(const Dimension &) {
+    StaticDimension(const Dimension&) {
         OPENVINO_THROW("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
     }
 
@@ -53,18 +52,18 @@ public:
         return false;
     }
 
-    value_type get_length() const;
-    value_type get_min_length() const;
-    value_type get_max_length() const;
+    [[nodiscard]] value_type get_length() const;
+    [[nodiscard]] value_type get_min_length() const;
+    [[nodiscard]] value_type get_max_length() const;
 
-    Interval& get_interval() const {
+    [[nodiscard]] Interval& get_interval() const {
         static Interval dummy{};
         OPENVINO_THROW("[shape infer] Shoudn't call get_interval() in StaticDimension.");
         return dummy;
     }
 
-    bool same_scheme(const StaticDimension& dim) const;
-    bool compatible(const StaticDimension& d) const;
+    [[nodiscard]] bool same_scheme(const StaticDimension& dim) const;
+    [[nodiscard]] bool compatible(const StaticDimension& d) const;
     static bool merge(StaticDimension& dst, const StaticDimension& d1, const StaticDimension& d2);
     static bool broadcast_merge(StaticDimension& dst, const StaticDimension& d1, const StaticDimension& d2);
 
@@ -76,10 +75,10 @@ public:
     StaticDimension& operator*=(const StaticDimension& dim);
     StaticDimension& operator&=(const StaticDimension& dim);
     StaticDimension operator/(const value_type divisor) const;
-    StaticDimension &operator/=(const value_type divisor);
+    StaticDimension& operator/=(const value_type divisor);
 
     /// \brief Swap of dimensions
-    friend void swap(StaticDimension& a, StaticDimension& b) {
+    friend void swap(StaticDimension& a, StaticDimension& b) noexcept {
         using std::swap;
         swap(a.m_dimension, b.m_dimension);
     }
@@ -90,5 +89,4 @@ private:
 
 std::ostream& operator<<(std::ostream& str, const StaticDimension& dimension);
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

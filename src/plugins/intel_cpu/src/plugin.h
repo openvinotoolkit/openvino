@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,7 @@ public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties,
                                                       const ov::SoPtr<ov::IRemoteContext>& context) const override {
-        OPENVINO_THROW_NOT_IMPLEMENTED(
-            "compile_model with RemoteContext is not supported by CPU plugin!");
+        OPENVINO_THROW_NOT_IMPLEMENTED("compile_model with RemoteContext is not supported by CPU plugin!");
     };
 
     void set_property(const ov::AnyMap& properties) override;
@@ -30,8 +29,7 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
-        OPENVINO_THROW_NOT_IMPLEMENTED(
-            "import_model with RemoteContext is not supported by CPU plugin!");
+        OPENVINO_THROW_NOT_IMPLEMENTED("import_model with RemoteContext is not supported by CPU plugin!");
     };
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,

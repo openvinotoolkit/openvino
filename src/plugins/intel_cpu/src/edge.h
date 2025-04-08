@@ -1,17 +1,17 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <memory>
+#include <vector>
 
 #include "cpu_shape.h"
 #include "internal_properties.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/node_config.h"
 #include "weights_cache.hpp"
-
-#include <memory>
-#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -24,23 +24,17 @@ using EdgeWeakPtr = std::weak_ptr<Edge>;
 
 class Edge {
 public:
-    Edge(const std::shared_ptr<Node>& parent,
-         const std::shared_ptr<Node>& child,
-         int pr_port = 0, int ch_port = 0);
+    Edge(const std::shared_ptr<Node>& parent, const std::shared_ptr<Node>& child, int pr_port = 0, int ch_port = 0);
 
     enum class Status {
-        Uninitialized,
-        NeedAllocation,
-        NotAllocated,
-        Allocated,
-        Validated
+        Uninitialized,   // base edge is unknown yet
+        NeedAllocation,  // edge is the base edge
+        NotAllocated,    // edge references another edge
+        Allocated,       // edge memory is allocated
+        Validated        // edge is validated
     };
 
-    enum class ReorderStatus {
-        Regular = 0,
-        Optimized = 1,
-        No = 2
-    };
+    enum class ReorderStatus { Regular = 0, Optimized = 1, No = 2 };
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN };
 
@@ -52,15 +46,15 @@ public:
 #define CASE(_status)     \
     case Status::_status: \
         return #_status;
-    switch (status) {
-        CASE(Uninitialized);
-        CASE(NeedAllocation);
-        CASE(NotAllocated);
-        CASE(Allocated);
-        CASE(Validated);
-    }
+        switch (status) {
+            CASE(Uninitialized);
+            CASE(NeedAllocation);
+            CASE(NotAllocated);
+            CASE(Allocated);
+            CASE(Validated);
+        }
 #undef CASE
-    return "Unexpected";
+        return "Unexpected";
     }
 
     void changeStatus(Status state);
@@ -69,7 +63,7 @@ public:
     void init();
     void allocate(const void* mem_ptr = nullptr);
     void allocate(MemoryBlockPtr memBlock);
-    void externalAllocate(WeightsSharing::Ptr weightsCache);
+    void externalAllocate(const WeightsSharing::Ptr& weightsCache);
     void reuse(MemoryPtr ptr);
     void validate();
 
@@ -87,17 +81,20 @@ public:
     int getInputNum() const;
     int getOutputNum() const;
 
-    void setChildPort(const size_t port) { child_port = port; }
+    void setChildPort(const size_t port) {
+        child_port = port;
+    }
 
     void sharedMemFrom(const EdgePtr& edge);
     EdgePtr getSharedEdge() const;
     EdgePtr getSharedEdge(std::nothrow_t) const;
 
     bool hasDefinedMaxSize() const {
-        return getDesc().hasDefinedMaxSize();
+        return getOriginalDesc().hasDefinedMaxSize();
     }
 
     std::string hash() const;
+    const MemoryDesc& getOriginalDesc() const;
 
 private:
     std::weak_ptr<Node> parent;
@@ -115,7 +112,6 @@ private:
     PortDescBaseCPtr getInputPortDesc() const;
     PortDescBaseCPtr getOutputPortDesc() const;
 
-    const MemoryDesc& getDesc() const;
     bool enforceReorder();
 
     void collectConsumers(std::vector<std::shared_ptr<Node>>& result) const;
@@ -126,8 +122,7 @@ private:
     friend class Graph;
 };
 
-std::ostream& operator<<(std::ostream &os, const Edge& edge);
+std::ostream& operator<<(std::ostream& os, const Edge& edge);
 
-}   // namespace intel_cpu
-}   // namespace ov
-
+}  // namespace intel_cpu
+}  // namespace ov

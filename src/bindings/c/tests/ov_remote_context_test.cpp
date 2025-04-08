@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,11 +47,11 @@ protected:
         std::vector<cl_platform_id> platform_ids(n);
         err = clGetPlatformIDs(n, platform_ids.data(), NULL);
 
-        for (auto const& id : platform_ids) {
+        for (const auto& id : platform_ids) {
             cl::Platform platform = cl::Platform(id);
             std::vector<cl::Device> devices;
             platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-            for (auto const& d : devices) {
+            for (const auto& d : devices) {
                 if (refVendorID == d.getInfo<CL_DEVICE_VENDOR_ID>()) {
                     cl_device = d;
                     cl_context = cl::Context(cl_device);

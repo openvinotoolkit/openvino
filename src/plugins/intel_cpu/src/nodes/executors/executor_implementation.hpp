@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,35 +6,34 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
-#include "ov_optional.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // @todo Consider alternative of using template arguments instead of std::functions
 template <typename Attrs>
 class ExecutorImplementation {
 public:
     using SupportsPredicate = std::function<bool(const executor::Config<Attrs>&)>;
-    using RequiresFallbackPredicate = std::function<ov::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)>;
+    using RequiresFallbackPredicate =
+        std::function<std::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)>;
     using AcceptsShapePredicate = std::function<bool(const MemoryArgs& memory)>;
     using CreateFunction = std::function<ExecutorPtr(const Attrs& attrs,
                                                      const PostOps& postOps,
                                                      const MemoryArgs& memory,
-                                                     const ExecutorContext::CPtr context)>;
+                                                     const ExecutorContext::CPtr& context)>;
 
-    ExecutorImplementation(
-        const char* name,
-        const ExecutorType type,
-        const OperationType operationType,
-        const ShapeTolerance shapeRelation,
-        SupportsPredicate supports,
-        RequiresFallbackPredicate requiresFallback,
-        AcceptsShapePredicate acceptsShape,
-        CreateFunction create)
+    ExecutorImplementation(const char* name,
+                           const ExecutorType type,
+                           const OperationType operationType,
+                           const ShapeTolerance shapeRelation,
+                           SupportsPredicate supports,
+                           RequiresFallbackPredicate requiresFallback,
+                           AcceptsShapePredicate acceptsShape,
+                           CreateFunction create)
         : m_name(name),
           m_type(type),
           m_operationType(operationType),
@@ -52,7 +51,7 @@ public:
         return false;
     }
 
-    ov::optional<executor::Config<Attrs>> requiresFallback(const executor::Config<Attrs>& config) const {
+    std::optional<executor::Config<Attrs>> requiresFallback(const executor::Config<Attrs>& config) const {
         if (m_requiresFallback) {
             return m_requiresFallback(config);
         }
@@ -60,7 +59,7 @@ public:
         return {};
     }
 
-    bool acceptsShapes(const MemoryArgs& memory) const {
+    [[nodiscard]] bool acceptsShapes(const MemoryArgs& memory) const {
         if (m_acceptsShape) {
             return m_acceptsShape(memory);
         }
@@ -74,24 +73,25 @@ public:
                        const ExecutorContext::CPtr context) const {
         DEBUG_LOG("Creating executor using implementation: ", m_name);
 
-        if (m_create)
+        if (m_create) {
             return m_create(attrs, postOps, memory, context);
+        }
         return nullptr;
     }
 
-    bool shapeAgnostic() const {
+    [[nodiscard]] bool shapeAgnostic() const {
         return m_shapeRelation == ShapeTolerance::Agnostic;
     }
 
-    const char* name() const {
+    [[nodiscard]] const char* name() const {
         return m_name;
     }
 
-    const ExecutorType type() const {
+    [[nodiscard]] const ExecutorType type() const {
         return m_type;
     }
 
-    const OperationType operationType() const {
+    [[nodiscard]] const OperationType operationType() const {
         return m_operationType;
     }
 
@@ -108,5 +108,4 @@ private:
 
 template <typename Attrs>
 using ExecutorImplementationPtr = std::shared_ptr<ExecutorImplementation<Attrs>>;
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

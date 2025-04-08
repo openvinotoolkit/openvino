@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1224,7 +1224,7 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding) {
     auto reorder_prim = network.get_primitive("gather1_reorder");
     ASSERT_EQ(reorder_prim->can_be_optimized(), true);
     reorder_prim = network.get_primitive("gather2_reorder");
-    ASSERT_EQ(reorder_prim->can_be_optimized(), true);
+    ASSERT_EQ(reorder_prim->can_be_optimized(), false);
     auto reshape_prim = network.get_primitive("reshape1");
     ASSERT_EQ(reshape_prim->can_be_optimized(), true);
 }
@@ -1543,4 +1543,27 @@ TEST(prepare_buffer_fusing, inner_axis_data_offset_with_gemm_user) {
 
     auto& crop_node = prog->get_node("crop2").as<crop>();
     ASSERT_FALSE(crop_node.can_be_optimized());
+}
+
+TEST(prepare_buffer_fusing, redundant_reorder_permute) {
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{1, 2, 3, 5}, data_types::f16, format::byfx };
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(reorder("reorder", input_info("input"), format::bfyx, data_types::f16));
+    topology.add(permute("permute", input_info("reorder"), {0, 2, 1, 3}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+
+    auto& permute_node = prog->get_node("permute").as<permute>();
+    auto& reorder_node = prog->get_node("reorder").as<reorder>();
+    ASSERT_TRUE(reorder_node.can_be_optimized());
+    ASSERT_TRUE(permute_node.can_be_optimized());
 }

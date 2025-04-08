@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ ov::pass::CompressWeightsWithFakeQuantize::CompressWeightsWithFakeQuantize() {
         {weights_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto fq = std::dynamic_pointer_cast<op::v0::FakeQuantize>(m.get_match_root());
+        auto fq = ov::as_type_ptr<op::v0::FakeQuantize>(m.get_match_root());
         if (!fq)
             return false;
         const auto& high_precision_type = fq->get_element_type();
@@ -177,7 +177,7 @@ ov::pass::CompressWeightsWithFakeQuantize::CompressWeightsWithFakeQuantize() {
             auto levels = fq->get_levels();
             if (levels <= 2 || levels > 256)
                 return false;
-            auto low_precision_type = element::undefined;
+            auto low_precision_type = element::dynamic;
             // Currently we support two weights quantize types: i4, u4, i8, u8
             // we determine that the weights should be cast to u4, u8 inside compute_scale_and_zero_point
             if (levels <= 16) {

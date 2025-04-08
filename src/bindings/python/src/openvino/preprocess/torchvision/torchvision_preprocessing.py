@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: disable-error-code="no-redef"
@@ -20,10 +20,10 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
 
-import openvino.runtime as ov
-import openvino.runtime.opset11 as ops
-from openvino.runtime import Layout, Type
-from openvino.runtime.utils.decorators import custom_preprocess_function
+import openvino as ov
+import openvino.opset11 as ops
+from openvino import Layout, Type, Output, Model
+from openvino.utils.decorators import custom_preprocess_function
 from openvino.preprocess import PrePostProcessor, ResizeAlgorithm, ColorFormat
 
 
@@ -166,7 +166,7 @@ class _(TransformConverterBase):
             input_shape[layout.get_index_by_name("C")] = transform.num_output_channels
 
             @custom_preprocess_function
-            def broadcast_node(output: ov.Output) -> Callable:
+            def broadcast_node(output: Output) -> Callable:  # type: ignore[name-defined]
                 return ops.broadcast(
                     data=output,
                     target_shape=input_shape,
@@ -222,7 +222,7 @@ class _(TransformConverterBase):
             pads_end[layout.get_index_by_name("W")] = torch_padding[2]
 
         @custom_preprocess_function
-        def pad_node(output: ov.Output) -> Callable:
+        def pad_node(output: Output) -> Callable:
             return ops.pad(
                 output,
                 pad_mode=pad_mode,
@@ -315,7 +315,7 @@ class _(TransformConverterBase):
         meta["image_dimensions"] = (target_h, target_w)
 
 
-def _from_torchvision(model: ov.Model, transform: Callable, input_example: Any, input_name: Union[str, None] = None) -> ov.Model:
+def _from_torchvision(model: Model, transform: Callable, input_example: Any, input_name: Union[str, None] = None) -> Model:
 
     if input_name is not None:
         input_idx = next((i for i, p in enumerate(model.get_parameters()) if p.get_friendly_name() == input_name), None)

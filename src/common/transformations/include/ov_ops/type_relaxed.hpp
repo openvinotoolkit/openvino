@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ public:
           m_output_data_types(_output_data_types) {}
 
     /// \return Data type that will be set for output with a given index outputIndex.
-    /// If output with a specified index outputIndex hasn't been set before, element::undefined will returned.
+    /// If output with a specified index outputIndex hasn't been set before, element::dynamic will returned.
     /// Undefined means no type override happens for a given outputIndex and it will deduced as original
     /// operation defineds in its infer function.
     ///
@@ -37,11 +37,11 @@ public:
     /// get_output_element_type returns the result of type inference, so it is completely deduced from
     /// an operation inputs and attributes, and get_overridden_output_type returns value of the attribute that
     /// is used to deduce output type. In some cases they don't match: get_overridden_output_type may return
-    /// element::undefined for some index i, and get_output_element_type will return some real type for
+    /// element::dynamic for some index i, and get_output_element_type will return some real type for
     /// the same index i.
     const element::Type& get_overridden_output_type(size_t outputIndex = 0) const {
         if (outputIndex >= m_output_data_types.size()) {
-            return element::undefined;
+            return element::dynamic;
         }
         return m_output_data_types[outputIndex];
     }
@@ -52,17 +52,17 @@ public:
     /// is changed according to a given outputIndex value.
     void set_overridden_output_type(const element::Type& element_type, size_t outputIndex = 0) {
         if (outputIndex >= m_output_data_types.size()) {
-            m_output_data_types.resize(outputIndex + 1, element::undefined);
+            m_output_data_types.resize(outputIndex + 1, element::dynamic);
         }
         m_output_data_types[outputIndex] = element_type;
     }
 
     /// \return Data type that will be set for input when original shape/type inference function is called.
-    /// If index inputIndex hasn't been set before, element::undefined will returned. Undefined means that
+    /// If index inputIndex hasn't been set before, element::dynamic will returned. Undefined means that
     /// the type from input tensor descriptor is used for a given index.
     const element::Type& get_origin_input_type(size_t inputIndex = 0) const {
         if (inputIndex >= m_input_data_types.size()) {
-            return element::undefined;
+            return element::dynamic;
         }
         return m_input_data_types[inputIndex];
     }
@@ -74,7 +74,7 @@ public:
     /// at inputIndex position are undefined.
     void set_origin_input_type(const element::Type& element_type, size_t inputIndex = 0) {
         if (inputIndex >= m_input_data_types.size()) {
-            m_input_data_types.resize(inputIndex + 1, element::undefined);
+            m_input_data_types.resize(inputIndex + 1, element::dynamic);
         }
         m_input_data_types[inputIndex] = element_type;
     }
@@ -193,7 +193,7 @@ bool TypeRelaxed<BaseOp>::evaluate(ov::TensorVector& outputs, const ov::TensorVe
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
         const auto expected_input_type = get_origin_input_type(i);
 
-        if (inputs[i].get_element_type() == expected_input_type || expected_input_type == element::undefined) {
+        if (inputs[i].get_element_type() == expected_input_type || expected_input_type == element::dynamic) {
             casted_inputs[i] = inputs[i];
         } else {
             if (convert == nullptr) {
@@ -214,7 +214,7 @@ bool TypeRelaxed<BaseOp>::evaluate(ov::TensorVector& outputs, const ov::TensorVe
     ov::TensorVector original_outputs(BaseOp::get_output_size());
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
         const auto expected_output_type = get_overridden_output_type(i);
-        if (expected_output_type == element::undefined || expected_output_type == m_original_output_data_types[i]) {
+        if (expected_output_type == element::dynamic || expected_output_type == m_original_output_data_types[i]) {
             original_outputs[i] = outputs[i];
         } else {
             auto partial_shape = BaseOp::get_output_partial_shape(i);
@@ -230,7 +230,7 @@ bool TypeRelaxed<BaseOp>::evaluate(ov::TensorVector& outputs, const ov::TensorVe
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
         const auto expected_output_type = get_overridden_output_type(i);
 
-        if (expected_output_type != element::undefined &&
+        if (expected_output_type != element::dynamic &&
             original_outputs[i].get_element_type() != expected_output_type) {
             if (convert == nullptr) {
                 convert = std::make_shared<ov::op::v0::Convert>();
@@ -298,7 +298,7 @@ std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVec
     OutputVector fake_new_inputs;
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
         auto origin_input_type = get_origin_input_type(i);
-        if (origin_input_type == element::undefined)
+        if (origin_input_type == element::dynamic)
             origin_input_type = BaseOp::get_input_element_type(i);
         fake_new_inputs.push_back(std::make_shared<v0::Parameter>(origin_input_type, new_args[i].get_partial_shape()));
     }

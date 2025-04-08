@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,17 +9,13 @@
 
 #pragma once
 
-#include <openvino/cc/pass/itt.hpp>
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/cc/selective_build.h"
+#include "openvino/itt.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace itt {
-namespace domains {
-    OV_ITT_DOMAIN(CPUSpecificTransform);
-}   // namespace domains
-}   // namespace itt
-}   // namespace intel_cpu
-}   // namespace ov
+namespace ov::intel_cpu::itt::domains {
+OV_ITT_DOMAIN(CPUSpecificTransform);
+}  // namespace ov::intel_cpu::itt::domains
 
 OV_CC_DOMAINS(internal_op);
 
@@ -30,14 +26,14 @@ OV_CC_DOMAINS(internal_op);
  */
 #if defined(SELECTIVE_BUILD_ANALYZER)
 
-#define INTERNAL_OP_SCOPE(region) OV_SCOPE(internal_op, region)
+#    define INTERNAL_OP_SCOPE(region) OV_SCOPE(internal_op, region)
 
 #elif defined(SELECTIVE_BUILD)
 
-#define INTERNAL_OP_SCOPE(region) MATCHER_SCOPE_(internal_op, region)
+#    define INTERNAL_OP_SCOPE(region) MATCHER_SCOPE_(internal_op, region)
 
 #else
 
-#define INTERNAL_OP_SCOPE(region)
+#    define INTERNAL_OP_SCOPE(region)
 
 #endif

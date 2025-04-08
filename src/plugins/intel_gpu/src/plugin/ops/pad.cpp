@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 
 #include "intel_gpu/primitives/border.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::util::PadBase>& op, bool allow_negative_pad) {
     validate_inputs_count(op, {3, 4});
@@ -21,7 +20,7 @@ static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::uti
     std::vector<cldnn::input_info> non_constant_inputs = {inputs[0]};
     int32_t non_constant_input_mask = 0;
 
-    auto pads_begin_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+    auto pads_begin_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
     std::vector<int64_t> pads_begin = std::vector<int64_t>{};
     if (pads_begin_constant) {
         pads_begin = pads_begin_constant->cast_vector<int64_t>();
@@ -30,7 +29,7 @@ static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::uti
         non_constant_input_mask |= cldnn::border::PAD_NON_CONST_INPUT::BEGIN;
     }
 
-    auto pads_end_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
+    auto pads_end_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
     std::vector<int64_t> pads_end = std::vector<int64_t>{};
     if (pads_end_constant) {
         pads_end = pads_end_constant->cast_vector<int64_t>();
@@ -42,7 +41,7 @@ static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::uti
     float pad_value = 0.f;
     bool is_value_const = false;
     if (op->get_pad_mode() == ov::op::PadMode::CONSTANT && op->get_input_size() == 4) {
-        auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
+        auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
         if (const_node) {
             const bool check_value_range = false;  // Allows the usage of infinity value as pad_value
             OPENVINO_ASSERT(ov::op::util::get_single_value(const_node, pad_value, check_value_range),
@@ -78,5 +77,4 @@ static void CreatePadOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v12::Pa
 REGISTER_FACTORY_IMPL(v1, Pad);
 REGISTER_FACTORY_IMPL(v12, Pad);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

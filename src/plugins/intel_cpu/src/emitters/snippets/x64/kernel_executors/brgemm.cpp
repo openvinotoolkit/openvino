@@ -4,31 +4,34 @@
 
 #include "brgemm.hpp"
 
+#include <memory>
+
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
-
-#include "snippets/lowered/pass/insert_specific_iterations.hpp"
-
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
-
 
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu::x64 {
 
-BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype,
-                                       bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : BrgemmBaseKernelConfig(), m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, is_with_comp, primitive_isa)) {
+BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype,
+                                       const element::Type& in1_dtype,
+                                       bool is_with_comp,
+                                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
+    : BrgemmBaseKernelConfig(),
+      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, is_with_comp, primitive_isa)) {
     m_hash = compute_hash();
 }
 
-BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype,
-                                               bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : StaticBaseParams(in0_dtype, in1_dtype, primitive_isa, compute_hash(is_with_comp)), is_with_comp(is_with_comp) {}
+BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype,
+                                               const element::Type& in1_dtype,
+                                               bool is_with_comp,
+                                               dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
+    : StaticBaseParams(in0_dtype, in1_dtype, primitive_isa, compute_hash(is_with_comp)),
+      is_with_comp(is_with_comp) {}
 
 bool BrgemmKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
     return StaticBaseParams::operator==(rhs) && is_with_comp == rhs.is_with_comp;
@@ -47,18 +50,28 @@ std::string BrgemmKernelConfig::StaticParams::to_string() const {
 }
 #endif
 
-BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config) :
-        CPUKernelExecutor<BrgemmKernelConfig, BrgemmCompiledKernel>(std::move(kernel_cache), std::move(config)) { }
+BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config)
+    : CPUKernelExecutor<BrgemmKernelConfig, BrgemmCompiledKernel>(std::move(kernel_cache), std::move(config)) {}
 
 std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const BrgemmKernelConfig& config) const {
     std::shared_ptr<BrgemmCompiledKernel> compiled_kernel = std::make_shared<BrgemmCompiledKernel>();
 
     // Brgemm is not executable - nothing to compile
-    if (config.is_empty())
+    if (config.is_empty()) {
         return compiled_kernel;
+    }
 
-    create_brgemm_kernel(compiled_kernel->brgemm_kernel, config.get_dt_in0(), config.get_dt_in1(), config.get_isa(),
-                         config.get_M(), config.get_N(), config.get_K(), config.get_LDA(), config.get_LDB(), config.get_LDC(), config.get_beta());
+    create_brgemm_kernel(compiled_kernel->brgemm_kernel,
+                         config.get_dt_in0(),
+                         config.get_dt_in1(),
+                         config.get_isa(),
+                         config.get_M(),
+                         config.get_N(),
+                         config.get_K(),
+                         config.get_LDA(),
+                         config.get_LDB(),
+                         config.get_LDC(),
+                         config.get_beta());
 
     return compiled_kernel;
 }
@@ -81,21 +94,21 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-BrgemmKernelReferenceExecutor::BrgemmKernelReferenceExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config) :
-        BrgemmKernelExecutor(std::move(kernel_cache), std::move(config)) {}
+BrgemmKernelReferenceExecutor::BrgemmKernelReferenceExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache,
+                                                             BrgemmKernelConfig config)
+    : BrgemmKernelExecutor(std::move(kernel_cache), std::move(config)) {}
 
 std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelReferenceExecutor::compile_kernel(const BrgemmKernelConfig& c) const {
     const auto& res = std::make_shared<BrgemmCompiledKernel>();
-    res->brgemm_kernel.reset(new brgemm_ref_kernel(c));
+    res->brgemm_kernel = std::make_shared<brgemm_ref_kernel>(c);
     return res;
 }
 
 brgemm_ref_kernel::brgemm_ref_kernel(BrgemmKernelConfig c) : m_config(std::move(c)) {
-    OV_CPU_JIT_EMITTER_ASSERT(!m_config.is_with_comp(),
-                              "brgemm_ref_kernel doesn't currently support compensations");
-    OV_CPU_JIT_EMITTER_ASSERT(m_config.get_dt_in0() == m_config.get_dt_in1() &&
-                              m_config.get_dt_in0() == dnnl_data_type_t::dnnl_f32,
-                              "brgemm_ref_kernel currently supports only fp32 inputs");
+    OV_CPU_JIT_EMITTER_ASSERT(!m_config.is_with_comp(), "brgemm_ref_kernel doesn't currently support compensations");
+    OV_CPU_JIT_EMITTER_ASSERT(
+        m_config.get_dt_in0() == m_config.get_dt_in1() && m_config.get_dt_in0() == dnnl_data_type_t::dnnl_f32,
+        "brgemm_ref_kernel currently supports only fp32 inputs");
 }
 
 void brgemm_ref_kernel::operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t* args) const {
@@ -105,8 +118,9 @@ void brgemm_ref_kernel::operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t*
     for (dnnl_dim_t m = 0; m < m_config.get_M(); m++) {
         for (dnnl_dim_t n = 0; n < m_config.get_N(); n++, B++) {
             C[n] = 0;
-            for (dnnl_dim_t k = 0; k < m_config.get_K(); k++)
+            for (dnnl_dim_t k = 0; k < m_config.get_K(); k++) {
                 C[n] += A[k] * B[k * m_config.get_LDB()];
+            }
         }
         B -= m_config.get_N();
         A += m_config.get_LDA();
@@ -115,5 +129,4 @@ void brgemm_ref_kernel::operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t*
 }
 #endif
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu::x64

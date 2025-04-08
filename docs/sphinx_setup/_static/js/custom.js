@@ -407,29 +407,27 @@ function addViewTypeListeners() {
 document.addEventListener('DOMContentLoaded', function () {
     (async () => {
         await customElements.whenDefined("atomic-search-interface");
-    
+
         const initializeSearchInterface = async (element, version = null) => {
             if (!element) return;
-    
+
             if (version) {
                 element.innerHTML = element.innerHTML.replace('search.html', `/${version}/search.html#f-ovversion=${version}`);
             }
-    
             await element.initialize({
-                accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
+                analytics: { analyticsMode: 'legacy' },
+                accessToken: "xx2b580d60-addf-451d-94fd-06effafb7686",
                 organizationId: "intelcorporationproductione78n25s6"
             });
-    
-            element.executeFirstSearch();
         };
-    
+
         const searchInterfaceSa = document.querySelector("#sa-search");
         const searchInterface = document.querySelector("#search");
         const currentVersion = getCurrentVersion();
-        
+
         await initializeSearchInterface(searchInterfaceSa, currentVersion);
         await initializeSearchInterface(searchInterface);
-    
+        searchInterface.executeFirstSearch();
         addViewTypeListeners();
     })();
 })

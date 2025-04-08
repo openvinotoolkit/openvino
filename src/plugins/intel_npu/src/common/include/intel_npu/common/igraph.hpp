@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 #include <mutex>
 #include <vector>
 
+#include "intel_npu/common/blob_container.hpp"
 #include "intel_npu/network_metadata.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -21,9 +21,9 @@ public:
     IGraph(ze_graph_handle_t handle,
            NetworkMetadata metadata,
            const Config& config,
-           std::optional<std::vector<uint8_t>> blob);
+           std::unique_ptr<BlobContainer> blobPtr);
 
-    virtual void export_blob(std::ostream& stream) const = 0;
+    virtual size_t export_blob(std::ostream& stream) const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const Config& config) const = 0;
@@ -42,6 +42,7 @@ public:
     const std::vector<ArgumentDescriptor>& get_input_descriptors() const;
     const std::vector<ArgumentDescriptor>& get_output_descriptors() const;
     const std::shared_ptr<CommandQueue>& get_command_queue() const;
+    uint32_t get_command_queue_group_ordinal() const;
 
     void set_workload_type(const ov::WorkloadType workloadType) const;
 
@@ -52,7 +53,7 @@ public:
 
     uint32_t get_unique_id();
     void set_last_submitted_id(uint32_t id_index);
-    const uint32_t get_last_submitted_id() const;
+    uint32_t get_last_submitted_id() const;
 
     const std::optional<std::size_t> get_batch_size() const;
 
@@ -83,16 +84,17 @@ protected:
     std::vector<ArgumentDescriptor> _output_descriptors;
 
     std::shared_ptr<CommandQueue> _command_queue;
+    uint32_t _command_queue_group_ordinal = 0;
     std::vector<std::shared_ptr<Event>> _last_submitted_event;
 
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
     // first inference starts running
     std::mutex _mutex;
 
-    std::vector<uint8_t> _blob;
+    std::unique_ptr<BlobContainer> _blobPtr;
 
     uint32_t _unique_id = 0;
-    uint32_t _last_submitted_id;
+    uint32_t _last_submitted_id = 0;
 
     /**
      * @brief The batch size used by the corresponding model.

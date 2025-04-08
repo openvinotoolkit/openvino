@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ using namespace cldnn;
 namespace cldnn {
 
 void graph_initializations::set_outputs(program& p) {
-    auto custom_outputs = p.get_config().get_property(ov::intel_gpu::custom_outputs);
+    auto custom_outputs = p.get_config().get_custom_outputs();
     if (!custom_outputs.empty()) {
         for (auto const& output : custom_outputs) {
             OPENVINO_ASSERT(p.has_node(output), "not found custom output node in current cldnn::program: ", output);
@@ -37,7 +37,7 @@ void graph_initializations::set_outputs(program& p) {
 void graph_initializations::run(program& p) {
     set_outputs(p);
 
-    auto forcing_map = p.get_config().get_property(ov::intel_gpu::force_implementations);
+    auto forcing_map = p.get_config().get_force_implementations();
     for (auto& kv : forcing_map) {
         if (p.has_node(kv.first)) {
             p.get_node(kv.first).set_forced_impl_type(kv.second.impl_type);

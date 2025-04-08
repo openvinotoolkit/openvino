@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ bool compare_shape(const ov::PartialShape& a, const T& b) {
 
 void regclass_graph_PartialShape(py::module m) {
     py::class_<ov::PartialShape, std::shared_ptr<ov::PartialShape>> shape(m, "PartialShape");
-    shape.doc() = "openvino.runtime.PartialShape wraps ov::PartialShape";
+    shape.doc() = "openvino.PartialShape wraps ov::PartialShape";
 
     shape.def(py::init<const ov::Shape&>());
     shape.def(py::init<const ov::PartialShape&>());
@@ -102,7 +102,7 @@ void regclass_graph_PartialShape(py::module m) {
                 whether it is possible to merge them.
 
                 :param shape: The shape to be checked for compatibility with this shape.
-                :type shape: openvino.runtime.PartialShape
+                :type shape: openvino.PartialShape
                 :return: True if this shape is compatible with s, else False.
                 :rtype: bool
               )");
@@ -113,7 +113,7 @@ void regclass_graph_PartialShape(py::module m) {
                 Check whether this shape is a refinement of the argument.
 
                 :param shape: The shape which is being compared against this shape.
-                :type shape: openvino.runtime.PartialShape
+                :type shape: openvino.PartialShape
                 :return: True if this shape refines s, else False.
                 :rtype: bool
               )");
@@ -124,7 +124,7 @@ void regclass_graph_PartialShape(py::module m) {
                 Check whether this shape is a relaxation of the argument.
 
                 :param shape: The shape which is being compared against this shape.
-                :type shape: openvino.runtime.PartialShape
+                :type shape: openvino.PartialShape
                 :return: True if this shape relaxes s, else False.
                 :rtype: bool
               )");
@@ -135,7 +135,7 @@ void regclass_graph_PartialShape(py::module m) {
                 Check whether this shape represents the same scheme as the argument.
 
                 :param shape: The shape which is being compared against this shape.
-                :type shape: openvino.runtime.PartialShape
+                :type shape: openvino.PartialShape
                 :return: True if shape represents the same scheme as s, else False.
                 :rtype: bool
               )");
@@ -143,25 +143,25 @@ void regclass_graph_PartialShape(py::module m) {
               &ov::PartialShape::get_max_shape,
               R"(
                 :return: Get the max bounding shape.
-                :rtype: openvino.runtime.Shape
+                :rtype: openvino.Shape
               )");
     shape.def("get_min_shape",
               &ov::PartialShape::get_min_shape,
               R"(
                 :return: Get the min bounding shape.
-                :rtype: openvino.runtime.Shape
+                :rtype: openvino.Shape
               )");
     shape.def("get_shape",
               &ov::PartialShape::get_shape,
               R"(
                 :return: Get the unique shape.
-                :rtype: openvino.runtime.Shape
+                :rtype: openvino.Shape
               )");
     shape.def("to_shape",
               &ov::PartialShape::to_shape,
               R"(
                 :return: Get the unique shape.
-                :rtype: openvino.runtime.Shape
+                :rtype: openvino.Shape
               )");
     shape.def(
         "get_dimension",
@@ -175,7 +175,7 @@ void regclass_graph_PartialShape(py::module m) {
             :param index: The index of dimension.
             :type index: int 
             :return: Get the particular dimension of a partial shape.
-            :rtype: openvino.runtime.Dimension
+            :rtype: openvino.Dimension
         )");
 
     shape.def(

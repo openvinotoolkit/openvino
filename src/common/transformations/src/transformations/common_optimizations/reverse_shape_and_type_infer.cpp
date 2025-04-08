@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -154,7 +154,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
         } else if (ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op)) {
             is_changed |= inherit_output_rank(op, {0, 1, 2, 3});
             is_changed |= inherit_output_type(op, {0, 1, 2, 3});
-        } else if (std::dynamic_pointer_cast<ov::op::util::PadBase>(op)) {
+        } else if (ov::as_type_ptr<ov::op::util::PadBase>(op)) {
             // Shape of pads_begin and pads_end must match rank of input
             if (op->get_input_partial_shape(0).rank().is_dynamic()) {
                 auto pads_begin_shape = op->get_input_partial_shape(1);
@@ -168,10 +168,10 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 }
             }
             is_changed |= inherit_output_type(op, {0});
-        } else if (std::dynamic_pointer_cast<op::util::UnaryElementwiseArithmetic>(op)) {
+        } else if (ov::as_type_ptr<op::util::UnaryElementwiseArithmetic>(op)) {
             is_changed |= inherit_output_shape(op, {0});
             is_changed |= inherit_output_type(op, {0});
-        } else if (const auto& eltwise = std::dynamic_pointer_cast<op::util::BinaryElementwiseArithmetic>(op)) {
+        } else if (const auto& eltwise = ov::as_type_ptr<op::util::BinaryElementwiseArithmetic>(op)) {
             if (output_shape.rank().is_static()) {
                 auto in0_rank = op->get_input_partial_shape(0).rank();
                 auto in1_rank = op->get_input_partial_shape(1).rank();

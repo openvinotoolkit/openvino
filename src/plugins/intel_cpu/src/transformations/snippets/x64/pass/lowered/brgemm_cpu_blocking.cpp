@@ -13,10 +13,7 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
-
-namespace ov {
-namespace intel_cpu {
-namespace pass {
+namespace ov::intel_cpu::pass {
 using LinearIR = snippets::lowered::LinearIR;
 using LoopPort = snippets::lowered::LoopPort;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
@@ -24,14 +21,18 @@ using namespace ov::intel_cpu::brgemm_utils;
 using namespace ov::snippets::lowered;
 using namespace ov::snippets::utils;
 
-bool BrgemmCPUBlocking::DummyPass::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+bool BrgemmCPUBlocking::DummyPass::run([[maybe_unused]] LinearIR& linear_ir,
+                                       [[maybe_unused]] LinearIR::constExprIt begin,
+                                       [[maybe_unused]] LinearIR::constExprIt end) {
     return true;
 }
-std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmCPUBlocking::DummyPass::merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
+std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmCPUBlocking::DummyPass::merge(
+    const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
     return !other || ov::is_type<DummyPass>(other) ? std::make_shared<DummyPass>() : nullptr;
 }
 
-LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear_ir, const LinearIR::constExprIt& brgemm_it) {
+LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear_ir,
+                                                                const LinearIR::constExprIt& brgemm_it) {
     const auto& brgemm_expr = brgemm_it->get();
     const auto wsp_expr = brgemm_expr->get_input_port_connector(2)->get_source().get_expr();
     const auto wsp_buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(wsp_expr);
@@ -44,19 +45,22 @@ LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear
     return std::prev(brgemm_it);
 }
 
-size_t BrgemmCPUBlocking::get_default_n_blk(size_t n) const {
+size_t BrgemmCPUBlocking::get_default_n_blk([[maybe_unused]] size_t n) const {
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
 }
 
-std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
+std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
+    const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
     OPENVINO_ASSERT(brgemm, "BrgemmCPU is expected!");
 
     size_t m_blk, n_blk, k_blk;
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
-    // Note: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
-    // the low precision cases (ticket: 156014)
-    if (with_repacking(brgemm->get_type())) {
+    // [TODO]: K,N blocking is functionally enabled, need to turn it on after blocking heuristic is updated to cover
+    //         the low precision cases (ticket: 156014)
+    //         Please note that FP32 MatMul with `transposed_b=true` has type `with_repacking` despite the precision.
+    const auto precision = brgemm_expr->get_node()->get_input_element_type(1);
+    if (with_repacking(brgemm->get_type()) && precision != element::f32) {
         n_blk = get_full_dim_value();
         k_blk = get_full_dim_value();
     }
@@ -64,7 +68,8 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const 
 }
 
 SpecificIterationHandlers BrgemmCPUBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {
-    SpecificIterationHandlers handlers = ov::snippets::lowered::pass::BrgemmBlockingBase::get_k_loop_handlers(work_amount, block_size);
+    SpecificIterationHandlers handlers =
+        ov::snippets::lowered::pass::BrgemmBlockingBase::get_k_loop_handlers(work_amount, block_size);
     handlers.register_pass<SpecificLoopIterType::FIRST_ITER, DummyPass>();
     return handlers;
 }
@@ -78,10 +83,15 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
     const auto type = brgemm->get_type();
 
-    auto res = ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir, brgemm_it, m_block, n_block, k_block);
+    auto res = ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir,
+                                                                                    brgemm_it,
+                                                                                    m_block,
+                                                                                    n_block,
+                                                                                    k_block);
 
-    if (stand_alone(type))
+    if (stand_alone(type)) {
         return res;
+    }
 
     const auto copy_b_expr = repacking::get_copy_b_expr(brgemm_expr);
     if (copy_b_expr) {
@@ -114,17 +124,18 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
             OPENVINO_ASSERT(in_ports.size() > 1, "Invalid number of input loop ports");
             loop_info->replace_with_new_ports(in_ports[1], {in_ports[1], new_port});
         };
-        if (!is_full_dim_value(m_block))
-            update_loop_info({compens_port, false, 1});
+        if (!is_full_dim_value(m_block)) {
+            update_loop_info(LoopPort::create<LoopPort::Type::NotProcessed>(compens_port));
+        }
 
-        if (!is_full_dim_value(n_block))
-            update_loop_info({compens_port, true, 0});
+        if (!is_full_dim_value(n_block)) {
+            update_loop_info(LoopPort::create<LoopPort::Type::Incremented>(compens_port, 0));
+        }
 
-        if (!is_full_dim_value(k_block))
-            update_loop_info({compens_port, false, 1});
+        if (!is_full_dim_value(k_block)) {
+            update_loop_info(LoopPort::create<LoopPort::Type::NotIncremented>(compens_port, 1));
+        }
     }
     return true;
 }
-}  // namespace pass
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::pass

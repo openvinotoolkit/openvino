@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,12 @@ void LLMMLPNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(LLMMLPNode_validate_and_infer_types);
     const auto input_size = get_input_size();
     size_t expect_input_size = 4;
-    if (m_config.gate_up_quantized) expect_input_size += 2;
-    if (m_config.down_quantized) expect_input_size += 1;
+    if (m_config.gate_up_quantized) {
+        expect_input_size += 2;
+    }
+    if (m_config.down_quantized) {
+        expect_input_size += 1;
+    }
     NODE_VALIDATION_CHECK(this, input_size == expect_input_size);
 
     const auto& ishape = get_input_partial_shape(0);

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,15 +26,15 @@ MaxPoolTransformation::MaxPoolTransformation(const Params& params) : LayerTransf
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool MaxPoolTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
+bool MaxPoolTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformed(op)) {
         return false;
     }
 
@@ -51,13 +51,13 @@ bool MaxPoolTransformation::canBeTransformed(const TransformationContext& contex
     return true;
 }
 
-bool MaxPoolTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+bool MaxPoolTransformation::transform(ov::pass::pattern::Matcher &m) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
     const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;

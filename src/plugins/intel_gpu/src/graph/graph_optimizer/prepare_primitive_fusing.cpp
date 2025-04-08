@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -16,6 +16,7 @@
 #include "gemm_inst.h"
 #include "lrn_inst.h"
 #include "mvn_inst.h"
+#include "rms_inst.h"
 #include "pooling_inst.h"
 #include "normalize_inst.h"
 #include "permute_inst.h"
@@ -55,6 +56,9 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
+    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions())
+        return;
+
     fuse_reorders(p);
     remove_redundant_reshape(p);
     fuse_swiglu(p);
@@ -164,13 +168,14 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
 }
 
 void prepare_primitive_fusing::fuse_swiglu(program &p) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    bool disable_fc_swiglu_fusion = false;
-    GPU_DEBUG_IF(debug_config->disable_fc_swiglu_fusion == 1)
-        disable_fc_swiglu_fusion = true;
+    bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(p.get_config().get_disable_fc_swiglu_fusion(), false);
     // Apply only for high performant GPU
     if (disable_fc_swiglu_fusion || p.get_engine().get_device_info().execution_units_count < 128)
         return;
+
+    if (p.get_engine().get_device_info().supports_immad)
+        return;
+
     // TODO: to support other glu types && other weight data types
     auto itr = p.get_processing_order().begin();
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
@@ -366,6 +371,10 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (replace_candidate.is_type<convolution>()) {
             auto& conv = replace_candidate.as<convolution>();
             auto desc = conv.get_primitive();
+            // XXX: deformable convolution does not support bias fusing at this moment.
+            // It is just not tested and deformable_mode value is not properly handled below.
+            if (desc->deformable_mode)
+                continue;
             primitive_id biases = bias_name;
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
@@ -394,7 +403,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                      desc->padding_begin,
                                                                      desc->padding_end,
                                                                      desc->grouped_weights_shape,
-                                                                     conv.get_output_layout().data_type);
+                                                                     conv.get_output_layout().data_type,
+                                                                     desc->auto_pad);
 
             // Copy transposed flag to new prim as convolution node might be produced by deconv -> conv replacement before this pass
             conv_with_bias_prim->transposed = desc->transposed;
@@ -736,6 +746,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
                     return;
                 }
+
+                // Fusing prelu to multi batch onednn conv caused an accuracy issue. Blocked fusing of the case.
+                auto input_layout = input.get_output_layout();
+                if (input.is_type<convolution>() && (lo.get_preferred_impl_type(input, format::any /*dummy*/) == impl_types::onednn) &&
+                    activation_func == cldnn::activation_func::relu_negative_slope &&
+                    input_layout.is_static() && input_layout.batch() > 1) {
+                    return;
+                }
+
                 // Activation should not be fused if oneDNN does NOT support it
                 if (lo.is_primitive_implemented_for_onednn(input))  {
                     #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -759,6 +778,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input.is_type<resample>();
 
             should_fuse |= input.is_type<mvn>();
+
+            should_fuse |= input.is_type<rms>();
 
             should_fuse |= input.is_type<group_normalization>();
 
@@ -960,6 +981,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<mvn>() &&
                                        mvn_supports_fusings(parents[i].first->as<mvn>())) ||
                                       (parents[i].first->is_type<group_normalization>()) ||
+                                      (parents[i].first->is_type<rms>()) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
                                       (parents[i].first->is_type<permute>()) ||
                                       (parents[i].first->is_type<resample>()) ||
@@ -1133,8 +1155,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
-                    && !fused_node->is_type<fully_connected>()
-                    && !fused_node->is_type<gemm>())
+                    && !fused_node->is_type<fully_connected>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))

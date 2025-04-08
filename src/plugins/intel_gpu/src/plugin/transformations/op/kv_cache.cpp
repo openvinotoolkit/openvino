@@ -10,9 +10,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 KVCache::KVCache(const OutputVector& inputs,
                  const std::shared_ptr<ov::op::util::Variable>& past_variable,
@@ -61,7 +59,7 @@ bool KVCache::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void KVCache::validate_and_infer_types() {
     auto output_type = m_output_type;
-    if (m_output_type == ov::element::undefined) {
+    if (m_output_type == ov::element::dynamic) {
         output_type = get_input_element_type(0);
     }
 
@@ -207,6 +205,4 @@ std::vector<ov::PartialShape> shape_infer(const KVCacheCompressed* op,
     return out_shapes;
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

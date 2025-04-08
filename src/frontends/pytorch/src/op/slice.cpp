@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,9 @@ OutputVector translate_slice_common(const NodeContext& context,
         dim = context.get_input(1);
         if (dim.get_partial_shape().rank().is_dynamic() || dim.get_partial_shape().rank().get_length() == 0) {
             dim = context.mark_node(std::make_shared<v1::Reshape>(dim, dims_1d_shape, false));
+            if (const auto axis_const = ov::util::get_constant_from_source(dim)) {
+                dim = axis_const;
+            }
         }
         start_idx = 2;
         end_idx = 3;

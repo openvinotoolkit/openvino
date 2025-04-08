@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace pass {
  */
 class Validate: public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("Validate", "0");
+    OPENVINO_MODEL_PASS_RTTI("snippets::pass::Validate");
     Validate(const std::shared_ptr<ov::pass::PassConfig>& pass_config) : m_pass_config(pass_config) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
