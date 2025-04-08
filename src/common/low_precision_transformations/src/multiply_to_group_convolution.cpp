@@ -8,6 +8,12 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace pass {
@@ -17,7 +23,7 @@ MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformati
     const Params& params,
     const PrecisionsRestriction::PrecisionsByPorts& restrictions) : CleanupTransformation(params), restrictions(restrictions), groupSize(1ul) {
     MATCHER_SCOPE(MultiplyToGroupConvolutionTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
+    auto matcher = pattern::wrap_type<ov::op::v1::Multiply>();
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -40,7 +46,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(ov::pass::pattern::Matc
     auto input = multiply->get_input_node_shared_ptr(0);
     auto constant = multiply->get_input_node_shared_ptr(1);
     auto inputIndex = 0;
-    if (!ov::is_type<ov::opset1::Constant>(constant)) {
+    if (!ov::is_type<ov::op::v0::Constant>(constant)) {
         input = multiply->get_input_node_shared_ptr(1);
         constant = multiply->get_input_node_shared_ptr(0);
         inputIndex = 1;
@@ -108,14 +114,14 @@ bool MultiplyToGroupConvolutionTransformation::transform(ov::pass::pattern::Matc
     weightsShape[0] = group;
     weightsShape[1] = outputChannelsCount / group;
     weightsShape[2] = inputChannelsCount / group;
-    const auto weightsNode = std::make_shared<ov::opset1::Constant>(weightsPrecision, weightsShape, weightsBuffer);
+    const auto weightsNode = std::make_shared<ov::op::v0::Constant>(weightsPrecision, weightsShape, weightsBuffer);
 
     const size_t spatialDimsSize = pShape.rank().get_length() - 2;
     ov::Strides strides(spatialDimsSize, 1ul);
     ov::CoordinateDiff pads(spatialDimsSize, 0ul);
     ov::Strides dilations(spatialDimsSize, 1ul);
 
-    const auto convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
+    const auto convolution = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::GroupConvolution>>(
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{ element::f32 },
         ov::op::TemporaryReplaceOutputType(dequantization.data, element::f32).get(),
@@ -128,9 +134,9 @@ bool MultiplyToGroupConvolutionTransformation::transform(ov::pass::pattern::Matc
 
     std::shared_ptr<Node> lastNode = convolution;
     if (dequantization.subtract != nullptr) {
-        lastNode = std::make_shared<ov::opset1::Add>(
+        lastNode = std::make_shared<ov::op::v1::Add>(
             convolution,
-            fold<ov::opset1::Negative>(foldConvert(dequantization.subtractConstant, element::f32)));
+            fold<ov::op::v0::Negative>(foldConvert(dequantization.subtractConstant, element::f32)));
         lastNode->set_friendly_name(convolution->get_friendly_name() + "/Add");
     }
 
@@ -168,15 +174,15 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const std::share
 
     Shape constShape;
     int inputIndex;
-    if (const auto constant = ov::as_type_ptr<ov::opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
+    if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(operation->get_input_node_shared_ptr(1))) {
         inputIndex = 0;
         constShape = constant->get_shape();
-        if (ov::is_type<ov::opset1::Constant>(operation->get_input_node_shared_ptr(0)) ||
-            (ov::is_type<ov::opset1::Subtract>(operation->get_input_node_shared_ptr(0)) &&
-            ov::is_type<ov::opset1::Constant>(operation->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)))) {
+        if (ov::is_type<ov::op::v0::Constant>(operation->get_input_node_shared_ptr(0)) ||
+            (ov::is_type<ov::op::v1::Subtract>(operation->get_input_node_shared_ptr(0)) &&
+            ov::is_type<ov::op::v0::Constant>(operation->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)))) {
             return false;
         }
-    } else if (const auto constant = ov::as_type_ptr<ov::opset1::Constant>(operation->get_input_node_shared_ptr(0))) {
+    } else if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(operation->get_input_node_shared_ptr(0))) {
         inputIndex = 1;
         constShape = constant->get_shape();
     } else {
@@ -214,7 +220,7 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolutio
     const auto parent0 = layer->get_input_node_shared_ptr(0);
     const auto parent1 = layer->get_input_node_shared_ptr(1);
 
-    if (!ov::is_type<ov::opset1::Constant>(parent0) && !ov::is_type<ov::opset1::Constant>(parent1)) {
+    if (!ov::is_type<ov::op::v0::Constant>(parent0) && !ov::is_type<ov::op::v0::Constant>(parent1)) {
         return false;
     }
 
@@ -229,10 +235,10 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolutio
 
 bool MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(const std::shared_ptr<const Node>& node) {
     auto getConstantIndex = [](const std::shared_ptr<const Node>& node) -> int {
-        if (ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(1))) {
+        if (ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1))) {
             return 1;
         }
-        if (ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(0))) {
+        if (ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0))) {
             return 0;
         }
         return -1;

@@ -16,6 +16,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "ov_lpt_models/convolution.hpp"
+#include "openvino/op/convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -54,8 +55,8 @@ public:
         ov::pass::Manager manager;
         const auto quantizationRestrictions = std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>({
             explicitly ?
-                ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::opset1::Convolution>(testValues.restrictions, false) :
-                ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::opset1::Convolution>(ports)
+                ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>(testValues.restrictions, false) :
+                ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>(ports)
         });
         manager.register_pass<ov::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
         manager.run_passes(actualFunction);

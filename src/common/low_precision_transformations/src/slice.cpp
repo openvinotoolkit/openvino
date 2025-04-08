@@ -9,9 +9,9 @@
 #include "itt.hpp"
 #include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/slice.hpp"
 
 namespace ov {
 namespace pass {
@@ -19,7 +19,7 @@ namespace low_precision {
 
 SliceTransformation::SliceTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(SliceTransformation);
-    auto matcher = ov::pass::pattern::wrap_type<ov::opset8::Slice>();
+    auto matcher = ov::pass::pattern::wrap_type<ov::op::v8::Slice>();
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -50,7 +50,7 @@ bool SliceTransformation::canBeTransformed(const std::shared_ptr<Node>& operatio
         return false;
     }
 
-    if (!ov::is_type<ov::opset8::Slice>(operation)) {
+    if (!ov::is_type<ov::op::v8::Slice>(operation)) {
         return false;
     }
 

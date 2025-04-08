@@ -8,7 +8,10 @@
 #include <tuple>
 #include "low_precision/lpt_visibility.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace pass {
@@ -22,12 +25,12 @@ public:
 
     FakeQuantizeDequantization(
         const Output<Node>& data,
-        const std::shared_ptr<ov::opset1::Convert>& convert,
-        const std::shared_ptr<ov::opset1::Subtract>& subtract,
-        const std::shared_ptr<ov::opset1::Convert>& subtractConvert,
-        const std::shared_ptr<ov::opset1::Constant>& subtractConstant,
-        const std::shared_ptr<ov::opset1::Multiply>& multiply,
-        const std::shared_ptr<ov::opset1::Constant>& multiplyConstant);
+        const std::shared_ptr<ov::op::v0::Convert>& convert,
+        const std::shared_ptr<ov::op::v1::Subtract>& subtract,
+        const std::shared_ptr<ov::op::v0::Convert>& subtractConvert,
+        const std::shared_ptr<ov::op::v0::Constant>& subtractConstant,
+        const std::shared_ptr<ov::op::v1::Multiply>& multiply,
+        const std::shared_ptr<ov::op::v0::Constant>& multiplyConstant);
 
     bool empty() const noexcept;
     bool multiplyHasZeroOrDenormal() const;
@@ -43,22 +46,22 @@ public:
 
     static int fillDequantizationParams(
         const std::shared_ptr<ov::Node>& elementwise,
-        std::shared_ptr<ov::opset1::Convert>& convert,
-        std::shared_ptr<ov::opset1::Constant>& constant);
+        std::shared_ptr<ov::op::v0::Convert>& convert,
+        std::shared_ptr<ov::op::v0::Constant>& constant);
 
     static int fillDequantizationParams(
         const std::shared_ptr<ov::Node>& elementwise,
-        std::shared_ptr<ov::opset1::Constant>& constant);
+        std::shared_ptr<ov::op::v0::Constant>& constant);
 
     // for most node with layout NC, NCHW, NCDWH, index of channel dimension is 1
     size_t channelDimIndex = 1ul;
     Output<Node> data;
-    std::shared_ptr<ov::opset1::Convert> convert;
-    std::shared_ptr<ov::opset1::Subtract> subtract;
-    std::shared_ptr<ov::opset1::Convert> subtractConvert;
-    std::shared_ptr<ov::opset1::Constant> subtractConstant;
-    std::shared_ptr<ov::opset1::Multiply> multiply;
-    std::shared_ptr<ov::opset1::Constant> multiplyConstant;
+    std::shared_ptr<ov::op::v0::Convert> convert;
+    std::shared_ptr<ov::op::v1::Subtract> subtract;
+    std::shared_ptr<ov::op::v0::Convert> subtractConvert;
+    std::shared_ptr<ov::op::v0::Constant> subtractConstant;
+    std::shared_ptr<ov::op::v1::Multiply> multiply;
+    std::shared_ptr<ov::op::v0::Constant> multiplyConstant;
 };
 
 } // namespace low_precision

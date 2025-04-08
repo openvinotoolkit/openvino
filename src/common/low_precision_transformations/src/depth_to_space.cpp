@@ -8,12 +8,14 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov::pass::low_precision;
 
 DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : TransparentBaseTransformation(params) {
     MATCHER_SCOPE(DepthToSpaceTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::DepthToSpace>({ pattern::wrap_type<ov::opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<ov::op::v0::DepthToSpace>({ pattern::wrap_type<ov::op::v1::Multiply>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

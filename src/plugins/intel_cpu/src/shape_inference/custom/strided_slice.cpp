@@ -5,6 +5,9 @@
 #include "strided_slice.hpp"
 
 #include "openvino/core/type.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/slice_scatter.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "slice_shape_inference.hpp"
 #include "utils.hpp"

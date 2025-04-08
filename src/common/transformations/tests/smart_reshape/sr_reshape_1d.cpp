@@ -6,15 +6,17 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 
 using namespace ov;
 
 TEST(SmartReshapeTests, Reshape1d) {
     std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto reshape = std::make_shared<opset5::Reshape>(input, opset5::Constant::create(element::i64, {1}, {5}), true);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto reshape = std::make_shared<op::v1::Reshape>(input, op::v0::Constant::create(element::i64, {1}, {5}), true);
         f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }
 
@@ -33,9 +35,9 @@ TEST(SmartReshapeTests, Reshape1d) {
 TEST(SmartReshapeTests, Reshape1d_negative) {
     std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto pattern = std::make_shared<opset5::Parameter>(element::i64, Shape{1});
-        auto reshape = std::make_shared<opset5::Reshape>(input, pattern, false);
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto pattern = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
+        auto reshape = std::make_shared<op::v1::Reshape>(input, pattern, false);
         f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input, pattern});
     }
 

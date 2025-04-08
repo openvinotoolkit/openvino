@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dft_inst.h"
-#include "primitive_type_base.h"
-#include "fft_base_shape_inference.hpp"
-#include "rdft_shape_inference.hpp"
-#include "irdft_shape_inference.hpp"
+#include "openvino/op/dft.hpp"
 
+#include "dft_inst.h"
+#include "fft_base_shape_inference.hpp"
+#include "irdft_shape_inference.hpp"
 #include "json_object.h"
+#include "openvino/op/idft.hpp"
+#include "primitive_type_base.h"
+#include "rdft_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(dft)

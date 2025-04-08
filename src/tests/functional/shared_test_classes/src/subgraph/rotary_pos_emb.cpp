@@ -6,6 +6,9 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov::gen_pattern;

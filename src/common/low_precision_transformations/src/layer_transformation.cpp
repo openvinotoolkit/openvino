@@ -17,6 +17,10 @@
 #include <queue>
 #include "itt.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace pass {
@@ -146,9 +150,9 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
 
     const auto parent = dequantization.subtract->input_value(1).get_node_shared_ptr();
 
-    if (ov::is_type<ov::opset1::Constant>(parent)) {
+    if (ov::is_type<ov::op::v0::Constant>(parent)) {
         return true;
-    } else if (ov::is_type<ov::opset1::Convert>(parent) && ov::is_type<ov::opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
+    } else if (ov::is_type<ov::op::v0::Convert>(parent) && ov::is_type<ov::op::v0::Constant>(parent->get_input_node_shared_ptr(0))) {
         const auto constant = parent->get_input_node_shared_ptr(0);
         const auto constantType = constant->output(0).get_element_type();
         return operationType == constantType;
@@ -170,9 +174,9 @@ std::stringstream toStream(const std::vector<float>& dequantizationValues) {
 }
 
 void LayerTransformation::printDequantizationInfo(const std::shared_ptr<Node>& layer) {
-    auto fq = as_type_ptr<opset1::FakeQuantize>(layer);
+    auto fq = as_type_ptr<op::v0::FakeQuantize>(layer);
     if (fq) {
-        const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(ov::as_type_ptr<opset1::FakeQuantize>(layer));
+        const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(ov::as_type_ptr<op::v0::FakeQuantize>(layer));
         std::cout <<
             layer->get_type_name() << (NetworkHelper::isConstantPath(layer) ? " on weights " : " on activations ") <<
             layer->get_friendly_name() << ":" << std::endl <<
@@ -413,7 +417,7 @@ bool LayerTransformation::updateOutput(const std::shared_ptr<ov::Node>& lastNode
     bool was_updated = false;
     for (auto output : lastNode->outputs()) {
         for (auto input : output.get_target_inputs()) {
-            if (ov::is_type<ov::opset1::Result>(input.get_node())) {
+            if (ov::is_type<ov::op::v0::Result>(input.get_node())) {
                 const auto originalName = originalNode->get_friendly_name();
                 originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                 lastNode->set_friendly_name(originalName);

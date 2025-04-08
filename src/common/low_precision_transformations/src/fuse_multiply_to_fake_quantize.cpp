@@ -10,6 +10,10 @@
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace pass {
@@ -18,7 +22,7 @@ namespace low_precision {
 FuseMultiplyToFakeQuantizeTransformation::FuseMultiplyToFakeQuantizeTransformation(const Params& params)
     : FuseElementwiseToFakeQuantizeTransformation(params) {
     MATCHER_SCOPE(FuseMultiplyToFakeQuantizeTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
+    auto matcher = pattern::wrap_type<ov::op::v1::Multiply>();
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -39,15 +43,15 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(ov::pass::pattern::Matc
     }
 
     const auto parent = multiply->get_input_node_shared_ptr(0);
-    auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(parent);
-    const auto convert = ov::as_type_ptr<ov::opset1::Convert>(parent);
+    auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(parent);
+    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(parent);
 
     if (convert) {
-        fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     const auto multiplyConstant = multiply->get_input_node_shared_ptr(1);
-    if (!ov::is_type<ov::opset1::Constant>(multiplyConstant)) {
+    if (!ov::is_type<ov::op::v0::Constant>(multiplyConstant)) {
         return false;
     }
 
@@ -55,8 +59,8 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(ov::pass::pattern::Matc
     auto outputHigh = foldConvert(fakeQuantize->input_value(4), deqPrecision);
     const auto mulValue = foldConvert(multiplyConstant, deqPrecision);
 
-    outputLow = fold<ov::opset1::Multiply>(outputLow, mulValue);
-    outputHigh = fold<ov::opset1::Multiply>(outputHigh, mulValue);
+    outputLow = fold<ov::op::v1::Multiply>(outputLow, mulValue);
+    outputHigh = fold<ov::op::v1::Multiply>(outputHigh, mulValue);
 
     const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
     const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
@@ -65,8 +69,8 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(ov::pass::pattern::Matc
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLow);
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHigh);
 
-    auto newFakeQuantize = std::make_shared<ov::op::TypeRelaxed<ov::opset1::FakeQuantize>>(
-        ov::opset1::FakeQuantize(
+    auto newFakeQuantize = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::FakeQuantize>>(
+        ov::op::v0::FakeQuantize(
             fakeQuantize->input_value(0),
             inputLow,
             inputHigh,

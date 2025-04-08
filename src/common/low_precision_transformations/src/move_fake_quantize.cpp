@@ -5,17 +5,21 @@
 #include "low_precision/move_fake_quantize.hpp"
 
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/opsets/opset1.hpp"
 
 #include <memory>
 #include "openvino/core/node.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 
 #include "low_precision/concat.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/split.hpp"
 
 namespace ov {
 namespace pass {
@@ -23,18 +27,18 @@ namespace low_precision {
 
 MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(MoveFakeQuantize);
-    const auto concat = ov::pass::pattern::wrap_type<opset1::Concat>(pattern::consumers_count(1));
-    const auto operation = ov::pass::pattern::wrap_type<opset1::Relu>({ concat });
-    const auto input_low = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto input_high = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto output_low = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto output_high = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto fq_with_operation = ov::pass::pattern::wrap_type<opset1::FakeQuantize>({ operation,
+    const auto concat = ov::pass::pattern::wrap_type<op::v0::Concat>(pattern::consumers_count(1));
+    const auto operation = ov::pass::pattern::wrap_type<op::v0::Relu>({ concat });
+    const auto input_low = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto input_high = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto output_low = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto output_high = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto fq_with_operation = ov::pass::pattern::wrap_type<op::v0::FakeQuantize>({ operation,
         input_low,
         input_high,
         output_low,
         output_high});
-    const auto fq = ov::pass::pattern::wrap_type<opset1::FakeQuantize>({ concat,
+    const auto fq = ov::pass::pattern::wrap_type<op::v0::FakeQuantize>({ concat,
         input_low,
         input_high,
         output_low,
@@ -66,7 +70,7 @@ bool MoveFakeQuantize::transform(ov::pass::pattern::Matcher& m) {
     bool without_operation = true;
     const std::string fq_original_name = fq->get_friendly_name();
     std::string operation_original_name;
-    if (is_type<opset1::Concat>(operation)) {
+    if (is_type<op::v0::Concat>(operation)) {
         concat = operation;
     } else {
         operation_original_name = operation->get_friendly_name();
@@ -78,9 +82,9 @@ bool MoveFakeQuantize::transform(ov::pass::pattern::Matcher& m) {
         return false;
     }
 
-    std::vector<std::shared_ptr<opset1::Constant>> curr_constants(4);
+    std::vector<std::shared_ptr<op::v0::Constant>> curr_constants(4);
     bool multi_chanels = false;
-    const auto concat_node = as_type_ptr<opset1::Concat>(concat);
+    const auto concat_node = as_type_ptr<op::v0::Concat>(concat);
     if (concat_node == nullptr) {
         return false;
     }
@@ -93,7 +97,7 @@ bool MoveFakeQuantize::transform(ov::pass::pattern::Matcher& m) {
     const auto concat_axis = ov::util::normalize(concat_node->get_axis(), rank.get_length());
 
     for (size_t i = 0; i < 4; i++) {
-        curr_constants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
+        curr_constants[i] = as_type_ptr<op::v0::Constant>(fq->get_input_node_shared_ptr(i + 1));
         if (!multi_chanels && curr_constants[i]->get_shape().size() > static_cast<size_t>(concat_axis)
             && curr_constants[i]->get_shape()[concat_axis] != 1) {
             multi_chanels = true;
@@ -105,7 +109,7 @@ bool MoveFakeQuantize::transform(ov::pass::pattern::Matcher& m) {
         return false;
     }
 
-    std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> new_constants;
+    std::vector<std::vector<std::shared_ptr<ov::op::v0::Constant>>> new_constants;
     if (multi_chanels) {
         new_constants = NetworkHelper::splitConstantsBeforeConcat(concat, curr_constants);
     }
@@ -168,7 +172,7 @@ bool MoveFakeQuantize::transform(ov::pass::pattern::Matcher& m) {
 bool MoveFakeQuantize::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     auto operation = layer->get_input_node_shared_ptr(0);
     std::shared_ptr<ov::Node> concat;
-    if (is_type<opset1::Concat>(operation)) {
+    if (is_type<op::v0::Concat>(operation)) {
         concat = operation;
     } else {
         concat = operation->get_input_node_shared_ptr(0);
@@ -181,14 +185,14 @@ bool MoveFakeQuantize::canBeTransformed(const std::shared_ptr<Node>& layer) cons
         return false;
     }
     const auto convert_q = convert_q_target_inputs.begin()->get_node()->shared_from_this();
-    bool q_dq = is_type<opset1::Convert>(convert_q);
+    bool q_dq = is_type<op::v0::Convert>(convert_q);
     if (q_dq && (convert_q->get_output_size() != 1 || layer->get_output_size() != 1)) {
         return false;
     }
     bool only_split = true;
     const size_t id = concat->get_input_node_ptr(0)->get_instance_id();
     for (size_t i = 1; i < concat->get_input_size(); ++i) {
-        if (!is_type<opset1::Split>(concat->get_input_node_ptr(i)) ||
+        if (!is_type<op::v1::Split>(concat->get_input_node_ptr(i)) ||
             concat->get_input_node_ptr(i)->get_instance_id() != id) {
             only_split = false;
             break;

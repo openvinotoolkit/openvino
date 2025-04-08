@@ -2,13 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reduce_inst.h"
-
-#include "primitive_type_base.h"
-#include "json_object.h"
-#include <vector>
 #include <string>
+#include <vector>
 
+#include "json_object.h"
+#include "openvino/op/reduce_l1.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "primitive_type_base.h"
+#include "reduce_inst.h"
 #include "reduce_shape_inference.hpp"
 
 namespace cldnn {

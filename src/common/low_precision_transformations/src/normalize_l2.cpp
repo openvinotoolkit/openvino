@@ -16,6 +16,9 @@
 #include "openvino/core/type/element_type_traits.hpp"
 
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/normalize_l2.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -24,7 +27,7 @@ using namespace ov::pass::low_precision;
 namespace normalize_l2 {
 
 template<typename T>
-std::shared_ptr<ov::opset1::Constant> createNewScalesConst(const ov::opset1::Constant& originalConst) {
+std::shared_ptr<ov::op::v0::Constant> createNewScalesConst(const ov::op::v0::Constant& originalConst) {
     std::vector<T> source = originalConst.cast_vector<T>();
 
     std::vector<T> newData(source.size());
@@ -33,14 +36,14 @@ std::shared_ptr<ov::opset1::Constant> createNewScalesConst(const ov::opset1::Con
     }
 
     const ov::element::Type type = originalConst.get_output_element_type(0);
-    return ov::opset1::Constant::create(type, originalConst.get_shape(), newData);
+    return ov::op::v0::Constant::create(type, originalConst.get_shape(), newData);
 }
 
 } // namespace normalize_l2
 
 NormalizeL2Transformation::NormalizeL2Transformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(NormalizeL2Transformation);
-    auto matcher = pattern::wrap_type<ov::opset1::NormalizeL2>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::op::v0::NormalizeL2>({ pattern::wrap_type<ov::op::v1::Multiply>(), pattern::wrap_type<ov::op::v0::Constant>() });
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -70,7 +73,7 @@ bool NormalizeL2Transformation::canBeTransformed(const std::shared_ptr<Node>& op
     }
 
     // TODO: Expand transformation for all cases of axes values
-    const auto axes = ov::as_type_ptr<ov::opset1::Constant>(operation->get_input_node_shared_ptr(1));
+    const auto axes = ov::as_type_ptr<ov::op::v0::Constant>(operation->get_input_node_shared_ptr(1));
     const std::vector<int64_t> axesAcrossSpatial = { 1 };
     const std::vector<int64_t> axesByChannels = { 1, 2, 3 };
 
@@ -103,16 +106,16 @@ bool NormalizeL2Transformation::transform(ov::pass::pattern::Matcher &m) {
         return false;
     }
 
-    auto normalize = ov::as_type_ptr<ov::opset1::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation, defaultPrecisions));
+    auto normalize = ov::as_type_ptr<ov::op::v0::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation, defaultPrecisions));
 
-    const auto axes = ov::as_type_ptr<ov::opset1::Constant>(normalize->get_input_node_shared_ptr(1));
+    const auto axes = ov::as_type_ptr<ov::op::v0::Constant>(normalize->get_input_node_shared_ptr(1));
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(normalize, defaultPrecisions);
-    auto scalesConst = ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
+    auto scalesConst = ov::as_type_ptr<ov::op::v0::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
     if (scalesConst == nullptr) {
-        scalesConst = ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
+        scalesConst = ov::as_type_ptr<ov::op::v0::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
     }
 
-    std::shared_ptr<ov::opset1::Constant> newScalesConst;
+    std::shared_ptr<ov::op::v0::Constant> newScalesConst;
     const auto type = scalesConst->get_output_element_type(0);
     switch (type) {
         case ov::element::Type_t::f16: {
@@ -128,7 +131,7 @@ bool NormalizeL2Transformation::transform(ov::pass::pattern::Matcher &m) {
         }
     }
 
-    auto newNormalize = std::make_shared<ov::op::TypeRelaxed<ov::opset1::NormalizeL2>>(
+    auto newNormalize = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::NormalizeL2>>(
         std::vector<ov::element::Type>{ element::f32, axes->output(0).get_element_type() },
         std::vector<ov::element::Type>{deqPrecision},
         ov::op::TemporaryReplaceOutputType(dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract, element::f32).get(),
@@ -137,7 +140,7 @@ bool NormalizeL2Transformation::transform(ov::pass::pattern::Matcher &m) {
         normalize->get_eps_mode());
     NetworkHelper::copyInfo(normalize, newNormalize);
 
-    auto newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+    auto newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
         std::vector<ov::element::Type>{ element::f32, element::f32 },
         std::vector<ov::element::Type>{normalize->get_output_element_type(0)},
         ov::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),

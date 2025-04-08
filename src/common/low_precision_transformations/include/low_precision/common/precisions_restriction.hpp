@@ -11,6 +11,8 @@
 
 #include "low_precision/lpt_visibility.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/lstm_sequence.hpp"
 
 namespace ov {
 namespace pass {
@@ -21,14 +23,14 @@ namespace low_precision {
 * the same precision for mentioned
 *
 * // One restriction for each port
-* PrecisionsRestriction::create<ov::opset1::Convolution>({
+* PrecisionsRestriction::create<ov::op::v1::Convolution>({
 *      {{0}, {ov::element::u8}},
 *      {{1}, {ov::element::i8}},
 *  }),
 *
 * // Common precision restriction for several ports:
 * // both inputs will have the same precision
-* PrecisionsRestriction::create<ov::opset5::LSTMSequence>({
+* PrecisionsRestriction::create<ov::op::v5::LSTMSequence>({
 *      {{0, 1}, {ov::element::u8, ov::element::i8}}
 *  }),
 */

@@ -14,6 +14,8 @@
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/lpt_itt.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 namespace ov {
 namespace pass {
@@ -106,9 +108,9 @@ private:
         auto getInput = [&defaultPrecisions](const std::shared_ptr<ov::Node>& node, const size_t index) -> Input<Node> {
             const auto dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, index);
             if (!dequantization.empty() &&
-                ov::is_type<ov::opset1::Convert>(dequantization.data.get_node()) &&
+                ov::is_type<ov::op::v0::Convert>(dequantization.data.get_node()) &&
                 (dequantization.data.get_node()->get_input_size() == 1ul) &&
-                ov::is_type<ov::opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+                ov::is_type<ov::op::v0::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
                 return dequantization.data.get_node()->input(0);
             }
 

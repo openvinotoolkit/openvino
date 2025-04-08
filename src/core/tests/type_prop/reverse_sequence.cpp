@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/reverse_sequence.hpp"
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/parameter.hpp"
 #include "reverse_sequence_shape_inference.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using ov::op::v0::Parameter;
 using namespace testing;
 
 TEST(type_prop, reverse_sequence_default_attributes) {
