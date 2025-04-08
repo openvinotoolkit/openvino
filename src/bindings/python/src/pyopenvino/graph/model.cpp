@@ -515,10 +515,32 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const py::list& partial_shape, const py::dict& variables_shapes) {
-            const auto new_shape = Common::partial_shape_from_list(partial_shape);
+            std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+            const auto model_inputs = self.inputs();
+            if (py::len(partial_shape) > 0 && py::isinstance<py::list>(partial_shape[0])) {
+                // Reshape model inputs with a list of new input shapes
+                // Example: [[2,2], [1, 3, 224, 244], [10]]
+                if (py::len(partial_shape) != model_inputs.size()) {
+                    // Validate if the number of shapes equals to the number of model inputs
+                    throw py::value_error("The number of new shapes must match the number of model inputs.");
+                }
+                for (size_t i = 0; i < model_inputs.size(); ++i) {
+                    const auto new_shape = Common::partial_shape_from_list(partial_shape[i]);
+                    new_shapes.emplace_hint(new_shapes.end(), model_inputs[i], new_shape);
+                }
+            } else {
+                // Reshape a single model input
+                // Example: [2, 2]
+                if (model_inputs.size() != 1) {
+                    // Validate if the number of inputs is just one
+                    throw py::value_error("The number of new shapes must match the number of model inputs.");
+                }
+                const auto new_shape = Common::partial_shape_from_list(partial_shape);
+                new_shapes.emplace_hint(new_shapes.end(), model_inputs[0], new_shape);
+            }
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
             py::gil_scoped_release release;
-            self.reshape(new_shape, new_variables_shapes);
+            self.reshape(new_shapes, new_variables_shapes);
         },
         py::arg("partial_shape"),
         py::arg("variables_shapes") = py::dict(),
@@ -828,7 +850,7 @@ void regclass_graph_Model(py::module m) {
                                         :rtype: op.Result
                                     )");
     model.def("get_result_index",
-              (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
+              (int64_t (ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
               py::arg("value"),
               R"(
                     Return index of result.
@@ -841,7 +863,7 @@ void regclass_graph_Model(py::module m) {
                     :rtype: int
                  )");
     model.def("get_result_index",
-              (int64_t(ov::Model::*)(const ov::Output<const ov::Node>&) const) & ov::Model::get_result_index,
+              (int64_t (ov::Model::*)(const ov::Output<const ov::Node>&) const) & ov::Model::get_result_index,
               py::arg("value"),
               R"(
                     Return index of result.
@@ -985,36 +1007,38 @@ void regclass_graph_Model(py::module m) {
 
                                         :rtype: bool
                                     )");
-    model.def("input", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::input);
+    model.def("input", (ov::Output<ov::Node> (ov::Model::*)())&ov::Model::input);
 
-    model.def("input", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::input, py::arg("index"));
-
-    model.def("input",
-              (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::input,
-              py::arg("tensor_name"));
-
-    model.def("input", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::input);
-
-    model.def("input", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::input, py::arg("index"));
+    model.def("input", (ov::Output<ov::Node> (ov::Model::*)(size_t))&ov::Model::input, py::arg("index"));
 
     model.def("input",
-              (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::input,
+              (ov::Output<ov::Node> (ov::Model::*)(const std::string&))&ov::Model::input,
               py::arg("tensor_name"));
 
-    model.def("output", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::output);
+    model.def("input", (ov::Output<const ov::Node> (ov::Model::*)() const) & ov::Model::input);
 
-    model.def("output", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::output, py::arg("index"));
+    model.def("input", (ov::Output<const ov::Node> (ov::Model::*)(size_t) const) & ov::Model::input, py::arg("index"));
 
-    model.def("output",
-              (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::output,
+    model.def("input",
+              (ov::Output<const ov::Node> (ov::Model::*)(const std::string&) const) & ov::Model::input,
               py::arg("tensor_name"));
 
-    model.def("output", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::output);
+    model.def("output", (ov::Output<ov::Node> (ov::Model::*)())&ov::Model::output);
 
-    model.def("output", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::output, py::arg("index"));
+    model.def("output", (ov::Output<ov::Node> (ov::Model::*)(size_t))&ov::Model::output, py::arg("index"));
 
     model.def("output",
-              (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::output,
+              (ov::Output<ov::Node> (ov::Model::*)(const std::string&))&ov::Model::output,
+              py::arg("tensor_name"));
+
+    model.def("output", (ov::Output<const ov::Node> (ov::Model::*)() const) & ov::Model::output);
+
+    model.def("output",
+              (ov::Output<const ov::Node> (ov::Model::*)(size_t) const) & ov::Model::output,
+              py::arg("index"));
+
+    model.def("output",
+              (ov::Output<const ov::Node> (ov::Model::*)(const std::string&) const) & ov::Model::output,
               py::arg("tensor_name"));
 
     model.def(
@@ -1075,7 +1099,7 @@ void regclass_graph_Model(py::module m) {
 
     model.def(
         "get_parameter_index",
-        (int64_t(ov::Model::*)(const std::shared_ptr<ov::op::v0::Parameter>&) const) & ov::Model::get_parameter_index,
+        (int64_t (ov::Model::*)(const std::shared_ptr<ov::op::v0::Parameter>&) const) & ov::Model::get_parameter_index,
         py::arg("parameter"),
         R"(
                     Return the index position of `parameter`
@@ -1436,8 +1460,8 @@ void regclass_graph_Model(py::module m) {
         :rtype: int
     )");
 
-    model.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::inputs);
-    model.def_property_readonly("outputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::outputs);
+    model.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>> (ov::Model::*)())&ov::Model::inputs);
+    model.def_property_readonly("outputs", (std::vector<ov::Output<ov::Node>> (ov::Model::*)())&ov::Model::outputs);
     model.def_property_readonly("name", &ov::Model::get_name);
     model.def_property_readonly("rt_info",
                                 (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
