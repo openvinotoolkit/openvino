@@ -4,7 +4,7 @@
 
 #include "remote_context.hpp"
 
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 
 using namespace ov::intel_npu;
 

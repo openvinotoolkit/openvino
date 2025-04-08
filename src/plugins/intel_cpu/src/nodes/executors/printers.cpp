@@ -13,12 +13,12 @@
 
 namespace ov::intel_cpu {
 
-std::ostream& operator<<(std::ostream& os, const FCAttrs& attrs) {
+std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const FCAttrs& attrs) {
     // @todo print Attrs
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const PostOps& postOps) {
+std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const PostOps& postOps) {
     // @todo print PostOps
     return os;
 }
