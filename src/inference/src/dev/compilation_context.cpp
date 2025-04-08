@@ -109,7 +109,7 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
     if (tensor) {
         seed = hash_combine(seed, tensor.get_size());
 
-        auto ptr = static_cast<size_t*>(tensor.data());
+        auto ptr = static_cast<const size_t*>(tensor.data());
         size_t size = tensor.get_size() / sizeof(size_t);
 
         // 10MB block size in size_t
@@ -141,7 +141,7 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
         }
 
         auto size_done = size * sizeof(size_t);
-        auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
+        auto ptr_left = static_cast<const uint8_t*>(tensor.data()) + size_done;
         size_t size_left = tensor.get_size() - size_done;
         for (size_t i = 0; i < size_left; i++)
             seed = hash_combine(seed, ptr_left[i]);
