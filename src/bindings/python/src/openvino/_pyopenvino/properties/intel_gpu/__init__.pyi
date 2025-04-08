@@ -12,6 +12,7 @@ class CapabilityGPU:
     openvino.properties.intel_gpu.CapabilityGPU submodule that simulates ov::intel_gpu::capability
     """
     HW_MATMUL: typing.ClassVar[str] = 'GPU_HW_MATMUL'
+    USM_MEMORY: typing.ClassVar[str] = 'GPU_USM_MEMORY'
 class MemoryType:
     """
     openvino.properties.intel_gpu.MemoryType submodule that simulates ov::intel_gpu::memory_type
