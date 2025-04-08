@@ -5,7 +5,9 @@
 #pragma once
 
 #include "openvino/core/except.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/util/binary_elementwise_comparison.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 template <ov::element::Type_t ET>
