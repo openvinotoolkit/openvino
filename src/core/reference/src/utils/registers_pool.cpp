@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,16 +34,12 @@ RegistersPool::RegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude, in
     m_general_set.exclude(Xbyak::Reg64(Xbyak::Operand::RSP));
 }
 
-void RegistersPool::check_unique_and_update(bool is_ctor) {
-    static thread_local bool is_created = false;
-    if (is_ctor) {
-        if (is_created) {
-            OPENVINO_THROW("There should be only one instance of RegistersPool per thread");
-        }
-        is_created = true;
-    } else {
-        is_created = false;
-    }
+thread_local bool RegistersPool::is_created = false;
+
+void RegistersPool::check_unique_and_update() {
+    OPENVINO_ASSERT(!is_created, "There should be only one instance of RegistersPool per thread");
+
+    is_created = true;
 }
 
 void RegistersPool::PhysicalSet::set_as_used(size_t reg_idx) {

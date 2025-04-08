@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,7 +99,7 @@ void replace_non_reshapable_const() {
     for (const auto& node : model->get_ops()) {
         // Trying to find the problematic Constant by name.
         if (node->get_friendly_name() == "name_of_non_reshapable_const") {
-            auto const_with_hardcoded_shape = std::dynamic_pointer_cast<ov::opset8::Constant>(node);
+            auto const_with_hardcoded_shape = ov::as_type_ptr<ov::opset8::Constant>(node);
             // Replacing the problematic Constant with a new one. Do this for all the problematic Constants in the network, then
             // you can apply the reshape feature.
             ov::replace_node(const_with_hardcoded_shape, new_const);

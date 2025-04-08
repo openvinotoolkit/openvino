@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,6 +97,25 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
             return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
         },
         "scale " + vector_to_string(values));
+}
+
+void PreStepsList::add_clamp(double min_value, double max_value) {
+    std::stringstream name_builder;
+    name_builder << "clamp(min " << min_value << ", max " << max_value << ")";
+
+    m_actions.emplace_back(
+        [min_value, max_value](const std::vector<Output<Node>>& nodes,
+                               const std::shared_ptr<Model>& function,
+                               PreprocessingContext& ctxt) {
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't apply clamp to multi-plane input. Suggesting to convert current image to "
+                            "RGB/BGR color format using 'PreProcessSteps::convert_color'");
+
+            const auto& node = nodes.front();
+            auto clamp_op = std::make_shared<ov::op::v0::Clamp>(node, min_value, max_value);
+            return std::make_tuple(std::vector<Output<Node>>{clamp_op}, true);
+        },
+        name_builder.str());
 }
 
 void PreStepsList::add_mean_impl(const std::vector<float>& values) {
@@ -688,6 +707,18 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::cut_last_channel(const
 }
 
 //------------- Post processing ------
+void PostStepsList::add_clamp(double min_value, double max_value) {
+    std::stringstream name_builder;
+    name_builder << "clamp(min " << min_value << ", max " << max_value << ")";
+
+    m_actions.emplace_back(
+        [min_value, max_value](const Output<Node>& node, PostprocessingContext& ctxt) {
+            auto clamp_op = std::make_shared<ov::op::v0::Clamp>(node, min_value, max_value);
+            return std::make_tuple(Output<Node>{clamp_op}, true);
+        },
+        name_builder.str());
+}
+
 void PostStepsList::add_convert_impl(const element::Type& type) {
     m_actions.emplace_back(
         [type](const Output<Node>& node, PostprocessingContext& ctxt) {
@@ -699,7 +730,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
                 return std::make_tuple(node, false);
             }
             OPENVINO_ASSERT(
-                !t.is_dynamic() && t != element::undefined,
+                t.is_static(),
                 "Can't convert to dynamic/unknown element type, consider using of InputTensorInfo::set_element_type");
             auto convert = std::make_shared<op::v0::Convert>(node, t);
             return std::make_tuple(Output<Node>(convert), true);

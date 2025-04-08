@@ -22,6 +22,6 @@ class TRANSFORMATIONS_API ConcatToBroadcast;
  */
 class ov::pass::ConcatToBroadcast : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConcatToBroadcast", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConcatToBroadcast");
     ConcatToBroadcast();
 };

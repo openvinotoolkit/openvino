@@ -1,25 +1,24 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
+const { testModels, isModelAvailable } = require('../utils.js');
 
 describe('ov.preprocess.PrePostProcessor tests', () => {
-  let testXml = null;
+  const { testModelFP32 } = testModels;
   let core = null;
   let model = null;
 
   before(async () => {
-    await isModelAvailable(testModels.testModelFP32);
-    testXml = getModelPath().xml;
+    await isModelAvailable(testModelFP32);
     core = new ov.Core();
   });
 
   beforeEach(() => {
-    model = core.readModelSync(testXml);
+    model = core.readModelSync(testModelFP32.xml);
   });
 
   describe('PrePostProcess', () => {

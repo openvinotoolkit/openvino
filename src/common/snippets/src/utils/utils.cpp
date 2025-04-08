@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,6 +165,12 @@ int64_t get_stride(size_t dim_idx, const VectorDims& shape) {
     return stride;
 }
 
+VectorDims get_planar_layout(size_t rank) {
+    VectorDims layout(rank);
+    std::iota(layout.begin(), layout.end(), 0);
+    return layout;
+}
+
 ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order) {
     return get_pshape(shape, order, true);
 }
@@ -317,14 +323,33 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const st
 }
 
 int64_t get_dim_stride(const lowered::ExpressionPort& expr_port, size_t idx) {
-    size_t dim_idx = 0;
+    const auto& shape = expr_port.get_descriptor_ptr()->get_shape();
     const auto& layout = expr_port.get_descriptor_ptr()->get_layout();
     switch (expr_port.get_type()) {
-        case lowered::ExpressionPort::Input: dim_idx = utils::get_input_dim_idx(layout, idx); break;
-        case lowered::ExpressionPort::Output: dim_idx = utils::get_output_dim_idx(layout, idx); break;
-        default: OPENVINO_THROW("Unsupported expression port type!");
+        case lowered::ExpressionPort::Input: return get_dim_in_stride(shape, layout, idx);
+        case lowered::ExpressionPort::Output: return get_dim_out_stride(shape, layout, idx);
     }
-    return get_stride(dim_idx, expr_port.get_descriptor_ptr()->get_shape());
+    OPENVINO_THROW("Unsupported expression port type!");
+}
+
+int64_t get_dim_in_stride(const VectorDims& shape, const VectorDims& layout, size_t idx) {
+    return get_stride(utils::get_input_dim_idx(layout, idx), shape);
+}
+
+int64_t get_dim_out_stride(const VectorDims& shape, const VectorDims& layout, size_t idx) {
+    return get_stride(utils::get_output_dim_idx(layout, idx), shape);
+}
+
+void init_strides(const VectorDims& shape, size_t rank, size_t data_size, size_t start_idx, VectorDims& offsets) {
+    OPENVINO_ASSERT(start_idx < rank, "Incorrect start index. Should be less than target rank");
+    auto dim_step = data_size;
+    offsets.resize(rank);
+    std::fill(offsets.begin(), offsets.end(), 0);
+    offsets[offsets.size() - 1] = dim_step;
+    for (int i = static_cast<int>(shape.size()) - 2; i >= 0; i--) {
+        dim_step *= shape[i + 1];
+        offsets[i + start_idx] = shape[i] != 1 ? dim_step : 0;
+    }
 }
 
 void visit_path(const lowered::ExpressionPtr& expr,
@@ -359,6 +384,24 @@ void visit_path(const lowered::ExpressionPtr& expr,
             }
         }
     }
+}
+
+std::string tensor2str(const VectorDims& tensor, const std::string& delimiter) {
+    std::stringstream ss;
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        const auto& v = tensor[i];
+        std::string v_str;
+        if (utils::is_full_dim_value(v)) {
+            v_str = "FULL_DIM";
+        } else if (utils::is_dynamic_value(v)) {
+            v_str = "?";
+        } else {
+            v_str = std::to_string(v);
+        }
+        const auto del = i < tensor.size() - 1 ? delimiter : "";
+        ss << v_str << del;
+    }
+    return ss.str();
 }
 
 } // namespace utils

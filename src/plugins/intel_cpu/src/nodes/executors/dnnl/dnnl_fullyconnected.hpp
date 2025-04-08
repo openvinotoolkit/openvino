@@ -6,17 +6,17 @@
 
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
 
 #include "cpu_memory.h"
-#include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
-#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
-#include "nodes/executors/dnnl/dnnl_aliases.hpp"
-#include "nodes/executors/executor.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "nodes/executors/dnnl/dnnl_aliases.hpp"
+#include "nodes/executors/dnnl/dnnl_utils.hpp"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "post_ops.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename ExecutorT, typename Attrs, typename ShapeAgnosticData>
 class DefaultInstantiator {
@@ -24,7 +24,7 @@ public:
     std::shared_ptr<ExecutorT> operator()(const MemoryArgs& memory,
                                           const Attrs& attrs,
                                           const ExecutorContext::CPtr context,
-                                          const std::shared_ptr<ShapeAgnosticData> shapeAgnosticData) {
+                                          const std::shared_ptr<ShapeAgnosticData>& shapeAgnosticData) {
         return ExecutorT::create(memory, attrs, context, shapeAgnosticData);
     }
 };
@@ -39,10 +39,10 @@ public:
     DnnlFCExecutor(const Attrs& attrs,
                    const PostOps& postOps,
                    const MemoryArgs& memory,
-                   const ExecutorContext::CPtr context,
+                   ExecutorContext::CPtr context,
                    const bool cacheWeights)
         : m_attrs(attrs),
-          m_context(context),
+          m_context(std::move(context)),
           m_shapeAgnosticData(Primitive::createShapeAgnosticData(m_attrs, postOps, memory, m_context, cacheWeights)),
           m_primArgs(m_shapeAgnosticData->primAttrs.dnnlArgs) {}
     bool update(const MemoryArgs& memory) override {
@@ -56,15 +56,17 @@ public:
     }
 
     void execute(const MemoryArgs& memory) override {
-        if (resetSrcMemoryDataHandle)
+        if (resetSrcMemoryDataHandle) {
             m_primArgs[DNNL_ARG_SRC].set_data_handle(memory.at(ARG_SRC)->getData());
-        if (resetDstMemoryDataHandle)
+        }
+        if (resetDstMemoryDataHandle) {
             m_primArgs[DNNL_ARG_DST].set_data_handle(memory.at(ARG_DST)->getData());
+        }
 
         m_primitive->execute(m_primArgs);
     }
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return m_primitive ? m_primitive->implType() : undef;
     }
 
@@ -73,7 +75,7 @@ public:
             return;
         }
         const auto newPrimMemDesc = m_primitive->scratchPadDesc();
-        m_scratchPadMemory = m_context->getScratchPad(numaNodeID)->createScratchPadMem(newPrimMemDesc);
+        m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
 
         if (m_primArgs.count(DNNL_ARG_WEIGHTS)) {
@@ -91,7 +93,7 @@ public:
     }
 
 private:
-    void updateSrcMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr memory) {
+    void updateSrcMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr& memory) {
         const auto& primMemDesc = primitive->srcDesc();
         if (memDesc->isCompatible(*primMemDesc)) {
             m_primArgs[DNNL_ARG_SRC] = memory->getPrimitive();
@@ -103,7 +105,7 @@ private:
         }
     }
 
-    void updateDstMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr memory) {
+    void updateDstMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr& memory) {
         const auto& primMemDesc = primitive->dstDesc();
         if (memDesc->isCompatible(*primMemDesc)) {
             m_primArgs[DNNL_ARG_DST] = memory->getPrimitive();
@@ -118,34 +120,35 @@ private:
     void updateWeightsMemory(DnnlMemoryDescPtr originalMemDesc,
                              const PrimitivePtr currentPrimitive,
                              const PrimitivePtr newPrimitive,
-                             const MemoryPtr memory) {
+                             const MemoryPtr& memory) {
         const auto newPrimMemDesc = newPrimitive->weightsDesc();
-        if (currentPrimitive && currentPrimitive->weightsDesc()->isCompatible(*newPrimMemDesc))
+        if (currentPrimitive && currentPrimitive->weightsDesc()->isCompatible(*newPrimMemDesc)) {
             return;
+        }
 
-        originalMemDesc = Primitive::makeTransposedWeightDescriptor(originalMemDesc, newPrimMemDesc, m_attrs.weightsNonTransposed);
+        originalMemDesc =
+            Primitive::makeTransposedWeightDescriptor(originalMemDesc, newPrimMemDesc, m_attrs.weightsNonTransposed);
 
         const auto weiMemory = utils::prepareWeightsMemory(originalMemDesc, newPrimMemDesc, memory, m_context, true);
         m_primArgs[DNNL_ARG_WEIGHTS] = weiMemory->getPrimitive();
     }
 
-    void updateBiasMemory(const MemoryPtr memory) {
+    void updateBiasMemory(const MemoryPtr& memory) {
         m_primArgs[DNNL_ARG_BIAS] = memory->getPrimitive();
     }
 
     void updateScratchPadMem(const PrimitivePtr currentPrimitive, const PrimitivePtr newPrimitive) {
         const auto newPrimMemDesc = newPrimitive->scratchPadDesc();
         // @todo should we compare dnnl::memory::desc directly to avoid any overhead?
-        if (currentPrimitive && currentPrimitive->scratchPadDesc()->isCompatible(*newPrimMemDesc))
+        if (currentPrimitive && currentPrimitive->scratchPadDesc()->isCompatible(*newPrimMemDesc)) {
             return;
+        }
 
-        m_scratchPadMemory = m_context->getScratchPad(curNumaNode)->createScratchPadMem(newPrimMemDesc);
+        m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
     }
 
-    void updateMemory(const PrimitivePtr currentPrimitive,
-                      const PrimitivePtr newPrimitive,
-                      const MemoryArgs& memory) {
+    void updateMemory(const PrimitivePtr currentPrimitive, const PrimitivePtr newPrimitive, const MemoryArgs& memory) {
         const auto& srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_SRC)->getDescPtr());
         const auto& weiDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
         const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
@@ -172,5 +175,4 @@ private:
     int curNumaNode = -1;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

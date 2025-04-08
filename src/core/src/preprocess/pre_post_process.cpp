@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,109 @@
 
 #include "color_utils.hpp"
 #include "function_guard.hpp"
+#include "itt.hpp"
 #include "layout_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/true.hpp"
 #include "preprocess_impls.hpp"
+#include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
+#include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
+#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
+#include "transformations/common_optimizations/gelu_fusion.hpp"
+#include "transformations/common_optimizations/mul_conv_fusion.hpp"
+#include "transformations/common_optimizations/ric_fusion.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#include "transformations/op_conversions/convert_divide.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/utils/utils.hpp"
+
+namespace {
+
+struct RTInfoCache {
+    template <typename Func>
+    void traverse(const std::shared_ptr<ov::Model>& model, Func&& func) {
+        for (const auto& op : model->get_ordered_ops()) {
+            func(op);
+            if (const auto& multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+                for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+                    if (sub_graph)
+                        traverse(sub_graph, func);
+                }
+            }
+        }
+    }
+
+    void store(const std::shared_ptr<ov::Model>& model) {
+        traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
+            m_rt_info_cache[op.get()] = op->get_rt_info();
+        });
+    }
+
+    void restore(const std::shared_ptr<ov::Model>& model) {
+        traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
+            auto it = m_rt_info_cache.find(op.get());
+            if (it != m_rt_info_cache.end()) {
+                op->get_rt_info() = it->second;
+            } else {
+                ov::pass::enable_constant_folding(op);
+                ov::unmark_dequantization_node(op);
+                ov::unmark_as_decompression(op);
+            }
+        });
+    }
+
+    std::unordered_map<ov::Node*, ov::RTMap> m_rt_info_cache;
+};
+
+void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
+    using namespace ov;
+    using namespace ov::pass;
+    using namespace ov::element;
+
+    // 0. Store RT info to not affect plugin compilation
+    RTInfoCache rt_info_cache;
+    rt_info_cache.store(model);
+
+    Manager manager("pre_post_processing");
+    manager.set_per_pass_validation(false);
+
+    // prerequisite: the model structure optimization before applying of the markup
+    REGISTER_PASS(manager, SharedOpOptimization)
+
+    // 1. Set "disable_const_folding" attribute
+    REGISTER_PASS(manager, MarkDequantization, TypeVector{i8, u8, i4, u4, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
+    REGISTER_PASS(manager, DisableShapeOfConstantFolding, false);
+    REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
+    // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+    // so that not extra memory is used for intermediate decompressed constants.
+    REGISTER_PASS(manager, MarkCompressedFloatConstants);
+    REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding);
+
+    // 2. Fusion transformations:
+    REGISTER_PASS(manager, ConvertDivideWithConstant)
+    auto fusions = manager.register_pass<GraphRewrite>();
+    // Gelu fusion have to be executed before MulConv fusion because Mul(X, 0.5) might be fused to Conv weights
+    ADD_MATCHER(fusions, GeluFusion)
+    ADD_MATCHER(fusions, MultiplyConvolutionFusion)
+    ADD_MATCHER(fusions, MultiplyGroupConvolutionFusion)
+    ADD_MATCHER(fusions, MultiplyConvolutionBackpropDataFusion)
+    ADD_MATCHER(fusions, MultiplyGroupConvolutionBackpropDataFusion)
+    fusions->set_name("ov::pass::MultiplyFusions");
+    REGISTER_PASS(manager, ReverseInputChannelsFusion)
+
+    // 3. CF call due to detected perf degradations
+    REGISTER_PASS(manager, ConstantFolding)
+    manager.run_passes(model);
+
+    // 4. Restore old RT info to not affect plugin compilation
+    rt_info_cache.restore(model);
+}
+
+}  // namespace
 
 namespace ov {
 namespace preprocess {
@@ -56,6 +156,10 @@ public:
     PrePostProcessorImpl() = default;
     explicit PrePostProcessorImpl(const std::shared_ptr<ov::Model>& f) : m_function(f) {
         OPENVINO_ASSERT(f, "Model can't be nullptr for PrePostProcessor");
+
+        // if IR version < 11, set compatibility mode
+        const auto names_mode = m_function->has_rt_info("version") && m_function->get_rt_info<int64_t>("version") < 11;
+
         for (size_t i = 0; i < m_function->inputs().size(); ++i) {
             auto info = InputInfo();
             info.m_impl->m_resolved_param = m_function->get_parameters()[i];
@@ -64,6 +168,7 @@ public:
         for (size_t i = 0; i < m_function->outputs().size(); ++i) {
             auto info = OutputInfo();
             info.m_impl->m_output_node = m_function->output(i);
+            info.m_impl->get_tensor_data()->set_names_compatibility_mode(names_mode);
             m_outputs.push_back(std::move(info));
         }
     }
@@ -196,9 +301,24 @@ std::shared_ptr<Model> PrePostProcessor::build() {
         function->remove_result(*function->get_results().begin());
     function->add_results(results);
 
+    // After switching from ModelOptimizer to OVC, the order of
+    // applying PrePostProcessing and MOCTransformations has changed:
+    //
+    // MO path : [fw model conversion -> PrePostProcessing -> MOC] -> nncf
+    // OVC path: [fw model conversion -> MOC] -> PrePostProcessing -> nncf
+    //
+    // Since nncf is applied to a not fully optimized model, extra FQ ops might appear,
+    // which can affect both accuracy and performance.
+    // PrePostProcessing is not part of OVC, so we have to insert an additional
+    // Transformation calls inside PrePostProcessing.
+    transformation_pipeline(function);
+
     guard.reset();
     return function;
 }
+
+// ------------------ TensorInfoMemoryType ----------------
+TensorInfoMemoryType::~TensorInfoMemoryType() = default;
 
 // --------------------- InputTensorInfo ------------------
 InputTensorInfo::InputTensorInfo() : m_impl(std::unique_ptr<InputTensorInfoImpl>(new InputTensorInfoImpl())) {}
@@ -258,6 +378,11 @@ InputTensorInfo& InputTensorInfo::set_from(const ov::Tensor& runtime_tensor) {
 
 PreProcessSteps::PreProcessSteps() : m_impl(std::unique_ptr<PreProcessStepsImpl>(new PreProcessStepsImpl())) {}
 PreProcessSteps::~PreProcessSteps() = default;
+
+PreProcessSteps& PreProcessSteps::clamp(double min_value, double max_value) {
+    m_impl->add_clamp(min_value, max_value);
+    return *this;
+}
 
 PreProcessSteps& PreProcessSteps::scale(float value) {
     m_impl->add_scale_impl(std::vector<float>{value});
@@ -387,6 +512,11 @@ OutputModelInfo& OutputModelInfo::set_color_format(const ov::preprocess::ColorFo
 
 PostProcessSteps::PostProcessSteps() : m_impl(std::unique_ptr<PostProcessStepsImpl>(new PostProcessStepsImpl())) {}
 PostProcessSteps::~PostProcessSteps() = default;
+
+PostProcessSteps& PostProcessSteps::clamp(double min_value, double max_value) {
+    m_impl->add_clamp(min_value, max_value);
+    return *this;
+}
 
 PostProcessSteps& PostProcessSteps::convert_element_type(const element::Type& type) {
     m_impl->add_convert_impl(type);

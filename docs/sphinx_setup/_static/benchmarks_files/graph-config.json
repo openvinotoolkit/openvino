@@ -20,11 +20,13 @@
         "Latency": "latency"
     },
     "UnitDescription": {
+        "sec.": "(lower is better)",
         "msec.": "(lower is better)",
-        "ms": "(lower is better)",
+        "ms.": "(lower is better)",
         "msec/token": "(lower is better)",
         "Generating time, sec.": "(lower is better)",
         "msec/token/TDP": "(lower is better)",
+        "Tokens per sec": "(higher is better)",
         "FPS": "(higher is better)",
         "FPS/$": "(higher is better)",
         "FPS/TDP": "(higher is better)",
@@ -123,11 +125,11 @@
         "platformTypes": {
             "name": "ietype",
             "data": [
-                "None",
                 "Intel® Core™, CPU-only",
                 "Intel® Core™, iGPU-only",
                 "Intel® Core™, NPU-only",
-                "Intel® Core™, CPU+iGPU"
+                "Intel® Core™, CPU+iGPU",
+                "Server Platforms (Intel® Xeon®)"
             ]
         },
         "platforms": {

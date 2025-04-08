@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,12 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
+#include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/gen_pattern.hpp"
@@ -133,6 +136,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_no_gather) {
                                                       {{"config.slice_start", 0},
                                                        {"config.slice_stop", 0},
                                                        {"config.input_trans0213", true},
+                                                       {"config.output_trans0213", false},
                                                        {"config.is_interleaved", false},
                                                        {"config.is_chatglm", false},
                                                        {"config.support_2d_rope", false},
@@ -169,6 +173,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_with_gather) {
                                                       {{"config.slice_start", 0},
                                                        {"config.slice_stop", 0},
                                                        {"config.input_trans0213", true},
+                                                       {"config.output_trans0213", false},
                                                        {"config.is_interleaved", false},
                                                        {"config.is_chatglm", false},
                                                        {"config.support_2d_rope", false},
@@ -308,6 +313,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", ndims},
                                                     {"config.input_trans0213", true},
+                                                    {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
@@ -343,6 +349,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", ndims},
                                                     {"config.input_trans0213", true},
+                                                    {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
@@ -459,6 +466,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", true},
                                                     {"config.is_interleaved", true},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
@@ -568,6 +576,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 4096},
                                                     {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
@@ -646,6 +655,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_Slice) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 4096},
                                                     {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
@@ -728,6 +738,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", true},
                                                     {"config.is_interleaved", true},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
@@ -843,6 +854,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 4096},
                                                     {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
@@ -853,5 +865,676 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
                                                     {"config.gather_position_arg_id", 0}});
         model_ref =
             std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, cos_sin_cache, position_ids});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_chatGML_nano_2d_rope) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int seq_len = 7;
+    const int num_heads = 16;
+    const int ndims = 128;
+    const int rotary_ndims = 128;
+    const int max_pos_length = 2048;
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, seq_len, 3072});
+        auto cos_sin_cache =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                    ov::PartialShape{max_pos_length, (rotary_ndims / 2), 2});
+        auto position_ids = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::PartialShape{batch, seq_len});
+
+        auto __module_transformer_index_67_Gather =
+            makeOP<ov::opset8::Gather>({cos_sin_cache, position_ids, 0}, {{"batch_dims", 0}});
+
+        auto ListUnpack_321 = makeOP<ov::opset1::VariadicSplit>({input, -1, {2048, 512, 512}});
+        auto view_Reshape = makeOP<ov::opset1::Reshape>({ListUnpack_321->output(0), {0, 0, num_heads, ndims}},
+                                                        {{"special_zero", true}});
+
+        auto permute_Transpose = makeOP<ov::opset1::Transpose>({view_Reshape, {0, 2, 1, 3}}, {});
+
+        auto slice_Slice_357 =
+            makeOP<ov::opset1::StridedSlice>({permute_Transpose, {0, 0, 0, 0}, {0, 0, 0, rotary_ndims}, {1, 1, 1, 1}},
+                                             {{"begin_mask", {1, 1, 1, 0}},
+                                              {"end_mask", {1, 1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
+
+        auto aten_view_Reshape_1 =
+            makeOP<ov::opset1::Reshape>({ListUnpack_321->output(1), {0, 0, 2, ndims}}, {{"special_zero", true}});
+        auto aten_transpose_1 = makeOP<ov::opset8::Transpose>({aten_view_Reshape_1, {0, 2, 1, 3}});
+        auto shape_of_105249 = makeOP<ov::opset8::ShapeOf>({aten_transpose_1}, {{"output_type", "i32"}});
+        auto gather_105252 = makeOP<ov::opset8::Gather>({shape_of_105249, {2}, {0}}, {{"batch_dims", 0}});
+        auto scatter_update_63441 = makeOP<ov::opset8::ScatterUpdate>({{0, 0}, {1}, gather_105252, {0}});
+        // connected to cos_sin_cache
+        auto slice_Slice_369 = makeOP<ov::opset1::StridedSlice>(
+            {__module_transformer_index_67_Gather, {0, 0}, scatter_update_63441, {1, 1}},
+            {{"begin_mask", {1, 0}},
+             {"end_mask", {1, 0}},
+             {"new_axis_mask", {}},
+             {"shrink_axis_mask", {}},
+             {"ellipsis_mask", {}}});
+        auto list_construct_concat_1 =
+            makeOP<ov::opset1::Concat>({{-1}, {1}, gather_105252, {rotary_ndims / 2}, {2}}, {{"axis", 0}});
+
+        auto reshape_Reshape_373 =
+            makeOP<ov::opset1::Reshape>({slice_Slice_357, {0, 16, 0, 64, 2}}, {{"special_zero", true}});
+        auto select_Gather_384 =
+            makeOP<ov::opset8::Gather>({reshape_Reshape_373, 0, -1}, {{"batch_dims", 0}});  // x_even
+        auto select_Gather_381 =
+            makeOP<ov::opset8::Gather>({reshape_Reshape_373, 1, -1}, {{"batch_dims", 0}});  // x_odd
+        auto view_Reshape_380 =
+            makeOP<ov::opset1::Reshape>({slice_Slice_369, list_construct_concat_1}, {{"special_zero", false}});
+        auto select_Gather_385 = makeOP<ov::opset8::Gather>({view_Reshape_380, 0, -1}, {{"batch_dims", 0}});  // cos_tab
+        auto select_Gather_382 = makeOP<ov::opset8::Gather>({view_Reshape_380, 1, -1}, {{"batch_dims", 0}});  // sin_tab
+
+        auto mul_Multiply_386 = makeOP<ov::opset1::Multiply>({select_Gather_381, select_Gather_382},
+                                                             {{"auto_broadcast", "numpy"}});  // x_odd_sin
+        auto mul_Multiply_383 = makeOP<ov::opset1::Multiply>({select_Gather_384, select_Gather_385},
+                                                             {{"auto_broadcast", "numpy"}});  // x_even_cos
+        auto Multiply_101315 =
+            makeOP<ov::opset1::Multiply>({mul_Multiply_386, -1.000000f}, {{"auto_broadcast", "numpy"}});
+        auto sub_Subtract_389 =
+            makeOP<ov::opset1::Add>({mul_Multiply_383, Multiply_101315}, {{"auto_broadcast", "numpy"}});
+
+        auto mul_Multiply_391 = makeOP<ov::opset1::Multiply>({select_Gather_381, select_Gather_385},
+                                                             {{"auto_broadcast", "numpy"}});  // x_odd_cos
+        auto mul_Multiply_393 = makeOP<ov::opset1::Multiply>({select_Gather_384, select_Gather_382},
+                                                             {{"auto_broadcast", "numpy"}});  // x_even_sin
+        auto add_Add_396 = makeOP<ov::opset1::Add>({mul_Multiply_391, mul_Multiply_393}, {{"auto_broadcast", "numpy"}});
+
+        auto Unsqueeze_62716 = makeOP<ov::opset1::Unsqueeze>({sub_Subtract_389, -1}, {});
+        auto Unsqueeze_62717 = makeOP<ov::opset1::Unsqueeze>({add_Add_396, -1}, {});
+
+        auto stack_401 = makeOP<ov::opset1::Concat>({Unsqueeze_62716, Unsqueeze_62717}, {{"axis", -1}});
+        auto flatten_Reshape_421 =
+            makeOP<ov::opset1::Reshape>({stack_401, {0, num_heads, 0, rotary_ndims}}, {{"special_zero", true}});
+        model = std::make_shared<ov::Model>(ov::NodeVector{flatten_Reshape_421},
+                                            ov::ParameterVector{input, cos_sin_cache, position_ids});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{batch, seq_len, 3072});
+        auto cos_sin_cache =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{max_pos_length, (rotary_ndims / 2), 2});
+        auto position_ids = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::PartialShape{batch, seq_len});
+        auto gather_cos_sin = makeOP<ov::opset8::Gather>({cos_sin_cache, position_ids, 0}, {{"batch_dims", 0}});
+        auto rope = makeOP<ov::op::internal::RoPE>({input, gather_cos_sin, gather_cos_sin},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 2048},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", false},
+                                                    {"config.rotary_ndims", rotary_ndims},
+                                                    {"config.is_chatglm", true},
+                                                    {"config.support_2d_rope", true},
+                                                    {"config.is_qwen", false},
+                                                    {"config.head_cnt", num_heads},
+                                                    {"config.head_size", ndims},
+                                                    {"config.gather_position_arg_id", 0}});
+        model_ref =
+            std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, cos_sin_cache, position_ids});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int num_heads = 32;
+    const int ndims = 128;
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+
+        auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
+        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+
+        auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
+        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+
+        auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
+        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(split->output(1), minus_one);
+
+        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{x1_1_neg->output(0), split->output(0)}, -1);
+
+        auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
+        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+
+        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        ov::op::internal::RoPE::Config config;
+        config.is_interleaved = true;
+        config.rotary_ndims = ndims;
+        config.head_cnt = num_heads;
+        config.head_size = ndims;
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Flux_squeeze_mul_unsqueeze) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int num_heads = 32;
+    const int ndims = 128;
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+
+        auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
+        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+
+        auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
+        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+
+        auto squeeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
+        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(split->output(1), squeeze_axis);
+
+        auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
+        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(squeeze, minus_one);
+
+        auto unsqueeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
+        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(x1_1_neg, unsqueeze_axis);
+
+        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
+
+        auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
+        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+
+        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        ov::op::internal::RoPE::Config config;
+        config.is_interleaved = true;
+        config.rotary_ndims = ndims;
+        config.head_cnt = num_heads;
+        config.head_size = ndims;
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int num_heads = 32;
+    const int ndims = 128;
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+
+        auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
+        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+
+        auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
+        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+
+        auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
+        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(split->output(1), minus_one);
+
+        auto squeeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
+        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(x1_1_neg, squeeze_axis);
+
+        auto unsqueeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
+        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(squeeze, unsqueeze_axis);
+
+        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
+
+        auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
+        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+
+        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        ov::op::internal::RoPE::Config config;
+        config.is_interleaved = true;
+        config.rotary_ndims = ndims;
+        config.head_cnt = num_heads;
+        config.head_size = ndims;
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM3_PagedAttention) {
+    disable_rt_info_check();
+    const int batch = -1;
+    const int seq_len = 1;
+    const int num_heads = 32;
+    const int num_heads_kv = 2;
+    const int ndims = 128;
+    const int rotary_ndims = 64;
+    const int hidden_size = ndims * (num_heads + 2 * num_heads_kv);
+    const int hidden_size_q = ndims * num_heads;
+    const int hidden_size_kv = ndims * num_heads_kv;
+    using namespace ov;
+    {
+        auto input =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, batch, hidden_size});
+        auto cos_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                               ov::PartialShape{seq_len, batch, rotary_ndims / 2, 2});
+        auto aten_slice_Slice_1 = makeOP<opset8::Slice>({cos_sin, {0}, {1}, {1}, {0}});
+        auto aten_view_Reshape = makeOP<opset1::Reshape>({aten_slice_Slice_1, {seq_len, batch, 1, rotary_ndims / 2, 2}},
+                                                         {{"special_zero", false}});
+        auto aten_select_Gather_1 = makeOP<opset8::Gather>({aten_view_Reshape, 0, -1}, {{"batch_dims", 0}});
+        auto aten_select_Gather_3 = makeOP<opset8::Gather>({aten_view_Reshape, 1, -1}, {{"batch_dims", 0}});
+
+        auto attn_prim_ListUnpack =
+            makeOP<opset1::VariadicSplit>({input, -1, {hidden_size_q, hidden_size_kv, hidden_size_kv}});
+        auto attn_aten_view_Reshape_2 =
+            makeOP<opset1::Reshape>({attn_prim_ListUnpack->output(0), {0, 0, num_heads, ndims}},
+                                    {{"special_zero", true}});
+        auto VariadicSplit_29663 =
+            makeOP<opset1::VariadicSplit>({attn_aten_view_Reshape_2, 3, {rotary_ndims, ndims - rotary_ndims}});
+        auto aten_reshape_Reshape_55 =
+            makeOP<opset1::Reshape>({VariadicSplit_29663->output(0), {0, 0, num_heads, rotary_ndims / 2, 2}},
+                                    {{"special_zero", true}});
+        auto aten_select_Gather_440 = makeOP<opset8::Gather>({aten_reshape_Reshape_55, 0, -1}, {{"batch_dims", 0}});
+        auto aten_mul_Multiply_276 =
+            makeOP<opset1::Multiply>({aten_select_Gather_440, aten_select_Gather_1}, {{"auto_broadcast", "numpy"}});
+        auto aten_select_Gather_442 = makeOP<opset8::Gather>({aten_reshape_Reshape_55, 1, -1}, {{"batch_dims", 0}});
+        auto aten_mul_Multiply_277 =
+            makeOP<opset1::Multiply>({aten_select_Gather_442, aten_select_Gather_3}, {{"auto_broadcast", "numpy"}});
+        auto Multiply_34833 =
+            makeOP<opset1::Multiply>({aten_mul_Multiply_277, -1.000000f}, {{"auto_broadcast", "numpy"}});
+        auto aten_sub_Subtract_55 =
+            makeOP<opset1::Add>({aten_mul_Multiply_276, Multiply_34833}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_62197 = makeOP<opset1::Reshape>({aten_sub_Subtract_55, {1, -1, num_heads, rotary_ndims / 2, 1}},
+                                                       {{"special_zero", false}});
+        auto aten_mul_Multiply_278 =
+            makeOP<opset1::Multiply>({aten_select_Gather_442, aten_select_Gather_1}, {{"auto_broadcast", "numpy"}});
+        auto aten_mul_Multiply_279 =
+            makeOP<opset1::Multiply>({aten_select_Gather_440, aten_select_Gather_3}, {{"auto_broadcast", "numpy"}});
+        auto aten_add_Add_55 =
+            makeOP<opset1::Add>({aten_mul_Multiply_278, aten_mul_Multiply_279}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_62198 = makeOP<opset1::Reshape>({aten_add_Add_55, {1, -1, num_heads, rotary_ndims / 2, 1}},
+                                                       {{"special_zero", false}});
+        auto aten_stack_55 = makeOP<opset1::Concat>({Unsqueeze_62197, Unsqueeze_62198}, {{"axis", -1}});
+        auto aten_flatten_Reshape_55 =
+            makeOP<opset1::Reshape>({aten_stack_55, {0, 0, num_heads, rotary_ndims}}, {{"special_zero", true}});
+        auto aten_cat_Concat_55 =
+            makeOP<opset1::Concat>({aten_flatten_Reshape_55, VariadicSplit_29663->output(1)}, {{"axis", -1}});
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat_55}, ov::ParameterVector{input, cos_sin});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(false);
+    {
+        auto input =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, batch, hidden_size});
+        auto gather_cos_sin =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                    ov::PartialShape{seq_len, batch, rotary_ndims / 2, 2});
+        auto rope = makeOP<ov::op::internal::RoPE>({input, gather_cos_sin, gather_cos_sin},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 4096},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", false},
+                                                    {"config.rotary_ndims", rotary_ndims},
+                                                    {"config.is_chatglm", true},
+                                                    {"config.support_2d_rope", false},
+                                                    {"config.is_qwen", false},
+                                                    {"config.head_cnt", num_heads},
+                                                    {"config.head_size", ndims},
+                                                    {"config.gather_position_arg_id", 0}});
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, gather_cos_sin});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Qwen_PagedAttention) {
+    using namespace ov;
+
+    {
+        auto position_ids = std::make_shared<opset1::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+        auto qkv = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 3 * 4096});
+
+        auto qkv_proj = makeOP<opset1::VariadicSplit>({qkv, 2, {4096, 4096, -1}});
+
+        auto view_Reshape = makeOP<opset1::Reshape>({qkv_proj->output(0), {0, 0, 32, 128}}, {{"special_zero", true}});
+        auto slice_Slice_4 = makeOP<opset8::Slice>({view_Reshape, {0}, {128}, {1}, {3}});
+        auto slice_Slice = makeConst(element::f32, ov::Shape({1, 4096, 1, 128}), {1});
+
+        auto Convert_50535 = makeOP<opset1::Convert>({position_ids}, {{"destination_type", "i32"}});
+        auto Unsqueeze_23750 = makeOP<opset1::Reshape>({Convert_50535, {-1, 1}}, {{"special_zero", false}});
+
+        auto slice_Slice_1 = makeOP<opset8::Gather>({slice_Slice, Unsqueeze_23750, 1}, {{"batch_dims", 0}});
+        auto Reshape_27400 = makeOP<opset1::Reshape>({slice_Slice_1, {-1, 1, 1, 128}}, {{"special_zero", false}});
+
+        auto mul_Multiply = makeOP<opset1::Multiply>({slice_Slice_4, Reshape_27400}, {{"auto_broadcast", "numpy"}});
+        auto reshape_Reshape = makeOP<opset1::Reshape>({slice_Slice_4, {0, 0, 32, 2, 64}}, {{"special_zero", true}});
+        auto ListUnpack_Split = makeOP<opset1::Split>({reshape_Reshape, -2}, {{"num_splits", 2}});
+        auto Multiply_54136 =
+            makeOP<opset1::Multiply>({ListUnpack_Split->output(1), -1.000000f}, {{"auto_broadcast", "numpy"}});
+        auto ListUnpack_Squeeze_0 =
+            makeOP<opset1::Reshape>({Multiply_54136, {-1, 1, 32, 64}}, {{"special_zero", false}});
+        auto ListUnpack_Squeeze =
+            makeOP<opset1::Reshape>({ListUnpack_Split->output(0), {-1, 1, 32, 64}}, {{"special_zero", false}});
+        auto cat_Concat = makeOP<opset1::Concat>({ListUnpack_Squeeze_0, ListUnpack_Squeeze}, {{"axis", -1}});
+
+        auto slice_Slice_2 = makeConst(element::f32, ov::Shape({1, 4096, 1, 128}), {1});
+        auto slice_Slice_6 = makeOP<opset8::Gather>({slice_Slice_2, Unsqueeze_23750, 1}, {{"batch_dims", 0}});
+        auto Reshape_27408 = makeOP<opset1::Reshape>({slice_Slice_6, {-1, 1, 1, 128}}, {{"special_zero", false}});
+        auto mul_Multiply_1 = makeOP<opset1::Multiply>({cat_Concat, Reshape_27408}, {{"auto_broadcast", "numpy"}});
+        auto add_Add = makeOP<opset1::Add>({mul_Multiply, mul_Multiply_1}, {{"auto_broadcast", "numpy"}});
+
+        auto slice_Slice_10 = makeConst(element::f32, ov::Shape({1, 32767, 1, 1}), {1});
+        auto view_Reshape_1 = makeOP<opset1::Reshape>({qkv_proj->output(1), {0, 0, 32, 128}}, {{"special_zero", true}});
+        auto slice_Slice_11 = makeOP<opset8::Slice>({view_Reshape_1, {0}, {128}, {1}, {3}});
+        auto mul_Multiply_2 = makeOP<opset1::Multiply>({slice_Slice_11, Reshape_27400}, {{"auto_broadcast", "numpy"}});
+        auto reshape_Reshape_1 = makeOP<opset1::Reshape>({slice_Slice_11, {0, 0, 32, 2, 64}}, {{"special_zero", true}});
+        auto ListUnpack_Split_1 = makeOP<opset1::Split>({reshape_Reshape_1, -2}, {{"num_splits", 2}});
+        auto Multiply_54139 =
+            makeOP<opset1::Multiply>({ListUnpack_Split_1->output(1), -1.000000f}, {{"auto_broadcast", "numpy"}});
+        auto ListUnpack_Squeeze_0_1 =
+            makeOP<opset1::Reshape>({Multiply_54139, {-1, 1, 32, 64}}, {{"special_zero", false}});
+        auto ListUnpack_Squeeze_1 =
+            makeOP<opset1::Reshape>({ListUnpack_Split_1->output(0), {-1, 1, 32, 64}}, {{"special_zero", false}});
+        auto cat_Concat_2 = makeOP<opset1::Concat>({ListUnpack_Squeeze_0_1, ListUnpack_Squeeze_1}, {{"axis", -1}});
+        auto mul_Multiply_3 = makeOP<opset1::Multiply>({cat_Concat_2, Reshape_27408}, {{"auto_broadcast", "numpy"}});
+        auto add_Add_1 = makeOP<opset1::Add>({mul_Multiply_2, mul_Multiply_3}, {{"auto_broadcast", "numpy"}});
+        model = std::make_shared<ov::Model>(ov::NodeVector{add_Add_1}, ov::ParameterVector{position_ids, qkv});
+    }
+
+    manager.register_pass<ov::pass::RoPEFusion>(false);
+
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 4096 * 3});
+        auto rotary_emp_sin = makeConst(element::f32, ov::Shape({1, 4096, 1, 128}), {1});
+        auto rotary_emp_cos = makeConst(element::f32, ov::Shape({1, 4096, 1, 128}), {1});
+        auto position_ids = std::make_shared<opset1::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+        auto Convert_50535 = makeOP<opset1::Convert>({position_ids}, {{"destination_type", "i32"}});
+        auto Unsqueeze_23750 = makeOP<opset1::Reshape>({Convert_50535, {-1, 1}}, {{"special_zero", false}});
+        auto rope = makeOP<ov::op::internal::RoPE>({input, rotary_emp_sin, rotary_emp_cos, Unsqueeze_23750},
+                                                   {{"config.slice_start", 4096},
+                                                    {"config.slice_stop", 8192},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", false},
+                                                    {"config.rotary_ndims", 128},
+                                                    {"config.is_chatglm", false},
+                                                    {"config.support_2d_rope", false},
+                                                    {"config.is_qwen", true},
+                                                    {"config.head_cnt", 32},
+                                                    {"config.head_size", 128},
+                                                    {"config.gather_position_arg_id", 3}});
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, position_ids});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_PagedAttention) {
+    disable_rt_info_check();
+    const int batch = -1;
+    const int num_heads = 16;
+    const int ndims = 256;
+    const int rotary_ndims = 64;
+    using namespace ov;
+    {
+        std::vector<int32_t> rpi_idx(rotary_ndims);
+        for (int i = 0, index = 0; i < rotary_ndims; i += 2, index++) {
+            rpi_idx[i] = index;
+            rpi_idx[i + 1] = index;
+        }
+        auto repeat_interleave_index = makeConst(ov::element::i32, ov::Shape({rotary_ndims}), rpi_idx);
+
+        auto input =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, 1, num_heads, ndims});
+        auto aten_gather_GatherElements =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, rotary_ndims});
+
+        auto prim_ListUnpack_VariadicSplit =
+            makeOP<opset1::VariadicSplit>({aten_gather_GatherElements, -1, {rotary_ndims / 2, -1}});
+        auto aten_unsqueeze_Unsqueeze_1 =
+            makeOP<opset1::Reshape>({prim_ListUnpack_VariadicSplit->output(1), {-1, 1, 1, rotary_ndims / 2}},
+                                    {{"special_zero", false}});
+        auto aten_repeat_interleave_Gather_1 =
+            makeOP<opset8::Gather>({aten_unsqueeze_Unsqueeze_1, repeat_interleave_index, 3}, {{"batch_dims", 0}});
+
+        auto aten_unsqueeze_Unsqueeze_2 =
+            makeOP<opset1::Reshape>({prim_ListUnpack_VariadicSplit->output(0), {-1, 1, 1, rotary_ndims / 2}},
+                                    {{"special_zero", false}});
+        auto aten_repeat_interleave_Gather_3 =
+            makeOP<opset8::Gather>({aten_unsqueeze_Unsqueeze_2, repeat_interleave_index, 3}, {{"batch_dims", 0}});
+
+        auto VariadicSplit_32371 = makeOP<opset1::VariadicSplit>({input, 3, {rotary_ndims, ndims - rotary_ndims}});
+        auto aten_mul_Multiply =
+            makeOP<opset1::Multiply>({VariadicSplit_32371->output(0), aten_repeat_interleave_Gather_1},
+                                     {{"auto_broadcast", "numpy"}});
+        auto aten_slice_Slice_10 = makeOP<opset8::Slice>({VariadicSplit_32371->output(0), {1}, {INT_MAX}, {2}, {3}});
+        auto Constant_65243 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1.000000f});
+        auto aten_neg_Multiply =
+            makeOP<opset1::Multiply>({aten_slice_Slice_10, Constant_65243}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_28998 = makeOP<opset1::Reshape>({aten_neg_Multiply, {-1, 1, num_heads, rotary_ndims / 2, 1}},
+                                                       {{"special_zero", false}});
+        auto aten_slice_Slice_14 = makeOP<opset8::Slice>({VariadicSplit_32371->output(0), {0}, {INT_MAX}, {2}, {3}});
+        auto Unsqueeze_28999 = makeOP<opset1::Reshape>({aten_slice_Slice_14, {-1, 1, num_heads, rotary_ndims / 2, 1}},
+                                                       {{"special_zero", false}});
+        auto aten_stack = makeOP<opset1::Concat>({Unsqueeze_28998, Unsqueeze_28999}, {{"axis", -1}});
+        auto aten_flatten_Reshape =
+            makeOP<opset1::Reshape>({aten_stack, {0, 0, num_heads, rotary_ndims}}, {{"special_zero", true}});
+        auto aten_mul_Multiply_1 = makeOP<opset1::Multiply>({aten_flatten_Reshape, aten_repeat_interleave_Gather_3},
+                                                            {{"auto_broadcast", "numpy"}});
+        auto aten_add_Add =
+            makeOP<opset1::Add>({aten_mul_Multiply, aten_mul_Multiply_1}, {{"auto_broadcast", "numpy"}});
+        auto aten_cat_Concat_1 = makeOP<opset1::Concat>({aten_add_Add, VariadicSplit_32371->output(1)}, {{"axis", -1}});
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat_1},
+                                            ov::ParameterVector{input, aten_gather_GatherElements});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(false);
+    {
+        auto input =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, 1, num_heads, ndims});
+        auto aten_gather_GatherElements =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 64});
+        auto rope = makeOP<ov::op::internal::RoPE>({input, aten_gather_GatherElements, aten_gather_GatherElements},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 0},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", true},
+                                                    {"config.rotary_ndims", rotary_ndims},
+                                                    {"config.is_chatglm", false},
+                                                    {"config.support_2d_rope", false},
+                                                    {"config.is_qwen", false},
+                                                    {"config.head_cnt", 0},
+                                                    {"config.head_size", 0},
+                                                    {"config.gather_position_arg_id", 0}});
+        model_ref =
+            std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, aten_gather_GatherElements});
+    }
+}
+
+std::vector<int> MOCK_VALUE = {1};
+
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention) {
+    {
+        disable_rt_info_check();
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{DYN, 1, 4608});
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{DYN, 1, 32, 2});
+
+        auto aten_slice_Slice_2 = makeOP<ov::opset8::Slice>({input1, {0}, {1}, {1}, {1}});
+        auto aten_view_Reshape =
+            makeOP<ov::opset1::Reshape>({aten_slice_Slice_2, {-1, 1, 1, 32, 2}}, {{"special_zero", false}});
+        auto aten_select_Gather_1 = makeOP<ov::opset8::Gather>({aten_view_Reshape, 0, -1}, {{"batch_dims", 0}});
+        auto aten_select_Gather_3 = makeOP<ov::opset8::Gather>({aten_view_Reshape, 1, -1}, {{"batch_dims", 0}});
+
+        auto module_transformer_encoder_layers_0_self_attention_prim_ListUnpack =
+            makeOP<ov::opset1::VariadicSplit>({input, -1, {4096, 256, 256}});
+        auto module_transformer_encoder_layers_0_self_attention_aten_transpose_Transpose = makeOP<ov::opset1::Reshape>(
+            {module_transformer_encoder_layers_0_self_attention_prim_ListUnpack->output(0), {-1, 32, 1, 128}},
+            {{"special_zero", false}});
+        auto VariadicSplit_41226 = makeOP<ov::opset1::VariadicSplit>(
+            {module_transformer_encoder_layers_0_self_attention_aten_transpose_Transpose, 3, {64, 64}});
+        auto aten_reshape_Reshape =
+            makeOP<ov::opset1::Reshape>({VariadicSplit_41226->output(0), {0, 32, 0, 32, 2}}, {{"special_zero", true}});
+        auto aten_select_Gather = makeOP<ov::opset8::Gather>({aten_reshape_Reshape, 0, -1}, {{"batch_dims", 0}});
+        auto aten_mul_Multiply_1 =
+            makeOP<ov::opset1::Multiply>({aten_select_Gather, aten_select_Gather_1}, {{"auto_broadcast", "numpy"}});
+        auto aten_select_Gather_2 = makeOP<ov::opset8::Gather>({aten_reshape_Reshape, 1, -1}, {{"batch_dims", 0}});
+        auto aten_mul_Multiply_2 =
+            makeOP<ov::opset1::Multiply>({aten_select_Gather_2, aten_select_Gather_3}, {{"auto_broadcast", "numpy"}});
+        auto Multiply_45963 =
+            makeOP<ov::opset1::Multiply>({aten_mul_Multiply_2, -1.000000f}, {{"auto_broadcast", "numpy"}});
+        auto aten_sub_Subtract =
+            makeOP<ov::opset1::Add>({aten_mul_Multiply_1, Multiply_45963}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_81695 =
+            makeOP<ov::opset1::Reshape>({aten_sub_Subtract, {-1, 32, 1, 32, 1}}, {{"special_zero", false}});
+        auto aten_mul_Multiply_3 =
+            makeOP<ov::opset1::Multiply>({aten_select_Gather_2, aten_select_Gather_1}, {{"auto_broadcast", "numpy"}});
+        auto aten_mul_Multiply_4 =
+            makeOP<ov::opset1::Multiply>({aten_select_Gather, aten_select_Gather_3}, {{"auto_broadcast", "numpy"}});
+        auto aten_add_Add =
+            makeOP<ov::opset1::Add>({aten_mul_Multiply_3, aten_mul_Multiply_4}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_81696 =
+            makeOP<ov::opset1::Reshape>({aten_add_Add, {-1, 32, 1, 32, 1}}, {{"special_zero", false}});
+        auto aten_stack = makeOP<ov::opset1::Concat>({Unsqueeze_81695, Unsqueeze_81696}, {{"axis", -1}});
+        auto aten_flatten_Reshape = makeOP<ov::opset1::Reshape>({aten_stack, {0, 32, 0, 64}}, {{"special_zero", true}});
+        auto aten_cat_Concat =
+            makeOP<ov::opset1::Concat>({aten_flatten_Reshape, VariadicSplit_41226->output(1)}, {{"axis", -1}});
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat}, ov::ParameterVector{input, input1});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{DYN, 1, 4608});
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{DYN, 1, 32, 2});
+
+        auto rope = makeOP<ov::op::internal::RoPE>({input, input1, input1},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 4096},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", false},
+                                                    {"config.rotary_ndims", 64},
+                                                    {"config.is_chatglm", true},
+                                                    {"config.support_2d_rope", true},
+                                                    {"config.is_qwen", false},
+                                                    {"config.head_cnt", 32},
+                                                    {"config.head_size", 128},
+                                                    {"config.gather_position_arg_id", 0}});
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, input1});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention_GPU) {
+    using namespace ov;
+    {
+        disable_rt_info_check();
+        auto input0 = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{DYN, 1, 4608});
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{DYN, 1, 32, 2});
+
+        auto ListUnpack = makeOP<opset1::VariadicSplit>({input0, -1, {4096, 256, 256}});
+        auto aten_transpose =
+            makeOP<opset1::Reshape>({ListUnpack->output(0), {-1, 32, 1, 128}}, {{"special_zero", false}});
+        auto aten_slice_Slice =
+            makeOP<opset1::StridedSlice>({aten_transpose, {0, 0, 0, 0}, {0, 0, 0, 64}, {1, 1, 1, 1}},
+                                         {{"begin_mask", {1, 1, 1, 0}},
+                                          {"end_mask", {1, 1, 1, 0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
+        auto aten_reshape_Reshape =
+            makeOP<opset1::Reshape>({aten_slice_Slice, {0, 32, 0, 32, 2}}, {{"special_zero", true}});
+        auto aten_select_Gather = makeOP<opset8::Gather>({aten_reshape_Reshape, 0, -1}, {{"batch_dims", 0}});
+        auto aten_slice_Slice_2 = makeOP<opset1::StridedSlice>({input1, {0, 0}, {0, 1}, {1, 1}},
+                                                               {{"begin_mask", {1, 0}},
+                                                                {"end_mask", {1, 0}},
+                                                                {"new_axis_mask", {}},
+                                                                {"shrink_axis_mask", {}},
+                                                                {"ellipsis_mask", {}}});
+        auto aten_view_Reshape =
+            makeOP<opset1::Reshape>({aten_slice_Slice_2, {-1, 1, 1, 32, 2}}, {{"special_zero", false}});
+        auto aten_select_Gather_1 = makeOP<opset8::Gather>({aten_view_Reshape, 0, -1}, {{"batch_dims", 0}});
+        auto aten_mul_Multiply_1 =
+            makeOP<opset1::Multiply>({aten_select_Gather, aten_select_Gather_1}, {{"auto_broadcast", "numpy"}});
+        auto aten_select_Gather_2 = makeOP<opset8::Gather>({aten_reshape_Reshape, 1, -1}, {{"batch_dims", 0}});
+        auto aten_select_Gather_3 = makeOP<opset8::Gather>({aten_view_Reshape, 1, -1}, {{"batch_dims", 0}});
+        auto aten_mul_Multiply_2 =
+            makeOP<opset1::Multiply>({aten_select_Gather_2, aten_select_Gather_3}, {{"auto_broadcast", "numpy"}});
+        auto Constant_56849 = makeConst(element::f16, ov::Shape({}), {-1});
+        auto Multiply_56850 =
+            makeOP<opset1::Multiply>({aten_mul_Multiply_2, Constant_56849}, {{"auto_broadcast", "numpy"}});
+        auto aten_sub_Subtract =
+            makeOP<opset1::Add>({aten_mul_Multiply_1, Multiply_56850}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_81695 =
+            makeOP<opset1::Reshape>({aten_sub_Subtract, {-1, 32, 1, 32, 1}}, {{"special_zero", false}});
+        auto aten_mul_Multiply_3 =
+            makeOP<opset1::Multiply>({aten_select_Gather_2, aten_select_Gather_1}, {{"auto_broadcast", "numpy"}});
+        auto aten_mul_Multiply_4 =
+            makeOP<opset1::Multiply>({aten_select_Gather, aten_select_Gather_3}, {{"auto_broadcast", "numpy"}});
+        auto aten_add_Add =
+            makeOP<opset1::Add>({aten_mul_Multiply_3, aten_mul_Multiply_4}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_81696 = makeOP<opset1::Reshape>({aten_add_Add, {-1, 32, 1, 32, 1}}, {{"special_zero", false}});
+        auto aten_stack = makeOP<opset1::Concat>({Unsqueeze_81695, Unsqueeze_81696}, {{"axis", -1}});
+        auto aten_flatten_Reshape = makeOP<opset1::Reshape>({aten_stack, {0, 32, 0, 64}}, {{"special_zero", true}});
+        auto aten_slice_Slice_3 =
+            makeOP<opset1::StridedSlice>({aten_transpose, {0, 0, 0, 64}, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}},
+                                         {{"begin_mask", {1, 1, 1, 0}},
+                                          {"end_mask", {1, 1, 1, 0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
+        auto aten_cat_Concat = makeOP<opset1::Concat>({aten_flatten_Reshape, aten_slice_Slice_3}, {{"axis", -1}});
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat}, ov::ParameterVector{input0, input1});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{DYN, 1, 4608});
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{DYN, 1, 32, 2});
+
+        auto rope = makeOP<ov::op::internal::RoPE>({input, input1, input1},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 4096},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", false},
+                                                    {"config.rotary_ndims", 64},
+                                                    {"config.is_chatglm", true},
+                                                    {"config.support_2d_rope", true},
+                                                    {"config.is_qwen", false},
+                                                    {"config.head_cnt", 32},
+                                                    {"config.head_size", 128},
+                                                    {"config.gather_position_arg_id", 0}});
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, input1});
     }
 }

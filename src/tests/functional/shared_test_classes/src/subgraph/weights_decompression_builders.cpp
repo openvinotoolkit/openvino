@@ -25,19 +25,19 @@ std::ostream& operator<<(std::ostream& os, GatherDecompressionShapeParams shape_
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, DecompressionSubtractType type) {
+std::ostream& operator<<(std::ostream& os, DecompressionType type) {
     switch (type) {
-    case DecompressionSubtractType::empty:
+    case DecompressionType::empty:
         os << "empty";
         break;
-    case DecompressionSubtractType::scalar:
+    case DecompressionType::scalar:
         os << "scalar";
         break;
-    case DecompressionSubtractType::full:
+    case DecompressionType::full:
         os << "full";
         break;
     default:
-        OPENVINO_THROW("Not supported DecompressionSubtractType");
+        OPENVINO_THROW("Not supported DecompressionType");
     }
     return os;
 }
@@ -50,7 +50,8 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     const ov::element::Type decompression_precision,
     const ov::element::Type scale_precision,
     const bool transpose_weights,
-    const DecompressionSubtractType decompression_subtract_type,
+    const DecompressionType decompression_multiply_type,
+    const DecompressionType decompression_subtract_type,
     const bool reshape_on_decompression_constant) {
     auto transpose_if_necessary = [&](const ov::Shape& shape) {
         auto result_shape = shape;
@@ -107,9 +108,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     if (reshape_on_decompression_constant)
         scaleshift_const_shape.erase(std::remove(scaleshift_const_shape.begin(), scaleshift_const_shape.end(), 1),
                                         scaleshift_const_shape.end());
-    if (decompression_subtract_type != DecompressionSubtractType::empty) {
+    if (decompression_subtract_type != DecompressionType::empty) {
         auto subtract_shape =
-            decompression_subtract_type == DecompressionSubtractType::full ? scaleshift_const_shape : ov::Shape({});
+            decompression_subtract_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});
         auto shift_const_tensor = ov::test::utils::create_and_fill_tensor(weights_precision,
                                                                           subtract_shape,
                                                                           ov::test::utils::InputGenerateData(1, up_to));
@@ -118,7 +119,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
         std::shared_ptr<ov::Node> shift_convert =
             std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
         if (reshape_on_decompression_constant) {
-            auto subtract_target_shape = decompression_subtract_type == DecompressionSubtractType::full
+            auto subtract_target_shape = decompression_subtract_type == DecompressionType::full
                                                 ? scaleshift_target_shape
                                                 : ov::Shape(scaleshift_const_shape.size(), 1);
             auto shift_reshape_const = ov::opset10::Constant::create(ov::element::i32,
@@ -130,27 +131,34 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
         mul_parent = std::make_shared<ov::opset10::Subtract>(weights_convert, shift_convert);
     }
 
-    const auto& scale_prc = scale_precision == ov::element::undefined ? decompression_precision : scale_precision;
-    auto scale_const_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(scale_prc,
-                                                                                        scaleshift_const_shape,
-                                                                                        0.001f,
-                                                                                        0.01f,
-                                                                                        1);
+    std::shared_ptr<ov::Node> last_node = mul_parent;
+    const auto& scale_prc = scale_precision == ov::element::dynamic ? decompression_precision : scale_precision;
+    if (decompression_multiply_type != DecompressionType::empty) {
+        auto multiply_shape =
+            decompression_multiply_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});
+        auto scale_const_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(scale_prc,
+                                                                                            multiply_shape,
+                                                                                            0.001f,
+                                                                                            0.01f,
+                                                                                            1);
+        std::shared_ptr<ov::Node> scale_const = std::make_shared<ov::op::v0::Constant>(scale_const_tensor);
 
-    std::shared_ptr<ov::Node> scale_const = std::make_shared<ov::op::v0::Constant>(scale_const_tensor);
+        if (scale_prc != decompression_precision) {
+            const auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale_const, decompression_precision);
+            ov::mark_as_decompression(scale_convert);
+            scale_const = scale_convert;
+        }
 
-    if (scale_prc != decompression_precision) {
-        const auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale_const, decompression_precision);
-        ov::mark_as_decompression(scale_convert);
-        scale_const = scale_convert;
+        if (reshape_on_decompression_constant) {
+            auto multiply_target_shape = decompression_multiply_type == DecompressionType::full
+                                    ? scaleshift_target_shape
+                                    : ov::Shape(scaleshift_const_shape.size(), 1);
+            auto reshape_const = ov::opset10::Constant::create(ov::element::i32, {multiply_target_shape.size()}, multiply_target_shape);
+            auto scale_reshape = std::make_shared<ov::opset10::Reshape>(scale_const, reshape_const, false);
+            scale_const = scale_reshape;
+        }
+        last_node = std::make_shared<ov::opset10::Multiply>(mul_parent, scale_const);
     }
-
-    if (reshape_on_decompression_constant) {
-        auto reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
-        auto scale_reshape = std::make_shared<ov::opset10::Reshape>(scale_const, reshape_const, false);
-        scale_const = scale_reshape;
-    }
-    std::shared_ptr<ov::Node> last_node = std::make_shared<ov::opset10::Multiply>(mul_parent, scale_const);
 
     if (group_decompression) {
         auto reshape_target_shape = transpose_weights ? std::vector<int>{-1, static_cast<int>(weights_shape[0])}

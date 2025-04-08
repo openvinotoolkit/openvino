@@ -17,14 +17,14 @@ namespace pass {
 
 namespace {
 inline void init_is_incremented(LoopPort& port) {
-    const auto& expr = port.expr_port->get_expr();
+    const auto& expr = port.get_expr_port()->get_expr();
     if (!std::dynamic_pointer_cast<modifier::MemoryAccess>(expr->get_node())) {
-        port.is_incremented = false;
+        port.convert_to_type<LoopPort::Type::NotIncremented>();
     }
 }
 
 inline int64_t get_data_size(const LoopPort& loop_port) {
-    const auto& expr_port = loop_port.expr_port;
+    const auto& expr_port = loop_port.get_expr_port();
     if (expr_port->get_type() == ExpressionPort::Input) {
         return static_cast<int64_t>(expr_port->get_expr()->get_node()->get_input_element_type(expr_port->get_index()).size());
     } else if (expr_port->get_type() == ExpressionPort::Output) {

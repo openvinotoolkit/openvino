@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -8,7 +8,7 @@
 import logging as log
 import numpy as np
 import sys
-from openvino.runtime import PartialShape, Dimension, Type
+from openvino import PartialShape, Dimension, Type
 from packaging.version import parse, Version
 from typing import List, Dict, Union
 

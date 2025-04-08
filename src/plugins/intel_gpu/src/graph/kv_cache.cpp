@@ -6,7 +6,6 @@
 #include "intel_gpu/op/kv_cache_compressed.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
-#include "intel_gpu/runtime/optionals.hpp"
 #include "kv_cache_inst.h"
 #include "primitive_type_base.h"
 #include <sstream>

@@ -5,7 +5,7 @@
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "strided_slice_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/strided_slice.hpp"
 
@@ -31,7 +31,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::strided_slice_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<strided_slice_impl>(*this);
+        return std::make_unique<strided_slice_impl>(*this);
     }
 
     strided_slice_impl() : parent("strided_slice_cpu_impl") {}
@@ -177,7 +177,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const strided_slice_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<strided_slice_impl>();
+        return std::make_unique<strided_slice_impl>();
     }
 };
 

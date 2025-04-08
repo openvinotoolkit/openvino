@@ -15,7 +15,10 @@ namespace ov {
 namespace npuw {
 namespace util {
 
-bool is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t end_idx = SIZE_MAX);
+bool is_set(const std::size_t sub_idx,
+            const std::string& opt,
+            const std::size_t real_idx = SIZE_MAX,
+            const std::size_t end_idx = SIZE_MAX);
 
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt
@@ -140,6 +143,14 @@ Impl<M> _(std::shared_ptr<M> pM) {
 }
 
 }  // namespace at
+
+// Written here to be a drop-in replacement for ov::parallel_for for the debug purposes
+template <typename F>
+void non_parallel_for(std::size_t count, F&& f) {
+    for (std::size_t idx = 0u; idx < count; idx++) {
+        f(idx);
+    }
+}
 
 }  // namespace util
 }  // namespace npuw

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
-
-#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
-#    include <malloc.h>
-#endif
 
 #define OV_COMPILED_MODEL_CALL_STATEMENT(...)                 \
     if (_impl == nullptr)                                     \
@@ -27,12 +23,6 @@ namespace ov {
 
 CompiledModel::~CompiledModel() {
     _impl = {};
-#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
-    // Linux memory margent doesn't return system memory immediate after release.
-    // It depends on memory chunk size and allocation history.
-    // Try return memory from a process to system now to reduce memory usage and not wait to the end of the process.
-    malloc_trim(0);
-#endif
 }
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::ICompiledModel>& impl, const std::shared_ptr<void>& so)

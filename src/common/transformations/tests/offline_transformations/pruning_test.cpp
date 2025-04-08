@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -4738,9 +4738,11 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
         };
 
         manager.register_pass<ov::pass::ShrinkWeights>();
-        manager.register_pass<pass::VisualizeTree>(
-            std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshapeWithMasks.svg",
-            modifier);
+        if (VISUALIZE_TESTS_TREE) {
+            manager.register_pass<pass::VisualizeTree>(
+                std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshapeWithMasks.svg",
+                modifier);
+        }
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -4929,10 +4931,12 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
     };
 
     manager.register_pass<ov::pass::ShrinkWeights>();
-    auto postfix = (add_shape_of) ? "True" : "False";
-    manager.register_pass<pass::VisualizeTree>(
-        std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReverseFlattenWithMasks" + postfix + ".svg",
-        modifier);
+    if (VISUALIZE_TESTS_TREE) {
+        auto postfix = (add_shape_of) ? "True" : "False";
+        manager.register_pass<pass::VisualizeTree>(
+            std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReverseFlattenWithMasks" + postfix + ".svg",
+            modifier);
+    }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 

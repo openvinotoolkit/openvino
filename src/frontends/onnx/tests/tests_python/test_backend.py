@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -32,7 +32,6 @@ from tests import (
     xfail_issue_73538,
     xfail_issue_48052,
     xfail_issue_52463,
-    xfail_issue_58033,
     xfail_issue_63033,
     xfail_issue_63036,
     xfail_issue_63043,
@@ -292,7 +291,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_sequence_insert_at_back_cpu",
         "OnnxBackendNodeModelTest.test_sequence_insert_at_front_cpu",
     ),
-    (xfail_issue_58033, "OnnxBackendNodeModelTest.test_einsum_batch_diagonal_cpu"),
     (
         xfail_issue_63033,
         "OnnxBackendNodeModelTest.test_batchnorm_epsilon_training_mode_cpu",

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,16 +30,16 @@ class TRANSFORMATIONS_API TransposeMatMul;
 
 class ov::pass::ReshapeAMatMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReshapeAMatMul", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReshapeAMatMul");
     ReshapeAMatMul();
 };
 class ov::pass::ReshapeBMatMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReshapeBMatMul", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReshapeBMatMul");
     ReshapeBMatMul();
 };
 class ov::pass::TransposeMatMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeMatMul", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TransposeMatMul");
     TransposeMatMul();
 };

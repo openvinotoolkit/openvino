@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,6 +85,8 @@ static inline std::size_t precisionToSize(const ze_graph_argument_precision_t va
         return 64;
     case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
         return 64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_NF4:
+        return 4;
     case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
         return 16;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
@@ -122,6 +124,8 @@ static inline ze_graph_argument_precision_t getZePrecision(const ov::element::Ty
         return ZE_GRAPH_ARGUMENT_PRECISION_INT64;
     case ov::element::Type_t::u64:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT64;
+    case ov::element::Type_t::nf4:
+        return ZE_GRAPH_ARGUMENT_PRECISION_NF4;
     case ov::element::Type_t::bf16:
         return ZE_GRAPH_ARGUMENT_PRECISION_BF16;
     case ov::element::Type_t::f16:
@@ -178,17 +182,20 @@ static inline std::size_t getSizeIOBytes(const ze_graph_argument_properties_3_t&
     return size_in_bytes;
 }
 
-static inline uint32_t findGroupOrdinal(ze_device_handle_t device_handle, const ze_device_properties_t& properties) {
-    auto log = Logger::global().clone("findGroupOrdinal");
+static inline uint32_t findCommandQueueGroupOrdinal(
+    ze_device_handle_t device_handle,
+    const ze_command_queue_group_property_flags_t& command_queue_group_property) {
+    auto log = Logger::global().clone("findCommandQueueGroupOrdinal");
 
     std::vector<ze_command_queue_group_properties_t> command_group_properties;
     uint32_t command_queue_group_count = 0;
+
     // Discover all command queue groups
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeDeviceGetCommandQueueGroupProperties",
         zeDeviceGetCommandQueueGroupProperties(device_handle, &command_queue_group_count, nullptr));
 
-    log.debug("ZeroDevice::ZeroDevice - resize command_queue_group_count");
+    log.debug("zero_utils::findCommandQueueGroupOrdinal - resize command_queue_group_count");
     command_group_properties.resize(command_queue_group_count);
 
     for (auto& prop : command_group_properties) {
@@ -201,39 +208,24 @@ static inline uint32_t findGroupOrdinal(ze_device_handle_t device_handle, const 
                                                                        &command_queue_group_count,
                                                                        command_group_properties.data()));
 
-    if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
-        for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
-            const auto& flags = command_group_properties[index].flags;
-            if ((flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) != 0 &&
-                (flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COPY) == 0) {
-                return index;
-            }
-        }
-
-        // if we don't find a group where only the proper flag is enabled then search for a group where that flag is
-        // enabled
-        for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
-            const auto& flags = command_group_properties[index].flags;
-            if (flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) {
-                return index;
-            }
-        }
-
-        // if still don't find compute flag, return a warning
-        log.warning("Fail to find a command queue group that contains compute flag, it will be set to 0.");
-        return 0;
-    }
-
     for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
         const auto& flags = command_group_properties[index].flags;
-        if ((flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) != 0 &&
-            (flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COPY) != 0) {
+        if (flags == command_queue_group_property) {
             return index;
         }
     }
 
-    // if still don't find compute and copy flag, return a warning
-    log.warning("Fail to find a command queue group that contains compute and copy flags, it will be set to 0.");
+    // if we don't find a group where only the proper flag is enabled then search for a group where that flag is
+    // enabled
+    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
+        const auto& flags = command_group_properties[index].flags;
+        if (flags & command_queue_group_property) {
+            return index;
+        }
+    }
+
+    // if still don't find compute flag, return a warning
+    log.warning("Fail to find a command queue group that contains compute flag, it will be set to 0.");
     return 0;
 }
 
@@ -275,6 +267,22 @@ static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _gra
     } else {
         return "";
     }
+}
+
+static inline bool memory_was_allocated_in_the_same_l0_context(ze_context_handle_t hContext, const void* ptr) {
+    ze_memory_allocation_properties_t desc = {};
+    desc.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
+    auto res = intel_npu::zeMemGetAllocProperties(hContext, ptr, &desc, nullptr);
+    if (res == ZE_RESULT_SUCCESS) {
+        if (desc.id) {
+            if ((desc.type & ZE_MEMORY_TYPE_HOST) || (desc.type & ZE_MEMORY_TYPE_DEVICE) ||
+                (desc.type & ZE_MEMORY_TYPE_SHARED)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 }  // namespace zeroUtils

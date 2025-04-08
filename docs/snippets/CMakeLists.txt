@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -107,7 +107,7 @@ endif()
 set(TARGET_NAME "ov_integration_snippet")
 # [cmake:integration_example_cpp]
 cmake_minimum_required(VERSION 3.10)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 find_package(OpenVINO REQUIRED)
 
@@ -120,14 +120,17 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 set(TARGET_NAME_PY "ov_integration_snippet_py")
 # [cmake:integration_example_cpp_py]
 cmake_minimum_required(VERSION 3.10)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
-find_package(Python3 REQUIRED)
-    execute_process(
-        COMMAND ${Python3_EXECUTABLE} -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')"
-        OUTPUT_VARIABLE OpenVINO_DIR_PY
-        ERROR_QUIET
-    )
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')"
+            OUTPUT_VARIABLE OpenVINO_DIR_PY
+            ERROR_QUIET)
+    endif()
+endif()
 
 find_package(OpenVINO REQUIRED PATHS "${OpenVINO_DIR_PY}")
 
@@ -140,7 +143,7 @@ target_link_libraries(${TARGET_NAME_PY} PRIVATE openvino::runtime)
 set(TARGET_NAME_C "ov_integration_snippet_c")
 # [cmake:integration_example_c]
 cmake_minimum_required(VERSION 3.10)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 find_package(OpenVINO REQUIRED)
 

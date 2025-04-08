@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -194,7 +194,12 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType.push_back('_');
-        selectedType += netPrecision.to_string();
+
+        if (!with_cpu_x86_avx512_core() && netPrecision == ElementType::bf16) {
+            selectedType += ov::element::f32.to_string();
+        } else {
+            selectedType += netPrecision.to_string();
+        }
 
         if (netPrecision == ov::element::bf16) {
             rel_threshold = 1e-2;

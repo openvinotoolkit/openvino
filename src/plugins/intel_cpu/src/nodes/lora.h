@@ -23,10 +23,11 @@ public:
 
     void getSupportedDescriptors() override{};
     void selectOptimalPrimitiveDescriptor() override;
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
     void createPrimitive() override;
     void prepareParams() override;
-    void execute(dnnl::stream) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream&) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
 private:
     std::shared_ptr<const ov::Model> m_body;
@@ -34,6 +35,6 @@ private:
     Graph m_graph;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

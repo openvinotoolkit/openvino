@@ -21,8 +21,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace dnnl;
 using namespace executor;
@@ -135,17 +134,17 @@ static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
     for (auto preferredImplType : implPriorities) {
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, preferredImplType);
 
-        if (found)
+        if (found) {
             return std::move(prim_desc);
+        }
     }
 
     return std::move(first_desc);
 }
 
-static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
-                                               const PostOps& postOps,
+static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
                                                const MemoryArgs& memory,
-                                               ExecutorContext::CPtr context) {
+                                               const ExecutorContext::CPtr& context) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
@@ -157,21 +156,19 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
         one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
-    DnnlPostOpsComposer
-        dnnlpoc(postOps, context->getEngine(), dims, 1, isINT8, 1 << 0, {}, attrs.withBias, outputDataType);
+    DnnlPostOpsComposer dnnlpoc(postOps, context->getEngine(), dims, 1, isINT8, 1 << 0, memory, outputDataType);
 
     return dnnlpoc.compose();
 }
 
-DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const FCAttrs& attrs,
+DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData([[maybe_unused]] const FCAttrs& attrs,
                                                                            const PostOps& postOps,
                                                                            const MemoryArgs& memory,
-                                                                           const ExecutorContext::CPtr context,
-                                                                           const bool cacheWeights) {
+                                                                           const ExecutorContext::CPtr& context,
+                                                                           [[maybe_unused]] const bool cacheWeights) {
     DEBUG_LOG("Creating shape agnostic data");
-    ConvAttrs convAttrs{attrs.withBias};
 
-    const auto postOpData = createPrimitiveAttrs(convAttrs, postOps, memory, context);
+    const auto postOpData = createPrimitiveAttrs(postOps, memory, context);
 
     return std::make_shared<DnnlShapeAgnosticData>(postOpData);
 }
@@ -182,7 +179,7 @@ void DnnlConvolutionPrimitive::execute(const dnnl_primitive_args& primArgs) cons
 
 std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     const MemoryArgs& memory,
-    const ConvAttrs& attrs,
+    [[maybe_unused]] const ConvAttrs& attrs,
     const ExecutorContext::CPtr context,
     const DnnlShapeAgnosticDataPtr& shapeAgnosticData) {
     const auto& srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_SRC)->getDescPtr());
@@ -204,8 +201,8 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     return primitive;
 }
 
-DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
-                                                                           const DnnlMemoryDescPtr dstDesc,
+DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                                           const DnnlMemoryDescPtr& dstDesc,
                                                                            bool weightsNonTransposed) {
     return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, weightsNonTransposed);
 }
@@ -228,5 +225,4 @@ DnnlConvolutionPrimitive::DnnlConvolutionPrimitive(const Key& key,
       m_scratchPadDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.scratchpad_desc())),
       m_prim(primitive(m_primDesc)) {}
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

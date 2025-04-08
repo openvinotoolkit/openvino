@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,6 +75,71 @@ TEST(concat_gpu, mixed_input_types) {
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 4);
+    ASSERT_EQ(f_size, 5);
+    ASSERT_EQ(b_size, 1);
+
+    for (size_t x = 0; x < output_layout.count(); ++x) {
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
+    }
+}
+
+TEST(concat_cpu, disable_usm) {
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, false);
+
+    auto input0 = engine->allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 4, 3 } });
+    auto input1 = engine->allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 4, 3 } });
+    auto input2 = engine->allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 4, 3 } });
+    auto input3 = engine->allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 4, 3 } });
+    auto input4 = engine->allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 4, 3 } });
+
+    set_values<int8_t>(input0, { 1, 2, 3, 4, 2, 2, 3, 4, 3, 3, 3, 5 });
+    set_values<int8_t>(input1, { 11, 12, 13, 14, 12, 12, 13, 14, 13, 13, 13, 15 });
+    set_values<int8_t>(input2, { 21, 22, 23, 24, 22, 22, 23, 24, 23, 23, 23, 25 });
+    set_values<int8_t>(input3, { 31, 32, 33, 34, 32, 32, 33, 34, 33, 33, 33, 35 });
+    set_values<int8_t>(input4, { 41, 42, 43, 44, 42, 42, 43, 44, 43, 43, 43, 45 });
+
+    std::vector<int8_t> output_vec = {
+            1, 2, 3, 4, 2, 2, 3, 4, 3, 3, 3, 5,
+            11, 12, 13, 14, 12, 12, 13, 14, 13, 13, 13, 15,
+            21, 22, 23, 24, 22, 22, 23, 24, 23, 23, 23, 25,
+            31, 32, 33, 34, 32, 32, 33, 34, 33, 33, 33, 35,
+            41, 42, 43, 44, 42, 42, 43, 44, 43, 43, 43, 45 };
+
+    topology topology(
+            input_layout("input0", input0->get_layout()),
+            input_layout("input1", input1->get_layout()),
+            input_layout("input2", input2->get_layout()),
+            input_layout("input3", input3->get_layout()),
+            input_layout("input4", input4->get_layout()),
+            concatenation("concat",
+                          { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3"), input_info("input4") },
+                          1,
+                          data_types::i8)
+    );
+    ExecutionConfig cfg = get_test_default_config(*engine);
+    cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"concat", {format::bfyx, "", impl_types::cpu}} }));
+    network network(*engine, topology, cfg);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    network.set_input_data("input3", input3);
+    network.set_input_data("input4", input4);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "concat");
+
+    auto output_memory = outputs.at("concat").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -1422,7 +1487,7 @@ public:
         }
         auto outputs = concat_network->execute();
 
-        bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
+        bool concat_opt_enabled = config.get_optimize_data();
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network->get_primitive("concat"))->can_be_optimized();
         EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
@@ -1642,7 +1707,7 @@ public:
         }
         auto outputs = concat_network.execute();
 
-        bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
+        bool concat_opt_enabled = config.get_optimize_data();
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
         EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
@@ -1805,7 +1870,7 @@ public:
         }
         auto outputs = concat_network.execute();
 
-        bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
+        bool concat_opt_enabled = config.get_optimize_data();
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
 
         // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.

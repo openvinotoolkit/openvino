@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,7 @@ using namespace ov::op;
 namespace {
 Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context) {
     auto input = context.get_input(0);
-    auto packed_params_node =
-        std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(context.get_input(1).get_node_shared_ptr());
+    auto packed_params_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(context.get_input(1).get_node_shared_ptr());
     PYTORCH_OP_CONVERSION_CHECK(packed_params_node, "Packed params input node type is required to be FrameworkNode.");
     const auto& attrs = packed_params_node->get_attrs();
     PYTORCH_OP_CONVERSION_CHECK((attrs.find(PtFrameworkNode::op_type_key) != attrs.end()),
@@ -36,13 +35,13 @@ Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context) {
     // Packed params: weight, bias, stride, padding, dilation, groups
     auto weight = packed_params[0].get_source_output();
     auto bias = packed_params[1].get_source_output();
-    auto strides = std::dynamic_pointer_cast<v0::Constant>(packed_params[2].get_source_output().get_node_shared_ptr())
+    auto strides = ov::as_type_ptr<v0::Constant>(packed_params[2].get_source_output().get_node_shared_ptr())
                        ->cast_vector<Strides::value_type>();
-    auto pads = std::dynamic_pointer_cast<v0::Constant>(packed_params[3].get_source_output().get_node_shared_ptr())
+    auto pads = ov::as_type_ptr<v0::Constant>(packed_params[3].get_source_output().get_node_shared_ptr())
                     ->cast_vector<CoordinateDiff::value_type>();
-    auto dilations = std::dynamic_pointer_cast<v0::Constant>(packed_params[4].get_source_output().get_node_shared_ptr())
+    auto dilations = ov::as_type_ptr<v0::Constant>(packed_params[4].get_source_output().get_node_shared_ptr())
                          ->cast_vector<Strides::value_type>();
-    int64_t groups = std::dynamic_pointer_cast<v0::Constant>(packed_params[5].get_source_output().get_node_shared_ptr())
+    int64_t groups = ov::as_type_ptr<v0::Constant>(packed_params[5].get_source_output().get_node_shared_ptr())
                          ->cast_vector<int64_t>()[0];
 
     auto pad_type = ov::op::PadType::EXPLICIT;

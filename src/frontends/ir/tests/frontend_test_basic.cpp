@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,6 +72,128 @@ TEST_F(IRFrontendTests, elementary_model_reading_v11) {
     std::shared_ptr<ov::Model> modelRef;
     {
         auto parameter = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        parameter->set_friendly_name("input");
+        auto result = std::make_shared<ov::opset1::Result>(parameter);
+        result->set_friendly_name("output");
+        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+    }
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::NAMES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(model, modelRef);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+
+TEST_F(IRFrontendTests, elementary_model_reading_v11_undefined_precisoin) {
+    std::string testModelV11 = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="input" type="Parameter" id="0" version="opset1">
+            <data element_type="undefined" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="UNSPECIFIED">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="UNSPECIFIED">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+    ov::RTMap rtInfo;
+    uint64_t version = 0;
+
+    OV_ASSERT_NO_THROW(model = getWithIRFrontend(testModelV11));
+    ASSERT_TRUE(!!model);
+    OV_ASSERT_NO_THROW(rtInfo = model->get_rt_info());
+    OV_ASSERT_NO_THROW(version = rtInfo["version"].as<int64_t>());
+    ASSERT_EQ(11, version);
+
+    std::shared_ptr<ov::Model> modelRef;
+    {
+        auto parameter = std::make_shared<ov::opset1::Parameter>(ov::element::dynamic, ov::Shape{1, 3, 22, 22});
+        parameter->set_friendly_name("input");
+        auto result = std::make_shared<ov::opset1::Result>(parameter);
+        result->set_friendly_name("output");
+        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+    }
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::NAMES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(model, modelRef);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+
+TEST_F(IRFrontendTests, elementary_model_reading_v11_dynamic_precisoin) {
+    std::string testModelV11 = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="input" type="Parameter" id="0" version="opset1">
+            <data element_type="dynamic" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="dynamic">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="dynamic">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+    ov::RTMap rtInfo;
+    uint64_t version = 0;
+
+    OV_ASSERT_NO_THROW(model = getWithIRFrontend(testModelV11));
+    ASSERT_TRUE(!!model);
+    OV_ASSERT_NO_THROW(rtInfo = model->get_rt_info());
+    OV_ASSERT_NO_THROW(version = rtInfo["version"].as<int64_t>());
+    ASSERT_EQ(11, version);
+
+    std::shared_ptr<ov::Model> modelRef;
+    {
+        auto parameter = std::make_shared<ov::opset1::Parameter>(ov::element::dynamic, ov::Shape{1, 3, 22, 22});
         parameter->set_friendly_name("input");
         auto result = std::make_shared<ov::opset1::Result>(parameter);
         result->set_friendly_name("output");
@@ -1181,7 +1303,7 @@ TEST_F(IRFrontendTests, model_with_tensor_names_with_spaces) {
                 <layer id="0" name="input2" type="Parameter" version="opset1">
                     <data shape="1,4,512" element_type="f32"/>
                     <output>
-                        <port id="0" precision="FP32" names="input2">
+                        <port id="0" precision="FP32" names="model/bert/encoder/layer_0/attention/self/query/Tensordot/MatMul;model/bert/encoder/layer_0/attention/self/query/BiasAdd;model/bert/encoder/layer_0/attention/output/dense/Tensordot/shape;model/bert/encoder/layer_0/attention/self/query/Tensordot;model/bert/encoder/layer_0/attention/self/query/BiasAdd/ReadVariableOp_Gemm__32:0">
                             <dim>1</dim>
                             <dim>4</dim>
                             <dim>512</dim>
@@ -1402,6 +1524,72 @@ TEST_F(IRFrontendTests, name_with_comma) {
     auto names = outputs.at(0).get_names();
     auto it = names.find(tensor_name);
     EXPECT_NE(it, names.end());
+}
+
+TEST_F(IRFrontendTests, model_output_name_with_comma) {
+    std::string testModel = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32" names="input">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="activation" id="1" type="ReLU" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32" names="relu\,t, identity_t">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1" output_names="relu\,t,custom\, name">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+    OV_ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    ASSERT_TRUE(!!model);
+
+    {
+        const auto output_tensor = model->output("custom, name");
+        EXPECT_EQ(output_tensor.get_names().size(), 2);
+        EXPECT_EQ(output_tensor.get_node()->get_friendly_name(), "output");
+    }
+    {
+        const auto output_tensor = model->output("relu,t");
+        EXPECT_EQ(output_tensor.get_node()->get_friendly_name(), "output");
+    }
 }
 
 TEST_F(IRFrontendTests, DetectionOutput) {

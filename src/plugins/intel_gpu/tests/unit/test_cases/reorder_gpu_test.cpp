@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,8 +103,6 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network_ref->set_input_data("input", input);
 
     auto outputs_ref = network_ref->execute();
-    cldnn::event::ptr e1 = outputs_ref.at("reorder").get_event();
-    e1->wait();
 
     // run on optimized kernel
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
@@ -116,8 +114,6 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network->set_input_data("input", input);
 
     auto outputs = network->execute();
-    cldnn::event::ptr e2 = outputs.at("reorder").get_event();
-    e2->wait();
 
     // compare output_ref and output_opt.
     if (output_data_type == data_types::i8)
@@ -1917,10 +1913,8 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
     auto outputs = net.execute();
     auto executed_primitives = net.get_executed_primitives();
 
-    if (engine.get_device_info().supports_immad) {
-        // Currently, oneDNN only supports in_order_queue
-        return;
-    }
+    if (config.get_queue_type() != QueueTypes::out_of_order)
+        GTEST_SKIP();
 
     ASSERT_TRUE(executed_primitives.count("in") == 1);
     ASSERT_TRUE(executed_primitives.at("in") != outputs.at("r1").get_event());
@@ -2473,6 +2467,99 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
     }
 }
 
+TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    const int32_t b_in = 1024;
+    const int32_t f_in = 64;
+    const int32_t x_in = 72;
+    const int32_t y_in = 2;
+    const int32_t z_in = 3;
+
+    const int32_t b_crop = 1024;
+    const int32_t f_crop = 64;
+    const int32_t x_crop = 72;
+    const int32_t y_crop = 2;
+    const int32_t z_crop = 1;
+
+    const int32_t z0_off = 0;
+    const int32_t z1_off = 1;
+    const int32_t z2_off = 2;
+
+    auto input = engine.allocate_memory({ data_types::f32,format::bfzyx,{ b_in, f_in, x_in, y_in, z_in } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(crop("crop0", input_info("input"), { b_crop, f_crop, x_crop, y_crop, z_crop }, { 0, 0, 0, 0, z0_off }));
+    topology.add(crop("crop1", input_info("input"), { b_crop, f_crop, x_crop, y_crop, z_crop }, { 0, 0, 0, 0, z1_off }));
+    topology.add(crop("crop2", input_info("input"), { b_crop, f_crop, x_crop, y_crop, z_crop }, { 0, 0, 0, 0, z2_off }));
+    topology.add(reorder("reorder0", input_info("crop0"), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder1", input_info("crop1"), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder2", input_info("crop2"), format::bfyx, data_types::f32));
+    topology.add(reshape("reshape0", input_info("reorder0"), tensor(batch(b_in), feature(y_in), spatial(x_in, f_in))));
+    topology.add(reshape("reshape1", input_info("reorder1"), tensor(batch(b_in), feature(y_in), spatial(x_in, f_in))));
+    topology.add(reshape("reshape2", input_info("reorder2"), tensor(batch(b_in), feature(y_in), spatial(x_in, f_in))));
+
+    std::vector<float> input_vec = rg.generate_random_1d<float>(input->count(), -10, 10);
+    set_values(input, input_vec);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    auto output0 = outputs.at("reshape0").get_memory();
+    auto output1 = outputs.at("reshape1").get_memory();
+    auto output2 = outputs.at("reshape2").get_memory();
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr0(output0, get_test_stream());
+    for (int b = 0; b < b_crop; ++b) {
+        for (int f = 0; f < f_crop; ++f) {
+            for (int z = 0; z < z_crop; ++z) {
+                for (int y = 0; y < y_crop; ++y) {
+                    for (int x = 0; x < x_crop; ++x) {
+                        int linear_id = x + x_in * (y + y_in * (z + z0_off + z_in * (f + f_in * b)));
+                        int output_linear_id = x + x_crop * (y + y_crop * (z + z_crop * (f + f_crop * b)));
+                        ASSERT_EQ(output_ptr0[output_linear_id], input_vec[linear_id]);
+                    }
+                }
+            }
+        }
+    }
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr1(output1, get_test_stream());
+    for (int b = 0; b < b_crop; ++b) {
+        for (int f = 0; f < f_crop; ++f) {
+            for (int z = 0; z < z_crop; ++z) {
+                for (int y = 0; y < y_crop; ++y) {
+                    for (int x = 0; x < x_crop; ++x) {
+                        int linear_id = x + x_in * (y + y_in * (z + z1_off + z_in * (f + f_in * b)));
+                        int output_linear_id = x + x_crop * (y + y_crop * (z + z_crop * (f + f_crop * b)));
+                        ASSERT_EQ(output_ptr1[output_linear_id], input_vec[linear_id]);
+                    }
+                }
+            }
+        }
+    }
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr2(output2, get_test_stream());
+    for (int b = 0; b < b_crop; ++b) {
+        for (int f = 0; f < f_crop; ++f) {
+            for (int z = 0; z < z_crop; ++z) {
+                for (int y = 0; y < y_crop; ++y) {
+                    for (int x = 0; x < x_crop; ++x) {
+                        int linear_id = x + x_in * (y + y_in * (z + z2_off + z_in * (f + f_in * b)));
+                        int output_linear_id = x + x_crop * (y + y_crop * (z + z_crop * (f + f_crop * b)));
+                        ASSERT_EQ(output_ptr2[output_linear_id], input_vec[linear_id]);
+                    }
+                }
+            }
+        }
+    }
+}
+
 TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_allowed)
 {
     auto& engine = get_test_engine();
@@ -2642,6 +2729,42 @@ TEST(reorder_gpu, any_format) {
     for (size_t i = 0; i < data.size(); ++i) {
         ASSERT_EQ(output[i], data[i]) << "i = " << i;
     }
+}
+
+void reorder_cpu_any_format(bool disable_usm = false);
+void reorder_cpu_any_format(bool disable_usm) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
+
+    auto input = engine->allocate_memory(layout(data_types::f32, format::yxfb, tensor(5, 7, 13, 9)));
+
+    topology topo;
+    topo.add(input_layout("in", input->get_layout()));
+    topo.add(reorder("reorder", input_info("in"), format::any, data_types::f32));
+    ExecutionConfig config = get_test_default_config(*engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", {format::any, "", impl_types::cpu}} }));
+
+    network net(*engine, topo, config);
+
+    auto data = rg.generate_random_1d<float>(input->count(), -1, 1);
+    set_values(input, data);
+    net.set_input_data("in", input);
+
+    auto outputs = net.execute();
+    auto out_mem = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<float> output(out_mem, get_test_stream());
+
+    for (size_t i = 0; i < data.size(); ++i) {
+        ASSERT_EQ(output[i], data[i]) << "i = " << i;
+    }
+}
+
+TEST(reorder_cpu, any_format) {
+    reorder_cpu_any_format();
+}
+
+TEST(reorder_cpu, any_format_disable_usm) {
+    reorder_cpu_any_format(true);
 }
 
 TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)

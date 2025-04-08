@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,11 +32,13 @@
 #include "intel_gpu/primitives/embedding_bag.hpp"
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 
+#include "swiglu_inst.h"
 #include "activation_inst.h"
 #include "eltwise_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
 
+#include "kernel_selector/kernels/swiglu/swiglu_kernel_base.h"
 #include "kernel_selector/kernels/activation/activation_kernel_base.h"
 #include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
 #include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
@@ -63,61 +65,54 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
     }
 }
 
-bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
-    auto device = e.get_device().get();
-    auto device_info = device->get_info();
-    if (!device_info.supports_local_block_io)
-        return false;
+}  // namespace
 
-    // We assume that new uarch which don't have simd8 support are not affected by driver bug and we can safely return flag value
-    auto simd_sizes = device_info.supported_simd_sizes;
-    if (std::find(simd_sizes.begin(), simd_sizes.end(), 8) == simd_sizes.end())
-        return device_info.supports_local_block_io;
+namespace cldnn {
+
+bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    // Skip check for Windows as CM frontend is a component of Intel GPU driver
+#ifdef WIN32
+    return true;
+#else
+    auto device = e.get_device().get();
 
     static std::mutex m;
     std::lock_guard<std::mutex> lock(m);
+
     static std::map<cldnn::device*, bool> cache;
     if (cache.find(device) != cache.end()) {
         return cache.at(device);
     }
 
     std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
-    std::string kernel_code =
-        "__attribute__((intel_reqd_sub_group_size(8)))"
-        "__attribute__((reqd_work_group_size(8, 1, 1)))"
-        "void kernel is_local_block_io_supported(global uchar* dst) {"
-        "    uint lid = get_sub_group_local_id();"
-        "    uchar val = (uchar)lid * 2;"
-        "    __local uchar tmp_slm[8];"
-        "    intel_sub_group_block_write_uc2(tmp_slm, (uchar2)(val));"
-        "    barrier(CLK_LOCAL_MEM_FENCE);"
-        "    uchar2 read = intel_sub_group_block_read_uc2(tmp_slm);"
-        "    dst[lid] = read.s0 + 1;"
-        "}";
+    // This program checks if cm sources can be jitted by current IGC version
+    const char* kernel_code = R""""(
+        #include <cm/cm.h>
+        #include <cm/cmtl.h>
+
+        extern "C" _GENX_MAIN_ void cm_check(half *x [[type("svmptr_t")]]) {
+            unsigned int id = cm_linear_global_id();
+        }
+        )"""";
 
     kernel_string->str = kernel_code;
-    kernel_string->options = "-Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
-    kernel_string->entry_point = "is_local_block_io_supported";
+    kernel_string->options = " -cmc ";
+    kernel_string->entry_point = "cm_check";
     kernel_string->batch_compilation = true;
 
     try {
-        kernel_impl_params dummy_params;
-        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(e, config, 0));
+        cldnn::kernel_impl_params dummy_params;
+        auto _kernels_cache_device_query = std::unique_ptr<cldnn::kernels_cache>(new cldnn::kernels_cache(e, config, 0));
         _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
         _kernels_cache_device_query->build_all();
-
-        auto _kernels = _kernels_cache_device_query->get_kernels(dummy_params);
-        cache[device] = _kernels_cache_device_query->validate_simple_kernel_execution(_kernels[0]);
-    } catch (std::exception& /*ex*/) {
+        cache[device] = true;
+    } catch (std::exception&) {
         cache[device] = false;
     }
 
     return cache.at(device);
+#endif
 }
-
-}  // namespace
-
-namespace cldnn {
 
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
     auto device = e.get_device().get();
@@ -309,6 +304,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bfzyx;
         case format::bzyxf:
             return kernel_selector::data_layout::bzyxf;
+        case format::ybfx:
+            return kernel_selector::data_layout::ybfx;
         case format::fs_b_yx_fsv32:
             return kernel_selector::data_layout::fs_b_yx_fsv32;
         case format::bfwzyx:
@@ -1007,7 +1004,13 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
 }
 
 std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_ptr<NodeFuseParams> p) {
-    if (p->type() == activation::type_id()) {
+    if (p->type() == swiglu::type_id()) {
+        auto casted = std::dynamic_pointer_cast<SwigluFuseParams>(p);
+        auto axis = casted->_desc->axis;
+        auto split_length = casted->_desc->split_lengths;
+        auto split_to_glu_idx = casted->_desc->split_to_glu_idx;
+        return std::make_shared<kernel_selector::swiglu_fuse_params>(axis, split_length, split_to_glu_idx);
+    } else if (p->type() == activation::type_id()) {
         auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(p);
         auto desc = casted->_desc;
         kernel_selector::base_activation_params p;
@@ -1138,7 +1141,6 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.enable_sub_groups_emulation = true;
     params.engineInfo.bOptHintsSupport = false;
 
-    params.engineInfo.bLocalBlockIOSupport = query_local_block_io_supported(engine, config);
     params.engineInfo.supports_microkernels = query_microkernels_supported(engine, config);
     params.engineInfo.deviceType = get_device_type(device_info.dev_type);
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
@@ -1154,13 +1156,13 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.ip_version = device_info.ip_version;
     params.engineInfo.arch = kernel_selector::gpu_arch(static_cast<std::underlying_type<gpu_arch>::type>(device_info.arch));
 
-    auto impl_forcing = config.get_property(ov::intel_gpu::force_implementations);
+    auto impl_forcing = config.get_force_implementations();
 
     if (impl_forcing.count(param_info.desc->id) != 0) {
         params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
     }
 
-    params.allowStaticInputReordering = config.get_property(ov::intel_gpu::optimize_data) || config.get_property(ov::intel_gpu::allow_static_input_reorder);
+    params.allowStaticInputReordering = config.get_optimize_data() || config.get_allow_static_input_reorder();
     params.allowInputReordering = false;
 }
 

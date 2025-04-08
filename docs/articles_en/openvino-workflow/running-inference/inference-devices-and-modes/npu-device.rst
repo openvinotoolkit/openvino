@@ -22,7 +22,7 @@ for more streamlined resource management.
 NPU Plugin is now available through all relevant OpenVINO distribution channels.
 
 | **Supported Platforms:**
-|   Host: Intel® Core™ Ultra (former Meteor Lake)
+|   Host: Intel® Core™ Ultra series
 |   NPU device: NPU 3720
 |   OS: Ubuntu* 22.04 64-bit (with Linux kernel 6.6+), MS Windows* 11 64-bit (22H2, 23H2)
 
@@ -33,10 +33,10 @@ Follow the instructions below to install the latest NPU drivers:
 * `Linux driver <https://github.com/intel/linux-npu-driver/releases>`__
 
 
-The plugin uses the graph extension API exposed by the driver to convert the OpenVINO specific representation
-of the model into a proprietary format. The compiler included in the user mode driver (UMD) performs
-platform specific optimizations in order to efficiently schedule the execution of network layers and
-memory transactions on various NPU hardware submodules.
+The plugin uses the graph extension API exposed by the driver to convert the OpenVINO specific
+representation of the model into a proprietary format. The compiler included in the user mode
+driver (UMD) performs platform specific optimizations in order to efficiently schedule the
+execution of network layers and memory transactions on various NPU hardware submodules.
 
 To use NPU for inference, pass the device name to the ``ov::Core::compile_model()`` method:
 
@@ -143,9 +143,13 @@ offer a limited set of supported OpenVINO features.
          ov::enable_profiling
          ov::workload_type
          ov::intel_npu::compilation_mode_params
+         ov::intel_npu::compiler_dynamic_quantization
+         ov::intel_npu::qdq_optimization
          ov::intel_npu::turbo
          ov::intel_npu::tiles
          ov::intel_npu::max_tiles
+         ov::intel_npu::bypass_umd_caching
+         ov::intel_npu::defer_weights_load
 
    .. tab-item:: Read-only properties
 
@@ -168,7 +172,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::device_alloc_mem_size
          ov::intel_npu::device_total_mem_size
          ov::intel_npu::driver_version
-         ov::intel_npu::bypass_umd_caching
+         ov::intel_npu::compiler_version
 
 
 .. note::
@@ -249,11 +253,11 @@ or
 
 **ov::intel_npu::max_tiles and ov::intel_npu::tiles**
 
-the ``max_tiles`` property is read-write to enable compiling models off-device. 
+the ``max_tiles`` property is read-write to enable compiling models off-device.
 When on NPU, ``max_tiles`` will return the number of tiles the device has.
 Setting the number of tiles to compile for (via ``intel_npu::tiles``), when on device,
-must be preceded by reading ``intel_npu::max_tiles`` first, to make sure that 
-``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles`` 
+must be preceded by reading ``intel_npu::max_tiles`` first, to make sure that
+``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles``
 to avoid exceptions from the compiler.
 
 .. note::
@@ -278,9 +282,5 @@ guaranteed.
 Additional Resources
 #############################
 
-* `Working with NPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/hello-npu/hello-npu.ipynb>`__
-* `Vision colorization Notebook <./../../../notebooks/vision-image-colorization-with-output.html>`__
-* `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
-* `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/3d_segmentation_demo/python>`__
-* `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp>`__
-* `Object Detection Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/python>`__
+* `Working with NPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-npu>`__
+* `Vision colorization Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/ddcolor-image-colorization>`__

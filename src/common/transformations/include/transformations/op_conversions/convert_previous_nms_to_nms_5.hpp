@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,18 +22,18 @@ class TRANSFORMATIONS_API ConvertNMS4ToNMS5;
 
 class ov::pass::ConvertNMS1ToNMS5 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertNMS1ToNMS5", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertNMS1ToNMS5");
     ConvertNMS1ToNMS5();
 };
 
 class ov::pass::ConvertNMS3ToNMS5 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertNMS3ToNMS5", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertNMS3ToNMS5");
     ConvertNMS3ToNMS5();
 };
 
 class ov::pass::ConvertNMS4ToNMS5 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertNMS4ToNMS5", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertNMS4ToNMS5");
     ConvertNMS4ToNMS5();
 };

@@ -49,6 +49,7 @@ The **openvino-node** package exports ``addon`` which contains the following pro
          resizeAlgorithm: typeof resizeAlgorithm;
          PrePostProcessor: PrePostProcessorConstructor;
        };
+       saveModelSync(model: Model, path: string, compressToFp16?: boolean): void;
        element: typeof element;
      }
 
@@ -141,4 +142,40 @@ Properties
 
    -  **Defined in:**
       `addon.ts:674 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L674>`__
+
+
+.. rubric:: saveModelSync
+
+*
+
+   .. code-block:: ts
+
+      saveModelSync(model: Model, path: string, compressToFp16?: boolean): void;
+
+
+   This method saves a model to IR (xml and bin files), applying all
+   necessary transformations that are usually added during model conversion.
+   Particularly, weights are compressed to FP16 by default, and debug information
+   in model nodes is cleaned up.
+
+   * **Parameters:**
+
+     - model: :doc:`Model <openvino-node/interfaces/Model>`
+
+       A model which will be converted to IR and saved.
+
+     - path: string
+
+       A path for saving the model.
+
+     - ``Optional``
+
+       - compressToFp16: boolean
+
+         Compression of weights to FP16 floating point precision. The default value is `true` .
+
+   * **Returns:**  void
+
+   * **Defined in:**
+     `addon.ts:692 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L692>`__
 

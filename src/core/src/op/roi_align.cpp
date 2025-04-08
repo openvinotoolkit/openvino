@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,6 +149,10 @@ std::ostream& operator<<(std::ostream& s, const op::v9::ROIAlign::PoolingMode& t
 std::ostream& operator<<(std::ostream& s, const op::v9::ROIAlign::AlignedMode& type) {
     return s << as_string(type);
 }
+
+AttributeAdapter<op::v3::ROIAlign::PoolingMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::v9::ROIAlign::PoolingMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::v9::ROIAlign::AlignedMode>::~AttributeAdapter() = default;
 
 namespace op {
 namespace roi_align {

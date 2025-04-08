@@ -1,22 +1,24 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "qkv_proj.h"
 
+#include <cstddef>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "common/primitive_hashing_utils.hpp"
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
+#include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#include "kernels/x64/mlp_utils.hpp"
+#    include "kernels/x64/mlp_utils.hpp"
 #endif
 
 #include "openvino/core/parallel.hpp"
@@ -24,17 +26,16 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, int n_workers) {
     auto n_groups = grouped_works.size();
     // allocate 1 worker for each group
     std::vector<int> g_workers(n_groups, 1);
-    auto left_workers = n_workers - n_groups;
-    while (left_workers > 0) {
+    size_t left_workers = n_workers - n_groups;
+
+    for (size_t i = 0; i < left_workers; i++) {
         // which group is working hardest?
         float hardest_works = 0;
         size_t hardest_group = 0;
@@ -46,7 +47,6 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
             }
         }
         g_workers[hardest_group]++;
-        left_workers--;
     }
 
     return g_workers;
@@ -55,7 +55,7 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
 template <typename T>
 struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     std::vector<Work> works;
-    QKVProjection * m_node;
+    QKVProjection* m_node;
     DnnlScratchPadPtr m_scrachPad;
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
@@ -66,7 +66,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
     WeightBuffer wbuffer;
 
-    Executor(QKVProjection * pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(scrachPad) {
+    Executor(QKVProjection* pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(std::move(scrachPad)) {
         PlainTensor w0(pnode->getSrcMemoryAtPort(1));
         PlainTensor w1(pnode->getSrcMemoryAtPort(2));
         PlainTensor w2(pnode->getSrcMemoryAtPort(3));
@@ -75,7 +75,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         // and activations will be dynamically per-token quantized and using AMX-INT8 to get the result
         bool quantized_int8 = m_node->m_config.quantized;
 
-        auto cache_blk_k_size = quantized_int8 ? CACHE_BLK_K_SIZE : CACHE_BLK_K_SIZE;
+        auto cache_blk_k_size = CACHE_BLK_K_SIZE;
         auto weight_element_size = quantized_int8 ? sizeof(int8_t) : sizeof(ov::float16);
 
         auto K = w0.size(1);
@@ -104,7 +104,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                 if (blkN) {
                     auto& work = works[cur_work_id++];
                     work.blk_K_size = cache_blk_k_size;
-                    work.n0 = (start_blkN) * REG_BLK_N_SIZE;
+                    work.n0 = (start_blkN)*REG_BLK_N_SIZE;
                     work.n1 = (start_blkN + blkN) * REG_BLK_N_SIZE;
                     work.BN = blkN * REG_BLK_N_SIZE;
                     work.k0 = 0;
@@ -135,34 +135,48 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
             create_works(w2.ptr_v(), 2, proj_size2, n_group_workers[2]);
         }
 
-        DEBUG_LOG("QKVProj hidden_size=", K, " proj_sizes=",
-                    proj_size0, ",", proj_size1, ",", proj_size2,
-                    " used_nthr=", cur_work_id);
+        DEBUG_LOG("QKVProj hidden_size=",
+                  K,
+                  " proj_sizes=",
+                  proj_size0,
+                  ",",
+                  proj_size1,
+                  ",",
+                  proj_size2,
+                  " used_nthr=",
+                  cur_work_id);
 
         wbuffer.alloc(works, weight_element_size);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
-                if (quantized_int8)
-                    work.setup(wbuffer.get<int8_t>(ithr), reinterpret_cast<int8_t*>(work.p_raw_weights), stride_in_bytes, true);
-                else
-                    work.setup(wbuffer.get<T>(ithr), reinterpret_cast<ov::float16*>(work.p_raw_weights), stride_in_bytes);
+                if (quantized_int8) {
+                    work.setup(wbuffer.get<int8_t>(ithr),
+                               reinterpret_cast<int8_t*>(work.p_raw_weights),
+                               stride_in_bytes,
+                               true);
+                } else {
+                    work.setup(wbuffer.get<T>(ithr),
+                               reinterpret_cast<ov::float16*>(work.p_raw_weights),
+                               stride_in_bytes);
+                }
             }
         });
     }
 
     void setM(int M) {
         uint8_t* cur_scratch_base = nullptr;
-        if (m_scratchMem)
+        if (m_scratchMem) {
             cur_scratch_base = m_scratchMem->getDataAs<uint8_t>();
+        }
         // new M larger than previous or the scratch pointer is changed after the following allocation
         if (m_M < M || cur_scratch_base != m_scratch_base) {
             ScratchBuffAllocator allocator;
             for (auto& work : works) {
                 if (work) {
                     auto C_size = work.set_C(M, reinterpret_cast<float*>(cur_scratch_base));
-                    allocator.register_allocation(C_size, [&](void* ptr){
+                    allocator.register_allocation(C_size, [&](void* ptr) {
                         work.set_C(M, reinterpret_cast<float*>(ptr));
                     });
                 }
@@ -171,7 +185,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
             if (m_node->m_config.quantized) {
                 m_quant_act.M = M;
                 m_quant_act.K = m_node->m_config.hidden_size;
-                allocator.register_allocation(m_quant_act.size(), [&](void* ptr){
+                allocator.register_allocation(m_quant_act.size(), [&](void* ptr) {
                     m_quant_act.setup(ptr);
                 });
             }
@@ -191,7 +205,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
         auto input = m_node->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
-        uint8_t* psrc0 = input->getDataAs<uint8_t>();
+        auto* psrc0 = input->getDataAs<uint8_t>();
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
         auto* dst0 = m_node->getDstMemoryAtPort(0)->getDataAs<T>();
         auto* dst1 = m_node->getDstMemoryAtPort(1)->getDataAs<T>();
@@ -238,7 +252,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                 strideA = m_quant_act.K;
             }
 
-            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
                 auto& work = works[ithr];
                 if (work) {
                     work.run(BM, pA, strideA);
@@ -265,26 +279,20 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                     if (m_node->m_config.quantized) {
                         // dequantize output & convert to f32 in-place
                         auto* p_wsum = work.w_sum_per_oc.template ptr<float>();
-                        ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(
-                            BM,
-                            work.BN,
-                            reinterpret_cast<int32_t*>(src),
-                            stride_src,
-                            src,
-                            stride_src,
-                            m_quant_act.scale,
-                            m_quant_act.zp,
-                            p_wsum,
-                            w_scale[work.output_id] + work.n0,
-                            asym);
+                        ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(BM,
+                                                                               work.BN,
+                                                                               reinterpret_cast<int32_t*>(src),
+                                                                               stride_src,
+                                                                               src,
+                                                                               stride_src,
+                                                                               m_quant_act.scale,
+                                                                               m_quant_act.zp,
+                                                                               p_wsum,
+                                                                               w_scale[work.output_id] + work.n0,
+                                                                               asym);
                     }
                     // compress accumulation result into target
-                    for (int mi = 0; mi < BM; mi++, src += stride_src, dst += stride_dst) {
-                        // the prefetch distance is increased to ensure by the time store happens
-                        // prefetch has done and no HW prefetcher is triggered
-                        auto* prefetch_dst = (mi + 2 < BM) ? (dst + 2 * stride_dst) : (dst);
-                        jit_cvt(src, dst, prefetch_dst, work.BN);
-                    }
+                    jit_cvt.call(src, stride_src, dst, stride_dst, BM, work.BN);
                 }
             });
             m += BM;
@@ -298,8 +306,8 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 #else
 template <typename T>
 struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
-    QKVProjection * m_pnode;
-    Executor(QKVProjection * pnode) : m_pnode(pnode) {}
+    QKVProjection* m_pnode;
+    Executor(QKVProjection* pnode) : m_pnode(pnode) {}
     void execute() override {}
 };
 #endif
@@ -314,34 +322,35 @@ void QKVProjection::createPrimitive() {
     }
 #endif
     if (!m_executor) {
-        OPENVINO_THROW("QKVProjection Executor creation fails with precision " + rtPrecision.to_string());
+        THROW_CPU_NODE_ERR("Executor creation fails with precision " + rtPrecision.to_string());
     }
 }
 
-void QKVProjection::execute(dnnl::stream strm) {
-    MAYBE_UNUSED(strm);
+void QKVProjection::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute();
 }
 
-QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
 
-    const auto & config = context->getConfig();
+    const auto& config = context->getConfig();
     size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
-    if (concurrency == 0)
+    if (concurrency == 0) {
         concurrency = parallel_get_max_threads();
+    }
 
     if (!isSupportedOperation(op, errorMessage, concurrency, config.fcDynamicQuantizationGroupSize)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    const auto node = std::dynamic_pointer_cast<const QKVProjectionNode>(op);
+    const auto node = ov::as_type_ptr<const QKVProjectionNode>(op);
     m_config = node->get_config();
 }
 
 void QKVProjection::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inPortConfigs;
     std::vector<PortConfigurator> outPortConfigs;
@@ -357,7 +366,9 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    OPENVINO_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16, "Unexpected rtPrecision:", rtPrecision);
+    CPU_NODE_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
+                    "Unexpected rtPrecision:",
+                    rtPrecision);
 
     if (m_config.quantized) {
         auto weightPrecision = ov::element::i8;
@@ -367,9 +378,21 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(1), false, -1);  // q_proj
         inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(2), false, -1);  // k_proj
         inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(3), false, -1);  // v_proj
-        inPortConfigs.emplace_back(LayoutType::ncsp, wScalePrecision, getInputShapeAtPort(4), false, -1);  // q_proj deq-scale per-OC
-        inPortConfigs.emplace_back(LayoutType::ncsp, wScalePrecision, getInputShapeAtPort(5), false, -1);  // k_proj deq-scale per-OC
-        inPortConfigs.emplace_back(LayoutType::ncsp, wScalePrecision, getInputShapeAtPort(6), false, -1);  // v_proj deq-scale per-OC
+        inPortConfigs.emplace_back(LayoutType::ncsp,
+                                   wScalePrecision,
+                                   getInputShapeAtPort(4),
+                                   false,
+                                   -1);  // q_proj deq-scale per-OC
+        inPortConfigs.emplace_back(LayoutType::ncsp,
+                                   wScalePrecision,
+                                   getInputShapeAtPort(5),
+                                   false,
+                                   -1);  // k_proj deq-scale per-OC
+        inPortConfigs.emplace_back(LayoutType::ncsp,
+                                   wScalePrecision,
+                                   getInputShapeAtPort(6),
+                                   false,
+                                   -1);  // v_proj deq-scale per-OC
 
         // initialize output port
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
@@ -399,14 +422,15 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                                          uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
-        const auto node_qkv = std::dynamic_pointer_cast<const QKVProjectionNode>(op);
+        const auto node_qkv = ov::as_type_ptr<const QKVProjectionNode>(op);
         if (node_qkv) {
             if (concurrency > 0) {
                 if (concurrency < 3) {
                     errorMessage = "QKVProjection needs at least 3 cores to work";
                     return false;
                 }
-                float unbalance_ratio = static_cast<float>(concurrency % 3)/static_cast<float>(concurrency / 3);
+                // NOLINTNEXTLINE(bugprone-integer-division)
+                float unbalance_ratio = static_cast<float>(concurrency % 3) / static_cast<float>(concurrency / 3);
                 if (unbalance_ratio > 0.2f) {
                     errorMessage = "QKVProjection needs number of cores to be nearly multiple of 3";
                     return false;
@@ -415,6 +439,11 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             const auto& config = node_qkv->get_config();
             if ((config.hidden_size % CACHE_BLK_K_SIZE) != 0) {
                 errorMessage = "QKVProjection input channel size is not multiple of cache blocking size";
+                return false;
+            }
+
+            if (config.hidden_size < CACHE_BLK_K_SIZE * 8) {
+                errorMessage = "QKVProjection input channel size is too small";
                 return false;
             }
 
@@ -449,6 +478,4 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
 #endif
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

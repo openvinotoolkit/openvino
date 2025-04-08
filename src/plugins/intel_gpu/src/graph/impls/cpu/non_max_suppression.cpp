@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include "primitive_inst.h"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include <vector>
 #include <queue>
@@ -395,7 +395,7 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::non_max_suppression_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<non_max_suppression_impl>(*this);
+        return std::make_unique<non_max_suppression_impl>(*this);
     }
 
     non_max_suppression_impl() : parent("non_max_suppression_impl") {}
@@ -420,7 +420,7 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     }
 
     static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&, const kernel_impl_params&) {
-        return make_unique<non_max_suppression_impl>();
+        return std::make_unique<non_max_suppression_impl>();
     }
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 };
@@ -442,7 +442,7 @@ struct non_max_suppression_gather_impl : typed_primitive_impl<non_max_suppressio
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::non_max_suppression_gather_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<non_max_suppression_gather_impl>(*this);
+        return std::make_unique<non_max_suppression_gather_impl>(*this);
     }
 
     non_max_suppression_gather_impl() : parent("non_max_suppression_gather_impl") {}
@@ -464,7 +464,7 @@ struct non_max_suppression_gather_impl : typed_primitive_impl<non_max_suppressio
     }
 
     static std::unique_ptr<primitive_impl> create(const non_max_suppression_gather_node&, const kernel_impl_params&) {
-        return make_unique<non_max_suppression_gather_impl>();
+        return std::make_unique<non_max_suppression_gather_impl>();
     }
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 };

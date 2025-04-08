@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
@@ -31,22 +32,6 @@
 #include <utility>
 
 namespace {
-
-inline bool can_use_usm_host(const cldnn::engine& engine) {
-    auto can_use_usm = engine.use_unified_shared_memory();
-
-    const auto& device_info = engine.get_device_info();
-    if ((device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 60) ||
-        (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu)) {
-        // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel access
-        // to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy engine
-        // Driver tickets with additional details: 6155, 10054
-        GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;
-        can_use_usm = false;
-    }
-
-    return can_use_usm;
-}
 
 bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
     return src_et != dst_et && !(dst_et == ov::element::boolean && src_et == ov::element::u8);
@@ -96,8 +81,7 @@ cldnn::data_types data_type_for_remote_tensor(ov::element::Type t) {
 
 }  // namespace
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 // ----------------------------------------------------------------------------------------------- //
 // ---------------------------- OpenVINO API impl ------------------------------------------------ //
@@ -107,20 +91,9 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     : ov::ISyncInferRequest(compiled_model)
     , m_graph(compiled_model->get_graph(0))
     , m_context(std::static_pointer_cast<RemoteContextImpl>(compiled_model->get_context_impl()))
-    , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio)))
-    , m_enable_profiling(m_graph->get_config().get_property(ov::enable_profiling))
+    , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_shape_predictor_settings()))
+    , m_enable_profiling(m_graph->get_config().get_enable_profiling())
     , m_use_external_queue(m_graph->use_external_queue()) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
-        auto& mem_preallocation_params = debug_config->mem_preallocation_params;
-        m_shape_predictor.reset(
-            new cldnn::ShapePredictor(&m_graph->get_engine(),
-                                      mem_preallocation_params.next_iters_preallocation_count,
-                                      mem_preallocation_params.max_per_iter_size,
-                                      mem_preallocation_params.max_per_dim_diff,
-                                      mem_preallocation_params.buffers_preallocation_ratio));
-    }
-
     init_mappings();
     allocate_inputs();
     allocate_outputs();
@@ -288,13 +261,21 @@ void SyncInferRequest::enqueue() {
         std::move(events.begin(), events.end(), std::back_inserter(dependencies));
     }
 
+    auto network = m_graph->get_network();
     for (const auto& it : m_variables) {
         const auto& name = it.first;
         const auto& variable = it.second;
+        if (network->has_variable(name)) {
+            const auto& prev_var = network->get_variable(name);
+            if (prev_var.get_memory() == variable->get_memory()) {
+                network->set_reuse_variable_mem(true);
+                continue;
+            }
+        }
+        network->set_reuse_variable_mem(false);
         prepare_state(name, variable);
     }
 
-    auto network = m_graph->get_network();
     network->set_shape_predictor(m_shape_predictor);
 
     m_internal_outputs.clear();
@@ -303,15 +284,16 @@ void SyncInferRequest::enqueue() {
     m_internal_outputs = network->execute(dependencies);
     auto network_enqueue_end = std::chrono::high_resolution_clock::now();
 
+    [[maybe_unused]] const auto& config = network->get_config();
+
     // If dump layers path is set, only runs first inference.
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0 && debug_config->dump_iteration.empty()) {
+    GPU_DEBUG_IF(!config.get_dump_tensors_path().empty() && config.get_dump_iterations().empty()) {
         GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }
 
     auto enqueue_end = std::chrono::high_resolution_clock::now();
-    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->host_time_profiling) {
+    GPU_DEBUG_IF(config.get_host_time_profiling()) {
         network_enqueue_time = std::chrono::duration_cast<std::chrono::microseconds>(network_enqueue_end - network_enqueue_start).count();
 
         const uint64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(enqueue_end - enqueue_start).count();
@@ -408,7 +390,7 @@ void SyncInferRequest::wait() {
             auto mem_shape = output_layout.get_shape();
             // In case of old shape infer we need to shrink out tensor shape to avoid redudnant dimensions that occur due to rank extension
             // For new shape infer this shouldn't happen, thus remove that WA once we migrate to ngraph-based shape infer for all cases
-            if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
+            if (!m_graph->get_config().get_allow_new_shape_infer()) {
                 OPENVINO_ASSERT(port.get_partial_shape().is_static(), "[GPU] Unexpected dynamic shape for legacy shape inference");
                 OPENVINO_ASSERT(ov::shape_size(port.get_shape()) == ov::shape_size(mem_shape), "[GPU] Unexpected elements count for output tensor");
                 mem_shape = port.get_shape();
@@ -420,6 +402,8 @@ void SyncInferRequest::wait() {
                     need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
                 else if (!is_remote_tensor_impl && output_memory)
                     need_reallocate = output_tensor_wrapper.actual_size < output_memory->size();
+                else if (is_remote_tensor_impl && output_memory)
+                    need_reallocate = false;
 
                 if (need_reallocate) {
                     std::string internal_name = m_output_names_map.at(port_idx);
@@ -458,31 +442,10 @@ void SyncInferRequest::wait() {
                     iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
                 }
             }
-        } else if (!is_dynamic && is_remote_tensor_impl && output_memory) {
-            auto& stream = m_graph->get_network()->get_stream();
-            auto user_mem = remote_tensor_impl_ptr->get_original_memory();
-            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem
-                && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
-                auto plugin_tensor = m_plugin_outputs.at(port_idx);
-                if (is_convert_required(plugin_tensor.ptr->get_element_type(), iremote_tensor_ptr->get_element_type())) {
-                    auto& stream = m_graph->get_network()->get_stream();
-                    convert_and_copy(plugin_tensor.ptr.get(), iremote_tensor_ptr.get(), stream);
-                } else {
-                    iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
-                }
-            } else {
-                copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
-            }
         } else if (is_remote_tensor_impl && is_dynamic) {
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
-            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
-                // WA: Copy between cl_mem and usm memory may fail for some reason (driver bug?)
-                // so this explicit memcpy is used to provide correct output for cl_mem output in dynamic cases
-                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> lock_dst(user_mem, stream);
-                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> lock_src(output_memory, stream);
-                std::memcpy(lock_dst.data(), lock_src.data(), output_memory->size());
-            } else {
+            if (!m_graph->get_engine().is_the_same_buffer(*output_memory, *user_mem)) {
                 copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
             }
         }
@@ -498,13 +461,15 @@ void SyncInferRequest::wait() {
         }
     }
 
+    network.reset_output_remote_memory_ptrs();
+
     // finally collect profiling info
     if (m_enable_profiling) {
         m_graph->update_profiling_info();
     }
 
     auto wait_end = std::chrono::high_resolution_clock::now();
-    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->host_time_profiling) {
+    GPU_DEBUG_IF(m_graph->get_config().get_host_time_profiling()) {
         auto& exec_time_info = m_graph->host_exec_times.back();
 
         const uint64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(wait_end - wait_start).count();
@@ -544,7 +509,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_device_tensor(const ov::Pa
     }
 
     // Create OpenCL buffer for PVC if lockable memory is needed due to performance issue with usm host
-    if (!can_use_usm_host(m_graph->get_engine()) && need_lockable_memory)
+    if (!can_use_usm_host(m_graph->get_engine(), total_output_bytes) && need_lockable_memory)
         tensor_type = TensorType::BT_BUF_INTERNAL;
 
     return std::make_shared<RemoteTensorImpl>(m_context,
@@ -573,7 +538,9 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
     auto usm_host_raw_ptr = engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
                             user_tensor_mem_type == cldnn::allocation_type::usm_host;
 
-    bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type) && can_use_usm_host(engine) && !generic_remote_tensor;
+    bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type)
+                     && can_use_usm_host(engine, total_output_bytes)
+                     && !generic_remote_tensor;
 
     if (usm_host_tensor && can_share && m_context == usm_host_tensor->get_impl()->get_context()) {
         return { usm_host_tensor->get_impl(), user_tensor_wrapper.owner };
@@ -662,6 +629,7 @@ void SyncInferRequest::allocate_inputs() {
 void SyncInferRequest::allocate_outputs() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::allocate_outputs");
 
+    total_output_bytes = 0;
     // allocate outputs
     for (const auto& it : m_output_ports_map) {
         size_t output_idx = it.first;
@@ -669,6 +637,7 @@ void SyncInferRequest::allocate_outputs() {
         GPU_DEBUG_LOG << "[init output blob with index: " << output_idx << "]" << std::endl;
 
         allocate_output(port, output_idx);
+        total_output_bytes += ov::ISyncInferRequest::get_tensor(port)->get_byte_size();
     }
 }
 
@@ -817,7 +786,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         } else {
             m_plugin_inputs[input_idx] = user_tensor_wrapper;
         }
-    } else if (is_usm_host_tensor && !convert_needed && can_use_usm_host(engine)) {
+    } else if (is_usm_host_tensor && !convert_needed) {
         if (element_type != ::data_type_for_remote_tensor(element_type)) {
             m_plugin_inputs[input_idx] = { std::make_shared<RemoteTensorImpl>(m_context,
                                                                               user_tensor->get_shape(),
@@ -892,23 +861,13 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     auto memory = device_tensor->get_memory();
     // WA to extend shape to ranks expected by legacy shape infer. Remove after full migration to new shape infer
-    if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
+    if (!m_graph->get_config().get_allow_new_shape_infer()) {
         auto new_layout = memory->get_layout();
         new_layout.set_partial_shape(m_graph->get_input_layouts().at(input_idx).get_shape());
         memory = engine.reinterpret_buffer(*memory, new_layout);
     }
 
     cldnn::event::ptr ret_event = nullptr;
-    if (!is_remote_tensor_impl && !is_generic_remote && !convert_needed) {
-        auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
-        if (!same_host_mem(memory, src_ptr)) {
-            // WA: Set need_lockable_mem as a blocking argument
-            // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
-            // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying
-            // For OOOQ, it enqueues a barrier that is ignored by the memory_lock functions, also causing access to not ready memory
-            ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem);
-        }
-    }
     if (convert_needed) {
         if (is_remote_tensor_impl) {
             convert_and_copy(remote_tensor_impl_ptr->get_memory(), device_tensor->get_memory(), stream);
@@ -919,7 +878,11 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         if (!is_remote_tensor_impl && !is_generic_remote) {
             auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
             if (!same_host_mem(memory, src_ptr)) {
-                ret_event = memory->copy_from(stream, src_ptr, false);
+                // WA: Set need_lockable_mem as a blocking argument
+                // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
+                // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying
+                // For OOOQ, it enqueues a barrier that is ignored by the memory_lock functions, also causing access to not ready memory
+                ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem);
             }
         } else if (is_generic_remote) {
             user_tensor->copy_to(device_tensor);
@@ -969,7 +932,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(device_tensor_et, element_type);
 
-    if (is_remote_tensor_impl && !convert_needed && !is_dynamic) {
+    // Even if the network is dynamic, if user tensor's shape is static, remote tensor can be set as plugin's output tensor
+    if (is_remote_tensor_impl && !convert_needed) {
         m_plugin_outputs[output_idx] = user_tensor_wrapper;
     }
 
@@ -996,7 +960,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
     auto output_memory = output_tensor->get_memory();
     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
-    return network->set_output_memory(internal_name, output_memory);
+    return network->set_output_memory(internal_name, output_memory, is_dynamic && (is_remote_tensor_impl || user_tensor));
 }
 
 void SyncInferRequest::init_mappings() {
@@ -1016,5 +980,4 @@ bool SyncInferRequest::is_batched_input(const ov::Output<const ov::Node>& port) 
     return m_batched_tensors.count(port.get_tensor_ptr()) > 0;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

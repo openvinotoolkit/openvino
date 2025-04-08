@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -93,6 +93,7 @@ class TestChunk(PytorchLayerTest):
     @pytest.mark.parametrize("unsafe", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_chunk(self, input_shape, chunks, unsafe, ie_device, precision, ir_version):
         self.input_shape = input_shape
 
@@ -128,6 +129,7 @@ class TestChunk(PytorchLayerTest):
     @pytest.mark.parametrize("unsafe", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_chunk_getitem(self, input_shape, chunks, unsafe, ie_device, precision, ir_version):
         self.input_shape = input_shape
         for dim, dim_shape in enumerate(input_shape):

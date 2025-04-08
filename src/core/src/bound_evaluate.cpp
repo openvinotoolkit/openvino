@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,36 +17,6 @@
 
 namespace {
 using namespace ov;
-
-void propagate_rt_info(Node* node, const Output<Node>& final_port) {
-    auto node_outputs = node->outputs();
-    bool same_outputs = std::all_of(node_outputs.begin(), node_outputs.end(), [](const Output<Node>& output) {
-        return output.get_tensor().has_and_set_bound();
-    });
-    if (same_outputs && op::util::is_constant(node))  // constant should not propagate it's rt_info
-    {
-        std::unordered_set<Node*> stop_nodes;
-        for (const auto& in : final_port.get_target_inputs())
-            stop_nodes.insert(in.get_node());
-
-        auto curr_node = node->shared_from_this();
-        for (const auto& output : node_outputs) {
-            if (output == final_port)
-                continue;
-            for (auto& in : output.get_target_inputs()) {
-                if (stop_nodes.count(in.get_node()))
-                    continue;
-                try {
-                    auto consumer = in.get_node()->shared_from_this();
-                    copy_runtime_info({curr_node, consumer}, consumer);
-                } catch (const std::bad_weak_ptr&) {
-                    // Exception can be thrown, if `shared_from_this()` was called during node creation.
-                    // Continue propagation for other nodes.
-                }
-            }
-        }
-    }
-}
 
 bool are_same_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
     return (lhs && rhs) && (lhs.get_element_type() == rhs.get_element_type()) && (lhs.get_shape() == rhs.get_shape()) &&
@@ -72,7 +42,7 @@ bool are_equal(const ov::Tensor& lhs, const ov::Tensor& rhs) {
 }
 
 bool is_type_allocable(const element::Type& type) {
-    return type != element::undefined && type.is_static();
+    return type != element::dynamic && type.is_static();
 }
 
 /**
@@ -287,7 +257,6 @@ void evaluate_bound(const Output<Node>& output) {
             }
             bound_evaluator.set_bounds_and_symbols();
             invalidate_unused_values(node->input_values());
-            propagate_rt_info(node, output);
         }
     }
 }
@@ -590,7 +559,7 @@ bool ov::tensor_has_max_value(const Tensor& bound) {
     folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
     OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
     OPENVINO_ASSERT(all[0].get_shape() == Shape{});
-    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
+    return ov::as_type_ptr<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
 bool ov::tensor_has_zero_value(const Tensor& bound) {
@@ -611,7 +580,7 @@ bool ov::tensor_has_zero_value(const Tensor& bound) {
     folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
     OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
     OPENVINO_ASSERT(all[0].get_shape() == Shape{});
-    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
+    return ov::as_type_ptr<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
 bool ov::has_and_set_equal_bounds(const Output<Node>& source) {

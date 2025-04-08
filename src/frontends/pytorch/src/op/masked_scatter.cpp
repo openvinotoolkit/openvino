@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ OutputVector translate_masked_scatter(const NodeContext& context) {
     auto x_shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i32));
     auto expanded_mask =
         context.mark_node(std::make_shared<v3::Broadcast>(mask, x_shape, BroadcastType::BIDIRECTIONAL));
-    auto index = context.mark_node(std::make_shared<v3::NonZero>(expanded_mask, element::i32));
+    auto index = context.mark_node(std::make_shared<v3::NonZero>(expanded_mask));
     auto input_order = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
     index = context.mark_node(std::make_shared<v1::Transpose>(index, input_order));
     // source can be arbitary shape, select only relevant data

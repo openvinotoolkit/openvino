@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,18 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
             ov::PartialShape shape = ov::PartialShape::dynamic(new_rank);
 
             auto& output_layout = updated_impl_params.output_layouts[0];
+
             if (input_pshape.is_static()) {
+                size_t flatten_axis = 0;
+                // Change flatten axis if the format is single fsv.
+                auto block_sizes = format::block_sizes(input_layout.format);
+                if (block_sizes.size() == 1
+                    && (input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second == 0)
+                    && (std::count(axes.begin(), axes.end(), block_sizes[0].first) == 0)
+                    && block_sizes[0].first == 1) {
+                    flatten_axis = 1;
+                }
+
                 for (size_t i = 0; i < new_rank; i++) {
                     shape[i] = 1;
                 }
@@ -72,7 +83,7 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
                 // 1. normalized dimensions which are flattened and written to the last dim
                 // 2. not normalized dims which are flattened and written to the first dim
                 for (size_t i = 0; i < input_rank; i++) {
-                    shape[static_cast<int64_t>(i) < min ? 0 : (new_rank - 1)] *= input_pshape[i];
+                    shape[static_cast<int64_t>(i) < min ? flatten_axis : (new_rank - 1)] *= input_pshape[i];
                 }
             }
 

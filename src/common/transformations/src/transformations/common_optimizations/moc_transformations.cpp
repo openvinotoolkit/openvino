@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,6 +65,7 @@
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
+#include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/select_with_one_value_condition.hpp"
 #include "transformations/common_optimizations/sequence_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
@@ -130,8 +131,15 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
-            element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
+        manager.register_pass<ov::pass::MarkDequantization>(element::TypeVector{ov::element::i8,
+                                                                                ov::element::u8,
+                                                                                ov::element::i4,
+                                                                                ov::element::u4,
+                                                                                ov::element::nf4,
+                                                                                ov::element::f4e2m1,
+                                                                                ov::element::f8e4m3,
+                                                                                ov::element::f8e5m2,
+                                                                                ov::element::f8e8m0});
     }
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
@@ -229,6 +237,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ConvertTensorIteratorToSequence)
     ADD_MATCHER(common_fusions, SplitConcatPairToInterpolateFusion, m_use_shapes)
     ADD_MATCHER(common_fusions, ConvolutionToGroupConvolutionFusion)
+    ADD_MATCHER(common_fusions, SDPAFusion)
     if (m_use_shapes) {
         ADD_MATCHER(common_fusions, NearestNeighborUpsamplingFusion)
     }

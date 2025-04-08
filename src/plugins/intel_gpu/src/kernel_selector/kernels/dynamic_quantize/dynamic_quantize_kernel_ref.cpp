@@ -11,6 +11,7 @@ ParamsKey DynamicQuantizeKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
@@ -53,6 +54,10 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
 
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
+    jit.AddConstant(MakeJitConstant("UNSIGNED_OUTPUT", params.outputs[0].GetDType() == Datatype::UINT8 ? 1 : 0));
+
+    // Use FP32 accumulator type for scale/zp calculation
+    jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
 
     auto group_sizes = params.group_sizes;
     group_sizes.resize(std::min((size_t)4, group_sizes.size()), 1);
@@ -65,17 +70,30 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
 }
 
 CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_params& params) const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     CommonDispatchData dispatchData;
 
     OPENVINO_ASSERT(params.outputs[0].GetLayout() == DataLayout::bfyx, "It supports only 4d tensor");
 
     auto group_sizes = params.group_sizes;
-    group_sizes.resize(std::min((size_t)4, group_sizes.size()), 1);
+    group_sizes.resize(std::max((size_t)4, group_sizes.size()), 1);
     auto batch_size = group_sizes[0] == 1 ? params.outputs[0].Batch().v : 1;
     auto feature_size = group_sizes[1] == 1 ? params.outputs[0].Feature().v : 1;
     auto y_size = group_sizes[2] == 1 ? params.outputs[0].Y().v : 1;
     auto x_size = group_sizes[3] == 1 ? params.outputs[0].X().v : 1;
+
+    OPENVINO_ASSERT(
+        (group_sizes[0] == 1 || group_sizes[0] == params.outputs[0].Batch().v   || group_sizes[0] == UINT64_MAX) &&
+        (group_sizes[1] == 1 || group_sizes[1] == params.outputs[0].Feature().v || group_sizes[1] == UINT64_MAX) &&
+        (group_sizes[2] == 1 || group_sizes[2] == params.outputs[0].Y().v       || group_sizes[2] == UINT64_MAX
+                || (params.outputs[0].Y().v % group_sizes[2] == 0 && params.outputs[0].X().v == 1)) &&   // Grouped quantization is only supported for 3d case
+        (group_sizes[3] == 1 || group_sizes[3] == params.outputs[0].X().v       || group_sizes[3] == UINT64_MAX),
+                    "[GPU] Unsupported dynamic quantization configuration: (",
+                            group_sizes[0], ",", group_sizes[1], ",", group_sizes[2], ",", group_sizes[3], ") - (",
+                            params.outputs[0].Batch().v, ",", params.outputs[0].Feature().v, ",", params.outputs[0].Y().v, ",", params.outputs[0].X().v, ")");
+
+    // Grouped quantization is supported only over y axis
+    if (params.group_sizes[2] > 1 && params.group_sizes[2] != UINT64_MAX)
+        y_size = params.outputs[0].Y().v / params.group_sizes[2];
 
     dispatchData.gws = {batch_size * feature_size, y_size, x_size};
     dispatchData.lws = {1, 1, 1};

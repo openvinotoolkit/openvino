@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,4 +148,7 @@ OPENVINO_API EnumNames<op::v9::GridSample::PaddingMode>& EnumNames<op::v9::GridS
                                                     {"reflection", op::v9::GridSample::PaddingMode::REFLECTION}});
     return enum_names;
 }
+
+AttributeAdapter<op::v9::GridSample::InterpolationMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::v9::GridSample::PaddingMode>::~AttributeAdapter() = default;
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -895,7 +895,7 @@ TEST(constant, uint2_string_broadcast) {
 }
 
 TEST(constant, uint2_vector_less_than_single_byte) {
-    auto const shape = Shape{3};
+    const auto shape = Shape{3};
     const auto input = std::vector<uint8_t>{2, 3, 1};
 
     op::v0::Constant c(element::u2, shape, input);
@@ -909,7 +909,7 @@ TEST(constant, uint2_vector_less_than_single_byte) {
 }
 
 TEST(constant, uint2_vector_bigger_than_single_byte) {
-    auto const shape = Shape{7};
+    const auto shape = Shape{7};
     const auto input = std::vector<uint8_t>{2, 3, 1, 0, 1, 2, 0};
 
     op::v0::Constant c(element::u2, shape, input);
@@ -1007,7 +1007,7 @@ TEST(constant, uint3_string_broadcast) {
 }
 
 TEST(constant, uint3_vector_less_than_one_storage_unit) {
-    auto const shape = Shape{3};
+    const auto shape = Shape{3};
     const auto input = std::vector<uint8_t>{5, 3, 1};
 
     op::v0::Constant c(element::u3, shape, input);
@@ -1023,7 +1023,7 @@ TEST(constant, uint3_vector_less_than_one_storage_unit) {
 }
 
 TEST(constant, uint3_vector_greater_than_one_storage_unit) {
-    auto const shape = Shape{10};
+    const auto shape = Shape{10};
     const auto input = std::vector<uint8_t>{2, 3, 1, 0, 4, 5, 6, 7, 5, 2};
 
     op::v0::Constant c(element::u3, shape, input);
@@ -1247,7 +1247,7 @@ TEST(constant, uint6_string_broadcast) {
 }
 
 TEST(constant, uint6_vector_less_than_one_storage_unit) {
-    auto const shape = Shape{3};
+    const auto shape = Shape{3};
     const auto input = std::vector<uint8_t>{5, 23, 1};
 
     op::v0::Constant c(element::u6, shape, input);
@@ -1263,7 +1263,7 @@ TEST(constant, uint6_vector_less_than_one_storage_unit) {
 }
 
 TEST(constant, uint6_vector_greater_than_one_storage_unit) {
-    auto const shape = Shape{6};
+    const auto shape = Shape{6};
     const auto input = std::vector<uint8_t>{25, 3, 1, 0, 45, 5};
 
     op::v0::Constant c(element::u6, shape, input);

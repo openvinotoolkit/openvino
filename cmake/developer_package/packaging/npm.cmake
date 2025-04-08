@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -54,7 +54,7 @@ ov_override_component_names()
 macro(ov_define_component_include_rules)
     # core components
     unset(OV_CPACK_COMP_CORE_EXCLUDE_ALL)
-    set(OV_CPACK_COMP_CORE_C_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    unset(OV_CPACK_COMP_CORE_C_EXCLUDE_ALL)
     set(OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_CORE_C_DEV_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # tbb

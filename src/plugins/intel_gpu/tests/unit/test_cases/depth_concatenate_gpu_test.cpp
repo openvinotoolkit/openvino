@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -409,11 +409,15 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     //
     // *Convolution has input offset so it should be propagated, both back to reorders and to second concatenation.
     // As a result both concatenations should be optimized out and convolution should use optimized implementation.
+
     const int32_t input_f = 32;
     const int32_t output_f = 3 * input_f;
 
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad) {
+        return;
+    }
     auto input1 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
     auto input2 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
 

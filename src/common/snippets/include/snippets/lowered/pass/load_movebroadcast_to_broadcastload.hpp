@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace pass {
 class LoadMoveBroadcastToBroadcastLoad: public RangedPass {
 public:
     LoadMoveBroadcastToBroadcastLoad() = default;
-    OPENVINO_RTTI("LoadMoveBroadcastToBroadcastLoad", "RangedPass")
+    OPENVINO_RTTI("LoadMoveBroadcastToBroadcastLoad", "", RangedPass);
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include "intel_gpu/runtime/execution_config.hpp"
 
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -157,7 +158,7 @@ public:
         , _obj(obj)
         , _stage(stage) {
         GPU_DEBUG_IF(profiling_enabled) {
-            _per_iter_mode = cldnn::debug_configuration::get_instance()->dump_profiling_data_per_iter != 0;
+            _per_iter_mode = GPU_DEBUG_VALUE_OR(ov::intel_gpu::ExecutionConfig::get_dump_profiling_data_per_iter(), false);
             _start = std::chrono::high_resolution_clock::now();
         }
     }

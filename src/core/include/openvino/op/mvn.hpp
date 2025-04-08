@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -160,6 +160,8 @@ public:
     AttributeAdapter(op::MVNEpsMode& value) : EnumAttributeAdapterBase<op::MVNEpsMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::MVNEpsMode>");
+
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

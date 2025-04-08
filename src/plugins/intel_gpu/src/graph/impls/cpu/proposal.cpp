@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "proposal_inst.h"
 #include "intel_gpu/runtime/engine.hpp"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include <algorithm>
@@ -194,7 +194,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::proposal_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<proposal_impl>(*this);
+        return std::make_unique<proposal_impl>(*this);
     }
 
     template <typename dtype>
@@ -453,7 +453,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             OPENVINO_ASSERT(one_of(count, {3, 4, 6}), arg.id(), "image_info must have either 3, 4 or 6 items");
         }
 
-        return make_unique<proposal_impl>(arg);
+        return std::make_unique<proposal_impl>(arg);
     }
 };
 

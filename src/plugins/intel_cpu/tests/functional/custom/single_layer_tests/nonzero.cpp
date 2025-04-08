@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ public:
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, genData, cpuParams) = obj.param;
         std::string td;
-        ElementType netType = ElementType::undefined;
+        ElementType netType = ElementType::dynamic;
         InputShape inputShape;
 
         std::tie(inputShape, netType) = basicParamsSet;
@@ -74,7 +74,7 @@ protected:
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, genData, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        ElementType netType = ElementType::undefined;
+        ElementType netType = ElementType::dynamic;
         InputShape inputShape;
         std::tie(inputShape, netType) = basicParamsSet;
 

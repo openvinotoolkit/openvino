@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,28 +22,28 @@ void OpCache::update_cache(const std::shared_ptr<ov::Model>& model,
     std::cout << "[ INFO ][ OP CACHE ] Processing model: " << model_path << std::endl;
     size_t model_op_cnt = model->get_ops().size() - model->get_output_size() - model->inputs().size();
     for (const auto& op : model->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
-            std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
+        if (ov::as_type_ptr<ov::op::v0::Parameter>(op) ||
+            ov::as_type_ptr<ov::op::v0::Constant>(op) ||
+            ov::as_type_ptr<ov::op::v0::Result>(op) ||
             // ReadValue and Assign have to be handled in pair
             // Will be handled as part of 48838
-            std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
-            std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
+            ov::as_type_ptr<ov::op::util::AssignBase>(op) ||
+            ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
             continue;
         }
         if (extract_body) {
-            if (std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
-                auto if_op = std::dynamic_pointer_cast<ov::op::v8::If>(op);
+            if (ov::as_type_ptr<ov::op::v8::If>(op)) {
+                auto if_op = ov::as_type_ptr<ov::op::v8::If>(op);
                 for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
                     auto if_body = if_op->get_function(i);
                     update_cache(if_body, model_path, extract_body, from_cache);
                 }
-            } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
-                auto loop = std::dynamic_pointer_cast<ov::op::v5::Loop>(op);
+            } else if (ov::as_type_ptr<ov::op::v5::Loop>(op)) {
+                auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
                 auto loop_body = loop->get_function();
                 update_cache(loop_body, model_path, extract_body, from_cache);
-            } else if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
-                auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op);
+            } else if (ov::as_type_ptr<ov::op::v0::TensorIterator>(op)) {
+                auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
                 auto ti_body = ti->get_function();
                 update_cache(ti_body, model_path, extract_body, from_cache);
             }
@@ -135,7 +135,7 @@ OpCache::serialize_op(const std::pair<std::shared_ptr<ov::Node>, ov::conformance
 std::string OpCache::get_rel_serilization_dir(const std::shared_ptr<ov::Node>& node) {
     std::string op_folder_name = ov::util::get_node_version(node->get_type_info());
     auto op_el_type = node->get_output_element_type(0).get_type_name();
-    return ov::util::path_join({m_cache_subdir, ov::util::get_node_type(node), op_folder_name, op_el_type});
+    return ov::util::path_join({m_cache_subdir, ov::util::get_node_type(node), op_folder_name, op_el_type}).string();
 }
 
 }  // namespace subgraph_dumper

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,10 @@ void* IEngineBackend::getContext() const {
 }
 
 void IEngineBackend::registerOptions(OptionsDesc&) const {}
+
+const std::shared_ptr<ZeroInitStructsHolder> IEngineBackend::getInitStructs() const {
+    return nullptr;
+}
 
 IDevice::Uuid IDevice::getUuid() const {
     OPENVINO_THROW("Get UUID not supported");
@@ -88,7 +92,8 @@ ov::SoPtr<ov::IRemoteTensor> IDevice::createRemoteTensor(std::shared_ptr<ov::IRe
 ov::SoPtr<ov::ITensor> IDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext>,
                                                  const ov::element::Type&,
                                                  const ov::Shape&,
-                                                 const Config&) {
+                                                 const Config&,
+                                                 ov::intel_npu::TensorType) {
     OPENVINO_THROW("Create Host Tensor is not supported");
 }
 

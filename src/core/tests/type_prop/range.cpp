@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -508,7 +508,7 @@ TEST(type_prop, range_v4_invalid_inputs_elem_type) {
     // invalid element type for step scalar
     try {
         auto start = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
-        auto stop = make_shared<ov::op::v0::Parameter>(element::undefined, Shape{});
+        auto stop = make_shared<ov::op::v0::Parameter>(element::dynamic, Shape{});
         auto step = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{});
         auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
         FAIL() << "Exception expected";

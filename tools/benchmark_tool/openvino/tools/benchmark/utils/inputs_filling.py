@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -10,8 +10,8 @@ from collections import defaultdict
 from pathlib import Path
 from importlib.util import find_spec
 
-from openvino.runtime import Tensor, PartialShape, Type
-from openvino.runtime.utils.types import get_dtype
+from openvino import Tensor, PartialShape, Type
+from openvino.utils.types import get_dtype
 
 from .constants import IMAGE_EXTENSIONS, NUMPY_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@ using ov::test::Gather7LayerTest;
 using ov::test::Gather8LayerTest;
 using ov::test::Gather8withIndicesDataLayerTest;
 using ov::test::GatherStringWithIndicesDataLayerTest;
+using ov::test::GatherMixedPrecLayerTest;
 
 const std::vector<ov::element::Type> model_types = {
         ov::element::f32,
@@ -287,5 +288,21 @@ INSTANTIATE_TEST_CASE_P(smoke_gather_string,
                         GatherStringWithIndicesDataLayerTest,
                         gatherWithStringParams,
                         GatherStringWithIndicesDataLayerTest::getTestCaseName);
+
+const std::vector<ov::element::Type> mixed_model_types = {
+    ov::element::f16,
+    ov::element::bf16,
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_static_4D_mixed,
+    GatherMixedPrecLayerTest,
+    testing::Combine(testing::ValuesIn(ov::test::static_shapes_to_test_representation(data_shapes_4d_gather8)),
+                     testing::ValuesIn(idx_shapes_4d_gather8),
+                     testing::ValuesIn(axes_batches_4d_gather8),
+                     testing::ValuesIn(mixed_model_types),
+                     testing::Values(ov::element::f32),
+                     testing::Values(ov::test::utils::DEVICE_CPU)),
+    GatherMixedPrecLayerTest::getTestCaseName);
 
 }  // namespace

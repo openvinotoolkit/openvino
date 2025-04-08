@@ -70,18 +70,22 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
     auto jit = MakeBaseParamsJitConstants(params);
 
     if (params.conf.broadcast_axis != -1) {
-        jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", params.conf.group_size));
+        jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", params.conf.kv_group_size));
         jit.AddConstant(MakeJitConstant("DO_BROADCAST_KEY_VALUE", GetBroadcastInputStr(params.inputs[0].GetDims().size(),
                                                                                        params.conf.broadcast_axis,
-                                                                                       params.conf.group_size)));
+                                                                                       params.conf.kv_group_size)));
     } else {
         jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", 1));
     }
 
     jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
     if (!params.conf.is_paged_attention) {
-        jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
-        jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4));
+        if (params.conf.has_const_attn_mask_val) {
+            jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", 0));
+            jit.AddConstant(MakeJitConstant("STATIC_SCALAR_ATTN_MASK_VALUE", params.conf.attn_mask_val));
+        } else {
+            jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
+        }
     }
 
     jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
@@ -107,7 +111,7 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
     };
 
     auto use_index_calc_func = [&](const std::vector<int64_t> order, bool is_query = false) {
-        if (!params.input0_order.empty() && !is_default_order(params.input0_order))
+        if (!order.empty() && !is_default_order(order))
             return true;
 
         if (params.conf.broadcast_axis != -1)

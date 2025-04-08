@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # FindOpenVINO
@@ -549,8 +549,13 @@ if(_ov_as_external_package)
     foreach(target IN LISTS _ov_imported_libs)
         if(TARGET ${target})
             get_target_property(imported_configs ${target} IMPORTED_CONFIGURATIONS)
-            if(NOT RELWITHDEBINFO IN_LIST imported_configs)
-                set_property(TARGET ${target} PROPERTY MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
+            if(RELEASE IN_LIST imported_configs)
+                if(NOT RELWITHDEBINFO IN_LIST imported_configs)
+                    set_property(TARGET ${target} PROPERTY MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
+                endif()
+                if(NOT MINSIZEREL IN_LIST imported_configs)
+                    set_property(TARGET ${target} PROPERTY MAP_IMPORTED_CONFIG_MINSIZEREL RELEASE)
+                endif()
             endif()
             unset(imported_configs)
         endif()

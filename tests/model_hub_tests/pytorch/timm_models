@@ -126,13 +126,13 @@ efficientnet_es_pruned.in1k,None
 efficientnet_lite0.ra_in1k,None
 efficientnetv2_rw_s.ra2_in1k,None
 efficientnetv2_rw_t.ra2_in1k,None
-efficientvit_b0.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
-efficientvit_b1.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
-efficientvit_b2.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
-efficientvit_b3.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
-efficientvit_l1.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
-efficientvit_l2.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
-efficientvit_l3.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_b0.r224_in1k,None
+efficientvit_b1.r224_in1k,None
+efficientvit_b2.r224_in1k,None
+efficientvit_b3.r224_in1k,None
+efficientvit_l1.r224_in1k,None
+efficientvit_l2.r224_in1k,None
+efficientvit_l3.r224_in1k,None
 efficientvit_m0.r224_in1k,None
 efficientvit_m1.r224_in1k,None
 efficientvit_m2.r224_in1k,None
@@ -147,8 +147,8 @@ eva02_base_patch14_224.mim_in22k,None
 eva02_base_patch16_clip_224.merged2b,None
 eva02_large_patch14_clip_224.merged2b,None
 fastvit_ma36.apple_dist_in1k,None
-fastvit_mci0.apple_mclip,None
-fastvit_mci1.apple_mclip,None
+fastvit_mci0.apple_mclip,None,xfail,Accuracy validation failed
+fastvit_mci1.apple_mclip,None,xfail,Accuracy validation failed
 fastvit_mci2.apple_mclip,None,xfail,Accuracy validation failed
 fastvit_s12.apple_dist_in1k,None
 fastvit_sa12.apple_dist_in1k,None
@@ -524,7 +524,7 @@ vit_base_patch16_224.augreg2_in21k_ft_in1k,None
 vit_base_patch16_224_miil.in21k,None
 vit_base_patch16_clip_224.datacompxl,None
 vit_base_patch16_clip_quickgelu_224.metaclip_2pt5b,None
-vit_base_patch16_rope_reg1_gap_256.sbb_in1k,None,xfail_trace,Argument shapes are inconsistent
+vit_base_patch16_rope_reg1_gap_256.sbb_in1k,None
 vit_base_patch16_rpn_224.sw_in1k,None
 vit_base_patch16_siglip_224.webli,None
 vit_base_patch16_siglip_gap_224.webli,None
@@ -535,7 +535,7 @@ vit_base_patch8_224.augreg2_in21k_ft_in1k,None
 vit_base_r50_s16_224.orig_in21k,None
 vit_betwixt_patch16_reg1_gap_256.sbb_in1k,None
 vit_betwixt_patch16_reg4_gap_256.sbb2_e200_in12k,None
-vit_betwixt_patch16_rope_reg4_gap_256.sbb_in1k,None,xfail_trace,Argument shapes are inconsistent
+vit_betwixt_patch16_rope_reg4_gap_256.sbb_in1k,None
 vit_betwixt_patch32_clip_224.tinyclip_laion400m,None
 vit_huge_patch14_224.mae,None
 vit_huge_patch14_gap_224.in1k_ijepa,None
@@ -549,7 +549,7 @@ vit_medium_patch16_gap_240.sw_in12k,None
 vit_medium_patch16_reg1_gap_256.sbb_in1k,None
 vit_medium_patch16_reg4_gap_256.sbb_in12k,None
 vit_mediumd_patch16_reg4_gap_256.sbb2_e200_in12k,None
-vit_mediumd_patch16_rope_reg1_gap_256.sbb_in1k,None,xfail_trace,Argument shapes are inconsistent
+vit_mediumd_patch16_rope_reg1_gap_256.sbb_in1k,None
 vit_pwee_patch16_reg1_gap_256.sbb_in1k,None
 vit_relpos_base_patch16_224.sw_in1k,None
 vit_relpos_base_patch16_clsgap_224.sw_in1k,None

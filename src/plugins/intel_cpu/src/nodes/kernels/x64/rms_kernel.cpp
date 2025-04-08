@@ -1,21 +1,20 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "rms_kernel.hpp"
 
+#include <memory>
+
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 #define GET_OFF(field) offsetof(jit_rms_call_args, field)
 
 template <cpu_isa_t isa>
-void jit_rms_kernel<isa>::reduce_zmm_to_ymm(
-        const Xmm &acc, const Xmm &tmp) {
+void jit_rms_kernel<isa>::reduce_zmm_to_ymm(const Xmm& acc, const Xmm& tmp) {
     const Zmm zmm_acc(acc.getIdx());
     const Ymm ymm_acc(acc.getIdx());
     const Ymm ymm_to_acc(tmp.getIdx());
@@ -24,8 +23,7 @@ void jit_rms_kernel<isa>::reduce_zmm_to_ymm(
 }
 
 template <cpu_isa_t isa>
-void jit_rms_kernel<isa>::reduce_ymm_to_xmm(
-        const Xmm &acc, const Xmm &tmp) {
+void jit_rms_kernel<isa>::reduce_ymm_to_xmm(const Xmm& acc, const Xmm& tmp) {
     const Ymm ymm_acc(acc.getIdx());
     const Xmm xmm_acc(acc.getIdx());
     const Xmm xmm_to_acc(tmp.getIdx());
@@ -34,16 +32,16 @@ void jit_rms_kernel<isa>::reduce_ymm_to_xmm(
 }
 
 template <cpu_isa_t isa>
-void jit_rms_kernel<isa>::reduce_xmm_to_scalar(const Xmm &acc,
-        const Xmm &tmp, const std::size_t number_of_values_to_reduce) {
+void jit_rms_kernel<isa>::reduce_xmm_to_scalar(const Xmm& acc,
+                                               const Xmm& tmp,
+                                               const std::size_t number_of_values_to_reduce) {
     assert(number_of_values_to_reduce <= number_of_f32_in_xmm_);
 
     const Xmm xmm_acc(acc.getIdx());
     const Xmm ymm_to_acc(tmp.getIdx());
 
     static constexpr int number_of_f32_to_move = number_of_f32_in_xmm_ - 1;
-    static constexpr uint8_t insertps_configuration[number_of_f32_to_move]
-            = {0b01001110, 0b10001110, 0b11001110};
+    static constexpr uint8_t insertps_configuration[number_of_f32_to_move] = {0b01001110, 0b10001110, 0b11001110};
 
     for (std::size_t i = 0; i < number_of_values_to_reduce - 1; i++) {
         vinsertps(ymm_to_acc, ymm_to_acc, xmm_acc, insertps_configuration[i]);
@@ -52,9 +50,10 @@ void jit_rms_kernel<isa>::reduce_xmm_to_scalar(const Xmm &acc,
 }
 
 template <cpu_isa_t isa>
-void jit_rms_kernel<isa>::reduce_ymm_to_scalar(
-        const Xbyak::Xmm &acc, const Xbyak::Xmm &tmp1, const Xbyak::Xmm &tmp2,
-        const std::size_t number_of_values_to_reduce) {
+void jit_rms_kernel<isa>::reduce_ymm_to_scalar(const Xbyak::Xmm& acc,
+                                               const Xbyak::Xmm& tmp1,
+                                               const Xbyak::Xmm& tmp2,
+                                               const std::size_t number_of_values_to_reduce) {
     assert(number_of_values_to_reduce <= number_of_f32_in_ymm_);
 
     const Ymm ymm_acc(acc.getIdx());
@@ -68,8 +67,7 @@ void jit_rms_kernel<isa>::reduce_ymm_to_scalar(
     } else if (number_of_values_to_reduce > number_of_f32_in_xmm_) {
         vextractf128(xmm_acc_upper_half, ymm_acc, 1);
         reduce_xmm_to_scalar(xmm_acc, xmm_tmp);
-        reduce_xmm_to_scalar(xmm_acc_upper_half, xmm_tmp,
-                number_of_values_to_reduce - number_of_f32_in_xmm_);
+        reduce_xmm_to_scalar(xmm_acc_upper_half, xmm_tmp, number_of_values_to_reduce - number_of_f32_in_xmm_);
         vaddss(xmm_acc, xmm_acc, xmm_acc_upper_half);
     } else if (number_of_values_to_reduce <= number_of_f32_in_xmm_) {
         reduce_xmm_to_scalar(xmm_acc, xmm_tmp, number_of_values_to_reduce);
@@ -77,9 +75,11 @@ void jit_rms_kernel<isa>::reduce_ymm_to_scalar(
 }
 
 template <cpu_isa_t isa>
-void jit_rms_kernel<isa>::reduce_vmm_to_scalar(
-        const Xbyak::Xmm &acc, const Xbyak::Xmm &tmp1, const Xbyak::Xmm &tmp2,
-        const Xbyak::Xmm &tmp3, const std::size_t number_of_values_to_reduce) {
+void jit_rms_kernel<isa>::reduce_vmm_to_scalar(const Xbyak::Xmm& acc,
+                                               const Xbyak::Xmm& tmp1,
+                                               const Xbyak::Xmm& tmp2,
+                                               const Xbyak::Xmm& tmp3,
+                                               const std::size_t number_of_values_to_reduce) {
     assert(number_of_values_to_reduce <= number_of_f32_in_zmm_);
 
     const Zmm zmm_acc(acc.getIdx());
@@ -98,12 +98,13 @@ void jit_rms_kernel<isa>::reduce_vmm_to_scalar(
     } else if (number_of_values_to_reduce > number_of_f32_in_ymm_) {
         vextractf64x4(ymm_acc_upper_half, zmm_acc, 1);
         reduce_ymm_to_scalar(ymm_acc, xmm_tmp1, xmm_tmp2);
-        reduce_ymm_to_scalar(ymm_acc_upper_half, xmm_tmp1, xmm_tmp2,
-                number_of_values_to_reduce - number_of_f32_in_ymm_);
+        reduce_ymm_to_scalar(ymm_acc_upper_half,
+                             xmm_tmp1,
+                             xmm_tmp2,
+                             number_of_values_to_reduce - number_of_f32_in_ymm_);
         vaddps(xmm_acc, xmm_acc, xmm_acc_upper_half);
     } else if (number_of_values_to_reduce <= number_of_f32_in_ymm_) {
-        reduce_ymm_to_scalar(
-                ymm_acc, xmm_tmp1, xmm_tmp2, number_of_values_to_reduce);
+        reduce_ymm_to_scalar(ymm_acc, xmm_tmp1, xmm_tmp2, number_of_values_to_reduce);
     }
 }
 
@@ -159,6 +160,7 @@ void jit_rms_kernel<isa>::generate() {
     reduce_vmm_to_scalar(vmm_rsqrt, vmm_sum0, vmm_sum1, vmm_sum3, vec_size);
 
     // mean(x^2)
+    OPENVINO_ASSERT(m_jcp.data_size != 0);
     mov(reg_tmp.cvt32(), float2int(1.0f / m_jcp.data_size));
     vmovd(xmm_tmp, reg_tmp.cvt32());
     vmulss(xmm_rsqrt, xmm_rsqrt, xmm_tmp);
@@ -215,34 +217,53 @@ void jit_rms_kernel<isa>::generate() {
 
     this->postamble();
     for (const auto& emitter : emitters) {
-        if (emitter.second)
+        if (emitter.second) {
             emitter.second->emit_data();
+        }
     }
 }
 
 template <cpu_isa_t isa>
-void jit_rms_kernel<isa>::load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, ov::element::Type src_prc, const int& elt_num, bool fill, size_t offset) {
+void jit_rms_kernel<isa>::load(const Vmm& vmm_dst,
+                               const Xbyak::Reg64& reg_src,
+                               ov::element::Type src_prc,
+                               const int& elt_num,
+                               bool fill,
+                               size_t offset) {
     const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
     if (!emitters[seed]) {
-        emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, ov::element::f32, elt_num, ov::element::f32, fill, "float_min"));
+        emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                            isa,
+                                                            src_prc,
+                                                            ov::element::f32,
+                                                            elt_num,
+                                                            ov::element::f32,
+                                                            fill,
+                                                            "float_min");
     }
-    emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), offset}, {static_cast<size_t>(vmm_dst.getIdx())},
-                                pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+    emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), offset},
+                              {static_cast<size_t>(vmm_dst.getIdx())},
+                              pool_aux_vmm_idxs,
+                              pool_aux_gpr_idxs);
 }
 
 template <cpu_isa_t isa>
-void jit_rms_kernel<isa>::store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num, size_t offset) {
+void jit_rms_kernel<isa>::store(const Xbyak::Reg64& reg_dst,
+                                const Vmm& vmm_src,
+                                ov::element::Type dst_prc,
+                                const int& elt_num,
+                                size_t offset) {
     const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
     if (!emitters[seed]) {
-        emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
+        emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, dst_prc, elt_num);
     }
-    emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(reg_dst.getIdx()), offset},
-                                pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+    emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
+                              {static_cast<size_t>(reg_dst.getIdx()), offset},
+                              pool_aux_vmm_idxs,
+                              pool_aux_gpr_idxs);
 }
 
 template struct jit_rms_kernel<cpu_isa_t::avx512_core>;
 template struct jit_rms_kernel<cpu_isa_t::avx2>;
 
-}   // namespace kernel
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu::kernel

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -133,4 +133,6 @@ OPENVINO_API EnumNames<op::v1::Reverse::Mode>& EnumNames<op::v1::Reverse::Mode>:
         {{"index", op::v1::Reverse::Mode::INDEX}, {"mask", op::v1::Reverse::Mode::MASK}});
     return enum_names;
 }
+
+AttributeAdapter<op::v1::Reverse::Mode>::~AttributeAdapter() = default;
 }  // namespace ov

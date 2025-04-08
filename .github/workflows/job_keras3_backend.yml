@@ -1,0 +1,121 @@
+name: Keras 3 OpenVINO Backend
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      container:
+        description: 'JSON to be converted to the value of the "container" configuration for the job'
+        type: string
+        required: false
+        default: '{"image": null}'
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
+  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
+
+jobs:
+  Keras3_OpenVINO_Backend:
+    name: Keras 3 OpenVINO Backend
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
+    runs-on: ${{ inputs.runner }}
+    container: ${{ fromJSON(inputs.container) }}
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
+      KERAS_REPO: ${{ github.workspace }}/keras_repo
+      KERAS_HOME: ${{ github.workspace }}/keras_repo/.github/workflows/config/openvino
+
+    steps:
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
+          echo "KERAS_REPO=$GITHUB_WORKSPACE/keras" >> "$GITHUB_ENV"
+          echo "KERAS_HOME=$GITHUB_WORKSPACE/keras/.github/workflows/config/openvino" >> "$GITHUB_ENV"
+
+      - name: Fetch setup_python and install wheels actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Clone Keras 3 repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          repository: 'keras-team/keras'
+          path: ${{ env.KERAS_REPO }}
+          ref: 'master'
+
+      - name: Download OpenVINO artifacts (wheels)
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          pattern: openvino_[wheels|openvino_tokenizers]*
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
+
+      - name: Setup Python ${{ inputs.python-version }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ inputs.python-version }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
+          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' }}
+
+      - name: Install OpenVINO Python wheels
+        uses: ./openvino/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino openvino_tokenizers'
+
+      - name: Install test dependencies
+        working-directory: ${{ env.KERAS_REPO }}
+        run: |
+          pip install -r requirements.txt --upgrade
+          # make sure that no other keras is installed via pip
+          pip uninstall -y keras keras-nightly
+          # manually set keras
+          echo "PYTHONPATH=$KERAS_REPO:$PYTHONPATH" >> "$GITHUB_ENV"
+
+      - name: Test integrations
+        working-directory: ${{ env.KERAS_REPO }}
+        run: |
+          python integration_tests/import_test.py --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-keras3_integration1.xml
+          python integration_tests/numerical_test.py --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-keras3_integration2.xml
+
+      - name: Test with pytest
+        working-directory: ${{ env.KERAS_REPO }}
+        run: |
+          IGNORE_FILE="keras/src/backend/openvino/excluded_tests.txt"
+          IGNORE_ARGS=$(awk '{print "--ignore=" $0}' "$IGNORE_FILE")
+          pytest keras --ignore keras/src/applications $IGNORE_ARGS --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-keras3_pytest.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-keras3-backend
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'

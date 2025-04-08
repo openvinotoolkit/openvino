@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -6,13 +6,10 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 #include <openvino/core/type/element_type.hpp>
+#include <vector>
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 void attn_softmax(void* a,
                   void* a_dst,
@@ -27,7 +24,4 @@ void attn_softmax(void* a,
                   ov::element::Type attn_mask_prec,
                   ov::element::Type dst_precision);
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

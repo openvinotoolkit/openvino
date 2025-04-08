@@ -1,0 +1,151 @@
+name: Python API tests
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      container:
+        description: 'JSON to be converted to the value of the "container" configuration for the job'
+        type: string
+        required: false
+        default: '{"image": null}'
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+
+jobs:
+  Python_Unit_Tests:
+    name: Python API tests
+    if: ${{ fromJSON(inputs.affected-components).Python_API.test || fromJSON(inputs.affected-components).docs_snippets.test }}
+    timeout-minutes: 30
+    runs-on: ${{ inputs.runner }}
+    container: ${{ fromJSON(inputs.container) }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/openvino_tests
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/openvino_wheels
+    steps:
+      - name: Download OpenVINO artifacts (tarballs and wheels)
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          pattern: openvino_@(wheels|tests)
+          path: ${{ env.INSTALL_DIR }}
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/openvino_tests" >> "$GITHUB_ENV"
+          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/openvino_wheels" >> "$GITHUB_ENV"
+
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
+
+      - name: Extract OpenVINO packages
+        run: pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_TEST_DIR}
+        working-directory: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Fetch setup_python and install wheels actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'action_root'
+
+      - name: Setup Python ${{ inputs.python-version }}
+        uses: ./action_root/.github/actions/setup_python
+        with:
+          version: ${{ inputs.python-version }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
+          should-setup-pip-paths: ${{ runner.os == 'Linux' }}
+          self-hosted-runner: ${{ runner.os == 'Linux' }}
+
+      #
+      # Tests
+      #
+      - name: Install OpenVINO Python wheels
+        uses: ./action_root/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino'
+
+      - name: Install Python API tests dependencies
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/tests/bindings/python/requirements_test.txt
+
+      #
+      # Tests
+      #
+
+      - name: Python API Tests
+        if: fromJSON(inputs.affected-components).Python_API.test
+        run: |
+          # for 'template' extension
+          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}/tests/:$LD_LIBRARY_PATH
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/tests/pyopenvino \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
+            --ignore=${INSTALL_TEST_DIR}/tests/pyopenvino/tests/test_utils/test_utils.py
+
+      - name: Python API Tests -- numpy<2.0.0
+        if: fromJSON(inputs.affected-components).Python_API.test
+        run: |
+          python3 -m pip uninstall -y numpy
+          python3 -m pip install "numpy~=1.26.0"
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/tests/bindings/python/requirements_test.txt
+          # for 'template' extension
+          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}/tests/:$LD_LIBRARY_PATH
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/tests/pyopenvino \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph_new_numpy.xml \
+            --ignore=${INSTALL_TEST_DIR}/tests/pyopenvino/tests/test_utils/test_utils.py
+
+      - name: Clone API snippets
+        if: ${{ runner.os != 'macOS' && fromJSON(inputs.affected-components).docs_snippets.test }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: docs/articles_en/assets/snippets
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'false'
+
+      - name: Docs Python snippets
+        if: ${{ runner.os != 'macOS' && fromJSON(inputs.affected-components).docs_snippets.test }}
+        run: |
+          # torch, onnx
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/tests/python/preprocess/torchvision/requirements.txt -r ${INSTALL_TEST_DIR}/tests/requirements_onnx
+          # to find 'snippets' module in docs
+          export PYTHONPATH=${OPENVINO_REPO}/docs/articles_en/assets
+          # for 'template' extension
+          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}/tests/:$LD_LIBRARY_PATH
+          python3 ${OPENVINO_REPO}/docs/articles_en/assets/snippets/main.py
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-python-api-${{ inputs.python-version }}
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'
