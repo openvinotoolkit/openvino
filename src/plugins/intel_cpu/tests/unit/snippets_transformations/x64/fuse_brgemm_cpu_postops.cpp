@@ -14,6 +14,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "dnnl_types.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "snippets/op/buffer.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/scalar.hpp"
@@ -23,16 +24,53 @@ using namespace testing;
 using namespace ov::intel_cpu;
 
 namespace {
-std::shared_ptr<ov::intel_cpu::BrgemmCPU> make_brgemm(const ov::OutputVector& inputs,
-                                                      const BrgemmCPU::PostopsConfig& postops = {}) {
-    return std::make_shared<BrgemmCPU>(inputs,
-                                       ov::intel_cpu::BrgemmCPU::BRGEMM_TYPE::STAND_ALONE,
-                                       std::vector<ov::snippets::modifier::MemoryAccess::PortDescriptor>{},
-                                       ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0},
-                                       std::vector<size_t>{},
-                                       std::vector<size_t>{},
-                                       std::vector<size_t>{},
-                                       postops);
+std::shared_ptr<ov::intel_cpu::BrgemmCPU> make_brgemm(const ov::OutputVector& main_inputs,
+                                                      const BrgemmCPU::PostopsConfig& postops = {},
+                                                      const ov::OutputVector& postop_inputs = {}) {
+    const auto& a_precision = main_inputs[0].get_element_type();
+    const auto& b_precision = main_inputs[1].get_element_type();
+    BrgemmCPU::BRGEMM_TYPE type;
+    if (a_precision == ov::element::f32 && b_precision == ov::element::f32) {
+        type = BrgemmCPU::BRGEMM_TYPE::STAND_ALONE;
+    } else if (a_precision == ov::element::u8 && b_precision == ov::element::i8) {
+        type = BrgemmCPU::BRGEMM_TYPE::REPACKING_ONLY;
+    } else if (a_precision == ov::element::i8 && b_precision == ov::element::i8) {
+        type = BrgemmCPU::BRGEMM_TYPE::WITH_COMPENSATIONS;
+    } else if (a_precision == ov::element::bf16 && b_precision == ov::element::bf16) {
+        type = BrgemmCPU::BRGEMM_TYPE::WITH_AMX;
+    } else {
+        OPENVINO_THROW("Unsupported input precisions: ", a_precision, " and ", b_precision);
+    }
+
+    auto create_brgemm_cpu = [&type, postop_inputs, &postops](const ov::OutputVector& postprocessed_inputs) {
+        ov::OutputVector all_inputs = postprocessed_inputs;
+        all_inputs.insert(all_inputs.end(), postop_inputs.begin(), postop_inputs.end());
+        return std::make_shared<BrgemmCPU>(all_inputs,
+                                           type,
+                                           std::vector<ov::snippets::modifier::MemoryAccess::PortDescriptor>{},
+                                           ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0},
+                                           std::vector<size_t>{},
+                                           std::vector<size_t>{},
+                                           std::vector<size_t>{},
+                                           postops);
+    };
+
+    if (type == BrgemmCPU::BRGEMM_TYPE::STAND_ALONE) {
+        return create_brgemm_cpu(main_inputs);
+    } else if (type == BrgemmCPU::BRGEMM_TYPE::REPACKING_ONLY) {
+        auto brgemm_repacking =
+            std::make_shared<BrgemmCopyB>(main_inputs[1], a_precision, type, 0, 0, 0, std::vector<size_t>{});
+        return create_brgemm_cpu({main_inputs[0], brgemm_repacking->output(0)});
+    } else if (type == BrgemmCPU::BRGEMM_TYPE::WITH_COMPENSATIONS) {
+        auto brgemm_repacking =
+            std::make_shared<BrgemmCopyB>(main_inputs[1], a_precision, type, 0, 0, 0, std::vector<size_t>{});
+        return create_brgemm_cpu({main_inputs[0], brgemm_repacking->output(0), brgemm_repacking->output(1)});
+    } else if (type == BrgemmCPU::BRGEMM_TYPE::WITH_AMX) {
+        auto scratch = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
+        return create_brgemm_cpu({main_inputs[0], main_inputs[1], scratch});
+    } else {
+        OPENVINO_THROW("Invalid configuration for BRGEMM CPU");
+    }
 }
 
 std::shared_ptr<ov::Node> make_eltwise(const ov::Output<ov::Node>& brgemm,
@@ -249,7 +287,7 @@ public:
             OPENVINO_THROW("Unsupported binary operation type: ", binary_op_type.name);
         }
 
-        auto ref_brgemm = make_brgemm({input1, input2, postop_input}, postops);
+        auto ref_brgemm = make_brgemm({input1, input2}, postops, {postop_input});
         return std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm},
                                            ov::ParameterVector{input1, input2, input3});
     }
@@ -268,16 +306,15 @@ TEST_P(FuseConvertTests, CompareFunctions) {}
 TEST_P(FuseScalarEltwiseTests, CompareFunctions) {}
 TEST_P(FuseBinaryEltwiseTests, CompareFunctions) {}
 
-const std::vector<std::pair<ov::element::Type, ov::element::Type>> input_precisions = {
+const std::vector<std::pair<ov::element::Type, ov::element::Type>> fuse_convert_in_precisions = {
     {ov::element::i8, ov::element::i8},
-    {ov::element::u8, ov::element::i8},
-    {ov::element::bf16, ov::element::bf16}};
+    {ov::element::u8, ov::element::i8}};
 
 const ov::element::TypeVector convert_dst_types = {ov::element::f32, ov::element::i8, ov::element::u8};
 
 INSTANTIATE_TEST_SUITE_P(FuseBrgemmCPUPostopsTests,
                          FuseConvertTests,
-                         ::testing::Combine(::testing::ValuesIn(input_precisions),
+                         ::testing::Combine(::testing::ValuesIn(fuse_convert_in_precisions),
                                             ::testing::ValuesIn(convert_dst_types)),
                          FuseConvertTests::getTestCaseName);
 
@@ -285,6 +322,11 @@ const std::vector<ov::Node::type_info_t> eltwise_postop_types = {ov::opset1::Mul
                                                                  ov::opset1::Add::get_type_info_static(),
                                                                  ov::opset1::Maximum::get_type_info_static(),
                                                                  ov::opset1::Minimum::get_type_info_static()};
+
+const std::vector<std::pair<ov::element::Type, ov::element::Type>> input_precisions = {
+    {ov::element::i8, ov::element::i8},
+    {ov::element::u8, ov::element::i8},
+    {ov::element::bf16, ov::element::bf16}};
 
 INSTANTIATE_TEST_SUITE_P(FuseBrgemmCPUPostopsTests,
                          FuseScalarEltwiseTests,
@@ -429,14 +471,14 @@ TEST_F(FuseBrgemmCPUPostopsTests, BrgemmPostopsCascade) {
             std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 1, 128});
         auto binary_add_param1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{128});
         auto binary_add_input1 = std::make_shared<ov::snippets::op::RankNormalization>(binary_add_param1, 3, 0);
-        auto brgemm1 = make_brgemm({input1, input2, binary_mul_param1, binary_add_input1}, create_postops(0));
+        auto brgemm1 = make_brgemm({input1, input2}, create_postops(0), {binary_mul_param1, binary_add_input1});
 
         auto input3 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_input_shape);
         auto binary_mul_param2 =
             std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 1, 128});
         auto binary_add_param2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{128});
         auto binary_add_input2 = std::make_shared<ov::snippets::op::RankNormalization>(binary_add_param2, 3, 0);
-        auto brgemm2 = make_brgemm({brgemm1, input3, binary_mul_param2, binary_add_input2}, create_postops(2));
+        auto brgemm2 = make_brgemm({brgemm1, input3}, create_postops(2), {binary_mul_param2, binary_add_input2});
 
         auto input4 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_input_shape);
         BrgemmCPU::PostopsConfig postops;
@@ -457,8 +499,12 @@ TEST_F(FuseBrgemmCPUPostopsTests, BrgemmPostopsCascade) {
     }
 }
 
-TEST_F(FuseBrgemmCPUPostopsTests, NegativeUnsupportedConvertDstType) {
+TEST_F(FuseBrgemmCPUPostopsTests, NegativeBF16UnsupportedConvertDstType) {
     model = FuseConvertTests::get_model({ov::element::bf16, ov::element::bf16}, ov::element::bf16);
+}
+
+TEST_F(FuseBrgemmCPUPostopsTests, NegativeFP32UnsupportedConvertDstType) {
+    model = FuseConvertTests::get_model({ov::element::f32, ov::element::f32}, ov::element::u8);
 }
 
 TEST_F(FuseBrgemmCPUPostopsTests, NegativeScalarUnsupportedPrecision) {

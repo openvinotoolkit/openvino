@@ -52,7 +52,7 @@ std::shared_ptr<BrgemmCPU> clone_with_new_params(
 
 auto brgemm_predicate = [](const Output<Node>& output) {
     const auto brgemm = output.get_node_shared_ptr();
-    // Note: binary postops are not supported in case of blocking enabled,
+    // Note: postops are not supported in case of blocking enabled,
     // so f32 precision is not included in supported list
     // Ticket: 165567
     static const ov::element::TypeVector supported_in_precisions{ov::element::bf16, ov::element::i8, ov::element::u8};
@@ -90,15 +90,25 @@ pass::FuseConvert::FuseConvert() {
     MATCHER_SCOPE(FuseConvert);
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
-    auto m_convert =
-        wrap_type<ConvertSaturation>({m_brgemm},
-                                     type_matches_any({ov::element::f32, ov::element::i8, ov::element::u8}));
+    auto m_convert = wrap_type<ConvertSaturation>({m_brgemm});
 
     auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseConvert")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto convert = pattern_map.at(m_convert).get_node_shared_ptr();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
+
+        // Ticket 165567: In case of AMX, brgemm may require two kernels: main and tail.
+        // Intermediate results must be stored in the output buffer for accumulation with tail kernel results.
+        // Forcing an output precision with a smaller bit width for output buffer causes out-of-bounds memory writes
+        // during intermediate results storage, so the convert fusion is skipped in this case.
+        if (brgemm_utils::with_amx(brgemm->get_type())) {
+            const auto& cur_out_precision = brgemm->get_output_element_type(0);
+            const auto& new_out_precision = convert->get_output_element_type(0);
+            if (cur_out_precision.bitwidth() > new_out_precision.bitwidth()) {
+                return false;
+            }
+        }
 
         auto postops_config = brgemm->get_postops_config();
         postops_config.forced_output_type = convert->get_output_element_type(0);
