@@ -98,12 +98,7 @@ else
     exit 1
 fi
 
-# Output path argument is given in CI environment, otherwise it's developer environment
-if [ -z "$1" ]; then
-    changed_files=$(git diff --name-only | grep '\.pyi$')
-else
-    changed_files=$(find "$output_dir" -type f -name '*.pyi')
-fi
+changed_files=$(find "$output_dir" -type f -name '*.pyi')
 
 # Process each changed .pyi file
 for file in $changed_files; do
