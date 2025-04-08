@@ -1317,7 +1317,7 @@ private:
             add(reg_src_aux, step * jcp_.src_data_size);
         };
 
-        auto norm = [&](int vmm_id, int step) {
+        auto norm = [&](int vmm_id, [[maybe_unused]] int step) {
             uni_vsubps(Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + 4 + vmm_id));
             if (jcp_.normalize_variance) {
                 uni_vmulps(Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + 8 + vmm_id));
@@ -1325,7 +1325,7 @@ private:
         };
 
         // optimized scaleshift fusion
-        auto optimized_ss = [&](int vmm_id, int step) {
+        auto optimized_ss = [&](int vmm_id, [[maybe_unused]] int step) {
             uni_vfmadd132ps(Vmm(ur_base + vmm_id),
                             Vmm(24 + ss_repeat_id * 4 + vmm_id),
                             Vmm(16 + ss_repeat_id * 4 + vmm_id));
@@ -2158,7 +2158,7 @@ MVN::MVNRefExecutor::MVNRefExecutor(const MVNAttrs& mvnAttrs) : MVNExecutorBase(
 
 void MVN::MVNRefExecutor::exec(const uint8_t* src_data,
                                uint8_t* dst_data,
-                               const void* post_ops_data_,
+                               [[maybe_unused]] const void* post_ops_data_,
                                const VectorDims& shape5d) {
     mvn_ref(src_data, dst_data, shape5d);
 }
@@ -2279,7 +2279,7 @@ void MVN::transformTo5DCase(const VectorDims& shape) {
     }
 }
 
-void MVN::setPostOps(dnnl::primitive_attr& attr, bool initWeights) {
+void MVN::setPostOps(dnnl::primitive_attr& attr, [[maybe_unused]] bool initWeights) {
     dnnl::post_ops ops;
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
@@ -2309,7 +2309,7 @@ void MVN::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void MVN::execute(const dnnl::stream& strm) {
+void MVN::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
 
