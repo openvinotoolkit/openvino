@@ -319,6 +319,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     std::shared_ptr<ov::Node> baichuan2_13b_alibi, baichuan2_13b_alibi_mask;
     std::tie(baichuan2_13b_alibi, baichuan2_13b_alibi_mask) = baichuan2_13b_alibi_pattern();
 
+    // Phi3-xxx-instruct case
+    std::shared_ptr<ov::Node> phi3_mask, phi3_offset;
+    std::tie(phi3_mask, phi3_offset) = handle_phi3_sliding_window();
+
     auto q = pattern::any_input();
     auto scale_input = pattern::any_input();
 
@@ -327,8 +331,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     auto v_to_sdpa =
         std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
 
-    std::shared_ptr<ov::Node> phi3_mask, phi3_offset;
-    std::tie(phi3_mask, phi3_offset) = handle_phi3_sliding_window();
     auto mask_to_sdpa = std::make_shared<pattern::op::Or>(
         OutputVector{phi3_mask, general_alibi_mask, jais_alibi_mask, baichuan2_13b_alibi_mask, pattern::any_input()});
 
