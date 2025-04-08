@@ -30,13 +30,18 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
 
     # Assert that the number of .pyi files matches
     if len(generated_files) != len(committed_files):
-        print(f"Error: Number of .pyi files does not match. "
-              f"Generated (reference): {len(generated_files)}, Committed: {len(committed_files)}")
-        if generated_files - committed_files:
-            print(f"Files found only in generated (reference) files: {generated_files - committed_files}")
-        if committed_files - generated_files:
-            print(f"Files found only in committed files: {committed_files - generated_files}")
-        sys.exit(1)
+        # TF FE stubs can be generated on not depending on the CMake flags in CI
+        committed_files = {file for file in committed_files if not file.startswith("openvino/frontend/tensorflow")}
+
+        # Check again after removal
+        if len(generated_files) != len(committed_files):
+            print(f"Error: Number of .pyi files does not match. "
+                  f"Generated (reference): {len(generated_files)}, Committed: {len(committed_files)}")
+            if generated_files - committed_files:
+                print(f"Files found only in generated (reference) files: {generated_files - committed_files}")
+            if committed_files - generated_files:
+                print(f"Files found only in committed files: {committed_files - generated_files}")
+            sys.exit(1)
 
     # Assert that each file has a pair
     if generated_files != committed_files:
