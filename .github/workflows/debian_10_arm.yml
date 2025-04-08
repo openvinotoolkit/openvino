@@ -100,6 +100,7 @@ jobs:
         -DENABLE_LTO=ON
         -DENABLE_TESTS=ON
         -DENABLE_PYTHON=OFF
+        -DCMAKE_TOOLCHAIN_FILE=/__w/openvino/openvino/openvino/cmake/arm.toolchain.cmake
 
   CXX_Unit_Tests:
     name: C++ unit tests

@@ -76,21 +76,21 @@ RUN wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz
 
 RUN tar -xf Python-3.9.21.tar.xz && \
     cd Python-3.9.21 && \
-    ./configure --enable-optimizations --host=arm-linux-gnueabihf --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) --enable-shared ac_cv_file__dev_ptmx=yes ac_cv_file__dev_ptc=no && \
-    make -j 8 && \
-    make altinstall && \
-    cd .. && rm -rf Python-3.9.21.tar.xz Python-3.9.21
-
-# Python 3.10
-RUN wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz
-
-RUN tar -xf Python-3.10.16.tar.xz && \
-    cd Python-3.10.16 && \
     ./configure --enable-optimizations && \
     make -j 8 && \
     make altinstall && \
-    cd .. && rm -rf Python-3.10.16.tar.xz Python-3.10.16
-
+    cd .. && rm -rf Python-3.9.21.tar.xz Python-3.9.21
+#
+## Python 3.10
+#RUN wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz
+#
+#RUN tar -xf Python-3.10.16.tar.xz && \
+#    cd Python-3.10.16 && \
+#    ./configure --enable-optimizations && \
+#    make -j 8 && \
+#    make altinstall && \
+#    cd .. && rm -rf Python-3.10.16.tar.xz Python-3.10.16
+#
 # Python 3.11
 RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
 
@@ -100,35 +100,35 @@ RUN tar -xf Python-3.11.9.tar.xz && \
     make -j 8 && \
     make altinstall && \
     cd .. && rm -rf Python-3.11.9.tar.xz Python-3.11.9
-
-# Python 3.12
-RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
-
-RUN tar -xf Python-3.12.9.tar.xz && \
-    cd Python-3.12.9 && \
-    ./configure --enable-optimizations && \
-    make -j 8 && \
-    make altinstall && \
-    cd .. && rm -rf Python-3.12.9.tar.xz Python-3.12.9
-
-# Python 3.13
-RUN wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz
-
-RUN tar -xf Python-3.13.2.tar.xz && \
-    cd Python-3.13.2 && \
-    ./configure --enable-optimizations && \
-    make -j 8 && \
-    make altinstall && \
-    cd .. && rm -rf Python-3.13.2.tar.xz Python-3.13.2
+#
+## Python 3.12
+#RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
+#
+#RUN tar -xf Python-3.12.9.tar.xz && \
+#    cd Python-3.12.9 && \
+#    ./configure --enable-optimizations && \
+#    make -j 8 && \
+#    make altinstall && \
+#    cd .. && rm -rf Python-3.12.9.tar.xz Python-3.12.9
+#
+## Python 3.13
+#RUN wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz
+#
+#RUN tar -xf Python-3.13.2.tar.xz && \
+#    cd Python-3.13.2 && \
+#    ./configure --enable-optimizations && \
+#    make -j 8 && \
+#    make altinstall && \
+#    cd .. && rm -rf Python-3.13.2.tar.xz Python-3.13.2
 
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.9 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.13 -m pip install --upgrade pip==${PIP_VERSION}
+#    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.11 -m pip install --upgrade pip==${PIP_VERSION}
+#    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
+#    python3.13 -m pip install --upgrade pip==${PIP_VERSION}
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build
