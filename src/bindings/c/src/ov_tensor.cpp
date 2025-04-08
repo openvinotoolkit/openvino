@@ -83,7 +83,9 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_tensor_create_from_string_array(const char** string_array, size_t array_size, ov_tensor_t** tensor) {
+ov_status_e ov_tensor_create_from_string_array(const char** string_array,
+                                               const size_t array_size,
+                                               ov_tensor_t** tensor) {
     if (!tensor || !string_array || array_size == 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -94,12 +96,9 @@ ov_status_e ov_tensor_create_from_string_array(const char** string_array, size_t
             }
         }
         ov::Shape shape{array_size};
-        std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
+        auto _tensor = std::make_unique<ov_tensor_t>();
         _tensor->object = std::make_shared<ov::Tensor>(ov::element::string, shape);
-        std::string* tensor_data = _tensor->object->data<std::string>();
-        for (size_t i = 0; i < array_size; ++i) {
-            tensor_data[i] = std::string(string_array[i]);
-        }
+        std::copy_n(string_array, array_size, _tensor->object->data<std::string>());
         *tensor = _tensor.release();
     }
 

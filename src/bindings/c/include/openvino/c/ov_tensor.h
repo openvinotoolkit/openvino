@@ -66,7 +66,7 @@ ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_tensor_create_from_string_array(const char** string_array, size_t array_size, ov_tensor_t** tensor);
+ov_tensor_create_from_string_array(const char** string_array, const size_t array_size, ov_tensor_t** tensor);
 
 /**
  * @brief Get shape for tensor.
