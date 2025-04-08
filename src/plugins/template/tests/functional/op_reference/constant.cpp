@@ -113,7 +113,7 @@ private:
         const auto A = std::make_shared<op::v0::Constant>(
             params.inType,
             params.inputShape,
-            std::vector<std::string>{std::to_string(*reinterpret_cast<int*>(params.inputData.data()))});
+            std::vector<std::string>{std::to_string(*reinterpret_cast<const int*>(params.inputData.data()))});
         return std::make_shared<Model>(A, ParameterVector{});
     }
 };
