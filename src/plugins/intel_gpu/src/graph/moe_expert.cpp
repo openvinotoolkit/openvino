@@ -46,7 +46,7 @@ void moe_expert_inst::get_expert_mask_from_memory(memory::ptr mem, layout& layou
     expert_mask.batch.resize(max_expert_num, {});
     expert_mask.topk.resize(max_expert_num, {});
     auto num_per_expert = max_topk * max_tokens;
-    auto fill = [&](int* p, int expert_no) {
+    auto fill_with_padding = [&](int* p, int expert_no) {
         cldnn::tensor size = layout.get_tensor();
         // topk
         for (int f = 0; f < size.feature[0]; f++) {
@@ -65,30 +65,48 @@ void moe_expert_inst::get_expert_mask_from_memory(memory::ptr mem, layout& layou
             }
         }
     };
-    //auto fill = [&](int* p, int expert_no) {
-    //    auto offset = expert_no * num_per_expert;
-    //    for (int t = 0; t < max_topk; t++) {
-    //        for (int b = 0; b < max_tokens; b++) {
-    //            if (p[offset + t * max_tokens + b]) {
-    //                expert_mask.pred_flag[expert_no] = 1;
-    //                expert_mask.batch[expert_no].push_back(b);
-    //                // routing weights is 1d, its shape: [topk * batch, 1] corresponding 2d shape: [batch, topk]. The following will get its offset in 1d:
-    //                //   batch * max_topk + topk
-    //                expert_mask.topk[expert_no].push_back(t + b * max_topk);
-    //            }
-    //        }
-    //    }
-    //};
-    mem_lock<int32_t, mem_lock_type::read> lock_data{mem, stream};
-    auto p = lock_data.data();
-    if (max_tokens < 5) {
-        for (int expert_no = 0; expert_no < max_expert_num; expert_no++) {
-            fill(p, expert_no);
+    auto fill = [&](int* p, int expert_no) {
+       auto offset = expert_no * num_per_expert;
+       for (int t = 0; t < max_topk; t++) {
+           for (int b = 0; b < max_tokens; b++) {
+               if (p[offset + t * max_tokens + b]) {
+                   expert_mask.pred_flag[expert_no] = 1;
+                   expert_mask.batch[expert_no].push_back(b);
+                   // routing weights is 1d, its shape: [topk * batch, 1] corresponding 2d shape: [batch, topk]. The following will get its offset in 1d:
+                   //   batch * max_topk + topk
+                   expert_mask.topk[expert_no].push_back(t + b * max_topk);
+               }
+           }
+       }
+    };
+    if (layout.data_padding) {
+        mem_lock<int32_t, mem_lock_type::read> lock_data{mem, stream};
+        auto p = lock_data.data();
+        if (max_tokens < 5) {
+            for (int expert_no = 0; expert_no < max_expert_num; expert_no++) {
+                fill_with_padding(p, expert_no);
+            }
+        } else {
+            ov::parallel_for(max_expert_num, [&](int expert_no) {
+                fill_with_padding(p, expert_no);
+            });
         }
     } else {
-        ov::parallel_for(max_expert_num, [&](int expert_no) {
-            fill(p, expert_no);
-        });
+        std::vector<int32_t> buf(max_expert_num * max_topk * max_tokens);
+        {
+            mem_lock<int32_t, mem_lock_type::read> lock_data{mem, stream};
+            auto p = lock_data.data();
+            memcpy(buf.data(), p, buf.size() * sizeof(int32_t));
+        }
+        if (max_tokens < 5) {
+            for (int expert_no = 0; expert_no < max_expert_num; expert_no++) {
+                fill(buf.data(), expert_no);
+            }
+        } else {
+            ov::parallel_for(max_expert_num, [&](int expert_no) {
+                fill(buf.data(), expert_no);
+            });
+        }
     }
 }
 
