@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 #include <ov_ops/rms.hpp>
 #include <string>
@@ -14,6 +13,13 @@
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 
 using namespace testing;
 using namespace ov::pass;
