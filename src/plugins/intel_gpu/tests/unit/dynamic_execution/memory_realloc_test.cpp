@@ -373,35 +373,4 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding_reorder) {
                 << "reorder mem buffer size: " <<  reorder_mem->size() << "bytes is bigger than original size of allocated mem: "
                 << reorder_mem->get_mem_tracker()->size() << "bytes.";
 }
-
-TEST(memory_reuse_realloc_reset_test, count_users_in_padded_pool) {
-    auto& engine = get_test_engine();
-    ExecutionConfig config = get_test_default_config(engine);
-    auto mem_pool = std::make_unique<memory_pool>(engine, config);
-    ASSERT_TRUE(mem_pool != nullptr);
-
-    size_t num_ref;
-    auto l = cldnn::layout{data_types::f16, format::bfyx, tensor{10, 1, 1, 1}, padding{{0,0,1,1},{0,0,1,1}}};
-    std::vector<memory_ptr> mem_net0;
-    for (size_t i = 0; i < 3; i++) {
-        std::stringstream ss;
-        ss << "layer" << i;
-        auto mem = mem_pool->get_memory(l, ss.str(), i, 0, {}, allocation_type::usm_host, true, true);
-        num_ref = memory_pool::count_users_in_padded_pool(*mem_pool, mem);
-        mem_net0.push_back(mem);
-        ASSERT_TRUE(num_ref == (2*i+1));
-
-        mem = mem_pool->get_memory(l, ss.str() + "_", i + 3, 0, {}, allocation_type::usm_host, true, true);
-        num_ref = memory_pool::count_users_in_padded_pool(*mem_pool, mem);
-        mem_net0.push_back(mem);
-        ASSERT_TRUE(num_ref == (2*i+2));
-    }
-
-    for (int32_t i = 0; i < 3; i++) {
-        std::stringstream ss;
-        ss << "layer" << i;
-        mem_pool->release_memory(mem_net0[i].get(), i, ss.str(), 0);
-        ASSERT_EQ(memory_pool::count_users_in_padded_pool(*mem_pool, mem_net0[i]), (5 - i));
-    }
-}
 }  // memory_realloc_tests

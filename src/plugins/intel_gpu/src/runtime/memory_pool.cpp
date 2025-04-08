@@ -467,18 +467,6 @@ size_t memory_pool::get_total_mem_pool_size(allocation_type type) {
 #endif
 }
 
-size_t memory_pool::count_users_in_padded_pool(memory_pool& pool, memory_ptr& mem_ptr) {
-    size_t num_users = 0;
-    auto& layout = mem_ptr->get_layout();
-    if (pool._padded_pool.count(layout) == 1) {
-        for (auto& record : pool._padded_pool[layout]) {
-            if (record._memory->buffer_ptr() == mem_ptr->buffer_ptr()) {
-                num_users += record._users.size();
-            }
-        }
-    }
-    return num_users;
-}
 void memory_pool::dump(uint32_t net_id, uint32_t iter, std::string dump_dir_path) {
     dump_to_screen(net_id, iter);
     if (!dump_dir_path.empty())
