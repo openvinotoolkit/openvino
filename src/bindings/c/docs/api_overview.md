@@ -1108,6 +1108,14 @@ This struct provides an interface to infer requests of `ov_compiled_model_t` and
     - `data` - A point to host memory.
   -  Return value: Status code of the operation: OK(0) for success.
 
+- `ov_status_e ov_tensor_set_string_data(ov_tensor_t* tensor, const char** string_array, size_t array_size)`
+  - Description: Set string data for tensor
+  - Parameters:
+    - `tensor` - A point to ov_tensor_t
+    - `string_array` - String array
+    - `array_size` - Number of elements in string array
+  -  Return value: Status code of the operation: OK(0) for success.
+
 - `void ov_tensor_free(ov_tensor_t* tensor)`
   - Description: Free ov_tensor_t.
   - Parameters:

@@ -67,12 +67,11 @@ public:
     ov_tensor_t* tensor;
 };
 
-class ov_string_tensor_create_test : public ::testing::TestWithParam<ov_element_type_e> {
+class ov_string_tensor_create_test : public ::testing::Test {
 protected:
     void SetUp() override {
         tensor = nullptr;
-        int64_t dims[1] = {1};
-        ov_shape_create(1, dims, &shape);
+        setup_4d_shape(&shape, 4, 1, 1, 1);
         OV_EXPECT_OK(ov_tensor_create(ov_element_type_e::STRING, shape, &tensor));
         EXPECT_NE(nullptr, tensor);
     }
@@ -105,10 +104,6 @@ INSTANTIATE_TEST_SUITE_P(ov_tensor,
                                            ov_element_type_e::U16,
                                            ov_element_type_e::U32,
                                            ov_element_type_e::U64));
-
-INSTANTIATE_TEST_SUITE_P(ov_tensor,
-                         ov_string_tensor_create_test,
-                         ::testing::Values(ov_element_type_e::STRING));
 
 TEST_P(ov_tensor_create_test, get_tensor_element_type) {
     ov_element_type_e type = GetParam();
@@ -165,13 +160,7 @@ TEST_P(ov_tensor_create_test, set_tensor_shape) {
     ov_shape_free(&shape_res);
 }
 
-TEST_P(ov_string_tensor_create_test, set_tensor_string) {
-    const char* string_array[3] = {"hello", "hi", "world"};
-    size_t array_size = 3;
-    ov_shape_t shape;
-    int64_t dims[1] = {1};
-    ov_shape_create(3, dims, &shape);
-    OV_EXPECT_OK(ov_tensor_set_shape(tensor, shape));
-    OV_EXPECT_OK(ov_tensor_set_string(tensor, string_array, array_size));
-    
+TEST_F(ov_string_tensor_create_test, set_tensor_string) {
+    const char* string_array[4] = {"hello", "hi", "world", "yes"};
+    OV_EXPECT_OK(ov_tensor_set_string_data(tensor, string_array, 4));
 }
