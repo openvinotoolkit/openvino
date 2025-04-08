@@ -46,6 +46,9 @@ RUN apt-get update && \
         libxmlsec1-dev \
         liblzma-dev \
         wget \
+        # Compilers
+        gcc-arm-linux-gnueabihf \
+        g++-arm-linux-gnueabihf \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -73,7 +76,7 @@ RUN wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz
 
 RUN tar -xf Python-3.9.21.tar.xz && \
     cd Python-3.9.21 && \
-    ./configure --enable-optimizations && \
+    CFLAGS='CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++' ./configure --enable-optimizations && \
     make -j 8 && \
     make altinstall && \
     cd .. && rm -rf Python-3.9.21.tar.xz Python-3.9.21
