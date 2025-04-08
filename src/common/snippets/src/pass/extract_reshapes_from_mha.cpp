@@ -14,8 +14,8 @@
 
 using namespace ov::pass;
 
-ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
-    MATCHER_SCOPE(ExtractReshapesFromMHA);
+ov::snippets::pass::ExtractPairsAfterMatmul::ExtractPairsAfterMatmul() {
+    MATCHER_SCOPE(ExtractPairsAfterMatmul);
     auto static_shape_single_consumer = [](const ov::Output<ov::Node>& out) {
         return pattern::has_static_shape()(out) && pattern::consumers_count(1)(out);
     };
@@ -28,7 +28,7 @@ ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
     auto reshape_2_m = pattern::wrap_type<opset1::Reshape>({add_2_m, pattern::wrap_type<opset1::Constant>()}, pattern::has_static_shape());
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ExtractReshapesFromMHA")
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ExtractPairsAfterMatmul")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& matmul = pattern_map.at(matmul_m);
         const auto matmul_node = ov::as_type_ptr<opset1::MatMul>(matmul.get_node_shared_ptr());
@@ -61,6 +61,73 @@ ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
 
         const auto& old_reshape = pattern_map.at(reshape_2_m);
         return ov::replace_output_update_name(old_reshape, new_add);
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(reshape_2_m, matcher_name);
+    register_matcher(m, callback);
+}
+
+ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
+    MATCHER_SCOPE(RankUpgradeToRankReduction);
+    auto static_shape_single_consumer = [](const ov::Output<ov::Node>& out) {
+        return pattern::has_static_shape()(out) && pattern::consumers_count(1)(out);
+    };
+    // reshape_1_m insert leading dimension of 1.
+    auto rank_upgrade_reshape = [&](const ov::Output<ov::Node>& out) {
+        auto out_shape = out.get_shape();
+        if (out_shape.size() < 1 || out_shape[0] != 1) {
+            return false;
+        }
+        out_shape.erase(out_shape.begin());
+        const auto& in_shape = out.get_node_shared_ptr()->get_input_shape(0);
+        return out_shape == in_shape && static_shape_single_consumer(out);
+    };
+    // input_2_m has leading dimension of 1.
+    auto has_leading_dimension_one = [&](const ov::Output<ov::Node>& out) {
+        const auto& out_shape = out.get_shape();
+        return (out_shape.size() > 0 && out_shape[0] == 1) && static_shape_single_consumer(out);
+    };
+    // reshape_2_m delete leading dimension of 1.
+    auto rank_reduction_reshape = [&](const ov::Output<ov::Node>& out) {
+        auto in_shape = out.get_node_shared_ptr()->get_input_shape(0);
+        if (in_shape.size() < 1 || in_shape[0] != 1) {
+            return false;
+        }
+        in_shape.erase(in_shape.begin());
+        const auto& out_shape = out.get_shape();
+        return out_shape == in_shape && static_shape_single_consumer(out);
+    };
+
+    auto matmul_m = pattern::wrap_type<opset1::MatMul>(static_shape_single_consumer);
+    auto input_1_m = pattern::any_input(pattern::has_static_shape());
+    auto add_1_m = pattern::wrap_type<opset1::Add>({matmul_m, input_1_m}, static_shape_single_consumer);
+    auto reshape_1_m =
+        pattern::wrap_type<opset1::Reshape>({add_1_m, pattern::wrap_type<opset1::Constant>()}, rank_upgrade_reshape);
+    auto input_2_m = pattern::any_input(has_leading_dimension_one);
+    auto add_2_m = pattern::wrap_type<opset1::Add>({reshape_1_m, input_2_m}, static_shape_single_consumer);
+    auto reshape_2_m =
+        pattern::wrap_type<opset1::Reshape>({add_2_m, pattern::wrap_type<opset1::Constant>()}, rank_reduction_reshape);
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::RankUpgradeToRankReduction")
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto& matmul = pattern_map.at(matmul_m);
+        const auto matmul_node = ov::as_type_ptr<opset1::MatMul>(matmul.get_node_shared_ptr());
+        if (!ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(matmul_node) ||
+            transformation_callback(matmul_node))
+            return false;
+
+        const auto& input_2 = pattern_map.at(input_2_m);
+        auto input_2_shape = input_2.get_shape();
+        input_2_shape.erase(input_2_shape.begin());
+        const auto target_shape = ov::opset1::Constant::create(ov::element::i32, {input_2_shape.size()}, input_2_shape);
+        const auto reshaped_input2 = std::make_shared<ov::opset1::Reshape>(input_2, target_shape, true);
+
+        const auto add_1 = pattern_map.at(add_1_m).get_node_shared_ptr();
+        const auto new_add2 = std::make_shared<ov::opset1::Add>(add_1, reshaped_input2);
+
+        const auto& old_reshape = pattern_map.at(reshape_2_m);
+        return ov::replace_output_update_name(old_reshape, new_add2);
     };
 
     auto m = std::make_shared<pattern::Matcher>(reshape_2_m, matcher_name);
