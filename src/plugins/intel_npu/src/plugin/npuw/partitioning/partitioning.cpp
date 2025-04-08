@@ -459,7 +459,13 @@ void Partitioner::identifySubgraphs() {
                 // to maintain graph contracts. See handling where parameter_from is called.
                 auto otype = output.get_element_type();
                 if (otype == ov::element::f32 && connect_in_f16) {
-                    otype = ov::element::f16;
+                    if (!output.get_rt_info().count("use_high_precision") ||
+                        !output.get_rt_info()["use_high_precision"].as<bool>()) {
+                        otype = ov::element::f16;
+                        LOG_VERB("Found parameter  " << output << ", will be computed in fp16 precision");
+                    } else {
+                        LOG_VERB("Found parameter  " << output << ", pinned to compute in fp32 precision");
+                    }
                 }
                 auto new_param = std::make_shared<ov::op::v0::Parameter>(otype, output.get_partial_shape());
                 result = std::static_pointer_cast<ov::Node>(new_param);
@@ -703,9 +709,14 @@ void Partitioner::identifySubgraphs() {
                         // Register a new Result. Optionally, lower it to f16
                         ov::Output<ov::Node> result_src = output_desc;
                         if (output_desc.get_element_type() == ov::element::f32 && connect_in_f16) {
-                            auto new_cvt = new_f16ic_cvt(output_desc, ov::element::f16);
-                            LOG_DEBUG("Added F16IC Result Convert " << new_cvt << " on top of " << output_desc);
-                            result_src = new_cvt;
+                            if (!output_desc.get_rt_info().count("use_high_precision") ||
+                                !output_desc.get_rt_info()["use_high_precision"].as<bool>()) {
+                                auto new_cvt = new_f16ic_cvt(output_desc, ov::element::f16);
+                                LOG_DEBUG("Added F16IC Result Convert " << new_cvt << " on top of " << output_desc);
+                                result_src = new_cvt;
+                            } else {
+                                LOG_VERB("Found result  " << output_desc << ", pinned to compute in high precision");
+                            }
                         }
                         auto new_result = std::make_shared<ov::op::v0::Result>(result_src);
                         result_cache[output_layer_ptr] = LinkPtrFrom{this_group_idx, new_result};

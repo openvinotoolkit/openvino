@@ -221,7 +221,7 @@ private:
 class ScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::ScaledDotProductAttentionDecomposition");
-    ScaledDotProductAttentionDecomposition() {
+    ScaledDotProductAttentionDecomposition(bool use_high_precision_on_add) {
         auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
 
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -233,7 +233,7 @@ public:
                 return false;
             }
 
-            auto new_output_node = decompose(node);
+            auto new_output_node = decompose(node, use_high_precision_on_add);
             ov::replace_node(node, new_output_node);
             return true;
         };
@@ -241,7 +241,7 @@ public:
         auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node, "ScaledDotProductAttentionDecomposition");
         register_matcher(m, std::move(callback));
     }
-    std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node) {
+    std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node, bool use_high_precision_on_add) {
         using namespace ov::op;
         using namespace ov;
         auto query = node->input_value(0);
@@ -295,6 +295,7 @@ public:
                     atten_mask = register_new_node<v1::Select>(inv_mask, atten_mask, minus_inf);
                 } else {
                     atten_mask = mask;
+
                 }
             } else {
                 auto target_s_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
@@ -312,7 +313,11 @@ public:
                 auto triu = register_new_node<v1::GreaterEqual>(horizontal_range, vertical_range);
                 atten_mask = register_new_node<v1::Select>(triu, mask, zero_f);
             }
-            scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
+            if (use_high_precision_on_add) {
+                atten_mask.get_rt_info()["use_high_precision"] = true;
+            }
+
+            scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask); 
         }
 
         scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
@@ -375,10 +380,10 @@ bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
 }  // namespace
 
 // testability - should we have interface for that or move matchers to another file?
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model);
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
+bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill);
+bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
+    rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
     rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
@@ -636,8 +641,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (optimize_v_tensors) {
         LOG_DEBUG("6. Check and apply opt layout");
         LOG_BLOCK();
-        if (optimize_value_tensors(kvcache_model)) {
-            NPUW_ASSERT(optimize_value_tensors(prefill_model));
+        if (optimize_value_tensors(kvcache_model, false)) {
+            NPUW_ASSERT(optimize_value_tensors(prefill_model, true));
             m_kvcache_desc.v_tensors_transposed = true;
         } else {
             LOG_DEBUG("vtensors optimisation not applied");
