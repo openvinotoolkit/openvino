@@ -87,7 +87,7 @@ Performance Information F.A.Q.
         - Huggingface
         - Auto regressive language
         - 128K
-       * - `Qwen-2.5-7B-Instruct <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__
+      * - `Qwen-2.5-7B-Instruct <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__
         - Huggingface
         - Auto regressive language
         - 128K

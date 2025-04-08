@@ -144,6 +144,10 @@ a#wap_dns {
     font-weight: 700;
 }
 
+.ov-toolkit-benchmark-results {
+    display: none;
+}
+
 #bd-docs-nav div ul a:hover {
     color: white;
 }
