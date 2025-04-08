@@ -473,6 +473,7 @@ void primitive_inst::update_shape() {
 
         _impl_params->output_layouts[idx].data_padding = new_layout.data_padding;
         _impl_params->output_layouts[idx].set_partial_shape(new_layouts[idx].get_partial_shape());
+        _impl_params->output_layouts[idx].data_type = new_layouts[idx].data_type;
     }
 
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
@@ -507,6 +508,16 @@ void primitive_inst::update_shape() {
         // Need to trigger realloc_if_needed
         if (var_mem_size < _impl_params->get_output_layout(0).get_linear_size())
             set_flag(ExecutionFlags::SHAPE_CHANGED);
+    }
+
+    if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
+        auto &layout = _impl_params->get_output_layout(0);
+        OPENVINO_ASSERT(one_of(layout.data_type, {data_types::f16, data_types::i8, data_types::u8}),
+            "[GPU] Unsupported data type of dynamic_quantize: ", layout.data_type);
+        if (layout.data_type == data_types::f16)
+            set_can_be_optimized(true);
+        else
+            set_can_be_optimized(false);
     }
 }
 
@@ -766,7 +777,8 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 if (get_node().is_type<dynamic_quantize>()) {
                     const auto& desc = get_node().as<dynamic_quantize>().get_primitive();
                     auto dyn_quan_scale_layout =
-                        dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(updated_layouts[dep_idx],
+                        dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(get_node().as<dynamic_quantize>(),
+                                                                                        updated_layouts[dep_idx],
                                                                                        desc->attrs);
                     GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize scale parameter layout "
                                         << dyn_quan_scale_layout[1].to_short_string() << std::endl;
@@ -830,7 +842,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
         }
     }
 
-    // update layout to ensure that it repsects paddings for correct allocation size
+    // update layout to ensure that it respects paddings for correct allocation size
     if (_node_output_layout.data_padding.is_dynamic()) {
         auto update_padding = [](layout& orig_layout) {
             auto current_dims = orig_layout.get_padded_dims();
@@ -1929,12 +1941,17 @@ void primitive_inst::prepare_primitive() {
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this) || _use_shared_kernels) {
+        // For ocl_v2 impls we call set args based in flag in the execute() impl, so need to update the flag here
+        set_flag(ExecutionFlags::MEMORY_CHANGED);
         set_arguments();
     }
     on_execute();
 
     if (!_node->is_type<condition>() && !_node->is_type<loop>()) {
         for (size_t i = 0; i < _outputs.size(); ++i) {
+            if (!orig_outputs[i] && !_outputs[i])
+                continue;
+
             if ((!orig_outputs[i] && _outputs[i]) || (orig_outputs[i] && !_outputs[i])) {
                 set_flag(ExecutionFlags::MEMORY_CHANGED);
                 break;
