@@ -456,8 +456,6 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         /* ================================ */
 
-        /* ====== Subgraph creation ======= */
-
         const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops);
 
         // mark the Subgraph as Completed to not allow Snippets to include any nodes into the MHA Subgraph in common Tokenization
