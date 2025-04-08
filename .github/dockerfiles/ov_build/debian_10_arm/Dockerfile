@@ -76,7 +76,7 @@ RUN wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz
 
 RUN tar -xf Python-3.9.21.tar.xz && \
     cd Python-3.9.21 && \
-    CFLAGS='CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++' ./configure --enable-optimizations && \
+    ./configure --enable-optimizations --host=arm-linux-gnueabihf --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) --enable-shared ac_cv_file__dev_ptmx=yes ac_cv_file__dev_ptc=no && \
     make -j 8 && \
     make altinstall && \
     cd .. && rm -rf Python-3.9.21.tar.xz Python-3.9.21
