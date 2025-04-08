@@ -254,12 +254,28 @@ using OVBlobCompatibilityNPU_PV_Driver_No_Throw = OVBlobCompatibilityNPU;
 using OVBlobCompatibilityNPU_PV_Driver_Throws = OVBlobCompatibilityNPU;
 using OVBlobCompatibilityNPU_Mismatched_Platforms_Throw = OVBlobCompatibilityNPU;
 
-#define DEFAULT_TEST_BODY(THROW_TYPE, ...)                                                                        \
-    std::ifstream blobStream(ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobName, \
-                             std::ios::binary | std::ios::in);                                                    \
-    ov::Core core;                                                                                                \
-    THROW_TYPE(core.import_model(blobStream, target_device, {ov::intel_npu::disable_version_check(true)}),        \
-               ##__VA_ARGS__);
+#define NO_APPEND_EXPORT(ASSERT_TYPE, ...)
+#define APPEND_EXPORT(ASSERT_TYPE, ...)                                                                      \
+    std::shared_ptr<ov::Model> nullModel(nullptr);                                                          \
+    ov::CompiledModel compiledModel;                                                                        \
+    ASSERT_TYPE(compiledModel = core.compile_model(nullModel,                                                \
+                                                  target_device,                                            \
+                                                  {ov::hint::compiled_blob(ov::read_tensor_data(blobPath)), \
+                                                   ov::intel_npu::disable_version_check(true)}));           \
+    std::ostringstream outBlobStream;                                                                       \
+    ASSERT_TYPE(compiledModel.export_model(outBlobStream));                                                  \
+    EXPECT_TRUE(outBlobStream.tellp() > 0);
+
+#define APPEND_EXPORT_HELPER_(arg1, arg2, arg3, ...) arg3
+#define APPEND_EXPORT_HELPER(...)                    APPEND_EXPORT_HELPER_(__VA_ARGS__, NO_APPEND_EXPORT, APPEND_EXPORT)(__VA_ARGS__)
+
+#define DEFAULT_TEST_BODY(ASSERT_TYPE, ...)                                                                     \
+    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + blobName; \
+    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);                                       \
+    ov::Core core;                                                                                             \
+    ASSERT_TYPE(core.import_model(blobStream, target_device, {ov::intel_npu::disable_version_check(true)}),     \
+               ##__VA_ARGS__);                                                                                 \
+    APPEND_EXPORT_HELPER(ASSERT_TYPE, ##__VA_ARGS__)
 
 TEST_P(OVBlobCompatibilityNPU, CanImportAllPrecompiledBlobsForAllOVVersionsAndDrivers) {
     DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
@@ -278,6 +294,10 @@ TEST_P(OVBlobCompatibilityNPU_Mismatched_Platforms_Throw,
     DEFAULT_TEST_BODY(ASSERT_THROW, ov::Exception);
 }
 
+#undef NO_APPEND_EXPORT
+#undef APPEND_EXPORT
+#undef APPEND_EXPORT_HELPER_
+#undef APPEND_EXPORT_HELPER
 #undef DEFAULT_TEST_BODY
 
 }  // namespace behavior
