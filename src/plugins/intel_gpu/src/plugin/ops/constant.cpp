@@ -84,45 +84,40 @@ inline void unpack8to4(uint8_t v, uint8_t &v0, uint8_t &v1) {
 }
 
 // Function to convert a non-padded vector to a padded vector
-static void copy_to_padded_vector(const std::vector<int> &non_padded_dims, const char* non_padded_vec,
-                                                const std::vector<int> &padded_dims, char* padded_vec) {
+static void copy_to_padded_4bit_vector(const std::vector<int> &non_padded_dims, const uint8_t* non_padded_vec,
+                                        const std::vector<int> &padded_dims, uint8_t* padded_vec) {
     size_t non_padded_dims_size = std::accumulate(non_padded_dims.begin(), non_padded_dims.end(), 1, std::multiplies<int>()) / 2;
     size_t padded_dims_size = std::accumulate(padded_dims.begin(), padded_dims.end(), 1, std::multiplies<int>()) / 2;
-    size_t non_padded_row_size = non_padded_dims[1] / 2;
-    std::vector<uint8_t> temp_padding_buffer(padded_dims[1], 0);
+    const size_t non_padded_dim1 = non_padded_dims[1];
+    size_t non_padded_row_size = non_padded_dim1 / 2;
+    size_t padded_row_size = padded_dims[1] / 2;
 
-    for (int i = 0; i < non_padded_dims[0]; ++i) {
-        size_t padded_begin = i * padded_dims[1] / 2;
-        size_t non_padded_begin = i * non_padded_dims[1] / 2;
-        size_t padded_end = padded_begin + non_padded_row_size;
+    // Even rows
+    for (int i = 0; i < non_padded_dims[0]; i += 2) {
+        std::memcpy(&padded_vec[i * padded_row_size], &non_padded_vec[(i * non_padded_dims[1]) / 2], non_padded_row_size);
+    }
+
+    // Odd rows
+    for (int i = 1; i < non_padded_dims[0]; i += 2) {
+        const size_t padded_begin = i * padded_row_size;
+        const size_t non_padded_begin = (i * non_padded_dims[1]) / 2;
         size_t non_padded_end = non_padded_begin + non_padded_row_size;
 
-        if (i % 2 == 0) {
-            std::memcpy(&padded_vec[padded_begin], &non_padded_vec[non_padded_begin], non_padded_row_size);
-            if (non_padded_end < non_padded_dims_size) {
-                uint8_t s0, s1;
-                unpack8to4(non_padded_vec[non_padded_end], s0, s1);
-                padded_vec[padded_end] = pack4to8(s0, 0);
-            }
-        } else {
-            for (size_t k = non_padded_begin, index = 0; k <= non_padded_end; ++k, ++index) {
-                uint8_t s0, s1;
-                unpack8to4(non_padded_vec[k], s0, s1);
-                if (k == non_padded_begin) {
-                    temp_padding_buffer[index] = s1;
-                } else {
-                    temp_padding_buffer[index] = s0;
-                    ++index;
-                    temp_padding_buffer[index] = s1;
-                }
-            }
+        uint8_t s0, s1, prev_s1 = 0;
+        unpack8to4(non_padded_vec[non_padded_begin], s0, s1);
+        padded_vec[padded_begin - 1] = pack4to8(s0, 0);
+        prev_s1 = s1;
 
-            for (size_t k = 0, index = 0; k < temp_padding_buffer.size(); k += 2, ++index) {
-                padded_vec[padded_begin + index] = pack4to8(temp_padding_buffer[k], temp_padding_buffer[k + 1]);
-            }
+        for (size_t k = non_padded_begin + 1, index = 0; k <= non_padded_end; ++k, ++index) {
+            unpack8to4(non_padded_vec[k], s0, s1);
+            padded_vec[padded_begin + index] = pack4to8(prev_s1, s0);
+            prev_s1 = s1;
         }
+        padded_vec[padded_begin + non_padded_row_size] = pack4to8(prev_s1, 0);
     }
 }
+
+
 
 static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(const_shape);
@@ -136,7 +131,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     cldnn::padding padding_data = cldnn::padding();
 #ifdef ENABLE_ONEDNN_FOR_GPU
     if (p.get_config().get_use_onednn()
-            && op->get_element_type() == ov::element::i4
+            && (op->get_element_type() == ov::element::i4 || op->get_element_type() == ov::element::u4)
             && !op->is_dynamic()
             && const_shape.size() == 2) {
         const size_t alignment = 2;
@@ -194,12 +189,13 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             std::vector<int32_t> padded_dims = constLayout.get_padded_dims();
             non_padded_dims.resize(const_shape.size());
             padded_dims.resize(const_shape.size());
+            auto data_ptr = reinterpret_cast<const uint8_t*>(&data[0]);
+            auto buf_ptr = reinterpret_cast<uint8_t*>(&buf[0]);
 
-            copy_to_padded_vector(non_padded_dims, &data[0], padded_dims, &buf[0]);
+            copy_to_padded_4bit_vector(non_padded_dims, data_ptr, padded_dims, buf_ptr);
         } else {
             std::memcpy(&buf[0], &data[0], bufSize);
         }
-
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;

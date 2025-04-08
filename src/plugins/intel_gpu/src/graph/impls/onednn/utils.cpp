@@ -310,6 +310,16 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     } else if (target_fmt == dnnl::memory::format_tag::ba) {
         dims.push_back(l.feature());
         dims.push_back(l.get_tensor().count() / l.feature());
+        // if weights_layout has data_padding, add strides to memory desc
+        auto padded_dims = l.get_padded_dims();
+        if (l.data_padding
+            && l.get_partial_shape().size() == 2
+            && l.get_shape().front() == padded_dims[0]) {
+                dnnl::memory::dims strides({1, padded_dims[1]});
+                dnnl::memory::data_type dt = convert_data_type(l.data_type);
+                dnnl::memory::desc res(dims, dt, strides);
+                return res;
+            }
     } else if (flatten) {
         dims = flatten_tensor(l.get_tensor());
     } else {
