@@ -2570,13 +2570,13 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 } else {
                     if (ReduceH) {
                         parallel_for2d(IC, ID, [&](size_t ic, size_t id) {
-                            size_t oc = ic, od = id;
+                            const size_t oc = ic, od = id;
                             GET_PTR_NCD_BASE_PTR_N_PLN;
                             reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, work_amount, 1);
                         });
                     } else {
                         parallel_for3d(IC, ID, IH, [&](size_t ic, size_t id, size_t ih) {
-                            size_t oc = ic, od = id;
+                            const size_t oc = ic, od = id;
                             GET_PTR_NCD_BASE_PTR_N_PLN;
                             const size_t oh = ih;
                             GET_PTR_NCDH_PLN;
@@ -2657,7 +2657,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 }
             } else if (!ReduceC && !ReduceD && ReduceH && !ReduceW) {
                 parallel_for2d(IC, ID, [&](size_t ic, size_t id) {
-                    size_t oc = ic, od = id;
+                    const size_t oc = ic, od = id;
                     GET_PTR_NCD_BASE_PTR_N_PLN;
                     parallel_for(IW / blk_size, [&](size_t ibw) {
                         const size_t obw = ibw;
@@ -2683,7 +2683,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                         uint8_t* prc_ptr_n = &vec_reduceDH_prc[0];
                         init_dst_data(prc_ptr_n, prc_size);
                         parallel_for2d(ID, IWB, [&](size_t id, size_t iwb) {
-                            size_t pd = id, pwb = iwb;
+                            const size_t pd = id, pwb = iwb;
                             reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
                                                   prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size,
                                                   blk_size,
@@ -2694,7 +2694,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                         reduce_stride = PW;
                         reduce_kernel_reassign();
                         parallel_for(IWB, [&](size_t iwb) {
-                            size_t pwb = iwb, owb = iwb;
+                            const size_t pwb = iwb, owb = iwb;
                             reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
                                                   out_ptr_n + owb * blk_size * dst_data_size,
                                                   blk_size,
@@ -2817,7 +2817,7 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 apply_post_kernel = !apply_division;
             }
             parallel_for2d(ICB, ID, [&](size_t icb, size_t id) {
-                size_t ocb = icb, od = id;
+                const size_t ocb = icb, od = id;
                 GET_PTR_NCD_BASE_PTR_N_BLK;
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
             });
@@ -2859,7 +2859,7 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
         } else if (ReduceC && !ReduceD && !ReduceH && !ReduceW) {
             reduce_stride = ID * IH * IW * blk_size;
             parallel_for3d(ID, IH, IW, [&](size_t id, size_t ih, size_t iw) {
-                size_t icb = 0, ocb = 0;
+                const size_t icb = 0, ocb = 0;
                 GET_PTR_NC_BLK;
                 const size_t od = id;
                 GET_PTR_NCD_BLK;

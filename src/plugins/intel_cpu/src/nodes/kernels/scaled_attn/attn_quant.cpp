@@ -403,7 +403,8 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const size_t key_group_size,
                           const size_t value_group_size) {
     // For compatibility, all input_kvs are permuted to BHLS
-    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
+    const size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3],
+                 SV = v_src.m_dims[3];
     if (quant_key_by_channel) {
         if (L0 == 0) {
             parallel_for3d(ov::intel_cpu::div_up(L1, key_group_size), B, H, [&](size_t group_id, size_t b, size_t h) {
@@ -504,7 +505,8 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const bool quant_key_by_channel,
                                 const size_t key_group_size,
                                 const size_t value_group_size) {
-    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
+    const size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3],
+                 SV = v_src.m_dims[3];
     const size_t block_size = quant_key_by_channel ? k_dst.m_dims[2] - 2 * sizeof(float) : k_dst.m_dims[2];
     const size_t sub_byte_multiplier = 8 / v_dst.get_precision().bitwidth();
     if (quant_key_by_channel) {

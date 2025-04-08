@@ -675,16 +675,17 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                         return false;
                     const auto num_groups = static_cast<size_t>(group_norm->get_num_groups());
                     const auto shape = group_norm->get_input_partial_shape(0).to_shape();
-                    size_t snippets_work_amount = shape[0] * num_groups;
-                    size_t concurrency = parallel_get_max_threads();
+                    const size_t snippets_work_amount = shape[0] * num_groups;
+                    const size_t concurrency = parallel_get_max_threads();
                     if (concurrency > snippets_work_amount)
                         return false;
                     size_t spatial_dim = 1;
                     for (size_t i = 2; i < shape.size(); ++i) {
                         spatial_dim = spatial_dim * shape[i];
                     }
-                    size_t snippets_tensor_size = spatial_dim * shape[1] / num_groups * node->get_element_type().size();
-                    size_t cache_size_l1 = dnnl::utils::get_cache_size(1, true);
+                    const size_t snippets_tensor_size =
+                        spatial_dim * shape[1] / num_groups * node->get_element_type().size();
+                    const size_t cache_size_l1 = dnnl::utils::get_cache_size(1, true);
                     if (snippets_tensor_size > cache_size_l1) {
                         return false;
                     }

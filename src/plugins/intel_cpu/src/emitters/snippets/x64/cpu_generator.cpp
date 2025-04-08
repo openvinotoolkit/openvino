@@ -446,7 +446,7 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
 }
 
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
-    bool need = std::dynamic_pointer_cast<intel_cpu::jit_brgemm_emitter>(e) ||
+    bool need = std::dynamic_pointer_cast<intel_cpu::jit_brgemm_emitter>(e) ||  // NOLINT(misc-const-correctness)
                 std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<intel_cpu::CPUTargetMachine>(target);

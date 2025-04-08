@@ -264,7 +264,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             }
-            const VectorDims blocks = dims;
+            const VectorDims& blocks = dims;
             VectorDims order(blocks.size());
             std::iota(order.begin(), order.end(), 0);
 
