@@ -3,8 +3,8 @@
 //
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include <string>
 #include <tuple>
 

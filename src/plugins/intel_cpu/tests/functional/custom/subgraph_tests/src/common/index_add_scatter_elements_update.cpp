@@ -1,8 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/pass/manager.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
