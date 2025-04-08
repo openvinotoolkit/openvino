@@ -4,12 +4,6 @@
 import pytest
 import torch
 import numpy as np
-import sys
-from pathlib import Path
-
-# Add the appropriate paths to sys.path for resolving common and pytorch_layer_test_class
-sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from pytorch_layer_test_class import PytorchLayerTest
 
