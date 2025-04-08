@@ -170,6 +170,7 @@
 #include "snippets/pass/fc_tokenization.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
+#include "snippets/pass/mlp_seq_tokenization.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -1349,6 +1350,14 @@ void Transformations::MainSnippets() {
                 return is_unsupported_parallel_work_amount(n, pshape);
             },
             snippets::pass::TokenizeMHASnippets);
+        CPU_SET_CALLBACK_X64(
+            snippetsManager,
+            [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+                if (!is_supported_matmul(n))
+                    return true;
+                return is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0));
+            },
+            snippets::pass::TokenizeMLPSeqSnippets);
         CPU_SET_CALLBACK_X64(
             snippetsManager,
             [&](const std::shared_ptr<const ov::Node>& n) -> bool {
