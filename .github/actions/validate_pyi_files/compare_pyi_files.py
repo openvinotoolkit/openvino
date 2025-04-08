@@ -66,8 +66,7 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
                 )
                 changes = [line for line in diff if line.startswith('+') or line.startswith('-')]
                 if not all(change.lstrip('+-').startswith(("import", "from")) for change in changes):
-                    filtered_diff = list(diff)
-                    outdated_files.append((relative_path, "".join(filtered_diff)))
+                    outdated_files.append((relative_path, "".join(diff)))
 
     # Display all outdated files and their diffs
     if outdated_files:
