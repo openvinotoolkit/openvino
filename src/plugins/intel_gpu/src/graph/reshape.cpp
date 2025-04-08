@@ -349,6 +349,7 @@ void reshape_inst::update_output_memory() {
         _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
     }
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
+    _mem_allocated = false;
 }
 
 }  // namespace cldnn
