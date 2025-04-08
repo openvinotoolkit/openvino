@@ -10,6 +10,12 @@ import filecmp
 import difflib
 from typing import List, Set
 
+# Due to numerous issues with stub generation reproducibility we need some skips
+SKIPS = [
+    # This file contains constant.def_buffer(), which pybind11 generates methods for on CI
+    # but not locally (__buffer__(), __release_buffer__()). Probably depends on environment specifics.
+    "openvino/_pyopenvino/op/__init__.pyi"
+]
 
 def find_pyi_files(directory: str) -> Set[str]:
     """Recursively find all .pyi files in a directory."""
@@ -52,6 +58,8 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
     # Compare file contents
     outdated_files = []
     for relative_path in generated_files:
+        if relative_path in SKIPS:
+            continue
         generated_file: str = os.path.join(generated_dir, relative_path)
         committed_file: str = os.path.join(committed_dir, relative_path)
         print(f"[Debug] Comparing: {generated_file} with {committed_file}")
