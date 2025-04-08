@@ -29,6 +29,16 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
    .. grid-item::
 
       .. button-link:: #
+         :class: ov-toolkit-benchmark-results
+         :color: primary
+         :outline:
+         :expand:
+
+         :material-regular:`bar_chart;1.4em` OpenVINO Benchmark Graphs (general)
+
+   .. grid-item::
+
+      .. button-link:: #
          :class: ovms-toolkit-benchmark-results
          :color: primary
          :outline:
@@ -56,17 +66,6 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
 
          :material-regular:`bar_chart;1.4em` OVMS for GenAI
          
-   .. grid-item::
-
-      .. button-link:: #
-         :class: ov-toolkit-benchmark-results
-         :color: primary
-         :outline:
-         :expand:
-
-         :material-regular:`bar_chart;1.4em` OpenVINO Benchmark Graphs (general)
-
-
 
 
 
