@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 #include "program_wrapper.h"
@@ -214,6 +215,8 @@ TEST(group_normalization, input_bfyx_output_fsv16) {
     auto output_g = outputs_g.at("output").get_memory();
     cldnn::mem_lock<float> output_mem_g(output_g, get_test_stream());
 
+    // Disable mem reuse to avoid wrong reuse due to not calculating of memory dependencies in the below model creation flow
+    config.set_property(ov::intel_gpu::enable_memory_pool(false));
     auto program = program::build_program(engine, topology_t, config, false, true);
     auto& reorder_node = program->get_node("reorder1");
     std::vector<layout> layouts = {in_layout};

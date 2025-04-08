@@ -18,7 +18,12 @@ struct ImmediateStreamsExecutor : public ov::threading::ITaskExecutor {
     explicit ImmediateStreamsExecutor(const std::shared_ptr<ov::threading::IStreamsExecutor>& streamsExecutor)
         : _streamsExecutor{streamsExecutor} {}
     void run(ov::threading::Task task) override {
-        _streamsExecutor->execute(std::move(task));
+        if (_streamsExecutor->get_streams_num() > 1) {
+            std::vector<ov::threading::Task> tasks{std::move(task)};
+            _streamsExecutor->run_and_wait(tasks);
+        } else {
+            _streamsExecutor->execute(std::move(task));
+        }
     }
     std::shared_ptr<ov::threading::IStreamsExecutor> _streamsExecutor;
 };
