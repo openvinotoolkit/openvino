@@ -460,6 +460,36 @@ private:
     bool add_2nd_reshape = false;
 };
 
+/* Graph:
+ *           input0   input1
+ *              \     /
+ *              MatMul0  input2
+ *                 |     /
+ *              Eltwise1
+ *                 |
+ *              Reshape input3
+ *                 |    /
+ *              Eltwise2
+ *                 |
+ *              Reshape
+ *                 |
+ *              Softmax
+ *                 |       input4
+ *                  \      /
+ *                   MatMul1
+ */
+class MHARankUpgradeToReductionFunction : public SnippetsFunctionBase {
+public:
+    explicit MHARankUpgradeToReductionFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 5, "Got invalid number of input shapes");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
