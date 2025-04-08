@@ -286,9 +286,13 @@ void reorder_inst::update_output_memory() {
 
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
-    if (static_cast<bool>(_outputs[0]) &&
+    // Ensure the output layout is static in case the output memory is reinterpreted with a dynamic layout
+    if (static_cast<bool>(_outputs[0]) && _outputs[0]->get_layout().is_static() &&
         _node->get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
-        _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
+        _network.get_memory_pool().release_memory(_outputs[0].get(),
+                                                  _node->get_unique_id(),
+                                                  _node->id(),
+                                                  _network.get_id());
     }
 
     if (requires_reinterpret()) {
