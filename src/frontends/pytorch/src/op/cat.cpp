@@ -184,7 +184,8 @@ OutputVector translate_autocast_to_full_precision(const NodeContext& context) {
     if (input_type == element::f32) {
         return {input};
     }
-    auto full_precision_tensor = context.mark_node(std::make_shared<v1::ConvertLike>(input, input, element::f32));
+    // Corrected the constructor for ConvertLike
+    auto full_precision_tensor = context.mark_node(std::make_shared<v1::ConvertLike>(input, input));
     return {full_precision_tensor};
 }
 
