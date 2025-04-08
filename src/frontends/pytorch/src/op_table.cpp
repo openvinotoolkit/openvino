@@ -257,6 +257,7 @@ OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_unique2);
+OP_CONVERTER(translate_unchecked_cast);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
 OP_CONVERTER(translate_upsample_bicubic2d_aa);
@@ -770,6 +771,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::TupleIndex", op::translate_tuple_index},
         // prim::TupleUnpack - Supported in limited set of patterns
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
+        {"prim::unchecked_cast", op::translate_unchecked_cast},
         {"quantized::add", op::translate_quantized_add},
         {"quantized::add_relu", op::translate_quantized_add_relu},
         {"quantized::cat", op::translate_quantized_cat},
