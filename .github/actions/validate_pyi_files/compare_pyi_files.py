@@ -49,6 +49,7 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
         print(f"Error: DEBUGOne or more extra .pyi files are present in the PR: {committed_files - generated_files}")
         sys.exit(1)
 
+    # Compare file contents
     outdated_files = []
     for relative_path in generated_files:
         generated_file: str = os.path.join(generated_dir, relative_path)
@@ -58,20 +59,21 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
             with open(generated_file, 'r') as gen_file, open(committed_file, 'r') as com_file:
                 gen_lines = gen_file.readlines()
                 com_lines = com_file.readlines()
-                diff = difflib.unified_diff(
+                diff = list(difflib.unified_diff(
                     gen_lines, com_lines,
                     fromfile=f"Generated: {relative_path}",
                     tofile=f"Committed: {relative_path}",
                     lineterm=''
-                )
-                if not next(diff, None):
-                    print(f"[Debug] No differences found in {relative_path}")
-                    continue
-                else:
-                    changes = [line for line in diff if line.startswith('+') or line.startswith('-')]
-                    if changes and not all(change.lstrip('+-').startswith(("import", "from")) for change in changes):
-                        print(f"Adding diff for {relative_path}. The changes var is: {changes}")
-                        outdated_files.append((relative_path, "".join(diff)))
+                ))
+            if diff:
+                changes = [
+                    line for line in diff 
+                    if (line.startswith('+') or line.startswith('-')) 
+                    and not line.startswith('+++ Committed:')
+                ]
+                if changes and not all(change.lstrip('+-').startswith(("import", "from")) for change in changes):
+                    print(f"Adding diff for {relative_path}. The changes var is: {changes}")
+                    outdated_files.append((relative_path, "\n".join(diff)))
 
     # Display all outdated files and their diffs
     if outdated_files:
