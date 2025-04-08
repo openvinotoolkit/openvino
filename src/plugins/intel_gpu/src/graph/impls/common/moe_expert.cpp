@@ -50,7 +50,20 @@ struct moe_expert_impl : typed_primitive_impl<moe_expert> {
             // TODO: wait dep only
             for (auto&& event: events)
                 event->wait();
-            moe_expert_inst::get_expert_mask_from_memory(instance.pred_memory_ptr(), stream, expert_mask);
+            auto dep = instance.dependencies()[1];
+            auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
+            moe_expert_inst::get_expert_mask_from_memory(instance.pred_memory_ptr(), layout, stream, expert_mask);
+            {
+                const auto& shape = layout.get_shape();
+                int max_expert_num = static_cast<int>(shape[0]), max_topk = static_cast<int>(shape[1]), max_tokens = static_cast<int>(shape[2]);
+                int count = 0;
+                for (int no = 0; no < max_expert_num; no++) {
+                    count += static_cast<int>(expert_mask.batch[no].size());
+                }
+                OPENVINO_ASSERT(count == max_topk * max_tokens, "With max_expert_num=", max_expert_num, ",max_topk=", max_topk, ",exec count=",
+                    expert_mask.execed_count, ",max_tokens=", max_tokens, " should have ", max_topk * max_tokens, " tokens, but current is ",
+                    count, ". layout=", layout);
+            }
         }
 
         OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());

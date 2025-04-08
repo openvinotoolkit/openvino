@@ -68,7 +68,7 @@ public:
     static std::vector<layout> calc_output_layouts(moe_expert_node const& /*node*/, kernel_impl_params const& impl_param);
     static layout calc_output_layout(moe_expert_node const& /* node */, kernel_impl_params const& impl_param);
     static std::string to_string(moe_expert_node const& node);
-    static void get_expert_mask_from_memory(memory::ptr mem, stream& stream, expert_mask_scratch& expert_mask);
+    static void get_expert_mask_from_memory(memory::ptr mem, layout& layout, stream& stream, expert_mask_scratch& expert_mask);
     static bool get_pred_from_memory(memory::ptr mem, stream& stream, size_t expert_no);
     typed_primitive_inst(network& network, moe_expert_node const& node);
 

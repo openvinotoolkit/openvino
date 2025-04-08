@@ -22,11 +22,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(moe_expert)
     !* We can be sure, that this method was called AT LEAST once during graph compilation.*!
 */
 layout moe_expert_inst::calc_output_layout(moe_expert_node const& /* node */, kernel_impl_params const& impl_param) {
-    if (impl_param.memory_deps.empty()) {
-        return impl_param.input_layouts[0];
-    } else {
-        return impl_param.memory_deps.at(0)->get_layout();
-    }
+    return impl_param.input_layouts[0];
 }
 
 bool moe_expert_inst::get_pred_from_memory(memory::ptr mem, stream& stream, size_t expert_no) {
@@ -40,8 +36,8 @@ bool moe_expert_inst::get_pred_from_memory(memory::ptr mem, stream& stream, size
     return false;
 }
 
-void moe_expert_inst::get_expert_mask_from_memory(memory::ptr mem, stream& stream, expert_mask_scratch& expert_mask) {
-    const auto& shape = mem->get_layout().get_shape();
+void moe_expert_inst::get_expert_mask_from_memory(memory::ptr mem, layout& layout, stream& stream, expert_mask_scratch& expert_mask) {
+    const auto& shape = layout.get_shape();
     int max_expert_num = static_cast<int>(shape[0]), max_topk = static_cast<int>(shape[1]), max_tokens = static_cast<int>(shape[2]);
     expert_mask.pred_flag.clear();
     expert_mask.batch.clear();
@@ -51,11 +47,11 @@ void moe_expert_inst::get_expert_mask_from_memory(memory::ptr mem, stream& strea
     expert_mask.topk.resize(max_expert_num, {});
     auto num_per_expert = max_topk * max_tokens;
     auto fill = [&](int* p, int expert_no) {
-        cldnn::tensor size = mem->get_layout().get_tensor();
+        cldnn::tensor size = layout.get_tensor();
         // topk
         for (int f = 0; f < size.feature[0]; f++) {
             // bfxyzw
-            auto offset = mem->get_layout().get_linear_offset(cldnn::tensor(expert_no, f, 0, 0, 0, 0));
+            auto offset = layout.get_linear_offset(cldnn::tensor(expert_no, f, 0, 0, 0, 0));
             // tokens
             for (int y = 0; y < size.spatial[1]; y++) {
                 OPENVINO_ASSERT(static_cast<int>(offset) + y == expert_no * num_per_expert + f * max_tokens + y);
@@ -94,12 +90,6 @@ void moe_expert_inst::get_expert_mask_from_memory(memory::ptr mem, stream& strea
             fill(p, expert_no);
         });
     }
-    int count = 0;
-    for (int no = 0; no < max_expert_num; no++) {
-        count += static_cast<int>(expert_mask.batch[no].size());
-    }
-    OPENVINO_ASSERT(count == max_topk * max_tokens, "With max_expert_num=", max_expert_num, ",max_topk=", max_topk, ",max_tokens=", max_tokens, " should have ",
-        max_topk * max_tokens, " tokens, but current is ", count, ". layout=", mem->get_layout());
 }
 
 void moe_expert_inst::copy_expert_mask_to_gpu(stream& stream,
@@ -154,11 +144,7 @@ void moe_expert_inst::copy_expert_mask_to_gpu(stream& stream,
 
 template<typename ShapeType>
 std::vector<layout> moe_expert_inst::calc_output_layouts(moe_expert_node const& /* node */, kernel_impl_params const& impl_param) {
-    if (impl_param.memory_deps.empty()) {
-        return {impl_param.input_layouts[0]};
-    } else {
-        return {impl_param.memory_deps.at(0)->get_layout()};
-    }
+    return {impl_param.input_layouts[0]};
 }
 
 template std::vector<layout> moe_expert_inst::calc_output_layouts<ov::PartialShape>(moe_expert_node const& node, const kernel_impl_params& impl_param);
@@ -185,6 +171,16 @@ moe_expert_inst::typed_primitive_inst(network& network, moe_expert_node const& n
 }
 
 void moe_expert_inst::update_output_layout() {
+    for (size_t i = 0; i < _deps.size(); i++) {
+        auto idx = _deps[i].second;
+        auto new_shape = _deps[i].first->_impl_params->get_output_layout(idx);
+        if (_impl_params->get_input_layout(i) != new_shape) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
+                                   << " was: " << _impl_params->get_input_layout(i).to_short_string()
+                                   << " now: " << new_shape.to_short_string() << std::endl;
+            _impl_params->input_layouts[i] = new_shape;
+        }
+    }
     auto memory_deps = _node->get_const_memory_deps();
     for (auto& i : _node->get_shape_infer_dependencies()) {
         if (memory_deps.count(i) > 0 || i >= _node->get_dependencies().size()) {
