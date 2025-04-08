@@ -197,13 +197,6 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${DEVELOPER_PACKAGE_DIR} --component developer_package
 
-      - name: Setup python 3.9
-        if: ${{ inputs.os == 'debian_10' }}
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
-        with:
-          python-version: '3.9'
-          architecture: 'arm64'
-
       - name: Build Python API and wheels
         if: ${{ inputs.build-additional-python-packages }}
         run: |
@@ -220,7 +213,7 @@ jobs:
             CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
             if [[ "${OS}" == 'debian_10' ]]; then
               echo "Adding ARM specific CMake options"
-              CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=/__w/openvino/openvino/openvino/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/usr/local/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/usr/local/include/python${py_version}"
+              CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=/__w/openvino/openvino/openvino/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/usr/local/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/opt/python${py_version}_arm/include/python${py_version}"
             fi
             
             echo ${CMAKE_OPTIONS}

@@ -72,14 +72,28 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Build Pythons
 # Python 3.9
+
+# To cross-compile Python3.9 we need to first compile it for the host
 RUN wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz
 
 RUN tar -xf Python-3.9.21.tar.xz && \
     cd Python-3.9.21 && \
     ./configure --enable-optimizations && \
     make -j 8 && \
-    make altinstall && \
-    cd .. && rm -rf Python-3.9.21.tar.xz Python-3.9.21
+    make altinstall
+
+# Compile Python3.9 for ARM
+RUN cd Python-3.9.21 && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=arm-linux-gnueabihf \
+        --disable-ipv6 \
+        --enable-shared \
+        --prefix=/opt/python3.9_arm \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j 8 && make altinstall
+
 #
 ## Python 3.10
 #RUN wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz
