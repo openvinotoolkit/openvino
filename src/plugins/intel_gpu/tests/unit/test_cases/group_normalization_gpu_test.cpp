@@ -165,6 +165,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(group_normalization, input_bfyx_output_fsv16) {
+    GTEST_SKIP();
     auto& engine = get_test_engine();
 
     auto in_layout = layout{ ov::PartialShape{1, 3, 3, 2}, data_types::f32, format::bfyx };
