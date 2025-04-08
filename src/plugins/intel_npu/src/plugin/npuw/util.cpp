@@ -365,29 +365,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     View view_end = shape;
     view_start[dim] = offset;
     view_end[dim] = offset + len;
-
-    auto ret_view = ov::npuw::util::view(src, view_start, view_end);
-
-    // Check if a tensor view can be faked as "continuous"
-    // FIXME: This trick should be removed after strided tensor
-    // checks are relaxed
-    if (std::all_of(shape.begin(), shape.begin() + dim, [](std::size_t d) {
-            return d == 1u;
-        })) {
-        // If all dimensions up to the sub-ranged dimension are 1s,
-        // This tensor can be faked as continuous
-        const auto type = src->get_element_type();
-        const auto view_shape = ret_view->get_shape();
-        ov::Strides fake_strides(shape.size());
-        fake_strides.back() = type.size();
-        std::transform(view_shape.crbegin(),
-                       view_shape.crend() - 1,
-                       fake_strides.rbegin(),
-                       fake_strides.rbegin() + 1,
-                       std::multiplies<size_t>());
-        return ov::get_tensor_impl(ov::Tensor(type, view_shape, ret_view->data(), fake_strides));
-    }
-    return ret_view;
+    return ov::npuw::util::view(src, view_start, view_end);
 }
 
 template <typename InT>
