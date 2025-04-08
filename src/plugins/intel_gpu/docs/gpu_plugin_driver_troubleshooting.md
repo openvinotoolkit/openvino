@@ -68,7 +68,7 @@ With this option, you can check whether Intel XMX(Xe Matrix Extension) feature i
 ```
 $ ./hello_query_device.py
 ...
-[ INFO ]                OPTIMIZATION_CAPABILITIES: FP32, BIN, FP16, INT8, GPU_HW_MATMUL
+[ INFO ]                OPTIMIZATION_CAPABILITIES: FP32, BIN, FP16, INT8, GPU_HW_MATMUL, GPU_USM_MEMORY
 ```
 
 ## 8. If you have errors with OpenCL headers in application build

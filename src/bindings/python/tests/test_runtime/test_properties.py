@@ -552,6 +552,7 @@ def test_properties_memory_type_gpu():
 
 def test_properties_capability_gpu():
     assert intel_gpu.CapabilityGPU.HW_MATMUL == "GPU_HW_MATMUL"
+    assert intel_gpu.CapabilityGPU.USM_MEMORY == "GPU_USM_MEMORY"
 
 
 def test_properties_hint_model():

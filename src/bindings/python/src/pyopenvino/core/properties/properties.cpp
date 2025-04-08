@@ -266,6 +266,7 @@ void regmodule_properties(py::module m) {
         "openvino.properties.intel_gpu.CapabilityGPU submodule that simulates ov::intel_gpu::capability");
 
     m_capability_gpu.attr("HW_MATMUL") = ov::intel_gpu::capability::HW_MATMUL;
+    m_capability_gpu.attr("USM_MEMORY") = ov::intel_gpu::capability::USM_MEMORY;
 
     // Submodule log
     py::module m_log = m_properties.def_submodule("log", "openvino.properties.log submodule that simulates ov::log");
