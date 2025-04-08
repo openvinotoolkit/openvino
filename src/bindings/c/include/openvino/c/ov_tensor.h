@@ -78,6 +78,16 @@ OPENVINO_C_API(ov_status_e)
 ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_type_e* type);
 
 /**
+ * @brief Set string data for tensor
+ * @ingroup ov_tensor_c_api
+ * @param string_array Array of strings
+ * @param array_size Size of the array
+ * @param tensor A point to ov_tensor_t
+ */
+OPENVINO_C_API(ov_status_e)
+ov_tensor_set_string(ov_tensor_t* tensor, const char** string_array, size_t array_size);
+
+/**
  * @brief the total number of elements (a product of all the dims or 1 for scalar).
  * @ingroup ov_tensor_c_api
  * @param elements_size number of elements
