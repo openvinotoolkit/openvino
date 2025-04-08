@@ -26,6 +26,8 @@ OP_CONVERTER(translate_adaptive_max_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_adaptive_max_pool1d);
 OP_CONVERTER(translate_add);
+OP_CONVERTER(translate_to_copy);
+
 OP_CONVERTER(translate_add_);
 OP_CONVERTER(translate_aminmax);
 OP_CONVERTER(translate_mul);
@@ -693,6 +695,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::to", op::translate_to},
         {"aten::topk", op::translate_topk},
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},
+        {"aten::_to_copy", op::translate_to_copy},
         {"aten::tril", op::translate_tril},
         {"aten::triu", op::translate_triu},
         {"aten::type_as",
