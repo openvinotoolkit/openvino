@@ -1777,9 +1777,14 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     // beam order is like [0, 1, 2,...]
     bool no_reorder = true;
     for (size_t i = 0; i < B; i++) {
+        if (beam_idx.ptr<int32_t>()[i] >= static_cast<int32_t>(B)) {
+            OPENVINO_THROW("[ScaledDotProdcution]beam_idx ",
+                           beam_idx.ptr<int32_t>()[i],
+                           " is bigger than total beams ",
+                           B);
+        }
         if (beam_idx.ptr<int32_t>()[i] != static_cast<int32_t>(i)) {
             no_reorder = false;
-            break;
         }
     }
     if (!no_reorder && m_key_quant_param.isByChannel) {

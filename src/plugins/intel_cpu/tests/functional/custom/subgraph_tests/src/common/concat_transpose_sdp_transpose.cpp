@@ -20,9 +20,10 @@ namespace test {
 using InputShapeAndTransposeOrder = std::pair<std::vector<InputShape>, std::vector<size_t>>;
 using ConcatSDPTransposeTestParams = std::tuple<ElementType,
                                                 InputShapeAndTransposeOrder,
-                                                bool,   // has ShapeOf
-                                                bool,   // quantize by channel
-                                                size_t  // group_size
+                                                bool,    // has ShapeOf
+                                                bool,    // quantize by channel
+                                                size_t,  // group_size,
+                                                bool     // invalid beam_idx
                                                 >;
 // Subgraph:
 /*                              Parameter
@@ -57,7 +58,8 @@ public:
         bool hasShapeof;
         bool quantKeyByChannel;
         size_t groupSize;
-        std::tie(inType, inputShapeAndOrders, hasShapeof, quantKeyByChannel, groupSize) = obj.param;
+        bool wrongBeamIdx;
+        std::tie(inType, inputShapeAndOrders, hasShapeof, quantKeyByChannel, groupSize, wrongBeamIdx) = obj.param;
         std::ostringstream result;
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
@@ -78,6 +80,7 @@ public:
         result << "Prc=" << inType << "_";
         result << "HasShapeOf=" << hasShapeof << "_";
         result << "quantKeyByChannel=" << quantKeyByChannel << "_";
+        result << "wrongBeamIdx=" << wrongBeamIdx << "_";
         result << "groupSize=" << groupSize << "_";
         result << "TransposeOrder=";
         result << "(";
@@ -92,7 +95,8 @@ public:
     void SetUp() override {
         ElementType inType;
         InputShapeAndTransposeOrder inputShapeAndOrders;
-        std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, keyGroupSize) = this->GetParam();
+        std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, keyGroupSize, wrongBeamIdx) =
+            this->GetParam();
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         transposeOrder = inputShapeAndOrders.second;
         targetDevice = ov::test::utils::DEVICE_CPU;
@@ -224,9 +228,14 @@ public:
                 auto size = shape[0];
                 auto* p = static_cast<int*>(t.data());
                 auto start = static_cast<int>(val);
+
                 for (size_t i = 0; i < size; i++) {
                     p[i] = (start + i) % size;
                 }
+                if (wrongBeamIdx) {
+                    p[size - 1] = size + 1024;
+                }
+
                 inputs.insert({param, t});
             } else if (param->get_element_type() == ov::element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
@@ -264,6 +273,7 @@ public:
     size_t keyGroupSize = 0;
     bool quantKeyByChannel = false;
     bool hasShapeOf;
+    bool wrongBeamIdx;
 };
 
 class ConcatSDPTransposeTest : public ConcatSDPTransposeTestBase {
@@ -309,7 +319,13 @@ public:
 
 TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    auto actualOutputs = run_test(function);
+    std::vector<ov::Tensor> actualOutputs;
+    if (wrongBeamIdx) {
+        ASSERT_THROW(run_test(function), ov::Exception);
+    } else {
+        actualOutputs = run_test(function);
+    }
+
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
@@ -352,7 +368,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTest,
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false),
                                             ::testing::Values(false),
-                                            ::testing::Values(0)),
+                                            ::testing::Values(0),
+                                            ::testing::Values(false, true)),
                          ConcatSDPTransposeTest::getTestCaseName);
 
 const std::vector<InputShapeAndTransposeOrder> shapesWithGreedySearch = {
@@ -380,7 +397,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeByChannelTest,
                                             ::testing::ValuesIn(shapesWithGreedySearch),
                                             ::testing::Values(false),
                                             ::testing::Values(true),
-                                            ::testing::Values(8)),
+                                            ::testing::Values(8),
+                                            ::testing::Values(false)),
                          ConcatSDPTransposeTest::getTestCaseName);
 }  //  namespace
 
@@ -481,7 +499,8 @@ TEST_P(ConcatSDPTransposeTestSetState, CompareWithRefs) {
     bool hasShapeOf;
     bool quantKeyByChannel;
     size_t groupSize;
-    std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize) = this->GetParam();
+    bool wrongBeamIdx;
+    std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize, wrongBeamIdx) = this->GetParam();
 
     // skip bf16 test on avx512 platform
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -518,7 +537,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTestSetState,
                                             ::testing::ValuesIn(inputShapeAndReordersSetState),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
-                                            ::testing::Values(0)),
+                                            ::testing::Values(0),
+                                            ::testing::Values(false)),
                          ConcatSDPTransposeTest::getTestCaseName);
 
 }  // namespace
