@@ -59,7 +59,13 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
                     tofile=f"Committed: {relative_path}",
                     lineterm=''
                 )
-                outdated_files.append((relative_path, "".join(diff)))
+                filtered_diff = [
+                    line for line in diff
+                    if not (line.startswith('+') or line.startswith('-')) or
+                    not (line.lstrip('+-').startswith("import") or line.lstrip('+-').startswith("from"))
+                ]
+                if filtered_diff:
+                    outdated_files.append((relative_path, "".join(filtered_diff)))
 
     # Display all outdated files and their diffs
     if outdated_files:
