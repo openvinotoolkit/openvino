@@ -101,34 +101,32 @@ TEST_F(TransformationTestsF, MOCTest) {
     std::shared_ptr<ov::Node> weights_ref;
     {
         using namespace ov::op;
-        auto data = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 3840});
-        auto data1 = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 3840});
+        auto data = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
+        auto data1 = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
         auto a_mul = std::make_shared<v1::Multiply>(data, data1);
-        weights = std::make_shared<v0::Constant>(element::f32, ov::Shape{1536, 3840});
+        weights = std::make_shared<v0::Constant>(element::f32, ov::Shape{3, 5});
         auto scale = std::make_shared<v0::Constant>(element::f32, ov::Shape{}, 0.194145);
         auto matmul = std::make_shared<v0::MatMul>(a_mul, weights, false, true);
         auto mul = std::make_shared<v1::Multiply>(matmul, scale);
         auto res = std::make_shared<v0::Result>(mul);
 
         weights->set_friendly_name("self.model.layers.50.mlp.down_proj.weight");
-        ov::disable_constant_folding(matmul);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data, data1});
         manager.register_pass<ov::pass::MOCTransformations>(false);
     }
     {
         using namespace ov::op;
-        auto data = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 3840});
-        auto data1 = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 3840});
+        auto data = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
+        auto data1 = std::make_shared<v0::Parameter>(element::f32, ov::PartialShape{-1, -1, 5});
         auto a_mul = std::make_shared<v1::Multiply>(data, data1);
-        weights_ref = std::make_shared<v0::Constant>(element::f32, ov::Shape{1536, 3840});
+        weights_ref = std::make_shared<v0::Constant>(element::f32, ov::Shape{3, 5});
         auto scale = std::make_shared<v0::Constant>(element::f32, ov::Shape{1, 1, 1}, 0.194145);
         auto matmul = std::make_shared<v0::MatMul>(a_mul, weights_ref, false, true);
         auto mul = std::make_shared<v1::Multiply>(matmul, scale);
         auto res = std::make_shared<v0::Result>(mul);
 
         weights_ref->set_friendly_name("self.model.layers.50.mlp.down_proj.weight");
-        ov::disable_constant_folding(matmul);
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data, data1});
 
