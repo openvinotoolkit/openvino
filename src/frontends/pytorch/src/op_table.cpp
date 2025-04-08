@@ -92,6 +92,7 @@ OP_CONVERTER(translate_expm1);
 OP_CONVERTER(translate_eye);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine);
+OP_CONVERTER(translate_fake_quantize_learnable_per_tensor_affine);
 OP_CONVERTER(translate_fft_fft);
 OP_CONVERTER(translate_fft_fft2);
 OP_CONVERTER(translate_fft_fftn);
@@ -497,6 +498,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::eye", op::translate_eye},
         {"aten::fake_quantize_per_channel_affine", op::translate_fake_quantize_per_channel_affine},
         {"aten::fake_quantize_per_tensor_affine", op::translate_fake_quantize_per_tensor_affine},
+        {"aten::fake_quantize_learnable_per_tensor_affine", op::translate_fake_quantize_learnable_per_tensor_affine},
         {"aten::feature_dropout", op::skip_node},
         {"aten::fft_fft", op::translate_fft_fft},
         {"aten::fft_fft2", op::translate_fft_fft2},
