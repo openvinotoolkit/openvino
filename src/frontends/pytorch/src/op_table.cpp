@@ -233,6 +233,7 @@ OP_CONVERTER(translate_scatter);
 OP_CONVERTER(translate_scatter_add);
 OP_CONVERTER(translate_scatter_reduce);
 OP_CONVERTER(translate_select);
+OP_CONVERTER(translate_set_);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
 OP_CONVERTER(translate_shape_as_tensor);
@@ -677,6 +678,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::rsqrt_", op::inplace_op<op::translate_rsqrt>},
         {"aten::rsub", op::translate_rsub},
         {"aten::searchsorted", op::translate_search_sorted},
+        {"aten::set_", op::translate_set_},
         {"aten::ScalarImplicit", op::skip_node},
         {"aten::scaled_dot_product_attention", op::translate_scaled_dot_product_attention},
         {"aten::scatter", op::translate_scatter},
