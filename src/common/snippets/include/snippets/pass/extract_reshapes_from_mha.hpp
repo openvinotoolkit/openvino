@@ -38,9 +38,9 @@ public:
 
 /**
  * @interface RankUpgradeToRankReduction
- * @brief This pass tries to transfer rank upgrade reshape from MHA branch to rank reduction reshape in MHA input branch
+ * @brief This pass tries to transfer rank upgrade reshape from MHA branch to rank reduction reshape in MHA input
+ * branch. This pass can be only applied to static shape.
  * Subgraph inside the MHA body:
- *
  *               Matmul                        Matmul
  *                 |   input1                    |  input1   input2
  *                 |  /                          |  /        /
