@@ -274,7 +274,7 @@ public:
         OPENVINO_THROW(ss.str());
     }
 
-    bool result_and_output_match(size_t num_iterations) const {
+    bool result_and_output_match(int64_t num_iterations) const {
         if (const auto concat_desciption = ov::as_type<const SubGraphOp::ConcatOutputDescription>(m_description)) {
             if (m_result->output(0).get_element_type() != m_output.get_element_type()) {
                 return false;
@@ -282,7 +282,8 @@ public:
 
             const auto& output_partial_shape = m_output.get_partial_shape();
             const auto& result_partial_shape = m_result->output(0).get_partial_shape();
-            if (result_partial_shape.is_dynamic() && output_partial_shape.is_dynamic()) {
+            if (output_partial_shape.is_dynamic() &&
+                (result_partial_shape.is_dynamic() || (result_partial_shape.is_static() && num_iterations == -1))) {
                 return true;
             }
             if (!result_partial_shape.is_static() || !output_partial_shape.is_static()) {
@@ -294,7 +295,7 @@ public:
                 return false;
             }
             for (size_t i = 0; i != result_shape.size(); ++i) {
-                const auto axis_multiplier = i == concat_desciption->m_axis ? num_iterations : 1;
+                const auto axis_multiplier = i == concat_desciption->m_axis ? static_cast<size_t>(num_iterations) : 1;
                 if (result_shape[i] * axis_multiplier != output_shape[i]) {
                     return false;
                 }
