@@ -197,6 +197,13 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${DEVELOPER_PACKAGE_DIR} --component developer_package
 
+      - name: Setup python 3.9
+        if: ${{ inputs.os == 'debian_10' }}
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: '3.9'
+          architecture: 'arm64'
+
       - name: Build Python API and wheels
         if: ${{ inputs.build-additional-python-packages }}
         run: |
