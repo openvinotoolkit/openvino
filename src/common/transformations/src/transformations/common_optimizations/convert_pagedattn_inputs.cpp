@@ -110,36 +110,38 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
         auto value_cache_precision = format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
         key_cache->set_element_type(key_cache_precision);
         value_cache->set_element_type(value_cache_precision);
-        key_cache->validate_and_infer_types();
-        value_cache->validate_and_infer_types();
-        if (!pa_op->get_rt_info().count("num_k_heads") || !pa_op->get_rt_info().count("k_head_size") ||
-            !pa_op->get_rt_info().count("num_v_heads") || !pa_op->get_rt_info().count("num_v_heads")) {
+        bool status = false;
+        if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
+            pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("num_v_heads")) {
+
+            const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
+                                                          pa_op->get_rt_info()["k_head_size"].as<size_t>(),
+                                                          m_config.keyCacheBlockSize,
+                                                          key_cache_precision,
+                                                          m_config.keyCacheGroupSize,
+                                                          m_config.keyCacheQuantBychannel,
+                                                          m_config.keyCacheDimOrder);
+            const auto value_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_v_heads"].as<size_t>(),
+                                                            pa_op->get_rt_info()["v_head_size"].as<size_t>(),
+                                                            m_config.valueCacheBlockSize,
+                                                            value_cache_precision,
+                                                            m_config.valueCacheGroupSize,
+                                                            m_config.valueCacheQuantBychannel,
+                                                            m_config.valueCacheDimOrder);
+
+            key_cache->set_partial_shape(key_cache_shape);
+            value_cache->set_partial_shape(value_cache_shape);
+            status = true;
+        } else {
             OPENVINO_DEBUG("PagedAttn ",
                            pa_op->get_friendly_name(),
                            " doesn't have rtinfo for num_k_heads/k_head_size/num_v_heads/num_v_heads");
-            return false;
+            status = false;
         }
-        const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
-                                                      pa_op->get_rt_info()["k_head_size"].as<size_t>(),
-                                                      m_config.keyCacheBlockSize,
-                                                      key_cache_precision,
-                                                      m_config.keyCacheGroupSize,
-                                                      m_config.keyCacheQuantBychannel,
-                                                      m_config.keyCacheDimOrder);
-        const auto value_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_v_heads"].as<size_t>(),
-                                                        pa_op->get_rt_info()["v_head_size"].as<size_t>(),
-                                                        m_config.valueCacheBlockSize,
-                                                        value_cache_precision,
-                                                        m_config.valueCacheGroupSize,
-                                                        m_config.valueCacheQuantBychannel,
-                                                        m_config.valueCacheDimOrder);
-
-        key_cache->set_partial_shape(key_cache_shape);
-        value_cache->set_partial_shape(value_cache_shape);
 
         key_cache->validate_and_infer_types();
         value_cache->validate_and_infer_types();
-        return true;
+        return status;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
