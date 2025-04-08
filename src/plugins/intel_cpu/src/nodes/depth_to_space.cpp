@@ -5,6 +5,7 @@
 #include "depth_to_space.h"
 
 #include <cmath>
+#include <memory>
 #include <string>
 
 #include "common/blocked_desc_creator.h"
@@ -301,7 +302,7 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
     }
 
-    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+    permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
 void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const int MB) {
@@ -309,13 +310,13 @@ void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const 
         OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
     }
 
-    const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
-    uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
+    const auto* srcData = srcMemPtr->getDataAs<const uint8_t>();
+    auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     permuteKernel->execute(srcData, dstData, MB);
 }
 
-void DepthToSpace::execute(const dnnl::stream& strm) {
+void DepthToSpace::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }

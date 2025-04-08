@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -282,21 +283,22 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     set_property(property, true);
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
-        OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " trying to match ", node);
+        OPENVINO_LOG_GRAPH_REWRITE1(m, node);
         if (m->match(node->output(0))) {
-            OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " matched ", node);
             OV_PASS_CALLBACK(m);
 
             try {
                 const bool status = callback(*m.get());
-                OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " callback ", (status ? "succeded" : "failed"));
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 m->clear_state();
+                OPENVINO_LOG_GRAPH_REWRITE2(m, status);
                 return status;
             } catch (const std::exception& exp) {
-                OPENVINO_THROW("[MATCHER] ", m->get_name(), "node: ", node, " callback has thrown: ", exp.what());
+                OPENVINO_LOG_GRAPH_REWRITE3(m, exp);
+                OPENVINO_THROW("[", m->get_name(), "] END: node: ", node, " CALLBACK HAS THROWN: ", exp.what(), "\n");
             }
         }
+        OPENVINO_LOG_GRAPH_REWRITE4(m);
         m->clear_state();
         return false;
     };

@@ -93,9 +93,9 @@ void LogSoftmax::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void LogSoftmax::execute(const dnnl::stream& strm) {
-    const float* srcData = getSrcDataAtPortAs<const float>(0);
-    float* dstData = getDstDataAtPortAs<float>(0);
+void LogSoftmax::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto* srcData = getSrcDataAtPortAs<const float>(0);
+    auto* dstData = getDstDataAtPortAs<float>(0);
 
     if (isLastDim) {
         parallel_for(axisStep, [&](size_t i) {

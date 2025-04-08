@@ -109,7 +109,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
 }
 
 DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
-                                                                  const DnnlMemoryDescPtr& dstDesc,
+                                                                  [[maybe_unused]] const DnnlMemoryDescPtr& dstDesc,
                                                                   bool weightsNonTransposed) {
     if (!weightsNonTransposed) {
         return srcDesc;
@@ -147,8 +147,7 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
 static bool useDynamicQuantizationImpl(size_t dqGroupSize,
                                        const MemoryDescPtr& srcDesc,
                                        const MemoryDescPtr& weightsDesc,
-                                       const MemoryArgs& memory,
-                                       bool needTranspose) {
+                                       const MemoryArgs& memory) {
     if (dqGroupSize == 0) {
         return false;
     }
@@ -306,13 +305,13 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
         useSparseWeights ? dnnl::memory::desc().sparse_desc(normalizedWeightDesc.get_dims(), wdt)
                          : dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
 
-    return dnnl::inner_product_forward::primitive_desc(engine,
-                                                       dnnl::prop_kind::forward_inference,
-                                                       normalizedInputDesc,
-                                                       weightsDesc,
-                                                       biasDesc,
-                                                       normalizedOutputDesc,
-                                                       attr);
+    return {engine,
+            dnnl::prop_kind::forward_inference,
+            normalizedInputDesc,
+            weightsDesc,
+            biasDesc,
+            normalizedOutputDesc,
+            attr};
 }
 
 static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
@@ -391,11 +390,8 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const auto useWeightsDecompression =
         useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision(), attrs.modelType);
     const auto useDynamicQuantization =
-        useWeightsDecompression && useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize,
-                                                              srcDesc,
-                                                              weiDesc,
-                                                              memory,
-                                                              !attrs.weightsNonTransposed);
+        useWeightsDecompression &&
+        useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, srcDesc, weiDesc, memory);
 
     const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization);
 

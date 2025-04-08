@@ -16,6 +16,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/platform.h"
 
 namespace ov::intel_cpu {
 
@@ -244,9 +245,8 @@ void serializeToXML(const Graph& graph, const std::string& path) {
         return;
     }
 
-    std::string binPath;
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(path, binPath, ov::pass::Serialize::Version::IR_V10);
+    manager.register_pass<ov::pass::Serialize>(path, NULL_STREAM, ov::pass::Serialize::Version::IR_V10);
     manager.run_passes(graph.dump());
 }
 
@@ -271,12 +271,7 @@ void serializeToCout(const Graph& graph) {
 }
 
 void summary_perf(const Graph& graph) {
-    if (!graph.getGraphContext()) {
-        return;
-    }
-    const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
-
-    if (summaryPerf.empty() || !std::stoi(summaryPerf)) {
+    if (!graph.getGraphContext() || !graph.getConfig().debugCaps.summaryPerf) {
         return;
     }
 
@@ -287,7 +282,6 @@ void summary_perf(const Graph& graph) {
     for (auto& node : graph.GetNodes()) {  // important: graph.graphNodes are in topological order
         double avg = node->PerfCounter().avg();
         auto type = node->getTypeStr() + "_" + node->getPrimitiveDescriptorType();
-        auto name = node->getName();
 
         total += node->PerfCounter().count() * avg;
         total_avg += avg;
@@ -319,7 +313,7 @@ void summary_perf(const Graph& graph) {
         std::vector<std::pair<std::string, double>> A;
         A.reserve(perf_by_type.size());
         for (auto& it : perf_by_type) {
-            A.push_back(it);
+            A.emplace_back(it);
         }
         sort(A.begin(), A.end(), [](std::pair<std::string, double>& a, std::pair<std::string, double>& b) {
             return a.second > b.second;
@@ -327,7 +321,7 @@ void summary_perf(const Graph& graph) {
 
         for (auto& it : A) {
             std::stringstream ss;
-            int percentage = static_cast<int>(it.second * 100 / total_avg);
+            auto percentage = static_cast<int>(it.second * 100 / total_avg);
             if (percentage == 0) {
                 break;
             }
@@ -341,7 +335,7 @@ void summary_perf(const Graph& graph) {
         std::vector<std::pair<NodePtr, double>> A;
         A.reserve(perf_by_node.size());
         for (auto& it : perf_by_node) {
-            A.push_back(it);
+            A.emplace_back(it);
         }
         sort(A.begin(), A.end(), [](std::pair<NodePtr, double>& a, std::pair<NodePtr, double>& b) {
             return a.second > b.second;

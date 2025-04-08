@@ -7,6 +7,7 @@
 #include <partitioned_mem_blk.h>
 
 #include <cstdint>
+#include <memory>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/gather.hpp>
 #include <openvino/opsets/opset1.hpp>
@@ -15,6 +16,7 @@
 
 #include "common/cpu_memcpy.h"
 #include "kernels/x64/gather_uni_kernel.hpp"
+#include "nodes/common/cpu_convert.h"
 #include "openvino/core/parallel.hpp"
 #include "ov_ops/gather_compressed.hpp"
 #include "selective_build.h"
@@ -55,8 +57,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 }
 
 Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, GatherShapeInferFactory(op)),
-      batchDims(0) {
+    : Node(op, context, GatherShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -127,38 +128,46 @@ void Gather::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    dataTypeSize = getOriginalInputPrecisionAtPort(GATHER_DATA).size();
+    dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
+    outPrecision = getOriginalOutputPrecisionAtPort(0);
+    if (!fusedWith.empty()) {
+        outPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+    }
+
+    dataTypeSize = dataPrecision.size();
+    outTypeSize = outPrecision.size();
 
     const auto& dataDims = getInputShapeAtPort(GATHER_DATA).getDims();
     if (isAxisInputConst && isDataShapeStat) {
         axisDim = dataDims[axis];
-        beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
+        beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1lu, std::multiplies<>());
         betweenBatchAndAxisSize =
-            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
-        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<Dim>());
+            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<>());
+        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
+        afterAxisSizeInBytesOut = afterAxisSize * outTypeSize;
         axisAndAfterAxisSize = axisDim * afterAxisSize;
         axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
         srcAfterBatchSize = betweenBatchAndAxisSize * axisAndAfterAxisSize;
         srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
     }
     if (isDataShapeStat) {
-        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<Dim>());
+        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<>());
     }
     if (isIdxShapeStat) {
         const auto& idxDims = getInputShapeAtPort(GATHER_INDICES).getDims();
-        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<Dim>());
+        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<>());
 
         if (isDataShapeStat) {
             specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
             specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+            specIdxAndAfterAxSizeBOut = specIndicesSize * afterAxisSizeInBytesOut;
             totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
         }
     }
-
-    ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
     if (compressed) {
+        // gatherCompressed support input precision (u4/i4/u8/i8) to output precision (f16/bf16/f32).
         if (!one_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4)) {
             dataPrecision = ov::element::f32;
         }
@@ -168,7 +177,6 @@ void Gather::initSupportedPrimitiveDescriptors() {
             scalePrecision = ov::element::f32;
         }
 
-        ov::element::Type outPrecision = getOriginalOutputPrecisionAtPort(0);
         if (!one_of(outPrecision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
             outPrecision = ov::element::f32;
         }
@@ -202,17 +210,19 @@ void Gather::initSupportedPrimitiveDescriptors() {
                                  ref_any);
         }
         return;
-    } else {
-        // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
-        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                              {LayoutType::ncsp, ov::element::i32},
-                              {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
-                             {{LayoutType::ncsp, dataPrecision}},
-                             ref_any);
-    }
+    }  // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
+    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
+                         {{LayoutType::ncsp, outPrecision}},
+                         ref_any);
 
     // Let's check for the special inPlace memory use case
     // in place only makes sense when we split by dense blocks since strided tensors are not supported by most nodes
+
+    if (dataPrecision != outPrecision) {
+        return;
+    }
 
     if (!isAxisInputConst) {
         return;
@@ -271,6 +281,8 @@ void Gather::createPrimitive() {
           (x64::mayiuse(x64::avx512_core) || (x64::mayiuse(x64::avx2) && dataTypeSize == 4))))) {
         jGatherConfParams jcp;
         jcp.dataTypeSize = dataTypeSize;
+        jcp.in_prec = dataPrecision;
+        jcp.out_prec = outPrecision;
         jcp.reverseIndexing = reverseIndexing;
         jcp.dynamicShapes = isDynamicNode();
         jcp.batchDims = batchDims;
@@ -289,9 +301,9 @@ void Gather::createPrimitive() {
         }
 
         if (x64::mayiuse(x64::avx512_core)) {
-            jitKernel.reset(new jitUniGatherKernel<x64::avx512_core>(jcp));
+            jitKernel = std::make_shared<jitUniGatherKernel<x64::avx512_core>>(jcp);
         } else if (x64::mayiuse(x64::avx2)) {
-            jitKernel.reset(new jitUniGatherKernel<x64::avx2>(jcp));
+            jitKernel = std::make_shared<jitUniGatherKernel<x64::avx2>>(jcp);
         }
         if (jitKernel) {
             jitKernel->create_ker();
@@ -301,7 +313,7 @@ void Gather::createPrimitive() {
                 const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
                 execParamsPerThread.resize(m_threads_num);
 
-                parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
+                parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
                     const uint64_t dstStart = std::min(wpt * ithr, totalWork);
                     const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
@@ -358,8 +370,8 @@ void Gather::prepareParams() {
     if (dataSrcRank <= 1 && dataMemPtr->getDesc().getPrecision() == ov::element::i32) {
         const auto& dataDims = dataMemPtr->getStaticDims();
         const auto& idxDims = idxMemPtr->getStaticDims();
-        if ((dataDims.size() == 0 || (dataDims.size() == 1 && dataDims[0] <= 64)) &&
-            (idxDims.size() == 0 || (idxDims.size() == 1 && idxDims[0] <= 64))) {
+        if ((dataDims.empty() || (dataDims.size() == 1 && dataDims[0] <= 64)) &&
+            (idxDims.empty() || (idxDims.size() == 1 && idxDims[0] <= 64))) {
             canOptimize1DCase = true;
             return;
         }
@@ -378,13 +390,13 @@ void Gather::prepareParams() {
     if (!isDataShapeStat || !isAxisInputConst) {
         const auto& dataDims = dataMemPtr->getStaticDims();
         axisDim = dataDims[axis];
-        beforeBatchSize =
-            std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<uint64_t>());
+        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<>());
         betweenBatchAndAxisSize =
-            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<uint64_t>());
-        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<uint64_t>());
+            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<>());
+        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
+        afterAxisSizeInBytesOut = afterAxisSize * outTypeSize;
         axisAndAfterAxisSize = axisDim * afterAxisSize;
         axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
         srcAfterBatchSize = betweenBatchAndAxisSize * axisAndAfterAxisSize;
@@ -393,16 +405,18 @@ void Gather::prepareParams() {
         if (isIdxShapeStat) {
             specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
             specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+            specIdxAndAfterAxSizeBOut = specIndicesSize * afterAxisSizeInBytesOut;
             totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
         }
     }
 
     if (!isIdxShapeStat) {
         const auto& idxDims = idxMemPtr->getStaticDims();
-        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<uint64_t>());
+        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<>());
 
         specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
         specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+        specIdxAndAfterAxSizeBOut = specIndicesSize * afterAxisSizeInBytesOut;
         totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
     }
 
@@ -418,7 +432,7 @@ void Gather::prepareParams() {
 #endif
 }
 
-void Gather::execute(const dnnl::stream& strm) {
+void Gather::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
@@ -435,16 +449,16 @@ void Gather::execute(const dnnl::stream& strm) {
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getSrcDataAtPort(GATHER_INDICES);
         const void* srcData = getSrcDataAtPort(GATHER_DATA);
-        uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+        auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
-        auto threadBody = [&](const int ithr, const int nthr) {
+        auto threadBody = [&](const int ithr, [[maybe_unused]] const int nthr) {
             auto& p = execParamsPerThread[ithr];
             auto arg = gatherJitExecArgs();
 
             arg.src = srcData;
-            arg.dst = dstData + p.dstStart * dataTypeSize;
+            arg.dst = dstData + p.dstStart * outTypeSize;
             arg.indices = srcIndices;
             arg.start = &p.dstStart;
             arg.axisDim = &axisDim;
@@ -486,7 +500,7 @@ void Gather::execute(const dnnl::stream& strm) {
     execReference();
 }
 
-void Gather::executeDynamicImpl(const dnnl::stream& strm) {
+void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
@@ -503,7 +517,7 @@ void Gather::executeDynamicImpl(const dnnl::stream& strm) {
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getSrcDataAtPort(GATHER_INDICES);
         const void* srcData = getSrcDataAtPort(GATHER_DATA);
-        uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+        auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
@@ -511,12 +525,12 @@ void Gather::executeDynamicImpl(const dnnl::stream& strm) {
             const uint64_t wpt = ((totalWork / dataElPerVec) / nthr + 1) * dataElPerVec;
             const uint64_t start = std::min(wpt * ithr, totalWork);
             const uint64_t end = std::min(wpt * (ithr + 1), totalWork);
-            const uint64_t workAmount = end - start;
+            const uint64_t workAmount = end - start;  // how many elements processed in this thread
 
             auto arg = gatherJitExecArgs();
 
             arg.src = srcData;
-            arg.dst = dstData + afterAxisSizeInBytes * start;
+            arg.dst = dstData + afterAxisSizeInBytesOut * start;
             arg.indices = srcIndices;
             arg.start = &start;
             arg.axisDim = &axisDim;
@@ -640,9 +654,9 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
 
 template <typename OUT_TYPE, int8_t get4Bit(const uint8_t&, bool)>
 void Gather::execCompressed4Bit() {
-    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
-    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
-    OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
+    const auto* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const auto* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
+    auto* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
 
     // zp/scale
     float const_zp = 0;
@@ -724,9 +738,9 @@ void Gather::execCompressed4Bit() {
 
 template <typename OUT_TYPE, typename IN_TYPE>
 void Gather::execCompressed8Bit() {
-    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
-    const IN_TYPE* srcData = getSrcDataAtPortAs<const IN_TYPE>(GATHER_DATA);
-    OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
+    const auto* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const auto* srcData = getSrcDataAtPortAs<const IN_TYPE>(GATHER_DATA);
+    auto* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
 
     // zp/scale
     float const_zp = 0;
@@ -810,16 +824,14 @@ int8_t Gather::get_i4(const uint8_t& val, bool high) {
     if (high) {
         if (val & 0x80) {
             return static_cast<int8_t>((val >> 4) | 0xf8);
-        } else {
-            return static_cast<int8_t>(val >> 4);
         }
+        return static_cast<int8_t>(val >> 4);
     }
     if (val & 0x8) {
         // Just fill in the high 4 bits with 1
         return static_cast<int8_t>(val | 0xf8);
-    } else {
-        return static_cast<int8_t>(val & 0xF);
     }
+    return static_cast<int8_t>(val & 0xF);
 }
 
 int8_t Gather::get_u4(const uint8_t& val, bool high) {
@@ -852,7 +864,7 @@ struct ExecCompressedDispatcher {
     };
 
 private:
-    void ExecCompressed8Bit_dispatch(ExecCompressedContext& ctx) {
+    void ExecCompressed8Bit_dispatch([[maybe_unused]] ExecCompressedContext& ctx) {
         OV_SWITCH(intel_cpu,
                   ExecCompressed8BitDispatcher,
                   ctx,
@@ -887,11 +899,11 @@ void Gather::execCompressed() {
 }
 
 void Gather::execReference() {
-    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
-    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
-    uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+    const auto* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const auto* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
+    auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
-    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
+    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeBOut;
     parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
@@ -902,18 +914,22 @@ void Gather::execReference() {
             }
         }
         const size_t idx = ii;
-        const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
+        const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytesOut * j;
         if (idx < static_cast<size_t>(axisDim)) {
             size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
                 size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
-                size_t dstIdx = c2 + specIdxAndAfterAxSizeB * i;
+                size_t dstIdx = c2 + specIdxAndAfterAxSizeBOut * i;
 
-                cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
+                if (dataPrecision == outPrecision) {
+                    cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
+                } else {
+                    cpu_convert(&srcData[srcIdx], &dstData[dstIdx], dataPrecision, outPrecision, afterAxisSize);
+                }
             }
         } else {
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                memset(&dstData[c2 + specIdxAndAfterAxSizeB * i], 0, afterAxisSizeInBytes);
+                memset(&dstData[c2 + specIdxAndAfterAxSizeBOut * i], 0, afterAxisSizeInBytesOut);
             }
         }
     });
@@ -928,7 +944,7 @@ void Gather::exec1DCase() {
     const auto* pidx = idxMemPtr->getDataAs<int32_t>();
 
     const auto& idxDims = idxMemPtr->getStaticDims();
-    const auto idxCnt = (idxDims.size() == 0) ? 1 : idxDims[0];
+    const auto idxCnt = (idxDims.empty()) ? 1 : idxDims[0];
     auto axisDim = srcMemPtr->getStaticDims()[0];
     for (size_t i = 0; i < idxCnt; i++) {
         auto ii = pidx[i];
@@ -983,6 +999,17 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
 
         childEdge->reuse(newMem);
     }
+}
+
+bool Gather::canFuse(const NodePtr& node) const {
+    if (node->getType() != Type::Convert) {
+        return false;
+    }
+    if (!one_of(node->getOriginalInputPrecisionAtPort(0), element::f16, element::bf16) ||
+        node->getOriginalOutputPrecisionAtPort(0) != ov::element::f32) {
+        return false;
+    }
+    return true;
 }
 
 }  // namespace ov::intel_cpu::node

@@ -110,7 +110,9 @@ static dnnl::algorithm convertToOneDnn(const ActivationPostOp::Type type) {
     return dnnl::algorithm::undef;
 }
 
-bool DnnlPostOpsComposer::appendAttrPostOps(const ActivationPostOp& postOp, bool isLastPostOp, bool allowBinary) {
+bool DnnlPostOpsComposer::appendAttrPostOps(const ActivationPostOp& postOp,
+                                            bool isLastPostOp,
+                                            [[maybe_unused]] bool allowBinary) {
     if (postOp.type() == ActivationPostOp::Type::linear) {
         appendLinear({postOp.alpha()}, {postOp.beta()}, isLastPostOp);
     } else {
@@ -527,8 +529,8 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
                 wei_scale_values[j] *= scale[j];
             }
         } else {
-            for (size_t j = 0; j < wei_scale_values.size(); j++) {
-                wei_scale_values[j] *= scale[0];
+            for (float& wei_scale_value : wei_scale_values) {
+                wei_scale_value *= scale[0];
             }
         }
 
@@ -577,9 +579,9 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
     if (scale.size() == 1 && shift.size() == 1) {
         if (shift[0] == 0.0f) {
             return appendScale(scale, isLastPostOp, allowBinary);
-        } else {
-            appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
         }
+        appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
+
     } else {
         // return before committing any changes
         if (!allowBinary && shift.size() > 1) {
@@ -606,21 +608,21 @@ void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::v
     } else if (low.size() == 1) {
         OPENVINO_ASSERT(high.size() == OC);
         appendEltwise(dnnl::algorithm::eltwise_clip, low[0], std::numeric_limits<float>::max());
-        if (high.size() > 0) {
+        if (!high.empty()) {
             appendBinary(dnnl::algorithm::binary_min, high);
         }
     } else if (high.size() == 1) {
         OPENVINO_ASSERT(low.size() == OC);
         appendEltwise(dnnl::algorithm::eltwise_clip, -std::numeric_limits<float>::max(), high[0]);
-        if (low.size() > 0) {
+        if (!low.empty()) {
             appendBinary(dnnl::algorithm::binary_max, low);
         }
     } else {
-        if (low.size() > 0) {
+        if (!low.empty()) {
             OPENVINO_ASSERT(low.size() == OC);
             appendBinary(dnnl::algorithm::binary_max, low);
         }
-        if (high.size() > 0) {
+        if (!high.empty()) {
             OPENVINO_ASSERT(high.size() == OC);
             appendBinary(dnnl::algorithm::binary_min, high);
         }
@@ -659,7 +661,7 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
         srcFormat);
     auto srcMem = std::make_shared<Memory>(engine, srcMemoryDesc, paramsPtr->getData());
 
-    dstMem->load(*srcMem, true);
+    dstMem->load(*srcMem, true, false);
     return dstMem;
 }
 

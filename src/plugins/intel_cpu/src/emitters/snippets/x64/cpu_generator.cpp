@@ -4,6 +4,7 @@
 
 #include "cpu_generator.hpp"
 
+#include <memory>
 #include <openvino/opsets/opset5.hpp>
 
 #include "emitters/plugin/x64/jit_conversion_emitters.hpp"
@@ -44,10 +45,10 @@
 #    include "emitters/tpp/x64/jit_eltwise_emitters.hpp"
 #    include "emitters/tpp/x64/jit_equation_emitter.hpp"
 #    include "emitters/tpp/x64/jit_scalar_emitter.hpp"
-#    include "transformations/tpp/x64/op/brgemm.hpp"
+#    include "transformations/tpp/common/op/brgemm.hpp"
+#    include "transformations/tpp/common/op/modifiers.hpp"
 #    include "transformations/tpp/x64/op/eltwise.hpp"
 #    include "transformations/tpp/x64/op/equation.hpp"
-#    include "transformations/tpp/x64/op/modifiers.hpp"
 #    include "transformations/tpp/x64/op/reduce.hpp"
 #    include "transformations/tpp/x64/op/scalar.hpp"
 // Note: for reference implementations
@@ -101,9 +102,8 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
                     return std::make_shared<jit_debug_emitter>(emitter,                                             \
                                                                segfault_emitter,                                    \
                                                                jit_debug_emitter::EmissionLocation::preamble);      \
-                } else {                                                                                            \
-                    return emitter;                                                                                 \
                 }                                                                                                   \
+                return emitter;                                                                                     \
             },                                                                                                      \
                 [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {                    \
                     return e_type::get_supported_precisions(n);                                                     \
@@ -130,32 +130,31 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
                 return e_type::get_supported_precisions(n);                                               \
             }                                                                                             \
     }
-
-#define CREATE_CPU_EMITTER(e_type)                                                                   \
-    {                                                                                                \
-        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            return std::make_shared<e_type>(h.get(), isa, expr->get_node());                         \
-        },                                                                                           \
-            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                return e_type::get_supported_precisions(n);                                          \
-            }                                                                                        \
+#define CREATE_CPU_EMITTER(e_type)                                                                                    \
+    {                                                                                                                 \
+        [this]([[maybe_unused]] const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+            return std::make_shared<e_type>(h.get(), isa, expr->get_node());                                          \
+        },                                                                                                            \
+            []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
+                return e_type::get_supported_precisions(n);                                                           \
+            }                                                                                                         \
     }
 
-#define CREATE_UNDEFINED_EMITTER(supported_precisions)                                           \
-    {                                                                                            \
-        [](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            return nullptr;                                                                      \
-        },                                                                                       \
-            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {     \
-                return supported_precisions;                                                     \
-            }                                                                                    \
+#define CREATE_UNDEFINED_EMITTER(supported_precisions)                                                            \
+    {                                                                                                             \
+        []([[maybe_unused]] const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+            return nullptr;                                                                                       \
+        },                                                                                                        \
+            []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {     \
+                return supported_precisions;                                                                      \
+            }                                                                                                     \
     }
 
 class jit_snippet : public dnnl::impl::cpu::x64::jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
 
-    ~jit_snippet() = default;
+    ~jit_snippet() override = default;
 
     jit_snippet() : jit_generator(jit_name()) {}
 
@@ -285,9 +284,9 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 
 #ifdef SNIPPETS_DEBUG_CAPS
     jitters[snippets::op::PerfCountBegin::get_type_info_static()] =
-        CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_chrono_start_emitter);
+        CREATE_SNIPPETS_EMITTER(ov::intel_cpu::jit_perf_count_chrono_start_emitter);
     jitters[snippets::op::PerfCountEnd::get_type_info_static()] =
-        CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_chrono_end_emitter);
+        CREATE_SNIPPETS_EMITTER(ov::intel_cpu::jit_perf_count_chrono_end_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscBegin::get_type_info_static()] =
         CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_start_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscEnd::get_type_info_static()] =
@@ -295,7 +294,8 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 #endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
-    jitters[intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BrgemmTppEmitter);
+    jitters[intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(BrgemmTppEmitter, configurator->get_kernel_executor_table(), compiled_kernel_cache);
     jitters[intel_cpu::tpp::op::Add::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
     jitters[intel_cpu::tpp::op::Subtract::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
     jitters[intel_cpu::tpp::op::Multiply::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
@@ -397,7 +397,7 @@ snippets::CompiledSnippetPtr intel_cpu::CPUTargetMachine::get_snippet() {
     const auto& result =
         std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator>(h.release()));
     // Note that we reset all the generated code, since it was copied into CompiledSnippetCPU
-    h.reset(new jit_snippet());
+    h = std::make_unique<jit_snippet>();
     return result;
 }
 
@@ -438,11 +438,11 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
 #endif
         is_type<intel_cpu::BrgemmCopyB>(op)) {
         return ov::snippets::RegType::gpr;
-    } else if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op)) {
-        return ov::snippets::RegType::vec;
-    } else {
-        return ov::snippets::RegType::undefined;
     }
+    if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op)) {
+        return ov::snippets::RegType::vec;
+    }
+    return ov::snippets::RegType::undefined;
 }
 
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {

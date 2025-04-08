@@ -4,8 +4,7 @@
 
 #include "adaptive_pooling.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <openvino/opsets/opset8.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
@@ -131,7 +130,7 @@ void AdaptivePooling::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void AdaptivePooling::execute(const dnnl::stream& strm) {
+void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!(inputPrec == dnnl_f32 && outputPrec == dnnl_f32)) {
@@ -167,15 +166,15 @@ void AdaptivePooling::execute(const dnnl::stream& strm) {
     }
 
     auto inputDimVector = srcMemory0.getStaticDims();
-    const int N = static_cast<int>(inputDimVector[0]);
-    const int C = static_cast<int>(inputDimVector[1]);
-    const int ID = static_cast<int>(spatialDimsCount == 3 ? inputDimVector[2] : 1);
-    const int IH = static_cast<int>(spatialDimsCount >= 2 ? inputDimVector[spatialDimsCount] : 1);
-    const int IW = static_cast<int>(inputDimVector[spatialDimsCount + 1]);
+    const auto N = static_cast<int>(inputDimVector[0]);
+    const auto C = static_cast<int>(inputDimVector[1]);
+    const auto ID = static_cast<int>(spatialDimsCount == 3 ? inputDimVector[2] : 1);
+    const auto IH = static_cast<int>(spatialDimsCount >= 2 ? inputDimVector[spatialDimsCount] : 1);
+    const auto IW = static_cast<int>(inputDimVector[spatialDimsCount + 1]);
 
-    const int OD = static_cast<int>(spatialDimsCount == 3 ? srcPooledSpatialShapes[0] : 1);
-    const int OH = static_cast<int>(spatialDimsCount >= 2 ? srcPooledSpatialShapes[spatialDimsCount - 2] : 1);
-    const int OW = static_cast<int>(srcPooledSpatialShapes[spatialDimsCount - 1]);
+    const auto OD = static_cast<int>(spatialDimsCount == 3 ? srcPooledSpatialShapes[0] : 1);
+    const auto OH = static_cast<int>(spatialDimsCount >= 2 ? srcPooledSpatialShapes[spatialDimsCount - 2] : 1);
+    const auto OW = static_cast<int>(srcPooledSpatialShapes[spatialDimsCount - 1]);
 
     const int iHW = IH * IW;
     const int oDHW = OD * OH * OW, oHW = OH * OW;
@@ -225,26 +224,27 @@ void AdaptivePooling::execute(const dnnl::stream& strm) {
         *dstData = res;
         indexDst[spatIndOff * oDHW + od * oHW + oh * OW + ow] = resIndex;
     };
-    auto poolAvg = [&](const float* srcData, float* dstData, int od, int oh, int ow, size_t spatIndOff) {
-        size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
-        setBinBorders(&dStart, &dEnd, od, ID, OD);
-        setBinBorders(&hStart, &hEnd, oh, IH, OH);
-        setBinBorders(&wStart, &wEnd, ow, IW, OW);
-        auto binSize = (dEnd - dStart) * (hEnd - hStart) * (wEnd - wStart);
-        if (binSize == 0) {
-            THROW_CPU_NODE_ERR("has empty bin");
-        }
-        float sum = 0;
-        for (size_t pixD = dStart; pixD < dEnd; pixD++) {
-            for (size_t pixH = hStart; pixH < hEnd; pixH++) {
-                for (size_t pixW = wStart; pixW < wEnd; pixW++) {
-                    float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
-                    sum = sum + curr;
+    auto poolAvg =
+        [&](const float* srcData, float* dstData, int od, int oh, int ow, [[maybe_unused]] size_t spatIndOff) {
+            size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
+            setBinBorders(&dStart, &dEnd, od, ID, OD);
+            setBinBorders(&hStart, &hEnd, oh, IH, OH);
+            setBinBorders(&wStart, &wEnd, ow, IW, OW);
+            auto binSize = (dEnd - dStart) * (hEnd - hStart) * (wEnd - wStart);
+            if (binSize == 0) {
+                THROW_CPU_NODE_ERR("has empty bin");
+            }
+            float sum = 0;
+            for (size_t pixD = dStart; pixD < dEnd; pixD++) {
+                for (size_t pixH = hStart; pixH < hEnd; pixH++) {
+                    for (size_t pixW = wStart; pixW < wEnd; pixW++) {
+                        float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
+                        sum = sum + curr;
+                    }
                 }
             }
-        }
-        *dstData = sum / binSize;
-    };
+            *dstData = sum / binSize;
+        };
 
     if (algorithm == Algorithm::AdaptivePoolingMax) {
         pool = poolMax;

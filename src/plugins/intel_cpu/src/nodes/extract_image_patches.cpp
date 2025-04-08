@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <memory>
 #include <string>
 
 #include "common/primitive_hashing_utils.hpp"
@@ -102,7 +103,7 @@ private:
     Xbyak::Label gather_index_table;
 
     inline void load_scalar(Vmm vmm_arg, const Xbyak::Address& op) {
-        Xbyak::Xmm xmm_src = Xmm(vmm_arg.getIdx());
+        auto xmm_src = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
         case 4:
             uni_vmovss(vmm_arg, op);
@@ -118,7 +119,7 @@ private:
         }
     }
     inline void store_scalar(const Xbyak::Address& op, Vmm vmm_arg) {
-        Xbyak::Xmm xmm_dst = Xmm(vmm_arg.getIdx());
+        auto xmm_dst = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
         case 4:
             uni_vmovss(op, vmm_arg);
@@ -211,14 +212,14 @@ private:
         }
     }
     inline void emulate_gather(const Xbyak::Ymm& ymm_arg, reg64_t& mem_base) {
-        Xbyak::Xmm low_xmm = Xbyak::Xmm(ymm_arg.getIdx());
+        auto low_xmm = Xbyak::Xmm(ymm_arg.getIdx());
         emulate_gather(low_xmm, mem_base, 0);
         emulate_gather(xmm_aux, mem_base, 1);
         vinserti128(ymm_arg, ymm_arg, xmm_aux, 1);
     }
 
     inline void emulate_gather(const Xbyak::Zmm& zmm_arg, reg64_t& mem_base) {
-        Xbyak::Xmm low_xmm = Xbyak::Xmm(zmm_arg.getIdx());
+        auto low_xmm = Xbyak::Xmm(zmm_arg.getIdx());
         emulate_gather(low_xmm, mem_base, 0);
         for (int i = 1; i < 4; i++) {
             emulate_gather(xmm_aux, mem_base, i);
@@ -332,7 +333,7 @@ struct ExtractImagePatchesKey {
     VectorDims rates;
     ExtractImagePatches::ExtImgPatcherPadType padType;
     size_t prcSize;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const ExtractImagePatchesKey& rhs) const;
 };
 
@@ -428,15 +429,14 @@ void ExtractImagePatches::prepareParams() {
                                                                     key.rates,
                                                                     key.padType,
                                                                     key.prcSize);
-        } else {
-            return std::make_shared<ExtractImagePatchesRefExecutor>(key.inDims,
-                                                                    key.outDims,
-                                                                    key.kSizes,
-                                                                    key.strides,
-                                                                    key.rates,
-                                                                    key.padType,
-                                                                    key.prcSize);
         }
+        return std::make_shared<ExtractImagePatchesRefExecutor>(key.inDims,
+                                                                key.outDims,
+                                                                key.kSizes,
+                                                                key.strides,
+                                                                key.rates,
+                                                                key.padType,
+                                                                key.prcSize);
     };
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
@@ -456,7 +456,7 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc({{LayoutType::ncsp, precision}}, {{LayoutType::ncsp, precision}}, impl_desc_type::ref_any);
 }
 
-void ExtractImagePatches::execute(const dnnl::stream& strm) {
+void ExtractImagePatches::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (execPtr) {
         auto src = getSrcDataAtPort(0);
         auto dst = getDstDataAtPort(0);
@@ -476,8 +476,8 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void*
                                                                            void* dst,
                                                                            const VectorDims& istrides,
                                                                            const VectorDims& ostrides) const {
-    const char* src_data = reinterpret_cast<const char*>(src);
-    char* dst_data = reinterpret_cast<char*>(dst);
+    const auto* src_data = reinterpret_cast<const char*>(src);
+    auto* dst_data = reinterpret_cast<char*>(dst);
 
     const std::vector<size_t> ostrides_partial = {ostrides[0],
                                                   jpp.KW * IC * ostrides[1],
@@ -535,8 +535,8 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
                                                                                   const VectorDims& istrides,
                                                                                   const VectorDims& ostrides) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    const char* src_data = reinterpret_cast<const char*>(src);
-    char* dst_data = reinterpret_cast<char*>(dst);
+    const auto* src_data = reinterpret_cast<const char*>(src);
+    auto* dst_data = reinterpret_cast<char*>(dst);
     const auto& jpp = pKernel->jpp;
 
     const std::vector<size_t> ostrides_partial = {ostrides[0],
@@ -650,11 +650,11 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
 #if defined(OPENVINO_ARCH_X86_64)
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
     if (mayiuse(x64::avx512_core)) {
-        pKernel.reset(new jit_extract_image_patches_kernel<x64::avx512_core>(jpp));
+        pKernel = std::make_unique<jit_extract_image_patches_kernel<x64::avx512_core>>(jpp);
     } else if (mayiuse(x64::avx2)) {
-        pKernel.reset(new jit_extract_image_patches_kernel<x64::avx2>(jpp));
+        pKernel = std::make_unique<jit_extract_image_patches_kernel<x64::avx2>>(jpp);
     } else if (mayiuse(x64::sse41)) {
-        pKernel.reset(new jit_extract_image_patches_kernel<x64::sse41>(jpp));
+        pKernel = std::make_unique<jit_extract_image_patches_kernel<x64::sse41>>(jpp);
     } else {
         OPENVINO_THROW("Can't create jit extract image patches kernel");
     }

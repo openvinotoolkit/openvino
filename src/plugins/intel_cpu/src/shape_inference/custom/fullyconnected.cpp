@@ -9,7 +9,7 @@
 namespace ov::intel_cpu::node {
 
 Result FCShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                           const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+                           [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const VectorDims& activationShape = input_shapes[0].get();
     const VectorDims& weightShape = input_shapes[1].get();
     size_t activationRank = activationShape.size();
@@ -21,7 +21,7 @@ Result FCShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
     // NC           CoC       NCo
     VectorDims outputShape(out_rank, 1);
     // set Co
-    outputShape.back() = std::accumulate(weightShape.begin(), weightShape.end() - 1, 1, std::multiplies<Dim>());
+    outputShape.back() = std::accumulate(weightShape.begin(), weightShape.end() - 1, 1, std::multiplies<>());
     // set batch dims
     size_t batchRank = activationRank - channelRank;
     size_t startIdx = out_rank - batchRank - 1;

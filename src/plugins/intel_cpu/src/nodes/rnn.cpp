@@ -57,35 +57,35 @@ static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
         auto gruSeqOp = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op);
         if ((gruCellOp && gruCellOp->get_linear_before_reset()) || (gruSeqOp && gruSeqOp->get_linear_before_reset())) {
             return dnnl::algorithm::lbr_gru;
-        } else {
-            return dnnl::algorithm::vanilla_gru;
         }
-    } else if (one_of(op->get_type_info(),
-                      ov::op::internal::AUGRUCell::get_type_info_static(),
-                      ov::op::internal::AUGRUSequence::get_type_info_static())) {
+        return dnnl::algorithm::vanilla_gru;
+    }
+    if (one_of(op->get_type_info(),
+               ov::op::internal::AUGRUCell::get_type_info_static(),
+               ov::op::internal::AUGRUSequence::get_type_info_static())) {
         auto gruCellOp = ov::as_type_ptr<const ov::op::internal::AUGRUCell>(op);
         auto gruSeqOp = ov::as_type_ptr<const ov::op::internal::AUGRUSequence>(op);
         if ((gruCellOp && gruCellOp->get_linear_before_reset()) || (gruSeqOp && gruSeqOp->get_linear_before_reset())) {
             return dnnl::algorithm::lbr_augru;
-        } else {
-            return dnnl::algorithm::vanilla_augru;
         }
-    } else if (one_of(op->get_type_info(),
-                      ov::op::v0::LSTMCell::get_type_info_static(),
-                      ov::op::v4::LSTMCell::get_type_info_static(),
-                      ov::op::v5::LSTMSequence::get_type_info_static())) {
-        return dnnl::algorithm::vanilla_lstm;
-    } else if (one_of(op->get_type_info(),
-                      ov::op::v0::RNNCell::get_type_info_static(),
-                      ov::op::v5::RNNSequence::get_type_info_static())) {
-        return dnnl::algorithm::vanilla_rnn;
-    } else {
-        OPENVINO_THROW("Operation ",
-                       op->get_type_name(),
-                       " with name '",
-                       op->get_friendly_name(),
-                       "' has unsupported cell type.");
+        return dnnl::algorithm::vanilla_augru;
     }
+    if (one_of(op->get_type_info(),
+               ov::op::v0::LSTMCell::get_type_info_static(),
+               ov::op::v4::LSTMCell::get_type_info_static(),
+               ov::op::v5::LSTMSequence::get_type_info_static())) {
+        return dnnl::algorithm::vanilla_lstm;
+    }
+    if (one_of(op->get_type_info(),
+               ov::op::v0::RNNCell::get_type_info_static(),
+               ov::op::v5::RNNSequence::get_type_info_static())) {
+        return dnnl::algorithm::vanilla_rnn;
+    }
+    OPENVINO_THROW("Operation ",
+                   op->get_type_name(),
+                   " with name '",
+                   op->get_friendly_name(),
+                   "' has unsupported cell type.");
 }
 
 inline size_t gatesCount(const algorithm& alg) {
@@ -146,7 +146,7 @@ struct RNNKey {
     dnnl::algorithm cellAct;
     dnnl::rnn_direction direction;
     dnnl::primitive_attr attr;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const RNNKey& rhs) const;
 };
 
@@ -404,7 +404,7 @@ public:
         return m_shape_infer->get_pads_end();
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return m_shape_infer->get_port_mask();
     }
 
@@ -417,7 +417,7 @@ private:
 class RnnShapeInferFactory final : public ShapeInferFactory {
 public:
     RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<RnnShapeInfer>(m_op);
     }
 
@@ -1408,13 +1408,13 @@ void RNN::prepareParams() {
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    (void)prim_desc;
+std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc([[maybe_unused]] const dnnl::primitive_desc& prim_desc,
+                                               size_t idx) const {
     return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    (void)prim_desc;
+std::shared_ptr<MemoryDesc> RNN::getDstMemDesc([[maybe_unused]] const dnnl::primitive_desc& prim_desc,
+                                               size_t idx) const {
     return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 

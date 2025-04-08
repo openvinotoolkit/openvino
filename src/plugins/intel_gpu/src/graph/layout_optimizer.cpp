@@ -3,7 +3,7 @@
 //
 
 #include "layout_optimizer.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "primitive_inst.h"
 #include "program_helpers.h"
@@ -931,6 +931,12 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         return format::bfyx;
     }
 
+    // Use planar format for dynamic convolution with small input channel(IC <= 3)
+    if (node.is_dynamic() && use_onednn_impls && onednn_valid_post_ops &&
+        input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 3) {
+        return format::get_default_format(input_layout.get_partial_shape().size());
+    }
+
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
         if (input_layout.get_partial_shape().size() <= 4)
             expected_format = format::b_fs_yx_fsv16;
@@ -1068,7 +1074,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     auto expected = format::any;
 
     std::function<bool(const program_node& node)> only_gemm_users = [&](const program_node& node) {
-        bool all_users_gemm = true;
+        bool all_users_gemm = (node.get_users().size() != 0);
 
         for (auto user : node.get_users()) {
             if (user->is_type<reorder>() || user->is_type<reshape>())

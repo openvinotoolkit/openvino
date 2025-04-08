@@ -109,7 +109,6 @@ size_t compute_inner_n_block(const ov::element::Type& precision) {
     case element::i8:
         return 64;
     case element::bf16:
-        return 32;
     case element::f16:
         return 32;
     case element::f32:
@@ -123,13 +122,31 @@ size_t compute_inner_k_block(const ov::element::Type& precision) {
     return brgemm_utils::get_elems_in_vec(precision);
 }
 
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K,
+                                                           size_t N,
+                                                           const ov::element::Type& prc,
+                                                           bool is_transposed) {
+    const size_t new_N = compute_repacked_n_dim(N, prc);
+    //  - In case of transpose, K dimension must be rounded-up to number of elems in vector register
+    //    For the details, please see 'transpose16x8' and 'fixup16x16' implementations and usage in
+    //    onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
+    //  - Low precision repacking writes the result by VNNIFactor * wei_n_blk blocks
+    //    despite the actual size of the input data. Because of that we have to round-up the allocation shape to always
+    //    have enough memory allocated. For the details, please see 'copy_4x64' and 'copy_2x32' implementations and
+    //    usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
+    const size_t K_alignment =
+        is_transposed ? brgemm_utils::get_elems_in_vec(prc) : brgemm_utils::compute_vnni_factor(prc);
+    return ov::snippets::VectorDims{ov::snippets::utils::div_up(K, K_alignment), new_N, K_alignment};
+}
+
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
     OPENVINO_ASSERT(ov::is_type<BrgemmCPU>(brgemm_expr->get_node()),
                     "get_copy_b_expr must be called only for BrgemmCPU node");
     auto b_input_expr = brgemm_expr->get_input_port_connector(1)->get_source().get_expr();
     if (ov::is_type<BrgemmCopyB>(b_input_expr->get_node())) {
         return b_input_expr;
-    } else if (ov::is_type<snippets::lowered::BufferExpression>(b_input_expr)) {
+    }
+    if (ov::is_type<snippets::lowered::BufferExpression>(b_input_expr)) {
         OPENVINO_ASSERT(b_input_expr->get_input_count() >= 1,
                         "BufferExpression on brgemm's B input must have at least one input");
         auto input_buffer_expr = b_input_expr->get_input_port_connector(0)->get_source().get_expr();

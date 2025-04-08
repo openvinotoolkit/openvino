@@ -186,6 +186,7 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
     jit.AddConstant(MakeJitConstant("SG_SCALE_FACTOR", get_sg_number_scale_factor(params, config.head_size, kernel_idx)));
 
     if (params.conf.is_paged_attention) {
+        jit.AddConstant(MakeJitConstant("SLIDING_WINDOW_SIZE", params.conf.paged_attention_sliding_window));
         if (params.conf.has_alibi_input) {
             jit.AddConstant(MakeJitConstant("HAS_ALIBI", 1));
         }
@@ -200,10 +201,19 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
         if (params.outputs.size() > 1) {
             jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_SCORES_OUTPUT", 1));
         }
-    } else if (params.inputs.size() <= 4) {
-        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(params.conf.head_size))));
-        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(params.conf.head_size))));
+    } else {
+        size_t scale_idx = params.conf.has_const_attn_mask_val ? 3 : 4;
+        if (params.inputs.size() > scale_idx) {
+            jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", 1));
+        } else if (params.conf.has_const_scale_val) {
+            jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", params.conf.scale_val));
+            jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", 1.0f / params.conf.scale_val));
+        } else {
+            jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(params.conf.head_size))));
+            jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(params.conf.head_size))));
+        }
     }
+
 
     if (params.conf.is_paged_attention)
         jit.AddConstant(MakeJitConstant("IS_PAGED_ATTENTION", 1));
@@ -358,10 +368,10 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
 
         const auto buf_sizes = get_internal_buffer_sizes(prim_params, kernel_idx);
         if (!prim_params.conf.is_paged_attention) {
-            kd.internalBufferSizes.clear();
-            kd.internalBufferSizes.push_back(buf_sizes[0]);
-            kd.internalBufferSizes.push_back(buf_sizes[0]);
-            kd.internalBufferSizes.push_back(buf_sizes[1]);
+            kd.internalBuffers.clear();
+            kd.internalBuffers.push_back(buf_sizes[0]);
+            kd.internalBuffers.push_back(buf_sizes[0]);
+            kd.internalBuffers.push_back(buf_sizes[1]);
             kd.internalBufferDataType = prim_params.inputs[0].GetDType();
         }
 
@@ -432,10 +442,10 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
             kernel_data.kernels[KernelsTypes::FINALIZATION].params.scalars.clear();
             kernel_data.kernels[KernelsTypes::FINALIZATION].params.scalars.push_back(num_of_partitions_scalar);
 
-            kernel_data.internalBufferSizes.clear();
-            kernel_data.internalBufferSizes.push_back(buf_sizes[0]);
-            kernel_data.internalBufferSizes.push_back(buf_sizes[0]);
-            kernel_data.internalBufferSizes.push_back(buf_sizes[1]);
+            kernel_data.internalBuffers.clear();
+            kernel_data.internalBuffers.push_back(buf_sizes[0]);
+            kernel_data.internalBuffers.push_back(buf_sizes[0]);
+            kernel_data.internalBuffers.push_back(buf_sizes[1]);
             kernel_data.internalBufferDataType = prim_params.inputs[0].GetDType();
         }
     };

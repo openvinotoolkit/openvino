@@ -4,8 +4,7 @@
 
 #include "intel_npu/common/igraph.hpp"
 
-#include "intel_npu/config/compiler.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 
 namespace {
 constexpr std::size_t BATCH_AXIS = 0;
@@ -45,6 +44,10 @@ const std::vector<ArgumentDescriptor>& IGraph::get_output_descriptors() const {
 
 const std::shared_ptr<CommandQueue>& IGraph::get_command_queue() const {
     return _command_queue;
+}
+
+uint32_t IGraph::get_command_queue_group_ordinal() const {
+    return _command_queue_group_ordinal;
 }
 
 void IGraph::set_workload_type(const ov::WorkloadType workloadType) const {

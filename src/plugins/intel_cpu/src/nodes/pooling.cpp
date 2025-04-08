@@ -53,7 +53,7 @@ struct PoolingKey {
     dnnl::algorithm alg;
     impl_desc_type implType;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
@@ -98,7 +98,6 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
                                                              const std::vector<ptrdiff_t>& effective_pad_begin,
                                                              const std::vector<ptrdiff_t>& effective_pad_end,
                                                              const std::vector<ptrdiff_t>& effective_dilation,
-                                                             const std::vector<ptrdiff_t>& data_pad_end,
                                                              const dnnl::primitive_attr& attr) {
     if (alg == dnnl::algorithm::undef) {
         OPENVINO_THROW("Unsupported pooling type");
@@ -145,19 +144,21 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (ov::is_type<const ov::op::v8::MaxPool>(op) || ov::is_type<const ov::op::v14::MaxPool>(op)) {
+        if (ov::is_type_any_of<const ov::op::v8::MaxPool, const ov::op::v14::MaxPool>(op)) {
             if (!op->get_output_target_inputs(1).empty()) {
                 errorMessage = "MaxPool from opset8 and opset14 is supported only with one output";
                 return false;
             }
-        } else if (!ov::is_type<const ov::op::v1::MaxPool>(op) && !ov::is_type<const ov::op::v8::MaxPool>(op) &&
-                   !ov::is_type<const ov::op::v14::MaxPool>(op) && !ov::is_type<const ov::op::v1::AvgPool>(op) &&
-                   !ov::is_type<const ov::op::v14::AvgPool>(op)) {
+        } else if (!ov::is_type_any_of<const ov::op::v1::MaxPool,
+                                       const ov::op::v8::MaxPool,
+                                       const ov::op::v14::MaxPool,
+                                       const ov::op::v1::AvgPool,
+                                       const ov::op::v14::AvgPool>(op)) {
             errorMessage = "Supported ops are MaxPool-1, MaxPool-8, MaxPool-14, AvgPool-1 and AvgPool-14";
             return false;
         }
 #if defined(OV_CPU_WITH_ACL)
-        if (ov::as_type_ptr<const ov::op::v8::MaxPool>(op) || ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
+        if (ov::is_type_any_of<const ov::op::v8::MaxPool, const ov::op::v14::MaxPool>(op)) {
             if (ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)->get_kernel() != ov::Shape(2, 2)) {
                 errorMessage =
                     "Pooling indices returning source tensor coordinates is only supported for pool size 2x2";
@@ -180,8 +181,8 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 
     auto get_attributes = [](std::vector<ptrdiff_t>& internal_attribute,
                              const std::vector<size_t>& external_attribute) {
-        for (size_t i = 0; i < external_attribute.size(); i++) {
-            internal_attribute.push_back(static_cast<ptrdiff_t>(external_attribute[i]));
+        for (uint64_t i : external_attribute) {
+            internal_attribute.push_back(static_cast<ptrdiff_t>(i));
         }
     };
 
@@ -222,29 +223,30 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 }
 
 std::vector<memory::format_tag> Pooling::getAvailableFormatsForDims(const Shape& dims) const {
-    if (dims.getRank() == 0) {
+    switch (dims.getRank()) {
+    case 0:
+    case 1:
         return {memory::format_tag::x};
-    } else if (dims.getRank() == 1) {
-        return {memory::format_tag::x};
-    } else if (dims.getRank() == 2) {
+    case 2:
         return {memory::format_tag::nc};
-    } else if (dims.getRank() == 3) {
+    case 3:
         return {memory::format_tag::nCw8c,
                 memory::format_tag::nCw16c,
                 memory::format_tag::nwc,
                 memory::format_tag::ncw};
-    } else if (dims.getRank() == 4) {
+    case 4:
         return {memory::format_tag::nChw8c,
                 memory::format_tag::nChw16c,
                 memory::format_tag::nhwc,
                 memory::format_tag::nchw};
-    } else if (dims.getRank() == 5) {
+    case 5:
         return {memory::format_tag::nCdhw8c,
                 memory::format_tag::nCdhw16c,
                 memory::format_tag::ndhwc,
                 memory::format_tag::ncdhw};
+    default:
+        return {memory::format_tag::any};
     }
-    return {memory::format_tag::any};
 }
 
 void Pooling::initEffectiveAttributes(const Shape& inShape, const Shape& outShape) {
@@ -485,7 +487,6 @@ void Pooling::prepareParams() {
                                                     key.effective_pad_begin,
                                                     key.effective_pad_end,
                                                     key.effective_dilation,
-                                                    key.data_pad_end,
                                                     key.attr);
 
             auto first_desc = dnnl::pooling_forward::primitive_desc(prim_desc.get());
@@ -567,14 +568,13 @@ dnnl::algorithm Pooling::getPoolingAlgorithm() const {
         }
         if (!poolingAttrs.exclude_pad && (not_zero_l || not_zero_r)) {
             return dnnl::algorithm::pooling_avg_include_padding;
-        } else {
-            return dnnl::algorithm::pooling_avg_exclude_padding;
         }
-    } else if (algorithm == Algorithm::PoolingMax) {
-        return dnnl::algorithm::pooling_max;
-    } else {
-        return dnnl::algorithm::undef;
+        return dnnl::algorithm::pooling_avg_exclude_padding;
     }
+    if (algorithm == Algorithm::PoolingMax) {
+        return dnnl::algorithm::pooling_max;
+    }
+    return dnnl::algorithm::undef;
 }
 
 dnnl::pooling_forward::primitive_desc Pooling::createDescriptorInternal(const dnnl::memory::desc& in_candidate,
@@ -591,7 +591,6 @@ dnnl::pooling_forward::primitive_desc Pooling::createDescriptorInternal(const dn
                                   poolingAttrs.effective_pad_begin,
                                   poolingAttrs.effective_pad_end,
                                   poolingAttrs.effective_dilation,
-                                  poolingAttrs.data_pad_end,
                                   *attr);
 }
 
