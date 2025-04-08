@@ -141,4 +141,3 @@ for file in $changed_files; do
     mv "$file.sorted" "$file"
     sed -i '1i # type: ignore' "$file"
 done
-
