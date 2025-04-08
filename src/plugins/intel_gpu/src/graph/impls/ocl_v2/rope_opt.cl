@@ -316,16 +316,7 @@ KERNEL(rope_opt)
     #endif
 #endif
 
-#if INPUT1_DIMS == 4 && INPUT2_DIMS == 4
-    uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
-    uint cos_sin_h = h < INPUT1_FEATURE_NUM ? h : 0;
-#elif INPUT1_DIMS == 2 && INPUT2_DIMS == 2
-    uint cos_sin_b = 0;
-    uint cos_sin_h = 0;
-#else
-#   error "rope_opt.cl - 4 or 2 of INPUT1_DIMS/INPUT2_DIMS is supported only"
-#endif
-    uint cos_sin_p = p;
+uint cos_sin_p = p;
 #ifdef ENABLE_GATHER
     uint gather_b = b < INPUT3_BATCH_NUM ? b : 0;
     #if GATHER_RANK == 4
@@ -340,14 +331,10 @@ KERNEL(rope_opt)
 #endif
 
 #if INPUT1_DIMS == 4 && INPUT2_DIMS == 4
+    uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
+    uint cos_sin_h = h < INPUT1_FEATURE_NUM ? h : 0;
     cos_sin_p = cos_sin_p < INPUT1_SIZE_Y ? cos_sin_p : 0;
-#elif INPUT1_DIMS == 2 && INPUT2_DIMS == 2
-    cos_sin_p = cos_sin_p < INPUT1_BATCH_NUM ? cos_sin_p : 0;
-#else
-#   error "rope_opt.cl - 4 or 2 of INPUT1_DIMS/INPUT2_DIMS is supported only"
-#endif
 
-#if INPUT1_DIMS == 4 && INPUT2_DIMS == 4
 #ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
     uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
 
@@ -358,7 +345,11 @@ KERNEL(rope_opt)
     uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
 #endif
 #elif INPUT1_DIMS == 2 && INPUT2_DIMS == 2
-#ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
+    uint cos_sin_b = 0;
+    uint cos_sin_h = 0;
+    cos_sin_p = cos_sin_p < INPUT1_BATCH_NUM ? cos_sin_p : 0;
+
+    #ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
     uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_p, 0, 0, 0);
 
     uint cos_idx = cos_sin_idx;
