@@ -162,6 +162,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     FuseReduceAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseGatherAndConvert");
+    FuseGatherAndConvert(graph);
+    graph.RemoveDroppedNodes();
+
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndSimple");
     FuseEltwiseAndSimple(graph);
     graph.RemoveDroppedNodes();
@@ -1573,7 +1577,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
 
     auto& graphNodes = graph.GetNodes();
 
-    auto isFusingSupported = [&](const NodePtr& conv, const NodePtr& child) {
+    auto isFusingSupported = [&]([[maybe_unused]] const NodePtr& conv, const NodePtr& child) {
         return child->getType() == Type::Eltwise && DnnlExtensionUtils::isUnarySupportedAsPostOp(child->getAlgorithm());
     };
 
@@ -1767,8 +1771,8 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
 
         lastNode->fuseInto(mergedConv);
 
-        if (mergedConv->fusedWith.size() > 0 && (mergedConv->fusedWith[0]->getType() == Type::Convolution ||
-                                                 mergedConv->fusedWith[0]->getType() == Type::BinaryConvolution)) {
+        if (!mergedConv->fusedWith.empty() && (mergedConv->fusedWith[0]->getType() == Type::Convolution ||
+                                               mergedConv->fusedWith[0]->getType() == Type::BinaryConvolution)) {
             // Merged with DW_conv. Shape may change
             mergedConv->inputShapes.push_back(mergedConv->fusedWith[0]->getOutputShapeAtPort(0));
         } else {
@@ -1858,6 +1862,36 @@ void GraphOptimizer::FuseMVNAndSimpleOperation(Graph& graph) {
             }
         }
 
+        graph.DropNode(childNode);
+    }
+}
+
+void GraphOptimizer::FuseGatherAndConvert(Graph& graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableParentNode = [](const NodePtr& node) {
+        return (node->getType() == Type::Gather) && (node->getChildEdges().size() == 1) &&
+               one_of(node->getOriginalInputPrecisionAtPort(0), element::f16, element::bf16);
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSuitableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseGatherAndConvert);
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        // currently Gather could only fuse Convert. If extend to fuse other nodes, this pass should be updated.
+        if (childNode->getType() != Type::Convert || !parentNode->canFuse(childNode)) {
+            parent++;
+            continue;
+        }
+
+        childNode->fuseInto(parentNode);
         graph.DropNode(childNode);
     }
 }
@@ -2134,7 +2168,7 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
                         graph.RemoveEdge(remEdge);
                     }
 
-                    if (parentNode->inputShapes.size() < static_cast<size_t>(outNum + 1)) {
+                    if (parentNode->inputShapes.size() < static_cast<size_t>(outNum) + 1) {
                         parentNode->inputShapes.resize(outNum + 1);
                     }
                     parentNode->inputShapes[outNum] = parent->getOutputShapeAtPort(inNum);

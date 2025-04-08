@@ -9,7 +9,7 @@
 bool evaluate(const std::shared_ptr<ov::op::v0::ReorgYolo>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
-    ov::reference::reorg_yolo(static_cast<char*>(inputs[0].data()),
+    ov::reference::reorg_yolo(static_cast<const char*>(inputs[0].data()),
                               static_cast<char*>(outputs[0].data()),
                               inputs[0].get_shape(),
                               op->get_strides().at(0),
