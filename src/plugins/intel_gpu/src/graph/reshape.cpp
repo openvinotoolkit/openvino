@@ -240,11 +240,11 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     auto areVectorsCompatible = [](const ov::Shape& vec1, const ov::Shape& vec2) -> bool {
         std::unordered_map<int, size_t> countMap1, countMap2;
 
-        for (int num : vec1) {
+        for (auto num : vec1) {
             if (num != 1)
                 countMap1[num]++;
         }
-        for (int num : vec2) {
+        for (auto num : vec2) {
             if (num != 1)
                 countMap2[num]++;
         }
