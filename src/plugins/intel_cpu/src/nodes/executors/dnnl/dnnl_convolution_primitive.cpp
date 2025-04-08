@@ -4,6 +4,7 @@
 
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <common/c_types_map.hpp>
 #include <common/primitive_desc_iface.hpp>
@@ -810,7 +811,12 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
 
     auto getPaddings = [&attrs](const VectorDims& dataShape, const VectorDims& weightsShape) {
-        if (attrs.autoPadding == AutoPaddingType::None) {
+        const bool zeroPaddingR = std::all_of(attrs.paddingR.begin(), attrs.paddingR.end(), [](const auto& p) {
+            return p == 0;
+        });
+
+        if (attrs.autoPadding == AutoPaddingType::None ||  // auto padding disabled
+            !zeroPaddingR) {  // auto padding enabled, but paddingR is calculated manually for fused convolution
             return std::make_tuple(attrs.paddingL, attrs.paddingR);
         }
 
