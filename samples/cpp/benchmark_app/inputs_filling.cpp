@@ -1015,6 +1015,7 @@ void copy_tensor_data(ov::Tensor& dst, const ov::Tensor& src) {
         throw std::runtime_error(
             "Source and destination tensors shapes and byte sizes are expected to be equal for data copying.");
     }
-
-    memcpy(dst.data(), src.data(), src.get_byte_size());
+    OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
+        memcpy(dst.data(), src.data(), src.get_byte_size());
+    OPENVINO_SUPPRESS_DEPRECATED_END  // keep until 2026.0 release
 }

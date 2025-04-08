@@ -11,7 +11,7 @@
 
 namespace {
 template <typename T>
-void copy_data(const ov::Tensor& tv, const std::vector<T>& data) {
+void copy_data(ov::Tensor& tv, const std::vector<T>& data) {
     size_t data_size = data.size() * sizeof(T);
     if (data_size > 0) {
         OPENVINO_ASSERT(tv.get_byte_size() >= data_size);
@@ -21,13 +21,13 @@ void copy_data(const ov::Tensor& tv, const std::vector<T>& data) {
 }
 
 template <>
-inline void copy_data<bool>(const ov::Tensor& tv, const std::vector<bool>& data) {
+inline void copy_data<bool>(ov::Tensor& tv, const std::vector<bool>& data) {
     std::vector<char> data_char(data.begin(), data.end());
     copy_data(tv, data_char);
 }
 
 template <typename T>
-void init_int_tv(const ov::Tensor& tv, std::default_random_engine& engine, T min, T max) {
+void init_int_tv(ov::Tensor& tv, std::default_random_engine& engine, T min, T max) {
     size_t size = tv.get_size();
     std::uniform_int_distribution<T> dist(min, max);
     std::vector<T> vec(size);
@@ -40,7 +40,7 @@ void init_int_tv(const ov::Tensor& tv, std::default_random_engine& engine, T min
 }
 
 template <>
-inline void init_int_tv<char>(const ov::Tensor& tv, std::default_random_engine& engine, char min, char max) {
+inline void init_int_tv<char>(ov::Tensor& tv, std::default_random_engine& engine, char min, char max) {
     size_t size = tv.get_size();
     std::uniform_int_distribution<int16_t> dist(static_cast<short>(min), static_cast<short>(max));
     std::vector<char> vec(size);
@@ -53,7 +53,7 @@ inline void init_int_tv<char>(const ov::Tensor& tv, std::default_random_engine& 
 }
 
 template <>
-inline void init_int_tv<int8_t>(const ov::Tensor& tv, std::default_random_engine& engine, int8_t min, int8_t max) {
+inline void init_int_tv<int8_t>(ov::Tensor& tv, std::default_random_engine& engine, int8_t min, int8_t max) {
     size_t size = tv.get_size();
     std::uniform_int_distribution<int16_t> dist(static_cast<short>(min), static_cast<short>(max));
     std::vector<int8_t> vec(size);
@@ -66,7 +66,7 @@ inline void init_int_tv<int8_t>(const ov::Tensor& tv, std::default_random_engine
 }
 
 template <>
-inline void init_int_tv<uint8_t>(const ov::Tensor& tv, std::default_random_engine& engine, uint8_t min, uint8_t max) {
+inline void init_int_tv<uint8_t>(ov::Tensor& tv, std::default_random_engine& engine, uint8_t min, uint8_t max) {
     size_t size = tv.get_size();
     std::uniform_int_distribution<int16_t> dist(static_cast<short>(min), static_cast<short>(max));
     std::vector<uint8_t> vec(size);
@@ -79,7 +79,7 @@ inline void init_int_tv<uint8_t>(const ov::Tensor& tv, std::default_random_engin
 }
 
 template <typename T>
-void init_real_tv(const ov::Tensor& tv, std::default_random_engine& engine, T min, T max) {
+void init_real_tv(ov::Tensor& tv, std::default_random_engine& engine, T min, T max) {
     size_t size = tv.get_size();
     std::uniform_real_distribution<T> dist(min, max);
     std::vector<T> vec(size);
@@ -91,7 +91,7 @@ void init_real_tv(const ov::Tensor& tv, std::default_random_engine& engine, T mi
     memcpy(tv.data(), vec.data(), data_size);
 }
 
-inline void random_init(const ov::Tensor& tv, std::default_random_engine& engine) {
+inline void random_init(ov::Tensor& tv, std::default_random_engine& engine) {
     ov::element::Type et = tv.get_element_type();
     if (et == ov::element::boolean) {
         init_int_tv<char>(tv, engine, 0, 1);

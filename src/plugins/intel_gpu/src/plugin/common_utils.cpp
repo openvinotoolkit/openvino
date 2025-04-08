@@ -164,7 +164,7 @@ void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::str
     dst->copy_from(stream, tmp_tensor.data(), blocking);
 }
 
-void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream) {
+void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor* dst, const cldnn::stream& stream) {
     auto src_et = src->get_layout().data_type;
     auto dst_et = dst->get_element_type();
 

@@ -29,7 +29,7 @@ public:
                const ov::Shape& shape,
                const ov::Allocator& allocator);
 
-    void* data(const ov::element::Type& type = {}) const override;
+    const void* data(const ov::element::Type& type = {}) const override;
 
     const ov::element::Type& get_element_type() const override;
 

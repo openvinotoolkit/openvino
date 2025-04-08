@@ -153,8 +153,8 @@ std::pair<testing::AssertionResult, size_t> TestCase::compare_results(size_t tol
             break;
         case element::Type_t::string: {
             res = ::testing::AssertionSuccess();
-            std::string* exp_strings = exp_result.data<std::string>();
-            std::string* res_strings = result_tensor.data<std::string>();
+            const std::string* exp_strings = exp_result.data<std::string>();
+            const std::string* res_strings = result_tensor.data<std::string>();
             for (size_t i = 0; i < exp_result.get_size(); ++i) {
                 if (exp_strings[i] != res_strings[i]) {
                     res = ::testing::AssertionFailure() << "Wrong string value at index " << i << ", expected \""

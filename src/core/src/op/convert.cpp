@@ -57,7 +57,7 @@ struct Evaluate : public element::NoAction<bool> {
                           CONVERT_ET_LIST,
                           EvalByOutputType,
                           out.get_element_type(),
-                          iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
+                          iterator<ET_IN>(arg.data()),
                           out,
                           count);
     }
