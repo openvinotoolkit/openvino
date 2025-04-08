@@ -97,8 +97,8 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
             return;
         }
         std::vector<LoopPort> new_ports;
-        const auto main_inputs_count = brgemm->get_main_inputs_count();
-        for (size_t i = main_inputs_count; i < main_inputs_count + postops_inputs.size(); ++i) {
+        const auto gemm_inputs_count = brgemm->get_gemm_inputs_count();
+        for (size_t i = gemm_inputs_count; i < gemm_inputs_count + postops_inputs.size(); ++i) {
             const auto& postop_input_port = brgemm_expr->get_input_port(i);
             postop_input_port.get_descriptor_ptr()->set_subtensor({get_full_dim_value(), get_full_dim_value()});
             new_ports.push_back(LoopPort::create<LoopPort::Type::NotProcessed>(postop_input_port));

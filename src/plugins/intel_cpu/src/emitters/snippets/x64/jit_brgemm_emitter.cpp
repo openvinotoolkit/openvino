@@ -77,11 +77,11 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     using brgemm_utils::BRGEMM_TYPE;
 
     auto form_precisions = [&brgemm](const element::TypeVector& precisions) {
-        OPENVINO_ASSERT(precisions.size() == brgemm->get_main_inputs_count(),
-                        "precisions size should be equal to the number of main inputs");
+        OPENVINO_ASSERT(precisions.size() == brgemm->get_gemm_inputs_count(),
+                        "precisions size should be equal to the number of gemm inputs");
         auto res = precisions;
         // Note: all postops are supported only in f32 precision
-        for (size_t i = brgemm->get_main_inputs_count(); i < brgemm->input_values().size(); ++i) {
+        for (size_t i = brgemm->get_gemm_inputs_count(); i < brgemm->input_values().size(); ++i) {
             res.push_back(element::f32);
         }
         return res;

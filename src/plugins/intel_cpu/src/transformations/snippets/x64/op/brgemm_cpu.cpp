@@ -14,7 +14,7 @@
 namespace ov::intel_cpu {
 using namespace brgemm_utils;
 
-size_t BrgemmCPU::compute_main_inputs_count(const BRGEMM_TYPE type) {
+size_t BrgemmCPU::compute_gemm_inputs_count(const BRGEMM_TYPE type) {
     switch (type) {
     case BRGEMM_TYPE::STAND_ALONE:
     case BRGEMM_TYPE::REPACKING_ONLY:
@@ -38,7 +38,7 @@ BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
     : Brgemm(),
       m_type(type),
       m_post_ops_config(std::move(post_ops)),
-      m_main_inputs_count(compute_main_inputs_count(type)) {
+      m_gemm_inputs_count(compute_gemm_inputs_count(type)) {
     set_arguments(inputs);
     set_output_size(1);
 
@@ -103,9 +103,9 @@ void BrgemmCPU::validate_with_scratchpad() const {
 }
 
 void BrgemmCPU::validate_inputs() const {
-    OPENVINO_ASSERT(get_input_size() >= m_main_inputs_count,
+    OPENVINO_ASSERT(get_input_size() >= m_gemm_inputs_count,
                     "BrgemmCPU expects at least ",
-                    m_main_inputs_count,
+                    m_gemm_inputs_count,
                     " inputs whereas it got ",
                     get_input_size(),
                     " inputs");
@@ -126,7 +126,7 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {
-    OPENVINO_ASSERT(with_scratchpad(m_type) && m_main_inputs_count == 3,
+    OPENVINO_ASSERT(with_scratchpad(m_type) && m_gemm_inputs_count == 3,
                     "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);
 }
@@ -144,7 +144,7 @@ ov::element::Type BrgemmCPU::get_output_type() const {
 
 ov::OutputVector BrgemmCPU::get_postop_inputs() const {
     const auto& input_values = this->input_values();
-    return {input_values.begin() + m_main_inputs_count, input_values.end()};
+    return {input_values.begin() + m_gemm_inputs_count, input_values.end()};
 }
 
 BrgemmCPU::PostopsConfig::PostopsConfig()

@@ -56,8 +56,8 @@ public:
         return m_post_ops_config;
     }
 
-    size_t get_main_inputs_count() const {
-        return m_main_inputs_count;
+    size_t get_gemm_inputs_count() const {
+        return m_gemm_inputs_count;
     }
 
     ov::OutputVector get_postop_inputs() const;
@@ -70,7 +70,7 @@ private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                      const std::vector<size_t>& layout_b,
                                                      const std::vector<size_t>& layout_c);
-    static size_t compute_main_inputs_count(const BRGEMM_TYPE type);
+    static size_t compute_gemm_inputs_count(const BRGEMM_TYPE type);
     void validate_with_scratchpad() const;
     void validate_inputs() const;
     ov::element::Type get_output_type() const override;
@@ -80,11 +80,11 @@ private:
     PostopsConfig m_post_ops_config = {};
 
     /**
-     * @brief Represents the number of required inputs for the BrgemmCPU operation,
-     *        which depends on the BRGEMM_TYPE. This count includes only the main
-     *        inputs necessary for the operation and excludes additional inputs
-     *        like post-ops.
+     * @brief m_gemm_inputs_count represents the number of GeMM inputs of the BrgemmCPU,
+     *        which depends on the BRGEMM_TYPE. This count includes only the
+     *        inputs needed directly for matrix multiplication execution.
+     *        The rest inputs represents binary postops
      */
-    const size_t m_main_inputs_count = 0lu;
+    const size_t m_gemm_inputs_count = 0lu;
 };
 }  // namespace ov::intel_cpu
