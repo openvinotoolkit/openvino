@@ -281,6 +281,7 @@ OP_CONVERTER(translate_quantized_cat);
 OP_CONVERTER(translate_quantized_convnd);
 OP_CONVERTER(translate_quantized_convnd_relu);
 OP_CONVERTER(translate_quantized_linear);
+OP_CONVERTER(translate_quantized_linear_relu);
 OP_CONVERTER(translate_xor);
 // Torch FX Translations
 OP_CONVERTER(translate_adaptive_max_pool1d_fx);
