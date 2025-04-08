@@ -79,6 +79,12 @@ private:
 
     PostopsConfig m_post_ops_config = {};
 
+    /**
+     * @brief Represents the number of required inputs for the BrgemmCPU operation,
+     *        which depends on the BRGEMM_TYPE. This count includes only the main
+     *        inputs necessary for the operation and excludes additional inputs
+     *        like post-ops.
+     */
     const size_t m_main_inputs_count = 0lu;
 };
 }  // namespace ov::intel_cpu

@@ -133,7 +133,7 @@ const std::vector<MemoryAccess::PortDescriptor> MemoryAccess::get_input_port_des
 const std::vector<MemoryAccess::PortDescriptor> MemoryAccess::get_output_port_descriptors() const {
     std::vector<MemoryAccess::PortDescriptor> res;
     for (const auto& p : m_output_ports) {
-        OPENVINO_ASSERT(p.first < m_output_ports.size(), "Index of output port descriptor should be less than count of input ports");
+        OPENVINO_ASSERT(p.first < m_output_ports.size(), "Index of output port descriptor should be less than count of output ports");
         res.push_back(p.second);
     }
     return res;

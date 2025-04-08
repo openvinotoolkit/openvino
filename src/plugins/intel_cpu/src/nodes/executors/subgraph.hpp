@@ -112,8 +112,7 @@ protected:
                                const std::vector<MemoryPtr>& srcMemPtrs,
                                const std::vector<MemoryPtr>& dstMemPtrs,
                                const std::vector<ptrdiff_t>& start_offset_in,
-                               const std::vector<ptrdiff_t>& start_offset_out,
-                               [[maybe_unused]] size_t ithr) {
+                               const std::vector<ptrdiff_t>& start_offset_out) {
         call_args.init_external_ptrs(m_external_ptrs_idces.size());
         size_t external_ptrs_idx = 0;
         size_t src_ptrs_idx = 0;
@@ -149,7 +148,7 @@ public:
 protected:
     using dynamic_kernel = void (*)(const void*);
 
-    inline void init_call_args(jit_snippets_call_args& call_args, [[maybe_unused]] size_t ithr) {
+    inline void init_call_args(jit_snippets_call_args& call_args) {
         call_args.register_loops(m_loop_args);
         call_args.init_external_ptrs(m_external_ptrs_idces.size());
         std::copy(m_buffer_offsets.cbegin(), m_buffer_offsets.cend(), call_args.buffer_offsets);
