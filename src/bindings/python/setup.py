@@ -298,7 +298,6 @@ class CustomBuild(build):
             # perform installation steps if we are not given a full path
             if not os.path.isabs(install_dir):
                 # install_dir is just a sub-dir after install prefix, let's make a full path
-                # comp_data["install_dir"] = os.path.join(prefix, install_dir)
 
                 # even perform a build in case of binary directory does not exist
                 binary_dir = binary_dir if os.path.isabs(binary_dir) else os.path.join(self.build_temp, binary_dir)
