@@ -11,7 +11,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/opsets/opset9.hpp"
 #include "strided_slice_shape_inference.hpp"
 
 using namespace std;
@@ -492,14 +491,12 @@ public:
 };
 
 TEST_P(StridedSliceShapeInferTest, begin_end_strides_are_not_constants) {
-    using namespace ov::opset9;
-
     const auto& params = GetParam();
 
-    const auto input_data = std::make_shared<Parameter>(params.ref_type, params.input_shape);
-    const auto begin = std::make_shared<Parameter>(ov::element::i32, params.begin_shape);
-    const auto end = std::make_shared<Parameter>(ov::element::i32, params.end_shape);
-    const auto strides = std::make_shared<Parameter>(ov::element::i32, params.strides_shape);
+    const auto input_data = std::make_shared<op::v0::Parameter>(params.ref_type, params.input_shape);
+    const auto begin = std::make_shared<op::v0::Parameter>(ov::element::i32, params.begin_shape);
+    const auto end = std::make_shared<op::v0::Parameter>(ov::element::i32, params.end_shape);
+    const auto strides = std::make_shared<op::v0::Parameter>(ov::element::i32, params.strides_shape);
     const auto& begin_mask = params.begin_mask;
     const auto& end_mask = params.end_mask;
     const auto& new_axis_mask = params.new_axis_mask;
@@ -719,19 +716,19 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                 StridedSliceIntervalParams({{10, 1024}}, {{20, 30}}, {{10, 15}}, 0, 0, -2, {{0, 10}})));
 
 TEST_P(StridedSliceIntervalTest, begin_end_as_interval) {
-    using namespace ov::opset9;
-
-    const auto p_begin = std::make_shared<Parameter>(element::i64, begin_shape);
-    const auto shape_of_begin = std::make_shared<ShapeOf>(p_begin);
+    const auto p_begin = std::make_shared<op::v0::Parameter>(element::i64, begin_shape);
+    const auto shape_of_begin = std::make_shared<op::v3::ShapeOf>(p_begin);
     const auto begin =
-        std::make_shared<Subtract>(shape_of_begin, Constant::create(element::i64, Shape{1}, {begin_offset}));
+        std::make_shared<op::v1::Subtract>(shape_of_begin,
+                                           op::v0::Constant::create(element::i64, Shape{1}, {begin_offset}));
 
-    const auto p_end = std::make_shared<Parameter>(element::i64, end_shape);
-    const auto shape_of_end = std::make_shared<ShapeOf>(p_end);
-    const auto end = std::make_shared<Subtract>(shape_of_end, Constant::create(element::i64, Shape{1}, {end_offset}));
+    const auto p_end = std::make_shared<op::v0::Parameter>(element::i64, end_shape);
+    const auto shape_of_end = std::make_shared<op::v3::ShapeOf>(p_end);
+    const auto end = std::make_shared<op::v1::Subtract>(shape_of_end,
+                                                        op::v0::Constant::create(element::i64, Shape{1}, {end_offset}));
 
-    const auto data = std::make_shared<Parameter>(element::f32, data_shape);
-    const auto stride = Constant::create(element::i64, Shape{1}, {step});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto stride = op::v0::Constant::create(element::i64, Shape{1}, {step});
     const auto mask = std::vector<int64_t>{0};
 
     const auto op = make_op(data, begin, end, stride, mask, mask);
