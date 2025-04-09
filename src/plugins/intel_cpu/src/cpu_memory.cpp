@@ -162,11 +162,9 @@ void Memory::nullify() {
     void* dataPtr = getData();
     if (dataPtr != nullptr) {
         size_t memSize = getDesc().getCurrentMemSize();
-        if (memSize != MemoryDesc::UNDEFINED_SIZE) {
-            memset(dataPtr, 0, memSize);
-        } else {
-            OPENVINO_THROW("Invalid memory size detected during nullify operation.");
-        }
+        OPENVINO_ASSERT(memSize != MemoryDesc::UNDEFINED_SIZE,
+                        "Invalid memory size detected during nullify operation.");
+        memset(dataPtr, 0, memSize);
     }
 }
 
