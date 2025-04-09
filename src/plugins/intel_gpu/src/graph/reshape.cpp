@@ -238,7 +238,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     }
 
     auto areVectorsCompatible = [](const ov::Shape& vec1, const ov::Shape& vec2) -> bool {
-        std::unordered_map<int, size_t> countMap1, countMap2;
+        std::unordered_map<size_t, size_t> countMap1, countMap2;
 
         for (auto num : vec1) {
             if (num != 1)
@@ -331,8 +331,6 @@ void reshape_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
-    auto t = _impl_params->get_output_layout().get_tensor();
-    std::cout << id() << ": has shape " << t.to_string();
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()) &&
         output_memory().get_layout() == _impl_params->get_output_layout())
         return;
