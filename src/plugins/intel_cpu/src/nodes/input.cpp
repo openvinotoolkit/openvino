@@ -419,10 +419,10 @@ void Input::cloneBlobIfRequired() {
                 std::atomic<bool> has_bf16_overflows_local(false);
                 if (needFlushDenormalsToZero || do_bf16_saturation_check) {
                     parallel_for(iterations_num, [&](int n) {
-                        auto ptr = u32data + n * batch_size;
+                        auto ptr = f32data + n * batch_size;
                         jit_has_special_value_base::args_t args = {
                             reinterpret_cast<const float*>(ptr),
-                            std::min(batch_size, static_cast<size_t>(u32data + size - ptr)),
+                            std::min(batch_size, static_cast<size_t>(f32data + size - ptr)),
                             false};
 
                         if (needFlushDenormalsToZero && !has_subnormals_local) {

@@ -940,8 +940,8 @@ void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const FakeQuantizePostOp& post
         }
 
         return ops.append_binarization(dnnl::algorithm::binarization_depthwise,
-                                       (const float*)&binarizationThresholds[0],
-                                       (const float*)&binarizationOutputMask[0]);
+                                       reinterpret_cast<const float *>(binarizationThresholds.data()),
+                                       reinterpret_cast<const float *>(binarizationOutputMask.data()));
     }
 
     dnnl::algorithm alg = postOp.type() == FakeQuantizePostOp::Type::quantization_only
