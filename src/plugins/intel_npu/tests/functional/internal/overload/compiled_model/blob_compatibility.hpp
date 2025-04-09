@@ -255,7 +255,7 @@ using OVBlobCompatibilityNPU_PV_Driver_Throws = OVBlobCompatibilityNPU;
 using OVBlobCompatibilityNPU_Mismatched_Platforms_Throw = OVBlobCompatibilityNPU;
 
 #define NO_APPEND_EXPORT(ASSERT_TYPE, ...)
-#define APPEND_EXPORT(ASSERT_TYPE, ...)                                                                      \
+#define APPEND_EXPORT(ASSERT_TYPE)                                                                      \
     std::shared_ptr<ov::Model> nullModel(nullptr);                                                          \
     ov::CompiledModel compiledModel;                                                                        \
     ASSERT_TYPE(compiledModel = core.compile_model(nullModel,                                                \

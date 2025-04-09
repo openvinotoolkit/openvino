@@ -99,6 +99,7 @@ int main(int argc, char** argv, char** envp) {
             path.find_last_of('\\') != std::string_view::npos ? path.find_last_of('\\') : path.find_last_of('/');
         ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH =
             pos != std::string_view::npos ? path.substr(0, pos + 1) : "";
+        ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH += "intel_npu_blobs/";
     }
 
     return RUN_ALL_TESTS();
