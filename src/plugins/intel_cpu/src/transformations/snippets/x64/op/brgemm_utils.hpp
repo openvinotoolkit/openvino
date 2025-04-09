@@ -69,6 +69,13 @@ template <typename T,
 inline T compute_repacked_n_dim(T n, const ov::element::Type& precision) {
     return ov::snippets::utils::rnd_up(n, static_cast<T>(compute_inner_n_block(precision)));
 }
+
+/// \brief  Computes allocation shape for Buffer between BrgemmCopyB and Brgemm
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K,
+                                                           size_t N,
+                                                           const ov::element::Type& prc,
+                                                           bool is_transposed);
+
 /**
  * @brief Retrieves the expression pointer for the brgemm_copy_b expression corresponding to the given BrgemmCPU
  * expression.

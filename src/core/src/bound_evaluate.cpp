@@ -18,36 +18,6 @@
 namespace {
 using namespace ov;
 
-void propagate_rt_info(Node* node, const Output<Node>& final_port) {
-    auto node_outputs = node->outputs();
-    bool same_outputs = std::all_of(node_outputs.begin(), node_outputs.end(), [](const Output<Node>& output) {
-        return output.get_tensor().has_and_set_bound();
-    });
-    if (same_outputs && op::util::is_constant(node))  // constant should not propagate it's rt_info
-    {
-        std::unordered_set<Node*> stop_nodes;
-        for (const auto& in : final_port.get_target_inputs())
-            stop_nodes.insert(in.get_node());
-
-        auto curr_node = node->shared_from_this();
-        for (const auto& output : node_outputs) {
-            if (output == final_port)
-                continue;
-            for (auto& in : output.get_target_inputs()) {
-                if (stop_nodes.count(in.get_node()))
-                    continue;
-                try {
-                    auto consumer = in.get_node()->shared_from_this();
-                    copy_runtime_info({curr_node, consumer}, consumer);
-                } catch (const std::bad_weak_ptr&) {
-                    // Exception can be thrown, if `shared_from_this()` was called during node creation.
-                    // Continue propagation for other nodes.
-                }
-            }
-        }
-    }
-}
-
 bool are_same_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
     return (lhs && rhs) && (lhs.get_element_type() == rhs.get_element_type()) && (lhs.get_shape() == rhs.get_shape()) &&
            (lhs.data() == rhs.data());
@@ -287,7 +257,6 @@ void evaluate_bound(const Output<Node>& output) {
             }
             bound_evaluator.set_bounds_and_symbols();
             invalidate_unused_values(node->input_values());
-            propagate_rt_info(node, output);
         }
     }
 }
@@ -484,7 +453,7 @@ bool ov::interval_bound_evaluator(const Node* node,
                node->evaluate(lower_output_values, *input_variants.begin());
 
     auto zero = op::v0::Constant::create(element::i64, {1}, {0});
-    const auto zero_t = ov::Tensor(element::i64, Shape{});
+    auto zero_t = ov::Tensor(element::i64, Shape{});
     *zero_t.data<int64_t>() = 0;
 
     std::vector<TensorVector> unsqueezed_output_variants;
@@ -560,8 +529,8 @@ bool ov::interval_bound_evaluator(const Node* node,
             fully_defined = false;
         } else {
             // Can not set to make_tensor_of_min_value(lower_output_values[i]->get_element_type()) yet
-            const auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
-            const auto then_data = static_cast<char*>(then.data());
+            auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
+            auto then_data = static_cast<char*>(then.data());
             std::memset(then_data, 0, then.get_byte_size());
             op::v1::Select().evaluate(lower_out, {final_input_dyn_mask, then, lower_out[0]});
             node->get_output_tensor(i).set_lower_value(lower_out[0]);

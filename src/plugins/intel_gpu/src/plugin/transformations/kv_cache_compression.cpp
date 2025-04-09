@@ -77,10 +77,10 @@ std::shared_ptr<ov::intel_gpu::op::ReadValues>
     if (past_rv_node->get_input_size() == 0) {
         new_past_rv_node = std::make_shared<ov::intel_gpu::op::ReadValues>(past_rv_node->get_variable(), variable_infos);
     } else {
-        auto initializer_dq = std::make_shared<ov::op::internal::DynamicQuantize>(past_rv_node->get_input_node_shared_ptr(0),
+        auto initializer_dq = std::make_shared<ov::op::internal::DynamicQuantize>(past_rv_node->input_value(0),
                                                                                   quantization_attrs);
-        initializer_dq->set_friendly_name(past_rv_node->get_input_node_shared_ptr(0)->get_friendly_name() + "_dyn_quan");
-        ov::copy_runtime_info(past_rv_node->get_input_node_shared_ptr(0), initializer_dq);
+        initializer_dq->set_friendly_name(past_rv_node->input_value(0).get_node_shared_ptr()->get_friendly_name() + "_dyn_quan");
+        ov::copy_runtime_info(past_rv_node->input_value(0).get_node_shared_ptr(), initializer_dq);
 
         OutputVector initializer_outputs = { initializer_dq->output(0), initializer_dq->output(1) };
 
@@ -102,8 +102,8 @@ std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed>
                     std::shared_ptr<ov::intel_gpu::op::KVCache> kv_cache_node,
                     const ov::op::internal::DynamicQuantize::Attributes& quantization_attrs) {
     OutputVector kv_cache_inputs = { past_rv_node->output(0),
-                                     kv_cache_node->get_input_node_shared_ptr(1),
-                                     kv_cache_node->get_input_node_shared_ptr(2),
+                                     kv_cache_node->input_value(1),
+                                     kv_cache_node->input_value(2),
                                      past_rv_node->output(1) };
 
     if (quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
@@ -230,7 +230,7 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         OutputVector sdpa_inputs;
         // Add Query, Key, Value, attention_mask, scale inputs
         for (size_t i = 0; i < sdpa_node->get_input_size() - 1; i++)
-            sdpa_inputs.push_back(sdpa_node->get_input_node_shared_ptr(i));
+            sdpa_inputs.push_back(sdpa_node->input_value(i));
 
         // Replace Key and Value inputs with compressed ones
         sdpa_inputs[1] = new_key_cache->output(0);

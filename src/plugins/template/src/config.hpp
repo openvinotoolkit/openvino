@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <map>
 #include <string>
 
@@ -32,7 +33,7 @@ struct Configuration {
 
     int device_id = 0;
     bool perf_count = false;
-    ov::threading::IStreamsExecutor::Config streams_executor_config;
+    ov::threading::IStreamsExecutor::Config streams_executor_config{};
     int streams = 1;
     int threads = 0;
     int threads_per_stream = 0;
@@ -52,8 +53,11 @@ struct Configuration {
     bool enableCpuPinning = false;
     bool enableHyperThreading = false;
     int compilation_thread_num = 1;
-
-    EncryptionCallbacks encryption_callbacks;
+  
+    EncryptionCallbacks encryption_callbacks{};
+    std::filesystem::path weights_path{};
+    AnyMap compiled_model_runtime_properties{};
+    CacheMode cache_mode{CacheMode::OPTIMIZE_SPEED};
 };
 // ! [configuration:header]
 

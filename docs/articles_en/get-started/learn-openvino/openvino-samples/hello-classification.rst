@@ -50,7 +50,7 @@ inference, and processes output data, logging each step in a standard output str
 
 
 You can see the explicit description of each sample step at
-:doc:`Integration Steps <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+:doc:`Integration Steps <../../../openvino-workflow/running-inference>`
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
@@ -254,7 +254,7 @@ Sample Output
 Additional Resources
 ####################
 
-- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../../openvino-workflow/running-inference>`
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../../openvino-workflow/model-preparation/convert-model-to-ir>`
