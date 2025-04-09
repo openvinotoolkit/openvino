@@ -82,7 +82,11 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
             return false;
         }
         out_shape.erase(out_shape.begin());
-        const auto& in_shape = out.get_node_shared_ptr()->get_input_shape(0);
+        const auto& in_shape_partial = out.get_node_shared_ptr()->get_input_partial_shape(0);
+        if (in_shape_partial.is_dynamic()) {
+            return false;
+        }
+        const auto& in_shape = in_shape_partial.to_shape();
         return out_shape == in_shape;
     };
     // input_2_m has leading dimension of 1.
@@ -98,7 +102,11 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
         if (!static_shape_single_consumer(out)) {
             return false;
         }
-        auto in_shape = out.get_node_shared_ptr()->get_input_shape(0);
+        auto in_shape_partial = out.get_node_shared_ptr()->get_input_partial_shape(0);
+        if (in_shape_partial.is_dynamic()) {
+            return false;
+        }
+        auto in_shape = in_shape_partial.to_shape();
         if (in_shape.size() < 1 || in_shape[0] != 1) {
             return false;
         }
