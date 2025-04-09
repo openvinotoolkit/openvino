@@ -50,9 +50,7 @@ struct Configuration {
 
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     bool enableCpuPinning = false;
-    bool changedCpuPinning = false;
     bool enableHyperThreading = false;
-    bool changedHyperThreading = false;
     int compilation_thread_num = 1;
 
     EncryptionCallbacks encryption_callbacks;

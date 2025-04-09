@@ -41,7 +41,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
         } else if (ov::inference_num_threads.name() == key) {
             int val;
             try {
-                val = value.as<decltype(ov::inference_num_threads)::value_type>();
+                val = value.as<int>();
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
             }
@@ -91,32 +91,30 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value ", value.as<ov::hint::SchedulingCoreType>(), "for property key ", key);
             }
-        } else if (key == ov::hint::enable_hyper_threading.name()) {
+        } else if (key == ov::hint::enable_hyper_threading) {
             try {
                 enableHyperThreading = value.as<bool>();
-                changedHyperThreading = true;
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                value.as<std::string>(),
                                "for property key ",
-                               ov::hint::enable_hyper_threading.name(),
+                               key,
                                ". Expected only true/false.");
             }
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
             try {
                 enableCpuPinning = value.as<bool>();
-                changedCpuPinning = true;
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                value.as<std::string>(),
                                "for property key ",
-                               ov::hint::enable_cpu_pinning.name(),
+                               key,
                                ". Expected only true/false.");
             }
         } else if (ov::compilation_num_threads.name() == key) {
             int val;
             try {
-                val = value.as<decltype(ov::compilation_num_threads)::value_type>();
+                val = value.as<int>();
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
             }
