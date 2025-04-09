@@ -1204,13 +1204,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                     " asym 8bit weight does not support grouped quantization" << std::endl;
                     return true;
                 }
-                if ((root->get_input_element_type(1) == ov::element::i4 || root->get_input_element_type(1) == ov::element::u4)
-                    && has_wzp
-                    && dynamic_quantization_group_size != UINT64_MAX) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
-                        " asym weight does not have perf gain with dynamic quantization" << std::endl;
-                    return true;
-                }
 
                 return false;
             });
