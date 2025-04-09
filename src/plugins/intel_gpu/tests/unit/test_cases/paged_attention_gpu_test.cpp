@@ -644,7 +644,7 @@ private:
         OPENVINO_ASSERT(scores_output->count() == static_cast<size_t>(num_heads * num_queries * num_keys));
 
         std::vector<ov::float16> output_scores(num_keys, 0);
-        mem_lock<ov::float16> mem_ptr(scores_output, test_stream);
+        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output, test_stream);
         for (int head_idx = 0; head_idx < num_heads; head_idx++) {
             for (int score_idx = 0; score_idx < num_keys; score_idx++) {
                 output_scores[score_idx] += mem_ptr[head_idx * num_queries * num_keys +
@@ -663,7 +663,7 @@ private:
         OPENVINO_ASSERT(data_output->count() == static_cast<size_t>(num_queries * num_heads * head_size));
 
         std::vector<ov::float16> output_data(data_output->count());
-        mem_lock<ov::float16> mem_ptr(data_output, test_stream);
+        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output, test_stream);
         for (size_t i = 0; i < data_output->count(); i++)
             output_data[i] = mem_ptr[i];
 
@@ -975,7 +975,7 @@ public:
     void compare(memory::ptr data_output_mem, memory::ptr scores_output_mem, std::pair<std::vector<ov::float16>, std::vector<ov::float16>> ref_data) {
         if (data_output_mem) {
             ASSERT_EQ(data_output_mem->count(), ref_data.first.size());
-            mem_lock<ov::float16> mem_ptr(data_output_mem, get_test_stream());
+            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
             for (size_t i = 0; i < data_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], ref_data.first[i], tolerance);
             }
@@ -983,7 +983,7 @@ public:
 
         if (scores_output_mem) {
             ASSERT_EQ(scores_output_mem->count(), ref_data.second.size());
-            mem_lock<ov::float16> mem_ptr(scores_output_mem, get_test_stream());
+            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output_mem, get_test_stream());
             for (size_t i = 0; i < scores_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], ref_data.second[i], tolerance);
             }
