@@ -12,6 +12,8 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
+#include "openvino/op/if.hpp"
+#include "ov_ops/moe_expert.hpp"
 #include "openvino/runtime/properties.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -139,14 +141,71 @@ void ProgramBuilder::cleanup_build() {
 #endif
 }
 
+std::shared_ptr<ov::threading::IStreamsExecutor> ProgramBuilder::get_moe_task_executor() {
+    if (m_moe_task_executor == nullptr) {
+        auto config = get_config().clone();
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>({})));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(use_new_shape_infer()));
+        config.finalize(get_engine());
+
+        m_moe_task_executor = cldnn::program::make_task_executor(m_config);
+
+        if (m_moe_compilation_context == nullptr) {
+            m_moe_compilation_context = cldnn::program::make_compilation_context(m_config);
+        }
+    }
+    return m_moe_task_executor;
+}
+
 std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool is_inner_program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::build");
 
     prepare_build();
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
+        if (is_inner_program == false) {
+            std::cout << "ProgramBuilder::build() ops size: " << ops.size() << std::endl;
+        }
+        auto start_time = std::chrono::high_resolution_clock::now();
+        std::vector<ov::threading::Task> tasks;
         for (const auto& op : ops) {
-            CreateSingleLayerPrimitive(op);
+            // if(is_inner_program == false)
+            //     std::cout << "hit op: " << op->get_type_name() << std::endl;
+            if (ov::is_type<ov::op::v8::If>(op) || ov::is_type<ov::op::internal::MOEExpert>(op)) {
+                // std::cout << "hit op: " << op->get_type_name() << std::endl;
+                CreateSingleLayerPrimitive(op);
+            #if 1
+                tasks.push_back([this, &op] {
+                    try {
+                        CreateSingleLayerPrimitive(op);
+                    } catch (...) {
+                        std::cout << "CreateSingleLayerPrimitive task failed: " << op->get_type_name() << std::endl;
+                    }
+                });
+            #else
+                CreateSingleLayerPrimitive(op);
+            #endif
+            } else {
+                // std::cout << " miss op: " << op->get_type_name() << std::endl;
+                CreateSingleLayerPrimitive(op);
+            }
+        }
+
+        if (!tasks.empty()) {
+            auto task_executor = get_moe_task_executor();
+            std::cout << "ProgramBuilder::build() run tasks: " << tasks.size() << std::endl;
+            auto start_time = std::chrono::high_resolution_clock::now();
+            task_executor->run_and_wait(tasks);
+            auto end_time = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+            std::cout << "ProgramBuilder::build() run tasks done, cost " << duration << " ms" << std::endl;
+            tasks.clear();
+        }
+
+        if (is_inner_program == false) {
+            auto end_time = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+            std::cout << "ProgramBuilder::build() ops size: " << ops.size() << " time: " << duration << " ms" << std::endl;
         }
     }
 
@@ -250,7 +309,7 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
 
-        if (ov::is_type<op::Placeholder>(prevOp)) {
+        if (ov::is_type<op::Placeholder>(prevOp) /*|| ov::is_type<ov::op::v8::If>(prevOp)*/) {
             inputInfo.push_back(cldnn::input_info{});
             continue;
         }
@@ -324,6 +383,19 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     }
 
     m_topology->add_primitive(prim);
+}
+
+std::shared_ptr<cldnn::primitive> ProgramBuilder::get_primitive(const ov::Node& op) {
+    auto id = layer_type_name_ID(&op);
+    std::string prim_id;
+
+    auto id_item = primitive_ids.find(id);
+    if (id_item != primitive_ids.end()) {
+        prim_id = id_item->second;
+    } else {
+        return nullptr;
+    }
+    return m_topology->get_primitives().find(prim_id)->second;
 }
 
 int64_t ProgramBuilder::get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const {

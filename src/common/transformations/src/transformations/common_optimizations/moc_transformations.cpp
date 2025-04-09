@@ -106,6 +106,8 @@ static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
+    std::cout << "MOCTransformations start... " << std::endl;
+    auto start_time = std::chrono::high_resolution_clock::now();
     // To avoid issues with dynamism we make ov::Model dynamic and after we apply all
     // transformations we restore original shapes to the ov::Model back
     std::unordered_map<ov::op::v0::Parameter*, PartialShape> input_shapes;
@@ -294,6 +296,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, ResolveNameCollisions, true);
     manager.run_passes(f);
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    std::cout << "MOCTransformations took " << duration << " ms" << std::endl;
 
     if (!m_use_shapes) {
         // Restore original shapes to the ov::Model

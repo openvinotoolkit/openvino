@@ -21,13 +21,14 @@ static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_
                     << internal_body->get_friendly_name()
                     << ", num inputs: " << op->get_input_size() << std::endl;
 
-    auto config = p.get_config().clone();
-    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>({})));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(op->is_dynamic() || p.use_new_shape_infer()));
-    config.finalize(p.get_engine());
+    // auto config = p.get_config().clone();
+    // config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>({})));
+    // config.set_property(ov::intel_gpu::allow_new_shape_infer(op->is_dynamic() || p.use_new_shape_infer()));
+    // config.finalize(p.get_engine());
 
-    ProgramBuilder prog(internal_body, p.get_engine(), config, p.get_task_executor(), p.get_compilation_context(), true);
-    branch.inner_program = prog.get_compiled_program();
+    // Try to run it in parallel!!!
+    // ProgramBuilder prog(internal_body, p.get_engine(), config, p.get_task_executor(), p.get_compilation_context(), true);
+    // branch.inner_program = prog.get_compiled_program();
 
     auto& input_map = branch.input_map;
     auto external_inputs = p.GetInputInfo(op);
@@ -51,7 +52,36 @@ static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_
     return branch;
 }
 
+static cldnn::program::ptr gen_branch_program(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::If>& op, size_t idx) {
+    const auto& internal_body = (idx == idx_true)? op->get_then_body() : op->get_else_body();
+    GPU_DEBUG_LOG << "Generate inner program instance for " << "op::v"
+                    << op->get_type_info().version_id << "::"
+                    << op->get_type_name() << " operation "
+                    << "(friendly_name=" << op->get_friendly_name() << ") : "
+                    << internal_body->get_friendly_name()
+                    << ", num inputs: " << op->get_input_size() << std::endl;
+
+    auto config = p.get_config().clone();
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>({})));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(op->is_dynamic() || p.use_new_shape_infer()));
+    config.finalize(p.get_engine());
+
+    // Try to run it in parallel!!!
+    ProgramBuilder prog(internal_body, p.get_engine(), config, p.get_task_executor(), p.get_compilation_context(), true);
+    auto inner_program = prog.get_compiled_program();
+
+    return inner_program;
+}
+
 static void CreateIfOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::If>& op) {
+    auto prim = p.get_primitive(*op);
+    if (prim) {
+        auto if_prim = std::static_pointer_cast<cldnn::condition>(prim);
+        if_prim->branch_true.inner_program = gen_branch_program(p, op, idx_true);
+        if_prim->branch_false.inner_program = gen_branch_program(p, op, idx_false);
+        return;
+    }
+
     auto inputs = p.GetInputInfo(op);
     OPENVINO_ASSERT(inputs.size() >= 1, "Invalid inputs count (Not allowed no input)");
     auto compare_node_pshape = op->get_input_partial_shape(0);
