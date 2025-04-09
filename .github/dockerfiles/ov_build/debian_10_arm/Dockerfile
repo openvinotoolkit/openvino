@@ -84,9 +84,7 @@ RUN tar -xf Python-3.9.21.tar.xz && \
 
 # Compile Python3.9 for ARM
 RUN cd Python-3.9.21 && make distclean && \
-    ./configure \
-        --host=arm-linux-gnueabihf \
-        --build=arm-linux-gnueabihf \
+    ./configure --host=arm-linux-gnueabihf \
         --disable-ipv6 \
         --enable-shared \
         --prefix=/opt/python3.9_arm \
