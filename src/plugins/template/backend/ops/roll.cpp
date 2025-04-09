@@ -5,6 +5,7 @@
 #include "openvino/reference/roll.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/op/roll.hpp"
 
 bool evaluate(const std::shared_ptr<ov::op::v7::Roll>& op, ov::TensorVector& outputs, const ov::TensorVector& inputs) {
     const auto& shiftType = inputs[1].get_element_type();

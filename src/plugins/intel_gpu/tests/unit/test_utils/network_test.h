@@ -104,7 +104,7 @@ struct reference_tensor_typed<T, 2> : reference_tensor {
     reference_tensor_typed(vector_type data) : reference(std::move(data)) {}
 
     void compare(cldnn::memory::ptr actual) override {
-        cldnn::mem_lock<T> ptr(actual, get_test_stream());
+        mem_lock<T, mem_lock_type::read> ptr(actual, get_test_stream());
         for (size_t bi = 0; bi < reference.size(); ++bi) {
             for (size_t fi = 0; fi < reference[0].size(); ++fi) {
                 auto coords = cldnn::tensor(cldnn::batch(bi), cldnn::feature(fi), cldnn::spatial(0, 0, 0, 0));
@@ -139,7 +139,7 @@ struct reference_tensor_typed<T, 4> : reference_tensor {
     using vector_type = VVVVF<T>;
     reference_tensor_typed(vector_type data) : reference(std::move(data)) {}
     void compare(cldnn::memory::ptr actual) override {
-        cldnn::mem_lock<T> ptr(actual, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> ptr(actual, get_test_stream());
         for (size_t bi = 0; bi < reference.size(); ++bi) {
             for (size_t fi = 0; fi < reference[0].size(); ++fi) {
                 for (size_t yi = 0; yi < reference[0][0].size(); ++yi) {
