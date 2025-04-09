@@ -174,6 +174,7 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
+#include "transformations/utils/print_model.hpp"
 
 namespace {
 template<typename T>
@@ -458,9 +459,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
-        manager.register_pass<ov::pass::CommonOptimizations>();
-        // manager.register_pass<ov::pass::MoeExpert2If>();
+#if 1
+        // Move FuseMoeExpert2 ahead of CommonOptimizations to optimize compiling performance.
+        // manager.register_pass<ov::pass::PrintModel>(std::string("prior_FuseMoeExpert2_print"));
+        // manager.register_pass<ov::pass::Serialize>(std::string("prior_FuseMoeExpert2.xml"), std::string("prior_FuseMoeExpert2.bin"));
         manager.register_pass<ov::pass::FuseMoeExpert2>();
+        manager.register_pass<ov::pass::CommonOptimizations>();
+#else
+        manager.register_pass<ov::pass::CommonOptimizations>();
+        manager.register_pass<ov::pass::PrintModel>(std::string("prior_FuseMoeExpert2_post_print"));
+        manager.register_pass<ov::pass::Serialize>(std::string("prior_FuseMoeExpert2_post.xml"), std::string("prior_FuseMoeExpert2_post.bin"));
+        manager.register_pass<ov::pass::FuseMoeExpert2>();
+#endif
 
         ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
         kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
