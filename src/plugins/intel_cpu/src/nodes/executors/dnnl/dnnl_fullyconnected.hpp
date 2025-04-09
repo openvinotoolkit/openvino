@@ -39,14 +39,13 @@ class DnnlExecutor : public Executor {
 public:
     using PrimitivePtr = std::shared_ptr<Primitive>;
     DnnlExecutor(const Attrs& attrs,
-                 const PostOps& postOps,
                  const MemoryArgs& memory,
                  ExecutorContext::CPtr context,
                  const bool cacheWeights,
                  const bool fc3Das2D = false)
         : m_attrs(attrs),
           m_context(std::move(context)),
-          m_shapeAgnosticData(Primitive::createShapeAgnosticData(m_attrs, postOps, memory, m_context, cacheWeights)),
+          m_shapeAgnosticData(Primitive::createShapeAgnosticData(m_attrs, memory, m_context, cacheWeights)),
           m_primArgs(m_shapeAgnosticData->m_primAttrs.dnnlArgs),
           m_fc3Das2D(fc3Das2D) {}
     bool update(const MemoryArgs& memory) override {
