@@ -347,6 +347,21 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
     return make_framework_node_ignore_bodies(context, exception);
 }
 
+OutputVector translate_grad_op(const NodeContext& node) {
+    auto input = node.get_input(0);
+    return {input};
+}
+
+OutputVector translate_to_dense_op(const NodeContext& node) {
+    auto input = node.get_input(0);
+    return {input};
+}
+
+OutputVector translate_values_op(const NodeContext& node) {
+    auto input = node.get_input(0);
+    return {input};
+}
+
 void TranslateSession::encode_tensor_name(Output<Node> output,
                                           size_t tensor_idx,
                                           const std::vector<std::string>& additional_names) {

@@ -356,12 +356,18 @@ OP_CONVERTER(translate_conv1d_ext);
 OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
 OP_CONVERTER(translate_linear_ext);
+OP_CONVERTER(translate_grad_op);
+OP_CONVERTER(translate_to_dense_op);
+OP_CONVERTER(translate_values_op);
 
 }  // namespace op
 
 // Supported ops for TorchScript
 const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
+        {"aten::grad", op::translate_grad_op},
+        {"aten::to_dense", op::translate_to_dense_op},
+        {"aten::values", op::translate_values_op},
         {"aten::__and__", op::translate_bitwise_and},
         {"aten::__iand__", op::inplace_op<op::translate_bitwise_and>},
         {"aten::__lshift__", op::translate_bitwise_left_shift},
