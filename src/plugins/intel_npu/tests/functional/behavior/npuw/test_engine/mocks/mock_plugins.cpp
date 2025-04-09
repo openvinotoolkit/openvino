@@ -303,6 +303,8 @@ MockPluginBase<DeviceType>::~MockPluginBase() {
 }
 
 template class MockPluginBase<ov::npuw::tests::mocks::Npu>;
+template class MockPluginBase<ov::npuw::tests::mocks::NpuForPrefill>;
+template class MockPluginBase<ov::npuw::tests::mocks::NpuForGenerate>;
 template class MockPluginBase<ov::npuw::tests::mocks::Cpu>;
 
 }  // namespace tests
