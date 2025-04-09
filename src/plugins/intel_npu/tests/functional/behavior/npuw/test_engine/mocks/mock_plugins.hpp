@@ -159,6 +159,14 @@ struct Npu {
     static constexpr const char* name = "MockNPU";
     static constexpr int num_device_ids = 3;
 };
+struct NpuForPrefill {
+    static constexpr const char* name = "MockNPUForPrefill";
+    static constexpr int num_device_ids = 3;
+};
+struct NpuForGenerate {
+    static constexpr const char* name = "MockNPUForGenerate";
+    static constexpr int num_device_ids = 3;
+};
 struct Cpu {
     static constexpr const char* name = "MockCPU";
     static constexpr int num_device_ids = 2;
@@ -166,6 +174,8 @@ struct Cpu {
 } //namespace mocks
 
 using MockNpuPlugin = testing::NiceMock<MockPluginBase<mocks::Npu>>;
+using MockNpuPluginForPrefill = testing::NiceMock<MockPluginBase<mocks::NpuForPrefill>>;
+using MockNpuPluginForGenerate = testing::NiceMock<MockPluginBase<mocks::NpuForGenerate>>;
 using MockCpuPlugin = testing::NiceMock<MockPluginBase<mocks::Cpu>>;
 
 }  // namespace tests
