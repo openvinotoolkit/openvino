@@ -8,10 +8,10 @@
 #include <memory>
 #include <random>
 
-#include "generators/model_generator.hpp"
+#include "test_engine/generators/model_generator.hpp"
+#include "test_engine/mocks/mock_plugins.hpp"
+#include "test_engine/mocks/register_in_ov.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
-#include "mocks/mock_plugins.hpp"
-#include "mocks/register_in_ov.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/make_tensor.hpp"
