@@ -365,6 +365,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
         auto clparam = request->get_tensor(iport);
         ov::get_tensor_impl(closure)->copy_to(clparam._ptr);
+        std::cout << "copy in unpack" << std::endl;
     });
     // }); // ms_to_run
 
@@ -456,6 +457,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         auto& it = copy_list[idx];
         ov::SoPtr<ov::ITensor> dst = request->get_tensor(it.second);
         it.first->copy_to(dst._ptr);
+        std::cout << "copy global param" << std::endl;
     });
 
     // Run host-side gather, if required
