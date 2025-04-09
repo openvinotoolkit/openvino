@@ -167,9 +167,6 @@ jobs:
 
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
-          
-          # For rpm build
-          python3 -m pip install rpm
 
       #
       # Build

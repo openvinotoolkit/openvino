@@ -38,12 +38,3 @@ license-files = [
 [tool.black]
 line-length = 160
 include = '\.pyi?$'
-
-[tool.cibuildwheel]
-before-all = "uname -a"
-build = "cp311*manylinux_x86_64*"
-build-frontend = { name = "pip", args = ["--verbose", "--no-deps", "--extra-index-url=https://storage.openvinotoolkit.org/simple/wheels/nightly"] } 
-environment = { http_proxy = "http://proxy-dmz.intel.com:911", https_proxy = "http://proxy-dmz.intel.com:912" }
-repair-wheel-command = ""
-archs = ["x86_64"]
-build-verbosity = 1
