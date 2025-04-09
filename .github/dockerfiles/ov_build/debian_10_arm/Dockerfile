@@ -133,6 +133,7 @@ RUN cd Python-3.11.9 && make distclean && \
         --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
         --disable-ipv6 \
         --enable-shared \
+        --with-build-python \
         --prefix=/opt/python3.11_arm \
         ac_cv_file__dev_ptmx=no \
         ac_cv_file__dev_ptc=no && \
@@ -155,6 +156,7 @@ RUN cd Python-3.12.9 && make distclean && \
         --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
         --disable-ipv6 \
         --enable-shared \
+        --with-build-python \
         --prefix=/opt/python3.12_arm \
         ac_cv_file__dev_ptmx=no \
         ac_cv_file__dev_ptc=no && \
@@ -177,6 +179,7 @@ RUN cd Python-3.13.2 && make distclean && \
         --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
         --disable-ipv6 \
         --enable-shared \
+        --with-build-python \
         --prefix=/opt/python3.13_arm \
         ac_cv_file__dev_ptmx=no \
         ac_cv_file__dev_ptc=no && \
