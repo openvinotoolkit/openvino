@@ -7,6 +7,7 @@
 #include <openvino/opsets/opset1.hpp>
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
@@ -117,13 +118,15 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
 
     auto matmul_m = pattern::wrap_type<opset1::MatMul>(static_shape_single_consumer);
     auto input_1_m = pattern::any_input(pattern::has_static_shape());
-    auto add_1_m = pattern::wrap_type<opset1::Add>({matmul_m, input_1_m}, static_shape_single_consumer);
-    auto reshape_1_m =
-        pattern::wrap_type<opset1::Reshape>({add_1_m, pattern::wrap_type<opset1::Constant>()}, rank_upgrade_reshape);
+    auto eltwise_1_m = pattern::optional<ov::op::util::BinaryElementwiseArithmetic>({matmul_m, input_1_m},
+                                                                                    static_shape_single_consumer);
+    auto reshape_1_m = pattern::wrap_type<opset1::Reshape>({eltwise_1_m, pattern::wrap_type<opset1::Constant>()},
+                                                           rank_upgrade_reshape);
     auto input_2_m = pattern::any_input(has_leading_dimension_one);
-    auto add_2_m = pattern::wrap_type<opset1::Add>({reshape_1_m, input_2_m}, static_shape_single_consumer);
-    auto reshape_2_m =
-        pattern::wrap_type<opset1::Reshape>({add_2_m, pattern::wrap_type<opset1::Constant>()}, rank_reduction_reshape);
+    auto eltwise_2_m = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({reshape_1_m, input_2_m},
+                                                                                     static_shape_single_consumer);
+    auto reshape_2_m = pattern::wrap_type<opset1::Reshape>({eltwise_2_m, pattern::wrap_type<opset1::Constant>()},
+                                                           rank_reduction_reshape);
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::RankUpgradeToRankReduction")
@@ -140,11 +143,11 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
         const auto target_shape = ov::opset1::Constant::create(ov::element::i32, {input_2_shape.size()}, input_2_shape);
         const auto reshaped_input2 = std::make_shared<ov::opset1::Reshape>(input_2, target_shape, true);
 
-        const auto add_1 = pattern_map.at(add_1_m).get_node_shared_ptr();
-        const auto new_add2 = std::make_shared<ov::opset1::Add>(add_1, reshaped_input2);
+        const auto eltwise_1 = pattern_map.at(eltwise_1_m).get_node_shared_ptr();
+        const auto new_eltwise_2 = std::make_shared<ov::opset1::Add>(eltwise_1, reshaped_input2);
 
         const auto& old_reshape = pattern_map.at(reshape_2_m);
-        return ov::replace_output_update_name(old_reshape, new_add2);
+        return ov::replace_output_update_name(old_reshape, new_eltwise_2);
     };
 
     auto m = std::make_shared<pattern::Matcher>(reshape_2_m, matcher_name);
