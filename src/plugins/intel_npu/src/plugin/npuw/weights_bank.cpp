@@ -21,8 +21,8 @@ public:
 
 private:
     BankManager() {}
-    BankManager(BankManager const&) = delete;
-    void operator=(BankManager const&) = delete;
+    BankManager(const BankManager&) = delete;
+    void operator=(const BankManager&) = delete;
 
 public:
     // Public API
