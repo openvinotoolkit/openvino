@@ -57,6 +57,18 @@ namespace ov::intel_cpu {
 #    define OV_CPU_INSTANCE_KLEIDIAI(...)
 #endif
 
+#if defined(OV_CPU_WITH_DNNL) && defined(OPENVINO_ARCH_X86_64)
+#    define OV_CPU_INSTANCE_DNNL_X64(...) {__VA_ARGS__},
+#else
+#    define OV_CPU_INSTANCE_DNNL_X64(...)
+#endif
+
+#if defined(OV_CPU_WITH_DNNL) && defined(OPENVINO_ARCH_ARM64)
+#    define OV_CPU_INSTANCE_DNNL_ARM64(...) {__VA_ARGS__},
+#else
+#    define OV_CPU_INSTANCE_DNNL_ARM64(...)
+#endif
+
 #if defined(OPENVINO_ARCH_X86_64)
 #    define OV_CPU_INSTANCE_X64(...) {__VA_ARGS__},
 #else
@@ -164,7 +176,14 @@ public:
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'update' method is not implemented by executor");
         return false;
     }
-    virtual void execute() const {}
+
+    virtual void execute() const {
+        OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
+    }
+
+    virtual void execute() {
+        OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
+    }
     // dnnl_fullyconnected 3D workaround version
     virtual void execute([[maybe_unused]] const MemoryArgs& memory) {
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
@@ -180,6 +199,7 @@ public:
     }
     virtual ~Executor() = default;
 };
+
 using ExecutorPtr = std::shared_ptr<Executor>;
 
 }  // namespace ov::intel_cpu
