@@ -43,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHARankUpgradeToReductionReshape,
                          ::testing::Combine(::testing::ValuesIn(inputShapesRankChangeReshape),
                                             ::testing::Values(std::vector<element::Type>{}),
                                             ::testing::Values(ov::element::f32),
-                                            ::testing::ValuesIn({true}),
+                                            ::testing::Values(false),
                                             ::testing::Values(MHA::default_thread_count),
                                             ::testing::Values(2),  // MHA + reshape
                                             ::testing::Values(1),  // MHA subgraph

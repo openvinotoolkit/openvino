@@ -39,18 +39,18 @@ public:
 /**
  * @interface RankUpgradeToRankReduction
  * @brief This pass tries to transfer rank upgrade reshape from MHA branch to rank reduction reshape in MHA input
- * branch. This pass can be only applied to static shape.
+ * branch. This pass can be only applied to static shape, and Eltwise below means BinaryElementwiseArithmetic.
  * Subgraph inside the MHA body:
  *               Matmul                        Matmul
  *                 |   input1                    |  input1   input2
  *                 |  /                          |  /        /
- *                Add1                           Add1       /
- *                 |               ==>            |    reshape
- *                 |                              |   /
- *               Reshape                          Add2
+ *               Eltwise1                      Eltwise1     /
+ *                 |               ==>           |    reshape
+ *                 |                             |   /
+ *               Reshape                       Eltwise2
  *                 |   input2
  *                 |  /
- *                Add2
+ *               Eltwise2
  *                 |
  *                 |
  *               Reshape
