@@ -54,8 +54,8 @@ public:
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                                   const std::string& netPrecision,
-                                  const double utilization_threshold) {
-                return plugin->Plugin::get_valid_device(metaDevices, netPrecision, utilization_threshold);
+                                  const std::map<std::string, double>& utilization_thresholds) {
+                return plugin->Plugin::get_valid_device(metaDevices, netPrecision, utilization_thresholds);
             });
     }
 
@@ -84,7 +84,7 @@ TEST_P(KeyNetworkPriorityTest, SelectDevice) {
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AtLeast(sizeOfConfigs * 4));
 
     for (auto& item : PriorityConfigs) {
-        resDevInfo.push_back(plugin->select_device(metaDevices, netPrecision, std::get<0>(item), -1.0));
+        resDevInfo.push_back(plugin->select_device(metaDevices, netPrecision, std::get<0>(item), {}));
     }
     for (int i = 0; i < sizeOfConfigs; i++) {
         EXPECT_EQ(resDevInfo[i].unique_name, std::get<1>(PriorityConfigs[i]));
@@ -113,7 +113,7 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
     for (auto& item : PriorityConfigs) {
         unsigned int priority = std::get<0>(item);
         auto future = std::async(std::launch::async, [this, priority] {
-            auto deviceInfo = plugin->select_device(metaDevices, netPrecision, priority, -1.0);
+            auto deviceInfo = plugin->select_device(metaDevices, netPrecision, priority, {});
             plugin->unregister_priority(priority, deviceInfo.unique_name);
         });
         futureVect.push_back(std::move(future));
@@ -124,7 +124,7 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
     }
 
     for (auto& item : PriorityConfigs) {
-        resDevInfo.push_back(plugin->select_device(metaDevices, netPrecision, std::get<0>(item), -1.0));
+        resDevInfo.push_back(plugin->select_device(metaDevices, netPrecision, std::get<0>(item), {}));
     }
     for (int i = 0; i < sizeOfConfigs; i++) {
         EXPECT_EQ(resDevInfo[i].unique_name, std::get<1>(PriorityConfigs[i]));

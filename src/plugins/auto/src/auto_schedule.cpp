@@ -97,7 +97,7 @@ void AutoSchedule::init() {
         m_plugin->select_device(m_context->m_device_priorities,
                                 m_compile_context[ACTUALDEVICE].m_model_precision,
                                 m_context->m_model_priority,
-                                m_context->m_utilization_threshold);
+                                m_context->m_utilization_thresholds);
 
     auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);

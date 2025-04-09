@@ -219,7 +219,7 @@ TEST_P(StatefulModelSupportedTest, CanFilterOutCorrectTargetDeviceWithStatefulMo
     ON_CALL(*plugin, get_valid_device)
         .WillByDefault([](const std::vector<DeviceInformation>& metaDevices,
                           const std::string& netPrecision,
-                          const double utilization_threshold) {
+                          const std::map<std::string, double>& utilization_thresholds) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });

@@ -182,7 +182,9 @@ namespace monitor {
 // not implemented
 class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
+    PerformanceCounterImpl(const std::string& deviceLuid) {}
     std::map<std::string, double> get_utilization() {
+        // TODO: Implement.
         return {};
     }
 };

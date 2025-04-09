@@ -22,11 +22,14 @@ public:
     MOCK_METHOD((bool), is_meta_device, ((const std::string&)), (const, override));
     MOCK_METHOD((std::list<DeviceInformation>),
                 get_valid_device,
-                ((const std::vector<DeviceInformation>&), const std::string&, const double),
+                ((const std::vector<DeviceInformation>&), const std::string&, (const std::map<std::string, double>&)),
                 (const, override));
     MOCK_METHOD(DeviceInformation,
                 select_device,
-                ((const std::vector<DeviceInformation>&), const std::string&, unsigned int, const double),
+                ((const std::vector<DeviceInformation>&),
+                 const std::string&,
+                 unsigned int,
+                 (const std::map<std::string, double>&)),
                 (override));
     MOCK_METHOD((std::vector<DeviceInformation>),
                 parse_meta_devices,

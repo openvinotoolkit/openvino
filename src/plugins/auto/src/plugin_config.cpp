@@ -27,7 +27,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
-        std::make_tuple(ov::intel_auto::device_utilization_threshold, 100),
+        std::make_tuple(ov::intel_auto::devices_utilization_threshold, std::map<std::string, double>{}),
         // RO for register only
         std::make_tuple(ov::device::full_name),
         std::make_tuple(ov::device::capabilities),

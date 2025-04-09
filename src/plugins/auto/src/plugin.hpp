@@ -49,12 +49,12 @@ public:
 
     MOCKTESTMACRO std::list<DeviceInformation> get_valid_device(const std::vector<DeviceInformation>& meta_devices,
                                                                 const std::string& model_precision = "FP32",
-                                                                const double utilization_threshold = -1.0) const;
+                                                                const std::map<std::string, double>& utilization_thresholds = {}) const;
 
     MOCKTESTMACRO DeviceInformation select_device(const std::vector<DeviceInformation>& meta_devices,
                                                   const std::string& model_precision = "FP32",
                                                   unsigned int priority = 0,
-                                                  const double utilization_threshold = -1.0);
+                                                  const std::map<std::string, double>& utilization_thresholds = {});
     void unregister_priority(const unsigned int& priority, const std::string& device_name);
     void register_priority(const unsigned int& priority, const std::string& device_name);
 

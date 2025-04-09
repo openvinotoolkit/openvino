@@ -220,7 +220,7 @@ public:
     std::mutex                                     m_fallback_mutex;
     SoCompiledModel                                m_hw_compiled_model;
     std::string                                    m_model_precision;
-    double                                         m_utilization_threshold = 100.0;
+    std::map<std::string, double>                  m_utilization_thresholds;
     // hold the resource of static variable to avoid the unexpected destruction.
     std::shared_ptr<std::mutex>                                          m_mtx;
     std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;

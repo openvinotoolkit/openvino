@@ -206,14 +206,14 @@ public:
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                                   const std::string& netPrecision,
                                   unsigned int priority,
-                                  const double utilization_threshold) {
-                return plugin->Plugin::select_device(metaDevices, netPrecision, priority, utilization_threshold);
+                                  const std::map<std::string, double>& utilization_thresholds) {
+                return plugin->Plugin::select_device(metaDevices, netPrecision, priority, utilization_thresholds);
             });
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                                   const std::string& netPrecision,
-                                  const double utilization_threshold) {
-                return plugin->Plugin::get_valid_device(metaDevices, netPrecision, utilization_threshold);
+                                  const std::map<std::string, double>& utilization_thresholds) {
+                return plugin->Plugin::get_valid_device(metaDevices, netPrecision, utilization_thresholds);
             });
     }
 };
@@ -236,9 +236,9 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     }
 
     if (throwExcept) {
-        ASSERT_THROW(plugin->select_device(devices, netPrecision, 0, -1.0), ov::Exception);
+        ASSERT_THROW(plugin->select_device(devices, netPrecision, 0, {}), ov::Exception);
     } else {
-        auto result = plugin->select_device(devices, netPrecision, 0, -1.0);
+        auto result = plugin->select_device(devices, netPrecision, 0, {});
         compare(result, expect);
     }
 }
