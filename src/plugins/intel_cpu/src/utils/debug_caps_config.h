@@ -45,7 +45,7 @@ public:
     std::string blobDumpDir = "cpu_dump";
     FORMAT blobDumpFormat = FORMAT::TEXT;
     std::unordered_map<FILTER, std::string, EnumClassHash> blobDumpFilters;
-    std::string summaryPerf = "";
+    bool summaryPerf = false;
     std::string memoryStatisticsDumpPath;
 
     struct TransformationFilter {
