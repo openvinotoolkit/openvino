@@ -46,6 +46,11 @@ ov_add_test_target(
   openvino::npu_common
   openvino::npu_al)
 
+if(ENABLE_INTEL_CPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
+    target_compile_definitions(${TARGET_NAME} PRIVATE WITH_CPU_PLUGIN)
+endif()
+
 if(WIN32)
     if(ENABLE_DX12)
         target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX12)

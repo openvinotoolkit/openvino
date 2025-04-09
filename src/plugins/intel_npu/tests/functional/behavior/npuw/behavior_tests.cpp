@@ -3,7 +3,7 @@
 //
 
 #include "behavior_tests.hpp"
-#include "comparators/nrmse.hpp"
+#include "test_engine/comparators/nrmse.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/file_util.hpp"
 
