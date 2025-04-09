@@ -365,29 +365,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     View view_end = shape;
     view_start[dim] = offset;
     view_end[dim] = offset + len;
-
-    auto ret_view = ov::npuw::util::view(src, view_start, view_end);
-
-    // Check if a tensor view can be faked as "continuous"
-    // FIXME: This trick should be removed after strided tensor
-    // checks are relaxed
-    if (std::all_of(shape.begin(), shape.begin() + dim, [](std::size_t d) {
-            return d == 1u;
-        })) {
-        // If all dimensions up to the sub-ranged dimension are 1s,
-        // This tensor can be faked as continuous
-        const auto type = src->get_element_type();
-        const auto view_shape = ret_view->get_shape();
-        ov::Strides fake_strides(shape.size());
-        fake_strides.back() = type.size();
-        std::transform(view_shape.crbegin(),
-                       view_shape.crend() - 1,
-                       fake_strides.rbegin(),
-                       fake_strides.rbegin() + 1,
-                       std::multiplies<size_t>());
-        return ov::get_tensor_impl(ov::Tensor(type, view_shape, ret_view->data(), fake_strides));
-    }
-    return ret_view;
+    return ov::npuw::util::view(src, view_start, view_end);
 }
 
 template <typename InT>
@@ -460,7 +438,7 @@ ov::Tensor ov::npuw::util::to_f16(const ov::Tensor& t) {
 }
 
 inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
-    const uint8_t* tdata = static_cast<uint8_t*>(t.data());
+    const uint8_t* tdata = static_cast<const uint8_t*>(t.data());
     const uint8_t* trow = tdata + r * COLS / 2;
     const uint8_t* telem = trow + c / 2;
     if (c % 2 == 0) {
@@ -471,7 +449,7 @@ inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::
 
 template <typename T>
 inline T tread(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
-    const T* tdata = static_cast<T*>(t.data());
+    const T* tdata = static_cast<const T*>(t.data());
     const T* trow = tdata + r * COLS;
     const T* telem = trow + c;
     return *telem;
@@ -529,7 +507,7 @@ void permute120(const ov::Tensor& src, ov::Tensor& dst) {
     const ov::Shape dst_shape = dst.get_shape();
     NPUW_ASSERT(src_shape.size() == 3);  // Yes, so far only transpose 3D tensors
 
-    const T* pSrc = static_cast<T*>(src.data());
+    const T* pSrc = static_cast<const T*>(src.data());
     T* pDst = static_cast<T*>(dst.data());
 
     // DSTs [b,r,c] map to SRC's [r,c,b]
@@ -659,7 +637,7 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
 
         const bool is_4bit = (type == ov::element::i4 || type == ov::element::u4);
         for (std::size_t t_idx = 0; t_idx < tt.size(); t_idx++) {
-            const uint8_t* pSrc = static_cast<uint8_t*>(tt[t_idx].data());
+            const uint8_t* pSrc = static_cast<const uint8_t*>(tt[t_idx].data());
 
             const auto copy_size = lens[t_idx] * shape[1] * shape[2];
             const auto copy_len = is_4bit ? copy_size / 2 : copy_size * type.size();
@@ -683,7 +661,7 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
                 uint8_t* pDstRow = pDst + r_offset + c_offset;
 
                 const auto r_offset_src = is_4bit ? lens[t_idx] * r / 2 : lens[t_idx] * r * type.size();
-                const uint8_t* pSrc = static_cast<uint8_t*>(t_src.data());
+                const uint8_t* pSrc = static_cast<const uint8_t*>(t_src.data());
                 const uint8_t* pSrcRow = pSrc + r_offset_src;
 
                 std::copy_n(pSrcRow, copy_len, pDstRow);

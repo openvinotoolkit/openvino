@@ -129,6 +129,7 @@ static constexpr Property<std::string, PropertyMutability::RW> config_file{"CONF
 static constexpr Property<float, PropertyMutability::RW> buffers_preallocation_ratio{"GPU_BUFFERS_PREALLOCATION_RATIO"};
 static constexpr Property<size_t, PropertyMutability::RW> max_kernels_per_batch{"GPU_MAX_KERNELS_PER_BATCH"};
 static constexpr Property<bool, PropertyMutability::RW> use_onednn{"GPU_USE_ONEDNN"};
+static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
 
 static constexpr Property<bool, ov::PropertyMutability::RW> help{"HELP"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> verbose{"VERBOSE"};
@@ -160,6 +161,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_f
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"GPU_DISABLE_FC_SWIGLU_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_skip_reorder{"GPU_DISABLE_RUNTIME_SKIP_REORDER"};
+static constexpr Property<bool, ov::PropertyMutability::RW> apply_dynamic_quantization_b1{"GPU_APPLY_DYNAMIC_QUANTIZATION_B1"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> usm_policy{"GPU_USM_POLICY"};
 static constexpr Property<bool, ov::PropertyMutability::RW> asym_dynamic_quantization{"GPU_ASYM_DYNAMIC_QUANTIZATION"};
 static constexpr Property<ShapePredictor::Settings, ov::PropertyMutability::RW> shape_predictor_settings{"GPU_SHAPE_PREDICTOR_SETTINGS"};
