@@ -4413,7 +4413,7 @@ public:
 
         auto output = net.execute();
         auto out_mem = output.at("output").get_memory();
-        cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
+        mem_lock<OutputT, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         for (size_t bi = 0; bi < batch_num(); ++bi) {
             for (size_t fi = 0; fi < output_f(); ++fi) {
@@ -5399,7 +5399,7 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
             ASSERT_EQ(out_l.spatial(0), 1);
             ASSERT_EQ(out_l.spatial(1), fc_3d ? output_f : 1);
 
-            cldnn::mem_lock<OutputT> output_ptr(output_prim_mem, get_test_stream());
+            mem_lock<OutputT, mem_lock_type::read> output_ptr(output_prim_mem, get_test_stream());
 
             auto ref_result = dynamic_fully_connected_reference_calc<OutputT>(batch_size,
                                                                               input_f,
