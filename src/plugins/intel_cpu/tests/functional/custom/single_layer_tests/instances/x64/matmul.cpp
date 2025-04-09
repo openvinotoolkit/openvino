@@ -238,8 +238,10 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
 // The following three patterns are covered by MLAS test
 #ifndef OV_CPU_WITH_MLAS
         emptyFusingSpec,
-        fusingBias,
         fusingMultiplyPerChannel,
+        fusingBias,
+#else
+        fusingBiasGelu, // bias + gelu to ensure mlas is not selected
 #endif
         fusingFakeQuantizePerTensorRelu,
         fusingReluScaleShift
