@@ -108,14 +108,16 @@ KERNEL(gather_ref)(
 #endif
 
 #if HAS_FUSED_OPS
-    #if OUTPUT_DIMS == 4
-        if (GATHER_CHANNEL_INDEX == 0) { //if channel index is 0 then b dimension dissapear on output
-            b = f;
-            f = y;
-            y = x;
-            x = 1;
-        }
-    #endif
+#if OUTPUT_DIMS == 4
+#if IS_DYNAMIC
+            if (GATHER_CHANNEL_INDEX == 0 && shape_info[0] == 1) { //if channel index is 0 then b dimension dissapear on output
+                b = f;
+                f = y;
+                y = x;
+                x = 1;
+            }
+#endif //OUTPUT_DIMS == 4
+#endif //IS_DYNAMIC
     FUSED_OPS;
     output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
 #else
