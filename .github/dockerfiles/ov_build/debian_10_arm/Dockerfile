@@ -73,7 +73,7 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 # Build Pythons
 # Python 3.9
 
-# To cross-compile Python3.9 we need to first compile it for the host
+# To cross-compile Python 3.9 we need to first compile it for the host
 RUN wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz
 
 RUN tar -xf Python-3.9.21.tar.xz && \
@@ -82,7 +82,7 @@ RUN tar -xf Python-3.9.21.tar.xz && \
     make -j 8 && \
     make altinstall
 
-# Compile Python3.9 for ARM
+# Compile Python 3.9 for ARM
 RUN cd Python-3.9.21 && make distclean && \
     ./configure \
         --host=arm-linux-gnueabihf \
@@ -90,6 +90,94 @@ RUN cd Python-3.9.21 && make distclean && \
         --disable-ipv6 \
         --enable-shared \
         --prefix=/opt/python3.9_arm \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j 8 && make altinstall
+
+# Python 3.10
+# To cross-compile Python 3.10 we need to first compile it for the host
+RUN wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz
+
+RUN tar -xf Python-3.10.16.tar.xz && \
+    cd Python-3.10.16 && \
+    ./configure --enable-optimizations && \
+    make -j 8 && \
+    make altinstall
+
+# Compile Python 3.10 for ARM
+RUN cd Python-3.10.16 && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --prefix=/opt/python3.10_arm \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j 8 && make altinstall
+
+# Python 3.11
+# To cross-compile Python 3.11 we need to first compile it for the host
+RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
+
+RUN tar -xf Python-3.11.9.tar.xz && \
+    cd Python-3.11.9 && \
+    ./configure --enable-optimizations && \
+    make -j 8 && \
+    make altinstall
+
+# Compile Python 3.11 for ARM
+RUN cd Python-3.11.9 && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --prefix=/opt/python3.11_arm \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j 8 && make altinstall
+
+# Python 3.12
+# To cross-compile Python 3.12 we need to first compile it for the host
+RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
+
+RUN tar -xf Python-3.12.9.tar.xz && \
+    cd Python-3.12.9 && \
+    ./configure --enable-optimizations && \
+    make -j 8 && \
+    make altinstall
+
+# Compile Python 3.12 for ARM
+RUN cd Python-3.12.9 && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --prefix=/opt/python3.12_arm \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j 8 && make altinstall
+
+# Python 3.13
+# To cross-compile Python 3.13 we need to first compile it for the host
+RUN wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz
+
+RUN tar -xf Python-3.13.2.tar.xz && \
+    cd Python-3.13.2 && \
+    ./configure --enable-optimizations && \
+    make -j 8 && \
+    make altinstall
+
+# Compile Python 3.13 for ARM
+RUN cd Python-3.13.2 && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --prefix=/opt/python3.13_arm \
         ac_cv_file__dev_ptmx=no \
         ac_cv_file__dev_ptc=no && \
     make -j 8 && make altinstall
@@ -106,14 +194,14 @@ RUN cd Python-3.9.21 && make distclean && \
 #    cd .. && rm -rf Python-3.10.16.tar.xz Python-3.10.16
 #
 # Python 3.11
-RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
-
-RUN tar -xf Python-3.11.9.tar.xz && \
-    cd Python-3.11.9 && \
-    ./configure --enable-optimizations && \
-    make -j 8 && \
-    make altinstall && \
-    cd .. && rm -rf Python-3.11.9.tar.xz Python-3.11.9
+#RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
+#
+#RUN tar -xf Python-3.11.9.tar.xz && \
+#    cd Python-3.11.9 && \
+#    ./configure --enable-optimizations && \
+#    make -j 8 && \
+#    make altinstall && \
+#    cd .. && rm -rf Python-3.11.9.tar.xz Python-3.11.9
 #
 ## Python 3.12
 #RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
@@ -139,10 +227,10 @@ RUN tar -xf Python-3.11.9.tar.xz && \
 ENV PIP_VERSION="24.0"
 RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.9 -m pip install --upgrade pip==${PIP_VERSION} && \
-#    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.11 -m pip install --upgrade pip==${PIP_VERSION}
-#    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
-#    python3.13 -m pip install --upgrade pip==${PIP_VERSION}
+    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.13 -m pip install --upgrade pip==${PIP_VERSION}
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build
