@@ -38,8 +38,8 @@ KERNEL(gather_ref)(
 #endif
 )
 {
-    uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
-    uint f = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+    const uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+    const uint f = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
     #if OUTPUT_DIMS == 6
         #define ORDER b,f,w,z,y,x
         const uint w = (uint)get_global_id(1) / OUTPUT_SIZE_Z;
@@ -53,8 +53,8 @@ KERNEL(gather_ref)(
         const uint x = (uint)get_global_id(0);
     #elif OUTPUT_DIMS == 4
         #define ORDER b,f,y,x
-        uint y = (uint)get_global_id(1);
-        uint x = (uint)get_global_id(0);
+        const uint y = (uint)get_global_id(1);
+        const uint x = (uint)get_global_id(0);
     #endif
 
     const uint indices_idx = GET_INDICES_INDEX(INDICES_INDEX_ORDER);
@@ -108,16 +108,6 @@ KERNEL(gather_ref)(
 #endif
 
 #if HAS_FUSED_OPS
-#if OUTPUT_DIMS == 4
-#if IS_DYNAMIC
-            if (GATHER_CHANNEL_INDEX == 0 && shape_info[0] == 1) { //if channel index is 0 then b dimension dissapear on output
-                b = f;
-                f = y;
-                y = x;
-                x = 1;
-            }
-#endif //OUTPUT_DIMS == 4
-#endif //IS_DYNAMIC
     FUSED_OPS;
     output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
 #else
