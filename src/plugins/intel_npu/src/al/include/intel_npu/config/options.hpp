@@ -1395,12 +1395,26 @@ struct STORE_LOGGER_LOG final : OptionBase<STORE_LOGGER_LOG, bool> {
         return ov::intel_npu::store_logger_log.name();
     }
 
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     static std::string_view envVar() {
         return "OV_NPU_STORE_LOGGER_LOG";
     }
+#endif
 
     static bool defaultValue() {
         return false;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "bool";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
     }
 };
 }  // namespace intel_npu
