@@ -34,6 +34,7 @@ RUN apt-get update && \
         libgdbm-dev \
         libc6-dev \
         libssl-dev \
+        libffi-dev \
         zlib1g-dev \
         libbz2-dev \
         libreadline-dev \
