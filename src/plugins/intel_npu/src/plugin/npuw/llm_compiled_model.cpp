@@ -10,6 +10,7 @@
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
@@ -17,15 +18,15 @@
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
+#include "util.hpp"
 
 namespace opp = ov::pass::pattern;
 
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
-        std::vector<std::shared_ptr<ov::opset13::Parameter>> new_params;
-        std::vector<std::shared_ptr<ov::opset13::Parameter>> old_params;
         using Ref = std::reference_wrapper<Context>;
+        bool bTransposed = false;
     };
 
 protected:
@@ -45,27 +46,15 @@ protected:
         // NB: Transpose Parameter that correspond to V-tensor it will
         // speed-up its multiplication with attention scores
         std::swap(param_shape[2], param_shape[3]);
-        auto new_param = std::make_shared<ov::opset13::Parameter>(matched_param->get_element_type(), param_shape);
-        new_param->set_friendly_name(matched_param->get_friendly_name());
-        new_param->outputs().begin()->get_tensor().set_names(
-            matched_param->outputs().begin()->get_tensor().get_names());
-        ov::replace_node(matched_param, new_param);
-        // NB: Save in order to add/remove to the model later on
-        ctx.get().new_params.push_back(new_param);
-        ctx.get().old_params.push_back(matched_param);
+
+        matched_param->set_partial_shape(param_shape);
 
         auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
-        auto new_transpose =
-            std::make_shared<ov::opset13::Transpose>(matched_transpose->input_value(0), order_cst->output(0));
-        new_transpose->set_friendly_name(matched_transpose->get_friendly_name());
-        ov::replace_node(matched_transpose, new_transpose);
 
-        auto new_concat =
-            std::make_shared<ov::opset13::Concat>(ov::OutputVector{new_param->output(0), new_transpose->output(0)}, 3u);
-        new_concat->set_friendly_name(matched_concat->get_friendly_name());
-        ov::replace_node(matched_concat, new_concat);
-
+        matched_transpose->set_argument(1, order_cst);
+        matched_concat->set_axis(3u);
         matched_matmul->set_transpose_b(true);
+        ctx.get().bTransposed = true;
     }
 };
 
@@ -81,7 +70,8 @@ private:
     void register_matcher_llama2(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
-        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, transpose});
+        auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
+        auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, concat});
 
@@ -117,7 +107,8 @@ private:
     void register_matcher_llama3(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
-        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, transpose});
+        auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
+        auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
 
         // only difference is that broadcast wrapped into unsquese/reshape, while transposed tensor didn't change
         const auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
@@ -125,6 +116,7 @@ private:
         auto broadcast = opp::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>({unsqueeze, opp::any_input()});
         auto reshape = opp::wrap_type<ov::op::v1::Reshape>({broadcast, opp::any_input()});
 
+        // v8 softmax? what? can be other softmaxes
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, reshape});
 
@@ -144,7 +136,6 @@ private:
             auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
             auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
-
             auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
             auto matched_broadcast = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
             auto matched_reshape = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
@@ -338,6 +329,10 @@ std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> m
     return ppp.build();
 }
 
+}  // namespace
+
+// testability - should we have interface for that or move matchers to another file?
+bool optimize_value_tensors(std::shared_ptr<ov::Model> model);
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
@@ -346,16 +341,13 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
     rewr.run_on_model(model);
 
-    model->add_parameters(ctx.new_params);
-    for (auto old_param : ctx.old_params) {
-        model->remove_parameter(old_param);
-    }
     ov::pass::Validate().run_on_model(model);
 
-    // NB: if new_params is not empty - pass has been applied
-    return !ctx.new_params.empty();
+    // NB: matmul parameters gets transposed, if pass applied
+    return ctx.bTransposed;
 }
 
+namespace {
 struct KVAxesPosition {
     uint32_t batch;
     uint32_t seq_len;
@@ -725,7 +717,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     using namespace ov::npuw::s11n;
 
     // Sanity check magic number
-    std::array<uint8_t, 6> serialization_indicator;
+    ov::npuw::s11n::IndicatorType serialization_indicator;
     read(stream, serialization_indicator);
     NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
 

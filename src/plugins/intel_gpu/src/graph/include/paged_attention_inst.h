@@ -11,10 +11,6 @@
 
 namespace cldnn {
 
-using PagedAttentionStage = kernel_selector::PagedAttentionStage;
-
-PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
-
 template <>
 struct typed_program_node<paged_attention> : public typed_program_node_base<paged_attention> {
 private:

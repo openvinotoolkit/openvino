@@ -43,6 +43,16 @@ class typed_primitive_inst;
 
 struct ImplementationManager;
 
+struct BufferDescriptor {
+    explicit BufferDescriptor(const layout& l, bool lockable = false) : m_lockable(lockable), m_layout(l) {}
+    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false)
+        : BufferDescriptor(layout(shape, type, format::bfyx), lockable) {}
+    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false)
+        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable) {}
+    bool m_lockable = false;
+    layout m_layout;
+};
+
 /*
     Base class for all implementations.
 */
@@ -55,8 +65,7 @@ struct primitive_impl {
         primitive_impl(nullptr, std::move(kernel_name), is_dynamic) {}
     virtual ~primitive_impl() = default;
 
-    virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
-    virtual std::set<size_t> get_lockable_internal_buffers() const { return {}; }
+    virtual std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const = 0;
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
@@ -306,7 +315,7 @@ public:
                                        memory* curr_memory = nullptr,
                                        bool runtime_alloc = false);
 
-    std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
+    const std::vector<memory::ptr>& get_intermediates_memories() const { return _intermediates_memory; }
 
     std::string get_implementation_name() const;
 
@@ -515,11 +524,7 @@ private:
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    std::vector<layout> get_internal_buffer_layouts() const override {
-        return get_internal_buffer_layouts_impl();
-    }
-
-    virtual std::vector<layout> get_internal_buffer_layouts_impl() const {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const override {
         return {};
     }
 

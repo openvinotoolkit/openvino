@@ -3,8 +3,8 @@
 //
 
 #include <exception>
-#include "impls/registry/implementation_manager.hpp"
-#include "impls/registry/registry.hpp"
+#include "registry/implementation_manager.hpp"
+#include "registry/registry.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 
 #include "pass_manager.h"

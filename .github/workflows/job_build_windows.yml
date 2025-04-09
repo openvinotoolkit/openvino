@@ -164,7 +164,7 @@ jobs:
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: CMake configure
-        run: cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} ${{ inputs.cmake-options }} -DCMAKE_CXX_FLAGS="/Zi" -DCMAKE_C_FLAGS="/Zi" -DCMAKE_SHARED_LINKER_FLAGS="/DEBUG" -DCMAKE_MODULE_LINKER_FLAGS="/DEBUG"
+        run: cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} ${{ inputs.cmake-options }}
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
@@ -264,6 +264,15 @@ jobs:
           }
           Compress-Archive @compress
 
+      # Setup Python 3.11 as the default one
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
       - name: CMake configure, build and install - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         run: |
@@ -284,6 +293,13 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_js_package.zip"
           }
           Compress-Archive @compress
+
+      - name: Cmake & Build - OpenVINO Contrib
+        run: |
+          cmake -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} `
+                -DOPENVINO_EXTRA_MODULES="${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${{ env.OPENVINO_CONTRIB_REPO }}/modules/java_api" `
+                -DENABLE_WHEEL=OFF
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS
 
       #
       # Upload build artifacts and logs

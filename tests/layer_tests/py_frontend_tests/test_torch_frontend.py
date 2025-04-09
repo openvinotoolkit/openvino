@@ -404,6 +404,26 @@ def test_module_extension():
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Sin", "Result"]
 
+    model = ModelWithModule()
+    model.cos_module.flag = False
+    me = ModuleExtension(CosModel,
+                         "aten::sin",
+                         condition=lambda m: getattr(m, "flag", False))
+    converted_model = convert_model(model, example_input=(torch.randn(100),),
+                                    extension=[me])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Cos", "Result"]
+
+    model = ModelWithModule()
+    model.cos_module.flag = True
+    converted_model = convert_model(model, example_input=(torch.randn(100),),
+                                    extension=[me])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+
+
 
 def test_multiple_module_extension():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder

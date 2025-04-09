@@ -375,13 +375,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
 
     ov::AnyMap actual_runtime_info;
     auto prepare_actual_runtime_info = [&]() {
-        // Suppose all devices share the same version driver.
-        auto device_id = m_default_device_id;
-        OPENVINO_ASSERT(m_device_map.find(device_id) != m_device_map.end(),
-                        "[GPU] compiled_model_runtime_properties: Couldn't find device for GPU with id ",
-                        device_id);
-        actual_runtime_info["DRIVER_VERSION"] = m_device_map.at(device_id)->get_info().driver_version;
-        // More items can be inserted if needed
+        // Items can be inserted here if needed.
+        // Note: driver version used to be here, but it was moved to cache load logic. See
+        // https://github.com/openvinotoolkit/openvino/pull/29195
     };
     // Below properties depend on the device ID.
     if (name == ov::internal::compiled_model_runtime_properties.name()) {

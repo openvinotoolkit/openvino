@@ -216,7 +216,7 @@ private:
         const ov::SoPtr<ov::IRemoteContext>& context,
         std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda) const;
 
-    bool device_supports_model_caching(const ov::Plugin& plugin) const;
+    bool device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& origConfig = {}) const;
 
     bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
     bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;

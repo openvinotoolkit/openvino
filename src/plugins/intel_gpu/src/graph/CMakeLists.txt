@@ -9,10 +9,8 @@ file(GLOB SUBDIRS "${CMAKE_CURRENT_SOURCE_DIR}/impls/*")
 foreach(SUBDIR IN LISTS SUBDIRS)
     if(IS_DIRECTORY ${SUBDIR})
         get_filename_component(SUBDIR_NAME ${SUBDIR} NAME)
-        if (NOT SUBDIR_NAME STREQUAL "registry")
-            list(APPEND AVAILABLE_IMPL_TYPES ${SUBDIR_NAME})
-            list(APPEND EXCLUDE_PATHS ${SUBDIR})
-        endif()
+        list(APPEND AVAILABLE_IMPL_TYPES ${SUBDIR_NAME})
+        list(APPEND EXCLUDE_PATHS ${SUBDIR})
     endif()
 endforeach()
 
@@ -56,10 +54,6 @@ macro(ov_gpu_add_backend_target)
         list(APPEND TARGET_DEFINITIONS $<TARGET_PROPERTY:${lib},INTERFACE_COMPILE_DEFINITIONS>)
     endforeach()
 
-    foreach(lib IN LISTS TARGET_LINK_LIBRARIES)
-        list(APPEND TARGET_INCLUDES $<TARGET_PROPERTY:${lib},INTERFACE_INCLUDE_DIRECTORIES>)
-    endforeach()
-
     ov_add_target(
         NAME ${ARG_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -81,7 +75,7 @@ macro(ov_gpu_add_backend_target)
 
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
-        target_include_directories(${ARG_NAME} PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>)
+        target_include_directories(${ARG_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
         add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
     endif()
 endmacro()

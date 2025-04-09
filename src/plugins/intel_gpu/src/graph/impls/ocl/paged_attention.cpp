@@ -19,6 +19,7 @@
 
 namespace cldnn {
 namespace ocl {
+using PagedAttentionStage = kernel_selector::PagedAttentionStage;
 
 struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     using parent = multi_stage_primitive<paged_attention>;
@@ -141,7 +142,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         ob << make_data(&use_micro_sdpa, sizeof(bool));
     }
 
-    std::vector<kernel_selector::InternalBuffer> get_internal_buffers_desc() const {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         /*
         * Internal buffers allocation owners and users:
         * +--------------------------------------+--------------------+--------------------+
@@ -181,12 +182,14 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         *           Filled in paged_attention_inst::on_execute() call for sdpa-micro kernel only.
         */
 
-        auto add_internal_buffers = [](std::vector<kernel_selector::InternalBuffer>& internal_buffers,
+        auto add_internal_buffers = [](std::vector<BufferDescriptor>& internal_buffers,
                                        const kernel_selector::KernelData& kd) {
-            internal_buffers.insert(internal_buffers.end(), kd.internalBuffers.begin(), kd.internalBuffers.end());
+            for (const auto& buffer_desc : kd.internalBuffers) {
+                internal_buffers.emplace_back(buffer_desc.byte_count, ov::element::u8, buffer_desc.lockable);
+            }
         };
 
-        std::vector<kernel_selector::InternalBuffer> internal_buffers;
+        std::vector<BufferDescriptor> internal_buffers;
         add_internal_buffers(internal_buffers, _kernels_data[Stage::KV_CACHE_UPDATE]);
         add_internal_buffers(internal_buffers, _kernels_data[Stage::PA_SDPA]);
 
@@ -194,15 +197,6 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             add_internal_buffers(internal_buffers, _kernels_data[Stage::SDPA]);
 
         return internal_buffers;
-    }
-
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
-        std::vector<layout> layouts;
-
-        for (const auto& buffer : get_internal_buffers_desc())
-            layouts.emplace_back(ov::PartialShape{static_cast<int64_t>(buffer.byte_count)}, ov::element::u8, format::bfyx);
-
-        return layouts;
     }
 
     kernel_arguments_data get_arguments(const paged_attention_inst& instance, size_t stage, size_t kernel_idx, bool is_mixed_mode) const {
@@ -297,18 +291,6 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         return args;
     }
-
-    std::set<size_t> get_lockable_internal_buffers() const override {
-        std::set<size_t> lockable_ids;
-        const auto& internal_buffers = get_internal_buffers_desc();
-        for (size_t i = 0; i < internal_buffers.size(); i++) {
-            if (internal_buffers[i].lockable) {
-                lockable_ids.insert(i);
-            }
-        }
-
-        return lockable_ids;
-    };
 
     void prepare_internal_buffers(paged_attention_inst& instance, const PagedAttentionStage& stage) {
         const auto& desc = instance.get_impl_params()->typed_desc<paged_attention>();

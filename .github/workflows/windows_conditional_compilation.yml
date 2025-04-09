@@ -57,6 +57,7 @@ jobs:
     runs-on: aks-win-32-cores-128gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       # CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_GENERATOR: 'Visual Studio 17 2022'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
@@ -171,16 +172,10 @@ jobs:
             -DENABLE_TESTS=ON `
             -DENABLE_CPPLINT=OFF `
             -DENABLE_NCC_STYLE=OFF `
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_FASTER_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_CXX_FLAGS="/Zi" `
-            -DCMAKE_C_FLAGS="/Zi" `
-            -DCMAKE_SHARED_LINKER_FLAGS="/DEBUG" `
-            -DCMAKE_MODULE_LINKER_FLAGS="/DEBUG" `
-            -DCMAKE_EXE_LINKER_FLAGS="/DEBUG" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
@@ -203,7 +198,7 @@ jobs:
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
+          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Ctest - OpenVINO unit tests
@@ -272,13 +267,12 @@ jobs:
           # install PDB files to OpenVINO main installation folder to ensure that they are used instead of PDB files from build folder
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pdb
           # then, we need to clean build tree to remove PDB files
-          cmake --build ${{ env.BUILD_DIR }} --parallel 16 --config ${{ env.CMAKE_BUILD_TYPE }} --target clean
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target clean
           & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
         env:
           CXXFLAGS: "/Zi"
           CFLAGS: "/Zi"
           LDFLAGS: "/DEBUG"
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
           CMAKE_GENERATOR: "Visual Studio 17 2022"
 
       #
