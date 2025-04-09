@@ -52,7 +52,8 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
 
     auto boxesShape = op->get_input_partial_shape(0);
     size_t num_outputs = op->get_output_size();
-    if (p.use_new_shape_infer()) {
+    if (p.use_new_shape_infer() && op->get_output_partial_shape(0).is_dynamic()) {
+        // Case of NMSIEInternal op with dynamic output shape
         auto NMSLayerName = layer_type_name_ID(op);
         auto prim = cldnn::non_max_suppression(
                 NMSLayerName,
@@ -94,6 +95,31 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
             num_outputs);
 
         p.add_primitive(*op, nms_gather_prim);
+    } else if (p.use_new_shape_infer() && !op->get_output_partial_shape(0).is_dynamic()) {
+        // Case of NMSIEInternal op with static output shape
+        auto NMSLayerName = layer_type_name_ID(op);
+        auto prim = cldnn::non_max_suppression(
+                NMSLayerName,
+                reordered_inputs[0],
+                reordered_inputs[1],
+                0,
+                op->m_center_point_box,
+                op->m_sort_result_descending,
+                "", "", "", "", "", "", num_outputs);
+
+        prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
+        prim.rotation = rotation;
+
+        switch (reordered_inputs.size()) {
+            case 6: prim.soft_nms_sigma = reordered_inputs[5].pid;
+            case 5: prim.score_threshold = reordered_inputs[4].pid;
+            case 4: prim.iou_threshold = reordered_inputs[3].pid;
+            case 3: prim.num_select_per_class = reordered_inputs[2].pid;
+            case 2: break;
+            default: OPENVINO_THROW("Incorrect number of input primitives for layer: ", op->get_friendly_name());
+        }
+
+        p.add_primitive(*op, prim);
     } else {
         auto outputIndices = op->get_output_partial_shape(0)[0].get_length();
 
@@ -189,6 +215,90 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
     }
 }
 
-REGISTER_FACTORY_IMPL(internal, NonMaxSuppressionIEInternal);
+static void CreateNonMaxSuppressionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::NonMaxSuppression>& op) {
+    cldnn::non_max_suppression::Rotation rotation = cldnn::non_max_suppression::Rotation::NONE;
+    validate_inputs_count(op, {2, 3, 4, 5, 6});
 
+    auto inputs = p.GetInputInfo(op);
+    std::vector<cldnn::input_info> reordered_inputs;
+    reordered_inputs.resize(inputs.size());
+
+    for (size_t portIndex = 0; portIndex < inputs.size(); portIndex++) {
+        auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
+        if ((portIndex == 2) && (inputDataType == cldnn::data_types::i64)) {
+            // GPU primitive supports only i32 data type for 'max_output_boxes_per_class' input
+            // so we need additional reorder if it's provided as i64
+            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preProcessTag;
+            auto targetFormat = cldnn::format::get_default_format(op->get_input_partial_shape(portIndex).size());
+            auto preprocessPrim = cldnn::reorder(reorderPrimName,
+                                                 inputs[portIndex],
+                                                 targetFormat,
+                                                 cldnn::data_types::i32);
+            p.add_primitive(*op, preprocessPrim);
+            reordered_inputs[portIndex] = cldnn::input_info(reorderPrimName);
+        } else {
+            reordered_inputs[portIndex] = inputs[portIndex];
+        }
+    }
+
+    auto boxesShape = op->get_input_partial_shape(0);
+    size_t num_outputs = op->get_output_size();
+    auto NMSLayerName = layer_type_name_ID(op);
+    bool center_point_box = false;
+
+    switch (op->get_box_encoding()) {
+        case ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER:
+            center_point_box = true;
+            break;
+        case ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER:
+            center_point_box = false;
+            break;
+        default:
+            OPENVINO_THROW("NonMaxSuppression layer " + op->get_friendly_name() + " has unsupported box encoding");
+    }
+
+    auto prim = cldnn::non_max_suppression(
+            NMSLayerName,
+            reordered_inputs[0],
+            reordered_inputs[1],
+            0,
+            center_point_box,
+            op->get_sort_result_descending(),
+            "", "", "", "", "", "", num_outputs);
+
+    prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
+    prim.rotation = rotation;
+
+    switch (reordered_inputs.size()) {
+        case 6: prim.soft_nms_sigma = reordered_inputs[5].pid;
+        case 5: prim.score_threshold = reordered_inputs[4].pid;
+        case 4: prim.iou_threshold = reordered_inputs[3].pid;
+        case 3: prim.num_select_per_class = reordered_inputs[2].pid;
+        case 2: break;
+        default: OPENVINO_THROW("Incorrect number of input primitives for layer: ", op->get_friendly_name());
+    }
+
+    p.add_primitive(*op, prim);
+
+    auto NMSGatherLayerName = layer_type_name_ID(op) + "_NMSGather";
+    std::vector<cldnn::input_info> nms_gather_inputs;
+    const std::vector<cldnn::input_info> nms_gather_input_list = {
+        cldnn::input_info(NMSLayerName, 0),
+        cldnn::input_info(NMSLayerName, 1),
+        cldnn::input_info(NMSLayerName, 2)
+    };
+    for (size_t i = 0; i < num_outputs; i++) {
+        nms_gather_inputs.push_back(nms_gather_input_list[i]);
+    }
+
+    auto nms_gather_prim = cldnn::non_max_suppression_gather(
+        NMSGatherLayerName,
+        nms_gather_inputs,
+        num_outputs);
+
+    p.add_primitive(*op, nms_gather_prim);
+}
+
+REGISTER_FACTORY_IMPL(internal, NonMaxSuppressionIEInternal);
+REGISTER_FACTORY_IMPL(v9, NonMaxSuppression);
 }  // namespace ov::intel_gpu
