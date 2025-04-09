@@ -28,8 +28,9 @@ What's new
 
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
-  * New models supported: Phi-4 Mini, Jina CLIP v1, and Bce Embedding Base v1
-  * OpenVINO™ Model Server now supports VLM models
+  * New models supported: Phi-4 Mini, Jina CLIP v1, and Bce Embedding Base v1.
+  * OpenVINO™ Model Server now supports VLM models, including Qwen2-VL, Phi-3.5-Vision,
+    and InternVL2.
   * OpenVINO GenAI now includes image-to-image and inpainting features for transformer-based
     pipelines, such as Flux.1 and Stable Diffusion 3 models, enhancing their ability to
     generate more realistic content.
@@ -57,9 +58,9 @@ What's new
     Intel® Core™ 3 Processor N-series and Intel® Processor N-series
     (formerly codenamed Twin Lake) on Windows.
   * Additional LLM performance optimizations on Intel® Core™ Ultra 200H series processors
-    for improved 2nd token latency.
+    for improved 2nd token latency on Windows and Linux.
   * Enhanced performance and efficient resource utilization with the implementation of
-   Paged Attention and Continuous Batching by default in the GPU plugin.
+    Paged Attention and Continuous Batching by default in the GPU plugin.
   * Preview: The new OpenVINO backend for Executorch will enable accelerated inference and
     improved performance on Intel hardware, including CPUs, GPUs, and NPUs.
 
@@ -208,8 +209,6 @@ OpenVINO Model Server
 * Known limitations
 
   * `Chat/completions` accepts images encoded to base64 format but not as URL links.
-  * When VLM model is deployed on NPU with a very long prompt in the input or very high
-    image resolution, the execution might crash.
 
 Neural Network Compression Framework
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -264,7 +263,7 @@ OpenVINO.GenAI
 
   * Preview support for the Token Eviction mechanism for more efficient KVCache memory
     management of LLMs during text generation. Disabled by default.
-    `See the sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/site/docs/concepts/optimization-techniques/kvcache-eviction-algorithm.md>`.
+    `See the sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/site/docs/concepts/optimization-techniques/kvcache-eviction-algorithm.md>`__.
   * LLMPipeline C bindings and JavaScript bindings.
   * StreamerBase::write(int64_t token) and
     StreamerBase::write(const std::vector<int64_t>& tokens).
@@ -299,11 +298,42 @@ Jupyter Notebooks
 * `Keras3 with OpenVINO backend <https://openvinotoolkit.github.io/openvino_notebooks/?search=Run+inference+in+Keras+3+with+the+OpenVINO%E2%84%A2+IR+backend>`__
 
 
+Known Issues
+-----------------------------
 
+| **Component: NPU**
+| ID: n/a
+| Description:
+|   For LLM runs with prompts longer than the user may set through the MAX_PROMPT_LEN parameter,
+    an exception occurs, with a note providing the reason. In the current version of OpenVINO,
+    the message is not correct. in future releases, the explanation will be fixed.
 
+| **Component: NPU**
+| ID: 164469
+| Description:
+|   With the NPU Linux driver release v1.13.0, a new behavior for NPU recovery in kernel
+    has been introduced. Corresponding changes in Ubuntu kernels are pending, targeting
+    new kernel releases.
+| Workaround:
+|   If inference on NPU crashes, a manual reload of the driver is a recommended option
+    (``sudo rmmod intel_vpu`` ``sudo modprobe intel_vpu``.
+    A rollback to an earlier version of Linux NPU driver will also work.
 
+| **Component: GPU**
+| ID: 164331
+| Description:
+|   Qwen2-VL model crashes on some Intel platforms when large inputs are used.
+| Workaround:
+|   Build OpenVINO GenAI from source.
 
-
+| **Component: OpenVINO GenAI**
+| ID: 165686
+| Description:
+|   In the VLM ContinuousBatching pipeline, when multiple requests are processed
+    using ``add_request()`` and ``step()`` API in multiple threads, the resulting
+    text is not correct.
+| Workaround:
+|   Build OpenVINO GenAI from source.
 
 
 
@@ -647,6 +677,9 @@ Discontinued in 2025
 
   * The OpenVINO property of Affinity API is no longer available. It has been replaced with CPU
     binding configurations (``ov::hint::enable_cpu_pinning``).
+  * The openvino-nightly PyPI module has been discontinued. End-users should proceed with the
+    Simple PyPI nightly repo instead. More information in
+    `Release Policy <https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/release-policy.html#nightly-releases>`__.
 
 * Tools:
 
@@ -695,9 +728,6 @@ Deprecated and to be removed in the future
 * OpenCV binaries will be removed from Docker images in 2026.
 * Ubuntu 20.04 support will be deprecated in future OpenVINO releases due to the end of
   standard support.
-* The openvino-nightly PyPI module will soon be discontinued. End-users should proceed with the
-  Simple PyPI nightly repo instead. More information in
-  `Release Policy <https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/release-policy.html#nightly-releases>`__.
 * “auto shape” and “auto batch size” (reshaping a model in runtime) will be removed in the
   future. OpenVINO's dynamic shape models are recommended instead.
 * MacOS x86 is no longer recommended for use due to the discontinuation of validation.
