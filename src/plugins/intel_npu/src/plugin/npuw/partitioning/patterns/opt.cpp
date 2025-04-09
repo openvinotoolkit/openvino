@@ -1013,7 +1013,6 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
         auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
         auto new_scale_out = matched_out_s;
 
-        auto qcvtm_iter = node_to_output.find(qcvtm);
         if (matched_out_s.get_element_type() != ov::element::f16) {
             new_scale_out = std::make_shared<ov::op::v0::Convert>(matched_out_s, ov::element::f16);
         }
