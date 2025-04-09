@@ -130,7 +130,7 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     friend class Model;
 
 protected:
-    friend bool ov::op::util::input_sources_are_equal(const std::shared_ptr<ov::Node>&,
+    friend OPENVINO_API bool ov::op::util::input_sources_are_equal(const std::shared_ptr<ov::Node>&,
                                                       const std::shared_ptr<ov::Node>&,
                                                       const size_t);
     descriptor::Input& get_input_descriptor(size_t position);
