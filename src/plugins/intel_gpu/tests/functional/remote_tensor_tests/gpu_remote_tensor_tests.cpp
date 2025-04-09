@@ -2564,9 +2564,8 @@ void compare_data(const ov::Tensor& src, const ov::Tensor& dst) {
     }
 }
 
-template <ov::element::Type_t ET,
-          typename T = typename ov::element_type_traits<ET>::value_type>
-void init_tensor(const ov::Tensor& tensor) {
+template <ov::element::Type_t ET, typename T = typename ov::element_type_traits<ET>::value_type>
+void init_tensor(ov::Tensor& tensor) {
     const auto origPtr = tensor.data<T>();
     ASSERT_NE(nullptr, origPtr);
     for (size_t i = 0; i < tensor.get_size(); ++i) {
@@ -2574,7 +2573,7 @@ void init_tensor(const ov::Tensor& tensor) {
     }
 }
 
-void init_tensor(const ov::Tensor& tensor) {
+void init_tensor(ov::Tensor& tensor) {
     switch (tensor.get_element_type()) {
     case ov::element::f32:
         init_tensor<ov::element::f32>(tensor);
