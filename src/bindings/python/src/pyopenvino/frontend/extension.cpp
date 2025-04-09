@@ -143,9 +143,9 @@ void regclass_frontend_ProgressReporterExtension(py::module m) {
 
 void regclass_frontend_OpExtension(py::module m) {
     py::module frontend = m.def_submodule("frontend");
-    py::class_<PyFrontendOpExtension, std::shared_ptr<PyFrontendOpExtension>> ext(frontend,
-                                                                                  "OpExtension",
-                                                                                  py::dynamic_attr());
+    py::class_<PyFrontendOpExtension, std::shared_ptr<PyFrontendOpExtension>, ov::Extension> ext(frontend,
+                                                                                                 "OpExtension",
+                                                                                                 py::dynamic_attr());
 
     ext.def(py::init([](const std::string& fw_type_name,
                         const std::map<std::string, std::string>& attr_names_map,
