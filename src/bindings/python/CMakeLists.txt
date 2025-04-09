@@ -242,6 +242,7 @@ macro(ov_define_setup_py_packaging_vars)
         WHEEL_VERSION=${WHEEL_VERSION}
         WHEEL_BUILD=${WHEEL_BUILD}
         # build locations
+        OPENVINO_SOURCE_DIR=${OpenVINO_SOURCE_DIR}
         OPENVINO_BINARY_DIR=${OpenVINO_BINARY_DIR}
         OPENVINO_PYTHON_BINARY_DIR=${OpenVINOPython_BINARY_DIR}
         # to create proper directories for BA, OVC tools
@@ -276,9 +277,10 @@ macro(ov_define_setup_py_dependencies)
 
     list(APPEND ov_setup_py_deps
         ${openvino_py_files}
-        "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
+        "${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
         "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
-        "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
+        "${OpenVINOPython_SOURCE_DIR}/readme.txt"
         "${OpenVINO_SOURCE_DIR}/LICENSE"
         "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
         "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
@@ -320,6 +322,16 @@ if(ENABLE_PYTHON_PACKAGING)
     set(openvino_meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info")
     set(openvino_meta_info_file "${ov_install_lib}/${openvino_meta_info_subdir}/PKG-INFO")
 
+    execute_process(COMMAND ${Python3_EXECUTABLE} -m pip --version
+                OUTPUT_VARIABLE pip_version OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    string(REGEX MATCH "pip[ ]+([\\.0-9]*)" pip_version "${pip_version}")
+    set(pip_version ${CMAKE_MATCH_1})
+
+    if(pip_version VERSION_LESS 23.0)
+        message(FATAL_ERROR "pip version ${pip_version} is not supported. Please update pip to version 23.0 or higher.")
+    endif()
+        
     add_custom_command(OUTPUT ${openvino_meta_info_file}
         COMMAND ${CMAKE_COMMAND} -E remove_directory
             "${ov_python_package_prefix}"
@@ -327,19 +339,9 @@ if(ENABLE_PYTHON_PACKAGING)
                 # variables to reflect options (extensions only or full wheel package)
                 PYTHON_EXTENSIONS_ONLY=ON
                 SKIP_RPATH=ON
-            "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
-                --no-user-cfg
-                --quiet
-                build
-                    --executable "/usr/bin/python3"
-                build_ext
-                install
-                    --no-compile
-                    --prefix "${ov_python_package_prefix}"
-                    --install-lib "${ov_install_lib}"
-                    --install-scripts "${ov_python_package_prefix}/bin"
-                    --single-version-externally-managed
-                    --record=installed.txt
+                SETUPTOOLS_INSTALL_LIB=${ov_install_lib}
+                SETUPTOOLS_INSTALL_SCRIPTS=${ov_python_package_prefix}/bin
+                "${Python3_EXECUTABLE}" -m pip --python=/usr/bin/python3 install --verbose --ignore-requires-python --no-deps --no-compile --break-system-packages --prefix "${ov_python_package_prefix}" "${CMAKE_CURRENT_SOURCE_DIR}" 
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         DEPENDS ${ov_setup_py_deps}
         COMMENT "Create python package with ${openvino_meta_info_subdir} folder")
