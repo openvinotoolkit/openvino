@@ -15,7 +15,7 @@ from typing import List, Set
 SKIPS = [
     # This file contains constant.def_buffer(), which pybind11-stubgen generates methods for on CI
     # but not locally (__buffer__(), __release_buffer__())
-    "openvino/_pyopenvino/op/__init__.pyi"
+    "openvino/_pyopenvino/op/__init__.pyi",
 
     # The IOType class sometimes has a docstring, breaking the CI check
     "openvino/tools/ovc/moc_frontend/extractor.pyi"
