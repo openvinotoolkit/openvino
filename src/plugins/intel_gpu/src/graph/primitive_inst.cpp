@@ -19,6 +19,7 @@
 #include "resample_inst.h"
 #include "reshape_inst.h"
 #include "reorder_inst.h"
+#include "rms_inst.h"
 #include "eltwise_inst.h"
 #include "loop_inst.h"
 #include "deconvolution_inst.h"
@@ -1233,6 +1234,20 @@ void primitive_inst::update_impl(bool use_async_compilation) {
             }
         }
 #endif
+        if (_node->is_type<rms>()) {
+            const auto& input_layout = _impl_params->get_input_layout();
+            const auto& data_padding = input_layout.data_padding;
+            if (data_padding.is_dynamic() && _impl_params->_input_has_padding == false) {
+                const auto& lower_pads = data_padding._lower_size;
+                const auto& upper_pads = data_padding._upper_size;
+                _impl_params->_input_has_padding = std::any_of(lower_pads.begin(), lower_pads.end(), [](int value) {
+                    return value != 0;
+                });
+                _impl_params->_input_has_padding |= std::any_of(upper_pads.begin(), upper_pads.end(), [](int value) {
+                    return value != 0;
+                });
+            }
+        }
 
         _impl = _impls_factory->get_primitive_impl_for_params(*this, *_impl_params, use_async_compilation);
         GPU_DEBUG_TRACE_DETAIL << id() << " impl update: was: " << prev_impl_str << " now: " << _impl->get_kernel_name() << std::endl;
