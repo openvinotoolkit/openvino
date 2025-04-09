@@ -10,11 +10,15 @@ import filecmp
 import difflib
 from typing import List, Set
 
-# Due to numerous issues with stub generation reproducibility we need some skips
+# Due to numerous issues with stub generation reproducibility we need some skips.
+# The inconsistencies between generations most likely come from different environment/CMake setups.
 SKIPS = [
-    # This file contains constant.def_buffer(), which pybind11 generates methods for on CI
-    # but not locally (__buffer__(), __release_buffer__()). Probably depends on environment specifics.
+    # This file contains constant.def_buffer(), which pybind11-stubgen generates methods for on CI
+    # but not locally (__buffer__(), __release_buffer__())
     "openvino/_pyopenvino/op/__init__.pyi"
+
+    # The IOType class sometimes has a docstring, breaking the CI check
+    "openvino/tools/ovc/moc_frontend/extractor.pyi"
 ]
 
 def find_pyi_files(directory: str) -> Set[str]:

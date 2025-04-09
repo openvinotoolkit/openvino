@@ -98,6 +98,15 @@ else
     exit 1
 fi
 
+# The boolean value changes based on build parameters
+target_file="$output_dir/openvino/tools/ovc/convert_impl.pyi"
+if [ -f "$target_file" ]; then
+    sed -i '/^tf_frontend_with_python_bindings_installed: bool/d' "$target_file"
+else
+    echo "File $target_file not found."
+    exit 1
+fi
+
 changed_files=$(find "$output_dir" -type f -name '*.pyi')
 
 # Process each changed .pyi file
