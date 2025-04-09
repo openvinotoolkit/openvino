@@ -53,6 +53,9 @@ Tensor::Tensor(const element::Type& element_type, const Shape& shape, const Allo
 Tensor::Tensor(const element::Type& element_type, const Shape& shape, void* host_ptr, const Strides& byte_strides)
     : _impl{make_tensor(element_type, shape, host_ptr, byte_strides)} {}
 
+Tensor::Tensor(const element::Type& element_type, const Shape& shape, const void* host_ptr, const Strides& byte_strides)
+    : _impl{make_tensor(element_type, shape, host_ptr, byte_strides)} {}
+
 Tensor::Tensor(const Tensor& owner, const Coordinate& begin, const Coordinate& end)
     : _impl{make_tensor(owner._impl, begin, end)},
       _so{owner._so} {}
@@ -63,6 +66,12 @@ Tensor::Tensor(const ov::Output<const ov::Node>& port, const Allocator& allocato
              allocator) {}
 
 Tensor::Tensor(const ov::Output<const ov::Node>& port, void* host_ptr, const Strides& byte_strides)
+    : Tensor(port.get_element_type(),
+             port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape(),
+             host_ptr,
+             byte_strides) {}
+
+Tensor::Tensor(const ov::Output<const ov::Node>& port, const void* host_ptr, const Strides& byte_strides)
     : Tensor(port.get_element_type(),
              port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape(),
              host_ptr,
@@ -96,8 +105,12 @@ size_t Tensor::get_byte_size() const {
     OV_TENSOR_STATEMENT(return _impl->get_byte_size(););
 }
 
-void* Tensor::data(const element::Type& element_type) const {
+void* Tensor::data(const element::Type& element_type) {
     OV_TENSOR_STATEMENT(return _impl->data(element_type));
+}
+
+void* Tensor::data(const element::Type& element_type) const {
+    OV_TENSOR_STATEMENT(return const_cast<void*>(std::as_const(*_impl).data(element_type)););
 }
 
 bool Tensor::operator!() const noexcept {

@@ -23,6 +23,7 @@ DerivePointerAlignment: false
 FixNamespaceComments: true
 IndentCaseLabels: false
 IndentPPDirectives: AfterHash
+QualifierAlignment: Left
 ForEachMacros:
   - foreach
   - FOREACH_CHILD

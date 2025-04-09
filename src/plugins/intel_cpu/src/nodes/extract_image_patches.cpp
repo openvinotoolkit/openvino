@@ -456,7 +456,7 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc({{LayoutType::ncsp, precision}}, {{LayoutType::ncsp, precision}}, impl_desc_type::ref_any);
 }
 
-void ExtractImagePatches::execute(const dnnl::stream& strm) {
+void ExtractImagePatches::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (execPtr) {
         auto src = getSrcDataAtPort(0);
         auto dst = getDstDataAtPort(0);

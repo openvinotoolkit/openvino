@@ -471,7 +471,8 @@ public:
     void append_attribute(const char* name, const char* value) {
         os << " " << name << "=" << value;
     }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+    void on_adapter(const std::string& name,
+                    [[maybe_unused]] ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         append_attribute(name.c_str(), "Model");
     }
 

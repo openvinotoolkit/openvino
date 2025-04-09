@@ -89,7 +89,7 @@ protected:
     size_t m_internal_buffer_size = 0;
     size_t m_tensor_rank = 0;
 
-    const size_t rank6D = 6;
+    static constexpr size_t rank6D = 6;
 
     // Count of threads for parallel_nt
     int m_nthreads = 0;
@@ -112,7 +112,7 @@ protected:
                                const std::vector<MemoryPtr>& dstMemPtrs,
                                const std::vector<ptrdiff_t>& start_offset_in,
                                const std::vector<ptrdiff_t>& start_offset_out,
-                               size_t ithr) {
+                               [[maybe_unused]] size_t ithr) {
         for (size_t i = 0; i < srcMemPtrs.size(); i++) {
             call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
         }
@@ -137,7 +137,7 @@ public:
 protected:
     using dynamic_kernel = void (*)(const void*);
 
-    inline void init_call_args(jit_snippets_call_args& call_args, size_t ithr) {
+    inline void init_call_args(jit_snippets_call_args& call_args, [[maybe_unused]] size_t ithr) {
         call_args.register_loops(m_loop_args);
         std::copy(m_buffer_offsets.cbegin(), m_buffer_offsets.cend(), call_args.buffer_offsets);
     }

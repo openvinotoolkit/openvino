@@ -8,9 +8,11 @@
 #include "lazy_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "spatial.hpp"
+#include "util.hpp"
 
 void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
@@ -316,7 +318,9 @@ void ov::npuw::s11n::read(std::istream& stream, ov::element::Type& var) {
 
 // Weightless
 // FIXME: all serialization needs a good rewriting
-void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx) {
+void ov::npuw::s11n::write_weightless(std::ostream& stream,
+                                      const std::vector<ov::Tensor>& var,
+                                      const ov::npuw::s11n::WeightsContext& ctx) {
     write(stream, var.size());
     for (const auto& t : var) {
         if (!t) {
@@ -341,7 +345,7 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov
 
 void ov::npuw::s11n::read_weightless(std::istream& stream,
                                      std::vector<ov::Tensor>& var,
-                                     const ov::npuw::s11n::Weights& weights) {
+                                     const ov::npuw::s11n::WeightsContext& ctx) {
     var.clear();
     std::size_t size;
     read(stream, size);
@@ -365,7 +369,18 @@ void ov::npuw::s11n::read_weightless(std::istream& stream,
             std::size_t offset = 0;
             read(stream, offset);
             ov::Tensor t(type, shape);
-            std::memcpy(t.data(), weights->get_ptr(offset), byte_size);
+
+            if (ctx.weights) {
+                std::memcpy(t.data(), ctx.weights->get_ptr(offset), byte_size);
+            } else {
+                auto it = ctx.consts_cache.find({offset, byte_size});
+                NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
+                auto tensor = ov::npuw::util::tensor_from_const(it->second);
+                NPUW_ASSERT(tensor.get_byte_size() == byte_size && tensor.get_shape() == shape &&
+                            tensor.get_element_type() == type);
+                tensor.copy_to(t);
+            }
+
             var.push_back(t);
         } else {
             ov::Tensor t;
