@@ -4,22 +4,23 @@
 
 #include "qkv_proj_fusion.hpp"
 
+#include <cstddef>
 #include <cstdint>
-#include <iostream>
-#include <limits>
+#include <memory>
+#include <vector>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/type_relaxed.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/utils/gen_pattern.hpp"
-#include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
 

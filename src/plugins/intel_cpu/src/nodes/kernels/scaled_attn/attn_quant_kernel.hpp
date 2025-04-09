@@ -3,7 +3,8 @@
 //
 #pragma once
 
-#include "nodes/kernels/scaled_attn/common.hpp"
+#include <type_traits>
+
 #include "openvino/core/type/element_type.hpp"
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -13,6 +14,10 @@
 #include <cstdint>
 #if defined(HAVE_SVE)
 #    include "arm_sve.h"
+#endif
+
+#if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
+#    include "nodes/kernels/scaled_attn/common.hpp"
 #endif
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -147,7 +152,7 @@ void attn_dequant_u8_by_channel_kernel(const uint8_t* src,
                                        size_t dst_stride,
                                        float* scale,
                                        float* zp) {
-    uint8_t* src_nc = const_cast<uint8_t*>(src);
+    auto* src_nc = const_cast<uint8_t*>(src);
 
     for (size_t i = 0; i < seq_dim; ++i) {
         size_t j = 0;

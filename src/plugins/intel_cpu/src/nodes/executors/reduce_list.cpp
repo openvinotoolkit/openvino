@@ -4,6 +4,10 @@
 
 #include "reduce_list.hpp"
 
+#include <vector>
+
+#include "nodes/executors/executor.hpp"
+
 namespace ov::intel_cpu {
 
 const std::vector<ReduceExecutorDesc>& getReduceExecutorsList() {

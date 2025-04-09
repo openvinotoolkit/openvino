@@ -6,14 +6,28 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <numeric>
+#include <cstdlib>
+#include <memory>
+#include <mutex>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <set>
+#include <string>
 #include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "config.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #endif
 #include "cpu_map_scheduling.hpp"
-#include "graph.h"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"

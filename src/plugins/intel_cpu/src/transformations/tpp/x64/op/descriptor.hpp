@@ -3,6 +3,8 @@
 //
 
 #pragma once
+#include <ostream>
+
 #include "libxsmm_typedefs.h"
 #include "openvino/core/except.hpp"
 

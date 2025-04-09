@@ -34,7 +34,6 @@
 # -google-readability-casting,
 # -modernize-avoid-c-arrays,
 # -misc-header-include-cycle,
-# -misc-include-cleaner,
 # -misc-non-private-member-variables-in-classes,
 # -misc-use-anonymous-namespace,
 # -readability-implicit-bool-conversion,
@@ -74,7 +73,6 @@ Checks: >
   -modernize-use-trailing-return-type,
   -misc-header-include-cycle,
   -misc-const-correctness,
-  -misc-include-cleaner,
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
@@ -106,6 +104,9 @@ CheckOptions:
     value: "3"
   - key: modernize-use-override.AllowOverrideAndFinal
     value: true
+  # itt and conditional compilation are implemented via tricky macro combinations
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: ".*/itt.h;.*/itt.hpp;.*/selective_build.h"
 ### To be considered to enable:
 #  # Unifies the usage of the statements
 #  - key: readability-braces-around-statements.ShortStatementLines

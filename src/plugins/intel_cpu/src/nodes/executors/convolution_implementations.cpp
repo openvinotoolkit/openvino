@@ -2,13 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <optional>
 #include <vector>
 
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"

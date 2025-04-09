@@ -4,9 +4,16 @@
 
 #include "non_max_suppression.hpp"
 
-#include <memory>
+#include <cpu/x64/xbyak/xbyak.h>
 
-#include "utils/general_utils.h"
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <cstddef>
+
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;

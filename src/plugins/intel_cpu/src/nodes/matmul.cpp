@@ -4,23 +4,44 @@
 
 #include "matmul.h"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
 #include <memory>
-#include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
-#include "common/cpu_memcpy.h"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_shape.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "dnnl_postops_composer_legacy.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
+#include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
+#include "nodes/common/dnnl_executor.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/matmul.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 using namespace dnnl;
 

@@ -3,11 +3,12 @@
 //
 #pragma once
 
-#include <cpu/x64/amx_tile_configure.hpp>
-#include <cpu/x64/brgemm/brgemm.hpp>
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <cpu/x64/brgemm/brgemm_types.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
-#include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cstddef>
+#include <memory>
 #include <openvino/core/type/element_type.hpp>
 
 namespace ov::intel_cpu {

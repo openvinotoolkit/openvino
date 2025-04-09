@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <vector>
+#include <cstdint>
 
-#include "cpu_memory.h"
+#include "config.h"
 #include "executor_config.hpp"
 
 namespace ov::intel_cpu {
