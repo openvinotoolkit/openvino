@@ -287,41 +287,21 @@ bool ov::util::is_absolute_file_path(const std::string& path) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void ov::util::create_directory_recursive(const std::wstring& path) {
-    if (path.empty() || directory_exists(path)) {
-        return;
-    }
-
-    std::size_t pos = path.rfind(ov::util::FileTraits<wchar_t>::file_separator);
-    if (pos != std::wstring::npos) {
-        create_directory_recursive(path.substr(0, pos));
-    }
-
-    int err = wmakedir(path);
-    if (err != 0 && errno != EEXIST) {
-        std::stringstream ss;
-        // TODO: in case of exception it may be needed to remove all created sub-directories
-        ss << "Couldn't create directory [" << ov::util::wstring_to_string(path) << "], err=" << strerror(errno) << ")";
-        throw std::runtime_error(ss.str());
-    }
+    create_directory_recursive(std::filesystem::path{path});
 }
 #endif
 
 void ov::util::create_directory_recursive(const std::string& path) {
-    if (path.empty() || directory_exists(path)) {
-        return;
-    }
+    create_directory_recursive(std::filesystem::path{path});
+}
 
-    std::size_t pos = path.rfind(ov::util::FileTraits<char>::file_separator);
-    if (pos != std::string::npos) {
-        create_directory_recursive(path.substr(0, pos));
-    }
-
-    int err = makedir(path);
-    if (err != 0 && errno != EEXIST) {
-        std::stringstream ss;
-        // TODO: in case of exception it may be needed to remove all created sub-directories
-        ss << "Couldn't create directory [" << path << "], err=" << strerror(errno) << ")";
-        throw std::runtime_error(ss.str());
+void ov::util::create_directory_recursive(const std::filesystem::path& dir_path) {
+    if (!directory_exists(dir_path)) {
+        if (std::error_code ec; !std::filesystem::create_directories(dir_path, ec)) {
+            std::stringstream ss;
+            ss << "Couldn't create directory [" << dir_path.string() << "], err=" << ec.message() << ")";
+            throw std::runtime_error(ss.str());
+        }
     }
 }
 

@@ -137,6 +137,13 @@ bool is_absolute_file_path(const std::string& path);
  */
 void create_directory_recursive(const std::string& path);
 
+/**
+ * @brief Interface function to create directories recursively by given path
+ * @param path - path to file, can be relative to current working directory
+ * @throw runtime_error if any error occurred
+ */
+void create_directory_recursive(const std::filesystem::path& path);
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
  * @brief Interface function to create directorty recursively by given path
