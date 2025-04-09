@@ -86,10 +86,7 @@ inline void unpack8to4(uint8_t v, uint8_t &v0, uint8_t &v1) {
 // Function to convert a non-padded vector to a padded vector
 static void copy_to_padded_4bit_vector(const std::vector<int> &non_padded_dims, const uint8_t* non_padded_vec,
                                         const std::vector<int> &padded_dims, uint8_t* padded_vec) {
-    size_t non_padded_dims_size = std::accumulate(non_padded_dims.begin(), non_padded_dims.end(), 1, std::multiplies<int>()) / 2;
-    size_t padded_dims_size = std::accumulate(padded_dims.begin(), padded_dims.end(), 1, std::multiplies<int>()) / 2;
-    const size_t non_padded_dim1 = non_padded_dims[1];
-    size_t non_padded_row_size = non_padded_dim1 / 2;
+    size_t non_padded_row_size = non_padded_dims[1] / 2;
     size_t padded_row_size = padded_dims[1] / 2;
 
     // Even rows
