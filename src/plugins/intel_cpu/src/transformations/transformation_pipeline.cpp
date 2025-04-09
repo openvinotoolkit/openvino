@@ -1212,7 +1212,7 @@ void Transformations::MainSnippets() {
     auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n,
                                                    const ov::PartialShape& shape) {
         // SplitDimensionM transformation doesn't support dynamic shapes, so M dim is split in runtime configurator
-        if (shape.is_dynamic()) {
+        if (shape.is_dynamic() || shape.size() < 3) {
             return false;
         }
         const auto parallel_work_amount =
