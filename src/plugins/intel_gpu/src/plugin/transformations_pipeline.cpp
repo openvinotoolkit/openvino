@@ -817,7 +817,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal>(
             [&](const_node_ptr &node) -> bool {
             // Convert to NMSIEInternal when model is static
-            return func->is_dynamic() ? false : true;
+            return !func->is_dynamic() ? false : true;
         });
 
         // List of enabled/disabled transformations
