@@ -30,7 +30,6 @@ RUN apt-get update && \
         libhdf5-dev \
         # For building Python from source
         build-essential \
-        libffi-dev \
         libgdbm-dev \
         libc6-dev \
         libssl-dev \
@@ -117,13 +116,24 @@ RUN cd Python-3.10.16 && make distclean && \
         ac_cv_file__dev_ptc=no && \
     make -j 8 && make altinstall
 
+# Upgrade openssl to 3.3.1 for Python3.11 - 3.13 ssl module
+RUN wget https://www.openssl.org/source/openssl-3.3.1.tar.gz && \
+    tar -zxf openssl-3.3.1.tar.gz && \
+    cd openssl-3.3.1 && \
+    ./config && \
+    make install && \
+    ln -sf /usr/local/bin/openssl /usr/bin/openssl && \
+    echo /usr/local/lib64 | tee /etc/ld.so.conf.d/custom.conf && \
+    ldconfig && \
+    openssl version
+
 # Python 3.11
 # To cross-compile Python 3.11 we need to first compile it for the host
 RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
 
 RUN tar -xf Python-3.11.9.tar.xz && \
     cd Python-3.11.9 && \
-    ./configure --enable-optimizations && \
+    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
     make -j 8 && \
     make altinstall
 
@@ -146,7 +156,7 @@ RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
 
 RUN tar -xf Python-3.12.9.tar.xz && \
     cd Python-3.12.9 && \
-    ./configure --enable-optimizations && \
+    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
     make -j 8 && \
     make altinstall
 
@@ -169,7 +179,7 @@ RUN wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz
 
 RUN tar -xf Python-3.13.2.tar.xz && \
     cd Python-3.13.2 && \
-    ./configure --enable-optimizations && \
+    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
     make -j 8 && \
     make altinstall
 
