@@ -49,10 +49,8 @@ Node::NodesFactory& Node::factory() {
 }
 
 Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory)
-    : selectedPrimitiveDescriptorIndex(-1),
-      constant(ConstantType::NoConst),
-      context(std::move(ctx)),
-      algorithm(Algorithm::Default),
+    : context(std::move(ctx)),
+
       fusingPort(-1),
       engine(context->getEngine()),
       name(op->get_friendly_name()),
@@ -183,8 +181,7 @@ Node::Node(const std::string& type,
            const GraphContext::CPtr& ctx)
     : inputShapes(std::move(inShapes)),
       outputShapes(std::move(outShapes)),
-      selectedPrimitiveDescriptorIndex(-1),
-      constant(ConstantType::NoConst),
+
       context(ctx),
       originalInputPrecisions(std::move(inputPrecisions)),
       originalOutputPrecisions(std::move(outputPrecisions)),
@@ -341,7 +338,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
 bool Node::isOneDimShape(const ov::PartialShape& pshape) {
     int value_1_num = 0;
-    int sz = static_cast<int>(pshape.size());
+    auto sz = static_cast<int>(pshape.size());
     for (const auto& s : pshape) {
         if (s.is_static() && s.get_length() == 1) {
             value_1_num++;
@@ -364,7 +361,8 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
         return selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
     }
 
-    auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc, size_t i) {
+    auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc,
+                                       [[maybe_unused]] size_t i) {
         int estimate = 0;
         auto inputNodesNum = supportedPrimitiveDesc.getConfig().inConfs.size();
         for (size_t j = 0; j < inputNodesNum; j++) {
@@ -1328,6 +1326,8 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
             impl_desc_type::jit_sse42_dw, impl_desc_type::jit_sse42_1x1, impl_desc_type::jit_sse42,
 #if defined(OPENVINO_ARCH_ARM64)
             impl_desc_type::jit_asimd,
+#elif defined(OPENVINO_ARCH_RISCV64)
+            impl_desc_type::jit_gv,
 #endif
             impl_desc_type::gemm_any, impl_desc_type::gemm_blas, impl_desc_type::gemm_avx512, impl_desc_type::gemm_avx2,
             impl_desc_type::gemm_avx, impl_desc_type::gemm_sse42, impl_desc_type::gemm_acl, impl_desc_type::acl,
@@ -1498,7 +1498,7 @@ MemoryDescPtr Node::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t 
     return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(idx));
 }
 
-void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
+void Node::appendPostOpArgs([[maybe_unused]] const dnnl::primitive_attr& attr,
                             std::unordered_map<int, dnnl::memory>& primArgs,
                             const std::unordered_map<int, MemoryPtr>& postOpsArgs) {
     for (auto& entry : postOpsArgs) {
@@ -1535,17 +1535,17 @@ dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const VectorDims& dims)
     }
 }
 
-void Node::appendPostOps(dnnl::post_ops& ops,
-                         const VectorDims& postOpDims,
-                         std::unordered_map<int, MemoryPtr>& postOpsMem,
-                         const int channelAxis) {
+void Node::appendPostOps([[maybe_unused]] dnnl::post_ops& ops,
+                         [[maybe_unused]] const VectorDims& postOpDims,
+                         [[maybe_unused]] std::unordered_map<int, MemoryPtr>& postOpsMem,
+                         [[maybe_unused]] const int channelAxis) {
     OPENVINO_THROW("Fusing of ", NameFromType(this->getType()), " operation is not implemented");
 }
 
-void Node::appendPostOps(dnnl::post_ops& ops,
-                         const VectorDims& postOpDims,
-                         std::vector<const void*>& postOpsMem,
-                         const int channelAxis) {
+void Node::appendPostOps([[maybe_unused]] dnnl::post_ops& ops,
+                         [[maybe_unused]] const VectorDims& postOpDims,
+                         [[maybe_unused]] std::vector<const void*>& postOpsMem,
+                         [[maybe_unused]] const int channelAxis) {
     OPENVINO_THROW("Fusing of ", NameFromType(this->getType()), " operation is not implemented");
 }
 

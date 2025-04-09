@@ -48,6 +48,7 @@
 #include "nodes/interaction.h"
 #include "nodes/interpolate.h"
 #include "nodes/inverse.hpp"
+#include "nodes/istft.h"
 #include "nodes/llm_mlp.h"
 #include "nodes/log_softmax.h"
 #include "nodes/lora.h"
@@ -93,6 +94,7 @@
 #include "nodes/scaled_attn.h"
 #include "nodes/scatter_update.h"
 #include "nodes/search_sorted.h"
+#include "nodes/segment_max.h"
 #include "nodes/shapeof.h"
 #include "nodes/shuffle_channels.h"
 #include "nodes/softmax.h"
@@ -216,11 +218,13 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(DFT, Type::DFT);
     INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(STFT, Type::STFT);
+    INTEL_CPU_NODE(ISTFT, Type::ISTFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
     INTEL_CPU_NODE(Composite, Type::SubModel);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
     INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
+    INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);
     INTEL_CPU_NODE(LoRA, Type::LoRA);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);

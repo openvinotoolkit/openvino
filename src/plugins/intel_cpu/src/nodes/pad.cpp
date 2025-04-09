@@ -143,7 +143,7 @@ void Pad::initSupportedPrimitiveDescriptors() {
 
         config.outConfs[0].setMemDesc(
             creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID)));
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     };
 
     if (numOfDims == 4 || numOfDims == 5) {
@@ -251,13 +251,14 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     params.attrs.prc = srcMemPtr->getDesc().getPrecision();
     params.dataSize = params.attrs.prc.size();
 
-    auto fillingInParameters = [&](VectorIdxs& parameter, const size_t type, const size_t size, const int value) {
-        const int* ptr = srcMemory[type]->getDataAs<const int32_t>();
-        parameter.resize(size);
-        for (size_t i = 0; i < size; i++) {
-            parameter[i] = static_cast<int>(ptr[i]);
-        }
-    };
+    auto fillingInParameters =
+        [&](VectorIdxs& parameter, const size_t type, const size_t size, [[maybe_unused]] const int value) {
+            const auto* ptr = srcMemory[type]->getDataAs<const int32_t>();
+            parameter.resize(size);
+            for (size_t i = 0; i < size; i++) {
+                parameter[i] = static_cast<int>(ptr[i]);
+            }
+        };
     // if pad begin/end/value dynamic
     if (params.attrs.padsBegin.empty()) {
         fillingInParameters(params.attrs.padsBegin, PADS_BEGIN_ID, srcDims.size(), 0);
@@ -408,7 +409,7 @@ void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemP
     }
 }
 
-void Pad::execute(const dnnl::stream& strm) {
+void Pad::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has not compiled executor.");
     }
@@ -512,8 +513,8 @@ void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const Memor
 }
 
 void Pad::PadExecutor::padConstantZero(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
-    uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
+    const auto* srcData = srcMemPtr->getDataAs<const uint8_t>();
+    auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -557,8 +558,8 @@ void Pad::PadExecutor::padConstantZero(const MemoryPtr& srcMemPtr, const MemoryP
 }
 
 void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
-    uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
+    const auto* srcData = srcMemPtr->getDataAs<const uint8_t>();
+    auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -604,8 +605,8 @@ void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstM
 void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr,
                                              const MemoryPtr& dstMemPtr,
                                              const bool isSymmetric) {
-    const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
-    uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
+    const auto* srcData = srcMemPtr->getDataAs<const uint8_t>();
+    auto* dstData = dstMemPtr->getDataAs<uint8_t>();
     const size_t shift = isSymmetric ? 1 : 0;
     const size_t endSrcShift =
         (params.srcDimsForReflectOrSymmetric[params.nDimsForWork] - params.srcODims[params.nDimsForWork]) *

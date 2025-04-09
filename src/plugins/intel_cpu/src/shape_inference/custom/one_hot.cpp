@@ -21,7 +21,11 @@ Result OneHotShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
         OPENVINO_THROW("OneHot depth value can't be negative.");
     }
     auto result = input_shapes.front().get();
-    result.insert(result.begin() + m_axis, depth);
+    auto depth_pos = result.begin();
+    if (result.size() > 0) {
+        depth_pos += m_axis;
+    }
+    result.insert(depth_pos, depth);
 
     return {{std::move(result)}, ShapeInferStatus::success};
 }

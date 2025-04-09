@@ -462,7 +462,7 @@ struct ScatterElementsUpdateDispatcher {
     }
 
 private:
-    void scatterElementsUpdate_dispatch(ScatterElementsUpdateContext& ctx) {
+    void scatterElementsUpdate_dispatch([[maybe_unused]] ScatterElementsUpdateContext& ctx) {
         using namespace scatter_reductions;
         using DT_NONE = std::pair<DataType, ReduceNone>;
         using DT_SUM = std::pair<DataType, ReduceAdd>;
@@ -519,7 +519,7 @@ struct ScatterNDUpdateDispatcher {
     }
 
 private:
-    void scatterNDUpdate_dispatch(ScatterNDUpdateContext& ctx) {
+    void scatterNDUpdate_dispatch([[maybe_unused]] ScatterNDUpdateContext& ctx) {
         using namespace scatter_reductions;
         // ReduceNone does not depend on DataType.
         using DT_NONE = ReduceNone;
@@ -552,9 +552,9 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                                           int axis,
                                           const KernelType& kernel) {
     using namespace scatter_elements_update;
-    DataType* dataPtr = mem_data->getDataAs<DataType>();
-    DataType* updatePtr = mem_updates->getDataAs<DataType>();
-    uint8_t* indicesPtr = mem_indices->getDataAs<uint8_t>();
+    auto* dataPtr = mem_data->getDataAs<DataType>();
+    auto* updatePtr = mem_updates->getDataAs<DataType>();
+    auto* indicesPtr = mem_indices->getDataAs<uint8_t>();
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
@@ -565,7 +565,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     }
     CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
-    const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
+    const auto data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
 
     VectorDims squashed_indices_shape(indices_shape);
@@ -680,9 +680,9 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                                           const scatter_reductions::ReduceMean& kernel) {
     using namespace scatter_elements_update;
     CPU_NODE_ASSERT(reduction_type == ScatterUpdate::Reduction::MEAN, "The reduction type should be MEAN here.");
-    DataType* dataPtr = mem_data->getDataAs<DataType>();
-    DataType* updatePtr = mem_updates->getDataAs<DataType>();
-    uint8_t* indicesPtr = mem_indices->getDataAs<uint8_t>();
+    auto* dataPtr = mem_data->getDataAs<DataType>();
+    auto* updatePtr = mem_updates->getDataAs<DataType>();
+    auto* indicesPtr = mem_indices->getDataAs<uint8_t>();
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
@@ -693,7 +693,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     }
     CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
-    const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
+    const auto data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
 
     VectorDims squashed_indices_shape(indices_shape);
@@ -840,16 +840,16 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr,
               OV_CASE(ov::element::u8, uint8_t));
 }
 
-void ScatterUpdate::execute(const dnnl::stream& strm) {
+void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto indicesMemPtr = getSrcMemoryAtPort(INDICES_ID);
     auto updateMemPtr = getSrcMemoryAtPort(UPDATE_ID);
 
-    uint8_t* dstPtr = dstMemPtr->getDataAs<uint8_t>();
-    uint8_t* srcPtr = srcMemPtr->getDataAs<uint8_t>();
-    uint8_t* indicesPtr = indicesMemPtr->getDataAs<uint8_t>();
-    uint8_t* updatePtr = updateMemPtr->getDataAs<uint8_t>();
+    auto* dstPtr = dstMemPtr->getDataAs<uint8_t>();
+    auto* srcPtr = srcMemPtr->getDataAs<uint8_t>();
+    auto* indicesPtr = indicesMemPtr->getDataAs<uint8_t>();
+    auto* updatePtr = updateMemPtr->getDataAs<uint8_t>();
 
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
@@ -861,7 +861,7 @@ void ScatterUpdate::execute(const dnnl::stream& strm) {
         auto updateDims = updateMemPtr->getStaticDims();
         if (updateDims.size() <= 1) {
             DEBUG_LOG(getName(), " exec1DCase");
-            auto updateCnt = (updateDims.size() == 0) ? 1 : updateDims[0];
+            auto updateCnt = (updateDims.empty()) ? 1 : updateDims[0];
             auto srcLength = srcMemPtr->getStaticDims()[0];
             auto* psrc = reinterpret_cast<int32_t*>(srcPtr);
             auto* pdst = reinterpret_cast<int32_t*>(dstPtr);
@@ -880,7 +880,7 @@ void ScatterUpdate::execute(const dnnl::stream& strm) {
     int axis = 0;
     if (axisRelaxed) {
         auto axisMemPtr = getSrcMemoryAtPort(AXIS_ID);
-        uint8_t* axisPtr = axisMemPtr->getDataAs<uint8_t>();
+        auto* axisPtr = axisMemPtr->getDataAs<uint8_t>();
         if (axisSize == 4) {
             auto* axisPtr32 = reinterpret_cast<int32_t*>(axisPtr);
             axis = *axisPtr32;
@@ -1030,10 +1030,10 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& dstMemPtr,
 void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                                     const MemoryPtr& mem_indices,
                                     const MemoryPtr& mem_updates,
-                                    const scatter_reductions::ReduceNone& kernel) {
-    uint8_t* indices = mem_indices->getDataAs<uint8_t>();
-    uint8_t* update = mem_updates->getDataAs<uint8_t>();
-    uint8_t* dstData = mem_data->getDataAs<uint8_t>();
+                                    [[maybe_unused]] const scatter_reductions::ReduceNone& kernel) {
+    auto* indices = mem_indices->getDataAs<uint8_t>();
+    auto* update = mem_updates->getDataAs<uint8_t>();
+    auto* dstData = mem_data->getDataAs<uint8_t>();
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto elementsCount = getParentEdgeAt(DATA_ID)->getMemory().getShape().getElementsCount();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
@@ -1077,9 +1077,9 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                                     const MemoryPtr& mem_updates,
                                     const KernelType& kernel) {
     CPU_NODE_ASSERT(reduction_type != ScatterUpdate::Reduction::NONE, "The reduction should not be NONE.");
-    uint8_t* indices = mem_indices->getDataAs<uint8_t>();
-    DataType* update = mem_updates->getDataAs<DataType>();
-    DataType* dstData = mem_data->getDataAs<DataType>();
+    auto* indices = mem_indices->getDataAs<uint8_t>();
+    auto* update = mem_updates->getDataAs<DataType>();
+    auto* dstData = mem_data->getDataAs<DataType>();
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto elementsCount = getParentEdgeAt(DATA_ID)->getMemory().getShape().getElementsCount();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();

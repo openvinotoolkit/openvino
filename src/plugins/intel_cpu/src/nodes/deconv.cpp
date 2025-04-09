@@ -60,7 +60,7 @@ struct DeconvKey {
     dnnl::primitive_attr attr;
     impl_desc_type implType;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const DeconvKey& rhs) const;
 };
 
@@ -127,7 +127,7 @@ class DeconvolutionShapeInferFactory : public ShapeInferFactory {
 public:
     DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
 
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<DeconvolutionShapeInfer>(m_op);
     }
 
@@ -151,7 +151,7 @@ private:
             return m_shape_infer->get_pads_end();
         }
 
-        port_mask_t get_port_mask() const override {
+        [[nodiscard]] port_mask_t get_port_mask() const override {
             return m_port_mask;
         };
 
@@ -252,8 +252,12 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
 
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;
-    if (externOutShape && (isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2)))) {
-        lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+    if (externOutShape) {
+        isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        if (isConstOutShape) {
+            lastOutputSpatialDims =
+                ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+        }
     }
     if (externOutShape && isDynamicNode()) {
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
@@ -880,9 +884,9 @@ bool Deconvolution::isImplicit1x1PaddingAsymmetric(const VectorDims& inputDims) 
             return (i - 1) * s + 1 - o;
         };
         for (size_t i = 0; i < spatialRank; i++) {
-            int64_t inputDim = static_cast<int64_t>(inputDims[i + 2]);
-            int64_t outputDim = static_cast<int64_t>(lastOutputSpatialDims[i]);
-            int64_t stride = static_cast<int64_t>(deconvAttrs.stride[i]);
+            auto inputDim = static_cast<int64_t>(inputDims[i + 2]);
+            auto outputDim = static_cast<int64_t>(lastOutputSpatialDims[i]);
+            auto stride = static_cast<int64_t>(deconvAttrs.stride[i]);
             if (calPaddingEnd(inputDim, outputDim, stride) > 0) {
                 return true;
             }
@@ -1229,7 +1233,7 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
     if (shapeMemPtr->getStaticDims()[0] != spDimsNum) {
         OPENVINO_THROW("Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements");
     }
-    const int32_t* outShapePtr = shapeMemPtr->getDataAs<const int32_t>();
+    const auto* outShapePtr = shapeMemPtr->getDataAs<const int32_t>();
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
     return outSpDims;
 }

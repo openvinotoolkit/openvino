@@ -9,7 +9,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
@@ -144,6 +143,19 @@ TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
     ASSERT_TRUE(files_equal(bin_1, bin_2));
 }
 
+TEST_F(SerializationDeterministicityTest, ModelWithVariable) {
+    const auto model = ov::test::utils::getModelFromTestModelZoo(
+        ov::util::path_join({SERIALIZED_ZOO, "ir/dynamic_variable.xml"}).string());
+
+    auto expected = ov::test::readModel(model, "");
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
+
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::in);
+    std::ifstream xml_2(model, std::ios::in);
+
+    ASSERT_TRUE(files_equal(xml_1, xml_2));
+}
+
 class SerializationDeterministicityInputOutputTest : public testing::TestWithParam<ov::pass::Serialize::Version>,
                                                      public DeterministicityCommon {
 protected:
@@ -178,13 +190,13 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromOvModel) {
 
     std::shared_ptr<ov::Model> modelRef;
     {
-        auto parameter0 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
         parameter0->set_friendly_name("input0");
-        auto result0 = std::make_shared<ov::opset1::Result>(parameter0);
+        auto result0 = std::make_shared<ov::op::v0::Result>(parameter0);
         result0->set_friendly_name("output0");
-        auto parameter1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
         parameter1->set_friendly_name("input1");
-        auto result1 = std::make_shared<ov::opset1::Result>(parameter1);
+        auto result1 = std::make_shared<ov::op::v0::Result>(parameter1);
         result1->set_friendly_name("output1");
         modelRef =
             std::make_shared<ov::Model>(ov::NodeVector{result0, result1}, ov::ParameterVector{parameter0, parameter1});
@@ -301,13 +313,13 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromOvModelBybPath) {
 
     std::shared_ptr<ov::Model> modelRef;
     {
-        auto parameter0 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
         parameter0->set_friendly_name("input0");
-        auto result0 = std::make_shared<ov::opset1::Result>(parameter0);
+        auto result0 = std::make_shared<ov::op::v0::Result>(parameter0);
         result0->set_friendly_name("output0");
-        auto parameter1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
         parameter1->set_friendly_name("input1");
-        auto result1 = std::make_shared<ov::opset1::Result>(parameter1);
+        auto result1 = std::make_shared<ov::op::v0::Result>(parameter1);
         result1->set_friendly_name("output1");
         modelRef =
             std::make_shared<ov::Model>(ov::NodeVector{result0, result1}, ov::ParameterVector{parameter0, parameter1});

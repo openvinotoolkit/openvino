@@ -5,6 +5,7 @@
 #include "region_yolo.h"
 
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -48,7 +49,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
             new jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f, data_type::f32));
 
         if (mayiuse(avx512_core)) {
-            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
+            uni_vcvtneps2bf16 = std::make_unique<jit_uni_vcvtneps2bf16>(this, isa);
         }
 
         this->preamble();
@@ -197,7 +198,7 @@ private:
         }
     }
     inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
-        Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
+        auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
 
         switch (dst_dt) {
         case ov::element::f32:
@@ -326,13 +327,13 @@ void RegionYolo::createPrimitive() {
 
     block_size = 1;
     if (mayiuse(x64::avx512_core)) {
-        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx512_core>(jcp));
+        logistic_kernel = std::make_shared<jit_uni_logistic_kernel_f32<x64::avx512_core>>(jcp);
         block_size = 16;
     } else if (mayiuse(x64::avx2)) {
-        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx2>(jcp));
+        logistic_kernel = std::make_shared<jit_uni_logistic_kernel_f32<x64::avx2>>(jcp);
         block_size = 8;
     } else if (mayiuse(x64::sse41)) {
-        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::sse41>(jcp));
+        logistic_kernel = std::make_shared<jit_uni_logistic_kernel_f32<x64::sse41>>(jcp);
         block_size = 4;
     }
 
@@ -392,7 +393,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
     }
 }
 
-void RegionYolo::execute(const dnnl::stream& strm) {
+void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& inShape = getParentEdgeAt(0)->getMemory().getShape();
     const auto& inDims = inShape.getStaticDims();
     size_t B = (inShape.getRank() > 0) ? inDims[0] : 1;

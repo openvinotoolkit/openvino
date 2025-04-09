@@ -146,7 +146,7 @@ struct RNNKey {
     dnnl::algorithm cellAct;
     dnnl::rnn_direction direction;
     dnnl::primitive_attr attr;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const RNNKey& rhs) const;
 };
 
@@ -280,7 +280,8 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                               ov::op::v5::GRUSequence::get_type_info_static(),
                               ov::op::internal::AUGRUCell::get_type_info_static(),
                               ov::op::internal::AUGRUSequence::get_type_info_static())) {
-                if (rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh"}) {
+                if (const auto activations = std::vector<std::string>{"sigmoid", "tanh"};
+                    rnnCellBase->get_activations() != activations) {
                     errorMessage = "Not supported activation functions";
                     return false;
                 }
@@ -404,7 +405,7 @@ public:
         return m_shape_infer->get_pads_end();
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return m_shape_infer->get_port_mask();
     }
 
@@ -417,7 +418,7 @@ private:
 class RnnShapeInferFactory final : public ShapeInferFactory {
 public:
     RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<RnnShapeInfer>(m_op);
     }
 
@@ -1408,13 +1409,13 @@ void RNN::prepareParams() {
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    (void)prim_desc;
+std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc([[maybe_unused]] const dnnl::primitive_desc& prim_desc,
+                                               size_t idx) const {
     return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    (void)prim_desc;
+std::shared_ptr<MemoryDesc> RNN::getDstMemDesc([[maybe_unused]] const dnnl::primitive_desc& prim_desc,
+                                               size_t idx) const {
     return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 

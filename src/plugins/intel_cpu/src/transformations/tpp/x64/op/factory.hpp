@@ -12,8 +12,8 @@ class NodeFactory {
 public:
     static std::shared_ptr<ov::Node> create(const std::shared_ptr<ov::Node>& n);
     static bool is_supported(const std::shared_ptr<ov::Node>& n);
-    typedef std::function<std::shared_ptr<ov::Node>(const std::shared_ptr<ov::Node>&)> tpp_builder;
-    typedef std::function<bool(const std::shared_ptr<ov::Node>&)> tpp_matcher;
+    using tpp_builder = std::function<std::shared_ptr<ov::Node>(const std::shared_ptr<ov::Node>&)>;
+    using tpp_matcher = std::function<bool(const std::shared_ptr<ov::Node>&)>;
     struct TPPCustomBuilder {
         tpp_matcher matcher;
         tpp_builder builder;

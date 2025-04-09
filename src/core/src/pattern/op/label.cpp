@@ -21,6 +21,17 @@ ov::Output<ov::Node> ov::pass::pattern::op::Label::wrap_values(const ov::OutputV
     }
 }
 
+ov::Output<ov::Node> ov::pass::pattern::op::Label::wrap_values(const ov::NodeVector& wrapped_values) {
+    switch (wrapped_values.size()) {
+    case 0:
+        return std::make_shared<pattern::op::True>()->output(0);
+    case 1:
+        return wrapped_values[0];
+    default:
+        return std::make_shared<pattern::op::Or>(as_output_vector(wrapped_values))->output(0);
+    }
+}
+
 bool ov::pass::pattern::op::Label::match_value(ov::pass::pattern::Matcher* matcher,
                                                const ov::Output<ov::Node>& pattern_value,
                                                const ov::Output<ov::Node>& graph_value) {

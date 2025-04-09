@@ -176,10 +176,10 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
 
 template <typename inputType>
 inline float bilinearInterp(const inputType* data, const float x, const float y, const int width_) {
-    int x1 = static_cast<int>(std::floor(x));
-    int x2 = static_cast<int>(std::ceil(x));
-    int y1 = static_cast<int>(std::floor(y));
-    int y2 = static_cast<int>(std::ceil(y));
+    auto x1 = static_cast<int>(std::floor(x));
+    auto x2 = static_cast<int>(std::ceil(x));
+    auto y1 = static_cast<int>(std::floor(y));
+    auto y2 = static_cast<int>(std::ceil(y));
     float distX = x - x1;
     float distY = y - y1;
 
@@ -284,37 +284,38 @@ void PSROIPooling::executeAverage(const inputType* srcData,
     const float roiWidth = std::max<float>(roiEndW - roiStartW, 0.1f);  // avoid 0
     const float roiHeight = std::max<float>(roiEndH - roiStartH, 0.1f);
 
-    auto avgPsroi = [&](int c, int h, int w, int binOffIn, int binOffOut, int inBlkRes, int outBlkRes) {
-        float binSizeH = roiHeight / static_cast<float>(pooledHeight);
-        float binSizeW = roiWidth / static_cast<float>(pooledWidth);
+    auto avgPsroi =
+        [&]([[maybe_unused]] int c, int h, int w, int binOffIn, int binOffOut, int inBlkRes, int outBlkRes) {
+            float binSizeH = roiHeight / static_cast<float>(pooledHeight);
+            float binSizeW = roiWidth / static_cast<float>(pooledWidth);
 
-        int hStart = static_cast<int>(floor(static_cast<float>(h + 0) * binSizeH + roiStartH));
-        int hEnd = static_cast<int>(ceil(static_cast<float>(h + 1) * binSizeH + roiStartH));
+            auto hStart = static_cast<int>(floor(static_cast<float>(h + 0) * binSizeH + roiStartH));
+            auto hEnd = static_cast<int>(ceil(static_cast<float>(h + 1) * binSizeH + roiStartH));
 
-        hStart = std::min<int>(std::max<int>(hStart, 0), height);
-        hEnd = std::min<int>(std::max<int>(hEnd, 0), height);
-        int wStart = static_cast<int>(floor(static_cast<float>(w + 0) * binSizeW + roiStartW));
-        int wEnd = static_cast<int>(ceil(static_cast<float>(w + 1) * binSizeW + roiStartW));
+            hStart = std::min<int>(std::max<int>(hStart, 0), height);
+            hEnd = std::min<int>(std::max<int>(hEnd, 0), height);
+            auto wStart = static_cast<int>(floor(static_cast<float>(w + 0) * binSizeW + roiStartW));
+            auto wEnd = static_cast<int>(ceil(static_cast<float>(w + 1) * binSizeW + roiStartW));
 
-        wStart = std::min<int>(std::max<int>(wStart, 0), width);
-        wEnd = std::min<int>(std::max<int>(wEnd, 0), width);
+            wStart = std::min<int>(std::max<int>(wStart, 0), width);
+            wEnd = std::min<int>(std::max<int>(wEnd, 0), width);
 
-        const float binArea = static_cast<float>((hEnd - hStart) * (wEnd - wStart));
+            const auto binArea = static_cast<float>((hEnd - hStart) * (wEnd - wStart));
 
-        size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
-        dstData[dstIndex] = 0;
-        if (binArea) {
-            float outSum = 0.0f;
-            const int heightIndexBound = hEnd * hInputStride;
-            const int widthIndexBound = wEnd * wInputStride;
-            for (int hh = hStart * hInputStride; hh < heightIndexBound; hh += hInputStride) {
-                for (int ww = wStart * wInputStride; ww < widthIndexBound; ww += wInputStride) {
-                    outSum += srcData[binOffIn + hh + ww + inBlkRes];
+            size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
+            dstData[dstIndex] = 0;
+            if (binArea) {
+                float outSum = 0.0f;
+                const int heightIndexBound = hEnd * hInputStride;
+                const int widthIndexBound = wEnd * wInputStride;
+                for (int hh = hStart * hInputStride; hh < heightIndexBound; hh += hInputStride) {
+                    for (int ww = wStart * wInputStride; ww < widthIndexBound; ww += wInputStride) {
+                        outSum += srcData[binOffIn + hh + ww + inBlkRes];
+                    }
                 }
+                dstData[dstIndex] = outSum / binArea;
             }
-            dstData[dstIndex] = outSum / binArea;
-        }
-    };
+        };
     if (srcDesc.hasLayoutType(LayoutType::nspc)) {
         parallel_for2d(nh, nw, [&](int h, int w) {
             const int binOffsetOutput = n * nc * nh * nw;
@@ -416,10 +417,10 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
                     nw > 1 ? (w * widthScale + boxXmin * (width - 1)) : 0.5f * (boxXmin + boxXmax) * (width - 1);
 
                 if (!(inY < 0 || inY > height - 1 || inX < 0 || inX > width - 1)) {
-                    const int topYIndex = static_cast<int>(floorf(inY));
-                    int bottomYIndex = static_cast<int>(ceilf(inY));
-                    const int leftXIndex = static_cast<int>(floorf(inX));
-                    int rightXIndex = static_cast<int>(ceilf(inX));
+                    const auto topYIndex = static_cast<int>(floorf(inY));
+                    auto bottomYIndex = static_cast<int>(ceilf(inY));
+                    const auto leftXIndex = static_cast<int>(floorf(inX));
+                    auto rightXIndex = static_cast<int>(ceilf(inX));
 
                     if (rightXIndex > width - 1) {
                         rightXIndex = width - 1;
@@ -537,7 +538,7 @@ void PSROIPooling::executeBilinearDeformable(const inputType* srcData,
                 }
                 w1 = static_cast<float>((std::min)((std::max)(static_cast<double>(w1), 0.0), width - 1.0));
                 h1 = static_cast<float>((std::min)((std::max)(static_cast<double>(h1), 0.0), height - 1.0));
-                int c1 = static_cast<int>((c * groupSize + gh) * groupSize + gw);
+                auto c1 = static_cast<int>((c * groupSize + gh) * groupSize + gw);
                 float val = bilinearInterp<inputType>(offsetBottomData + c1 * height * width, w1, h1, width);
 
                 sum += val;
@@ -559,7 +560,7 @@ void PSROIPooling::executeSpecified() {
 
     int realRois = 0;
     for (; realRois < nn; realRois++) {
-        int roiBatchInd = static_cast<int>(bottomRoisBeginning[realRois * 5]);
+        auto roiBatchInd = static_cast<int>(bottomRoisBeginning[realRois * 5]);
         if (roiBatchInd == -1) {
             break;
         }
@@ -578,7 +579,7 @@ void PSROIPooling::executeSpecified() {
 
     parallel_for(realRois, [&](int currentRoi) {
         const float* bottomRois = bottomRoisBeginning + currentRoi * 5;
-        int roiBatchInd = static_cast<int>(bottomRois[0]);
+        auto roiBatchInd = static_cast<int>(bottomRois[0]);
         if (getAlgorithm() == Algorithm::PSROIPoolingAverage) {
             executeAverage(srcData, dstData, bottomRois, currentRoi, roiBatchInd, *srcDesc, *dstDesc);
         } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinear) {
@@ -614,7 +615,7 @@ struct PSROIPooling::PSROIPoolingExecute {
     }
 };
 
-void PSROIPooling::execute(const dnnl::stream& strm) {
+void PSROIPooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 

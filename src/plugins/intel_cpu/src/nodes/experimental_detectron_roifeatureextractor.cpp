@@ -79,8 +79,8 @@ void pre_calc_for_bilinear_interpolate(const int height,
                         x = 0;
                     }
 
-                    int y_low = static_cast<int>(y);
-                    int x_low = static_cast<int>(x);
+                    auto y_low = static_cast<int>(y);
+                    auto x_low = static_cast<int>(x);
                     int y_high = 0;
                     int x_high = 0;
 
@@ -316,7 +316,7 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronROIFeatureExtractor::execute(const dnnl::stream& strm) {
+void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];

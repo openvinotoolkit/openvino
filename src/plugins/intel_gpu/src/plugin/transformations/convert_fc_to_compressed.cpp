@@ -154,8 +154,12 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
             fc_input_b = transpose->clone_with_new_inputs({ fc_input_b->output(0), transpose_const });
             result_nodes.push_back(fc_input_b);
-            fc_input_scale = transpose->clone_with_new_inputs({ scale->output(0), transpose_const });
-            result_nodes.push_back(fc_input_scale);
+
+            if (ov::shape_size(scale->output(0).get_shape()) > 1) {
+                fc_input_scale = transpose->clone_with_new_inputs({ scale->output(0), transpose_const });
+                result_nodes.push_back(fc_input_scale);
+            }
+
             if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
                 fc_input_zp = transpose->clone_with_new_inputs({ optional_zero_point->output(0), transpose_const });
                 result_nodes.push_back(fc_input_zp);
@@ -164,7 +168,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         if (pattern_map.count(mul2_m)) {
             auto mul2_op_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul2_const_m).get_node_shared_ptr());
-            fc_input_scale = ov::op::util::eltwise_fold<ov::op::v1::Multiply>(fc_input_scale, mul2_op_const).get_node_shared_ptr();
+            fc_input_scale = ov::op::util::make_try_fold<ov::op::v1::Multiply>(fc_input_scale, mul2_op_const);
         }
 
         std::shared_ptr<ov::Node> new_fc = nullptr;
