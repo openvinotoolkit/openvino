@@ -135,7 +135,8 @@ RUN tar -xf Python-3.11.9.tar.xz && \
     cd Python-3.11.9 && \
     LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
     make -j 8 && \
-    make altinstall
+    make altinstall && \
+    curl https://bootstrap.pypa.io/get-pip.py | python3.11 - --no-cache-dir pip==24.2 numpy cython crossenv
 
 # Compile Python 3.11 for ARM
 RUN cd Python-3.11.9 && make distclean && \
@@ -158,7 +159,8 @@ RUN tar -xf Python-3.12.9.tar.xz && \
     cd Python-3.12.9 && \
     LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
     make -j 8 && \
-    make altinstall
+    make altinstall && \
+    curl https://bootstrap.pypa.io/get-pip.py | python3.12 - --no-cache-dir pip==24.2 numpy cython crossenv
 
 # Compile Python 3.12 for ARM
 RUN cd Python-3.12.9 && make distclean && \
@@ -181,7 +183,8 @@ RUN tar -xf Python-3.13.2.tar.xz && \
     cd Python-3.13.2 && \
     LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
     make -j 8 && \
-    make altinstall
+    make altinstall && \
+    curl https://bootstrap.pypa.io/get-pip.py | python3.13 - --no-cache-dir pip==24.2
 
 # Compile Python 3.13 for ARM
 RUN cd Python-3.13.2 && make distclean && \
