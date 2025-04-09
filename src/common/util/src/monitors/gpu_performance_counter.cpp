@@ -135,7 +135,7 @@ public:
                 auto countersList = coreCounters[counterIndex];
                 for (auto counter : countersList) {
                     auto status = query.pdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, NULL, &displayValue);
-                    if (status != ERROR_SUCCESS) {
+                    if (!status) {
                         continue;
                     }
                     utilization += displayValue.doubleValue;

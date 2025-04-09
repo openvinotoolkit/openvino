@@ -586,7 +586,8 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         // check if device support this model precision
         if (!is_supported_model(device_info.device_name) && meta_devices.size() > 1)
             continue;
-        if (!utilization_thresholds.empty() && utilization_thresholds.count(device_info.device_name)) {
+        ov::DeviceIDParser parsed{device_info.device_name};
+        if (!utilization_thresholds.empty() && utilization_thresholds.count(parsed.get_device_name())) {
             std::string device_luid;
             std::map<std::string, double> device_utilization;
             try {
@@ -609,12 +610,12 @@ std::list<DeviceInformation> Plugin::get_valid_device(
                 if (device_luid.empty()) {
                     device_luid = "Total";
                 }
-                if (device_utilization[device_luid] >= utilization_thresholds.at(device_info.device_name)) {
+                if (device_utilization[device_luid] >= utilization_thresholds.at(parsed.get_device_name())) {
                     is_excluded = true;
                     LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
                                   device_info.device_name.c_str(),
                                   std::to_string(device_utilization[device_luid]).c_str(),
-                                  std::to_string(utilization_thresholds.at(device_info.device_name)).c_str());
+                                  std::to_string(utilization_thresholds.at(parsed.get_device_name())).c_str());
                 }
             } catch (const ov::Exception&) {
                 LOG_DEBUG_TAG("Failed to get luid for %s", device_info.device_name.c_str());

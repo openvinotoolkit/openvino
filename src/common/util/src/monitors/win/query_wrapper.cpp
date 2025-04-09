@@ -83,7 +83,7 @@ PDH_STATUS QueryWrapper::pdhGetFormattedCounterValue(PDH_HCOUNTER hCounter,
         auto pPdhGetFormattedCounterValue =
             reinterpret_cast<PdhGetFormattedCounterValue_fn>(GetProcAddress(hPdh, "PdhGetFormattedCounterValue"));
         if (pPdhGetFormattedCounterValue) {
-            return pPdhGetFormattedCounterValue(hCounter, dwFormat, lpdwType, pValue);
+            return ERROR_SUCCESS == pPdhGetFormattedCounterValue(hCounter, dwFormat, lpdwType, pValue);
         }
     } catch (...) {
         return ERROR;
