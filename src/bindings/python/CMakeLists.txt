@@ -322,16 +322,6 @@ if(ENABLE_PYTHON_PACKAGING)
     set(openvino_meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info")
     set(openvino_meta_info_file "${ov_install_lib}/${openvino_meta_info_subdir}/PKG-INFO")
 
-    execute_process(COMMAND ${Python3_EXECUTABLE} -m pip --version
-                OUTPUT_VARIABLE pip_version OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-    string(REGEX MATCH "pip[ ]+([\\.0-9]*)" pip_version "${pip_version}")
-    set(pip_version ${CMAKE_MATCH_1})
-
-    if(pip_version VERSION_LESS 23.0)
-        message(FATAL_ERROR "pip version ${pip_version} is not supported. Please update pip to version 23.0 or higher.")
-    endif()
-        
     add_custom_command(OUTPUT ${openvino_meta_info_file}
         COMMAND ${CMAKE_COMMAND} -E remove_directory
             "${ov_python_package_prefix}"
