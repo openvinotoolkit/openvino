@@ -244,17 +244,17 @@ OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_org_proc_type_table();
  * The following are two example of processor type table.
  *  1. Processor table of 4 numa nodes and 2 socket server
  *
- *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC | PROC_NUMA_NODE_ID | PROC_SOCKET_ID
- *     96            48                 0                       48                  -1                 -1
- *     24            12                 0                       12                   0                  0
- *     24            12                 0                       12                   1                  0
- *     24            12                 0                       12                   2                  1
- *     24            12                 0                       12                   3                  1
+ *  ALL_PROC | MAIN_CORE | EFFICIENT_CORE | LP_EFFICIENT_CORE | HYPER_THREADING | NUMA_NODE_ID | SOCKET_ID
+ *     96         48            0                  0                   48              -1           -1
+ *     24         12            0                  0                   12               0            0
+ *     24         12            0                  0                   12               1            0
+ *     24         12            0                  0                   12               2            1
+ *     24         12            0                  0                   12               3            1
  *
  * 2. Processor table of 1 numa node desktop
  *
- *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC | PROC_NUMA_NODE_ID | PROC_SOCKET_ID
- *     32            8                 16                       8                   -1                 -1
+ *  ALL_PROC | MAIN_CORE | EFFICIENT_CORE | LP_EFFICIENT_CORE | HYPER_THREADING | NUMA_NODE_ID | SOCKET_ID
+ *     16          4            8                  4                   0                0            0
  */
 enum ColumnOfProcessorTypeTable {
     ALL_PROC = 0,                //!< All processors, regardless of backend cpu

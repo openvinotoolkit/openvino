@@ -57,10 +57,10 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_36streams = {
     2,   // param[in]: the number of numa nodes
     // param[in]: proc_type_table, {total processors, number of physical processors, number of Efficient processors,
     // number of hyper threading processors}
-    {{72, 36, 0, 0, 36, -1, -1},  // total number of processors: 72, the number of physical/hyper threading processors is
-                               // 36
-     {36, 18, 0, 0, 18, 0, 0},    // the number of MAIN_CORE_PROC/HYPER_THREADING_PROC cores on each numa node 0 is 18.
-     {36, 18, 0, 0, 18, 1, 1}},   // the number of MAIN_CORE_PROC/HYPER_THREADING_PROC cores on each numa node 1 is 18.
+    {{72, 36, 0, 0, 36, -1, -1},  // total number of processors: 72, the number of physical/hyper threading processors
+                                  // is 36
+     {36, 18, 0, 0, 18, 0, 0},   // the number of MAIN_CORE_PROC/HYPER_THREADING_PROC cores on each numa node 0 is 18.
+     {36, 18, 0, 0, 18, 1, 1}},  // the number of MAIN_CORE_PROC/HYPER_THREADING_PROC cores on each numa node 1 is 18.
     // param[in]: cpu_mapping_table, {PROCESSOR_ID, SOCKET_ID, CORE_ID, CORE_TYPE, GROUP_ID, Used}
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
