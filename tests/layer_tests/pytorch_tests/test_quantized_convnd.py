@@ -116,17 +116,14 @@ class TestQuantizedConv1D(PytorchLayerTest):
                     groups=groups,
                     bias=bias,
                 )
-
-                # Bias is a tensor, not a callable!
                 if bias:
                     torch.nn.init.normal_(self.conv.bias())
-
-                # Assign quantization parameters
                 self.conv.scale = float(scale)
                 self.conv.zero_point = int(zero_point)
 
             def forward(self, x):
-                x_quantized = torch.quantize_per_tensor(x, scale=1.0, zero_point=0, dtype=torch.quint8)
+                x_quantized = torch.quantize_per_tensor(
+                    x, scale=1.0, zero_point=0, dtype=torch.quint8)
                 y = self.conv(x_quantized)
                 return torch.dequantize(y)
 
@@ -141,13 +138,19 @@ class TestQuantizedConv1D(PytorchLayerTest):
     @pytest.mark.parametrize(
         "params",
         [
-            {"weights_shape": [1, 3, 3], "stride": 1, "pad": 0, "dilation": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3], "stride": 1, "pad": 0, "dilation": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3], "stride": 2, "pad": 0, "dilation": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3], "stride": 1, "pad": 1, "dilation": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3], "stride": 1, "pad": 0, "dilation": 2, "groups": 1},
-            {"weights_shape": [3, 1, 3], "stride": 1, "pad": 0, "dilation": 1, "groups": 3},
-        ]
+            {"weights_shape": [1, 3, 3], "stride": 1,
+             "pad": 0, "dilation": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "stride": 1,
+             "pad": 0, "dilation": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "stride": 2,
+             "pad": 0, "dilation": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "stride": 1,
+             "pad": 1, "dilation": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "stride": 1,
+             "pad": 0, "dilation": 2, "groups": 1},
+            {"weights_shape": [3, 1, 3], "stride": 1,
+             "pad": 0, "dilation": 1, "groups": 3},
+        ],
     )
     @pytest.mark.parametrize("bias", [True, False])
     @pytest.mark.parametrize("relu", [True, False])
@@ -155,16 +158,12 @@ class TestQuantizedConv1D(PytorchLayerTest):
     @pytest.mark.parametrize("zero_point", [0, 1])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(
-        condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-        reason='Ticket - 122715'
-    )
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_quantized_conv1d(self, params, bias, relu, scale, zero_point, ie_device, precision, ir_version):
         self._test(
             *self.create_model(**params, bias=bias, relu=relu,
                                scale=scale, zero_point=zero_point),
-            ie_device, precision, ir_version,
-            trace_model=True, freeze_model=False,
-            quantized_ops=True, quant_size=scale
+            ie_device, precision, ir_version, trace_model=True, freeze_model=False, quantized_ops=True, quant_size=scale
         )
       
