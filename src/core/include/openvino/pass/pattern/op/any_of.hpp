@@ -20,21 +20,26 @@ public:
     OPENVINO_RTTI("patternAnyOf");
     /// \brief creates a AnyOf node containing a sub-pattern described by \sa type and
     ///        \sa shape.
-    template <typename TPredicate, typename TArg>
-    AnyOf(const element::Type& type, const PartialShape& s, const TPredicate& pred, const TArg& wrapped_values)
+    template <typename TPredicate>
+    AnyOf(const element::Type& type, const PartialShape& s, const TPredicate& pred, const OutputVector& wrapped_values)
         : Pattern(wrapped_values, Predicate(pred)) {
         if (wrapped_values.size() != 1) {
             OPENVINO_THROW("AnyOf expects exactly one argument");
         }
         set_output_type(0, type, s);
     }
+    template <typename TPredicate>
+    AnyOf(const element::Type& type, const PartialShape& s, const TPredicate& pred, const NodeVector& wrapped_values)
+        : AnyOf(type, s, Predicate(pred), as_output_vector(wrapped_values)) {}
 
     /// \brief creates a AnyOf node containing a sub-pattern described by the type and
     ///        shape of \sa node.
-    template <typename TPredicate, typename TArg>
-    AnyOf(const Output<Node>& node, const TPredicate& pred, const TArg& wrapped_values)
+    template <typename TPredicate>
+    AnyOf(const Output<Node>& node, const TPredicate& pred, const OutputVector& wrapped_values)
         : AnyOf(node.get_element_type(), node.get_partial_shape(), pred, wrapped_values) {}
-
+    template <typename TPredicate>
+    AnyOf(const std::shared_ptr<Node>& node, const TPredicate& pred, const NodeVector& wrapped_values)
+        : AnyOf(node, Predicate(pred), as_output_vector(wrapped_values)) {}
     bool match_value(Matcher* matcher, const Output<Node>& pattern_value, const Output<Node>& graph_value) override;
 };
 }  // namespace ov::pass::pattern::op
