@@ -526,13 +526,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
             //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
             //   until the SDPA operation is optimized for these cases
-            const auto optimal_subgroup_size = 16;
-            bool valid_head_size = head_size % optimal_subgroup_size == 0;
-            valid_head_size &= (head_size >= 64 && head_size <= 256);
+            bool valid_head_size = (head_size >= 64 && head_size <= 256);
             if (!valid_head_size) {
                 return false;
             }
 
+            const auto optimal_subgroup_size = 16;
+            // sdpa_opt is not supporthing compressed KV yet
+            if (head_size % optimal_subgroup_size != 0 && ov::element::Type(config.get_kv_cache_precision()).size() < 2) {
+                return false;
+            }
             return true;
         });
 

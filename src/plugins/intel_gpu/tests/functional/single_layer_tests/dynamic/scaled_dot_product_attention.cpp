@@ -309,6 +309,20 @@ const std::vector<std::vector<InputShape>> shapes{
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
             {ov::Shape{1, 1, 7, 7}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
         },
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 16, -1, 72},
+            {ov::Shape{1, 16, 32, 72}}}
+        },
+        // kv shape
+        {ov::test::InputShape{ov::PartialShape{-1, 16, -1, 72},
+            {ov::Shape{1, 16, 32, 72}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 32, 32}}}
+        },
     }
 };
 
