@@ -167,14 +167,14 @@ protected:
                             const std::vector<uint8_t*>& dst_ptrs,
                             const std::vector<size_t>& indexes) const {
         for (size_t i = 0; i < src_ptrs.size(); i++) {
-            auto i_ptr = src_ptrs[i];
+            const auto* i_ptr = src_ptrs[i];
             for (size_t j = 0; j < indexes.size(); j++) {
                 i_ptr += m_data_offsets[i][j] * indexes[j];
             }
             call_args.src_ptrs[i] = i_ptr;
         }
         for (size_t i = 0; i < dst_ptrs.size(); i++) {
-            auto i_ptr = dst_ptrs[i];
+            auto* i_ptr = dst_ptrs[i];
             for (size_t j = 0; j < indexes.size(); j++) {
                 i_ptr += m_data_offsets[i + src_ptrs.size()][j] * indexes[j];
             }

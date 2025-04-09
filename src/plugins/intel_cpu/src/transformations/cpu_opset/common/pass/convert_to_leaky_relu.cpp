@@ -16,7 +16,7 @@ ov::intel_cpu::ConvertToLeakyRelu::ConvertToLeakyRelu() {
     auto slope_constant = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
     auto prelu = ov::pass::pattern::wrap_type<ov::opset1::PRelu>({input, slope_constant});
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto prelu = ov::as_type_ptr<ov::opset1::PRelu>(m.get_match_root());
         if (!prelu) {
             return false;

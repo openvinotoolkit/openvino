@@ -258,10 +258,10 @@ void Pooling::initEffectiveAttributes(const Shape& inShape, const Shape& outShap
     const auto& outDims = outShape.getStaticDims();
 
     for (size_t i = 0; i < poolingAttrs.effective_pad_end.size(); i++) {
-        int krn = poolingAttrs.kernel[i];
-        int dil = poolingAttrs.dilation[i];
-        int src = inDims[2 + i];
-        int dst = outDims[2 + i];
+        const int krn = poolingAttrs.kernel[i];
+        const int dil = poolingAttrs.dilation[i];
+        const int src = inDims[2 + i];
+        const int dst = outDims[2 + i];
 
         poolingAttrs.effective_pad_end[i] =
             (dst - 1) * poolingAttrs.stride[i] - (src - (1 + (krn - 1) * dil) + poolingAttrs.data_pad_begin[i]);
@@ -281,7 +281,7 @@ void Pooling::getSupportedDescriptors() {
         THROW_CPU_NODE_ERR("Incorrect number of output edges");
     }
 
-    ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
+    const ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
 
     const auto& parentShape = getInputShapeAtPort(0);
@@ -412,7 +412,7 @@ void Pooling::getSupportedDescriptors() {
 }
 
 void Pooling::prepareParams() {
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
     }
@@ -464,18 +464,18 @@ void Pooling::prepareParams() {
             initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
         }
 
-        dnnl::algorithm alg = getPoolingAlgorithm();
-        PoolingKey key = {inDesc,
-                          outDesc,
-                          poolingAttrs.stride,
-                          poolingAttrs.kernel,
-                          poolingAttrs.effective_pad_begin,
-                          poolingAttrs.effective_pad_end,
-                          poolingAttrs.effective_dilation,
-                          poolingAttrs.data_pad_end,
-                          *attr,
-                          alg,
-                          selected_pd->getImplementationType()};
+        const dnnl::algorithm alg = getPoolingAlgorithm();
+        const PoolingKey key = {inDesc,
+                                outDesc,
+                                poolingAttrs.stride,
+                                poolingAttrs.kernel,
+                                poolingAttrs.effective_pad_begin,
+                                poolingAttrs.effective_pad_end,
+                                poolingAttrs.effective_dilation,
+                                poolingAttrs.data_pad_end,
+                                *attr,
+                                alg,
+                                selected_pd->getImplementationType()};
         auto engine = getEngine();
         auto builder = [&engine](const PoolingKey& key) -> executorPtr {
             auto prim_desc = createDescriptorHelper(engine,
@@ -517,7 +517,7 @@ void Pooling::prepareParams() {
         Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
 #ifdef CPU_DEBUG_CAPS
-        auto pd = dnnlExecPtr->getPrimitiveDesc();
+        const auto* pd = dnnlExecPtr->getPrimitiveDesc();
         DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
     }
@@ -626,7 +626,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
     }
 
     if (useACL) {
-        auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+        const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
         auto pushDesc = [&](LayoutType format) {
             NodeConfig config;
             config.inConfs.resize(getParentEdges().size());
@@ -756,7 +756,7 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
     dnnl::post_ops ops;
 
     for (auto& node : fusedWith) {
-        int channelAxis = 1;
+        const int channelAxis = 1;
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {

@@ -67,7 +67,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     auto rtPrecision = getRuntimePrecision();
 
     NodeConfig config;
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto orgInputNumber = getOriginalInputsNumber();
     config.inConfs.resize(orgInputNumber);
     config.outConfs.resize(getOriginalOutputsNumber());
@@ -170,7 +170,7 @@ void PagedAttention::createPrimitive() {
     auto rtPrecision = getRuntimePrecision();
 
     // in one model, kvCachePrecision could not be changed so no need to care whether it may be changed.
-    PagedAttentionKey key = {rtPrecision};
+    const PagedAttentionKey key = {rtPrecision};
 
     auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
@@ -179,7 +179,7 @@ void PagedAttention::createPrimitive() {
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode);
+        const bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode);
         return make_pa_executor(rtPrecision,
                                 kCachePrecision,
                                 vCachePrecision,
@@ -226,12 +226,12 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (m_hasScore) {
         size_t len = 0;
         const auto& pastLensDims = inputs[5]->getStaticDims();
-        auto pastLens = inputs[5]->getDataAs<const int32_t>();
+        const auto* pastLens = inputs[5]->getDataAs<const int32_t>();
         for (size_t i = 0; i < pastLensDims[0]; i++) {
             len += pastLens[i];
         }
         len += outDims[0];
-        VectorDims scoreDims{len};
+        const VectorDims scoreDims{len};
         redefineOutputMemory({outDims, scoreDims});
     } else {
         redefineOutputMemory({outDims, {0}});

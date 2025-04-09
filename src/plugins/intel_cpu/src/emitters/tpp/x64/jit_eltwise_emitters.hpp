@@ -102,8 +102,8 @@ private:
     }
     void evaluate_reference_impl(float* in0, float* out0) {
         for (int n = 0; n < m_shape.n; n++) {
-            auto in0_row = in0;
-            auto out0_row = out0;
+            auto* in0_row = in0;
+            auto* out0_row = out0;
             for (int m = 0; m < m_shape.m; m++)
                 out0_row[m] = executor(in0_row[m]);
             in0 += m_shape.ldi;

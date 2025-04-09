@@ -34,7 +34,7 @@ public:
     }
 };
 
-#    define DUMP(...) DumpHelper __helper##__node(__VA_ARGS__);
+#    define DUMP(...) const DumpHelper __helper##__node(__VA_ARGS__);
 }  // namespace intel_cpu
 }  // namespace ov
 #else  // CPU_DEBUG_CAPS

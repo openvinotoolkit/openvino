@@ -43,7 +43,7 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
     auto reshape4_m = wrap_type<ov::opset1::Reshape>({transpose4_m->output(0), any_input()->output(0)});
     auto final_concat_m2 = wrap_type<ov::opset1::Concat>({dense_feature_m->output(0), reshape4_m->output(0)});
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    const matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto concat_node = pattern_map.at(concat_m).get_node_shared_ptr();
         auto dense_feature_node = concat_node->input_value(0).get_node_shared_ptr();
@@ -65,7 +65,7 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
             first_feature_shape = this_feature_shape;
             features_node.push_back(old_feature_node);
             // disconnect original consumers of features.
-            for (auto& input : old_feature_node->output(0).get_target_inputs()) {
+            for (const auto& input : old_feature_node->output(0).get_target_inputs()) {
                 old_feature_node->output(0).remove_target_input(input);
             }
         }
@@ -97,7 +97,7 @@ ov::intel_cpu::FuseFQtoInteraction::FuseFQtoInteraction() {
                                                      wrap_type<ov::opset1::Constant>(),
                                                      wrap_type<ov::opset1::Constant>(),
                                                      wrap_type<ov::opset1::Constant>()});
-    matcher_pass_callback callback = [=](Matcher& m) {
+    const matcher_pass_callback callback = [=](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto fq_node = ov::as_type_ptr<ov::opset8::FakeQuantize>(pattern_to_output.at(fq_m).get_node_shared_ptr());
         std::vector<float> fq_scale;
@@ -107,7 +107,7 @@ ov::intel_cpu::FuseFQtoInteraction::FuseFQtoInteraction() {
                 return false;
             }
         }
-        bool success = ov::replace_output_update_name(fq_node->output(0), fq_node->input_value(0));
+        const bool success = ov::replace_output_update_name(fq_node->output(0), fq_node->input_value(0));
         if (!success) {
             return false;
         }
@@ -159,7 +159,7 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
     auto transpose3_m = wrap_type<ov::opset1::Transpose>({gather_m->output(0), any_input()->output(0)});
     auto final_concat_m = wrap_type<ov::opset1::Concat>({dense_fq_m->output(0), transpose3_m->output(0)});
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    const matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto concat_node = pattern_map.at(concat_m).get_node_shared_ptr();
         auto dense_fq_node = pattern_map.at(dense_fq_m).get_node_shared_ptr();
@@ -177,7 +177,7 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
             first_feature_shape = this_feature_shape;
             features_node.push_back(old_feature_node);
             // disconnect original consumers of features.
-            for (auto& input : old_feature_node->output(0).get_target_inputs()) {
+            for (const auto& input : old_feature_node->output(0).get_target_inputs()) {
                 old_feature_node->output(0).remove_target_input(input);
             }
         }

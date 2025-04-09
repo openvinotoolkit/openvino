@@ -62,7 +62,7 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         dstDims = VectorDims{1};
     }
 
-    int output_dims_size = dstDims.size();
+    const int output_dims_size = dstDims.size();
     if (axis < 0) {
         axis += output_dims_size;
     }
@@ -77,7 +77,7 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 }
 
 bool OneHot::needShapeInfer() const {
-    const auto depthNodePtr = getSrcDataAtPortAs<int32_t>(1);
+    auto* const depthNodePtr = getSrcDataAtPortAs<int32_t>(1);
     if (depth != static_cast<size_t>(depthNodePtr[0])) {
         depth = depthNodePtr[0];
         return true;
@@ -115,7 +115,7 @@ void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
     const out_type off_value = getSrcDataAtPortAs<const out_type>(3)[0];
 
     // fill the output with off_value
-    std::size_t dst_size = prefix_size * depth * suffix_size;
+    const std::size_t dst_size = prefix_size * depth * suffix_size;
     std::fill(dst_data, dst_data + dst_size, off_value);
 
     // set on_value at needed locations
@@ -140,12 +140,12 @@ void OneHot::execute([[maybe_unused]] const dnnl::stream& strm) {
     std::size_t prefix_size = 1;
     auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 
-    std::size_t actual_axis = (axis == -1) ? input_dims.size() : axis;
+    const std::size_t actual_axis = (axis == -1) ? input_dims.size() : axis;
     for (size_t i = 0; i < actual_axis; ++i) {
         prefix_size *= input_dims[i];
     }
 
-    std::size_t suffix_size = getParentEdgeAt(0)->getMemory().getShape().getElementsCount() / prefix_size;
+    const std::size_t suffix_size = getParentEdgeAt(0)->getMemory().getShape().getElementsCount() / prefix_size;
 
     OneHotContext ctx = {this, prefix_size, suffix_size};
     OV_SWITCH(intel_cpu,

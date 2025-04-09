@@ -186,7 +186,7 @@ inline static void rotate_kv_cache_block_ref(CT* cache_block_ptr,
                                              size_t embedding_size) {
     for (size_t head_idx = 0; head_idx < num_heads; head_idx++) {
         for (size_t tok_idx = 0; tok_idx < block_size; tok_idx++) {
-            size_t token_offset = embedding_size * tok_idx;
+            const size_t token_offset = embedding_size * tok_idx;
             CT* token_embedding_data_start_in_cache =
                 cache_block_ptr + head_idx * embedding_size * block_size + embedding_size * tok_idx;
             float* token_data_start_in_rotation_coefficients = block_rotation_coefficients_ptr + token_offset;

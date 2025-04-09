@@ -67,7 +67,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 
     const auto matrix_nms = ov::as_type_ptr<const ov::op::v8::MatrixNms>(op);
 
-    auto& attrs = matrix_nms->get_attrs();
+    const auto& attrs = matrix_nms->get_attrs();
     if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::CLASSID) {
         m_sortResultType = MatrixNmsSortResultType::CLASSID;
     } else if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::SCORE) {
@@ -171,9 +171,9 @@ static inline float intersectionOverUnion(const float* bbox1, const float* bbox2
     const float yMin = std::max(bbox1[1], bbox2[1]);
     const float xMax = std::min(bbox1[2], bbox2[2]);
     const float yMax = std::min(bbox1[3], bbox2[3]);
-    float norm = normalized ? static_cast<float>(0.) : static_cast<float>(1.);
-    float width = xMax - xMin + norm;
-    float height = yMax - yMin + norm;
+    const float norm = normalized ? static_cast<float>(0.) : static_cast<float>(1.);
+    const float width = xMax - xMin + norm;
+    const float height = yMax - yMin + norm;
     const float interArea = width * height;
     const float bbox1Area = boxArea(bbox1, normalized);
     const float bbox2Area = boxArea(bbox2, normalized);
@@ -213,7 +213,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
     iouMax[0] = 0.;
     ov::parallel_for(originalSize - 1, [&](size_t i) {
         float max_iou = 0.;
-        size_t actual_index = i + 1;
+        const size_t actual_index = i + 1;
         auto idx_a = candidateIndex[actual_index];
         for (size_t j = 0; j < actual_index; j++) {
             auto idx_b = candidateIndex[j];
@@ -226,7 +226,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
 
     if (scoresData[candidateIndex[0]] > m_postThreshold) {
         auto box_index = candidateIndex[0];
-        auto box = boxesData + box_index * 4;
+        const auto* box = boxesData + box_index * 4;
         filterBoxes[0].box.x1 = box[0];
         filterBoxes[0].box.y1 = box[1];
         filterBoxes[0].box.x2 = box[2];
@@ -251,7 +251,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
             continue;
         }
         auto boxIndex = candidateIndex[i];
-        auto box = boxesData + boxIndex * 4;
+        const auto* box = boxesData + boxIndex * 4;
         filterBoxes[numDet].box.x1 = box[0];
         filterBoxes[numDet].box.y1 = box[1];
         filterBoxes[numDet].box.x2 = box[2];
@@ -278,9 +278,9 @@ void MatrixNms::prepareParams() {
     m_numClasses = scores_dims[1];
 
     int64_t max_output_boxes_per_class = 0;
-    size_t real_num_classes = m_backgroundClass == -1                                 ? m_numClasses
-                              : static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1
-                                                                                      : m_numClasses;
+    const size_t real_num_classes = m_backgroundClass == -1                                 ? m_numClasses
+                                    : static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1
+                                                                                            : m_numClasses;
     if (m_nmsTopk >= 0) {
         max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
     } else {
@@ -338,7 +338,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
         const float* boxesPtr = boxes + batchIdx * m_numBoxes * 4;
         const float* scoresPtr = scores + batchIdx * (m_numClasses * m_numBoxes) + classIdx * m_numBoxes;
         size_t classNumDet = 0;
-        size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
+        const size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
         classNumDet = nmsMatrix(boxesPtr,
                                 scoresPtr,
                                 m_filteredBoxes.data() + batchOffset + m_classOffset[classIdx],
@@ -348,7 +348,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
     });
 
     ov::parallel_for(m_numBatches, [&](size_t batchIdx) {
-        size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
+        const size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
         BoxInfo* batchFilteredBox = m_filteredBoxes.data() + batchOffset;
         auto& numPerClass = m_numPerBatchClass[batchIdx];
         auto numDet = std::accumulate(numPerClass.begin(), numPerClass.end(), static_cast<int64_t>(0));
@@ -438,7 +438,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
         for (int64_t j = 0; j < real_boxes; j++) {
             auto originalIndex = originalOffset + j;
             selectedIndices[j + outputOffset] = static_cast<int>(m_filteredBoxes[originalIndex].index);
-            auto selectedBase = selectedOutputs + (outputOffset + j) * 6;
+            auto* selectedBase = selectedOutputs + (outputOffset + j) * 6;
             selectedBase[0] = m_filteredBoxes[originalIndex].classIndex;
             selectedBase[1] = m_filteredBoxes[originalIndex].score;
             selectedBase[2] = m_filteredBoxes[originalIndex].box.x1;

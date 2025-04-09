@@ -137,7 +137,7 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
     });
-    auto& ov_version = ov::get_openvino_version();
+    const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
     m_msg_manager = ov::threading::message_manager();
 }
@@ -154,7 +154,7 @@ static bool streamsSet(const ov::AnyMap& config) {
 }
 
 void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
-    int streams_set = config.streams;
+    const int streams_set = config.streams;
     int streams;
     if (config.streamsChanged) {
         streams = streams_set;
@@ -239,7 +239,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     const auto& config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
-    Config::ModelType modelType = getModelType(model);
+    const Config::ModelType modelType = getModelType(model);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
     // update the props after the perf mode translated to configs
@@ -286,7 +286,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
-    static Xbyak::util::Cpu cpu;
+    static const Xbyak::util::Cpu cpu;
     if (cpu.has(Xbyak::util::Cpu::tSSE)) {
         if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
             flush_to_zero(true);
@@ -376,7 +376,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             res = false;
         } else {
             ov::AnyMap input_map = it->second.as<ov::AnyMap>();
-            for (auto& item : m_compiled_model_runtime_properties) {
+            for (const auto& item : m_compiled_model_runtime_properties) {
                 auto it = input_map.find(item.first);
                 if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
                     res = false;
@@ -533,14 +533,14 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
-    WeightsSharing::Ptr fake_w_cache;
+    const WeightsSharing::Ptr fake_w_cache;
 
     if (model == nullptr) {
         OPENVINO_THROW("Only ngraph-based models are supported!");
     }
 
     Config conf = engConfig;
-    Config::ModelType modelType = getModelType(model);
+    const Config::ModelType modelType = getModelType(model);
     conf.applyRtInfo(model);
     conf.readProperties(config, modelType);
 
@@ -607,7 +607,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     deserializer >> model;
 
     Config conf = engConfig;
-    Config::ModelType modelType = getModelType(model);
+    const Config::ModelType modelType = getModelType(model);
     conf.applyRtInfo(model);
     // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
     const auto& it = _config.find(ov::loaded_from_cache.name());

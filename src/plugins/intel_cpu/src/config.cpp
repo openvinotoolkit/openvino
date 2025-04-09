@@ -93,7 +93,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::hint::num_requests.name()) {
             try {
                 ov::Any value = val.as<std::string>();
-                int val_i = value.as<int>();
+                const int val_i = value.as<int>();
                 if (val_i < 0) {
                     OPENVINO_THROW("invalid value.");
                 }
@@ -150,7 +150,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             };
 
             try {
-                for (auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
+                for (const auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
                     if ((row != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
                         error_info();
                     }

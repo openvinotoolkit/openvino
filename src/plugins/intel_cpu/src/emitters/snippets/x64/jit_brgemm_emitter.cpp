@@ -32,14 +32,14 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     const auto brgemm_type = brgemm_node->get_type();
     m_is_with_amx = brgemm_utils::with_amx(brgemm_type);
     if (m_is_with_amx) {
-        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_utils::get_primitive_isa(brg0Prc, true));
+        const BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_utils::get_primitive_isa(brg0Prc, true));
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     } else {
-        BrgemmKernelConfig kernel_config(brg0Prc,
-                                         brg1Prc,
-                                         with_compensations(brgemm_type),
-                                         brgemm_utils::get_primitive_isa(brg0Prc, false));
+        const BrgemmKernelConfig kernel_config(brg0Prc,
+                                               brg1Prc,
+                                               with_compensations(brgemm_type),
+                                               brgemm_utils::get_primitive_isa(brg0Prc, false));
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     }

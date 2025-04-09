@@ -322,6 +322,7 @@ jobs:
           cmake \
             -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_CPPLINT=OFF \
+            -DENABLE_CLANG_TIDY=OFF \
             -DSELECTIVE_BUILD=ON \
             -DENABLE_TEMPLATE=OFF \
             -DENABLE_INTEL_GPU=OFF \

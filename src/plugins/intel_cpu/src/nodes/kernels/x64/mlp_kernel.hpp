@@ -31,7 +31,7 @@ public:
         do_config(nullptr);
     }
     void do_config(void* cfg) {
-        static ov::Extensions::Cpu::TileConfiger configer;
+        static const ov::Extensions::Cpu::TileConfiger configer;
         if (cfg != last_cfg) {
             configer(cfg);
             last_cfg = cfg;
@@ -327,7 +327,7 @@ struct Work {
 
         auto C_stride_bytes = BN * sizeof(float);
         OPENVINO_ASSERT(C_M * C_stride_bytes <= m_C.stride_bytes(0) * m_C.size(0));
-        auto pC = reinterpret_cast<uint8_t*>(m_C.ptr_v());
+        auto* pC = reinterpret_cast<uint8_t*>(m_C.ptr_v());
 
         auto element_size = quant_i8 ? sizeof(int8_t) : sizeof(ov::bfloat16);
 
