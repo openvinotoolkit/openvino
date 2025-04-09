@@ -313,7 +313,7 @@ void Gather::createPrimitive() {
                 const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
                 execParamsPerThread.resize(m_threads_num);
 
-                parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
+                parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
                     const uint64_t dstStart = std::min(wpt * ithr, totalWork);
                     const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
@@ -370,8 +370,8 @@ void Gather::prepareParams() {
     if (dataSrcRank <= 1 && dataMemPtr->getDesc().getPrecision() == ov::element::i32) {
         const auto& dataDims = dataMemPtr->getStaticDims();
         const auto& idxDims = idxMemPtr->getStaticDims();
-        if ((dataDims.size() == 0 || (dataDims.size() == 1 && dataDims[0] <= 64)) &&
-            (idxDims.size() == 0 || (idxDims.size() == 1 && idxDims[0] <= 64))) {
+        if ((dataDims.empty() || (dataDims.size() == 1 && dataDims[0] <= 64)) &&
+            (idxDims.empty() || (idxDims.size() == 1 && idxDims[0] <= 64))) {
             canOptimize1DCase = true;
             return;
         }
@@ -432,7 +432,7 @@ void Gather::prepareParams() {
 #endif
 }
 
-void Gather::execute(const dnnl::stream& strm) {
+void Gather::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
@@ -453,7 +453,7 @@ void Gather::execute(const dnnl::stream& strm) {
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
-        auto threadBody = [&](const int ithr, const int nthr) {
+        auto threadBody = [&](const int ithr, [[maybe_unused]] const int nthr) {
             auto& p = execParamsPerThread[ithr];
             auto arg = gatherJitExecArgs();
 
@@ -500,7 +500,7 @@ void Gather::execute(const dnnl::stream& strm) {
     execReference();
 }
 
-void Gather::executeDynamicImpl(const dnnl::stream& strm) {
+void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
@@ -864,7 +864,7 @@ struct ExecCompressedDispatcher {
     };
 
 private:
-    void ExecCompressed8Bit_dispatch(ExecCompressedContext& ctx) {
+    void ExecCompressed8Bit_dispatch([[maybe_unused]] ExecCompressedContext& ctx) {
         OV_SWITCH(intel_cpu,
                   ExecCompressed8BitDispatcher,
                   ctx,
@@ -944,7 +944,7 @@ void Gather::exec1DCase() {
     const auto* pidx = idxMemPtr->getDataAs<int32_t>();
 
     const auto& idxDims = idxMemPtr->getStaticDims();
-    const auto idxCnt = (idxDims.size() == 0) ? 1 : idxDims[0];
+    const auto idxCnt = (idxDims.empty()) ? 1 : idxDims[0];
     auto axisDim = srcMemPtr->getStaticDims()[0];
     for (size_t i = 0; i < idxCnt; i++) {
         auto ii = pidx[i];

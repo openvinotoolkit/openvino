@@ -126,7 +126,7 @@ void numpy_broadcast_binop(const T* arg0,
     //                 [ 3, 2, 6]
     using namespace internal;
 
-    size_t const shape_rank = std::max(arg0_shape.size(), arg1_shape.size()) + 1;
+    const size_t shape_rank = std::max(arg0_shape.size(), arg1_shape.size()) + 1;
 
     // TODO: Use compiler-specific alloca() or variable-length array
     std::vector<size_t> tmp(shape_rank * 2);
@@ -137,16 +137,16 @@ void numpy_broadcast_binop(const T* arg0,
     row_major_strides(arg0_shape, strides0, shape_rank);
     row_major_strides(arg1_shape, strides1, shape_rank);
 
-    size_t const padding0 = shape_rank - arg0_shape.size();
-    size_t const padding1 = shape_rank - arg1_shape.size();
+    const size_t padding0 = shape_rank - arg0_shape.size();
+    const size_t padding1 = shape_rank - arg1_shape.size();
 
     Shape output_shape(shape_rank, 0);
 
     size_t axis = 0;
 
     for (size_t i = 0; i < shape_rank; ++i) {
-        auto const dim0 = value_with_padding_or(arg0_shape, padding0, i, 1);
-        auto const dim1 = value_with_padding_or(arg1_shape, padding1, i, 1);
+        const auto dim0 = value_with_padding_or(arg0_shape, padding0, i, 1);
+        const auto dim1 = value_with_padding_or(arg1_shape, padding1, i, 1);
 
         output_shape[i] = std::max(dim0, dim1);
 

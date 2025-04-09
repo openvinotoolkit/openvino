@@ -438,7 +438,7 @@ ov::Tensor ov::npuw::util::to_f16(const ov::Tensor& t) {
 }
 
 inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
-    const uint8_t* tdata = static_cast<uint8_t*>(t.data());
+    const uint8_t* tdata = static_cast<const uint8_t*>(t.data());
     const uint8_t* trow = tdata + r * COLS / 2;
     const uint8_t* telem = trow + c / 2;
     if (c % 2 == 0) {
@@ -449,7 +449,7 @@ inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::
 
 template <typename T>
 inline T tread(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
-    const T* tdata = static_cast<T*>(t.data());
+    const T* tdata = static_cast<const T*>(t.data());
     const T* trow = tdata + r * COLS;
     const T* telem = trow + c;
     return *telem;
@@ -507,7 +507,7 @@ void permute120(const ov::Tensor& src, ov::Tensor& dst) {
     const ov::Shape dst_shape = dst.get_shape();
     NPUW_ASSERT(src_shape.size() == 3);  // Yes, so far only transpose 3D tensors
 
-    const T* pSrc = static_cast<T*>(src.data());
+    const T* pSrc = static_cast<const T*>(src.data());
     T* pDst = static_cast<T*>(dst.data());
 
     // DSTs [b,r,c] map to SRC's [r,c,b]
@@ -637,7 +637,7 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
 
         const bool is_4bit = (type == ov::element::i4 || type == ov::element::u4);
         for (std::size_t t_idx = 0; t_idx < tt.size(); t_idx++) {
-            const uint8_t* pSrc = static_cast<uint8_t*>(tt[t_idx].data());
+            const uint8_t* pSrc = static_cast<const uint8_t*>(tt[t_idx].data());
 
             const auto copy_size = lens[t_idx] * shape[1] * shape[2];
             const auto copy_len = is_4bit ? copy_size / 2 : copy_size * type.size();
@@ -661,7 +661,7 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
                 uint8_t* pDstRow = pDst + r_offset + c_offset;
 
                 const auto r_offset_src = is_4bit ? lens[t_idx] * r / 2 : lens[t_idx] * r * type.size();
-                const uint8_t* pSrc = static_cast<uint8_t*>(t_src.data());
+                const uint8_t* pSrc = static_cast<const uint8_t*>(t_src.data());
                 const uint8_t* pSrcRow = pSrc + r_offset_src;
 
                 std::copy_n(pSrcRow, copy_len, pDstRow);
