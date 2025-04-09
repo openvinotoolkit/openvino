@@ -6,6 +6,7 @@
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
+#include "openvino/op/irdft.hpp"
 #include "openvino/reference/fft.hpp"
 
 namespace irfft_v9 {
