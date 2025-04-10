@@ -91,6 +91,7 @@
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
@@ -458,6 +459,26 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
+        ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
+        kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
+        kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();
+        kv_cache_config.inferencePrecision = infer_precision;
+        kv_cache_config.keyCacheBlockSize = 16;
+        kv_cache_config.valueCacheBlockSize = 16;
+        kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+        kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+        manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
+            [&infer_precision](const ov::element::Type& precision,
+               const bool bychannel,
+               const size_t group_num,
+               int64_t& head_size,
+               int64_t& block_size) {
+                OPENVINO_ASSERT(!bychannel, "[GPU] Unsupported KV-cache quantization mode");
+                if (precision == ov::element::i8 || precision == ov::element::u8) {
+                    head_size += infer_precision.size() * 2 * group_num;
+                }
+            });
+
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
             if (!config.get_enable_sdpa_optimization())
                 return false;
@@ -534,7 +555,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node);
 
                     auto &engine = m_context->get_engine();
-                    if (!cldnn::check_cm_jit_support(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2) {
+                    if (!cldnn::check_cm_jit_support(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2 || !config.get_use_cm()) {
                         return false;
                     }
 
@@ -1143,7 +1164,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SinkReshape>();
 
         if (device_info.supports_immad) {
-            bool asymmetric_dyn_quant = GPU_DEBUG_VALUE_OR(config.get_asym_dynamic_quantization(), false);
+            bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {

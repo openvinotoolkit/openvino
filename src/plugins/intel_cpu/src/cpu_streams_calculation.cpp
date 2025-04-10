@@ -114,7 +114,7 @@ std::vector<std::vector<int>> get_streams_info_table(
 
     auto create_one_stream = [&](const std::vector<int>& one_proc_info,
                                  const std::vector<std::vector<int>>& one_proc_table,
-                                 const int num_threads,
+                                 [[maybe_unused]] const int num_threads,
                                  const IStreamsExecutor::Config::StreamsMode sub_streams_model) {
         if ((one_proc_info[PROC_NUMA_NODE_ID] < 0) || (one_proc_info[PROC_SOCKET_ID] < 0) ||
             (((one_proc_info[MAIN_CORE_PROC] > 0) &&
@@ -217,7 +217,7 @@ std::vector<std::vector<int>> get_streams_info_table(
             }
         }
         if (input_threads > 0) {
-            if (hint_model_distribution_policy.size() == 0) {
+            if (hint_model_distribution_policy.empty()) {
                 n_threads_per_stream = std::min(input_threads, proc_type_table[0][ALL_PROC]);
             } else {
                 for (auto& row : proc_socket_table) {
@@ -346,7 +346,9 @@ std::vector<std::vector<int>> get_streams_info_table(
                 n_streams = input_infer_requests > 0 ? std::min(n_streams, input_infer_requests) : n_streams;
                 n_threads_per_stream = -1;
             } else {
-                auto model_threads = model_prefer_threads > n_threads ? n_threads / 2 : model_prefer_threads;
+                auto model_threads = n_threads == 1                     ? 1
+                                     : model_prefer_threads > n_threads ? n_threads / 2
+                                                                        : model_prefer_threads;
                 n_streams = ((n_threads + model_threads - 1) / model_threads);
                 if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
                     n_streams = input_infer_requests;
@@ -729,18 +731,17 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
             get_streams_rank_table(streams_info_table, config.streamsRankLevel, config.numSubStreams);
     }
 
-    auto cpu_pinning = get_cpu_pinning(config.enableCpuPinning,
-                                       config.changedCpuPinning,
-                                       config.enableCpuReservation,
-                                       proc_type_table,
-                                       streams_info_table);
+    config.enableCpuPinning = check_cpu_pinning(config.enableCpuPinning,
+                                                config.changedCpuPinning,
+                                                config.enableCpuReservation,
+                                                streams_info_table);
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,
                                                            config.threadsPerStream,
                                                            ov::hint::SchedulingCoreType::ANY_CORE,
                                                            config.enableCpuReservation,
-                                                           cpu_pinning,
+                                                           config.enableCpuPinning,
                                                            true,
                                                            std::move(streams_info_table),
                                                            {},

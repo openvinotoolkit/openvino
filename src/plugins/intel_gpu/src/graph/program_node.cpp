@@ -658,7 +658,7 @@ void program_node::select_preferred_formats(impl_types impl_type) {
 }
 
 void program_node::add_dependant_shape_of_node(const program_node* node) {
-    OPENVINO_ASSERT(node->is_type<shape_of>(), "[GPU] Expected node type is shape_of");
+    OPENVINO_ASSERT(node->is_type<shape_of>() || node->is_type<input_layout>(), "[GPU] Expected node type is shape_of");
     dependant_shape_of_nodes.insert(node);
 }
 
@@ -1334,8 +1334,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_eltwise(prev_post_op_idx, alg, alpha, beta);
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
-                auto bin_ops_can_be_optimized = cur_node.is_type<data>() && cur_node.is_constant() &&
-                                                cur_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
+                auto bin_ops_can_be_optimized =
+                    cur_node.is_type<data>() && cur_node.is_constant() && cur_node.get_users().size() == 1 &&
+                    desc.get_data_type() == dnnl_f32 &&
+                    cur_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device;
 
                 auto bin_add_and_eltw = alpha == 1.0f && type_is_binary_add(cur_type) && bin_ops_can_be_optimized;
                 auto bin_mul_and_eltw = beta == 0.f && type_is_binary_mul(cur_type) && bin_ops_can_be_optimized;
@@ -1376,8 +1378,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_binary(prev_post_op_idx, alg, desc);
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
-                auto bin_ops_can_be_optimized = prev_node.is_type<data>() && prev_node.is_constant() &&
-                                                prev_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
+                auto bin_ops_can_be_optimized =
+                    prev_node.is_type<data>() && prev_node.is_constant() && prev_node.get_users().size() == 1 &&
+                    desc.get_data_type() == dnnl_f32 &&
+                    prev_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device;
 
                 auto eltw_and_bin_add = alpha == 1.0f && type_is_binary_add(prev_type) && bin_ops_can_be_optimized;
                 auto eltw_and_bin_mul = beta == 0.f && type_is_binary_mul(prev_type) && bin_ops_can_be_optimized;
@@ -1416,7 +1420,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
 
                 // Eltwise can be inserted into the output_scale if cur_beta is equal to 0.f
-                if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32) {
+                if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32 &&
+                    prev_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device) {
                     memory::ptr prev_scale_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_scale_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + scale");
@@ -1579,15 +1584,19 @@ void program_node::create_onednn_primitive_attributes(
                     if (is_type<fully_connected>()) {
                         auto prim = this->as<fully_connected>().get_primitive();
                         if (prim->input_size == in_pshape.size()) {
-                            if (prim->input_size == 3 && !fc_needs_full_tensor()) {
+                            if (prim->input_size >= 3 && !fc_needs_full_tensor()) {
                                 cldnn::onednn::combine_bf_with_first_spatial_dim(in);
                                 in_pshape = in.get_partial_shape();
                             }
                             ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
                         } else {
-                            if (prim->input_size == 3)
+                            if (prim->input_size >= 3) {
                                 cldnn::onednn::combine_bf_with_first_spatial_dim(in);
-                            ones_to_add = std::max(in_pshape.size(), prim->input_size) - std::min(in_pshape.size(), prim->input_size);
+                                in_pshape = in.get_partial_shape();
+                                ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                            } else {
+                                ones_to_add = 2;
+                            }
                         }
                         if (ones_to_add > 0) {
                             layout new_layout = in;
