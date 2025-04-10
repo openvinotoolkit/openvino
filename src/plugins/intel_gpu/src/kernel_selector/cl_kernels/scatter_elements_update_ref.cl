@@ -58,72 +58,70 @@
     #error "OUTPUT_DIMS is supposed to be same as INPUT2_DIMS"
 #endif
 
-#ifdef REDUCE_MODE
-    #define SUM_MODE 1
-    #define PROD_MODE 2
-    #define MIN_MODE 3
-    #define MAX_MODE 4
-    #define MEAN_MODE 5
+#ifdef IS_SECOND_ITER // Socond kernel only
+    #ifdef REDUCE_MODE
+        #define COUNT_LIMIT 4096
+        #define SUM_MODE 1
+        #define PROD_MODE 2
+        #define MIN_MODE 3
+        #define MAX_MODE 4
+        #define MEAN_MODE 5
 
-    #if USE_INIT_VAL == 0
+        #if USE_INIT_VAL == 0
+            #if REDUCE_MODE == SUM_MODE
+                #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ZERO
+            #elif REDUCE_MODE == PROD_MODE
+                #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ONE
+            #elif REDUCE_MODE == MIN_MODE
+                #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_MAX
+            #elif REDUCE_MODE == MAX_MODE
+                #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_MIN
+            #elif REDUCE_MODE == MEAN_MODE
+                #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ZERO
+            #else
+                #error "Invalid REDUCE_MODE value"
+            #endif
+        #endif
+
+        inline INPUT2_TYPE FUNC(reduce)(INPUT2_TYPE a, INPUT2_TYPE b)
+        {
         #if REDUCE_MODE == SUM_MODE
-            #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ZERO
+            return a + b;
         #elif REDUCE_MODE == PROD_MODE
-            #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ONE
+            return a * b;
         #elif REDUCE_MODE == MIN_MODE
-            #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_MAX
+            return MIN(a, b);
         #elif REDUCE_MODE == MAX_MODE
-            #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_MIN
+            return MAX(a, b);
         #elif REDUCE_MODE == MEAN_MODE
-            #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ZERO
+            return a + b;
         #else
             #error "Invalid REDUCE_MODE value"
         #endif
-    #endif
+        }
 
-    inline INPUT2_TYPE FUNC(reduce)(INPUT2_TYPE a, INPUT2_TYPE b)
-    {
-    #if REDUCE_MODE == SUM_MODE
-        return a + b;
-    #elif REDUCE_MODE == PROD_MODE
-        return a * b;
-    #elif REDUCE_MODE == MIN_MODE
-        return MIN(a, b);
-    #elif REDUCE_MODE == MAX_MODE
-        return MAX(a, b);
-    #elif REDUCE_MODE == MEAN_MODE
-        return a + b;
-    #else
-        #error "Invalid REDUCE_MODE value"
-    #endif
-    }
-
-    #ifdef IS_SECOND_ITER // Socond kernel only
-        #ifdef REDUCE_MODE
-            inline void add_count(__local int count_k[], __local int count_v[], int length, int idx, int count)
-            {
-                for (int i = 0; i < length; ++i) {
-                    if (count_k[i] == -1) {
-                        count_k[i] = idx;
-                        count_v[i] = count;
-                        break;
-                    } else if (count_k[i] == idx) {
-                        count_v[i] += count;
-                        break;
-                    }
+        inline uint add_count(__local int count_k[], __local int count_v[], int idx, uint valid_count)
+        {
+            for (int i = 0; i < valid_count; ++i) {
+                if (count_k[i] == idx) {
+                    count_v[i] += 1;
+                    return valid_count;
                 }
             }
-
-            inline int get_count(__local int count_k[], __local int count_v[], int it, int *idx)
-            {
-                if (count_k[it] != -1) {
-                    *idx = count_k[it];
-                    count_k[it] = -1;
-                    return count_v[it];
-                }
-                return -1;
+            count_k[valid_count] = idx;
+            count_v[valid_count] += 1;
+            return valid_count + 1;
+        }
+    
+        inline int get_count(__local int count_k[], __local int count_v[], int it, int *idx)
+        {
+            if (count_k[it] != -1) {
+                *idx = count_k[it];
+                count_k[it] = -1;
+                return count_v[it];
             }
-        #endif
+            return -1;
+        }
     #endif
 #endif
 
@@ -183,8 +181,8 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
             const uint tgy = INPUT2_SIZE_Z * INPUT2_SIZE_W;
         #endif
         const uint tgz = INPUT2_FEATURE_NUM * INPUT2_BATCH_NUM;
-        #if INPUT2_LENGTH == 0 || INPUT2_LENGTH > 4096
-            #define COUNT_LENGTH 4096   // Maximum number of elements to reduce in case of shape agnostic kernel or large shapes
+        #if INPUT2_LENGTH == 0 || INPUT2_LENGTH > COUNT_LIMIT
+            #define COUNT_LENGTH COUNT_LIMIT   // Maximum number of elements to reduce in case of shape agnostic kernel or large shapes
         #else
             #define COUNT_LENGTH INPUT2_LENGTH
         #endif
@@ -225,6 +223,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                 }
             }
         #endif
+        uint valid_count = 0;
         for (uint gz = 0; gz < tgz; gz++) {
             for (uint gy = 0; gy < tgy; gy++) {
                 for (uint gx = 0; gx < tgx; gx++) {
@@ -253,14 +252,18 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                      const uint output_idx = GET_OUTPUT_INDEX(ORDER);
                      val = FUNC_CALL(reduce)(output[output_idx], val);
                      output[output_idx] = val;
-                     add_count(count_k, count_v, input2_length, output_idx, 1);
+                     if (valid_count < COUNT_LENGTH) {
+                        valid_count = add_count(count_k, count_v, output_idx, valid_count);
+                     } else {
+                        printf("Error: scatter_elements_update_ref on unexpected shape.\n");
+                     }
                  }
              }
          }
-        for (int i = 0; i < input2_length; ++i) {
+        for (int i = 0; i < valid_count; ++i) {
             int output_idx;
             const int count = get_count(count_k, count_v, i, &output_idx);
-            if (count == -1) continue;
+            // if (count == -1) continue;
             #if REDUCE_MODE==MEAN_MODE
                 output[output_idx] = output[output_idx] / (count + USE_INIT_VAL);
             #endif
