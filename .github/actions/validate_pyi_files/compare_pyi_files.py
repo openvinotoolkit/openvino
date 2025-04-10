@@ -85,8 +85,8 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
                 ]
                 if changes and not all(
                     change.startswith(("import", "from", "__all__")) or             # Import order is irrelevant
-                    not change.startswith('"""') or                                 # Docstrings can be buggy on Python 3.13
-                    not change.strip()
+                    change.startswith('"""') or                                     # Ignore docstring changes
+                    change.strip() == ""                                            # Ignore whitespace-only changes
                     for change in changes
                 ):
                     print(f"Adding diff for {relative_path}. The changes var is: {changes}")
