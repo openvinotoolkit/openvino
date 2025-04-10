@@ -7,7 +7,6 @@
 #include <cstdint>
 
 #include "openvino/op/space_to_depth.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "utils.hpp"
 namespace ov {
 namespace op {
