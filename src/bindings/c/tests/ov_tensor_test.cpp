@@ -81,7 +81,6 @@ protected:
         ov_tensor_free(tensor);
     }
 
-public:
     ov_shape_t shape;
     ov_tensor_t* tensor;
 };
@@ -161,6 +160,14 @@ TEST_P(ov_tensor_create_test, set_tensor_shape) {
 }
 
 TEST_F(ov_string_tensor_create_test, set_tensor_string) {
-    const char* string_array[4] = {"hello", "hi", "world", "yes"};
-    OV_EXPECT_OK(ov_tensor_set_string_data(tensor, string_array, 4));
+    const size_t number_of_strings = 4;
+    const char* string_array[number_of_strings] = {"hello", "hi", "world", ""};
+    OV_EXPECT_OK(ov_tensor_set_string_data(tensor, string_array, number_of_strings));
+    void* output_data = NULL;
+    ov_tensor_data(tensor, &output_data);
+    auto string_data = static_cast<std::string*>(output_data);
+    for (size_t i = 0; i < number_of_strings; ++i) {
+        const std::string& current_string = string_data[i];
+        EXPECT_EQ(current_string, std::string(string_array[i]));
+    }
 }

@@ -85,7 +85,7 @@ ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_type_e* type);
  * @param tensor A point to ov_tensor_t
  */
 OPENVINO_C_API(ov_status_e)
-ov_tensor_set_string_data(ov_tensor_t* tensor, const char** string_array, size_t array_size);
+ov_tensor_set_string_data(ov_tensor_t* tensor, const char** string_array, const size_t array_size);
 
 /**
  * @brief the total number of elements (a product of all the dims or 1 for scalar).
