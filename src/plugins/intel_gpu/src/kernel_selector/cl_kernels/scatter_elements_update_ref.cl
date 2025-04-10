@@ -263,7 +263,6 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         for (int i = 0; i < valid_count; ++i) {
             int output_idx;
             const int count = get_count(count_k, count_v, i, &output_idx);
-            // if (count == -1) continue;
             #if REDUCE_MODE==MEAN_MODE
                 output[output_idx] = output[output_idx] / (count + USE_INIT_VAL);
             #endif
