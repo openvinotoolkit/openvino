@@ -18,6 +18,7 @@
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
+#include "ir_graph.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -261,6 +262,64 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     std::optional<std::vector<ov::Tensor>> initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
+
+    // TODO: A way to detect if the blob is ELF or IR, check if first 20 bytes has 'ELF' string
+    // Check If blob is ELF, if not, create Graph for LLVM IR
+    size_t blobSize = blob.get_byte_size();
+    // Temporarily use 20 as header length
+    size_t headerSize = blobSize > 20 ? 20 : blobSize;
+    std::string header(reinterpret_cast<const char*>(blob.data()), headerSize);
+    if (header.find("ELF") == std::string::npos) {
+        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
+        // TODO: Fake metadata here, need to get from driver|compiler
+        int64_t dynamicWidth = [] {
+            const auto env = std::getenv("DYNAMIC_WIDTH");
+            if (env != nullptr) {
+                return std::stoll(env);
+            }
+
+            return 60ll;
+        }();
+        int64_t dynamicHeight = [] {
+            const auto env = std::getenv("DYNAMIC_HEIGHT");
+            if (env != nullptr) {
+                return std::stoll(env);
+            }
+
+            return 60ll;
+        }();
+        /* const int64_t maxDynamicWidth = 1800ll; */
+        NetworkMetadata metadata;
+
+        metadata.inputs = {IODescriptor{"input",
+                                        ov::element::f32,
+                                        {1, 3, dynamicHeight, dynamicWidth},
+                                        false,
+                                        false,
+                                        false,
+                                        {},
+                                        "input",
+                                        {"input"},
+                                        std::optional<ov::PartialShape>({1, 3, dynamicHeight, dynamicWidth})}};
+        metadata.outputs = {IODescriptor{"output",
+                                         ov::element::f32,
+                                         {1, 3, dynamicHeight, dynamicWidth},
+                                         false,
+                                         false,
+                                         false,
+                                         {},
+                                         "output",
+                                         {"output"},
+                                         std::optional<ov::PartialShape>({1, 3, dynamicHeight, dynamicWidth})}};
+        return std::make_shared<Graph>(_zeGraphExt,
+                                       _zeroInitStruct,
+                                       nullptr,
+                                       std::move(metadata),
+                                       std::move(blob),
+                                       blobAllocatedByPlugin,
+                                       config,
+                                       _compiler);
+    }
 
     _logger.debug("parse start");
     std::vector<uint8_t> network(mainBlob.get_byte_size());
