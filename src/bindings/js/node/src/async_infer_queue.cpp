@@ -69,7 +69,7 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
 AsyncInferQueue::~AsyncInferQueue() {
     std::cout << "AsyncInferQueue destructor\n";
     m_requests.clear();
-    this->tsfn.Release(); // release tsfn when all BlockingCalls are done
+    this->tsfn.Release();  // release tsfn when all BlockingCalls are done
 }
 
 Napi::Function AsyncInferQueue::get_class(Napi::Env env) {
@@ -95,6 +95,20 @@ Napi::Value AsyncInferQueue::get_idle_request_id(const Napi::CallbackInfo& info)
     if (m_errors.size() > 0)
         throw m_errors.front();
     return Napi::Number::New(info.Env(), idle_handle);
+}
+
+int AsyncInferQueue::check_idle_request_id() {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    if (m_idle_handles.empty()) {
+        return -1;
+    }
+    int idle_handle = static_cast<int>(m_idle_handles.front());
+    m_idle_handles.pop();
+    // m_requests[idle_handle].wait(); // TODO request waits only for C++ callback to finish, not for js callback to
+    // complete. Should work cause request is added to m_idle_handles after js callback is finished.
+    if (m_errors.size() > 0)
+        throw m_errors.front();  // TODO simulate such error
+    return idle_handle;
 }
 
 void AsyncInferQueue::wait_all(const Napi::CallbackInfo& info) {
@@ -133,7 +147,7 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
         this->tsfn =
             Napi::ThreadSafeFunction::New(info.Env(), f_callback, "AsyncInferQueueCallback", 0, 1, [](Napi::Env env) {
                 std::cout << "Running tsfn finalizer callback\n";
-            });  // TODO when it should be deleted?
+            });
         for (size_t handle = 0; handle < m_requests.size(); handle++) {
             m_requests[handle].set_callback([this, handle](std::exception_ptr exception_ptr) {
                 if (exception_ptr == nullptr) {
@@ -145,7 +159,16 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                             std::lock_guard<std::mutex> lock(m_mutex);
                             m_idle_handles.push(*handle);
                         }
-                        m_cv.notify_one();
+                        m_cv.notify_one();  // TODO
+                        {
+                            // check if any requests are waiting
+                            std::lock_guard<std::mutex> lock(m_mutex);
+                            if (awaiting_requests.size() > 0) {
+                                auto& request = awaiting_requests.front();
+                                this->start_async_impl(*handle, request.first.Value(), request.second.Value());
+                                awaiting_requests.pop();
+                            }
+                        }
                         delete handle;
                     };
                     // "callback" will be performed when main event loop is free
@@ -165,27 +188,32 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
     }
 }
 
-void AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
-    // TODO validate Napi::CallbackInfo
-
-    // getIdleRequestId waits for idle inferRequest and blocks main event loop
-    auto handle = this->get_idle_request_id(info).As<Napi::Number>().Int32Value();
-    m_user_ids[handle] = Napi::Persistent(info[1].ToObject());
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_idle_handles.pop();
-    }
+void AsyncInferQueue::start_async_impl(const int handle, Napi::Object infer_data, Napi::Object user_data) {
+    m_user_ids[handle] = Napi::Persistent(user_data);
 
     // TODO use parse_input_data(info[0].As<Napi::Value>());
-    const auto& keys = info[0].ToObject().GetPropertyNames();
+    const auto& keys = infer_data.GetPropertyNames();
     for (uint32_t i = 0; i < keys.Length(); ++i) {
         auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
-        auto value = info[0].ToObject().Get(input_name);
+        auto value = infer_data.Get(input_name);
         auto tensor = value_to_tensor(value, m_requests[handle], input_name);
 
         m_requests[handle].set_tensor(input_name, tensor);
     }
 
-    m_requests[handle].start_async(); // returns immediately
-    // main event loop is free
+    m_requests[handle].start_async();  // returns immediately, main event loop is free
+}
+
+void AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
+    // TODO validate Napi::CallbackInfo
+
+    const int handle = this->check_idle_request_id();
+    if (handle == -1) {
+        this->awaiting_requests.push(
+            std::make_pair(Napi::Persistent(info[0].ToObject()), Napi::Persistent(info[1].ToObject())));
+    } else {
+        this->start_async_impl(handle, info[0].ToObject(), info[1].ToObject());
+    }
+
+    // TODO return some kind of handle to this request. Perhaps a Promise?
 }
