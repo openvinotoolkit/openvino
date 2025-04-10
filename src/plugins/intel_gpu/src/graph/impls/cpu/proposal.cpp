@@ -185,6 +185,7 @@ struct im_info_t {
 
 struct proposal_impl : typed_primitive_impl<proposal> {
     using parent = typed_primitive_impl<proposal>;
+    using parent::execute;
     using parent::parent;
 
     proposal_impl() : parent() {}
