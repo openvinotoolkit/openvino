@@ -1180,7 +1180,7 @@ std::vector<event::ptr> loop_inst::postprocess_memory_for_body_network(int64_t c
         }
         memory::ptr new_sliced_mem = concat_output_mem_mapping->get_or_create_sliced_mem(current_iteration_idx,
                                                                                     output_mem_ptr->get_layout());
-        auto ev = new_sliced_mem->copy_from(body_network->get_stream(), *output_mem_ptr);
+        auto ev = new_sliced_mem->copy_from(body_network->get_stream(), *output_mem_ptr, false);
         if (ev) {
             events.push_back(ev);
         }
