@@ -4,6 +4,10 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "topk_shape_inference.hpp"
 
 using namespace ov;
