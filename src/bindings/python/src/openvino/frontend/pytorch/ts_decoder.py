@@ -26,7 +26,7 @@ from openvino.frontend.pytorch.utils import (
 from openvino import opset11 as ops
 from openvino.frontend.pytorch import quantized, patch_model
 from openvino.frontend.pytorch.module_extension import ModuleExtension
-from openvino.frontend.pytorch.patch_builtins import BuiltinPatcher
+from openvino.frontend.pytorch.patch_functions import FunctionsPatcher
 
 
 log = logging.getLogger(__name__)
@@ -169,10 +169,7 @@ class TorchScriptPythonDecoder(Decoder):
                 if trace_kwargs is None:
                     trace_kwargs = {}
                 try:
-                    with BuiltinPatcher():
-                        # patch Python environment for the short time
-                        # it patches built-in functions such as divmod()
-                        # which TorchScript is uncapable to trace for torch.Tensor input type
+                    with FunctionsPatcher():
                         scripted = torch.jit.trace(
                             pt_module, **input_parameters, strict=False, **trace_kwargs)
                 finally:

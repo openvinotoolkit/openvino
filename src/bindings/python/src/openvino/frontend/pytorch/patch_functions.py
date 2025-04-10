@@ -4,14 +4,19 @@
 
 import builtins
 import torch
+from typing import Any, Tuple, Optional, Type
 
 originals_map = {
     "divmod": builtins.divmod
 }
 
 
-def patched_divmod(lhs, rhs):
+def patched_divmod(lhs: Any, rhs: Any) -> Tuple[Any, Any]:
+    # patch only a case with torch.Tensor input type
+    # to help TorchScript to trace
+    # others cases are handled without change
     if isinstance(lhs, torch.Tensor):
+        # patch only
         div_res = torch.div(lhs, rhs, rounding_mode="trunc")
         rem = torch.remainder(lhs, rhs)
         return div_res, rem
@@ -23,12 +28,18 @@ patches_map = {
 }
 
 
-class BuiltinPatcher:
-    def __enter__(self):
+# Patch different Python functions including built-in routines such as divmod()
+# TorchScript is unable to trace divmod with torch.Tensor input type
+class FunctionsPatcher:
+    def __enter__(self) -> None:
         for name, new_fn in patches_map.items():
             setattr(builtins, name, new_fn)
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self,
+                 exc_type: Optional[Type[BaseException]],
+                 exc_val: Optional[BaseException],
+                 exc_tb: Optional[Any]
+                 ) -> None:
         for name, _ in patches_map.items():
             original_fn = originals_map[name]
             setattr(builtins, name, original_fn)
