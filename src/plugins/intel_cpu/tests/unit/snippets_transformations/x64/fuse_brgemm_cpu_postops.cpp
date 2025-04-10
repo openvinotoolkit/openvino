@@ -80,6 +80,8 @@ std::shared_ptr<ov::Node> make_eltwise(const ov::Output<ov::Node>& brgemm,
         return std::make_shared<ov::opset1::Multiply>(brgemm, postop_input);
     } else if (op_type == ov::opset1::Add::get_type_info_static()) {
         return std::make_shared<ov::opset1::Add>(brgemm, postop_input);
+    } else if (op_type == ov::opset1::Subtract::get_type_info_static()) {
+        return std::make_shared<ov::opset1::Subtract>(brgemm, postop_input);
     } else if (op_type == ov::opset1::Maximum::get_type_info_static()) {
         return std::make_shared<ov::opset1::Maximum>(brgemm, postop_input);
     } else if (op_type == ov::opset1::Minimum::get_type_info_static()) {
@@ -195,6 +197,8 @@ public:
             postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, 2.0f, 0.0f);
         } else if (scalar_op_type == ov::opset1::Add::get_type_info_static()) {
             postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, 1.0f, 2.0f);
+        } else if (scalar_op_type == ov::opset1::Subtract::get_type_info_static()) {
+            postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, 1.0f, -2.0f);
         } else if (scalar_op_type == ov::opset1::Maximum::get_type_info_static()) {
             postops.post_ops.append_eltwise(1.0f,
                                             dnnl::impl::alg_kind_t::dnnl_eltwise_clip,
@@ -279,6 +283,8 @@ public:
             postops.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_mul, memory_desc.getDnnlDesc().get());
         } else if (binary_op_type == ov::opset1::Add::get_type_info_static()) {
             postops.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_add, memory_desc.getDnnlDesc().get());
+        } else if (binary_op_type == ov::opset1::Subtract::get_type_info_static()) {
+            postops.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_sub, memory_desc.getDnnlDesc().get());
         } else if (binary_op_type == ov::opset1::Maximum::get_type_info_static()) {
             postops.post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_max, memory_desc.getDnnlDesc().get());
         } else if (binary_op_type == ov::opset1::Minimum::get_type_info_static()) {
@@ -320,6 +326,7 @@ INSTANTIATE_TEST_SUITE_P(FuseBrgemmCPUPostopsTests,
 
 const std::vector<ov::Node::type_info_t> eltwise_postop_types = {ov::opset1::Multiply::get_type_info_static(),
                                                                  ov::opset1::Add::get_type_info_static(),
+                                                                 ov::opset1::Subtract::get_type_info_static(),
                                                                  ov::opset1::Maximum::get_type_info_static(),
                                                                  ov::opset1::Minimum::get_type_info_static()};
 
@@ -342,6 +349,52 @@ INSTANTIATE_TEST_SUITE_P(FuseBrgemmCPUPostopsTests,
                                             ::testing::ValuesIn(eltwise_postop_types),
                                             ::testing::ValuesIn(postop_input_shapes)),
                          FuseBinaryEltwiseTests::getTestCaseName);
+
+TEST_F(FuseBrgemmCPUPostopsTests, FuseUnaryEltwiseHalfToEven) {
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_b_shape);
+        auto brgemm = make_brgemm({input1, input2});
+        auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm, ov::element::f32);
+        auto round = std::make_shared<ov::op::v5::Round>(convert, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{round}, ov::ParameterVector{input1, input2});
+    }
+
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_b_shape);
+        BrgemmCPU::PostopsConfig postops;
+        postops.forced_output_type = ov::element::f32;
+        postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_round_half_to_even, 0.0f, 0.0f);
+        auto ref_brgemm = make_brgemm({input1, input2}, postops);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+    }
+}
+
+TEST_F(FuseBrgemmCPUPostopsTests, FuseUnaryEltwiseHalfAwayFromZero) {
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_b_shape);
+        auto brgemm = make_brgemm({input1, input2});
+        auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm, ov::element::f32);
+        auto round = std::make_shared<ov::op::v5::Round>(convert, ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{round}, ov::ParameterVector{input1, input2});
+    }
+
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::u8, brgemm_a_shape);
+        auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::i8, brgemm_b_shape);
+        BrgemmCPU::PostopsConfig postops;
+        postops.forced_output_type = ov::element::f32;
+        postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_round_half_away_from_zero, 0.0f, 0.0f);
+        auto ref_brgemm = make_brgemm({input1, input2}, postops);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+    }
+}
 
 TEST_F(FuseBrgemmCPUPostopsTests, FuseScaleShift) {
     const float scale_val = 2.f;

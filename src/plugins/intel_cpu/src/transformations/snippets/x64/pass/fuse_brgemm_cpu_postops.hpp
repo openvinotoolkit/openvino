@@ -41,6 +41,18 @@ public:
 };
 
 /**
+ * @interface FuseUnaryEltwise
+ * @brief FuseUnaryEltwise fuses unary eltwise operations into BrgemmCPU nodes.
+ *
+ * @ingroup snippets
+ */
+class FuseUnaryEltwise : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("FuseUnaryEltwise");
+    FuseUnaryEltwise();
+};
+
+/**
  * @interface FuseScalarEltwise
  * @brief FuseScalarEltwise fuses eltwise operations with scalar inputs into BrgemmCPU nodes.
  *
