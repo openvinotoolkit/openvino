@@ -314,7 +314,9 @@ public:
                 atten_mask = register_new_node<v1::Select>(triu, mask, zero_f);
             }
             if (use_high_precision_on_add) {
-                atten_mask.get_rt_info()["use_high_precision"] = true;
+                npuw::util::HighPrecisionAttr attr_hp;
+                attr_hp.compute_precision_type = ov::element::f32;
+                atten_mask.get_rt_info()[npuw::util::HighPrecisionAttr::get_type_info_static()] = attr_hp;
             }
 
             scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask); 
@@ -379,8 +381,7 @@ bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
 }
 }  // namespace
 
-// testability - should we have interface for that or move matchers to another file?
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill);
+namespace ov::npuw::util {
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
@@ -393,6 +394,7 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
 
     // NB: matmul parameters gets transposed, if pass applied
     return ctx.bTransposed;
+}
 }
 
 namespace {
@@ -641,8 +643,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (optimize_v_tensors) {
         LOG_DEBUG("6. Check and apply opt layout");
         LOG_BLOCK();
-        if (optimize_value_tensors(kvcache_model, false)) {
-            NPUW_ASSERT(optimize_value_tensors(prefill_model, true));
+        if (ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
+            NPUW_ASSERT(ov::npuw::util::optimize_value_tensors(prefill_model, true));
             m_kvcache_desc.v_tensors_transposed = true;
         } else {
             LOG_DEBUG("vtensors optimisation not applied");

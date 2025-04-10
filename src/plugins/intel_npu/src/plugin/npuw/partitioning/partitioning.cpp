@@ -433,7 +433,15 @@ void Partitioner::identifySubgraphs() {
             input_mapping[orig_node] = orig_node;
             return orig_node;
         };
-        auto parameter_from = [&input_mapping, connect_in_f16](ov::Output<ov::Node> output) {
+        auto is_hp_tag = [] (auto node) {
+            auto hptag = node.get_rt_info().find(ov::npuw::util::HighPrecisionAttr::get_type_info_static());
+            if (hptag == node.get_rt_info().end() ||
+                hptag->second.template as<ov::npuw::util::HighPrecisionAttr>().compute_precision_type != ov::element::f32) {
+                return false;
+            } 
+            return true;
+        };        
+        auto parameter_from = [&input_mapping, is_hp_tag, connect_in_f16](ov::Output<ov::Node> output) {
             auto orig_node = output.get_node_shared_ptr();
             auto it = input_mapping.find(orig_node);
             if (it != input_mapping.end()) {
@@ -459,8 +467,7 @@ void Partitioner::identifySubgraphs() {
                 // to maintain graph contracts. See handling where parameter_from is called.
                 auto otype = output.get_element_type();
                 if (otype == ov::element::f32 && connect_in_f16) {
-                    if (!output.get_rt_info().count("use_high_precision") ||
-                        !output.get_rt_info()["use_high_precision"].as<bool>()) {
+                    if (!is_hp_tag(output)) {
                         otype = ov::element::f16;
                         LOG_VERB("Found parameter  " << output << ", will be computed in fp16 precision");
                     } else {
@@ -709,8 +716,7 @@ void Partitioner::identifySubgraphs() {
                         // Register a new Result. Optionally, lower it to f16
                         ov::Output<ov::Node> result_src = output_desc;
                         if (output_desc.get_element_type() == ov::element::f32 && connect_in_f16) {
-                            if (!output_desc.get_rt_info().count("use_high_precision") ||
-                                !output_desc.get_rt_info()["use_high_precision"].as<bool>()) {
+                            if (!is_hp_tag(output_desc)) {
                                 auto new_cvt = new_f16ic_cvt(output_desc, ov::element::f16);
                                 LOG_DEBUG("Added F16IC Result Convert " << new_cvt << " on top of " << output_desc);
                                 result_src = new_cvt;
