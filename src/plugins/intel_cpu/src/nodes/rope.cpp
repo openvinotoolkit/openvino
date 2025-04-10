@@ -30,12 +30,9 @@ RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     m_config = node->get_config();
 }
 
-static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_compile_params& param,
-                                                              bool check_vec_size2 = false) {
+static std::shared_ptr<kernel::JitKernelBase> createJitKernel([[maybe_unused]] const jit_rotary_compile_params& param,
+                                                              [[maybe_unused]] bool check_vec_size2 = false) {
     std::shared_ptr<kernel::JitKernelBase> res;
-
-    MAYBE_UNUSED(param);
-    MAYBE_UNUSED(check_vec_size2);
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -72,17 +69,11 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_c
     return res;
 }
 
-static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
-                          const void* src,
-                          void* dst,
-                          const float* cos,
-                          const float* sin) {
-    MAYBE_UNUSED(ker);
-    MAYBE_UNUSED(src);
-    MAYBE_UNUSED(dst);
-    MAYBE_UNUSED(cos);
-    MAYBE_UNUSED(sin);
-
+static void execJitKernel([[maybe_unused]] const std::shared_ptr<kernel::JitKernelBase>& ker,
+                          [[maybe_unused]] const void* src,
+                          [[maybe_unused]] void* dst,
+                          [[maybe_unused]] const float* cos,
+                          [[maybe_unused]] const float* sin) {
 #if defined(OPENVINO_ARCH_X86_64)
 
     jit_rotary_call_args call_args;
@@ -109,7 +100,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(const dnnl::stream& strm,
+    void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -192,7 +183,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(const dnnl::stream& strm,
+    void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -242,7 +233,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(const dnnl::stream& strm,
+    void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -331,7 +322,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(const dnnl::stream& strm,
+    void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);   // [batch, length, head_cnt*head_size * 3]

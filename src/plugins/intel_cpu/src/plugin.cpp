@@ -12,6 +12,7 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
@@ -204,7 +205,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
         return Config::ModelType::CNN;
     }
 
-    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && model->get_variables().size() > 0) ||
+    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && !model->get_variables().empty()) ||
         op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
         return Config::ModelType::LLM;
     }
@@ -404,7 +405,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     return get_ro_property(name, options);
 }
 
-ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const ov::AnyMap& options) const {
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
     };
@@ -585,9 +586,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     auto _config = config;
     std::shared_ptr<ov::AlignedBuffer> model_buffer;
-    if (_config.count(ov::internal::cached_model_buffer.name())) {
-        model_buffer = _config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
-        _config.erase(ov::internal::cached_model_buffer.name());
+    if (auto blob_it = _config.find(ov::hint::compiled_blob.name()); blob_it != _config.end()) {
+        auto compiled_blob = blob_it->second.as<ov::Tensor>();
+        model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
+                                                                      compiled_blob.get_byte_size(),
+                                                                      compiled_blob);
+        _config.erase(blob_it);
     }
 
     ModelDeserializer deserializer(
