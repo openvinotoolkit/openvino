@@ -191,6 +191,11 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
+    // TODO: Need to define the format of IR to get metadata from stream, then can check version
+    if (!isELFBlob(stream)) {
+        return std::make_unique<Metadata<METADATA_VERSION_2_0>>(MetadataBase::getFileSize(stream), std::nullopt);
+    }
+
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string blobMagicBytes;
     blobMagicBytes.resize(magicBytesSize);
@@ -282,6 +287,21 @@ std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_0>::get_init_si
 
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
     return _initSizes;
+}
+
+bool isELFBlob(std::istream& stream) {
+    std::streampos pos = stream.tellg();
+
+    char buffer[21] = {0};
+    stream.read(buffer, 20);
+    std::streamsize count = stream.gcount();
+
+    // ov::SharedStreamBuf can not work with below call, stream status is bad after that
+    // stream.clear();
+    // stream.seekg(pos);
+    stream.seekg(-stream.tellg() + pos, std::ios::cur);
+    std::string header(buffer, count);
+    return header.find("ELF") != std::string::npos;
 }
 
 }  // namespace intel_npu
