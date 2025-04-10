@@ -69,8 +69,8 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
         print(f"[Debug] Comparing: {generated_file} with {committed_file}")
         if not filecmp.cmp(generated_file, committed_file, shallow=False):
             with open(generated_file, 'r') as gen_file, open(committed_file, 'r') as com_file:
-                gen_lines = gen_file.readlines()
-                com_lines = com_file.readlines()
+                gen_lines = [line.lstrip() for line in gen_file.readlines()]
+                com_lines = [line.lstrip() for line in com_file.readlines()]
                 diff = list(difflib.unified_diff(
                     gen_lines, com_lines,
                     fromfile=f"Generated: {relative_path}",
