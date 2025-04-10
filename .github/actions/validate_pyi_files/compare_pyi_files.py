@@ -83,6 +83,7 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
                     if (line.startswith('+') or line.startswith('-')) 
                     and not line.startswith(('+++ Committed:', '--- Generated:'))
                     and line != '\n'
+                    and line != '"""'
                 ]
                 if changes and not all(change.startswith(("import", "from", "__all__")) for change in changes):
                     print(f"Adding diff for {relative_path}. The changes var is: {changes}")
