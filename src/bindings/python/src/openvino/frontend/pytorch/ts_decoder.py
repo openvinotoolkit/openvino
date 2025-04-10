@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -26,6 +25,8 @@ from openvino.frontend.pytorch.utils import (
 from openvino import opset11 as ops
 from openvino.frontend.pytorch import quantized, patch_model
 from openvino.frontend.pytorch.module_extension import ModuleExtension
+from openvino.frontend.pytorch.patch_builtins import BuiltinPatcher
+
 
 log = logging.getLogger(__name__)
 
@@ -167,8 +168,12 @@ class TorchScriptPythonDecoder(Decoder):
                 if trace_kwargs is None:
                     trace_kwargs = {}
                 try:
-                    scripted = torch.jit.trace(
-                        pt_module, **input_parameters, strict=False, **trace_kwargs)
+                    with BuiltinPatcher():
+                        # patch Python environment for the short time
+                        # it patches built-in functions such as divmod()
+                        # which TorchScript is uncapable to trace for torch.Tensor input type
+                        scripted = torch.jit.trace(
+                            pt_module, **input_parameters, strict=False, **trace_kwargs)
                 finally:
                     if patched:
                         quantized.unpatch_quantized(pt_module)
