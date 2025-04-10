@@ -16,7 +16,6 @@ def patched_divmod(lhs: Any, rhs: Any) -> Tuple[Any, Any]:
     # to help TorchScript to trace
     # others cases are handled without change
     if isinstance(lhs, torch.Tensor):
-        # patch only
         div_res = torch.div(lhs, rhs, rounding_mode="trunc")
         rem = torch.remainder(lhs, rhs)
         return div_res, rem
