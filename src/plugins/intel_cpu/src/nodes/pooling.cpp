@@ -493,11 +493,11 @@ void Pooling::prepareParams() {
             const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
             if (found) {
-                return std::make_shared<DnnlExecutor>(prim_desc);
+                return std::make_shared<DnnlExecutorLegacy>(prim_desc);
             }
 
             // use the first available
-            return std::make_shared<DnnlExecutor>(first_desc);
+            return std::make_shared<DnnlExecutorLegacy>(first_desc);
         };
 
         auto cache = context->getParamsCache();
