@@ -36,6 +36,7 @@ public:
 
 private:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
+    std::vector<uint8_t> get_raw_profiling_data() const;
 
     /**
      * @brief Check the received tensor and set the Level Zero tensor accordingly
@@ -86,6 +87,9 @@ private:
     std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;
     std::shared_ptr<const zeroMemory::HostMemAllocator> _outputAllocator;
 
+    zeroProfiling::ProfilingPool _profilingPool;
+    zeroProfiling::ProfilingQuery _profilingQuery;
+    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npuProfiling;
     std::unique_ptr<Pipeline> _pipeline;
 
     bool _pipelineIsCreated = false;

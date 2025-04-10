@@ -120,6 +120,11 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
+    // TODO: Need to define the format of IR to get metadata from stream, then can check version
+    if (!isELFBlob(stream)) {
+        return std::make_unique<Metadata<METADATA_VERSION_2_0>>(MetadataBase::getFileSize(stream), std::nullopt);
+    }
+
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string blobMagicBytes;
     blobMagicBytes.resize(magicBytesSize);
@@ -163,6 +168,19 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
 uint64_t Metadata<METADATA_VERSION_2_0>::get_blob_size() const {
     return _blobDataSize;
+}
+
+bool isELFBlob(std::istream& stream) {
+    std::streampos pos = stream.tellg();
+
+    char buffer[21] = {0};
+    stream.read(buffer, 20);
+    std::streamsize count = stream.gcount();
+
+    stream.clear();
+    stream.seekg(pos);
+    std::string header(buffer, count);
+    return header.find("ELF") != std::string::npos;
 }
 
 }  // namespace intel_npu

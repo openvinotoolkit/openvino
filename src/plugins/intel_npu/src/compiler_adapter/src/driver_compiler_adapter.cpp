@@ -16,6 +16,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "ir_graph.hpp"
 #include "ir_serializer.hpp"
 #include "openvino/core/model.hpp"
 
@@ -212,6 +213,57 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
                                                      bool blobAllocatedByPlugin,
                                                      const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
+
+    // TODO: A way to detect if the blob is ELF or IR, check if first 20 bytes has 'ELF' string
+    // Check If blob is ELF, if not, create IRGraph
+    size_t blobSize = blobPtr->size();
+    // Temporarily use 20 as header length
+    size_t headerSize = blobSize > 20 ? 20 : blobSize;
+    std::string header(reinterpret_cast<const char*>(blobPtr->get_ptr()), headerSize);
+    if (header.find("ELF") == std::string::npos) {
+        _logger.debug("blob is not ELF format, create IRGraph!");
+        // TODO: Fake metadata here, need to get from driver|compiler
+        int64_t dynamicWidth = [] {
+            const auto env = std::getenv("DYNAMIC_WIDTH");
+            if (env != nullptr) {
+                return std::stoll(env);
+            }
+
+            return 60ll;
+        }();
+        int64_t dynamicHeight = [] {
+            const auto env = std::getenv("DYNAMIC_HEIGHT");
+            if (env != nullptr) {
+                return std::stoll(env);
+            }
+
+            return 60ll;
+        }();
+        /* const int64_t maxDynamicWidth = 1800ll; */
+        NetworkMetadata metadata;
+
+        metadata.inputs = {IODescriptor{"input",
+                                        ov::element::f32,
+                                        {1, 3, dynamicHeight, dynamicWidth},
+                                        false,
+                                        false,
+                                        false,
+                                        {},
+                                        "input",
+                                        {"input"},
+                                        std::optional<ov::PartialShape>({1, 3, dynamicHeight, dynamicWidth})}};
+        metadata.outputs = {IODescriptor{"output",
+                                         ov::element::f32,
+                                         {1, 3, dynamicHeight, dynamicWidth},
+                                         false,
+                                         false,
+                                         false,
+                                         {},
+                                         "output",
+                                         {"output"},
+                                         std::optional<ov::PartialShape>({1, 3, dynamicHeight, dynamicWidth})}};
+        return std::make_shared<IRGraph>(_zeroInitStruct, config, metadata, std::move(blobPtr));
+    }
 
     _logger.debug("parse start");
     ze_graph_handle_t graphHandle =

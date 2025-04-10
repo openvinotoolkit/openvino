@@ -196,4 +196,9 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
  */
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
 
+/**
+ * @brief Check if the stream contains traditional ELF blob or is IR
+ */
+bool isELFBlob(std::istream& stream);
+
 }  // namespace intel_npu
