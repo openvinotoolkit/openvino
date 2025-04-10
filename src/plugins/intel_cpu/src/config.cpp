@@ -328,7 +328,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::key_cache_precision.name()) {
             try {
                 keyCachePrecisionSetExplicitly = true;
-                auto const prec = val.as<ov::element::Type>();
+                const auto prec = val.as<ov::element::Type>();
                 if (one_of(prec,
                            ov::element::f32,
                            ov::element::f16,
@@ -401,11 +401,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<ov::intel_cpu::CacheQuantMode>(),
                                " for property key ",
                                ov::intel_cpu::key_cache_quant_mode.name(),
-                               ". Expected only unsinged integer numbers");
+                               ". Expected AUTO/BY_CHANNEL/BY_HIDDEN");
             }
         } else if (key == ov::intel_cpu::value_cache_quant_mode.name()) {
             try {
-                auto const mode = val.as<ov::intel_cpu::CacheQuantMode>();
+                const auto mode = val.as<ov::intel_cpu::CacheQuantMode>();
                 if (mode == ov::intel_cpu::CacheQuantMode::AUTO) {
                     valueCacheQuantMode = CacheQuantMode::AUTO;
                 } else if (mode == ov::intel_cpu::CacheQuantMode::BY_CHANNEL) {
@@ -420,7 +420,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<ov::intel_cpu::CacheQuantMode>(),
                                " for property key ",
                                ov::intel_cpu::value_cache_quant_mode.name(),
-                               ". Expected only unsinged integer numbers");
+                               ". Expected AUTO/BY_CHANNEL/BY_HIDDEN");
             }
         } else if (key == ov::cache_encryption_callbacks.name()) {
             try {
