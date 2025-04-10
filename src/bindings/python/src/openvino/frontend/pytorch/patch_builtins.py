@@ -5,7 +5,7 @@ import builtins
 import torch
 
 originals_map = {
-    'divmod': builtins.divmod
+    "divmod": builtins.divmod
 }
 
 
@@ -18,7 +18,7 @@ def patched_divmod(a, b):
 
 
 patches_map = {
-    'divmod': patched_divmod,
+    "divmod": patched_divmod,
 }
 
 
