@@ -111,6 +111,48 @@ void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
     }
 }
 
+void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
+                  const ov::SoPtr<ov::ITensor>& scale,
+                  const ov::SoPtr<ov::ITensor>& to,
+                  const ov::npuw::util::UnpackOptions& unpack_options) {
+    auto from_shape = from->get_shape();
+    auto scale_shape = scale->get_shape();
+
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
+    NPUW_ASSERT(scale_shape[1] == 1);
+    NPUW_ASSERT(from->get_element_type() == ov::element::f8e4m3 || from->get_element_type() == ov::element::f8e5m2 ||
+                from->get_element_type() == ov::element::f8e8m0);
+    NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
+    NPUW_ASSERT(to->get_element_type() == ov::element::f16);
+
+    const auto* scale_ptr = scale->data<float>();
+    auto* to_ptr = to->data<ov::float16>();
+
+    const auto size = from->get_size();
+
+    // FIXME: copypaste with a different type
+    if (from->get_element_type() == ov::element::f8e4m3) {
+        const auto* from_ptr = from->data<ov::float8_e4m3>();
+        ov::parallel_for(size, [&](size_t idx) {
+            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
+        });
+    } else if (from->get_element_type() == ov::element::f8e5m2) {
+        const auto* from_ptr = from->data<ov::float8_e5m2>();
+        ov::parallel_for(size, [&](size_t idx) {
+            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
+        });
+    } else {
+        const auto* from_ptr = from->data<ov::float8_e8m0>();
+        ov::parallel_for(size, [&](size_t idx) {
+            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
+        });
+    }
+}
+
 }  // namespace
 
 ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node>& node) {
@@ -197,6 +239,10 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         ov::npuw::util::XARCH::unpack_i8f16_scale(from, scale, to, unpack_options);
     } else if (type_from == ov::element::nf4) {
         unpack_nf4f16(from, scale, to, unpack_options);
+    } else if (type_from == ov::element::f8e4m3 || type_from == ov::element::f8e5m2 ||
+               type_from == ov::element::f8e8m0) {
+        // FIXME: Implement XARCH::unpack
+        unpack_f8f16(from, scale, to, unpack_options);
     } else {
         NPUW_ASSERT(false && "Unsupported combination");
     }
