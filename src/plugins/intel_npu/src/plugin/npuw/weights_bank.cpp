@@ -38,6 +38,7 @@ private:
 
 int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
+    std::cout << "register on device " << device_for_alloc << std::endl;
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
@@ -63,6 +64,8 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
 ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
+    std::cout << "get on device " << device_for_alloc << std::endl;
+
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto& device_bank = m_device_banks[device_for_alloc];
@@ -82,6 +85,8 @@ void Bank::evaluate_and_allocate() {
     for (auto&& bank : m_device_banks) {
         const auto& device_for_alloc = bank.first;
         auto& device_bank = bank.second;
+
+        std::cout << "considering device " << device_for_alloc << std::endl;
 
         std::vector<LazyTensor> vec;
 
@@ -106,6 +111,7 @@ void Bank::evaluate_and_allocate() {
             if (device_bank.storage[iter_device_registered->second].tensor) {
                 std::cout << "already allocated" << std::endl;
                 // Already allocated
+                const_cast<LazyTensor&>(lt).detach();
                 return;
             }
             dev_guard.unlock();
@@ -121,6 +127,7 @@ void Bank::evaluate_and_allocate() {
             if (device_for_alloc == "CPU") {
                 // No allocation needed
                 device_bank.storage[device_bank.registered_tensors.at(lt)].tensor = transformed_tensor;
+                const_cast<LazyTensor&>(lt).detach();
                 return;
             }
 

@@ -26,6 +26,12 @@ namespace patterns {
 // Common structures here
 
 struct DCOFFParams {
+    DCOFFParams() {
+        std::cout << "DCOFFParams constructor" << std::endl;
+    }
+    ~DCOFFParams() {
+        std::cout << "DCOFFParams destructor" << std::endl;
+    }
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     std::unordered_map<PPtr, PPtr> scales;        // Closures: a scaling factor -> orig tensor
@@ -36,6 +42,12 @@ struct DCOFFParams {
 using DCOFFParamRef = std::reference_wrapper<DCOFFParams>;
 
 struct ClosureRemap {
+    ClosureRemap() {
+        std::cout << "ClosureRemap constructor" << std::endl;
+    }
+    ~ClosureRemap() {
+        std::cout << "ClosureRemap destructor" << std::endl;
+    }
     std::vector<std::size_t> closure_remap;          // [new closure index] -> orig closure idx
     std::map<std::size_t, std::size_t> scale_remap;  // orig closure idx -> orig scale idx
     std::map<std::size_t, std::size_t> zerop_remap;  // orig closure idx -> orig asymm zero point idx
@@ -67,6 +79,9 @@ protected:
 
 public:
     DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+    ~DCOFFPassBase() {
+        std::cout << "DCOFFPassBase destructor" << std::endl;
+    }
 
     virtual void build();
     virtual void reconnect_root_to_convert(ov::pass::pattern::Matcher& m) = 0;
@@ -76,6 +91,9 @@ class DCOFFPassMatMul final : public DCOFFPassBase {
     std::shared_ptr<ov::Node> matmul;
 
 public:
+~DCOFFPassMatMul() {
+    std::cout << "DCOFFPassMatMul destructor" << std::endl;
+}
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
     void reconnect_root_to_convert(ov::pass::pattern::Matcher& m) override;
@@ -85,6 +103,9 @@ class DCOFFPassGather final : public DCOFFPassBase {
     std::shared_ptr<ov::Node> gather;
 
 public:
+~DCOFFPassGather() {
+    std::cout << "DCOFFPassGather destructor" << std::endl;
+}
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
     void reconnect_root_to_convert(ov::pass::pattern::Matcher& m) override;
@@ -99,6 +120,9 @@ namespace SymmZP {  // TODO: Not sure if it is actually Symm..
 class DCOFFPassBase : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmZP::DCOFFPassBase");
+    ~DCOFFPassBase() {
+        std::cout << "DCOFFPassBase destructor" << std::endl;
+    }
 
 protected:
     DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
@@ -119,6 +143,9 @@ class DCOFFPassReshape1 final : public DCOFFPassBase {
     std::shared_ptr<ov::Node> reshpe;
 
 public:
+~DCOFFPassReshape1() {
+    std::cout << "DCOFFPassReshape1 destructor" << std::endl;
+}
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
     void reconnect_root(ov::pass::pattern::Matcher& m) override;
@@ -128,6 +155,9 @@ class DCOFFPassConvert1 final : public DCOFFPassBase {
     std::shared_ptr<ov::Node> cvtEnd;
 
 public:
+~DCOFFPassConvert1() {
+    std::cout << "DCOFFPassConvert1 destructor" << std::endl;
+}
     using DCOFFPassBase::DCOFFPassBase;
     void build() override;
     void reconnect_root(ov::pass::pattern::Matcher& m) override;
@@ -135,18 +165,27 @@ public:
 
 class DCOFFPassReshape2 : public ov::pass::MatcherPass {
 public:
+~DCOFFPassReshape2() {
+    std::cout << "DCOFFPassReshape2 destructor" << std::endl;
+}
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmZP::DCOFFPassReshape2");
     DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
 class DCOFFPassReshape3 : public ov::pass::MatcherPass {
 public:
+~DCOFFPassReshape3() {
+    std::cout << "DCOFFPassReshape3 destructor" << std::endl;
+}
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmZP::DCOFFPassReshape3");
     DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
 class DCOFFPassReshape4 : public ov::pass::MatcherPass {
 public:
+~DCOFFPassReshape4() {
+    std::cout << "DCOFFPassReshape4 destructor" << std::endl;
+}
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmZP::DCOFFPassReshape4");
     DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
