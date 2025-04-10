@@ -76,7 +76,7 @@ SoftMax::SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 }
 
 void SoftMax::getSupportedDescriptors() {
-    if (descs.size()) {
+    if (!descs.empty()) {
         return;
     }
 
@@ -89,7 +89,7 @@ void SoftMax::getSupportedDescriptors() {
     if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("Incorrect number of input edges");
     }
-    if (!getChildEdges().size()) {
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("Incorrect number of output edges");
     }
 
@@ -145,7 +145,7 @@ void SoftMax::initOptimalPrimitiveDescriptor() {
 }
 
 void SoftMax::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
-                               const std::vector<MemoryDescPtr>& outputDesc) {
+                               [[maybe_unused]] const std::vector<MemoryDescPtr>& outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     auto in_candidate = definedInpMemDesc->getDnnlDesc();
@@ -208,7 +208,7 @@ void SoftMax::prepareParams() {
                 break;
             }
         }
-        return std::make_shared<DnnlExecutor>(prim_desc);
+        return std::make_shared<DnnlExecutorLegacy>(prim_desc);
     };
 
     auto cache = context->getParamsCache();

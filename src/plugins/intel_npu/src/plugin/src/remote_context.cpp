@@ -4,7 +4,7 @@
 
 #include "remote_context.hpp"
 
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 
 using namespace ov::intel_npu;
 
@@ -24,16 +24,21 @@ std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<
 
 namespace intel_npu {
 
-RemoteContextImpl::RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends,
+RemoteContextImpl::RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBackend,
                                      const Config& config,
                                      const ov::AnyMap& remote_properties)
     : _config(config),
-      _device(backends->getDevice(_config.get<DEVICE_ID>())),
-      _properties({l0_context(backends->getContext())}),
       _device_name("NPU") {
-    if (_device == nullptr) {
-        OPENVINO_THROW("Device is not available");
+    if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
+        OPENVINO_THROW("Level zero backend is not found!");
     }
+
+    _device = engineBackend->getDevice(config.get<DEVICE_ID>());
+    if (_device == nullptr) {
+        OPENVINO_THROW("Device is not available!");
+    }
+
+    _properties = {l0_context(engineBackend->getContext())};
 
     if (!remote_properties.empty()) {
         _mem_type_object = extract_object(remote_properties, mem_type);

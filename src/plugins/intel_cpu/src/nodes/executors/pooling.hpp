@@ -62,7 +62,7 @@ using PoolingExecutorCPtr = std::shared_ptr<const PoolingExecutor>;
 
 class PoolingExecutorBuilder {
 public:
-    ~PoolingExecutorBuilder() = default;
+    virtual ~PoolingExecutorBuilder() = default;
     [[nodiscard]] virtual bool isSupported(const PoolingAttrs& poolingAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
