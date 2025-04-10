@@ -1,26 +1,25 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "base/ov_behavior_test_utils.hpp"
-#include "common/npu_test_env_cfg.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
-
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <exception>
 
+#include <exception>
 #include <openvino/core/any.hpp>
 #include <openvino/core/node_vector.hpp>
 #include <openvino/op/op.hpp>
 #include <openvino/runtime/compiled_model.hpp>
 #include <openvino/runtime/core.hpp>
 
-#include "intel_npu/al/config/common.hpp"
+#include "base/ov_behavior_test_utils.hpp"
+#include "common/npu_test_env_cfg.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "intel_npu/config/options.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -38,7 +37,7 @@ public:
     OPENVINO_OP("UnsupportedTestOperation");
 
     UnsupportedTestOperation() = default;
-    explicit UnsupportedTestOperation(const ov::Output<ov::Node>& arg): Op({arg}) {
+    explicit UnsupportedTestOperation(const ov::Output<ov::Node>& arg) : Op({arg}) {
         constructor_validate_and_infer_types();
     }
 
@@ -57,9 +56,8 @@ public:
     }
 };
 
-class FailGracefullyTest :
-        public ov::test::behavior::OVPluginTestBase,
-        public testing::WithParamInterface<CompilationParams> {
+class FailGracefullyTest : public ov::test::behavior::OVPluginTestBase,
+                           public testing::WithParamInterface<CompilationParams> {
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,8 @@
 
 using namespace ov;
 using namespace ov::frontend;
+
+InputModel::~InputModel() = default;
 
 std::vector<Place::Ptr> InputModel::get_inputs() const {
     if (!m_actual) {

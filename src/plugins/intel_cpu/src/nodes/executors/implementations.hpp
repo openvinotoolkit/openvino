@@ -6,11 +6,11 @@
 
 #include <vector>
 
+#include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // @todo move to separate header file
 template <typename... T>
@@ -25,8 +25,8 @@ const std::vector<ExecutorImplementation<Attrs>>& getImplementations() {
 // FullyConnected
 template <>
 const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations();
+// Convolution
+template <>
+const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations();
 
-// ...
-
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

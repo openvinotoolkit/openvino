@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 /// 1. Trivial case (greedy search, no state initializer)
 ///     ┌───────────┐      ┌───────────┐                                      ┌───────────┐
@@ -76,12 +75,11 @@ namespace intel_gpu {
 ///   └─────────────┘         └───────────┘                                                      └─────────┘
 class KVCacheFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("KVCacheFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("KVCacheFusion");
     KVCacheFusion();
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

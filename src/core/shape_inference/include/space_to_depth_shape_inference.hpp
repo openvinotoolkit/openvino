@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <cstdint>
 
 #include "openvino/op/space_to_depth.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "utils.hpp"
 namespace ov {
 namespace op {

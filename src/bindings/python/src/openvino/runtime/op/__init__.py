@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -8,12 +8,14 @@ Low level wrappers for the c++ api in ov::op.
 
 # flake8: noqa
 
-from openvino._pyopenvino.op import Constant
-from openvino._pyopenvino.op import assign
-from openvino._pyopenvino.op import _PagedAttentionExtension
-from openvino._pyopenvino.op import Parameter
-from openvino._pyopenvino.op import if_op
-from openvino._pyopenvino.op import loop
-from openvino._pyopenvino.op import tensor_iterator
-from openvino._pyopenvino.op import read_value
-from openvino._pyopenvino.op import Result
+from openvino.op import Constant
+from openvino.op import assign
+from openvino.op import _PagedAttentionExtension
+from openvino.op import Parameter
+from openvino.op import if_op
+from openvino.op import loop
+from openvino.op import tensor_iterator
+from openvino.op import read_value
+from openvino.op import Result
+
+from openvino.runtime.op import util

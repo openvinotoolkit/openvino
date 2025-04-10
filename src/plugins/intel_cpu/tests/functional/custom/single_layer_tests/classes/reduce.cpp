@@ -243,6 +243,25 @@ const std::vector<ov::test::utils::ReductionType>& reductionTypes() {
     return reductionTypes;
 }
 
+const std::vector<ov::test::utils::ReductionType>& reductionTypesArithmetic() {
+    static const std::vector<ov::test::utils::ReductionType> reductionTypesArithmetic = {
+            ov::test::utils::ReductionType::Mean,
+            ov::test::utils::ReductionType::Sum,
+            ov::test::utils::ReductionType::Prod,
+            ov::test::utils::ReductionType::L1,
+            ov::test::utils::ReductionType::L2,
+    };
+    return reductionTypesArithmetic;
+}
+
+const std::vector<ov::test::utils::ReductionType>& reductionTypesCompare() {
+    static const std::vector<ov::test::utils::ReductionType> reductionTypesCompare = {
+            ov::test::utils::ReductionType::Max,
+            ov::test::utils::ReductionType::Min,
+    };
+    return reductionTypesCompare;
+}
+
 const std::vector<ElementType>& inpOutPrc() {
     static const std::vector<ElementType> inpOutPrc = {ElementType::f32};
     return inpOutPrc;

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -12,7 +12,13 @@ endforeach()
 
 find_program(fdupes_PROGRAM NAMES fdupes DOC "Path to fdupes")
 if(NOT fdupes_PROGRAM)
-    message(WARNING "Failed to find 'fdupes' tool, use 'sudo apt-get install fdupes' to install it")
+    set(fdupes_install_msg "refer to your platform's package manager or install it manually.")
+    if(CMAKE_HOST_LINUX)
+        set(fdupes_install_msg "sudo apt-get install fdupes")
+    elseif(CMAKE_HOST_APPLE)
+        set(fdupes_install_msg "brew install fdupes")
+    endif()
+    message(WARNING "Failed to find 'fdupes' tool. Install it using: ${fdupes_install_msg}")
     return()
 endif()
 
@@ -48,7 +54,7 @@ file(REMOVE_RECURSE "${WORKING_DIRECTORY}")
 # filtering of 'duplicated_files'
 
 foreach(duplicated_file IN LISTS duplicated_files)
-    if(duplicated_file MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*")
+    if(duplicated_file MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*" AND NOT duplicated_file MATCHES ".*\\.pyi$")
         set(duplicated_libraries "${duplicated_file}\n${duplicated_libraries}")
     endif()
 endforeach()

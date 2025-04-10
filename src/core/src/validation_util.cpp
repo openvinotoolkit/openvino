@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,12 @@
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/negative.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/common_util.hpp"
 #include "sequence_generator.hpp"
@@ -151,7 +154,9 @@ namespace util {
 using ov::op::v0::Constant;
 
 std::shared_ptr<Constant> get_constant_from_source(const ov::Output<ov::Node>& source) {
-    if (const auto& c = ov::as_type_ptr<Constant>(source.get_node_shared_ptr())) {
+    if (!source.get_node()) {
+        return {};
+    } else if (const auto& c = ov::as_type_ptr<Constant>(source.get_node_shared_ptr())) {
         return c;
     } else if (has_and_set_equal_bounds(source)) {
         return std::make_shared<Constant>(source.get_tensor().get_upper_value());

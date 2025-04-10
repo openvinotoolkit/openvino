@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -46,7 +46,9 @@ macro(ov_cpack_settings)
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # the same for pugixml
-           NOT item STREQUAL "pugixml")
+           NOT item STREQUAL "pugixml" AND
+           # It was decided not to distribute JAX as C++ component
+           NOT item STREQUAL "jax")
            list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
@@ -84,6 +86,10 @@ macro(ov_cpack_settings)
         2024.2.0
         2024.3.0
         2024.4.0
+        2024.5.0 2024.5.1
+        2024.6.0
+        2025.0.0 2025.0.1
+        2025.1.0
         )
 
     ov_check_conflicts_versions(conflicting_versions)
@@ -210,7 +216,8 @@ macro(ov_cpack_settings)
         set(ir_copyright "generic")
     endif()
 
-    if(ENABLE_OV_JAX_FRONTEND)
+    # It was decided not to distribute JAX as C++ component
+    if(ENABLE_OV_JAX_FRONTEND AND OFF)
         set(CPACK_COMPONENT_JAX_DESCRIPTION "OpenVINO JAX Frontend")
         set(CPACK_RPM_JAX_PACKAGE_NAME "libopenvino-jax-frontend-${cpack_name_ver}")
         set(CPACK_RPM_JAX_POST_INSTALL_SCRIPT_FILE "${def_triggers}")

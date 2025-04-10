@@ -41,7 +41,7 @@ class TRANSFORMATIONS_API PReluFusionNegReluMulAdd;
  */
 class ov::pass::PReluFusionNegativeAdd : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PReluFusionNegativeAdd", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PReluFusionNegativeAdd");
     PReluFusionNegativeAdd();
 };
 
@@ -60,7 +60,7 @@ public:
  */
 class ov::pass::PReluFusionNegativeSub : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PReluFusionNegativeSub", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PReluFusionNegativeSub");
     PReluFusionNegativeSub();
 };
 
@@ -79,7 +79,7 @@ public:
  */
 class ov::pass::PReluFusionMultiplyAdd : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PReluFusionMultiplyAdd", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PReluFusionMultiplyAdd");
     PReluFusionMultiplyAdd();
 };
 
@@ -98,7 +98,7 @@ public:
  */
 class ov::pass::PReluFusionMultiplySub : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PReluFusionMultiplySub", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PReluFusionMultiplySub");
     PReluFusionMultiplySub();
 };
 
@@ -119,7 +119,7 @@ public:
  */
 class ov::pass::PReluFusionAbsSubMulMulAdd : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PReluFusionAbsSubMulMulAdd", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PReluFusionAbsSubMulMulAdd");
     PReluFusionAbsSubMulMulAdd();
 };
 
@@ -138,7 +138,7 @@ public:
  */
 class ov::pass::PReluFusionNegReluMulAdd : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PReluFusionNegReluMulAdd", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PReluFusionNegReluMulAdd");
     PReluFusionNegReluMulAdd();
 };
 
@@ -148,7 +148,7 @@ public:
  */
 class ov::pass::PReluFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("PReluFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("PReluFusion");
     PReluFusion() {
         add_matcher<ov::pass::PReluFusionNegativeAdd>();
         add_matcher<ov::pass::PReluFusionNegativeSub>();

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -118,7 +118,7 @@ class TestOVCTool(unittest.TestCase):
 
         core = Core()
 
-        # tests for MO cli tool
+        # tests for OVC cli tool
         exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": self.tmp_dir + os.sep + "model1"})
         assert not exit_code
 
@@ -133,7 +133,7 @@ class TestOVCTool(unittest.TestCase):
 
         core = Core()
 
-        # tests for MO cli tool
+        # tests for OVC cli tool
         exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": self.tmp_dir})
         assert not exit_code
 

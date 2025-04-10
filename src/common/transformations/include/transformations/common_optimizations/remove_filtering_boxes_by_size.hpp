@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,12 +21,12 @@ class TRANSFORMATIONS_API RemoveFilteringBoxesBySize;
 
 class ov::pass::FuseFilteringBoxesBySize : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("FuseFilteringBoxesBySize", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("FuseFilteringBoxesBySize");
     FuseFilteringBoxesBySize();
 };
 
 class ov::pass::RemoveFilteringBoxesBySize : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RemoveFilteringBoxesBySize", "0");
+    OPENVINO_MATCHER_PASS_RTTI("RemoveFilteringBoxesBySize");
     RemoveFilteringBoxesBySize();
 };

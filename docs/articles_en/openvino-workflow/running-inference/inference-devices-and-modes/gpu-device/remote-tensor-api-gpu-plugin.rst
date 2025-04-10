@@ -350,7 +350,114 @@ For more details, see the code snippets below:
 
 The ``ov::intel_gpu::ocl::D3DContext`` and ``ov::intel_gpu::ocl::VAContext`` classes are derived from ``ov::intel_gpu::ocl::ClContext``.
 Therefore, they provide the functionality described above and extend it
-to allow creation of ``ov::RemoteTensor`` objects from ``ID3D11Buffer``, ``ID3D11Texture2D`` pointers or the ``VASurfaceID`` handle respectively.
+to enable creation of ``ov::RemoteTensor`` objects from ``ID3D11Buffer``, ``ID3D11Texture2D``
+pointers or the ``VASurfaceID`` handle, as shown in the examples below:
+
+
+.. tab-set::
+
+   .. tab-item:: ID3D11Buffer
+      :sync: id3d11-buffer
+
+      .. code-block:: cpp
+
+         // ...
+
+         // initialize the core and load the network
+         ov::Core core;
+         auto model = core.read_model("model.xml");
+         auto compiled_model = core.compile_model(model, "GPU");
+         auto infer_request = compiled_model.create_infer_request();
+
+
+         // obtain the RemoteContext from the compiled model object and cast it to D3DContext
+         auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::D3DContext>();
+
+         auto input = model->get_parameters().at(0);
+         ID3D11Buffer* d3d_handle = get_d3d_buffer();
+         auto tensor = gpu_context.create_tensor(input->get_element_type(), input->get_shape(), d3d_handle);
+         infer_request.set_tensor(input, tensor);
+
+   .. tab-item:: ID3D11Texture2D
+      :sync: id3d11-texture
+
+      .. code-block:: cpp
+
+         using namespace ov::preprocess;
+         auto p = PrePostProcessor(model);
+         p.input().tensor().set_element_type(ov::element::u8)
+                           .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                           .set_memory_type(ov::intel_gpu::memory_type::surface);
+         p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+         p.input().model().set_layout("NCHW");
+         model = p.build();
+
+         CComPtr<ID3D11Device> device_ptr = get_d3d_device_ptr()
+         // create the shared context object
+         auto shared_d3d_context = ov::intel_gpu::ocl::D3DContext(core, device_ptr);
+         // compile model within a shared context
+         auto compiled_model = core.compile_model(model, shared_d3d_context);
+
+         auto param_input_y = model->get_parameters().at(0);
+         auto param_input_uv = model->get_parameters().at(1);
+
+         D3D11_TEXTURE2D_DESC texture_description = get_texture_desc();
+         CComPtr<ID3D11Texture2D> dx11_texture = get_texture();
+         //     ...
+         //wrap decoder output into RemoteBlobs and set it as inference input
+         auto nv12_blob = shared_d3d_context.create_tensor_nv12(texture_description.Heights, texture_description.Width, dx11_texture);
+
+         auto infer_request = compiled_model.create_infer_request();
+         infer_request.set_tensor(param_input_y->get_friendly_name(), nv12_blob.first);
+         infer_request.set_tensor(param_input_uv->get_friendly_name(), nv12_blob.second);
+         infer_request.start_async();
+         infer_request.wait();
+
+   .. tab-item:: VASurfaceID
+      :sync: vasurfaceid
+
+      .. code-block:: cpp
+
+         using namespace ov::preprocess;
+         auto p = PrePostProcessor(model);
+         p.input().tensor().set_element_type(ov::element::u8)
+                           .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                           .set_memory_type(ov::intel_gpu::memory_type::surface);
+         p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+         p.input().model().set_layout("NCHW");
+         model = p.build();
+
+         CComPtr<ID3D11Device> device_ptr = get_d3d_device_ptr()
+         // create the shared context object
+         auto shared_va_context = ov::intel_gpu::ocl::VAContext(core, device_ptr);
+         // compile model within a shared context
+         auto compiled_model = core.compile_model(model, shared_va_context);
+
+         auto param_input_y = model->get_parameters().at(0);
+         auto param_input_uv = model->get_parameters().at(1);
+
+         auto shape = param_input_y->get_shape();
+         auto width = shape[1];
+         auto height = shape[2];
+
+         VASurfaceID va_surface = decode_va_surface();
+         //     ...
+         //wrap decoder output into RemoteBlobs and set it as inference input
+         auto nv12_blob = shared_va_context.create_tensor_nv12(height, width, va_surface);
+
+         auto infer_request = compiled_model.create_infer_request();
+         infer_request.set_tensor(param_input_y->get_friendly_name(), nv12_blob.first);
+         infer_request.set_tensor(param_input_uv->get_friendly_name(), nv12_blob.second);
+         infer_request.start_async();
+         infer_request.wait();
+
+
+.. important::
+
+   Currently, only sharing of D3D11 surfaces is supported via the
+   `cl_intel_d3d11_nv12_media_sharing <https://github.com/KhronosGroup/OpenCL-Registry/blob/main/extensions/intel/cl_intel_d3d11_nv12_media_sharing.txt>`__
+   extension, which provides interoperability between OpenCL and DirectX.
+
 
 Direct NV12 Video Surface Input
 ###########################################################
@@ -514,7 +621,7 @@ Two types of map entries are possible: descriptor and container.
 Descriptor sets the expected structure and possible parameter values of the map.
 
 For possible low-level properties and their description, refer to the header file:
-`remote_properties.hpp <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/inference/include/openvino/runtime/intel_gpu/remote_properties.hpp>`__.
+`remote_properties.hpp <https://github.com/openvinotoolkit/openvino/blob/releases/2025/0/src/inference/include/openvino/runtime/intel_gpu/remote_properties.hpp>`__.
 
 Examples
 ###########################################################
@@ -562,6 +669,6 @@ To see pseudo-code of usage examples, refer to the sections below.
 See Also
 #######################################
 
-* `ov::Core <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html>`__
-* `ov::RemoteTensor <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
+* `ov::Core <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_core.html>`__
+* `ov::RemoteTensor <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
 

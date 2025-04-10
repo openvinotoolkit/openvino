@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ namespace pass {
  */
 class ExplicitTransposeMatMulInputs: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ExplicitTransposeMatMulInputs", "0");
+    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::ExplicitTransposeMatMulInputs");
     ExplicitTransposeMatMulInputs();
 
     // Return `True` if all inputs (except 0-th input) have scalar shape. Otherwise returns `False`

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 template <class T>
 class LP_TRANSFORMATIONS_API SharedAttribute : public ov::RuntimeAttribute {
 public:
-    virtual ~SharedAttribute() = default;
-
     /**
      * @ingroup ov_transformation_common_api
      * @brief SharedValueAttribute type for shared value attributes.

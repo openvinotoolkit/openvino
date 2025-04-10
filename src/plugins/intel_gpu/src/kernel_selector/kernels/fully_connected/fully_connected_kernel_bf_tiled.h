@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,7 @@ public:
                     unsigned tile_ofm,
                     unsigned tile_ifm,
                     unsigned tile_k,
+                    unsigned outer_ofm,
                     unsigned dispatch_bsv,
                     unsigned dispatch_fsv,
                     std::string exec_options,
@@ -50,6 +51,7 @@ public:
             , tile_ofm(tile_ofm)
             , tile_ifm(tile_ifm)
             , tile_k(tile_k)
+            , outer_ofm(outer_ofm)
             , dispatch_bsv(dispatch_bsv)
             , dispatch_fsv(dispatch_fsv)
             , exec_options(exec_options)
@@ -62,6 +64,7 @@ public:
         unsigned tile_ofm;
         unsigned tile_ifm;
         unsigned tile_k;
+        unsigned outer_ofm;
         unsigned dispatch_bsv;
         unsigned dispatch_fsv;
         std::string exec_options;
@@ -73,7 +76,8 @@ protected:
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ACTIVATION,
                  FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE };
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SWIGLU };
     }
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& params) const override;
@@ -83,4 +87,25 @@ protected:
 
     std::vector<tune_params> auto_tune_params;
 };
+
+namespace fc_kernel_bf_tiled_utils {
+using namespace kernel_selector;
+std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params& params);
+std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params,
+                                                     bool needs_align,
+                                                     uint32_t align_b = 1,
+                                                     int32_t align_f = 1);
+size_t get_scale_group_size(const fully_connected_params& params);
+bool is_8bit_asym_wei(const fully_connected_params& params);
+bool is_weight_dyn_quantizable(const fully_connected_params& params);
+bool is_per_token_dynamic_quantize(const fully_connected_params& params);
+size_t get_dynamic_quantize_group_size(const fully_connected_params& params);
+bool should_dynamic_quantize(const fully_connected_params& params);
+bool is_weight_vertical(const fully_connected_params& params, size_t output_f);
+bool is_weight_horizontal(const fully_connected_params& params, size_t output_f);
+bool is_weight_small_kn(const fully_connected_params& params, size_t output_f);
+bool is_swiglu_fused(const fully_connected_params& params);
+bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f);
+};  // namespace fc_kernel_bf_tiled_utils
+
 }  // namespace kernel_selector

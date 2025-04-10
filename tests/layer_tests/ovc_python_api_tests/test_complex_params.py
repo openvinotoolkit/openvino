@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -71,77 +71,16 @@ class TestComplexParams(CommonMOConvertTest):
         return save_to_pb(tf_net, tmp_dir)
 
     test_data = [
-        {'params_test': {'output': ["Sigmoid_0:0", "Sigmoid_2:0"]},
-         'params_ref': {'output': "Sigmoid_0,Sigmoid_2"}},
-        {'params_test': {'output': ["Sigmoid_0:0"]},
-         'params_ref': {'output': "Sigmoid_0"}},
-        {'params_test': {'input': [PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)]]},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
-        {'params_test': {'input': [PartialShape([1, 3, -1, -1]), [1, 3, -1, -1]]},
-         'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1:0,Input2:0'}},
-        {'params_test': {'input': [(2, 3, 4), [2, 3, 4], (Dimension(2), Dimension(3), Dimension(4))]},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
-        {'params_test': {'input': {"Input1:0": PartialShape([2, 3, 4]), "Input2:0": [2, 3, 4],
-                                   "Input3:0": [Dimension(2), Dimension(3), Dimension(4)]}},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
-        {'params_test': {'input': {"Input2:0": [1, -1, -1, -1],
-                                   "Input3:0": [Dimension(1), Dimension(-1), Dimension(-1), Dimension(-1)]}},
-         'params_ref': {'input_shape': "[1,?,?,?],[1,?,?,?]", 'input': 'Input2:0,Input3:0'}},
-        {'params_test': {'input': [np.int32, Type(np.int32), np.int32]},
-         'params_ref': {'input': 'Input1:0{i32},Input2:0{i32},Input3:0{i32}'}},
-        {'params_test': {'input': [ov.Type.f32, ov.Type.f32]},
-         'params_ref': {'input': 'Input1:0{f32},Input2:0{f32}'}},
-        {'params_test': {'input': [([1, 3, -1, -1], ov.Type.i32), ov.Type.i32, ov.Type.i32]},
-         'params_ref': {'input': 'Input1:0[1,3,?,?]{i32},Input2:0{i32},Input3:0{i32}'}},
-        {'params_test': {'input': (PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)])},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
-        {'params_test': {'input': (PartialShape([1, 3, -1, -1]), [1, 3, -1, -1])},
-         'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1:0,Input2:0'}},
-        {'params_test': {'input': ((2, 3, 4), [2, 3, 4], (Dimension(2), Dimension(3), Dimension(4)))},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
-        {'params_test': {'input': (np.int32, Type(np.int32), np.int32)},
-         'params_ref': {'input': 'Input1:0{i32},Input2:0{i32},Input3:0{i32}'}},
-        {'params_test': {'input': (ov.Type.f32, ov.Type.f32)},
-         'params_ref': {'input': 'Input1:0{f32},Input2:0{f32}'}},
-        {'params_test': {'input': (([1, 3, -1, -1], ov.Type.i32), ov.Type.i32, ov.Type.i32)},
-         'params_ref': {'input': 'Input1:0[1,3,?,?]{i32},Input2:0{i32},Input3:0{i32}'}}
-    ]
-
-    @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.nightly
-    def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_legacy_frontend):
-        tf_net_path = self.create_tf_model(temp_dir)
-
-        test_params = params['params_test']
-        ref_params = params['params_ref']
-        test_params.update({'input_model': tf_net_path})
-        ref_params.update({'input_model': tf_net_path})
-        self._test(temp_dir, test_params, ref_params)
-
-    test_data = [
-        {'params_test': {'input': {"Input:0": ([3, 2], ov.Type.i32)}},
-         'params_ref': {'input': "Input:0[3,2]{i32}"}},
-        {'params_test': {'input': {"Input:0": ov.Type.i32}},
-         'params_ref': {'input': "Input:0{i32}"}},
         {'params_test': {'input': {"Input:0": [3, 2]}},
          'params_ref': {'input': "Input:0[3,2]"}},
         {'params_test': {'input': (3, 2)},
          'params_ref': {'input': "Input:0[3,2]"}},
         {'params_test': {'input': (3, Dimension(2))},
          'params_ref': {'input': "Input:0[3,2]"}},
-        {'params_test': {'input': [3, 2]},
-         'params_ref': {'input': "Input:0[3 2]"}},
-        {'params_test': {'input': [Dimension(3, 10), 2]},
-         'params_ref': {'input': "Input:0[3..10 2]"}},
         {'params_test': {'input': (-1, 10)},
          'params_ref': {'input': "Input:0[?,10]"}},
         {'params_test': {'input': PartialShape([-1, 10])},
          'params_ref': {'input': "Input:0[?,10]"}},
-        {'params_test': {'input': np.int32},
-         'params_ref': {'input': "Input:0{i32}"}},
-        {'params_test': {'input': (np.int32, [1, 2, 3])},
-         'params_ref': {'input': "Input:0[1,2,3]{i32}"}},
         {'params_test': {'input': [Dimension(3, 10), 10, -1]},
          'params_ref': {'input': 'Input:0[3..10,10,?]'}},
     ]

@@ -10,6 +10,7 @@ Available Operation Sets
    :maxdepth: 1
    :hidden:
 
+   available-opsets/opset15
    available-opsets/opset14
    available-opsets/opset13
    available-opsets/opset12
@@ -34,7 +35,9 @@ This topic provides a complete list of available sets of operations supported in
     :header-rows: 1
 
     * - OpenVINO™ Version
-      - Actual Operations Set
+      - Operation Set
+    * - 2024.5
+      - :doc:`opset15 <available-opsets/opset15>`
     * - 2024.0
       - :doc:`opset14 <available-opsets/opset14>`
     * - 2023.2
@@ -71,4 +74,3 @@ See Also
 
 * :doc:`Operation Sets in OpenVINO <../operation-sets>`
 * :doc:`OpenVINO IR format <../../openvino-ir-format>`
-

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,9 @@
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/crop.hpp>
+
+#include <pass_manager.h>
+#include <program_wrapper.h>
 #include <test_utils.h>
 
 #include "permute_inst.h"
@@ -141,7 +144,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_2_3)
 
     auto output = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 24; i++)
     {
         ASSERT_FLOAT_EQ(values[i], output_ptr[i]);
@@ -218,7 +221,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_3_2)
         -15.0f,  -15.0f,
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 24; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -247,7 +250,7 @@ TEST(permute_gpu_f32, basic_yxfb_permute_1_0_2_3)
 
     auto output = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input_mem, get_test_stream());
     for (int i = 0; i < 6400; i++)
     {
@@ -327,7 +330,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_3_2_input_padding)
         -15.0f,  -15.0f,
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 24; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -382,7 +385,7 @@ TEST(permute_gpu_f32, basic_yxfb_permute_batch_with_feature)
         5.2f, 8.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 16; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -437,7 +440,7 @@ TEST(permute_gpu_f32, basic_bfyx_permute_batch_with_feature)
         5.2f, 8.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 16; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -499,7 +502,7 @@ void permute_test_with_reorder()
         -15.0f,  -15.0f,
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 24; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -594,9 +597,9 @@ TEST(permute_fuse_reorder_gpu_f32, basic_b_fs_yx_fsv4_permute_1_8_16_1)
     auto outputs_fused = fused.execute();
     auto outputs_unfused = unfused.execute();
     auto output_fused = outputs_fused.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_fused_ptr(output_fused, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_fused_ptr(output_fused, get_test_stream());
     auto output_unfused = outputs_unfused.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_unfused_ptr(output_unfused, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_unfused_ptr(output_unfused, get_test_stream());
     ASSERT_EQ(output_fused->get_layout().format, cldnn::format::bfyx);
     ASSERT_EQ(output_unfused->get_layout().format, cldnn::format::bfyx);
     ASSERT_EQ(fused.get_executed_primitives().size(), 4);
@@ -702,7 +705,7 @@ TEST(fc_permute_gpu, basic_permute_bfyx)
     ASSERT_EQ(output->get_layout().format, cldnn::format::bfyx);
 
     cldnn::mem_lock<float> input_ptr(input_mem, get_test_stream());
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 5 * 256; i++)
         ASSERT_NEAR(input_ptr[i], output_ptr[i], 1e-3f);
 
@@ -764,7 +767,7 @@ TEST(permute_gpu_f32, permute_bfwzyx)
     ASSERT_EQ(l.spatial(3), 3);
     ASSERT_EQ(output->get_layout().format, cldnn::format::bfwzyx);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i)
     {
@@ -848,7 +851,7 @@ TEST(permute_gpu_f32, 6D_reshape_permute_reshape)
 
     auto output = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i)
     {
@@ -922,7 +925,7 @@ TEST(permute_gpu_f32, basic_bfzyx_permute_0_4_1_2_3)
         -15.0f, -15.0f, -15.0f, -15.0f,
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 48; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -985,7 +988,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfyx_0_2_3_1) {
         142.f, 158.f, 174.f, 190.f, 206.f, 222.f, 238.f, 254.f, 143.f, 159.f, 175.f, 191.f, 207.f, 223.f, 239.f, 255.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1035,7 +1038,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfyx_0_2_3_1) {
         156.f,  93.f, 109.f, 125.f, 141.f, 157.f,  94.f, 110.f, 126.f, 142.f, 158.f,  95.f, 111.f, 127.f, 143.f, 159.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1091,7 +1094,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfyx_0_2_3_1) {
         88.f,  98.f, 108.f, 118.f, 128.f, 138.f, 148.f, 158.f,  89.f,  99.f, 109.f, 119.f, 129.f, 139.f, 149.f, 159.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1141,7 +1144,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfyx_0_2_3_1) {
         58.f,  68.f,  78.f,  88.f,  98.f,  59.f,  69.f,  79.f,  89.f,  99.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1204,7 +1207,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, normal_bfyx_0_2_3_1) {
         142.f, 158.f, 174.f, 190.f, 206.f, 222.f, 238.f, 254.f, 143.f, 159.f, 175.f, 191.f, 207.f, 223.f, 239.f, 255.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1261,7 +1264,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, f_remainder_bfyx_0_2_3_1) {
         156.f,  93.f, 109.f, 125.f, 141.f, 157.f,  94.f, 110.f, 126.f, 142.f, 158.f,  95.f, 111.f, 127.f, 143.f, 159.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1324,7 +1327,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, x_remainder_bfyx_0_2_3_1) {
         88.f,  98.f, 108.f, 118.f, 128.f, 138.f, 148.f, 158.f,  89.f,  99.f, 109.f, 119.f, 129.f, 139.f, 149.f, 159.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1381,7 +1384,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4_dynamic, xf_remainder_bfyx_0_2_3_1) {
         58.f,  68.f,  78.f,  88.f,  98.f,  59.f,  69.f,  79.f,  89.f,  99.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1444,7 +1447,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfzyx_0_2_3_4_1) {
         287.f, 319.f, 351.f, 383.f, 415.f, 447.f, 479.f, 511.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1498,7 +1501,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfzyx_0_2_3_4_1) {
         254.f, 286.f, 318.f, 191.f, 223.f, 255.f, 287.f, 319.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1552,7 +1555,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfzyx_0_2_3_4_1) {
         179.f, 199.f, 219.f, 239.f, 259.f, 279.f, 299.f, 319.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1606,7 +1609,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfzyx_0_2_3_4_1) {
         119.f, 139.f, 159.f, 179.f, 199.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1678,7 +1681,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfwzyx_0_2_3_4_5_1) {
         572.f, 636.f, 700.f, 764.f, 828.f, 892.f, 956.f, 1020.f, 573.f, 637.f, 701.f, 765.f, 829.f, 893.f, 957.f, 1021.f, 574.f, 638.f, 702.f, 766.f, 830.f, 894.f, 958.f, 1022.f, 575.f, 639.f, 703.f, 767.f, 831.f, 895.f, 959.f, 1023.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1738,7 +1741,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfwzyx_0_2_3_4_5_1) {
         569.f, 633.f, 378.f, 442.f, 506.f, 570.f, 634.f, 379.f, 443.f, 507.f, 571.f, 635.f, 380.f, 444.f, 508.f, 572.f, 636.f, 381.f, 445.f, 509.f, 573.f, 637.f, 382.f, 446.f, 510.f, 574.f, 638.f, 383.f, 447.f, 511.f, 575.f, 639.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1798,7 +1801,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfwzyx_0_2_3_4_5_1) {
         356.f, 396.f, 436.f, 476.f, 516.f, 556.f, 596.f, 636.f, 357.f, 397.f, 437.f, 477.f, 517.f, 557.f, 597.f, 637.f, 358.f, 398.f, 438.f, 478.f, 518.f, 558.f, 598.f, 638.f, 359.f, 399.f, 439.f, 479.f, 519.f, 559.f, 599.f, 639.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1858,7 +1861,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_2_3_4_5_1) {
         236.f, 276.f, 316.f, 356.f, 396.f, 237.f, 277.f, 317.f, 357.f, 397.f, 238.f, 278.f, 318.f, 358.f, 398.f, 239.f, 279.f, 319.f, 359.f, 399.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++)
     {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
@@ -1962,7 +1965,7 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     network_ref->set_input_data("input", input);
     auto outputs_ref = network_ref->execute();
     auto output_ref = outputs_ref.begin()->second.get_memory();
-    cldnn::mem_lock<type> output_ref_ptr(output_ref, get_test_stream());
+    cldnn::mem_lock<type, mem_lock_type::read> output_ref_ptr(output_ref, get_test_stream());
 
     // run with optimized kernel, e.g. permute_tile_8x8_4x4_fsv16
     ExecutionConfig config_tile = get_test_default_config(engine);
@@ -1973,7 +1976,7 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     network_tile->set_input_data("input", input);
     auto outputs_tile = network_tile->execute();
     auto output_tile = outputs_tile.begin()->second.get_memory();
-    cldnn::mem_lock<type> output_tile_ptr(output_tile, get_test_stream());
+    cldnn::mem_lock<type, mem_lock_type::read> output_tile_ptr(output_tile, get_test_stream());
 
     // compare results
     const size_t output_size= output_ref->get_layout().get_linear_size();
@@ -2169,7 +2172,102 @@ TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
         58.f,  68.f,  78.f,  88.f,  98.f,  59.f,  69.f,  79.f,  89.f,  99.f
     };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < array_size; i++) {
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(permute_gpu_f32_dynamic, fused_op_has_dynamic_shape) {
+    auto& engine = get_test_engine();
+
+    auto input1_layout = layout{ov::PartialShape{2, 512, 30}, data_types::f32, format::bfyx};
+    auto input2_layout = layout{ov::PartialShape{2, 30, 512}, data_types::f32, format::bfyx};
+    auto input3_layout = layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx};
+
+    topology topology(
+        input_layout("input1", input1_layout),
+        input_layout("input2", input2_layout),
+        input_layout("input3", input3_layout),
+        permute("permute", input_info("input1"), { 0, 2, 1 }),
+        eltwise("add", input_info("permute"), input_info("input2"), eltwise_mode::sum),
+        eltwise("multiply", input_info("add"), input_info("input3"), eltwise_mode::prod),
+        permute("result", input_info("multiply"), {0, 1, 2})
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(program, nullptr);
+}
+
+TEST(permute_f_y_axes_fallback, b_fs_yx_fsv16) {
+    constexpr size_t array_size = 128;
+
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto input_layout_static = layout{ov::PartialShape{1, 8, 16, 1}, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory(input_layout_static);
+
+    std::vector<float> input_data;
+    input_data.reserve(array_size);
+    for (size_t i = 0; i < array_size; ++i)
+        input_data.push_back(static_cast<float>(i));
+
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 8, 16, 1, 1 } });
+
+    std::vector<float> weights_data;
+    weights_data.reserve(array_size);
+    for (size_t i = 0; i < array_size; ++i)
+      weights_data.push_back(static_cast<float>(1.0));
+
+    set_values(weights, weights_data);
+    set_values(input, input_data);
+
+    auto impl_desc_onednn = ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::onednn};
+    auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"conv", impl_desc_onednn}};
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_static));
+    topology.add(permute("permute", input_info("input"), { 0, 2, 1, 3 }));
+    topology.add(data("weights", weights));
+    topology.add(convolution("conv", input_info("permute"), "weights", "", 1, {1,1}, {1,1}, {0,0}, {0,0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "conv");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    float answers[] = {
+        120.f, 120.f, 120.f, 120.f, 120.f, 120.f, 120.f, 120.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        376.f, 376.f, 376.f, 376.f, 376.f, 376.f, 376.f, 376.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        632.f, 632.f, 632.f, 632.f, 632.f, 632.f, 632.f, 632.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        888.f, 888.f, 888.f, 888.f, 888.f, 888.f, 888.f, 888.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        1144.f, 1144.f, 1144.f, 1144.f, 1144.f, 1144.f, 1144.f, 1144.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        1400.f, 1400.f, 1400.f, 1400.f, 1400.f, 1400.f, 1400.f, 1400.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        1656.f, 1656.f, 1656.f, 1656.f, 1656.f, 1656.f, 1656.f, 1656.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        1912.f, 1912.f, 1912.f, 1912.f, 1912.f, 1912.f, 1912.f, 1912.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+    };
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < array_size; i++) {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }

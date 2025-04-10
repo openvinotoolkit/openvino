@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,17 +36,6 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    /// \return The concatenation axis.
-    OPENVINO_DEPRECATED("The function get_concatenation_axis() is deprecated. Will be removed in 2025.0 release. Use "
-                        "get_axis() instead.")
-    int64_t get_concatenation_axis() const {
-        return m_concat_axis;
-    }
-    OPENVINO_DEPRECATED("The function set_concatenation_axis() is deprecated. Will be removed in 2025.0 release. Use "
-                        "set_axis() instead.")
-    void set_concatenation_axis(int64_t concatenation_axis) {
-        m_concat_axis = concatenation_axis;
-    }
     /// \return The concatenation axis.
     int64_t get_axis() const {
         return m_axis;

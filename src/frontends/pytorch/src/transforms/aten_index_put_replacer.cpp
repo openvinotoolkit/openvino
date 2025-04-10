@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "aten_index_put_replacer.hpp"
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -47,12 +48,9 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
     auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto index_op = cast_fw_node(m.get_match_root(), "aten::index_put_");
+        auto index_op = cast_fw_node(m.get_match_root(), {"aten::index_put_", "aten.index_put.default"});
         if (!index_op) {
-            index_op = cast_fw_node(m.get_match_root(), "aten.index_put.default");
-            if (!index_op) {
-                return false;
-            }
+            return false;
         }
         NodeVector rt_copy_from;
         ov::pass::NodeRegistry rg;
@@ -65,7 +63,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         auto input_shape = rg.make<v3::ShapeOf>(input, element::i32);
         auto indices = index_op->input_value(1);
         auto values = index_op->input_value(2);
-        auto acc_const = std::dynamic_pointer_cast<v0::Constant>(index_op->input_value(3).get_node_shared_ptr());
+        auto acc_const = ov::util::get_constant_from_source(index_op->input_value(3));
         if (!acc_const) {
             add_exception_to_fw_node(index_op, "aten::index_put_: non constant accumulate input is not supported.");
             return false;
@@ -144,7 +142,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                 auto input_shape = rg.make<v3::ShapeOf>(input, element::i32);
                 auto input_rank = rg.make<v3::ShapeOf>(input_shape, element::i32);
                 auto one_const = v0::Constant::create(element::i32, Shape{1}, {1});
-                auto nonzero = rg.make<v3::NonZero>(index, element::i32);
+                auto nonzero = rg.make<v3::NonZero>(index);
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                 index = rg.make<v1::Transpose>(nonzero, input_order);
                 auto result = rg.make<v3::ScatterNDUpdate>(input, index, values);

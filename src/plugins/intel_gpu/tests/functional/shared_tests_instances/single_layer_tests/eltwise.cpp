@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,6 +73,7 @@ std::vector<EltwiseTypes> smoke_intOnly_eltwiseOpTypes = {
 
 std::vector<ov::test::ElementType> intOnly_netPrecisions = {
         ov::element::i32,
+        ov::element::i16,
         ov::element::u16
 };
 
@@ -86,8 +87,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(secondaryInputTypes),
                        ::testing::ValuesIn(opTypes),
                        ::testing::ValuesIn(intOnly_netPrecisions),
-                       ::testing::Values(ov::element::undefined),
-                       ::testing::Values(ov::element::undefined),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::Values(additional_config)),
     EltwiseLayerTest::getTestCaseName);
@@ -100,8 +101,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(secondaryInputTypes),
                        ::testing::ValuesIn(opTypes),
                        ::testing::ValuesIn(netPrecisions),
-                       ::testing::Values(ov::element::undefined),
-                       ::testing::Values(ov::element::undefined),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::Values(additional_config)),
     EltwiseLayerTest::getTestCaseName);
@@ -114,8 +115,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(secondaryInputTypes),
                        ::testing::ValuesIn(opTypes),
                        ::testing::ValuesIn(netPrecisions),
-                       ::testing::Values(ov::element::undefined),
-                       ::testing::Values(ov::element::undefined),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::Values(additional_config)),
     EltwiseLayerTest::getTestCaseName);

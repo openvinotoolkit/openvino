@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,11 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset11.hpp"
 
 using namespace ov;
-using namespace ov::opset11;
+using ov::op::v0::Constant;
+using ov::op::v0::Parameter;
+using ov::op::v3::ShapeOf;
 using namespace testing;
 
 template <class TOp>
@@ -212,7 +213,7 @@ TYPED_TEST_P(PriorBoxTest, preseve_partial_values_and_symbols_on_inputs) {
 }
 
 TYPED_TEST_P(PriorBoxTest, preseve_partial_values_inf_bound) {
-    auto out_size_shape = PartialShape{{1, 4}, {5, -1}};  // ShapeOf make 2nd Dim {0, -1}
+    auto out_size_shape = PartialShape{{1, 4}, {5, -1}};
     set_shape_symbols(out_size_shape);
 
     const auto output_size = std::make_shared<Parameter>(element::u64, out_size_shape);
@@ -223,7 +224,7 @@ TYPED_TEST_P(PriorBoxTest, preseve_partial_values_inf_bound) {
 
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {0, -1}}));
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {100, -1}}));
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 

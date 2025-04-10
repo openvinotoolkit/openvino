@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ class OldApiMapOrder;
  */
 class TRANSFORMATIONS_API OldApiMapOrder : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("old_api_map_order", "0");
+    OPENVINO_RTTI("old_api_map_order", "0", RuntimeAttribute);
 
     /**
      * A default constructor

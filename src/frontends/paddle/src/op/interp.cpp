@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/opsets/opset4.hpp"
 
 namespace ov {
 namespace frontend {
@@ -147,8 +148,9 @@ static NamedOutputs interpolate(const NodeContext& node,
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
 
-    return node.default_single_output_mapping({std::make_shared<Interpolate>(x, target_spatial_shape, scales, attrs)},
-                                              {"Out"});
+    return node.default_single_output_mapping(
+        {std::make_shared<ov::opset4::Interpolate>(x, target_spatial_shape, scales, attrs)},
+        {"Out"});
 }
 
 NamedOutputs linear_interp_v2(const NodeContext& node) {

@@ -6,14 +6,12 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class UnsqueezeBroadcastReshapeMatmulFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("UnsqueezeBroadcastReshapeMatmulFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("UnsqueezeBroadcastReshapeMatmulFusion");
     UnsqueezeBroadcastReshapeMatmulFusion();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

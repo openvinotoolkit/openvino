@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -299,13 +299,11 @@ TEST_P(copy_between_gpu_buffer_and_gpu_usm, basic) {
         case allocation_type::usm_shared:
         case allocation_type::usm_device:
         {
-            auto ev = mem_dst->copy_from(stream, *usm_host_src, true);
-            ev->wait();
+            mem_dst->copy_from(stream, *usm_host_src, true);
             break;
         }
         case allocation_type::cl_mem: {
-            auto ev = mem_dst->copy_from(stream, *usm_host_src, true);
-            ev->wait();
+            mem_dst->copy_from(stream, *usm_host_src, true);
             break;
         }
         default:
@@ -490,3 +488,15 @@ INSTANTIATE_TEST_SUITE_P(mem_test,
                                                               mem_test_params{0, 79, 381},
                                                               mem_test_params{100, 79, 381}),
                                             ::testing::Values(false, true)));
+
+TEST(mem_test, copy_small_buf_to_large_with_out_of_bound_access) {
+    auto& ocl_engine = dynamic_cast<ocl::ocl_engine&>(get_test_engine());
+    auto& stream = get_test_stream();
+    auto small_buffer_size = 2048;
+    auto large_buffer_size = 3072;
+
+    auto small_buffer = ocl_engine.allocate_memory({{small_buffer_size}, data_types::u8, format::bfyx}, allocation_type::cl_mem, false);
+    auto large_buffer = ocl_engine.allocate_memory({{large_buffer_size}, data_types::u8, format::bfyx}, allocation_type::cl_mem, false);
+
+    OV_ASSERT_NO_THROW(small_buffer->copy_to(stream, *large_buffer, true));
+}

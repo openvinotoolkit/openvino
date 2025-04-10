@@ -21,7 +21,7 @@ typedef std::tuple<InputShape,                      // Input shape
 > ReduceParams;
 
 class Reduce : public testing::WithParamInterface<ov::test::snippets::ReduceParams>,
-               virtual public ov::test::SnippetsTestsCommon {
+               virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::ReduceParams> obj);
 

@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <gflags/gflags.h>
 
 #include <algorithm>
 #include <chrono>
@@ -8,14 +10,11 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <openvino/core/partial_shape.hpp>
+#include <openvino/openvino.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include <gflags/gflags.h>
-
-#include "openvino/core/partial_shape.hpp"
-#include "openvino/openvino.hpp"
 
 #include "tools_helpers.hpp"
 
@@ -24,13 +23,13 @@ static constexpr char help_message[] = "Optional. Print the usage message.";
 static constexpr char model_message[] = "Required. Path to the XML model.";
 
 static constexpr char targetDeviceMessage[] =
-        "Required. Specify a target device for which executable network will be compiled.\n"
-        "                                             Use \"-d HETERO:<comma-separated_devices_list>\" format to "
-        "specify HETERO plugin.\n"
-        "                                             Use \"-d MULTI:<comma-separated_devices_list>\" format to "
-        "specify MULTI plugin.\n"
-        "                                             The application looks for a suitable plugin for the specified "
-        "device.";
+    "Required. Specify a target device for which executable network will be compiled.\n"
+    "                                             Use \"-d HETERO:<comma-separated_devices_list>\" format to "
+    "specify HETERO plugin.\n"
+    "                                             Use \"-d MULTI:<comma-separated_devices_list>\" format to "
+    "specify MULTI plugin.\n"
+    "                                             The application looks for a suitable plugin for the specified "
+    "device.";
 
 static constexpr char output_message[] = "Optional. Path to the output file. Default value: \"<model_xml_file>.blob\".";
 
@@ -38,47 +37,49 @@ static constexpr char log_level_message[] = "Optional. Log level for OpenVINO li
 
 static constexpr char config_message[] = "Optional. Path to the configuration file.";
 
+static constexpr char perf_count_message[] = "Optional. Set PERF_COUNT config property.";
+
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network.";
 
 static constexpr char outputs_precision_message[] =
-        "Optional. Specifies precision for all output layers of the network.";
+    "Optional. Specifies precision for all output layers of the network.";
 
 static constexpr char iop_message[] =
-        "Optional. Specifies precision for input and output layers by name.\n"
-        "                                             Example: -iop \"input:FP16, output:FP16\".\n"
-        "                                             Notice that quotes are required.\n"
-        "                                             Overwrites precision from ip and op options for specified "
-        "layers.";
+    "Optional. Specifies precision for input and output layers by name.\n"
+    "                                             Example: -iop \"input:FP16, output:FP16\".\n"
+    "                                             Notice that quotes are required.\n"
+    "                                             Overwrites precision from ip and op options for specified "
+    "layers.";
 
 static constexpr char inputs_layout_message[] = "Optional. Specifies layout for all input layers of the network.";
 
 static constexpr char outputs_layout_message[] = "Optional. Specifies layout for all output layers of the network.";
 
 static constexpr char iol_message[] =
-        "Optional. Specifies layout for input and output layers by name.\n"
-        "                                             Example: -iol \"input:NCHW, output:NHWC\".\n"
-        "                                             Notice that quotes are required.\n"
-        "                                             Overwrites layout from il and ol options for specified layers.";
+    "Optional. Specifies layout for input and output layers by name.\n"
+    "                                             Example: -iol \"input:NCHW, output:NHWC\".\n"
+    "                                             Notice that quotes are required.\n"
+    "                                             Overwrites layout from il and ol options for specified layers.";
 
 static constexpr char inputs_model_layout_message[] =
-        "Optional. Specifies model layout for all input layers of the network.";
+    "Optional. Specifies model layout for all input layers of the network.";
 
 static constexpr char outputs_model_layout_message[] =
-        "Optional. Specifies model layout for all output layers of the network.";
+    "Optional. Specifies model layout for all output layers of the network.";
 
 static constexpr char ioml_message[] =
-        "Optional. Specifies model layout for input and output tensors by name.\n"
-        "                                             Example: -ionl \"input:NCHW, output:NHWC\".\n"
-        "                                             Notice that quotes are required.\n"
-        "                                             Overwrites layout from il and ol options for specified layers.";
+    "Optional. Specifies model layout for input and output tensors by name.\n"
+    "                                             Example: -ioml \"input:NCHW, output:NHWC\".\n"
+    "                                             Notice that quotes are required.\n"
+    "                                             Overwrites layout from il and ol options for specified layers.";
 
 static const char shape_message[] =
-        " Set shape for model input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
-        " in case of one input size. This parameter affect model input shape and can be dynamic."
-        " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
-        " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
+    " Set shape for model input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
+    " in case of one input size. This parameter affect model input shape and can be dynamic."
+    " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
+    " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
 
-static const char override_model_batch_size[] = "Enforce a model to be compiled for batch size";
+static constexpr char override_model_batch_size_message[] = "Enforce a model to be compiled for batch size";
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(m, "", model_message);
@@ -86,6 +87,7 @@ DEFINE_string(d, "", targetDeviceMessage);
 DEFINE_string(o, "", output_message);
 DEFINE_string(log_level, "", log_level_message);
 DEFINE_string(c, "", config_message);
+DEFINE_bool(pc, false, perf_count_message);
 DEFINE_string(ip, "", inputs_precision_message);
 DEFINE_string(op, "", outputs_precision_message);
 DEFINE_string(iop, "", iop_message);
@@ -96,7 +98,7 @@ DEFINE_string(iml, "", inputs_model_layout_message);
 DEFINE_string(oml, "", outputs_model_layout_message);
 DEFINE_string(ioml, "", ioml_message);
 DEFINE_string(shape, "", shape_message);
-DEFINE_uint32(override_model_batch_size, 1, override_model_batch_size);
+DEFINE_uint32(override_model_batch_size, 1, override_model_batch_size_message);
 
 namespace {
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
@@ -151,14 +153,16 @@ ov::element::Type getType(std::string value, const supported_type_t& supported_p
 }
 ov::element::Type getType(const std::string& value) {
     static const supported_type_t supported_types = {
-            {"FP32", ov::element::f32}, {"f32", ov::element::f32},      {"FP16", ov::element::f16},
-            {"f16", ov::element::f16},  {"BF16", ov::element::bf16},    {"bf16", ov::element::bf16},
-            {"U64", ov::element::u64},  {"u64", ov::element::u64},      {"I64", ov::element::i64},
-            {"i64", ov::element::i64},  {"U32", ov::element::u32},      {"u32", ov::element::u32},
-            {"I32", ov::element::i32},  {"i32", ov::element::i32},      {"U16", ov::element::u16},
-            {"u16", ov::element::u16},  {"I16", ov::element::i16},      {"i16", ov::element::i16},
-            {"U8", ov::element::u8},    {"u8", ov::element::u8},        {"I8", ov::element::i8},
-            {"i8", ov::element::i8},    {"BOOL", ov::element::boolean}, {"boolean", ov::element::boolean},
+        {"FP32", ov::element::f32},        {"f32", ov::element::f32},   {"FP16", ov::element::f16},
+        {"f16", ov::element::f16},         {"BF16", ov::element::bf16}, {"bf16", ov::element::bf16},
+        {"U64", ov::element::u64},         {"u64", ov::element::u64},   {"I64", ov::element::i64},
+        {"i64", ov::element::i64},         {"U32", ov::element::u32},   {"u32", ov::element::u32},
+        {"I32", ov::element::i32},         {"i32", ov::element::i32},   {"U16", ov::element::u16},
+        {"u16", ov::element::u16},         {"I16", ov::element::i16},   {"i16", ov::element::i16},
+        {"U8", ov::element::u8},           {"u8", ov::element::u8},     {"I8", ov::element::i8},
+        {"i8", ov::element::i8},           {"U4", ov::element::u4},     {"u4", ov::element::u4},
+        {"I4", ov::element::i4},           {"i4", ov::element::i4},     {"BOOL", ov::element::boolean},
+        {"boolean", ov::element::boolean},
     };
 
     return getType(value, supported_types);
@@ -168,67 +172,15 @@ bool isFP32(const ov::element::Type& type) {
     return type == ov::element::f32;
 }
 
-void boundDynamicShape(std::shared_ptr<ov::Model>& model) {
-    for (auto&& item : model->get_parameters()) {
-        auto shape = item->get_partial_shape();
-        if (shape.is_static()) {
-            continue;
-        }
-        auto rank = shape.rank();
-        if (rank.is_dynamic()) {
-            throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
-                                   "\" is dynamic which is not supported by NPU");
-        }
-        auto layout = item->get_layout();
-        if (!ov::layout::has_batch(layout)) {
-            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
-            layout = item->get_layout();
-        }
-        if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
-            std::cout << "WARNING: Shape \"" + shape.to_string() + "\"" +
-                                 " has dynamic batch size which is not supported by NPU\n"
-                                 "         Setting batch to 1 forcibly"
-                      << std::endl;
-            ov::set_batch(model, 1);
-        }
-        shape = item->get_partial_shape();
-        if (shape.is_dynamic()) {
-            throw std::logic_error("Model's input shape \"" + shape.to_string() + "\"" +
-                                   " is dynamic which is not supported by NPU");
-        }
-    }
-}
-
-void setModelBatch(std::shared_ptr<ov::Model>& model, uint32_t batch = 1) {
-    if (batch == 1) {
-        return;
-    }
-    for (auto&& item : model->get_parameters()) {
-        auto shape = item->get_partial_shape();
-        auto rank = shape.rank();
-        if (rank.is_dynamic()) {
-            throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
-                                   "\" is dynamic which is not supported by NPU");
-        }
-        auto layout = item->get_layout();
-        if (!ov::layout::has_batch(layout)) {
-            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
-            layout = item->get_layout();
-        }
-        if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
-            throw std::logic_error("ERROR: Shape \"" + shape.to_string() + "\"" +
-                                   " has dynamic batch size which is not supported by NPU\n"
-                                   "Cannot apply fixed batch: " +
-                                   std::to_string(batch) +
-                                   ". Please remove the parameter from config: \"override_model_batch_size\"");
-        }
-        ov::set_batch(model, batch);
-    }
-}
-
-void configurePrePostProcessing(std::shared_ptr<ov::Model>& model, const std::string& ip, const std::string& op,
-                                const std::string& iop, const std::string& il, const std::string& ol,
-                                const std::string& iol, const std::string& iml, const std::string& oml,
+void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
+                                const std::string& ip,
+                                const std::string& op,
+                                const std::string& iop,
+                                const std::string& il,
+                                const std::string& ol,
+                                const std::string& iol,
+                                const std::string& iml,
+                                const std::string& oml,
                                 const std::string& ioml) {
     auto preprocessor = ov::preprocess::PrePostProcessor(model);
     const auto inputs = model->inputs();
@@ -353,21 +305,6 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model, const std::st
     model = preprocessor.build();
 }
 
-void printInputAndOutputsInfoShort(const ov::Model& network) {
-    std::cout << "Network inputs:" << std::endl;
-    for (auto&& param : network.get_parameters()) {
-        auto l = param->get_layout();
-        std::cout << "    " << param->get_friendly_name() << " : " << param->get_element_type() << " / "
-                  << param->get_layout().to_string() << " / " << param->get_partial_shape().to_string() << std::endl;
-    }
-    std::cout << "Network outputs:" << std::endl;
-    for (auto&& result : network.get_results()) {
-        std::cout << "    " << result->get_friendly_name() << " : " << result->get_element_type() << " / "
-                  << result->get_layout().to_string() << " / " << result->get_output_partial_shape(0).to_string()
-                  << std::endl;
-    }
-}
-
 inline std::string fileNameNoExt(const std::string& filepath) {
     auto pos = filepath.rfind('.');
     if (pos == std::string::npos)
@@ -439,17 +376,19 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
                 continue;
             }
             size_t spacePos = option.find_first_of(" \t\n\r");
-            OPENVINO_ASSERT(spacePos != std::string::npos, "Failed to find a space separator in "
-                                                           "provided plugin config option: " +
-                                                                   option);
+            OPENVINO_ASSERT(spacePos != std::string::npos,
+                            "Failed to find a space separator in "
+                            "provided plugin config option: " +
+                                option);
 
             std::string key = option.substr(0, spacePos);
 
             std::string value{};
             size_t valueStart = option.find_first_not_of(" \t\n\r", spacePos);
-            OPENVINO_ASSERT(valueStart != std::string::npos, "An invalid config parameter value detected, "
-                                                             "it mustn't be empty: " +
-                                                                     option);
+            OPENVINO_ASSERT(valueStart != std::string::npos,
+                            "An invalid config parameter value detected, "
+                            "it mustn't be empty: " +
+                                option);
             size_t valueEnd = option.find_last_not_of(" \t\n\r");
             value = option.substr(valueStart, valueEnd - valueStart + 1);
 
@@ -474,51 +413,6 @@ std::string getFileNameFromPath(const std::string& path,
 }
 
 using TimeDiff = std::chrono::milliseconds;
-
-void reshape(ov::OutputVector inputs_info, InputsInfo& info_map, std::shared_ptr<ov::Model>& model) {
-    std::vector<InputsInfo> info_maps;
-    if (!FLAGS_shape.empty()) {
-        std::map<std::string, std::vector<std::string>> shapes_map = parseInputParameters(FLAGS_shape, inputs_info);
-
-        if (FLAGS_override_model_batch_size != 1) {
-            throw std::logic_error("Incompatible params: \"shape\" and \"override_model_batch_size\"");
-        }
-        for (auto& item : inputs_info) {
-            InputInfo info;
-            auto name = item.get_any_name();
-
-            if (!shapes_map.empty()) {
-                if (shapes_map.count(name)) {
-                    if (shapes_map.at(name).size() > 1) {
-                        // Example: -shape input1[..][..]
-                        throw std::logic_error("shape command line parameter doesn't support multiple "
-                                               "shapes for one input.");
-                    }
-                    info.partialShape = shapes_map.at(name)[0];
-                } else {
-                    info.partialShape = item.get_partial_shape();
-                }
-            }
-            info_map[name] = std::move(info);
-            info_maps.push_back(info_map);
-        }
-        std::map<std::string, ov::PartialShape> newShapes;
-        for (auto& item : info_maps) {
-            for (auto& map : item) {
-                if (!newShapes.count(map.first)) {
-                    newShapes[map.first] = map.second.partialShape;
-                }
-            }
-        }
-        model->reshape(newShapes);
-    } else {
-        if (FLAGS_d.find("NPU") != std::string::npos) {
-            boundDynamicShape(model);
-        }
-
-        setModelBatch(model, FLAGS_override_model_batch_size);
-    }
-}
 
 int main(int argc, char* argv[]) {
     try {
@@ -552,21 +446,35 @@ int main(int argc, char* argv[]) {
         InputsInfo info_map;
 
         std::cout << "Performing reshape" << std::endl;
-        reshape(std::move(inputs_info), info_map, model);
+        reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
 
         std::cout << "Configuring model pre & post processing" << std::endl;
-        configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml,
-                                   FLAGS_oml, FLAGS_ioml);
+        configurePrePostProcessing(model,
+                                   FLAGS_ip,
+                                   FLAGS_op,
+                                   FLAGS_iop,
+                                   FLAGS_il,
+                                   FLAGS_ol,
+                                   FLAGS_iol,
+                                   FLAGS_iml,
+                                   FLAGS_oml,
+                                   FLAGS_ioml);
+        if (FLAGS_shape.empty()) {
+            setModelBatch(model, FLAGS_override_model_batch_size);
+        }
         std::cout << "Printing Input and Output Info from model" << std::endl;
         printInputAndOutputsInfoShort(*model);
         auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
         std::cout << "Parsing configuration file" << std::endl;
         auto configs = parseConfigFile();
+        if (FLAGS_pc) {
+            configs["PERF_COUNT"] = "YES";
+        }
 
         std::cout << "Compiling model" << std::endl;
         auto compiledModel = core.compile_model(model, FLAGS_d, {configs.begin(), configs.end()});
         loadNetworkTimeElapsed =
-                std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
+            std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
         std::string outputName = FLAGS_o;
         if (outputName.empty()) {
             outputName = getFileNameFromPath(fileNameNoExt(FLAGS_m)) + ".blob";

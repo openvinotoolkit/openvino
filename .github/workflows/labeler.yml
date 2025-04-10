@@ -10,6 +10,7 @@ jobs:
       contents: read
       pull-requests: write
     runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
     - uses: akladiev/labeler@eeac5941e7fb6f980d47e038ac0665168851c874 # v4.3.1
       with:
@@ -22,9 +23,11 @@ jobs:
   external_pr_labeller:
     name: Label External PR
     runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
       - name: Checkout Labeller Script
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: '.github'
 

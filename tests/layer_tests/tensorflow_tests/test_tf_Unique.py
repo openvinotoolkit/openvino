@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -42,8 +42,6 @@ class TestUnique(CommonTFLayerTest):
                           use_legacy_frontend):
         if use_legacy_frontend:
             pytest.skip("Unique operation is not supported via legacy frontend.")
-        if ie_device == 'GPU':
-            pytest.skip("GPU error: Could not find a suitable kernel for slice")
         self._test(*self.create_unique_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
@@ -59,8 +57,6 @@ class TestUnique(CommonTFLayerTest):
                                 use_legacy_frontend):
         if use_legacy_frontend:
             pytest.skip("Unique operation is not supported via legacy frontend.")
-        if ie_device == 'GPU':
-            pytest.skip("GPU error: Could not find a suitable kernel for slice")
         self._test(*self.create_unique_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

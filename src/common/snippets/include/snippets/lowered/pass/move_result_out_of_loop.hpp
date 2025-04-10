@@ -21,7 +21,7 @@ namespace pass {
  */
 class MoveResultOutOfLoop : public Pass {
 public:
-    OPENVINO_RTTI("MoveResultOutOfLoop", "Pass")
+    OPENVINO_RTTI("MoveResultOutOfLoop", "", Pass);
     MoveResultOutOfLoop() = default;
     bool run(LinearIR& linear_ir) override;
 };

@@ -26,18 +26,18 @@ bool FuseLoops::loop_ports_are_compatible(const LoopInfoPtr& loop_upper,
                                           const LoopInfoPtr& loop_lower) {
     auto found_port = [](const std::vector<LoopPort>& loop_ports, const ExpressionPort& target_port) {
         return std::find_if(loop_ports.cbegin(), loop_ports.cend(),
-                            [&target_port](const LoopPort& loop_port) {return *(loop_port.expr_port.get()) == target_port; });
+                            [&target_port](const LoopPort& loop_port) {return *(loop_port.get_expr_port().get()) == target_port; });
     };
     const auto& upper_exit_ports = loop_upper->get_output_ports();
     const auto& lower_entry_ports = loop_lower->get_input_ports();
     for (const auto& lower_entry_port : lower_entry_ports) {
-        const auto& src_port = lower_entry_port.expr_port->get_port_connector_ptr()->get_source();
+        const auto& src_port = lower_entry_port.get_expr_port()->get_port_connector_ptr()->get_source();
         const auto upper_exit_port_it = found_port(upper_exit_ports, src_port);
         if (upper_exit_port_it != upper_exit_ports.cend()) {
             const auto& upper_exit_port = *upper_exit_port_it;
-            if (!lower_entry_port.is_incremented || !upper_exit_port.is_incremented)
+            if (!lower_entry_port.is_incremented() || !upper_exit_port.is_incremented())
                 return false;
-            if (lower_entry_port.dim_idx != upper_exit_port.dim_idx)
+            if (lower_entry_port.get_dim_idx() != upper_exit_port.get_dim_idx())
                 return false;
         }
     }
@@ -113,7 +113,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LoopManagerPt
     bool is_fusion_allowed = true;
     for (size_t i = 0; i < loop_target->get_output_ports().size() && is_fusion_allowed; ++i) {
         const auto target_output_port = loop_target->get_output_ports()[i];
-        const auto consumer_inputs = target_output_port.expr_port->get_connected_ports();
+        const auto consumer_inputs = target_output_port.get_expr_port()->get_connected_ports();
         for (const auto& consumer_input : consumer_inputs) {
             const auto& consumer = consumer_input.get_expr();
             if (ov::is_type<ov::op::v0::Result>(consumer->get_node()) || consumer == current_input_port->get_expr())
@@ -157,7 +157,7 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LoopManagerPt
     bool is_fusion_allowed = true;
     for (size_t i = 0; i < loop_target->get_input_ports().size() && is_fusion_allowed; ++i) {
         const auto target_entry_port = loop_target->get_input_ports()[i];
-        const auto parent_expr_output = *target_entry_port.expr_port->get_connected_ports().begin();
+        const auto parent_expr_output = *target_entry_port.get_expr_port()->get_connected_ports().begin();
         const auto& parent_expr = parent_expr_output.get_expr();
         if (ov::is_type<ov::op::v0::Parameter>(parent_expr->get_node()) || parent_expr == current_output_port->get_expr())
             continue;
@@ -190,9 +190,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type<ov::op::v0::Parameter>(node) ||
-            ov::is_type<ov::op::v0::Constant>(node) ||
-            ov::is_type<ov::op::v0::Result>(node))
+        if (ov::is_type_any_of<ov::op::v0::Parameter, ov::op::v0::Constant, ov::op::v0::Result>(node))
             continue;
 
         // Outer Loop ----> Inner Loop
@@ -221,12 +219,10 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 bool was_fusion_up = false;
                 for (size_t in_port = 0; !was_fusion_up && in_port < input_ports.size(); ++in_port) {
                     const auto& input_port = input_ports[in_port];
-                    const auto parent_expr_output = *input_port.expr_port->get_connected_ports().begin();
+                    const auto parent_expr_output = *input_port.get_expr_port()->get_connected_ports().begin();
                     const auto& parent_expr = parent_expr_output.get_expr();
                     const auto parent = parent_expr->get_node();
-                    if (ov::is_type<ov::op::v0::Constant>(parent) ||
-                        ov::is_type<ov::op::v0::Parameter>(parent) ||
-                        ov::is_type<op::Buffer>(parent)) {
+                    if (ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter, op::Buffer>(parent)) {
                         continue;
                     }
 
@@ -247,7 +243,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                     const auto upper_loop_id = upper_loop_ids[loop_idx];
                     OPENVINO_ASSERT(current_loop_id != upper_loop_id,
                                     "Loops cannot have parents of input ports with the same identifier (", upper_loop_id, ")");
-                    if (fuse_upper_into_current(linear_ir, loop_manager, input_port.expr_port, current_loop_id, upper_loop_id,
+                    if (fuse_upper_into_current(linear_ir, loop_manager, input_port.get_expr_port(), current_loop_id, upper_loop_id,
                                                 current_loop_begin_pos, current_loop_end_pos)) {
                         was_fusion_up = true;
                         prev_fused_loops.insert(current_loop_id);
@@ -266,12 +262,11 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 const auto& output_ports = current_loop_info->get_output_ports();
                 for (size_t out_port = 0; !was_fusion_down && out_port < output_ports.size(); ++out_port) {
                     const auto& output_port = output_ports[out_port];
-                    const auto consumer_exprs_inputs = output_port.expr_port->get_connected_ports();
+                    const auto consumer_exprs_inputs = output_port.get_expr_port()->get_connected_ports();
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
                         const auto& consumer_expr = consumer_expr_input.get_expr();
                         const auto consumer = consumer_expr->get_node();
-                        if (ov::is_type<ov::op::v0::Result>(consumer) ||
-                            ov::is_type<op::Buffer>(consumer)) {
+                        if (ov::is_type_any_of<ov::op::v0::Result, op::Buffer>(consumer)) {
                             continue;
                         }
 
@@ -294,7 +289,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                         if (current_loop_id == lower_loop_id)
                             continue;
 
-                        if (fuse_lower_into_current(linear_ir, loop_manager, output_port.expr_port, current_loop_id, lower_loop_id,
+                        if (fuse_lower_into_current(linear_ir, loop_manager, output_port.get_expr_port(), current_loop_id, lower_loop_id,
                                                     current_loop_begin_pos, current_loop_end_pos)) {
                             was_fusion_down = true;
                             prev_fused_loops.insert(current_loop_id);

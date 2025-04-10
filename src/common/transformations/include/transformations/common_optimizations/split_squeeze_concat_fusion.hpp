@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API SplitSqueezeConcatFusion;
  */
 class ov::pass::SplitSqueezeConcatFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SplitSqueezeConcatFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SplitSqueezeConcatFusion");
     SplitSqueezeConcatFusion(bool use_shapes);
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -199,8 +199,13 @@ OutputVector translate_tensor_list_length_op(const NodeContext& node) {
     auto tensor_list_shape = make_shared<v3::ShapeOf>(input_handle, element::i32);
     auto list_length = make_shared<v8::Slice>(tensor_list_shape, zero_const, one_const, one_const);
 
-    set_node_name(node.get_name(), list_length);
-    return {list_length};
+    // output of TensorListLength must be a scalar
+    // after Slice operation it is a 1D tensor with one element
+    auto scalar_shape = make_shared<v0::Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
+    auto list_length_scalar = make_shared<v1::Reshape>(list_length, scalar_shape, false);
+
+    set_node_name(node.get_name(), list_length_scalar);
+    return {list_length_scalar};
 }
 
 OutputVector translate_tensor_list_concat_v2_op(const NodeContext& node) {

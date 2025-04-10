@@ -1,8 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
@@ -2560,9 +2564,8 @@ void compare_data(const ov::Tensor& src, const ov::Tensor& dst) {
     }
 }
 
-template <ov::element::Type_t ET,
-          typename T = typename ov::element_type_traits<ET>::value_type>
-void init_tensor(const ov::Tensor& tensor) {
+template <ov::element::Type_t ET, typename T = typename ov::element_type_traits<ET>::value_type>
+void init_tensor(ov::Tensor& tensor) {
     const auto origPtr = tensor.data<T>();
     ASSERT_NE(nullptr, origPtr);
     for (size_t i = 0; i < tensor.get_size(); ++i) {
@@ -2570,7 +2573,7 @@ void init_tensor(const ov::Tensor& tensor) {
     }
 }
 
-void init_tensor(const ov::Tensor& tensor) {
+void init_tensor(ov::Tensor& tensor) {
     switch (tensor.get_element_type()) {
     case ov::element::f32:
         init_tensor<ov::element::f32>(tensor);
@@ -2615,6 +2618,45 @@ ov::RemoteTensor create_tensor(ov::intel_gpu::ocl::ClContext context,
     }
 }
 }  // namespace
+
+TEST(RemoteTensor, smoke_LockableHandling) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+
+    auto core = ov::Core();
+    auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    auto gpu_context = remote_context.as<ov::intel_gpu::ocl::ClContext>();
+    auto type = ov::element::f32;
+    ov::Shape shape = {4};
+
+    auto remote_tensor = gpu_context.create_tensor(type, shape);
+
+    auto host_tensor_in = ov::Tensor(type, shape);
+    init_tensor(host_tensor_in);
+    remote_tensor.copy_from(host_tensor_in);
+
+    auto param_node = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{-1});
+    auto const_node = std::make_shared<ov::op::v0::Constant>(host_tensor_in);
+    auto add_node = std::make_shared<ov::op::v1::Add>(param_node, const_node);
+    auto shape_of_node = std::make_shared<ov::op::v3::ShapeOf>(param_node);
+    auto res1 = std::make_shared<ov::op::v0::Result>(add_node);
+    auto res2 = std::make_shared<ov::op::v0::Result>(shape_of_node);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{param_node});
+
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled_model.create_infer_request();
+    request.set_input_tensor(remote_tensor);
+
+    request.infer();
+    auto res = request.get_output_tensor(0);
+    auto host_res = ov::Tensor(type, shape);
+    res.copy_to(host_res);
+
+    for (size_t i = 0; i < ov::shape_size(host_tensor_in.get_shape()); i++) {
+        ASSERT_EQ(host_res.data<float>()[i], host_tensor_in.data<float>()[i] * 2);
+    }
+}
 
 TEST_P(RemoteTensor, smoke_CopyFrom) {
 #if defined(ANDROID)
@@ -2830,3 +2872,93 @@ TEST(RemoteTensor, smoke_CanSetRoiRemoteTensor) {
 
     compare_tensors(output_tensor_copy_0, output_tensor_copy_1);
 }
+
+
+using RemoteTensorDataTypesOptionsParams = std::tuple<ov::element::Type_t>;
+class OVRemoteTensorDataType_Test : public OVRemoteTensor_Test,
+        public testing::WithParamInterface<RemoteTensorDataTypesOptionsParams> {
+protected:
+    std::shared_ptr<ov::Model> fn_ptr;
+    std::string deviceName;
+    ov::AnyMap config;
+    ov::element::Type_t element_type;
+
+public:
+    void SetUp() override {
+        deviceName = ov::test::utils::DEVICE_GPU;
+        std::tie(element_type) = this->GetParam();
+        config = {ov::hint::inference_precision(ov::element::f16),
+                ov::hint::model_priority(ov::hint::Priority::HIGH),
+                ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE),
+                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)};
+
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape{1, 2, 10, 10});
+        auto constant = ov::op::v0::Constant::create(element_type, ov::Shape{1, 2, 10, 10}, {1});
+        auto add = std::make_shared<ov::op::v1::Add>(input1, constant);
+        fn_ptr = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input1});
+    }
+    static std::string getTestCaseName(const testing::TestParamInfo<RemoteTensorDataTypesOptionsParams>& obj) {
+        ov::element::Type_t elem_type;
+        std::tie(elem_type) = obj.param;
+
+        std::ostringstream result;
+        result << "OVRemoteTensorTest_" << elem_type;
+        return result.str();
+    }
+};
+
+TEST_P(OVRemoteTensorDataType_Test, smoke_RemoteTensorDataType) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto ppp = ov::preprocess::PrePostProcessor(fn_ptr);
+    ppp.output(0).tensor().set_element_type(element_type);
+    auto ov_model = ppp.build();
+
+    auto core = ov::Core();
+    ov::CompiledModel compiled_model = core.compile_model(ov_model, deviceName, config);
+
+    // regular inference
+    auto inf_req = compiled_model.create_infer_request();
+    auto input_element_type = inf_req.get_input_tensor(0).get_element_type();
+    auto input_shape = inf_req.get_input_tensor(0).get_shape();
+    auto output_element_type = inf_req.get_output_tensor(0).get_element_type();
+    auto output_shape = inf_req.get_output_tensor(0).get_shape();
+
+    ASSERT_EQ(input_element_type, element_type);
+    ASSERT_EQ(output_element_type, element_type);
+
+    auto remote_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto input_tensor = ov::test::utils::create_and_fill_tensor(input_element_type, input_shape);
+    auto output_tensor = ov::test::utils::create_and_fill_tensor(output_element_type, output_shape);
+
+    auto input_cl_tensor = remote_context.create_tensor(input_element_type, input_shape);
+    auto output_cl_tensor =  remote_context.create_tensor(output_element_type, output_shape);
+
+    input_cl_tensor.copy_from(input_tensor);
+
+    inf_req.set_input_tensor(0, input_tensor);
+    inf_req.set_output_tensor(0, output_tensor);
+    inf_req.infer();
+
+    inf_req.set_input_tensor(0, input_cl_tensor);
+    inf_req.set_output_tensor(0, output_cl_tensor);
+    inf_req.infer();
+
+    auto tmp_tensor = ov::Tensor(output_element_type, output_shape);
+    output_cl_tensor.copy_to(tmp_tensor);
+
+    if (element_type == ov::element::i16) {
+        compare_data<ov::element_type_traits<ov::element::i16>::value_type>(output_tensor, tmp_tensor);
+    } else if (element_type == ov::element::u16) {
+        compare_data<ov::element_type_traits<ov::element::u16>::value_type>(output_tensor, tmp_tensor);
+    } else if (element_type == ov::element::u32) {
+        compare_data<ov::element_type_traits<ov::element::u32>::value_type>(output_tensor, tmp_tensor);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensorDataType, OVRemoteTensorDataType_Test,
+                         ::testing::Combine(::testing::Values(ov::element::Type_t::i16,
+                                                              ov::element::Type_t::u16,
+                                                              ov::element::Type_t::u32)),
+                         OVRemoteTensorDataType_Test::getTestCaseName);

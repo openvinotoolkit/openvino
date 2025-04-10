@@ -19,7 +19,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::dft_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<dft_impl>(*this);
+        return make_deep_copy<dft_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
@@ -116,6 +116,7 @@ attach_dft_impl::attach_dft_impl() {
         format::bfyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
         format::bs_fs_yx_bsv32_fsv16,

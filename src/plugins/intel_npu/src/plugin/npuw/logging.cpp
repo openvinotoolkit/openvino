@@ -9,6 +9,8 @@
 #include <iostream>
 #include <mutex>
 
+#include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
+
 namespace {
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
 const char* get_env(const std::vector<std::string>& list_to_try) {
@@ -61,11 +63,17 @@ int ov::npuw::__logging_indent__::__level__() {
     return this_indent;
 }
 
-void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& base_path) {
-    if (!tensor->is_continuous()) {
-        LOG_ERROR("Failed to dump blob " << base_path << ": it is not continuous");
-        return;
+void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor>& input, const std::string& base_path) {
+    ov::SoPtr<ov::ITensor> tensor;
+
+    if (input->is_continuous()) {
+        tensor = input;
+    } else {
+        // Create temporary tensor and copy data in. Dumping is never fast, anyway
+        tensor = ov::get_tensor_impl(ov::Tensor(input->get_element_type(), input->get_shape()));
+        input->copy_to(tensor._ptr);
     }
+    NPUW_ASSERT(tensor);
 
     const auto bin_path = base_path + ".bin";
     {

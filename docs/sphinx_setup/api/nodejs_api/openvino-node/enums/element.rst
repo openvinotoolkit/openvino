@@ -10,7 +10,7 @@ Enumeration element
       f32: number
 
    * **Defined in:**
-     `addon.ts:640 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L640>`__
+     `addon.ts:658 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L658>`__
 
 
 .. rubric:: f64
@@ -22,7 +22,7 @@ Enumeration element
       f64: number
 
    * **Defined in:**
-     `addon.ts:641 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L641>`__
+     `addon.ts:659 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L659>`__
 
 
 .. rubric:: i16
@@ -34,7 +34,7 @@ Enumeration element
       i16: number
 
    * **Defined in:**
-     `addon.ts:637 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L637>`__
+     `addon.ts:655 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L655>`__
 
 
 .. rubric:: i32
@@ -46,7 +46,7 @@ Enumeration element
       i32: number
 
    * **Defined in:**
-     `addon.ts:638 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L638>`__
+     `addon.ts:656 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L656>`__
 
 
 .. rubric:: i64
@@ -58,7 +58,7 @@ Enumeration element
       i64: number
 
    * **Defined in:**
-     `addon.ts:639 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L639>`__
+     `addon.ts:657 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L657>`__
 
 
 .. rubric:: i8
@@ -70,7 +70,7 @@ Enumeration element
       i8: number
 
    * **Defined in:**
-     `addon.ts:636 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L636>`__
+     `addon.ts:654 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L654>`__
 
 
 .. rubric:: string
@@ -82,7 +82,7 @@ Enumeration element
       string: string
 
    * **Defined in:**
-     `addon.ts:642 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L642>`__
+     `addon.ts:660 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L660>`__
 
 
 .. rubric:: u16
@@ -94,7 +94,7 @@ Enumeration element
       u16: number
 
    * **Defined in:**
-     `addon.ts:634 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L634>`__
+     `addon.ts:652 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L652>`__
 
 
 .. rubric:: u32
@@ -106,7 +106,7 @@ Enumeration element
       u32: number
 
    * **Defined in:**
-     `addon.ts:633 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L633>`__
+     `addon.ts:651 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L651>`__
 
 
 .. rubric:: u64
@@ -118,7 +118,7 @@ Enumeration element
       u64: number
 
    * **Defined in:**
-     `addon.ts:635 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L635>`__
+     `addon.ts:653 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L653>`__
 
 
 .. rubric:: u8
@@ -130,5 +130,5 @@ Enumeration element
       u8: number
 
    * **Defined in:**
-     `addon.ts:632 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L632>`__
+     `addon.ts:650 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L650>`__
 

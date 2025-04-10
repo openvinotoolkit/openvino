@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace py = pybind11;
 
 void regclass_graph_op_Parameter(py::module m) {
     py::class_<ov::op::v0::Parameter, std::shared_ptr<ov::op::v0::Parameter>, ov::Node> parameter(m, "Parameter");
-    parameter.doc() = "openvino.runtime.op.Parameter wraps ov::op::v0::Parameter";
+    parameter.doc() = "openvino.op.Parameter wraps ov::op::v0::Parameter";
     parameter.def("__repr__", [](const ov::Node& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
         std::string shape = py::cast(self.get_output_partial_shape(0)).attr("__str__")().cast<std::string>();

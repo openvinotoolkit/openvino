@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ struct Evaluate : public element::NoAction<bool> {
                           CONVERT_ET_LIST,
                           EvalByOutputType,
                           out.get_element_type(),
-                          iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
+                          iterator<ET_IN>(arg.data()),
                           out,
                           count);
     }

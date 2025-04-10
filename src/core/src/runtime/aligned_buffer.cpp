@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,4 +54,6 @@ AlignedBuffer& AlignedBuffer::operator=(AlignedBuffer&& other) {
 
 AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>::AttributeAdapter(std::shared_ptr<ov::AlignedBuffer>& value)
     : DirectValueAccessor<std::shared_ptr<ov::AlignedBuffer>>(value) {}
+
+AttributeAdapter<std::shared_ptr<AlignedBuffer>>::~AttributeAdapter() = default;
 }  // namespace ov

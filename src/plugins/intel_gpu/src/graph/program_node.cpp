@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,14 +10,13 @@
 #include "activation_inst.h"
 #include "reorder_inst.h"
 #include "quantize_inst.h"
+#include "swiglu_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
 #include "gemm_inst.h"
 #include "fully_connected_inst.h"
 #include "deconvolution_inst.h"
-#include "quantize_inst.h"
-#include "reorder_inst.h"
 #include "pooling_inst.h"
 #include "reduce_inst.h"
 #include <impls/onednn/utils.hpp>
@@ -90,7 +89,8 @@ void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32
 std::vector<layout> const program_node::get_input_layouts() const {
     std::vector<layout> layouts;
     for (size_t i = 0; i < dependencies.size(); i++) {
-        layouts.push_back(get_input_layout(i));
+        auto input_layout = get_input_layout(i);
+        layouts.push_back(input_layout);
     }
     return layouts;
 }
@@ -528,7 +528,7 @@ bool program_node::is_fused_dep(size_t dep_idx) const {
 std::set<size_t> program_node::get_lockable_input_ids() const {
     const auto impl = get_selected_impl();
     const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || (impl && impl->is_cpu());
-    if (has_cpu_impl) {
+    if (has_cpu_impl && !is_type<shape_of>()) {
         std::set<size_t> dependencies_indexes;
         for (size_t i = 0; i < get_dependencies().size(); i++)
             dependencies_indexes.insert(i);
@@ -611,9 +611,9 @@ bool program_node::is_padded_spatial(size_t idx) const {
     auto& layout = get_output_layout(idx);
     const auto& lower_size = layout.data_padding._lower_size;
     const auto& upper_size = layout.data_padding._upper_size;
-    return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + layout.get_spatial_rank() - 1,
+    return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + 2 + layout.get_spatial_rank(),
                         [](const tensor::value_type& el) { return el != 0; }) ||
-           std::any_of(std::begin(upper_size) + 2, std::begin(upper_size) + layout.get_spatial_rank() - 1,
+           std::any_of(std::begin(upper_size) + 2, std::begin(upper_size) + 2 + layout.get_spatial_rank(),
                         [](const tensor::value_type& el) { return el != 0; });
 }
 
@@ -649,8 +649,16 @@ void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
     preferred_output_fmts.at(idx) = type;
 }
 
+bool program_node::can_use(impl_types impl_type) const {
+    return get_primitive()->type->has_impl_for(*this, impl_type);
+}
+
+void program_node::select_preferred_formats(impl_types impl_type) {
+    std::tie(preferred_input_fmts, preferred_output_fmts) = get_primitive()->type->query_preferred_formats(*this, impl_type);
+}
+
 void program_node::add_dependant_shape_of_node(const program_node* node) {
-    OPENVINO_ASSERT(node->is_type<shape_of>(), "[GPU] Expected node type is shape_of");
+    OPENVINO_ASSERT(node->is_type<shape_of>() || node->is_type<input_layout>(), "[GPU] Expected node type is shape_of");
     dependant_shape_of_nodes.insert(node);
 }
 
@@ -761,6 +769,15 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
                 ob << casted->_out_hi;
                 ob << casted->_out_scale;
                 ob << casted->_out_shift;
+            } else if (f_desc.f_param->type() == swiglu::type_id()) {
+                auto casted = std::dynamic_pointer_cast<SwigluFuseParams>(f_desc.f_param);
+                if (get_program().has_node(casted->_desc->id)) {
+                    ob << true;
+                    ob << casted->_desc->id;
+                } else {
+                    ob << false;
+                    ob << casted->_desc;
+                }
             }
 
             ob << f_desc.deps.size();
@@ -966,6 +983,18 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
                                     need_pre_shift, need_clamp, need_min_clamp, need_max_clamp, per_tensor_input_range,
                                     per_tensor_input_scale, per_tensor_input_shift, per_tensor_output_range, per_tensor_output_scale,
                                     per_tensor_output_shift, in_lo, in_hi, in_scale, in_shift, out_lo, out_hi, out_scale, out_shift);
+            } else if (f_param_type == swiglu::type_id()) {
+                ib >> exist_prim;
+                std::shared_ptr<swiglu> param_desc;
+                if (exist_prim) {
+                    primitive_id desc_id;
+                    ib >> desc_id;
+                    param_desc = std::dynamic_pointer_cast<swiglu>(get_program().get_node_ptr(desc_id)->desc);
+                } else {
+                    ib >> param_desc;
+                }
+                f_desc.f_param = std::make_shared<SwigluFuseParams>(param_desc);
+
             } else {
                 f_desc.f_param = std::make_shared<NodeFuseParams>(f_param_type);
             }
@@ -1305,8 +1334,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_eltwise(prev_post_op_idx, alg, alpha, beta);
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
-                auto bin_ops_can_be_optimized = cur_node.is_type<data>() && cur_node.is_constant() &&
-                                                cur_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
+                auto bin_ops_can_be_optimized =
+                    cur_node.is_type<data>() && cur_node.is_constant() && cur_node.get_users().size() == 1 &&
+                    desc.get_data_type() == dnnl_f32 &&
+                    cur_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device;
 
                 auto bin_add_and_eltw = alpha == 1.0f && type_is_binary_add(cur_type) && bin_ops_can_be_optimized;
                 auto bin_mul_and_eltw = beta == 0.f && type_is_binary_mul(cur_type) && bin_ops_can_be_optimized;
@@ -1347,8 +1378,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_binary(prev_post_op_idx, alg, desc);
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
-                auto bin_ops_can_be_optimized = prev_node.is_type<data>() && prev_node.is_constant() &&
-                                                prev_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
+                auto bin_ops_can_be_optimized =
+                    prev_node.is_type<data>() && prev_node.is_constant() && prev_node.get_users().size() == 1 &&
+                    desc.get_data_type() == dnnl_f32 &&
+                    prev_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device;
 
                 auto eltw_and_bin_add = alpha == 1.0f && type_is_binary_add(prev_type) && bin_ops_can_be_optimized;
                 auto eltw_and_bin_mul = beta == 0.f && type_is_binary_mul(prev_type) && bin_ops_can_be_optimized;
@@ -1387,7 +1420,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
 
                 // Eltwise can be inserted into the output_scale if cur_beta is equal to 0.f
-                if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32) {
+                if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32 &&
+                    prev_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device) {
                     memory::ptr prev_scale_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_scale_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + scale");
@@ -1496,7 +1530,7 @@ void program_node::create_onednn_primitive_attributes(
                     oc_dim = static_cast<int>(desc.output_layout.get_partial_shape()[1].get_max_length());
                 else
                     oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
-                post_ops.append_prelu(1 << std::max(0, oc_dim));
+                post_ops.append_prelu(1 << static_cast<unsigned>(std::max(0, oc_dim)));
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
                 post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, fused_desc->additional_params.a, fused_desc->additional_params.b);
@@ -1527,19 +1561,67 @@ void program_node::create_onednn_primitive_attributes(
         } else if (desc.is_type<eltwise>()) {
             auto dep_idx = desc.outer_dep_start_idx;
             auto in = get_input_layout(dep_idx);
-            auto in_origin = in;
-            auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
-                if (is_type<fully_connected>()) {
-                    auto prim = this->as<fully_connected>().get_primitive();
-                    if (prim->input_size == 3) {
-                        cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+            auto fc_needs_full_tensor = [&]() {
+                for (size_t i = 0; i < cldnn_post_ops.size(); i++) {
+                    auto& desc = cldnn_post_ops[i];
+                    if (desc.is_type<eltwise>()) {
+                        auto prim = this->as<fully_connected>().get_primitive();
+                        auto dep_idx = desc.outer_dep_start_idx;
+                        auto in = get_input_layout(dep_idx);
+                        if (prim->input_size == 3 && in.batch() > 1 && in.feature() > 1)
+                            return true;
                     }
-                    auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab);
-                    post_ops.append_binary(alg, mem_desc);
-                    update_onednn_post_op_list(op_type, dep_idx, dnnl::memory::format_tag::ab, false,
-                            mem_desc.get_dims(), mem_desc.get_data_type());
-                } else if (is_type<gemm>()) {
+                }
+                return false;
+            };
+            auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
+                if (is_type<fully_connected>() || is_type<gemm>()) {
                     size_t rank = cldnn::format::dimension(in.format);
+                    auto in_pshape = in.get_partial_shape();
+                    auto out_pshape = get_output_layout().get_partial_shape();
+                    size_t ones_to_add = 0;
+
+                    if (is_type<fully_connected>()) {
+                        auto prim = this->as<fully_connected>().get_primitive();
+                        if (prim->input_size == in_pshape.size()) {
+                            if (prim->input_size >= 3 && !fc_needs_full_tensor()) {
+                                cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                                in_pshape = in.get_partial_shape();
+                            }
+                            ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                        } else {
+                            if (prim->input_size >= 3) {
+                                cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                                in_pshape = in.get_partial_shape();
+                                ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                            } else {
+                                ones_to_add = 2;
+                            }
+                        }
+                        if (ones_to_add > 0) {
+                            layout new_layout = in;
+                            ov::PartialShape new_input_pshape;
+                            auto last = in_pshape.begin() + in_pshape.size();
+                            if (in_pshape.size() > prim->input_size)
+                                last -= ones_to_add;
+                            std::vector<ov::Dimension> dims(in_pshape.begin(), last);
+                            new_input_pshape = ov::PartialShape(dims);
+                            new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                            new_layout.set_partial_shape(new_input_pshape);
+                            in = new_layout;
+                        }
+                    } else {
+                        ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                        if (ones_to_add > 0) {
+                            layout new_layout = in;
+                            ov::PartialShape new_input_pshape;
+                            std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
+                            new_input_pshape = ov::PartialShape(dims);
+                            new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                            new_layout.set_partial_shape(new_input_pshape);
+                            in = new_layout;
+                        }
+                    }
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
                     dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);
                     dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
@@ -1778,8 +1860,7 @@ void program_node::create_onednn_primitive_attributes(
         // Trying to combine multiplications and additions which are placed one after another.
         // We do it in the cycle because some optimization cases can be simplified again from time to time
         do {
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->disable_onednn_opt_post_ops)
+            GPU_DEBUG_IF(get_config().get_disable_onednn_post_ops_opt())
                 break;
             optimized_post_ops = try_optimize_post_ops(fused_ops, optimized_post_ops, attrs, optimization_is_finished);
         } while (!optimization_is_finished);

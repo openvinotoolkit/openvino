@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/matmul_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class DnnlMatMulPrimitive {
     struct Key {
@@ -24,7 +23,7 @@ class DnnlMatMulPrimitive {
         DnnlMemoryDescCPtr dst;
         dnnl::primitive_attr attr;
 
-        size_t hash() const;
+        [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;
     };
 
@@ -33,34 +32,36 @@ public:
 
     void execute(const dnnl_primitive_args& primArgs) const;
 
-    const DnnlMemoryDescPtr srcDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr srcDesc() const {
         return m_srcDesc;
     }
 
-    const DnnlMemoryDescPtr dstDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr dstDesc() const {
         return m_dstDesc;
     }
 
-    const DnnlMemoryDescPtr weightsDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr weightsDesc() const {
         return m_weiDesc;
     }
 
-    const DnnlMemoryDescPtr scratchPadDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr scratchPadDesc() const {
         return m_scratchPadDesc;
     }
 
-    impl_desc_type implType() const {
+    [[nodiscard]] impl_desc_type implType() const {
         return m_implType;
     }
+
+    static bool useWeightsDecompressionImpl(const ov::element::Type inputType, const ov::element::Type weightsType);
 
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
                                                             const PostOps& postOps,
                                                             const MemoryArgs& memory,
-                                                            const ExecutorContext::CPtr context,
+                                                            const ExecutorContext::CPtr& context,
                                                             const bool cacheWeights);
 
-    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
-                                                            const DnnlMemoryDescPtr dstDesc,
+    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                            const DnnlMemoryDescPtr& dstDesc,
                                                             bool weightsNonTransposed);
 
     static std::shared_ptr<DnnlMatMulPrimitive> create(const MemoryArgs& memory,
@@ -81,5 +82,4 @@ private:
 
 using DnnlMatMulPrimitivePtr = std::shared_ptr<DnnlMatMulPrimitive>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

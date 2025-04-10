@@ -1,18 +1,18 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "convert_matmul_to_fc.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/fully_connected.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     MATCHER_SCOPE(ConvertMatMulToFC);
@@ -21,12 +21,13 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         return ov::op::util::is_on_constant_path(output);
     };
     auto weights_m = ov::pass::pattern::any_input(weights_path);
-    auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({ activations_m, weights_m }, ov::pass::pattern::has_static_rank());
+    auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m},
+                                                                     ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
         if (!matmul || transformation_callback(matmul)) {
             return false;
         }
@@ -35,12 +36,8 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         // So in case of adding new operations that takes matmul inputs we need keep update fc_input_a and fc_input_b.
         auto fc_input_a = pattern_map.at(activations_m);
         auto fc_input_b = pattern_map.at(weights_m);
-        bool is_convert = false;
-        if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
-            if (is_decompression(convert_node)) {
-                is_convert = true;
-                fc_input_b = convert_node->get_input_node_shared_ptr(0);
-            } else {
+        if (auto convert_node = ov::as_type_ptr<ov::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
+            if (!is_decompression(convert_node)) {
                 return false;
             }
         }
@@ -59,7 +56,9 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         // Check that if second inputs is Constant path and it's shape without ones dimensions has length <= 2
         // we replace MatMul with FullyConnected operation.
-        if (std::count_if(shape_b.begin(), shape_b.end(), [](ov::Dimension x) { return x != 1; }) > 2) {
+        if (std::count_if(shape_b.begin(), shape_b.end(), [](const ov::Dimension& x) {
+                return x != 1;
+            }) > 2) {
             return false;
         }
         /*
@@ -69,7 +68,8 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
          *  for example: [2, 32, 64] [3, 64, 64] it will raise an exception.
          */
 
-        auto get_aligned_shapes = [shape_a, shape_b, rank_a, rank_b, &matmul]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
+        auto get_aligned_shapes =
+            [shape_a, shape_b, rank_a, rank_b, &matmul]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
             ov::PartialShape shape_a_aligned(shape_a), shape_b_aligned(shape_b);
             size_t max_size = std::max(rank_a, rank_b);
             for (size_t i = 0, cnt = max_size - rank_a; i < cnt; ++i) {
@@ -106,12 +106,13 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
          */
         ov::NodeVector new_ops;
 
-        auto create_transpose = [this, &new_ops ](const ov::Output<ov::Node>& node, const std::string& transpose_name) {
+        auto create_transpose = [this, &new_ops](const ov::Output<ov::Node>& node, const std::string& transpose_name) {
             std::vector<size_t> transpose_order(node.get_partial_shape().size());
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
-            auto transpose_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order.size() }, transpose_order);
+            auto transpose_const =
+                ov::op::v0::Constant::create(ov::element::i32, ov::Shape{transpose_order.size()}, transpose_order);
             auto transpose = std::make_shared<ov::op::v1::Transpose>(node, transpose_const);
             if (!ov::is_type<ov::op::v0::Constant>(transpose)) {
                 new_ops.push_back(transpose_const);
@@ -131,24 +132,9 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         }
 
         auto aligned_a_rank = shape_a_aligned.rank(), aligned_b_rank = shape_b_aligned.rank();
-        if (aligned_a_rank.is_dynamic() || aligned_b_rank.is_dynamic() || aligned_a_rank.get_length() < 2 || aligned_b_rank.get_length() < 2) {
+        if (aligned_a_rank.is_dynamic() || aligned_b_rank.is_dynamic() || aligned_a_rank.get_length() < 2 ||
+            aligned_b_rank.get_length() < 2) {
             OPENVINO_THROW("MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
-        }
-
-        // Transferring from MatMul representation: [B, I, K] * [B, K, O] = [B, I, O]
-        // to FullyConnected representation: [I, K] * [K, O] = [I, O]
-
-        if (rank_b != 2) {
-            ov::Dimension K = *(shape_b_aligned.rbegin() + 1);
-            OPENVINO_ASSERT(K.is_static());
-            auto k_len = K.get_length();
-            auto reshape_shape_values = matmul->get_transpose_b() ? std::vector<int64_t>{-1, k_len} : std::vector<int64_t>{k_len, -1};
-            auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 2 }, reshape_shape_values);
-            fc_input_b = ov::op::util::make_try_fold<ov::op::v1::Reshape>(fc_input_b, reshape_shape, false);
-            if (!std::dynamic_pointer_cast<ov::op::v0::Constant>(fc_input_b.get_node_shared_ptr())) {
-                new_ops.push_back(reshape_shape);
-            }
-            new_ops.push_back(fc_input_b.get_node_shared_ptr());
         }
 
         // Weights normalization
@@ -161,22 +147,19 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
-        // Connect Convert to new input if needed
-        if (is_convert) {
-            auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
-            convert->input(0).replace_source_output(fc_input_b);
-            convert->validate_and_infer_types();
-            fc_input_b = convert;
-        }
+        auto bias = std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
+        new_ops.push_back(bias);
 
-        // Create FullyConnected
-        auto output_rank = matmul->get_output_partial_shape(0).rank();
-        auto fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank,
-                matmul->get_output_element_type(0));
+        auto fc = std::make_shared<ov::op::internal::FullyConnected>(fc_input_a,
+                                                                     fc_input_b,
+                                                                     bias,
+                                                                     matmul->get_output_element_type(0));
+
         fc->set_friendly_name(matmul->get_friendly_name());
-        ///todo: CVS-130863 Remove after fp16_compression is copyable
-        if (ov::fp16_compression_is_disabled(matmul))
+        /// todo: CVS-130863 Remove after fp16_compression is copyable
+        if (ov::fp16_compression_is_disabled(matmul)) {
             disable_fp16_compression(fc);
+        }
         new_ops.push_back(fc);
         ov::copy_runtime_info(matmul, new_ops);
         ov::replace_node(matmul, fc);

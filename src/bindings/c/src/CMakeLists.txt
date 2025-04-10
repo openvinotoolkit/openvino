@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -62,6 +62,8 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${OV_CPACK_COMP_CORE_C} ${OV_CPACK_COMP_CORE_C_EXCLUDE_ALL}
         NAMELINK_COMPONENT ${OV_CPACK_COMP_LINKS} ${OV_CPACK_COMP_LINKS_EXCLUDE_ALL}
         INCLUDES DESTINATION ${OV_CPACK_INCLUDEDIR})
+
+ov_install_pdb(${TARGET_NAME})
 
 install(DIRECTORY ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/
         DESTINATION ${OV_CPACK_INCLUDEDIR}/openvino

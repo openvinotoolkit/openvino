@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -30,6 +30,9 @@ template <>
 const char* get_attr_type<Napi::Object>();
 
 template <>
+const char* get_attr_type<Napi::Boolean>();
+
+template <>
 const char* get_attr_type<Napi::Buffer<uint8_t>>();
 
 template <>
@@ -51,6 +54,9 @@ bool validate_value<Napi::String>(const Napi::Env& env, const Napi::Value& value
 
 template <>
 bool validate_value<Napi::Object>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
+bool validate_value<Napi::Boolean>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
 bool validate_value<Napi::Buffer<uint8_t>>(const Napi::Env& env, const Napi::Value& value);

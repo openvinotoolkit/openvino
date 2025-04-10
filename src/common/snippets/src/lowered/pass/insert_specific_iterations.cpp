@@ -85,8 +85,12 @@ size_t InsertSpecificIterations::get_decomposed_loop_work_amount(const UnifiedLo
             return is_dynamic ? remaining_work_amount : increment;
         case (SpecificLoopIterType::MAIN_BODY):
             return is_dynamic ? remaining_work_amount : (remaining_work_amount / increment) * increment;
-        case (SpecificLoopIterType::LAST_ITER):
+        case (SpecificLoopIterType::LAST_ITER): {
+            OPENVINO_ASSERT(is_dynamic || remaining_work_amount < unified_loop_info->get_increment(),
+                            "Last iter work amount (", remaining_work_amount,
+                            ") must be less than the UnifiedLoopInfo's increment: ", unified_loop_info->get_increment());
             return remaining_work_amount;
+        }
         default:
             OPENVINO_THROW("Unknown SpecificLoopIterType!");
     }
@@ -127,7 +131,7 @@ LoopManager::LoopBounds InsertSpecificIterations::insert_copy_loop(LinearIR& lin
         new_ports.resize(ports.size());
         for (size_t i = 0; i < ports.size(); ++i) {
             const auto& port = ports[i];
-            new_ports[i] = *port.clone_with_new_expr(expression_map[port.expr_port->get_expr().get()]);
+            new_ports[i] = *port.clone_with_new_expr(expression_map[port.get_expr_port()->get_expr().get()]);
         }
     };
     const auto original_loop_info = loop_manager->get_loop_info(loop_id);

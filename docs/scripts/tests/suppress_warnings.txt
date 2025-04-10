@@ -61,3 +61,4 @@ toctree contains reference to nonexisting document
 pygments lexer name
 non-consecutive header level increase
 document headings start at
+inline strong start-string without end-string

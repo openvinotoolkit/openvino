@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_plugin/life_time.hpp"
-#include "common/utils.hpp"
+
 #include "common/npu_test_env_cfg.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "common/utils.hpp"
+#include "intel_npu/config/options.hpp"
 #include "overload/ov_plugin/life_time.hpp"
 
 using namespace ov::test::behavior;
@@ -22,27 +23,34 @@ static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
 const std::vector<ov::AnyMap> configs = {{}};
 
 const std::vector<std::string> device_names_and_priorities = {
-        "MULTI:NPU",  // NPU via MULTI,
-        "AUTO:NPU",   // NPU via AUTO,
+    "MULTI:NPU",  // NPU via MULTI,
+    "AUTO:NPU",   // NPU via AUTO,
 };
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVHoldersTest, ::testing::Values(ov::test::utils::DEVICE_NPU),
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
+                         OVHoldersTest,
+                         ::testing::Values(ov::test::utils::DEVICE_NPU),
                          getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVHoldersTestOnImportedNetwork,
-                         ::testing::Values(ov::test::utils::DEVICE_NPU), getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
+                         OVHoldersTestOnImportedNetwork,
+                         ::testing::Values(ov::test::utils::DEVICE_NPU),
+                         getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVHoldersTestNPU,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
+                         OVHoldersTestNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          OVHoldersTestNPU::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVHoldersTestOnImportedNetworkNPU,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
+                         OVHoldersTestOnImportedNetworkNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          OVHoldersTestOnImportedNetworkNPU::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_VirtualPlugin_BehaviorTests, OVHoldersTestWithConfig,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_VirtualPlugin_BehaviorTests,
+                         OVHoldersTestWithConfig,
                          ::testing::ValuesIn(device_names_and_priorities),
                          (ov::test::utils::appendPlatformTypeTestName<OVHoldersTestWithConfig>));
 }  // namespace

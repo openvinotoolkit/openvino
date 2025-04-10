@@ -120,6 +120,8 @@ TEST(kernels_cache, sub_kernel_ordering_test) {
         kernel_code_list.push_back(kernel_string);
     }
     kernel_impl_params dummy_params;
+    auto dummy_prog = std::make_shared<program>(engine, config);
+    dummy_params.prog = dummy_prog.get();
     _kernels_cache->add_kernels_source(dummy_params, kernel_code_list, false);
     _kernels_cache->build_all();
     auto _out_kernels = _kernels_cache->get_kernels(dummy_params);

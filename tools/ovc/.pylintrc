@@ -160,7 +160,7 @@ expected-line-ending-format=
 spelling-dict=en_US
 
 # List of comma separated words that should not be checked.
-spelling-ignore-words=TF, MO, IR, IE, OVC
+spelling-ignore-words=TF, IR, IE, OVC
 
 # A path to a file that contains private dictionary; one word per line.
 spelling-private-dict-file=.pylintdict

@@ -198,6 +198,50 @@ TEST(CoreTests_check_device_name, is_config_applicable) {
     ASSERT_EQ(ov::is_config_applicable("BATCH", "BATCH:DEVICE"), false);
 }
 
+TEST(CoreTests, check_if_virtual_device) {
+    ASSERT_EQ(ov::is_virtual_device("DEVICE"), false);
+    ASSERT_EQ(ov::is_virtual_device("DEVICE.x"), false);
+    ASSERT_EQ(ov::is_virtual_device("DEVICE.AUTO_DETECT"), false);
+    // AUTO
+    ASSERT_EQ(ov::is_virtual_device("AUTO"), true);
+    ASSERT_EQ(ov::is_virtual_device("AUTO:DEVICE"), true);
+    ASSERT_EQ(ov::is_virtual_device("AUTO:DEVICE,DEVICE"), true);
+    ASSERT_EQ(ov::is_virtual_device("AUTO:DEVICE.x"), true);
+    ASSERT_EQ(ov::is_virtual_device("AUTO:DEVICE.AUTO_DETECT"), true);
+    ASSERT_EQ(ov::is_virtual_device("AUTO:DEVICE.AUTO_DETECT, DEVICE.x"), true);
+    ASSERT_EQ(ov::is_virtual_device("AUTO:DEVICE.HETERO_DETECT, DEVICE.x"), true);
+    ASSERT_EQ(ov::is_virtual_device("AUTO:DEVICE.BATCH_DETECT, DEVICE.x"), true);
+
+    // MULTI
+    ASSERT_EQ(ov::is_virtual_device("MULTI"), true);
+    ASSERT_EQ(ov::is_virtual_device("MULTI:DEVICE"), true);
+    ASSERT_EQ(ov::is_virtual_device("MULTI:DEVICE,DEVICE"), true);
+    ASSERT_EQ(ov::is_virtual_device("MULTI:DEVICE.x"), true);
+    ASSERT_EQ(ov::is_virtual_device("MULTI:DEVICE.AUTO_DETECT"), true);
+    ASSERT_EQ(ov::is_virtual_device("MULTI:DEVICE.MULTI_DETECT, DEVICE.x"), true);
+    ASSERT_EQ(ov::is_virtual_device("MULTI:DEVICE.HETERO_DETECT, DEVICE.x"), true);
+    ASSERT_EQ(ov::is_virtual_device("MULTI:DEVICE.BATCH_DETECT, DEVICE.x"), true);
+
+    // HETERO
+    ASSERT_EQ(ov::is_virtual_device("HETERO"), true);
+    ASSERT_EQ(ov::is_virtual_device("HETERO:DEVICE"), true);
+    ASSERT_EQ(ov::is_virtual_device("HETERO:DEVICE,DEVICE"), true);
+    ASSERT_EQ(ov::is_virtual_device("HETERO:DEVICE.x"), true);
+    ASSERT_EQ(ov::is_virtual_device("HETERO:DEVICE.AUTO_DETECT"), true);
+    ASSERT_EQ(ov::is_virtual_device("HETERO:DEVICE.MULTI_DETECT, DEVICE.x"), true);
+    ASSERT_EQ(ov::is_virtual_device("HETERO:DEVICE.HETERO_DETECT, DEVICE.x"), true);
+    ASSERT_EQ(ov::is_virtual_device("HETERO:DEVICE.BATCH_DETECT, DEVICE.x"), true);
+
+    // BATCH
+    ASSERT_EQ(ov::is_virtual_device("BATCH"), true);
+    ASSERT_EQ(ov::is_virtual_device("BATCH:DEVICE"), true);
+    ASSERT_EQ(ov::is_virtual_device("BATCH:DEVICE.x"), true);
+    ASSERT_EQ(ov::is_virtual_device("BATCH:DEVICE.AUTO_DETECT"), true);
+    ASSERT_EQ(ov::is_virtual_device("BATCH:DEVICE.MULTI_DETECT"), true);
+    ASSERT_EQ(ov::is_virtual_device("BATCH:DEVICE.HETERO_DETECT"), true);
+    ASSERT_EQ(ov::is_virtual_device("BATCH:DEVICE.BATCH_DETECT"), true);
+}
+
 TEST(CoreTests_parse_device_config, get_device_config) {
     auto check_parsed_config = [&](const std::string& device,
                                    const ov::AnyMap& config,

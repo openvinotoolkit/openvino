@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,9 +77,10 @@ TEST(element_type, from_string) {
     EXPECT_EQ(element::Type("F4E2M1"), element::f4e2m1);
     EXPECT_EQ(element::Type("f8e8m0"), element::f8e8m0);
     EXPECT_EQ(element::Type("F8E8M0"), element::f8e8m0);
-
+    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_EQ(element::Type("undefined"), element::undefined);
     EXPECT_EQ(element::Type("UNSPECIFIED"), element::undefined);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     EXPECT_EQ(element::Type("dynamic"), element::dynamic);
 
     EXPECT_THROW(element::Type("some_string"), ov::Exception);

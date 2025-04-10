@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -13,7 +14,6 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
-#include "openvino/runtime/threading/thread_local.hpp"
 #include "sub_memory_manager.hpp"
 
 namespace ov {
@@ -23,18 +23,22 @@ class CompiledModel : public ov::ICompiledModel {
 public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
+    struct GraphGuard : public Graph {
+        std::mutex _mutex;
+        struct Lock : public std::unique_lock<std::mutex> {
+            explicit Lock(GraphGuard& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
+            GraphGuard& _graph;
+        };
+    };
+
+public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const Config& cfg,
+                  Config cfg,
                   const bool loaded_from_cache,
-                  const std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
+                  std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
-    ~CompiledModel() {
-        if (m_has_sub_compiled_models) {
-            m_sub_compiled_models.clear();
-            m_sub_memory_manager->_memorys_table.clear();
-        }
-    }
+    ~CompiledModel();
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
@@ -51,9 +55,13 @@ public:
 
     void release_memory() override;
 
+    std::string name() const {
+        return m_name;
+    }
+
 private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
-    friend class SyncInferRequest;
+    friend class CompiledModelHolder;
 
     const std::shared_ptr<ov::Model> m_model;
     const std::shared_ptr<const ov::IPlugin> m_plugin;
@@ -66,13 +74,6 @@ private:
     Config m_cfg;
     mutable std::atomic_int m_numRequests = {0};
     std::string m_name;
-    struct GraphGuard : public Graph {
-        std::mutex _mutex;
-        struct Lock : public std::unique_lock<std::mutex> {
-            explicit Lock(GraphGuard& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
-            GraphGuard& _graph;
-        };
-    };
 
     const bool m_loaded_from_cache;
     // WARNING: Do not use m_graphs directly.
@@ -94,5 +95,59 @@ private:
     bool m_has_sub_compiled_models = false;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+// This class provides safe access to the internal CompiledModel structures and helps to decouple SyncInferRequest and
+// the CompiledModel internal structures
+class CompiledModelHolder {
+public:
+    CompiledModelHolder(std::shared_ptr<const CompiledModel> compiled_model)
+        : m_compiled_model(std::move(compiled_model)) {
+        OPENVINO_ASSERT(!m_compiled_model->m_graphs.empty(),
+                        "No graph was found in the compiled model: ",
+                        m_compiled_model->name());
+        m_graph = &(m_compiled_model->get_graph()._graph);
+        m_id = (m_compiled_model->m_numRequests)++;
+    }
+
+    ~CompiledModelHolder() {
+        if (m_compiled_model) {
+            --(m_compiled_model->m_numRequests);
+        }
+    }
+
+    CompiledModelHolder(const CompiledModelHolder&) = delete;
+    CompiledModelHolder& operator=(const CompiledModelHolder&) = delete;
+
+    CompiledModelHolder(CompiledModelHolder&&) = default;
+    CompiledModelHolder& operator=(CompiledModelHolder&&) = default;
+
+    const Graph& graph() const {
+        return *m_graph;
+    }
+
+    CompiledModel::GraphGuard::Lock lock() {
+        auto lock = m_compiled_model->get_graph();
+        m_graph = &(lock._graph);
+        OPENVINO_ASSERT(m_graph, "Graph ptr null check failed");
+        return lock;
+    }
+
+    std::string name() const {
+        return m_compiled_model->name();
+    }
+
+    std::shared_ptr<const ov::ICompiledModel> compiled_model() const {
+        return m_compiled_model;
+    }
+
+    int id() const {
+        return m_id;
+    }
+
+private:
+    std::shared_ptr<const CompiledModel> m_compiled_model;
+    const Graph* m_graph;
+    int m_id;
+};
+
+}  // namespace intel_cpu
+}  // namespace ov

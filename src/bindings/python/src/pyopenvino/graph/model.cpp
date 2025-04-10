@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"  // ov::Model
+#include "openvino/core/model_util.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
@@ -30,15 +31,14 @@ using PyRTMap = ov::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
-static void set_tensor_names(const ov::ParameterVector& parameters) {
-    for (const auto& param : parameters) {
-        ov::Output<ov::Node> p = param;
-        if (p.get_node()->output(0).get_names().empty()) {
-            std::unordered_set<std::string> p_names({p.get_node()->get_friendly_name()});
-            p.get_node()->output(0).set_names(p_names);
-        }
-    }
+namespace {
+template <class... Args>
+std::shared_ptr<ov::Model> make_model_with_tensor_names(Args&&... args) {
+    auto model = std::make_shared<ov::Model>(std::forward<Args>(args)...);
+    ov::util::set_tensors_names(ov::AUTO, *model);
+    return model;
 }
+}  // namespace
 
 static std::shared_ptr<ov::Node> get_node_ptr(std::shared_ptr<ov::Node> node) {
     return node;
@@ -104,7 +104,7 @@ static ov::Output<ov::Node> output_from_handle(ov::Model& model, const py::handl
         return handle.cast<ov::Output<ov::Node>>();
     } else {
         throw py::type_error("Incorrect key type " + std::string(py::str(handle.get_type())) +
-                             " to reshape a model, expected keys as openvino.runtime.Output, int or str.");
+                             " to reshape a model, expected keys as openvino.Output, int or str.");
     }
 }
 
@@ -116,9 +116,8 @@ static ov::PartialShape partial_shape_from_handle(const py::handle& handle) {
     } else if (py::isinstance<py::str>(handle)) {
         return ov::PartialShape(handle.cast<std::string>());
     } else {
-        throw py::type_error(
-            "Incorrect value type " + std::string(py::str(handle.get_type())) +
-            " to reshape a model, expected values as openvino.runtime.PartialShape, str, list or tuple.");
+        throw py::type_error("Incorrect value type " + std::string(py::str(handle.get_type())) +
+                             " to reshape a model, expected values as openvino.PartialShape, str, list or tuple.");
     }
 }
 
@@ -153,7 +152,7 @@ static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared
 
 void regclass_graph_Model(py::module m) {
     py::class_<ov::Model, std::shared_ptr<ov::Model>> model(m, "Model", py::module_local());
-    model.doc() = "openvino.runtime.Model wraps ov::Model";
+    model.doc() = "openvino.Model wraps ov::Model";
 
     model.def(py::init([](const std::shared_ptr<ov::Model>& other) {
                   return other;
@@ -164,9 +163,8 @@ void regclass_graph_Model(py::module m) {
                           const std::vector<std::shared_ptr<ov::Node>>& nodes,
                           const ov::ParameterVector& params,
                           const std::string& name) {
-                  set_tensor_names(params);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  auto model = std::make_shared<ov::Model>(res, sinks, params, name);
+                  auto model = make_model_with_tensor_names(res, sinks, params, name);
                   set_correct_variables_for_assign_ops(model, sinks);
                   return model;
               }),
@@ -180,7 +178,7 @@ void regclass_graph_Model(py::module m) {
                     :param results: List of results.
                     :type results: List[op.Result]
                     :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-                    :type sinks: List[openvino.runtime.Node]
+                    :type sinks: List[openvino.Node]
                     :param parameters: List of parameters.
                     :type parameters: List[op.Parameter]
                     :param name: String to set as model's friendly name.
@@ -190,8 +188,7 @@ void regclass_graph_Model(py::module m) {
     model.def(py::init([](const std::vector<std::shared_ptr<ov::Node>>& results,
                           const ov::ParameterVector& parameters,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  return std::make_shared<ov::Model>(results, parameters, name);
+                  return make_model_with_tensor_names(results, parameters, name);
               }),
               py::arg("results"),
               py::arg("parameters"),
@@ -200,7 +197,7 @@ void regclass_graph_Model(py::module m) {
                     Create user-defined Model which is a representation of a model.
 
                     :param results: List of Nodes to be used as results.
-                    :type results: List[openvino.runtime.Node]
+                    :type results: List[openvino.Node]
                     :param parameters: List of parameters.
                     :type parameters:  List[op.Parameter]
                     :param name: String to set as model's friendly name.
@@ -210,8 +207,7 @@ void regclass_graph_Model(py::module m) {
     model.def(py::init([](const std::shared_ptr<ov::Node>& result,
                           const ov::ParameterVector& parameters,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  return std::make_shared<ov::Model>(result, parameters, name);
+                  return make_model_with_tensor_names(result, parameters, name);
               }),
               py::arg("result"),
               py::arg("parameters"),
@@ -220,7 +216,7 @@ void regclass_graph_Model(py::module m) {
                     Create user-defined Model which is a representation of a model.
 
                     :param result: Node to be used as result.
-                    :type result: openvino.runtime.Node
+                    :type result: openvino.Node
                     :param parameters: List of parameters.
                     :type parameters: List[op.Parameter]
                     :param name: String to set as model's friendly name.
@@ -229,8 +225,7 @@ void regclass_graph_Model(py::module m) {
 
     model.def(
         py::init([](const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name) {
-            set_tensor_names(parameters);
-            return std::make_shared<ov::Model>(results, parameters, name);
+            return make_model_with_tensor_names(results, parameters, name);
         }),
         py::arg("results"),
         py::arg("parameters"),
@@ -239,7 +234,7 @@ void regclass_graph_Model(py::module m) {
             Create user-defined Model which is a representation of a model
 
             :param results: List of outputs.
-            :type results: List[openvino.runtime.Output]
+            :type results: List[openvino.Output]
             :param parameters: List of parameters.
             :type parameters: List[op.Parameter]
             :param name: String to set as model's friendly name.
@@ -250,9 +245,8 @@ void regclass_graph_Model(py::module m) {
                           const std::vector<std::shared_ptr<ov::Node>>& nodes,
                           const ov::ParameterVector& parameters,
                           const std::string& name) {
-                  set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  auto model = make_model_with_tensor_names(results, sinks, parameters, name);
                   set_correct_variables_for_assign_ops(model, sinks);
                   return model;
               }),
@@ -264,9 +258,9 @@ void regclass_graph_Model(py::module m) {
             Create user-defined Model which is a representation of a model
 
             :param results: List of outputs.
-            :type results: List[openvino.runtime.Output]
+            :type results: List[openvino.Output]
             :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-            :type sinks: List[openvino.runtime.Node]
+            :type sinks: List[openvino.Node]
             :param parameters: List of parameters.
             :type parameters: List[op.Parameter]
             :param name: String to set as model's friendly name.
@@ -277,9 +271,8 @@ void regclass_graph_Model(py::module m) {
                           const ov::OutputVector& nodes,
                           const ov::ParameterVector& parameters,
                           const std::string& name) {
-                  set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  auto model = make_model_with_tensor_names(results, sinks, parameters, name);
                   set_correct_variables_for_assign_ops(model, sinks);
                   return model;
               }),
@@ -291,9 +284,9 @@ void regclass_graph_Model(py::module m) {
             Create user-defined Model which is a representation of a model
 
             :param results: List of outputs.
-            :type results: List[openvino.runtime.Output]
+            :type results: List[openvino.Output]
             :param sinks: List of Output sink node handles.
-            :type sinks: List[openvino.runtime.Output]
+            :type sinks: List[openvino.Output]
             :param parameters: List of parameters.
             :type parameters: List[op.Parameter]
             :param name: String to set as model's friendly name.
@@ -305,9 +298,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("sinks"),
@@ -318,9 +309,9 @@ void regclass_graph_Model(py::module m) {
             Create user-defined Model which is a representation of a model
 
             :param results: List of outputs.
-            :type results: List[openvino.runtime.Output]
+            :type results: List[openvino.Output]
             :param sinks: List of Output sink node handles.
-            :type sinks: List[openvino.runtime.Output]
+            :type sinks: List[openvino.Output]
             :param parameters: List of parameters.
             :type parameters: List[op.Parameter]
             :param variables: List of variables.
@@ -333,9 +324,8 @@ void regclass_graph_Model(py::module m) {
                           const ov::OutputVector& nodes,
                           const ov::ParameterVector& parameters,
                           const std::string& name) {
-                  set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  auto model = make_model_with_tensor_names(results, sinks, parameters, name);
                   set_correct_variables_for_assign_ops(model, sinks);
                   return model;
               }),
@@ -349,7 +339,7 @@ void regclass_graph_Model(py::module m) {
         :param results: List of results.
         :type results: List[op.Result]
         :param sinks: List of Output sink node handles.
-        :type sinks: List[openvino.runtime.Output]
+        :type sinks: List[openvino.Output]
         :param parameters: List of parameters.
         :type parameters: List[op.Parameter]
         :param name: String to set as model's friendly name.
@@ -361,9 +351,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("sinks"),
@@ -376,7 +364,7 @@ void regclass_graph_Model(py::module m) {
         :param results: List of results.
         :type results: List[op.Result]
         :param sinks: List of Output sink node handles.
-        :type sinks: List[openvino.runtime.Output]
+        :type sinks: List[openvino.Output]
         :param parameters: List of parameters.
         :type parameters: List[op.Parameter]
         :param variables: List of variables.
@@ -390,9 +378,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("sinks"),
@@ -405,7 +391,7 @@ void regclass_graph_Model(py::module m) {
             :param results: List of results.
             :type results: List[op.Result]
             :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-            :type sinks: List[openvino.runtime.Node]
+            :type sinks: List[openvino.Node]
             :param parameters: List of parameters.
             :type parameters: List[op.Parameter]
             :param variables: List of variables.
@@ -419,9 +405,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("sinks"),
@@ -432,9 +416,9 @@ void regclass_graph_Model(py::module m) {
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
-            :type results: List[openvino.runtime.Output]
+            :type results: List[openvino.Output]
             :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-            :type sinks: List[openvino.runtime.Node]
+            :type sinks: List[openvino.Node]
             :param variables: List of variables.
             :type variables: List[op.util.Variable]
             :param name: String to set as model's friendly name.
@@ -445,8 +429,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  return std::make_shared<ov::Model>(results, parameters, variables, name);
+                  return make_model_with_tensor_names(results, parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("parameters"),
@@ -469,8 +452,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  return std::make_shared<ov::Model>(results, parameters, variables, name);
+                  return make_model_with_tensor_names(results, parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("parameters"),
@@ -480,7 +462,7 @@ void regclass_graph_Model(py::module m) {
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
-            :type results: List[openvino.runtime.Output]
+            :type results: List[openvino.Output]
             :param parameters: List of parameters.
             :type parameters: List[op.Parameter]
             :param name: String to set as model's friendly name.
@@ -504,10 +486,10 @@ void regclass_graph_Model(py::module m) {
                 The allowed types of keys in the `variables_shapes` dictionary is `str`.
                 The allowed types of values in the `variables_shapes` are:
 
-                (1) `openvino.runtime.PartialShape`
+                (1) `openvino.PartialShape`
                 (2) `list` consisting of dimensions
                 (3) `tuple` consisting of dimensions
-                (4) `str`, string representation of `openvino.runtime.PartialShape`
+                (4) `str`, string representation of `openvino.PartialShape`
 
                 When list or tuple are used to describe dimensions, each dimension can be written in form:
 
@@ -515,7 +497,7 @@ void regclass_graph_Model(py::module m) {
                 (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
                 the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
                 max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
-                `openvino.runtime.Dimension` (5) `str` using next syntax:
+                `openvino.Dimension` (5) `str` using next syntax:
                     '?' - to define fully dynamic dimension
                     '1' - to define dimension which length is 1
                     '1..10' - to define bounded dimension
@@ -524,7 +506,7 @@ void regclass_graph_Model(py::module m) {
                 GIL is released while running this function.
 
                 :param partial_shape: New shape.
-                :type partial_shape: openvino.runtime.PartialShape
+                :type partial_shape: openvino.PartialShape
                 :param variables_shapes: New shapes for variables
                 :type variables_shapes: Dict[keys, values]
                 :return : void
@@ -546,10 +528,10 @@ void regclass_graph_Model(py::module m) {
                 The allowed types of keys in the `variables_shapes` dictionary is `str`.
                 The allowed types of values in the `variables_shapes` are:
 
-                (1) `openvino.runtime.PartialShape`
+                (1) `openvino.PartialShape`
                 (2) `list` consisting of dimensions
                 (3) `tuple` consisting of dimensions
-                (4) `str`, string representation of `openvino.runtime.PartialShape`
+                (4) `str`, string representation of `openvino.PartialShape`
 
                 When list or tuple are used to describe dimensions, each dimension can be written in form:
 
@@ -557,7 +539,7 @@ void regclass_graph_Model(py::module m) {
                 (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
                 the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
                 max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
-                `openvino.runtime.Dimension` (5) `str` using next syntax:
+                `openvino.Dimension` (5) `str` using next syntax:
                     '?' - to define fully dynamic dimension
                     '1' - to define dimension which length is 1
                     '1..10' - to define bounded dimension
@@ -588,10 +570,10 @@ void regclass_graph_Model(py::module m) {
                 The allowed types of keys in the `variables_shapes` dictionary is `str`.
                 The allowed types of values in the `variables_shapes` are:
 
-                (1) `openvino.runtime.PartialShape`
+                (1) `openvino.PartialShape`
                 (2) `list` consisting of dimensions
                 (3) `tuple` consisting of dimensions
-                (4) `str`, string representation of `openvino.runtime.PartialShape`
+                (4) `str`, string representation of `openvino.PartialShape`
 
                 When list or tuple are used to describe dimensions, each dimension can be written in form:
 
@@ -599,7 +581,7 @@ void regclass_graph_Model(py::module m) {
                 (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
                 the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
                 max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
-                `openvino.runtime.Dimension` (5) `str` using next syntax:
+                `openvino.Dimension` (5) `str` using next syntax:
                     '?' - to define fully dynamic dimension
                     '1' - to define dimension which length is 1
                     '1..10' - to define bounded dimension
@@ -629,10 +611,10 @@ void regclass_graph_Model(py::module m) {
                 The allowed types of keys in the `variables_shapes` dictionary is `str`.
                 The allowed types of values in the `variables_shapes` are:
 
-                (1) `openvino.runtime.PartialShape`
+                (1) `openvino.PartialShape`
                 (2) `list` consisting of dimensions
                 (3) `tuple` consisting of dimensions
-                (4) `str`, string representation of `openvino.runtime.PartialShape`
+                (4) `str`, string representation of `openvino.PartialShape`
 
                 When list or tuple are used to describe dimensions, each dimension can be written in form:
 
@@ -640,7 +622,7 @@ void regclass_graph_Model(py::module m) {
                 (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
                 the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
                 max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
-                `openvino.runtime.Dimension` (5) `str` using next syntax:
+                `openvino.Dimension` (5) `str` using next syntax:
                     '?' - to define fully dynamic dimension
                     '1' - to define dimension which length is 1
                     '1..10' - to define bounded dimension
@@ -677,14 +659,14 @@ void regclass_graph_Model(py::module m) {
 
             (1) `int`, input index
             (2) `str`, input tensor name
-            (3) `openvino.runtime.Output`
+            (3) `openvino.Output`
 
             The allowed types of values in the `partial_shapes` are:
 
-            (1) `openvino.runtime.PartialShape`
+            (1) `openvino.PartialShape`
             (2) `list` consisting of dimensions
             (3) `tuple` consisting of dimensions
-            (4) `str`, string representation of `openvino.runtime.PartialShape`
+            (4) `str`, string representation of `openvino.PartialShape`
 
             When list or tuple are used to describe dimensions, each dimension can be written in form:
 
@@ -692,7 +674,7 @@ void regclass_graph_Model(py::module m) {
             (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound; the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound
             (3) `(min, max)`, the same as above
             (4) `-1` is a dynamic dimension without known bounds
-            (4) `openvino.runtime.Dimension`
+            (4) `openvino.Dimension`
             (5) `str` using next syntax:
                 '?' - to define fully dynamic dimension
                 '1' - to define dimension which length is 1
@@ -702,10 +684,10 @@ void regclass_graph_Model(py::module m) {
             The allowed types of keys in the `variables_shapes` dictionary is `str`.
             The allowed types of values in the `variables_shapes` are:
 
-            (1) `openvino.runtime.PartialShape`
+            (1) `openvino.PartialShape`
             (2) `list` consisting of dimensions
             (3) `tuple` consisting of dimensions
-            (4) `str`, string representation of `openvino.runtime.PartialShape`
+            (4) `str`, string representation of `openvino.PartialShape`
 
             When list or tuple are used to describe dimensions, each dimension can be written in form:
 
@@ -713,7 +695,7 @@ void regclass_graph_Model(py::module m) {
             (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
             the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
             max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
-            `openvino.runtime.Dimension` (5) `str` using next syntax:
+            `openvino.Dimension` (5) `str` using next syntax:
                 '?' - to define fully dynamic dimension
                 '1' - to define dimension which length is 1
                 '1..10' - to define bounded dimension
@@ -743,7 +725,7 @@ void regclass_graph_Model(py::module m) {
                     Return ops used in the model.
 
                     :return: List of Nodes representing ops used in model.
-                    :rtype: List[openvino.runtime.Node]
+                    :rtype: List[openvino.Node]
                  )");
     model.def("get_ordered_ops",
               &ov::Model::get_ordered_ops,
@@ -751,7 +733,7 @@ void regclass_graph_Model(py::module m) {
                     Return ops used in the model in topological order.
 
                     :return: List of sorted Nodes representing ops used in model.
-                    :rtype: List[openvino.runtime.Node]
+                    :rtype: List[openvino.Node]
                  )");
     model.def("get_output_op",
               &ov::Model::get_output_op,
@@ -762,7 +744,7 @@ void regclass_graph_Model(py::module m) {
                     :param index: output index
                     :type index: output index
                     :return: Node object that generates output i
-                    :rtype: openvino.runtime.Node
+                    :rtype: openvino.Node
                 )");
     model.def("get_output_element_type",
               &ov::Model::get_output_element_type,
@@ -773,7 +755,7 @@ void regclass_graph_Model(py::module m) {
                     :param index: output index
                     :type index: int
                     :return: Type object of output i
-                    :rtype: openvino.runtime.Type
+                    :rtype: openvino.Type
                  )");
     model.def("get_output_shape",
               &ov::Model::get_output_shape,
@@ -784,7 +766,7 @@ void regclass_graph_Model(py::module m) {
                     :param index: element index
                     :type index: int
                     :return: Shape object of element i
-                    :rtype: openvino.runtime.Shape
+                    :rtype: openvino.Shape
                  )");
     model.def("get_output_partial_shape",
               &ov::Model::get_output_partial_shape,
@@ -795,7 +777,7 @@ void regclass_graph_Model(py::module m) {
                     :param index: element index
                     :type index: int
                     :return: PartialShape object of element i
-                    :rtype: openvino.runtime.PartialShape
+                    :rtype: openvino.PartialShape
                  )");
     model.def("get_parameters",
               &ov::Model::get_parameters,
@@ -854,7 +836,7 @@ void regclass_graph_Model(py::module m) {
                     Return -1 if `value` not matched.
 
                     :param value: Output containing Node
-                    :type value: openvino.runtime.Output
+                    :type value: openvino.Output
                     :return: Index for value referencing it.
                     :rtype: int
                  )");
@@ -867,7 +849,7 @@ void regclass_graph_Model(py::module m) {
                     Return -1 if `value` not matched.
 
                     :param value: Output containing Node
-                    :type value: openvino.runtime.Output
+                    :type value: openvino.Output
                     :return: Index for value referencing it.
                     :rtype: int
                  )");
@@ -905,7 +887,7 @@ void regclass_graph_Model(py::module m) {
                     Return -1 if `value` not matched.
 
                     :param value: Output sink node handle
-                    :type value: openvino.runtime.Output
+                    :type value: openvino.Output
                     :return: Index of sink node referenced by output handle.
                     :rtype: int
                   )");
@@ -927,7 +909,7 @@ void regclass_graph_Model(py::module m) {
                     Return -1 if `value` not matched.
 
                     :param value: Output sink node handle
-                    :type value: openvino.runtime.Output
+                    :type value: openvino.Output
                     :return: Index of sink node referenced by output handle.
                     :rtype: int
                   )");
@@ -952,7 +934,7 @@ void regclass_graph_Model(py::module m) {
                     Return -1 if `sink` not matched.
 
                     :param sink: Sink node.
-                    :type sink: openvino.runtime.Node
+                    :type sink: openvino.Node
                     :return: Index of sink node.
                     :rtype: int
                  )");
@@ -1153,7 +1135,7 @@ void regclass_graph_Model(py::module m) {
                 Delete sink node from the list of sinks. Method doesn't delete node from graph.
 
                 :param sink: Sink to delete.
-                :type sink: openvino.runtime.Node
+                :type sink: openvino.Node
         )");
 
     model.def("remove_variable",
@@ -1215,7 +1197,7 @@ void regclass_graph_Model(py::module m) {
             Method doesn't validate graph, it should be done manually after all changes.
 
             :param sinks: new sink nodes.
-            :type sinks: List[openvino.runtime.Node]
+            :type sinks: List[openvino.Node]
         )");
 
     model.def("add_variables",
@@ -1269,7 +1251,7 @@ void regclass_graph_Model(py::module m) {
             Return a list of model's sinks.
 
             :return: a list of model's sinks.
-            :rtype: List[openvino.runtime.Node]
+            :rtype: List[openvino.Node]
         )");
 
     model.def_property_readonly(
@@ -1282,7 +1264,7 @@ void regclass_graph_Model(py::module m) {
             Return a list of model's sinks.
 
             :return: a list of model's sinks.
-            :rtype: List[openvino.runtime.Node]
+            :rtype: List[openvino.Node]
         )");
 
     model.def(
@@ -1300,13 +1282,13 @@ void regclass_graph_Model(py::module m) {
             Evaluate the model on inputs, putting results in outputs
 
             :param output_tensors: Tensors for the outputs to compute. One for each result
-            :type output_tensors: List[openvino.runtime.Tensor]
+            :type output_tensors: List[openvino.Tensor]
             :param input_tensors: Tensors for the inputs. One for each inputs.
-            :type input_tensors: List[openvino.runtime.Tensor]
+            :type input_tensors: List[openvino.Tensor]
             :param evaluation_context: Storage of additional settings and attributes that can be used
                                        when evaluating the model. This additional information can be
                                        shared across nodes.
-            :type evaluation_context: openvino.runtime.RTMap
+            :type evaluation_context: openvino.RTMap
             :rtype: bool
         )");
 
@@ -1315,7 +1297,7 @@ void regclass_graph_Model(py::module m) {
               R"(
             Return a copy of self.
             :return: A copy of self.
-            :rtype: openvino.runtime.Model
+            :rtype: openvino.Model
         )");
 
     model.def("__repr__", [](const ov::Model& self) {
@@ -1328,10 +1310,6 @@ void regclass_graph_Model(py::module m) {
                outputs_str + "\n]>";
     });
 
-    model.def("__copy__", [](ov::Model& self) {
-        throw py::type_error("Cannot copy 'openvino.runtime.Model. Please, use deepcopy instead.");
-    });
-
     model.def("get_rt_info",
               (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
               py::return_value_policy::reference_internal,
@@ -1339,7 +1317,7 @@ void regclass_graph_Model(py::module m) {
                 Returns PyRTMap which is a dictionary of user defined runtime info.
 
                 :return: A dictionary of user defined data.
-                :rtype: openvino.runtime.RTMap
+                :rtype: openvino.RTMap
              )");
     model.def(
         "get_rt_info",
@@ -1358,7 +1336,7 @@ void regclass_graph_Model(py::module m) {
                 :type path: List[str]
 
                 :return: A runtime attribute.
-                :rtype: openvino.runtime.OVAny
+                :rtype: openvino.OVAny
              )");
     model.def(
         "get_rt_info",
@@ -1373,7 +1351,7 @@ void regclass_graph_Model(py::module m) {
                 :type path: str
 
                 :return: A runtime attribute.
-                :rtype: openvino.runtime.OVAny
+                :rtype: openvino.OVAny
              )");
     model.def(
         "has_rt_info",

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,7 @@ public:
     static layout calc_output_layout(fully_connected_node const& node, kernel_impl_params const& impl_param);
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param);
     static std::string to_string(fully_connected_node const& node);
+    static bool can_apply_single_batch_optimization(const kernel_impl_params& impl_param);
 
     typed_primitive_inst(network& network, fully_connected_node const& node);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@ using IndicesValues = std::vector<std::int64_t>;
 struct ScatterNDUpdateLayerParams {
     ScatterNDUpdateShapes inputShapes;
     IndicesValues indicesValues;
+    bool exceptionExpected;
 };
 
 using scatterUpdateParams = std::tuple<ScatterNDUpdateLayerParams,
@@ -32,6 +33,7 @@ public:
         std::tie(scatterParams, inputPrecision, idxPrecision) = obj.param;
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesValues = scatterParams.indicesValues;
+        const auto exceptionExpected = scatterParams.exceptionExpected;
 
         std::ostringstream result;
         result << inputPrecision << "_IS=";
@@ -46,7 +48,8 @@ public:
             }
             result << ")_";
         }
-        result << "indices_values=" << ov::test::utils::vec2str(indicesValues) << "_idx_precision=" << idxPrecision;
+        result << "indices_values=" << ov::test::utils::vec2str(indicesValues) << "_idx_precision=" << idxPrecision << "_";
+        result << "exception_expected=" << exceptionExpected;
         return result.str();
     }
 
@@ -98,6 +101,7 @@ protected:
         std::tie(scatterParams, inputPrecision, idxPrecision) = this->GetParam();
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesValues = scatterParams.indicesValues;
+        const auto exceptionExpected = scatterParams.exceptionExpected;
 
         init_input_shapes(inputShapes);
         selectedType = makeSelectedTypeStr("unknown", inputPrecision);
@@ -115,6 +119,13 @@ protected:
 
         ov::ParameterVector allParams{dataParams[0], indicesParam, dataParams[1]};
         function = makeNgraphFunction(inputPrecision, allParams, scatter, "ScatterNDUpdateLayerCPUTest");
+
+        if (exceptionExpected) {
+            set_callback_exception([](const std::exception& exp) {
+                // do nothing, exception is throw as expected
+                (void) exp;
+            });
+        }
     }
 };
 
@@ -130,26 +141,46 @@ const std::vector<ScatterNDUpdateLayerParams> scatterParams = {
             {{2, 2, 1}, {{2, 2, 1}, {2, 2, 1}, {2, 2, 1}}},
             {{-1, -1, -1, -1, -1, -1}, {{2, 2, 9, 10, 9, 10}, {2, 2, 1, 11, 2, 5}, {2, 2, 15, 8, 1, 7}}},
         },
-        IndicesValues{5, 6, 2, 8}},
-    ScatterNDUpdateLayerParams{ScatterNDUpdateShapes{{{-1, -1, -1, -1}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
-                                                     {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
-                                                     {{-1, -1}, {{2, 11}, {2, 12}, {2, 8}}}},
-                               IndicesValues{0, 1, 1, 2, 2, 2}},
+        IndicesValues{5, 6, 2, 8}
+    },
     ScatterNDUpdateLayerParams{
-        ScatterNDUpdateShapes{{{{3, 10}, -1, {3, 9}, -1}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
-                              {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
-                              {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}},
+        ScatterNDUpdateShapes{
+            {{-1, -1, -1, -1}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
+            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
+            {{-1, -1}, {{2, 11}, {2, 12}, {2, 8}}}
+        },
+        IndicesValues{0, 1, 1, 2, 2, 2}
+    },
+    ScatterNDUpdateLayerParams{
+        ScatterNDUpdateShapes{
+            {{{3, 10}, -1, {3, 9}, -1}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
+            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
+            {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
+        },
         IndicesValues{0, 1, 1, 2, 2, 2}},
     ScatterNDUpdateLayerParams{
-        ScatterNDUpdateShapes{{{{3, 10}, {4, 11}, {3, 9}, {8, 15}}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
-                              {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
-                              {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}},
+        ScatterNDUpdateShapes{
+            {{{3, 10}, {4, 11}, {3, 9}, {8, 15}}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
+            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
+            {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
+        },
         IndicesValues{0, 1, 1, 2, 2, 2}},
     ScatterNDUpdateLayerParams{
-        ScatterNDUpdateShapes{{{{3, 10}, {4, 11}, {3, 9}, {8, 15}}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
-                              {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
-                              {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}},
+        ScatterNDUpdateShapes{
+            {{{3, 10}, {4, 11}, {3, 9}, {8, 15}}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
+            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
+            {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}},
         IndicesValues{-1, -1, -1, -2, -2, -2}},
+    // out of bounds indices
+    ScatterNDUpdateLayerParams{
+        ScatterNDUpdateShapes{
+            {{}, {{4, 8, 64, 1}}},
+            {{}, {{1}}},
+            {{}, {{8, 64, 1}}}
+        },
+        IndicesValues{4}, // index is out of bounds
+        true
+    },
 };
 
 const std::vector<ElementType> inputPrecisions = {

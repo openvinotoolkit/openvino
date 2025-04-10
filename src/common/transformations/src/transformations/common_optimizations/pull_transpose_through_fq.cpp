@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,13 +14,15 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
     const auto weights = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto m_fq = pattern::wrap_type<ov::op::v0::FakeQuantize>({weights,
+    const auto convert_p = ov::pass::pattern::optional<ov::op::v0::Convert>(weights, pattern::consumers_count(1));
+    auto m_fq = pattern::wrap_type<ov::op::v0::FakeQuantize>({convert_p,
                                                               pattern::any_input(pattern::has_static_shape()),
                                                               pattern::any_input(pattern::has_static_shape()),
                                                               pattern::any_input(pattern::has_static_shape()),
@@ -33,25 +35,15 @@ ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         auto& pattern_map = m.get_pattern_value_map();
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();
-
-        auto are_inputs_scalars =
-            shape_size(fq->input_value(1).get_shape()) == 1 && shape_size(fq->input_value(2).get_shape()) == 1 &&
-            shape_size(fq->input_value(3).get_shape()) == 1 && shape_size(fq->input_value(4).get_shape()) == 1;
-        if (!are_inputs_scalars) {
-            auto perm = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[m_transpose_perm].get_node_shared_ptr());
-            if (!perm)
-                return false;
-            auto perm_val = perm->cast_vector<int64_t>();
-            if (!(perm_val[0] == 0 && perm_val[1] == 1))
-                return false;
-        }
-
         auto input_rank = fq->input(0).get_partial_shape().rank().get_length();
 
         ov::NodeVector new_ops;
         ov::OutputVector fq_inputs;
         for (size_t i = 0; i < fq->inputs().size(); ++i) {
             auto fq_input = fq->input_value(i);
+            if (i == 0) {
+                fq_input = pattern_map[weights];
+            }
             auto fq_input_rank = fq_input.get_partial_shape().rank().get_length();
             std::vector<int64_t> unsqueeze_axes;
             for (int64_t j = 0; j < input_rank - fq_input_rank; ++j) {
@@ -68,10 +60,17 @@ ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
                 fq_input = constant;
             }
             ov::copy_runtime_info(transpose, fq_input.get_node_shared_ptr());
+            if (i == 0 && pattern_map.count(convert_p)) {
+                const auto& convert_node = pattern_map.at(convert_p).get_node_shared_ptr();
+                convert_node->input(0).replace_source_output(fq_input);
+                convert_node->validate_and_infer_types();
+                fq_input = convert_node;
+            }
             fq_inputs.push_back(fq_input);
         }
 
         auto new_fq = fq->clone_with_new_inputs(fq_inputs);
+        register_new_node(new_fq);
         new_ops.push_back(new_fq);
         new_fq->set_friendly_name(transpose->get_friendly_name());
         ov::copy_runtime_info({fq, transpose}, new_ops);

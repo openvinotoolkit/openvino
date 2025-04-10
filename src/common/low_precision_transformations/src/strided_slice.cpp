@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,15 +107,15 @@ StridedSliceTransformation::StridedSliceTransformation(const Params& params) : L
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool StridedSliceTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!StridedSliceTransformation::canBeTransformed(context, m.get_match_root())) {
+bool StridedSliceTransformation::transform(ov::pass::pattern::Matcher& m) {
+    if (!StridedSliceTransformation::canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -132,13 +132,13 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ov::p
     replace_node(dequantization.multiplyConstant, new_mul_const);
     dequantization.multiplyConstant = new_mul_const;
 
-    const auto newOperation = moveDequantizationAfter(context, strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
-bool StridedSliceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+bool StridedSliceTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
     if (!ov::is_type<ov::opset1::StridedSlice>(operation)) {
         return false;
     }

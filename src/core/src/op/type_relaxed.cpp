@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ void TypeRelaxedBase::remember_input_data_types(Node& node, element::TypeVector&
     // Reset input data types to m_output_data_type.
     for (size_t i = 0; i < node.get_input_size(); ++i) {
         auto origin_input_type = get_origin_input_type(i);
-        if (origin_input_type != element::undefined) {
+        if (origin_input_type.is_static()) {
             ov::descriptor::set_tensor_type(node.get_input_tensor(i),
                                             origin_input_type,
                                             node.get_input_partial_shape(i));
@@ -50,7 +50,7 @@ void TypeRelaxedBase::restore_input_data_types(Node& node, const element::TypeVe
     // Override (some) output types
     for (size_t i = 0; i < node.get_output_size(); ++i) {
         auto overridden_output_type = get_overridden_output_type(i);
-        if (overridden_output_type != element::undefined) {
+        if (overridden_output_type.is_static()) {
             node.set_output_type(i, overridden_output_type, node.get_output_partial_shape(i));
         }
     }
@@ -136,11 +136,11 @@ std::unordered_map<size_t, std::pair<ov::Tensor, ov::Tensor>> convert_input_type
         auto& input = inputs[i];
         const auto& fake_type = input.get_element_type();
         const auto& original_type = types[i];
-        if (original_type == fake_type || original_type == element::undefined)
+        if (original_type == fake_type || original_type == element::dynamic)
             continue;  // this input type wasn't changed
         if (parameter == nullptr || convert == nullptr) {
-            parameter = std::make_shared<op::v0::Parameter>(element::undefined, PartialShape());
-            convert = std::make_shared<ov::op::v0::Convert>(parameter, element::undefined);
+            parameter = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape());
+            convert = std::make_shared<ov::op::v0::Convert>(parameter, element::dynamic);
         }
         ov::op::convert_types(parameter, convert, input, original_type);
         original_inputs[i] = {parameter->get_output_tensor(0).get_lower_value(),
@@ -190,8 +190,8 @@ bool convert_outputs_to_fake_type(ov::TensorVector& outputs, ov::TensorVector& o
         if (fake_type == original_type)
             continue;
         if (parameter == nullptr || convert == nullptr) {
-            parameter = std::make_shared<op::v0::Parameter>(element::undefined, PartialShape());
-            convert = std::make_shared<ov::op::v0::Convert>(parameter, element::undefined);
+            parameter = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape());
+            convert = std::make_shared<ov::op::v0::Convert>(parameter, element::dynamic);
         }
         reset_convert(parameter, convert, original_outputs[i], fake_type, is_upper);
         TensorVector local_outputs = {outputs[i]};

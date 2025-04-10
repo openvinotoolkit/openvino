@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,8 +29,7 @@
 void readInputFilesArguments(std::vector<std::string>& files, const std::string& arg) {
     struct stat sb;
     if (stat(arg.c_str(), &sb) != 0) {
-        slog::warn << "File " << arg << " cannot be opened!" << slog::endl;
-        return;
+        throw std::invalid_argument(arg + " file or directory not found.");
     }
     if (S_ISDIR(sb.st_mode)) {
         struct CloseDir {
@@ -43,16 +42,19 @@ void readInputFilesArguments(std::vector<std::string>& files, const std::string&
         using Dir = std::unique_ptr<DIR, CloseDir>;
         Dir dp(opendir(arg.c_str()));
         if (dp == nullptr) {
-            slog::warn << "Directory " << arg << " cannot be opened!" << slog::endl;
-            return;
+            throw std::invalid_argument(arg + " directory cannot be opened!");
         }
 
         struct dirent* ep;
+        size_t files_size = files.size();
         while (nullptr != (ep = readdir(dp.get()))) {
             std::string fileName = ep->d_name;
             if (fileName == "." || fileName == "..")
                 continue;
             files.push_back(arg + "/" + ep->d_name);
+        }
+        if (files.size() == files_size) {
+            throw std::invalid_argument("No files were found in directory " + arg);
         }
     } else {
         files.push_back(arg);
@@ -154,14 +156,16 @@ ov::element::Type getType(std::string value, const supported_type_t& supported_p
 }
 ov::element::Type getType(const std::string& value) {
     static const supported_type_t supported_types = {
-        {"FP32", ov::element::f32}, {"f32", ov::element::f32},      {"FP16", ov::element::f16},
-        {"f16", ov::element::f16},  {"BF16", ov::element::bf16},    {"bf16", ov::element::bf16},
-        {"U64", ov::element::u64},  {"u64", ov::element::u64},      {"I64", ov::element::i64},
-        {"i64", ov::element::i64},  {"U32", ov::element::u32},      {"u32", ov::element::u32},
-        {"I32", ov::element::i32},  {"i32", ov::element::i32},      {"U16", ov::element::u16},
-        {"u16", ov::element::u16},  {"I16", ov::element::i16},      {"i16", ov::element::i16},
-        {"U8", ov::element::u8},    {"u8", ov::element::u8},        {"I8", ov::element::i8},
-        {"i8", ov::element::i8},    {"BOOL", ov::element::boolean}, {"boolean", ov::element::boolean},
+        {"FP32", ov::element::f32},        {"f32", ov::element::f32},   {"FP16", ov::element::f16},
+        {"f16", ov::element::f16},         {"BF16", ov::element::bf16}, {"bf16", ov::element::bf16},
+        {"U64", ov::element::u64},         {"u64", ov::element::u64},   {"I64", ov::element::i64},
+        {"i64", ov::element::i64},         {"U32", ov::element::u32},   {"u32", ov::element::u32},
+        {"I32", ov::element::i32},         {"i32", ov::element::i32},   {"U16", ov::element::u16},
+        {"u16", ov::element::u16},         {"I16", ov::element::i16},   {"i16", ov::element::i16},
+        {"U8", ov::element::u8},           {"u8", ov::element::u8},     {"I8", ov::element::i8},
+        {"i8", ov::element::i8},           {"U4", ov::element::u4},     {"u4", ov::element::u4},
+        {"I4", ov::element::i4},           {"i4", ov::element::i4},     {"BOOL", ov::element::boolean},
+        {"boolean", ov::element::boolean},
     };
 
     return getType(value, supported_types);
@@ -356,6 +360,8 @@ ov::element::Type getPrecision2(const std::string& value) {
         {"I16", ov::element::i16},
         {"U8", ov::element::u8},
         {"I8", ov::element::i8},
+        {"U4", ov::element::u4},
+        {"I4", ov::element::i4},
         {"BOOL", ov::element::boolean},
     };
 

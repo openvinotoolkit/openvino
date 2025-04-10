@@ -14,6 +14,7 @@ Convert to OpenVINO IR
    Convert from TensorFlow Lite <convert-model-tensorflow-lite>
    Convert from PaddlePaddle <convert-model-paddle>
    Convert from JAX/Flax <convert-model-jax>
+   Convert from Keras <convert-model-keras>
 
 
 
@@ -126,7 +127,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  compiled_model = ov.compile_model(ov_model, "AUTO")
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C++
             :sync: cpp
@@ -146,7 +147,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov::CompiledModel compiled_model = core.compile_model("saved_model.pb", "AUTO");
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C
             :sync: c
@@ -167,7 +168,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov_core_compile_model_from_file(core, "saved_model.pb", "AUTO", 0, &compiled_model);
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: CLI
             :sync: cli
@@ -251,7 +252,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  compiled_model = ov.compile_model("<INPUT_MODEL>.tflite", "AUTO")
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
 
          .. tab-item:: C++
@@ -270,7 +271,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov::CompiledModel compiled_model = core.compile_model("<INPUT_MODEL>.tflite", "AUTO");
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C
             :sync: c
@@ -289,14 +290,14 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov_core_compile_model_from_file(core, "<INPUT_MODEL>.tflite", "AUTO", 0, &compiled_model);
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: CLI
             :sync: cli
 
             * The ``convert_model()`` method:
 
-              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can
+              You can use ``ovc`` to convert a model to IR. The obtained IR can
               then be read by ``read_model()`` and inferred.
 
               .. dropdown:: List of supported formats:
@@ -380,7 +381,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
 
                  compiled_model = ov.compile_model("<INPUT_MODEL>.onnx", "AUTO")
 
-              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
 
          .. tab-item:: C++
@@ -398,7 +399,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
 
                  ov::CompiledModel compiled_model = core.compile_model("<INPUT_MODEL>.onnx", "AUTO");
 
-              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C
             :sync: c
@@ -423,7 +424,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
 
             * The ``convert_model()`` method:
 
-              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR
+              You can use ``ovc`` to convert a model to IR. The obtained IR
               can then be read by ``read_model()`` and inferred.
 
               .. dropdown:: List of supported formats:
@@ -513,7 +514,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  compiled_model = ov.compile_model("<INPUT_MODEL>.pdmodel", "AUTO")
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C++
             :sync: cpp
@@ -531,7 +532,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov::CompiledModel compiled_model = core.compile_model("<INPUT_MODEL>.pdmodel", "AUTO");
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: C
             :sync: c
@@ -550,14 +551,14 @@ used by OpenVINO, typically obtained by converting models of supported framework
                  ov_core_compile_model_from_file(core, "<INPUT_MODEL>.pdmodel", "AUTO", 0, &compiled_model);
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference>`.
 
          .. tab-item:: CLI
             :sync: cli
 
             * The ``convert_model()`` method:
 
-              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR
+              You can use ``ovc`` to convert a model to IR. The obtained IR
               can then be read by ``read_model()`` and inferred.
 
               .. dropdown:: List of supported formats:
@@ -708,6 +709,6 @@ multiple times:
 Additional Resources
 ####################
 
-* :doc:`Transition guide from the legacy to new conversion API <../../documentation/legacy-features/transition-legacy-conversion-api>`
+* Learn about the :doc:`parameters to adjust model conversion <./conversion-parameters>`.
 * `Download models from Hugging Face <https://huggingface.co/models>`__.
 

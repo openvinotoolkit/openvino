@@ -38,7 +38,7 @@ class Model:
         return self.__model_prc
 
 def path_to_model(model_path: os.path, prefix: str):
-    frameworks = {'tf', 'tf2', 'caffe', 'onnx', 'mxnet', 'paddle', 'kaldi'}
+    frameworks = {'tf', 'tf2', 'caffe', 'onnx', 'paddle', 'kaldi'}
     precisions = {'FP16', 'FP32', 'INT8', 'INT1'}
     # remove share path + model.xml
     model_path = model_path.replace('\n', '')

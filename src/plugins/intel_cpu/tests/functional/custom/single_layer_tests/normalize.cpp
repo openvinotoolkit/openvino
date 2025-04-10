@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,13 @@ protected:
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        selectedType = makeSelectedTypeStr("unknown", inType);
+
+        if (!with_cpu_x86_avx512_core() && inType == ElementType::bf16) {
+            selectedType = makeSelectedTypeStr("unknown", ElementType::f32);
+        } else {
+            selectedType = makeSelectedTypeStr("unknown", inType);
+        }
+
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 

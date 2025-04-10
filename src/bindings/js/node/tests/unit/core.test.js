@@ -5,22 +5,23 @@
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, isModelAvailable, getModelPath } = require('./utils.js');
+const { testModels, isModelAvailable } = require('../utils.js');
 
 describe('ov.Core tests', () => {
+  const { testModelFP32 } = testModels;
   let core = null;
   before(async () => {
-    await isModelAvailable(testModels.testModelFP32);
+    await isModelAvailable(testModelFP32);
   });
- 
+
   beforeEach(() => {
     core = new ov.Core();
   });
-  
+
   it('Core.setProperty()', () => {
     const tmpDir = '/tmp';
 
-    core.setProperty({ 'CACHE_DIR': tmpDir });
+    core.setProperty({ CACHE_DIR: tmpDir });
 
     const cacheDir = core.getProperty('CACHE_DIR');
 
@@ -30,7 +31,7 @@ describe('ov.Core tests', () => {
   it('Core.setProperty(\'CPU\')', () => {
     const tmpDir = '/tmp';
 
-    core.setProperty('CPU', { 'CACHE_DIR': tmpDir });
+    core.setProperty('CPU', { CACHE_DIR: tmpDir });
 
     const cacheDir = core.getProperty('CPU', 'CACHE_DIR');
 
@@ -38,7 +39,10 @@ describe('ov.Core tests', () => {
   });
 
   it('Core.getProperty(\'CPU\', \'SUPPORTED_PROPERTIES\') is Array', () => {
-    const supportedPropertiesArray = core.getProperty('CPU', 'SUPPORTED_PROPERTIES');
+    const supportedPropertiesArray = core.getProperty(
+      'CPU',
+      'SUPPORTED_PROPERTIES',
+    );
 
     assert.ok(Array.isArray(supportedPropertiesArray));
   });
@@ -46,7 +50,7 @@ describe('ov.Core tests', () => {
   it('Core.setProperty(\'CPU\', { \'NUM_STREAMS\': 5 })', () => {
     const streams = 5;
 
-    core.setProperty('CPU', { 'NUM_STREAMS': streams });
+    core.setProperty('CPU', { NUM_STREAMS: streams });
     const result = core.getProperty('CPU', 'NUM_STREAMS');
 
     assert.equal(result, streams);
@@ -55,7 +59,7 @@ describe('ov.Core tests', () => {
   it('Core.setProperty(\'CPU\', { \'INFERENCE_NUM_THREADS\': 3 })', () => {
     const threads = 3;
 
-    core.setProperty('CPU', { 'INFERENCE_NUM_THREADS': threads });
+    core.setProperty('CPU', { INFERENCE_NUM_THREADS: threads });
     const result = core.getProperty('CPU', 'INFERENCE_NUM_THREADS');
 
     assert.equal(result, threads);
@@ -64,7 +68,7 @@ describe('ov.Core tests', () => {
   it('Core.addExtension() with empty parameters', () => {
     assert.throws(
       () => core.addExtension(),
-      /addExtension method applies one argument of string type/
+      /addExtension method applies one argument of string type/,
     );
   });
 
@@ -73,36 +77,36 @@ describe('ov.Core tests', () => {
 
     assert.throws(
       () => core.addExtension(notExistsExt),
-      /Cannot load library 'not_exists'/
+      /Cannot load library 'not_exists'/,
     );
   });
 
   it('Core.queryModel() with empty parameters should throw an error', () => {
     assert.throws(
       () => core.queryModel().then(),
-      /'queryModel' method called with incorrect parameters./
-    )
+      /'queryModel' method called with incorrect parameters./,
+    );
   });
 
   it('Core.queryModel() with less arguments should throw an error', () => {
     assert.throws(
-      () => core.queryModel("Unexpected Argument").then(),
-      /'queryModel' method called with incorrect parameters./
-    )
+      () => core.queryModel('Unexpected Argument').then(),
+      /'queryModel' method called with incorrect parameters./,
+    );
   });
 
   it('Core.queryModel() with incorrect arguments should throw an error', () => {
-    const model = core.readModelSync(getModelPath().xml);
+    const model = core.readModelSync(testModelFP32.xml);
     assert.throws(
-      () => core.queryModel(model, "arg1", "arg2").then(),
-      /'queryModel' method called with incorrect parameters./
-    )
+      () => core.queryModel(model, 'arg1', 'arg2').then(),
+      /'queryModel' method called with incorrect parameters./,
+    );
   });
 
   it('Core.queryModel() should have device in the result values', () => {
-    const model = core.readModelSync(getModelPath().xml);
+    const model = core.readModelSync(testModelFP32.xml);
     const device = 'CPU';
-    const query_model = core.queryModel(model, device);
-    assert(Object.values(query_model).includes(device));
+    const queryModel = core.queryModel(model, device);
+    assert(Object.values(queryModel).includes(device));
   });
 });

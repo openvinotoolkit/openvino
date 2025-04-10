@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,5 +34,7 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
+    bool SkipKernelExecution(const scatter_elements_update_params& params, size_t kernel_id) const;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

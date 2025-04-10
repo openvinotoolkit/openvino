@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,43 +10,22 @@
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
 
 namespace {
 using namespace ov;
-
-void propagate_rt_info(Node* node, const Output<Node>& final_port) {
-    auto node_outputs = node->outputs();
-    bool same_outputs = std::all_of(node_outputs.begin(), node_outputs.end(), [](const Output<Node>& output) {
-        return output.get_tensor().has_and_set_bound();
-    });
-    if (same_outputs && op::util::is_constant(node))  // constant should not propagate it's rt_info
-    {
-        std::unordered_set<Node*> stop_nodes;
-        for (const auto& in : final_port.get_target_inputs())
-            stop_nodes.insert(in.get_node());
-
-        auto curr_node = node->shared_from_this();
-        for (const auto& output : node_outputs) {
-            if (output == final_port)
-                continue;
-            for (auto& in : output.get_target_inputs()) {
-                if (stop_nodes.count(in.get_node()))
-                    continue;
-                try {
-                    auto consumer = in.get_node()->shared_from_this();
-                    copy_runtime_info({curr_node, consumer}, consumer);
-                } catch (const std::bad_weak_ptr&) {
-                    // Exception can be thrown, if `shared_from_this()` was called during node creation.
-                    // Continue propagation for other nodes.
-                }
-            }
-        }
-    }
-}
 
 bool are_same_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
     return (lhs && rhs) && (lhs.get_element_type() == rhs.get_element_type()) && (lhs.get_shape() == rhs.get_shape()) &&
@@ -72,7 +51,7 @@ bool are_equal(const ov::Tensor& lhs, const ov::Tensor& rhs) {
 }
 
 bool is_type_allocable(const element::Type& type) {
-    return type != element::undefined && type.is_static();
+    return type != element::dynamic && type.is_static();
 }
 
 /**
@@ -287,7 +266,6 @@ void evaluate_bound(const Output<Node>& output) {
             }
             bound_evaluator.set_bounds_and_symbols();
             invalidate_unused_values(node->input_values());
-            propagate_rt_info(node, output);
         }
     }
 }
@@ -484,7 +462,7 @@ bool ov::interval_bound_evaluator(const Node* node,
                node->evaluate(lower_output_values, *input_variants.begin());
 
     auto zero = op::v0::Constant::create(element::i64, {1}, {0});
-    const auto zero_t = ov::Tensor(element::i64, Shape{});
+    auto zero_t = ov::Tensor(element::i64, Shape{});
     *zero_t.data<int64_t>() = 0;
 
     std::vector<TensorVector> unsqueezed_output_variants;
@@ -494,14 +472,12 @@ bool ov::interval_bound_evaluator(const Node* node,
             vector_of_output_variants.emplace_back(output.get_element_type(), output.get_shape());
         }
 
-        node->evaluate(vector_of_output_variants, input_variant);
+        if (!node->evaluate(vector_of_output_variants, input_variant)) {
+            return false;
+        };
 
         TensorVector vector_of_unsqueezed_output_variants;
         for (const auto& output : vector_of_output_variants) {
-            if (!output) {
-                return false;
-            }
-
             auto unsqueezed_shape = output.get_shape();
             unsqueezed_shape.insert(unsqueezed_shape.begin(), 1);
 
@@ -562,8 +538,8 @@ bool ov::interval_bound_evaluator(const Node* node,
             fully_defined = false;
         } else {
             // Can not set to make_tensor_of_min_value(lower_output_values[i]->get_element_type()) yet
-            const auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
-            const auto then_data = static_cast<char*>(then.data());
+            auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
+            auto then_data = static_cast<char*>(then.data());
             std::memset(then_data, 0, then.get_byte_size());
             op::v1::Select().evaluate(lower_out, {final_input_dyn_mask, then, lower_out[0]});
             node->get_output_tensor(i).set_lower_value(lower_out[0]);
@@ -592,7 +568,7 @@ bool ov::tensor_has_max_value(const Tensor& bound) {
     folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
     OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
     OPENVINO_ASSERT(all[0].get_shape() == Shape{});
-    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
+    return ov::as_type_ptr<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
 bool ov::tensor_has_zero_value(const Tensor& bound) {
@@ -613,7 +589,7 @@ bool ov::tensor_has_zero_value(const Tensor& bound) {
     folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
     OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
     OPENVINO_ASSERT(all[0].get_shape() == Shape{});
-    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
+    return ov::as_type_ptr<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
 bool ov::has_and_set_equal_bounds(const Output<Node>& source) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -356,7 +356,7 @@ INSTANTIATE_TEST_SUITE_P(
            std::make_tuple(PartialShape{Dimension(2, 6), Dimension::dynamic(), Dimension(-1, 6), Dimension(7, -1)},
                            2,
                            std::vector<PartialShape>{{Dimension(2, 6), Dimension::dynamic()},
-                                                     {Dimension(-1, 6), Dimension::dynamic()}})),
+                                                     {Dimension(-1, 6), Dimension{7, -1}}})),
     PrintToStringParamName());
 
 TEST_P(SplitBoundTest, propagate_symbol_and_dynamic_value) {

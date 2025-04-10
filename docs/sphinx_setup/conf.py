@@ -14,7 +14,7 @@ from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
 
 project = 'OpenVINO™'
-copyright = '2024, Intel®'
+copyright = '2025, Intel®'
 author = 'Intel®'
 
 language = 'en'
@@ -34,10 +34,20 @@ extensions = [
     'breathe'
     ]
 
+autodoc_mock_imports = []
+
 try:
     import openvino
 except ImportError:
-    autodoc_mock_imports = ["openvino"]
+    autodoc_mock_imports.append("openvino")
+    autodoc_mock_imports.append("openvino_genai")  # Mock openvino_genai too, as it depends on openvino
+
+if "openvino" not in autodoc_mock_imports:
+    try:
+        import openvino_genai
+    except ImportError:
+        autodoc_mock_imports.append("openvino_genai")
+
 
 breathe_projects = {
     "openvino": "../xml/"
@@ -55,7 +65,9 @@ source_suffix = {
     '.md': 'markdown',
 }
 
-html_baseurl = 'https://docs.openvino.ai/canonical/'
+
+# html_baseurl = 'https://docs.openvino.ai/2025/'
+
 
 # -- Sitemap configuration ---------------------------------------------------
 
@@ -72,9 +84,10 @@ ov_sitemap_urlset = [
 ov_sitemap_meta = [
     ('coveo:metadata', {
         'ovversion': version_name,
+        'ovdoctype': 'null',
+        'ovcategory': 'null'
     })
 ]
-
 
 # ----------------------------------------------------
 
@@ -174,14 +187,11 @@ except FileNotFoundError:
 html_static_path = ['_static']
 
 html_css_files = [
-    'css/custom.css',
     'css/openvino_sphinx_theme.css',
     'css/button.css',
     'css/input.css',
     'css/textfield.css',
     'css/tabs.css',
-    'css/coveo_custom.css',
-    'https://static.cloud.coveo.com/atomic/v2/themes/coveo.css',
     'https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css',
 ]
 

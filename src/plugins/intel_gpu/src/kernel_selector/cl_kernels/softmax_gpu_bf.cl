@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,8 +83,6 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     INPUT0_TYPE my_sum = UNIT_VAL_ZERO;
     INPUT0_TYPE my_maximum = -UNIT_VAL_MAX;
 
-    __local INPUT0_TYPE lg_storage[SLM_SIZE];
-
     // Read inputs and Get maximum value from data set
     uint input_idx=0;
 
@@ -156,28 +154,17 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         my_maximum = max(my_maximum, tmp);
     }
 
-    my_maximum = sub_group_reduce_max(my_maximum);
+#if !IS_DYNAMIC
+    #if LWS == SUB_GROUP_SIZE
+        my_maximum = sub_group_reduce_max(my_maximum);
+    #else
+        my_maximum = work_group_reduce_max(my_maximum);
+    #endif
+#else
+    my_maximum = work_group_reduce_max(my_maximum);
+#endif
 
-    if (get_sub_group_local_id() == 0)
-        lg_storage[get_sub_group_id()] = my_maximum;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_set_idx == 0)
-    {
-        for (uint j=1; j<get_num_sub_groups(); ++j)
-            my_maximum = max(my_maximum, lg_storage[j]);
-
-        lg_storage[0] = my_maximum;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    //my_maximum from this point is in fact global maximum
-    my_maximum = lg_storage[0];
-
-    // Get exp(x-max) and sum of exp(x-max)
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    const uint num_iters = input_idx;
+    uint num_iters = items_num;
 
     for (uint j=0; j<num_iters; ++j)
     {
@@ -186,22 +173,31 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         my_chunk[j] = tmp;
     }
 
-    my_sum = sub_group_reduce_add(my_sum);
-
-    if (get_sub_group_local_id() == 0)
-        lg_storage[get_sub_group_id()] = my_sum;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_set_idx == 0)
+    if (in_data_set_idx < aligned_offset)
     {
-        for (uint j=1; j<get_num_sub_groups(); ++j)
-            my_sum += lg_storage[j];
+        INPUT0_TYPE tmp = native_exp(my_chunk[num_iters] - my_maximum);
+        my_sum += tmp;
+        my_chunk[num_iters] = tmp;
 
-        lg_storage[0] = my_sum;
+        num_iters++;
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
 
-    my_sum = lg_storage[0];
+    if (in_data_set_idx < actual_leftovers)
+    {
+        INPUT0_TYPE tmp = native_exp(my_chunk[num_iters] - my_maximum);
+        my_sum += tmp;
+        my_chunk[num_iters] = tmp;
+    }
+
+#if !IS_DYNAMIC
+    #if LWS == SUB_GROUP_SIZE
+        my_sum = sub_group_reduce_add(my_sum);
+    #else
+        my_sum = work_group_reduce_add(my_sum);
+    #endif
+#else
+    my_sum = work_group_reduce_add(my_sum);
+#endif
 
     // Write outputs
     uint output_idx = 0;
@@ -366,26 +362,15 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         my_maximum = max(my_maximum, tmp);
     }
 
-    my_maximum = sub_group_reduce_max(my_maximum);
-
-    if (get_sub_group_local_id() == 0)
-        lg_storage[get_sub_group_id()] = my_maximum;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_set_idx == 0)
-    {
-        for (uint j=1; j<get_num_sub_groups(); ++j)
-            my_maximum = max(my_maximum, lg_storage[j]);
-
-        lg_storage[0] = my_maximum;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    //my_maximum from this point is in fact global maximum
-    my_maximum = lg_storage[0];
-
-    // Get exp(x-max) and sum of exp(x-max)
-    barrier(CLK_LOCAL_MEM_FENCE);
+#if !IS_DYNAMIC
+    #if LWS == SUB_GROUP_SIZE
+        my_maximum = sub_group_reduce_max(my_maximum);
+    #else
+        my_maximum = work_group_reduce_max(my_maximum);
+    #endif
+#else
+    my_maximum = work_group_reduce_max(my_maximum);
+#endif
 
     const uint num_iters = input_idx;
 
@@ -407,22 +392,15 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         output[leftover_idx] = tmp;
     }
 
-    my_sum = sub_group_reduce_add(my_sum);
-
-    if (get_sub_group_local_id() == 0)
-        lg_storage[get_sub_group_id()] = my_sum;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_set_idx == 0)
-    {
-        for (uint j=1; j<get_num_sub_groups(); ++j)
-            my_sum += lg_storage[j];
-
-        lg_storage[0] = my_sum;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    my_sum = lg_storage[0];
+#if !IS_DYNAMIC
+    #if LWS == SUB_GROUP_SIZE
+        my_sum = sub_group_reduce_add(my_sum);
+    #else
+        my_sum = work_group_reduce_add(my_sum);
+    #endif
+#else
+    my_sum = work_group_reduce_add(my_sum);
+#endif
 
     // Write outputs
     uint output_idx = 0;

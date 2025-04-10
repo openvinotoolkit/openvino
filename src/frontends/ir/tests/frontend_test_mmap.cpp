@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,6 +51,42 @@ TEST_F(IRFrontendMMapTestsAdvanced, core_enable_mmap_property) {
         auto rss_init = ov::test::utils::getVmRSSInKB();
         auto model = core.read_model(xmlFileName);
         auto rss_read = ov::test::utils::getVmRSSInKB();
+
+        if (is_mmap != core.get_property("", ov::enable_mmap)) {
+            std::cout << "Test failed: core property is not set correctly" << std::endl;
+            exit(1);
+        }
+
+        bool is_weights_read = (rss_read - rss_init) > REF_RSS;
+        if (is_mmap == is_weights_read) {
+            std::cerr << "Test failed: mmap is " << (is_mmap ? "enabled" : "disabled") << ", but weights are "
+                      << (is_weights_read ? "read" : "not read") << " in RAM" << std::endl;
+            exit(1);
+        }
+        std::cerr << "Test passed" << std::endl;
+        exit(0);
+    };
+
+    for (const auto is_mmap : {true, false})
+        // Run test in a separate process to not affect RAM values by previous tests
+        EXPECT_EXIT(test(is_mmap), ::testing::ExitedWithCode(0), "Test passed");
+}
+
+TEST_F(IRFrontendMMapTestsAdvanced, core_enable_mmap_property_user_config) {
+    // Test checks that with  enabled `mmap` .bin file
+    // isn't read into RAM on `read_model` stage.
+    // Otherwise, with disabled `mmap` .bin file should
+    // be in RAM
+
+    auto test = [&](const bool& is_mmap) {
+        auto rss_init = ov::test::utils::getVmRSSInKB();
+        auto model = core.read_model(xmlFileName, {}, {{ov::enable_mmap(is_mmap)}});
+        auto rss_read = ov::test::utils::getVmRSSInKB();
+
+        if (true != core.get_property("", ov::enable_mmap)) {
+            std::cout << "Test failed: core property changed by user configuration" << std::endl;
+            exit(1);
+        }
 
         bool is_weights_read = (rss_read - rss_init) > REF_RSS;
         if (is_mmap == is_weights_read) {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -134,21 +134,6 @@ target_compile_definitions(ov_onnx_frontend_tests
 set(ONNX_OPSET_VERSION 17 CACHE INTERNAL "Supported version of ONNX operator set")
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
-# Temporary solution until vcpkg doesn't have fresh ONNX,
-# trying determine used version of ONNX to enable modern functionality
-find_package(ONNX 1.16.0 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
-if(ONNX_FOUND)
-    target_compile_definitions(ov_onnx_frontend_tests PRIVATE ONNX_VERSION_116)
-else()
-    if(EXISTS "${CMAKE_SOURCE_DIR}/thirdparty/onnx/onnx/VERSION_NUMBER")
-        file(READ "${CMAKE_SOURCE_DIR}/thirdparty/onnx/onnx/VERSION_NUMBER" ONNX_VERSION)
-        string(STRIP "${ONNX_VERSION}" ONNX_VERSION)
-        if((ONNX_VERSION GREATER "1.16.0") OR (ONNX_VERSION EQUAL "1.16.0"))
-            target_compile_definitions(ov_onnx_frontend_tests PRIVATE ONNX_VERSION_116)
-        endif()
-    endif()
-endif()
-
 if(ONNX_TESTS_DEPENDENCIES)
     add_dependencies(ov_onnx_frontend_tests ${ONNX_TESTS_DEPENDENCIES})
 endif()
@@ -182,8 +167,11 @@ add_custom_command(TARGET ov_onnx_frontend_tests POST_BUILD
                    ${custom_commands}
                    COMMENT "Copy test manifest files to ${TEST_MODEL_ZOO}/onnx")
 
-# process models
+# Process models
 add_dependencies(ov_onnx_frontend_tests test_model_zoo)
+
+# Working with ModelProto
+ov_link_system_libraries(ov_onnx_frontend_tests PUBLIC onnx_proto onnx)
 
 add_subdirectory(standalone_build)
 add_dependencies(ov_onnx_frontend_tests onnx_fe_standalone_build_test)

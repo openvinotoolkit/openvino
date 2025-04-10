@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/c/ov_core.h"
@@ -199,6 +199,17 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
         std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
         _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
         *compiled_model = _compiled_model.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_core_add_extension(const ov_core_t* core, const char* path) {
+    if (!core || !path) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        core->object->add_extension(path);
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;

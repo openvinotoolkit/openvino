@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,3 +23,7 @@ public:
 };
 
 }  // namespace cldnn
+
+namespace ov::intel_gpu {
+using Kernel = cldnn::kernel;
+}

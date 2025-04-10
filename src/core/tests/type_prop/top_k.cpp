@@ -1,14 +1,23 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "topk_shape_inference.hpp"
 
 using namespace ov;
-using namespace ov::opset11;
+using ov::op::v0::Concat;
+using ov::op::v0::Constant;
+using ov::op::v0::Parameter;
+using ov::op::v0::Squeeze;
+using ov::op::v11::TopK;
+using ov::op::v3::Broadcast;
+using ov::op::v3::ShapeOf;
 using namespace testing;
 template <typename T>
 class topk_type_prop : public TypePropOpTest<T> {
@@ -309,12 +318,12 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_symbols_k_is_interval) 
 }
 
 TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_symbols_k_is_interval_with_no_upper_bound) {
-    auto shape = PartialShape{{10, -1}};
+    auto shape = PartialShape{{4, -1}};
     auto k_symbols = set_shape_symbols(shape);
 
     const auto p_k = std::make_shared<Parameter>(element::i64, shape);
     const auto shape_of_k = std::make_shared<ShapeOf>(p_k);
-    // Squeeze make scalar but if interval value has no upper bound result will be {0,inf}
+    // Squeeze make scalar of interval value {4,inf}
     const auto k = std::make_shared<Squeeze>(shape_of_k, Constant::create(element::i64, Shape{}, {0}));
 
     auto data_shape = PartialShape{5, {2, 8}, {2, 100}};
@@ -322,24 +331,24 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_symbols_k_is_interval_w
     const auto data = std::make_shared<Parameter>(element::f32, data_shape);
 
     {
-        // dim{5} k{0,inf} -> {0,5}
+        // dim{5} k{4,inf} -> {4,5}
         const auto op = this->make_op(data, k, 0, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
-                    AllOf(PartialShape({{0, 5}, {2, 8}, {2, 100}}),
+                    AllOf(PartialShape({{4, 5}, {2, 8}, {2, 100}}),
                           ResultOf(get_shape_symbols, ElementsAre(nullptr, symbols[1], symbols[2]))));
     }
     {
-        // dim{2,8} k{0,inf} -> {0,8}
+        // dim{2,8} k{4,inf} -> {2,8}
         const auto op = this->make_op(data, k, 1, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
-                    AllOf(PartialShape({5, {0, 8}, {2, 100}}),
+                    AllOf(PartialShape({5, {2, 8}, {2, 100}}),
                           ResultOf(get_shape_symbols, ElementsAre(symbols[0], nullptr, symbols[2]))));
     }
     {
-        // dim{2,100} k{0,inf} -> {0,100}
+        // dim{2,100} k{4,inf} -> {2,100}
         const auto op = this->make_op(data, k, 2, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
-                    AllOf(PartialShape({5, {2, 8}, {0, 100}}),
+                    AllOf(PartialShape({5, {2, 8}, {2, 100}}),
                           ResultOf(get_shape_symbols, ElementsAre(symbols[0], symbols[1], nullptr))));
     }
 }
@@ -416,11 +425,11 @@ TEST_F(TypePropTopKV3Test, k_is_u32) {
 }
 
 TEST(type_prop, top_k_partial_value) {
-    const auto data = std::make_shared<opset11::Parameter>(element::f32, PartialShape{{0, 16000}});
-    const auto shape = std::make_shared<opset11::ShapeOf>(data);
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{0, 16000}});
+    const auto shape = std::make_shared<op::v3::ShapeOf>(data);
     const auto concat =
         std::make_shared<Concat>(ov::OutputVector{shape, Constant::create(element::i64, {1}, {200})}, 0);
-    const auto reduce_min = std::make_shared<opset11::ReduceMin>(concat, Constant::create(element::i64, {1}, {0}));
+    const auto reduce_min = std::make_shared<op::v1::ReduceMin>(concat, Constant::create(element::i64, {1}, {0}));
     const auto op = std::make_shared<op::v3::TopK>(data, reduce_min, 0, "max", "value");
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{0, 200}}));
 }

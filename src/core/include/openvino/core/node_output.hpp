@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,8 @@ public:
     ///
     Output(const std::shared_ptr<Node>& node, size_t index);
 
-    /// \brief Constructs a Output, referencing the zeroth output of the node.
+    /// \brief Constructs a Output, referencing the default output of the node.
+    ///        If the node doesn't have a default output, an exception will be thrown.
     /// \param node A `shared_ptr` to the node for the output handle.
     template <typename T>
     Output(const std::shared_ptr<T>& node) : Output(node ? node->get_default_output() : Output<Node>()) {}

@@ -1,16 +1,18 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
+
 #include <openvino/op/op.hpp>
+
 #include "base/ov_behavior_test_utils.hpp"
-#include "common/utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu_non_zero.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -25,7 +27,7 @@ public:
     OPENVINO_OP("UnsupportedTestOp");
 
     UnsupportedTestOp() = default;
-    explicit UnsupportedTestOp(const ov::Output<ov::Node>& arg): Op({arg}) {
+    explicit UnsupportedTestOp(const ov::Output<ov::Node>& arg) : Op({arg}) {
         constructor_validate_and_infer_types();
     }
 
@@ -58,9 +60,8 @@ std::shared_ptr<ov::Model> createModelWithUnknownNode() {
     return std::make_shared<ov::Model>(results, ov::ParameterVector{params}, "CustomOpModel");
 }
 
-class QueryNetworkTestNPU :
-        public ov::test::behavior::OVPluginTestBase,
-        public testing::WithParamInterface<CompilationParams> {
+class QueryNetworkTestNPU : public ov::test::behavior::OVPluginTestBase,
+                            public testing::WithParamInterface<CompilationParams> {
 public:
     ov::SupportedOpsMap testQueryNetwork(std::shared_ptr<ov::Model> model) {
         std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
@@ -105,26 +106,27 @@ protected:
 
 const std::vector<ov::AnyMap> configs = {{}};
 
-using QueryNetworkTestSuite1NPU = QueryNetworkTestNPU;	
+using QueryNetworkTestSuite1NPU = QueryNetworkTestNPU;
 
-// Test query with a supported OpenVINO model	
-TEST_P(QueryNetworkTestSuite1NPU, TestQueryNetworkSupported) {	
-    const auto supportedModel = ov::test::utils::make_conv_pool_relu();	
-    ov::SupportedOpsMap result;	
-    EXPECT_NO_THROW(result = testQueryNetwork(supportedModel));	
-    std::unordered_set<std::string> expected, actual;	
-    for (auto& op : supportedModel->get_ops()) {	
-        expected.insert(op->get_friendly_name());	
-    }	
-    for (auto& name : result) {	
-        actual.insert(name.first);	
-    }	
-    EXPECT_EQ(expected, actual);	
-}	
+// Test query with a supported OpenVINO model
+TEST_P(QueryNetworkTestSuite1NPU, TestQueryNetworkSupported) {
+    const auto supportedModel = ov::test::utils::make_conv_pool_relu();
+    ov::SupportedOpsMap result;
+    EXPECT_NO_THROW(result = testQueryNetwork(supportedModel));
+    std::unordered_set<std::string> expected, actual;
+    for (auto& op : supportedModel->get_ops()) {
+        expected.insert(op->get_friendly_name());
+    }
+    for (auto& name : result) {
+        actual.insert(name.first);
+    }
+    EXPECT_EQ(expected, actual);
+}
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest, QueryNetworkTestSuite1NPU,	
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),	
-                                            ::testing::ValuesIn(configs)),	
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         QueryNetworkTestSuite1NPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(configs)),
                          QueryNetworkTestNPU::getTestCaseName);
 
 using QueryNetworkTestSuite2NPU = QueryNetworkTestNPU;
@@ -149,7 +151,8 @@ TEST_P(QueryNetworkTestSuite2NPU, DISABLED_TestQueryNetworkUnsupported) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, QueryNetworkTestSuite2NPU,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         QueryNetworkTestSuite2NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          QueryNetworkTestNPU::getTestCaseName);
