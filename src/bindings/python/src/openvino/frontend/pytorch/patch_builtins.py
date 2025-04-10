@@ -3,7 +3,6 @@
 
 import builtins
 import torch
-from typing import Callable, Dict
 
 originals_map = {
     'divmod': builtins.divmod
