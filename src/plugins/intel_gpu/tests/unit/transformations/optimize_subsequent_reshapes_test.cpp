@@ -39,8 +39,8 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes1) {
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ -1, 1, 4096 });
-        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{ 0, 4096 });
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, true);
+        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{ -1, 4096 });
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, false);
         auto result = std::make_shared<ov::op::v0::Result>(reshape);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
@@ -63,8 +63,8 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes2) {
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ -1, 1, 4096 });
-        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{ 0, 32, 1, 128 });
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, true);
+        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{ -1, 32, 1, 128 });
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, false);
         auto result = std::make_shared<ov::op::v0::Result>(reshape);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
@@ -87,8 +87,56 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes3) {
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ -1, 32, 1, 128 });
-        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{ 0, 4096 });
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, true);
+        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{ -1, 4096 });
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, false);
+        auto result = std::make_shared<ov::op::v0::Result>(reshape);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, OptimizeSubsequentReshapes4) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ 1, -1, 256 });
+        auto first_reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{ 0, 0, 2, 128 });
+        auto first_reshape = std::make_shared<ov::op::v1::Reshape>(input, first_reshape_pattern, true);
+
+        auto second_reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{ -1, 256 });
+        auto second_reshape = std::make_shared<ov::op::v1::Reshape>(first_reshape, second_reshape_pattern, false);
+        auto result = std::make_shared<ov::op::v0::Result>(second_reshape);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        manager.register_pass<OptimizeSubsequentReshapes>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ 1, -1, 256 });
+        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{ -1, 256 });
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, false);
+        auto result = std::make_shared<ov::op::v0::Result>(reshape);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, OptimizeSubsequentReshapes5) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ 1, 256, -1 });
+        auto first_reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{ 0, 64, 4, -1 });
+        auto first_reshape = std::make_shared<ov::op::v1::Reshape>(input, first_reshape_pattern, true);
+
+        auto second_reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{ -1, 32, 2, 4 });
+        auto second_reshape = std::make_shared<ov::op::v1::Reshape>(first_reshape, second_reshape_pattern, true);
+        auto result = std::make_shared<ov::op::v0::Result>(second_reshape);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        manager.register_pass<OptimizeSubsequentReshapes>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ 1, 256, -1 });
+        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{ -1, 32, 2, 4 });
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, false);
         auto result = std::make_shared<ov::op::v0::Result>(reshape);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
