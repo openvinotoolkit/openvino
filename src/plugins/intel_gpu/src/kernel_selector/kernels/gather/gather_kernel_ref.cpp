@@ -155,19 +155,6 @@ static inline std::vector<std::string> GetOrder(size_t size) {
     return idx_order;
 }
 
-static inline std::vector<std::string> GetFinalIndexOrder(size_t size) {
-    std::vector<std::string> idx_order;
-
-    OPENVINO_ASSERT(size > 4, "[GPU] Only support 5 or 6 dimensions");
-
-    if (size == 5) {
-        idx_order = {"b", "f", "0", "z", "0"};
-    } else if (size == 6) {
-        idx_order = {"b", "f", "0", "w", "z", "0"};
-    }
-    return idx_order;
-}
-
 static std::string GetDictionaryIndexOrder(const gather_params& params, size_t axis) {
     auto idx_order = GetOrder(params.outputs[0].GetDims().size());
     auto input_axis_index_macro = "INPUT_AXIS_INDEX";
