@@ -273,4 +273,9 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
  */
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor);
 
+/*
+ * @brief Check if the stream contains traditional ELF blob or is IR
+ */
+bool isELFBlob(std::istream& stream);
+
 }  // namespace intel_npu
