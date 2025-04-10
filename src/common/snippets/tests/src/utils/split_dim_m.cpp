@@ -19,7 +19,7 @@ std::string SplitDimensionMTest::getTestCaseName(testing::TestParamInfo<SplitDim
     if (input.cur_batch.has_value()) {
         result << "Batch=" << input.cur_batch.value() << "_";
     } else {
-        result << "Batch=undefined_";
+        result << "Batch=no_batch_dim_";
     }
     result << "CurM=" << input.cur_m << "_";
     result << "OptimalParallelWorkAmount=" << input.concurrency << "_";
