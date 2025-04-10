@@ -215,6 +215,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
+    if (config.get<COMPILATION_MODE>() == "HostCompile") {
+        OPENVINO_THROW("Dynamic shape blob is only supported by MLIR compiler type now!");
+    }
+
     _logger.debug("parse start");
     auto mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
     _logger.debug("parse end");
