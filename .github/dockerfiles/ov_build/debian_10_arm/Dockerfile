@@ -12,7 +12,7 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
 ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
-RUN apt-get update && \
+RUN dpkg --add-architecture armhf && apt-get update && \
     apt-get install \
         software-properties-common \
         curl \
@@ -46,6 +46,22 @@ RUN apt-get update && \
         libxmlsec1-dev \
         liblzma-dev \
         wget \
+        libavcodec58:armhf \
+        libusb-1.0-0-dev:armhf \
+        libboost-regex-dev:armhf \
+        crossbuild-essential-armhf \
+        libgtk-3-dev:armhf \
+        libavcodec-dev:armhf \
+        libavformat-dev:armhf \
+        libswscale-dev:armhf \
+        libgstreamer1.0-dev:armhf \
+        libpython-dev:armhf \
+        libgstreamer-plugins-base1.0-dev:armhf \
+        zlib1g-dev:armhf \
+        nlohmann-json-dev \
+        libgflags-dev:armhf \
+        libtbb-dev:armhf \
+        libffi-dev:armhf \
         # Compilers
         gcc-arm-linux-gnueabihf \
         g++-arm-linux-gnueabihf \
@@ -79,7 +95,7 @@ RUN wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz
 RUN tar -xf Python-3.9.21.tar.xz && \
     cd Python-3.9.21 && \
     ./configure --enable-optimizations && \
-    make -j 8 && \
+    make -j $(nproc) && \
     make altinstall
 
 # Compile Python 3.9 for ARM
@@ -92,7 +108,7 @@ RUN cd Python-3.9.21 && make distclean && \
         --prefix=/opt/python3.9_arm \
         ac_cv_file__dev_ptmx=no \
         ac_cv_file__dev_ptc=no && \
-    make -j 8 && make altinstall
+    make -j $(nproc) && make altinstall
 
 # Python 3.10
 # To cross-compile Python 3.10 we need to first compile it for the host
@@ -101,7 +117,7 @@ RUN wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz
 RUN tar -xf Python-3.10.16.tar.xz && \
     cd Python-3.10.16 && \
     ./configure --enable-optimizations && \
-    make -j 8 && \
+    make -j $(nproc) && \
     make altinstall
 
 # Compile Python 3.10 for ARM
@@ -114,7 +130,7 @@ RUN cd Python-3.10.16 && make distclean && \
         --prefix=/opt/python3.10_arm \
         ac_cv_file__dev_ptmx=no \
         ac_cv_file__dev_ptc=no && \
-    make -j 8 && make altinstall
+    make -j $(nproc) && make altinstall
 
 # Upgrade openssl to 3.3.1 for Python3.11 - 3.13 ssl module
 RUN wget https://www.openssl.org/source/openssl-3.3.1.tar.gz && \
@@ -134,9 +150,9 @@ RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
 RUN tar -xf Python-3.11.9.tar.xz && \
     cd Python-3.11.9 && \
     LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
-    make -j 8 && \
+    make -j $(nproc) && \
     make altinstall && \
-    curl https://bootstrap.pypa.io/get-pip.py | python3.11 - --no-cache-dir pip==24.2 numpy cython crossenv
+    curl https://bootstrap.pypa.io/get-pip.py | python3.11 - --no-cache-dir pip==24.2
 
 # Compile Python 3.11 for ARM
 RUN cd Python-3.11.9 && make distclean && \
@@ -149,7 +165,7 @@ RUN cd Python-3.11.9 && make distclean && \
         --prefix=/opt/python3.11_arm \
         ac_cv_file__dev_ptmx=no \
         ac_cv_file__dev_ptc=no && \
-    make -j 8 && make altinstall
+    make -j $(nproc) && make altinstall
 
 # Python 3.12
 # To cross-compile Python 3.12 we need to first compile it for the host
@@ -158,7 +174,7 @@ RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
 RUN tar -xf Python-3.12.9.tar.xz && \
     cd Python-3.12.9 && \
     LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
-    make -j 8 && \
+    make -j $(nproc) && \
     make altinstall && \
     curl https://bootstrap.pypa.io/get-pip.py | python3.12 - --no-cache-dir pip==24.2 numpy cython crossenv
 
@@ -173,7 +189,7 @@ RUN cd Python-3.12.9 && make distclean && \
         --prefix=/opt/python3.12_arm \
         ac_cv_file__dev_ptmx=no \
         ac_cv_file__dev_ptc=no && \
-    make -j 8 && make altinstall
+    make -j $(nproc) && make altinstall
 
 # Python 3.13
 # To cross-compile Python 3.13 we need to first compile it for the host
@@ -182,7 +198,7 @@ RUN wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz
 RUN tar -xf Python-3.13.2.tar.xz && \
     cd Python-3.13.2 && \
     LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
-    make -j 8 && \
+    make -j $(nproc) && \
     make altinstall && \
     curl https://bootstrap.pypa.io/get-pip.py | python3.13 - --no-cache-dir pip==24.2
 
@@ -197,7 +213,7 @@ RUN cd Python-3.13.2 && make distclean && \
         --prefix=/opt/python3.13_arm \
         ac_cv_file__dev_ptmx=no \
         ac_cv_file__dev_ptc=no && \
-    make -j 8 && make altinstall
+    make -j $(nproc) && make altinstall
 
 #
 ## Python 3.10
@@ -206,7 +222,7 @@ RUN cd Python-3.13.2 && make distclean && \
 #RUN tar -xf Python-3.10.16.tar.xz && \
 #    cd Python-3.10.16 && \
 #    ./configure --enable-optimizations && \
-#    make -j 8 && \
+#    make -j $(nproc) && \
 #    make altinstall && \
 #    cd .. && rm -rf Python-3.10.16.tar.xz Python-3.10.16
 #
@@ -216,7 +232,7 @@ RUN cd Python-3.13.2 && make distclean && \
 #RUN tar -xf Python-3.11.9.tar.xz && \
 #    cd Python-3.11.9 && \
 #    ./configure --enable-optimizations && \
-#    make -j 8 && \
+#    make -j $(nproc) && \
 #    make altinstall && \
 #    cd .. && rm -rf Python-3.11.9.tar.xz Python-3.11.9
 #
@@ -226,7 +242,7 @@ RUN cd Python-3.13.2 && make distclean && \
 #RUN tar -xf Python-3.12.9.tar.xz && \
 #    cd Python-3.12.9 && \
 #    ./configure --enable-optimizations && \
-#    make -j 8 && \
+#    make -j $(nproc) && \
 #    make altinstall && \
 #    cd .. && rm -rf Python-3.12.9.tar.xz Python-3.12.9
 #
@@ -236,7 +252,7 @@ RUN cd Python-3.13.2 && make distclean && \
 #RUN tar -xf Python-3.13.2.tar.xz && \
 #    cd Python-3.13.2 && \
 #    ./configure --enable-optimizations && \
-#    make -j 8 && \
+#    make -j $(nproc) && \
 #    make altinstall && \
 #    cd .. && rm -rf Python-3.13.2.tar.xz Python-3.13.2
 
