@@ -201,10 +201,19 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
         if (params.outputs.size() > 1) {
             jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_SCORES_OUTPUT", 1));
         }
-    } else if (params.inputs.size() <= 4) {
-        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(params.conf.head_size))));
-        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(params.conf.head_size))));
+    } else {
+        size_t scale_idx = params.conf.has_const_attn_mask_val ? 3 : 4;
+        if (params.inputs.size() > scale_idx) {
+            jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", 1));
+        } else if (params.conf.has_const_scale_val) {
+            jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", params.conf.scale_val));
+            jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", 1.0f / params.conf.scale_val));
+        } else {
+            jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(params.conf.head_size))));
+            jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(params.conf.head_size))));
+        }
     }
+
 
     if (params.conf.is_paged_attention)
         jit.AddConstant(MakeJitConstant("IS_PAGED_ATTENTION", 1));
