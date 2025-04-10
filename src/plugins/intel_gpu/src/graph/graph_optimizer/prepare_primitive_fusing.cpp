@@ -186,16 +186,23 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
             if (!node->get_dependency(0).is_type<fully_connected>())
                 continue;
             auto swiglu_prim = node->get_kernel_impl_params()->typed_desc<swiglu>();
-            auto& fc_node = node->get_dependency(0);
+            auto& fc_node = node->get_dependency(0).as<fully_connected>();
             if (node->get_dependencies().size() > 1)
                 continue;
-            if (!node->get_dependency(0).get_fused_primitives().empty())
+            if (!fc_node.get_fused_primitives().empty())
                 continue;
             auto in_dt = fc_node.get_input_layout(0).data_type;
             if (in_dt != data_types::f16)
                 continue;
             auto wt_dt = fc_node.get_input_layout(1).data_type;
             if (!data_type_traits::is_i4_u4(wt_dt))
+                continue;
+            // TODO: For grouped decompression scale, 2FCs+SwiGLU fusion is disabled due to accuracy issue
+            bool has_scale = !fc_node.get_primitive()->decompression_scale.empty();
+            size_t offset = fc_node.get_primitive()->bias.empty() ? 2 : 3;
+            if (has_scale &&
+                fc_node.get_input_layout(offset).is_static() &&
+                fc_node.get_input_layout(offset).feature() == 1)
                 continue;
             if (swiglu_prim->glu_type != ov::op::internal::GLU::GluType::Swish ||
                !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(0).get_partial_shape().size()) - 1))
