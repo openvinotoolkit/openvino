@@ -84,7 +84,7 @@ public:
                 throw std::runtime_error("Error in counter data");
             }
 
-            cpuLoad[i] = displayValue.doubleValue;
+            cpuLoad[i] = displayValue.doubleValue * 100.0;
         }
         std::map<std::string, double> cpusUtilization;
         if (cpuLoad.size() == 1) {

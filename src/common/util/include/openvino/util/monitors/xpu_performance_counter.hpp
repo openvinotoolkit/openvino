@@ -15,10 +15,10 @@
 namespace ov {
 namespace util {
 namespace monitor {
-class GpuPerformanceCounter : public PerformanceCounter {
+class XpuPerformanceCounter : public PerformanceCounter {
 public:
-    GpuPerformanceCounter(const std::string& luid);
-    virtual ~GpuPerformanceCounter() = default;
+    XpuPerformanceCounter(const std::string& luid);
+    virtual ~XpuPerformanceCounter() = default;
     std::map<std::string, double> get_utilization() override;
 
 private:

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/monitors/gpu_performance_counter.hpp"
+#include "openvino/util/monitors/xpu_performance_counter.hpp"
 
 #include <algorithm>
 #include <iomanip>
@@ -33,7 +33,7 @@
 namespace ov {
 namespace util {
 namespace monitor {
-class GpuPerformanceCounter::PerformanceCounterImpl {
+class XpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl(const std::string& deviceLuid) {
         luid = deviceLuid;
@@ -141,7 +141,7 @@ public:
                     utilization += displayValue.doubleValue;
                 }
             }
-            utilizationMap[luid] = utilization;
+            utilizationMap[luid] = utilization * 100.0;
         }
         return utilizationMap;
     }
@@ -165,7 +165,7 @@ private:
 namespace ov {
 namespace util {
 namespace monitor {
-class GpuPerformanceCounter::PerformanceCounterImpl {
+class XpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl(const std::string& deviceLuid) {}
 
@@ -180,7 +180,7 @@ namespace ov {
 namespace util {
 namespace monitor {
 // not implemented
-class GpuPerformanceCounter::PerformanceCounterImpl {
+class XpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl(const std::string& deviceLuid) {}
     std::map<std::string, double> get_utilization() {
@@ -189,8 +189,8 @@ public:
     }
 };
 #endif
-GpuPerformanceCounter::GpuPerformanceCounter(const std::string& luid) : PerformanceCounter("GPU"), deviceLuid(luid) {}
-std::map<std::string, double> GpuPerformanceCounter::get_utilization() {
+XpuPerformanceCounter::XpuPerformanceCounter(const std::string& luid) : PerformanceCounter("XPU"), deviceLuid(luid) {}
+std::map<std::string, double> XpuPerformanceCounter::get_utilization() {
     if (!performance_counter)
         performance_counter = std::make_shared<PerformanceCounterImpl>(deviceLuid);
     return performance_counter->get_utilization();
