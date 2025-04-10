@@ -27,8 +27,19 @@ struct expert_mask_mem_scratch {
     memory::ptr topk;
     size_t max_size = 0;
 };
+
+struct expert_mask_tmp_scratch {
+    memory::ptr x;
+    memory::ptr up;
+    memory::ptr gate;
+    memory::ptr y;
+    memory::ptr routing_weights;
+    size_t max_size = 0;
+};
+
 static constexpr const char* expert_mask_scratch_key = "expert_mask_scratch";
 static constexpr const char* expert_mask_mem_scratch_key = "expert_mask_scratch_mem";
+static constexpr const char* expert_mask_tmp_scratch_key = "expert_mask_scratch_tmp";
 
 template <>
 struct typed_program_node<moe_expert> : public typed_program_node_base<moe_expert> {
@@ -38,22 +49,21 @@ private:
 public:
     using parent::parent;
 
-    typed_program_node(std::shared_ptr<moe_expert> prim, program& prog)
-        : parent(prim, prog),
-          _branch(prim->_branch) {}
+    typed_program_node(std::shared_ptr<moe_expert> prim, program& prog) : parent(prim, prog), _mlp_params(prim->_mlp_params) {}
 
-    moe_expert::branch get_branch() const { return _branch; }
+    moe_expert::mlp_params get_mlp_params() const {
+        return _mlp_params;
+    }
 
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
-        params->inner_progs = { _branch.inner_program };
-        params->io_output_maps = { _branch.output_map };
+
         return params;
     }
 
 private:
-    moe_expert::branch& _branch;
+    moe_expert::mlp_params& _mlp_params;
 };
 
 using moe_expert_node = typed_program_node<moe_expert>;
@@ -74,8 +84,7 @@ public:
 
     memory::ptr pred_memory_ptr() const { return dep_memory_ptr(1); }
     const primitive_inst* pred_inst() const { return dependencies().at(1).first; }
-    network::ptr get_net() const { return _net; }
-    moe_expert::branch get_branch() const { return node->get_branch(); }
+    moe_expert::mlp_params get_mlp_params() const { return node->get_mlp_params(); }
     const MOEExpert::Config& get_config() const {
         return node->get_primitive()->_config;
     }
@@ -85,10 +94,10 @@ public:
                                  expert_mask_mem_scratch& expert_mask_mem);
 
     void update_output_layout();
-    void postprocess_output_memory(network::ptr executed_net, cldnn::moe_expert::branch& branch);
+    void postprocess_output_memory();
+    void get_tmp_memory(data_types type, int m, int hidden_size, int inter_size, int topk, expert_mask_tmp_scratch& scratch);
 
 private:
-    network::ptr _net;
 };
 
 using moe_expert_inst = typed_primitive_inst<moe_expert>;

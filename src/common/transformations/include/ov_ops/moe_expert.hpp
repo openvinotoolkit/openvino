@@ -41,6 +41,35 @@ private:
     Config m_config{};
 };
 
+class TRANSFORMATIONS_API MOEExpert2 : public ov::op::Op {
+public:
+    OPENVINO_OP("MOEExpert2", "ie_internal_opset", ov::op::util::SubGraphOp);
+
+    MOEExpert2() = default;
+
+    struct Config {
+        size_t topk = 0;
+        size_t expert_num = 0;
+        size_t hidden_size = 0;
+        size_t expert_no = 0;
+    };
+
+    MOEExpert2(const OutputVector& args, const Config& config, const std::shared_ptr<ov::Model>& body);
+
+    const Config& get_config() const;
+    void set_config(const Config& config);
+    const std::shared_ptr<ov::Model> get_body() const { return m_body; }
+    std::shared_ptr<ov::Model> get_body() { return m_body; }
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+private:
+    Config m_config{};
+    std::shared_ptr<ov::Model> m_body;
+};
+
 }  // namespace internal
 }  // namespace op
 }  // namespace ov

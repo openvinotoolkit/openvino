@@ -430,6 +430,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
+        manager.register_pass<ov::pass::FuseMoeExpertPlain>();
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
@@ -459,18 +460,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
-#if 1
-        // Move FuseMoeExpert2 ahead of CommonOptimizations to optimize compiling performance.
-        // manager.register_pass<ov::pass::PrintModel>(std::string("prior_FuseMoeExpert2_print"));
-        // manager.register_pass<ov::pass::Serialize>(std::string("prior_FuseMoeExpert2.xml"), std::string("prior_FuseMoeExpert2.bin"));
-        manager.register_pass<ov::pass::FuseMoeExpert2>();
         manager.register_pass<ov::pass::CommonOptimizations>();
-#else
-        manager.register_pass<ov::pass::CommonOptimizations>();
-        manager.register_pass<ov::pass::PrintModel>(std::string("prior_FuseMoeExpert2_post_print"));
-        manager.register_pass<ov::pass::Serialize>(std::string("prior_FuseMoeExpert2_post.xml"), std::string("prior_FuseMoeExpert2_post.bin"));
-        manager.register_pass<ov::pass::FuseMoeExpert2>();
-#endif
+        // manager.register_pass<ov::pass::MoeExpert2If>();
+        // manager.register_pass<ov::pass::FuseMoeExpert2>();
 
         ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
         kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();

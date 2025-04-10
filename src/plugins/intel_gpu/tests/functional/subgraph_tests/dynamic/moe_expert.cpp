@@ -4,6 +4,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 #include "openvino/opsets/opset1.hpp"
@@ -82,6 +83,7 @@ public:
         auto Convert_3988397 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight}, {{"destination_type", "f16"}});   //  tensor_array<f16[768,16,128]> Convert_3988397(self.model.model.layers.0.mlp.experts.2.gate_proj.weight)
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point = makeConst(element::u4, ov::Shape({768,16,1,}), genList(768 * 16, 1, 3));
         auto Convert_3988400 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point}, {{"destination_type", "f16"}});   //  tensor_array<f16[768,16,1]> Convert_3988400(self.model.model.layers.0.mlp.experts.2.gate_proj.weight/zero_point)
+        pass::disable_constant_folding(Convert_3988400);
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract = makeOP<opset1::Subtract>({Convert_3988397, Convert_3988400}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f16[768,16,128]> self.model.model.layers.0.mlp.experts.2.gate_proj.weight/zero_point/subtract(Convert_3988397, Convert_3988400)
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale = makeConst(element::f16, ov::Shape({768,16,1,}), {1e-4f});
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1 = makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract, self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f16[768,16,128]> self.model.model.layers.0.mlp.experts.2.gate_proj.weight/fq_weights_1(self.model.model.layers.0.mlp.experts.2.gate_proj.weight/zero_point/subtract, self.model.model.layers.0.mlp.experts.2.gate_proj.weight/scale)
@@ -135,10 +137,10 @@ public:
         std::tie(inType) = this->GetParam();
         rel_threshold = 1e-2f;
         if (inType == ElementType::f16) {
-            configuration.insert({"INFERENCE_PRECISION_HINT", "FP16"});
+            //configuration.insert({"INFERENCE_PRECISION_HINT", "FP16"});
             rel_threshold = 0.01f;
         } else {
-            configuration.insert({"INFERENCE_PRECISION_HINT", "FP32"});
+            //configuration.insert({"INFERENCE_PRECISION_HINT", "FP32"});
         }
 
         function = BuildMoeExpert(inType, true);
@@ -157,7 +159,7 @@ public:
     void generate(float idx, bool is_then) {
         inputs.clear();
         size_t batch = 1;
-        size_t seq_length = 21;
+        size_t seq_length = 210;
         size_t bs = batch * seq_length;
         auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == element::f32) {

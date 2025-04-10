@@ -13,6 +13,7 @@ namespace pass {
 class TRANSFORMATIONS_API MoeExpert2If;
 class TRANSFORMATIONS_API FuseMoeExpert;
 class TRANSFORMATIONS_API FuseMoeExpert2;
+class TRANSFORMATIONS_API FuseMoeExpertPlain;
 
 }  // namespace pass
 }  // namespace ov
@@ -33,4 +34,10 @@ class ov::pass::FuseMoeExpert2 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("FuseMoeExpert2");
     FuseMoeExpert2();
+};
+
+class ov::pass::FuseMoeExpertPlain : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("FuseMoeExpert3");
+    FuseMoeExpertPlain();
 };

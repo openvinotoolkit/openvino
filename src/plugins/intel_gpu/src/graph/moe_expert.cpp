@@ -160,6 +160,49 @@ void moe_expert_inst::copy_expert_mask_to_gpu(stream& stream,
     }
 }
 
+void moe_expert_inst::get_tmp_memory(data_types type, int m, int hidden_size, int inter_size, int topk, expert_mask_tmp_scratch& scratch) {
+    layout x_layout(ov::PartialShape{m, hidden_size}, type, cldnn::format::bfyx);
+    auto new_size = x_layout.bytes_count();
+    layout gate_layout(ov::PartialShape{m, inter_size}, type, cldnn::format::bfyx);
+    layout routing_layout(ov::PartialShape{m * topk}, type, cldnn::format::bfyx);
+
+    if (new_size > scratch.max_size) {
+        auto alloc_type = _network.get_engine().get_lockable_preferred_memory_allocation_type();
+        GPU_DEBUG_LOG << "=> allocate expert_mask to " << alloc_type << std::endl;
+        auto& pool = _network.get_memory_pool();
+        auto net_id = _network.get_id();
+
+        auto alloc_buf = [&](memory* curr_memory, layout& alloc_layout) {
+            if (_node->get_program().get_config().get_enable_memory_pool()) {
+                if (curr_memory != nullptr)
+                    pool.release_memory(curr_memory, _node->get_unique_id(), _node->id(), net_id);
+                return pool.get_memory(alloc_layout,
+                                       _node->id(),
+                                       _node->get_unique_id(),
+                                       net_id,
+                                       _runtime_memory_dependencies,
+                                       alloc_type,
+                                       false,
+                                       false,
+                                       _node->is_dynamic());
+            }
+            return pool.get_memory(alloc_layout, alloc_type, false);
+        };
+
+        scratch.x = alloc_buf(scratch.x.get(), x_layout);
+        scratch.y = alloc_buf(scratch.y.get(), x_layout);
+        scratch.up = alloc_buf(scratch.up.get(), gate_layout);
+        scratch.gate = alloc_buf(scratch.gate.get(), gate_layout);
+        scratch.routing_weights = alloc_buf(scratch.routing_weights.get(), routing_layout);
+        scratch.max_size = scratch.x->size();
+    }
+    scratch.x = _network.get_engine().reinterpret_buffer(*scratch.x, x_layout);
+    scratch.y = _network.get_engine().reinterpret_buffer(*scratch.y, x_layout);
+    scratch.up = _network.get_engine().reinterpret_buffer(*scratch.up, gate_layout);
+    scratch.gate = _network.get_engine().reinterpret_buffer(*scratch.gate, gate_layout);
+    scratch.routing_weights = _network.get_engine().reinterpret_buffer(*scratch.routing_weights, routing_layout);
+}
+
 template<typename ShapeType>
 std::vector<layout> moe_expert_inst::calc_output_layouts(moe_expert_node const& /* node */, kernel_impl_params const& impl_param) {
     return {impl_param.input_layouts[0]};
@@ -183,9 +226,7 @@ std::string moe_expert_inst::to_string(moe_expert_node const& node) {
 moe_expert primitive is reusing memory with the input.
 */
 moe_expert_inst::typed_primitive_inst(network& network, moe_expert_node const& node)
-    : parent(network, node),
-      _net(network::allocate_network(network.get_stream_ptr(), node.get_branch().inner_program)) {
-    this->set_inner_networks({_net});
+    : parent(network, node) {
 }
 
 void moe_expert_inst::update_output_layout() {
@@ -225,12 +266,11 @@ void moe_expert_inst::update_output_layout() {
     }
 }
 
-void moe_expert_inst::postprocess_output_memory(network::ptr executed_net, cldnn::moe_expert::branch& branch) {
+void moe_expert_inst::postprocess_output_memory() {
     _outputs.resize(outputs_memory_count());
     auto out_mem_idx = 0;
-    auto inner_out_id = executed_net->get_output_ids()[0];
 
-    auto mem_ptr = executed_net->get_output_memory(inner_out_id);
+    auto mem_ptr = input_memory_ptr(0);
     if (mem_ptr) {
         auto layout = _impl_params->get_output_layout(out_mem_idx);
         GPU_DEBUG_LOG << "Reshape output from " << mem_ptr->get_layout().to_short_string()

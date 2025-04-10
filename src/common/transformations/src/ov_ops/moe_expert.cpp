@@ -69,6 +69,47 @@ bool MOEExpert::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+MOEExpert2::MOEExpert2(const OutputVector& args, const Config& cfg, const std::shared_ptr<ov::Model>& body) : Op(args), m_config(cfg), m_body(body) {
+    constructor_validate_and_infer_types();
+}
+
+const MOEExpert2::Config& MOEExpert2::get_config() const {
+    return m_config;
+}
+
+void MOEExpert2::set_config(const Config& config) {
+    m_config = config;
+}
+
+std::shared_ptr<ov::Node> MOEExpert2::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(internal_MOEExpert2_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return std::make_shared<MOEExpert2>(new_args, m_config, m_body->clone());
+}
+
+void MOEExpert2::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(internal_MOEExpert2_validate_and_infer_types);
+    OPENVINO_ASSERT(get_input_size() == 4, "MOEExpert2 must have 4 inputs whereas it has ", get_input_size());
+    OPENVINO_ASSERT(get_output_size() == 1, "MOEExpert2 must have 1 output whereas it has ", get_output_size());
+
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+}
+
+bool MOEExpert2::visit_attributes(ov::AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(internal_MOEExpert2_visit_attributes);
+    visitor.start_structure("config");
+
+    visitor.on_attribute("topk", m_config.topk);
+    visitor.on_attribute("expert_num", m_config.expert_num);
+    visitor.on_attribute("hidden_size", m_config.hidden_size);
+    visitor.on_attribute("expert_no", m_config.expert_no);
+    visitor.finish_structure();
+
+    visitor.on_attribute("body", m_body);
+    return true;
+}
+
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
